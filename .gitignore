@@ -1,0 +1,27 @@
+# Rust
+backend/target/
+
+# Next.js
+frontend/node_modules/
+frontend/.next/
+
+# Android
+android/.gradle/
+android/build/
+android/local.properties
+
+# Unity
+unity/Library/
+unity/Temp/
+unity/Logs/
+unity/Builds/
+
+# AI Server
+ai-server/__pycache__/
+ai-server/venv/
+
+# Common
+.env
+.idea/
+.DS_Store
+*.log
