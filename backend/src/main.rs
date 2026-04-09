@@ -17,6 +17,7 @@ mod state;
 mod auth;
 mod route;
 mod openapi;
+pub mod wallet;
 
 use tower_http::trace::TraceLayer;
 
