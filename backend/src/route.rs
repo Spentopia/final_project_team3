@@ -19,26 +19,22 @@
 //   → 아직 로그인 안 한 유저가 쓰는 API
 //
 // 보호 라우트: JWT 필수 (Authorization: Bearer 토큰)
-//   → 가계부, 마이페이지, 마켓 등
+//   → 가계부, 마이페이지, 지갑 연동 등
 //   → 로그인한 유저만 쓸 수 있는 API
 //   → jwt_middleware가 앞단에서 토큰 검증하고,
-//     통과하면 핸들러에 user_id를 넘겨줌
+//     통과하면 핸들러에 user_id를 Extension으로 넘겨줌
 
-use axum::{Router, routing::{get, post},middleware};
+// delete 추가: unlink_wallet이 DELETE 메서드를 사용하므로 import 필요
+use axum::{Router, routing::{delete, get, post}, middleware};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::state::AppState;
 use crate::auth;
+// wallet 모듈 import: wallet::handler::link_wallet, unlink_wallet 접근용
+use crate::wallet;
 use crate::openapi::ApiDoc;
 
-// create_router: 모든 라우트를 조립해서 하나의 Router로 반환하는 함수
-// main.rs에서 이걸 호출해서 서버에 등록함
-//
-// 매개변수 state: AppState
-//   → 핸들러들이 config, http_client, nonce_store 등에 접근하려면
-//     Router에 state를 등록해야 함
-//   → 스프링부트에서 @Autowired로 Bean을 주입받는 것과 비슷한 개념
 pub fn create_router(state: AppState) -> Router {
     // ── 공개 라우트 ─────────────────────────────────────────
     // JWT 없이 누구나 접근 가능한 엔드포인트들
@@ -55,13 +51,11 @@ pub fn create_router(state: AppState) -> Router {
     // /auth/wallet/login
     //   → 지갑 로그인 2단계: 서명 검증 후 JWT 발급
     //   → JWT를 "발급받는" API니까 당연히 JWT 없이 접근해야 함
-
     let public_routes = Router::new()
         .route("/health", get(|| async { "ok" }))
         .route("/auth/wallet/nonce", post(auth::handler::request_nonce))
         .route("/auth/wallet/login", post(auth::handler::wallet_login))
         .route("/auth/test/login", post(auth::handler::test_email_login));
-
 
     // ── 보호 라우트 ─────────────────────────────────────────
     // JWT 필수. jwt_middleware를 통과해야 핸들러에 도달함.
@@ -70,16 +64,23 @@ pub fn create_router(state: AppState) -> Router {
     //   → 이 Router에 등록된 모든 라우트 앞에 jwt_middleware를 붙임
     //   → 스프링부트의 @PreAuthorize 또는 SecurityFilterChain과 비슷
     //
-    // from_fn_with_state(state.clone(), jwt_middleware)
-    //   → 미들웨어 안에서 AppState를 쓸 수 있게 state를 넘겨줌
-    //   → jwt_middleware가 state.jwks_cache, state.config 등에 접근해야 하니까
-    //   → .clone()인 이유: state를 공개 라우트에도 넘겨야 해서 소유권 공유
+    // /me
+    //   → 로그인된 유저 정보 조회 (JWT 검증 테스트용)
     //
-    // 여기에 가계부, 마이페이지, 마켓 등 인증 필요한 API를 추가하면 됨
-    // 추가하는 모든 라우트는 자동으로 JWT 검증을 탐
-
+    // /wallet/link (POST)
+    //   → 지갑 연동: 로그인된 유저의 계정에 Solana 지갑 주소 연결
+    //   → nonce + 서명 검증 후 DB 업데이트
+    //
+    // /wallet/unlink (DELETE)
+    //   → 지갑 해제: 연동된 지갑 주소를 NULL로 초기화
+    //   → 요청 body 없음. user_id만으로 처리
     let protected_routes = Router::new()
         .route("/me", get(auth::handler::get_me))
+        .route("/wallet/link", post(wallet::handler::link_wallet))
+        .route("/wallet/unlink", delete(wallet::handler::unlink_wallet))
+        // 위에 등록된 모든 라우트에 jwt_middleware 적용
+        // from_fn_with_state: 미들웨어 안에서 AppState를 쓸 수 있게 state 전달
+        // .clone(): state를 공개 라우트와 with_state()에도 넘겨야 해서 소유권 공유
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::middleware::jwt_middleware,
@@ -91,9 +92,11 @@ pub fn create_router(state: AppState) -> Router {
     // .merge(): 두 Router를 합치는 메서드
     //   → 같은 경로가 겹치면 먼저 등록된 게 우선
     //
+    // SwaggerUi: /swagger-ui 경로로 Swagger UI 페이지 제공
+    //   → /api-docs/openapi.json에서 OpenAPI 스펙을 읽어서 렌더링
+    //
     // .with_state(state): 모든 핸들러에서 State<AppState>로 꺼내 쓸 수 있게 등록
     //   → handler.rs에서 State(state): State<AppState> 하면 이게 들어감
-
     Router::new()
         .merge(public_routes)
         .merge(protected_routes)
