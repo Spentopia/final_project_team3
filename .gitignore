@@ -25,3 +25,5 @@ ai-server/venv/
 .idea/
 .DS_Store
 *.log
+
+
