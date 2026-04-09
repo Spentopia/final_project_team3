@@ -1,9 +1,17 @@
 # Rust
 backend/target/
 
-# Next.js
-frontend/node_modules/
-frontend/.next/
+# React
+frontend/build/
+frontend/dist/
+frontend/coverage/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Android
 android/.gradle/
@@ -13,8 +21,21 @@ android/local.properties
 # Unity
 unity/Library/
 unity/Temp/
-unity/Logs/
+unity/Obj/
+unity/Build/
 unity/Builds/
+unity/Logs/
+unity/UserSettings/
+unity/MemoryCaptures/
+unity/Recordings/
+unity/.vs/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.pidb
+*.pdb
+*.mdb
 
 # AI Server
 ai-server/__pycache__/
@@ -25,13 +46,11 @@ ai-server/venv/
 .idea/
 .DS_Store
 *.log
-
 .txt
 .claude
 
 # Anchor-smartcontract
 .anchor
-.DS_Store
 target
 **/*.rs.bk
 node_modules
