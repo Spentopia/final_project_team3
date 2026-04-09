@@ -27,3 +27,4 @@ ai-server/venv/
 *.log
 
 
+smartcontract/target/

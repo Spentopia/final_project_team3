@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-spentopia = "8eimfu4x1HSfT1t2ZxbvPyHVNBXfE7ZjftS7DcWyoJfk"
+spentopia = "3xQCCaYYUeiB2bn4fZmVDbFywsVhLvKVY3WMeUVornBY"
 
 [registry]
 url = "https://api.apr.dev"
