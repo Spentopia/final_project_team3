@@ -25,3 +25,17 @@ ai-server/venv/
 .idea/
 .DS_Store
 *.log
+
+.anchor
+.DS_Store
+target
+**/*.rs.bk
+node_modules
+test-ledger
+.yarn
+
+.env
+.txt
+*.txt
+.claude
+.claude.*
