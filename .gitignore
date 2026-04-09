@@ -37,3 +37,7 @@ target
 node_modules
 test-ledger
 .yarn
+
+# React
+frontend/build/
+frontend/.env.local
