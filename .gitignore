@@ -26,6 +26,10 @@ ai-server/venv/
 .DS_Store
 *.log
 
+.txt
+.claude
+
+# Anchor-smartcontract
 .anchor
 .DS_Store
 target
@@ -33,9 +37,3 @@ target
 node_modules
 test-ledger
 .yarn
-
-.env
-.txt
-*.txt
-.claude
-.claude.*
