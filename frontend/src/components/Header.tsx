@@ -9,6 +9,7 @@ import {
   SheetTrigger,
 } from "./ui/sheet";
 import { useTheme } from "next-themes";
+import { authStorage } from "../lib/auth";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -25,10 +26,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const { theme, setTheme } = useTheme();
 
   const handleLogout = () => {
-    localStorage.removeItem("spentopia_auth");
-    sessionStorage.removeItem("spentopia_auth");
-    window.location.replace("/login");
-  };
+  authStorage.clear();
+  window.location.replace("/login");
+};
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-white/50 dark:border-gray-700/50 bg-white/60 dark:bg-gray-900/60 px-6 backdrop-blur-xl">

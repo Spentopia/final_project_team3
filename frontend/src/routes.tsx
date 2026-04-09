@@ -1,4 +1,6 @@
 import { createBrowserRouter } from "react-router";
+import ProtectedRoute from "./routes/ProtectedRoute";
+
 import Root from "./components/Root";
 import Login from "./components/auth/Login";
 import Signup from "./components/auth/Signup";
@@ -15,7 +17,11 @@ import NotFound from "./components/NotFound";
 export const router = createBrowserRouter([
   {
     path: "/",
-    Component: Root,
+    Component: () => (
+      <ProtectedRoute>
+        <Root />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, Component: Dashboard },
       { path: "budget", Component: Budget },
