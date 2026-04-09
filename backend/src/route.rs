@@ -59,7 +59,8 @@ pub fn create_router(state: AppState) -> Router {
     let public_routes = Router::new()
         .route("/health", get(|| async { "ok" }))
         .route("/auth/wallet/nonce", post(auth::handler::request_nonce))
-        .route("/auth/wallet/login", post(auth::handler::wallet_login));
+        .route("/auth/wallet/login", post(auth::handler::wallet_login))
+        .route("/auth/test/login", post(auth::handler::test_email_login));
 
 
     // ── 보호 라우트 ─────────────────────────────────────────
@@ -78,9 +79,7 @@ pub fn create_router(state: AppState) -> Router {
     // 추가하는 모든 라우트는 자동으로 JWT 검증을 탐
 
     let protected_routes = Router::new()
-        // 아직 보호 API가 없으므로 임시 엔드포인트
-        // 나중에 가계부, 마이페이지 등 추가하면 이 줄은 삭제해도 됨
-        .route("/me", get(|| async { "authenticated" }))
+        .route("/me", get(auth::handler::get_me))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::middleware::jwt_middleware,
@@ -98,6 +97,9 @@ pub fn create_router(state: AppState) -> Router {
     Router::new()
         .merge(public_routes)
         .merge(protected_routes)
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/api-docs/openapi.json", ApiDoc::openapi())
+        )
         .with_state(state)
 }

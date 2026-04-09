@@ -146,3 +146,75 @@ pub async fn wallet_login(
 
     Ok(Json(response))
 }
+
+/// 내 인증 상태 확인
+///
+/// JWT가 유효한지 테스트하는 용도입니다. 토큰이 유효하면 user_id를 반환합니다.
+#[utoipa::path(
+    get,
+    path = "/me",
+    tag = "인증 테스트",
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "인증 성공"),
+        (status = 401, description = "토큰 없음 또는 유효하지 않음")
+    )
+)]
+pub async fn get_me(
+    axum::Extension(user_id): axum::Extension<uuid::Uuid>,
+) -> String {
+    format!("authenticated: user_id={}", user_id)
+}
+
+/// [테스트용] 이메일 로그인
+///
+/// Supabase Auth API를 대신 호출해서 토큰을 반환합니다.
+#[utoipa::path(
+    post,
+    path = "/auth/test/login",
+    tag = "테스트",
+    request_body = EmailLoginRequest,
+    responses(
+        (status = 200, description = "로그인 성공"),
+        (status = 401, description = "이메일 또는 비밀번호 틀림")
+    )
+)]
+pub async fn test_email_login(
+    State(state): State<AppState>,
+    Json(body): Json<super::dto::EmailLoginRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+
+    let url = format!(
+        "{}/auth/v1/token?grant_type=password",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let resp = state.http_client
+        .post(&url)
+        .header("apikey", &state.config.supabase_publishable_key)
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "email": body.email,
+            "password": body.password
+        }))
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!("Supabase 로그인 요청 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+        })?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        tracing::warn!("로그인 실패: {}", err);
+        return Err((StatusCode::UNAUTHORIZED, err));
+    }
+
+    let data: serde_json::Value = resp.json().await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(data))
+}
+

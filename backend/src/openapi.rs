@@ -11,22 +11,29 @@
 // 이러면 Swagger UI에 자동으로 나타남.
 
 use utoipa::OpenApi;
+use utoipa::openapi::security::{SecurityScheme, HttpBuilder, HttpAuthScheme};
 use crate::auth;
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
         // ── 지갑 로그인 ─────────────────────────────────
-        auth::handler::request_nonce,
-        auth::handler::wallet_login,
+        crate::auth::handler::request_nonce,
+        crate::auth::handler::wallet_login,
+
+        // ── 인증 테스트 ─────────────────────────────────
+        crate::auth::handler::get_me,
+
+        // ── 테스트용 이메일 로그인 ──────────────────────
+        crate::auth::handler::test_email_login,
 
         // TODO: 가계부
-        // ledger::handler::list,
-        // ledger::handler::create,
+        // crate::ledger::handler::list,
+        // crate::ledger::handler::create,
 
         // TODO: 소비내역
-        // expense::handler::list,
-        // expense::handler::create,
+        // crate::expense::handler::list,
+        // crate::expense::handler::create,
     ),
     components(
         schemas(
@@ -35,12 +42,37 @@ use crate::auth;
             auth::dto::NonceResponse,
             auth::dto::WalletLoginRequest,
             auth::dto::LoginResponse,
+
+            // ── 테스트용 DTO ─────────────────────────────
+            auth::dto::EmailLoginRequest,
         )
     ),
     tags(
         (name = "지갑 로그인", description = "Solana 지갑 기반 로그인 API"),
-        // (name = "가계부", description = "가계부 CRUD API"),
-        // (name = "소비내역", description = "소비내역 기록/조회 API"),
-    )
+        (name = "인증 테스트", description = "JWT 인증 테스트용 API"),
+        (name = "테스트", description = "개발/테스트 전용 API"),
+    ),
+    modifiers(&SecurityAddon)
 )]
 pub struct ApiDoc;
+
+// ── Swagger UI Authorize 버튼 설정 ──────────────────────────
+// 이걸 등록하면 Swagger UI 상단에 Authorize 버튼이 생김.
+// 거기에 토큰 넣으면 이후 모든 요청에 자동으로
+// Authorization: Bearer 토큰 헤더가 붙음.
+struct SecurityAddon;
+
+impl utoipa::Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        let components = openapi.components.get_or_insert_with(Default::default);
+        components.add_security_scheme(
+            "bearer_auth",
+            SecurityScheme::Http(
+                HttpBuilder::new()
+                    .scheme(HttpAuthScheme::Bearer)
+                    .bearer_format("JWT")
+                    .build()
+            ),
+        );
+    }
+}
