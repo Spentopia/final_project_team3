@@ -54,4 +54,16 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.compose.material:material-icons-extended")
+
+    // Supabase BOM (버전 통일 관리)
+    implementation(platform("io.github.jan-tennert.supabase:bom:3.5.0"))
+
+   // 필요한 모듈
+    implementation("io.github.jan-tennert.supabase:auth-kt")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+
+   // Ktor 엔진 (Android용)
+    implementation("io.ktor:ktor-client-android:3.1.1")
 }
