@@ -69,7 +69,7 @@ unity/.vs/
 *.mdb
 
 # AI Server
-ai-server/__pycache__/
+__pycache__/
 ai-server/venv/
 
 # Common
