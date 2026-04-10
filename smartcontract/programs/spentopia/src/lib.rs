@@ -11,7 +11,7 @@ use instructions::*;
 
 // 이 프로그램의 온체인 Program ID.
 // 배포된 프로그램 주소와 반드시 일치해야 한다.
-declare_id!("3xQCCaYYUeiB2bn4fZmVDbFywsVhLvKVY3WMeUVornBY");
+declare_id!("9s5Z96GSLVgVsnj5NAZ1HoxPvaF8Re8B1LeSmcBKQv61");
 
 #[program]
 pub mod spentopia {
