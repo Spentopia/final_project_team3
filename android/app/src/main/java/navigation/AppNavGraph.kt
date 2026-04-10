@@ -4,10 +4,16 @@ import androidx.compose.runtime.Composable // Compose UI 함수임을 나타내�
 import androidx.navigation.compose.NavHost // 여러 화면의 이동 흐름을 관리하는 네비게이션 컨테이너
 import androidx.navigation.compose.composable // 각 화면(목적지)을 네비게이션 그래프에 등록할 때 사용
 import androidx.navigation.compose.rememberNavController // 화면 이동을 제어하는 NavController를 생성하고 기억함
+import com.ict.spentopia.feature.analysis.AnalysisScreen // 소비 분석 화면 컴포저블 가져오기
 import com.ict.spentopia.feature.auth.LoginScreen // 로그인 화면 컴포저블 가져오기
+import com.ict.spentopia.feature.avatar.AvatarScreen // 내 아바타 화면 컴포저블 가져오기
+import com.ict.spentopia.feature.budget.BudgetScreen // 예산 설정 화면 컴포저블 가져오기
+import com.ict.spentopia.feature.community.CommunityScreen // 커뮤니티 화면 컴포저블 가져오기
 import com.ict.spentopia.feature.home.HomeScreen // 홈 화면 컴포저블 가져오기
 import com.ict.spentopia.feature.ledger.LedgerScreen // 가계부 화면 컴포저블 가져오기
+import com.ict.spentopia.feature.market.MarketScreen // NFT 마켓 화면 컴포저블 가져오기
 import com.ict.spentopia.feature.mypage.MyPageScreen // 마이페이지 화면 컴포저블 가져오기
+import com.ict.spentopia.feature.plaza.PlazaScreen // 광장 화면 컴포저블 가져오기
 import com.ict.spentopia.feature.signup.SignUpStep1Screen // 회원가입 1단계 화면 컴포저블 가져오기
 import com.ict.spentopia.feature.signup.SignUpStep2Screen // 회원가입 2단계 화면 컴포저블 가져오기
 import com.ict.spentopia.feature.signup.SignUpStep3Screen // 회원가입 3단계 화면 컴포저블 가져오기
@@ -68,12 +74,30 @@ fun AppNavGraph() { // 앱 전체의 화면 이동 경로를 정의하는 함수
         }
 
         composable(route = Route.Home.route) { // 홈 화면 경로를 등록
-            HomeScreen( // 홈 화면 표시
+            HomeScreen(
                 onLedgerClick = { // 가계부 이동 버튼 클릭 시 실행
                     navController.navigate(Route.Ledger.route) // 가계부 화면으로 이동
                 },
                 onMyPageClick = { // 마이페이지 이동 버튼 클릭 시 실행
                     navController.navigate(Route.MyPage.route) // 마이페이지 화면으로 이동
+                },
+                onBudgetClick = { // 예산 설정 이동 버튼 클릭 시 실행
+                    navController.navigate(Route.Budget.route) // 예산 설정 화면으로 이동
+                },
+                onAnalysisClick = { // 소비 분석 이동 버튼 클릭 시 실행
+                    navController.navigate(Route.Analysis.route) // 소비 분석 화면으로 이동
+                },
+                onAvatarClick = { // 내 아바타 이동 버튼 클릭 시 실행
+                    navController.navigate(Route.Avatar.route) // 내 아바타 화면으로 이동
+                },
+                onMarketClick = { // NFT 마켓 이동 버튼 클릭 시 실행
+                    navController.navigate(Route.Market.route) // NFT 마켓 화면으로 이동
+                },
+                onPlazaClick = { // 광장 이동 버튼 클릭 시 실행
+                    navController.navigate(Route.Plaza.route) // 광장 화면으로 이동
+                },
+                onCommunityClick = { // 커뮤니티 이동 버튼 클릭 시 실행
+                    navController.navigate(Route.Community.route) // 커뮤니티 화면으로 이동
                 }
             )
         }
@@ -85,20 +109,29 @@ fun AppNavGraph() { // 앱 전체의 화면 이동 경로를 정의하는 함수
         composable(route = Route.MyPage.route) { // 마이페이지 화면 경로를 등록
             MyPageScreen() // 마이페이지 화면 표시
         }
+
+        composable(route = Route.Budget.route) { // 예산 설정 화면 경로를 등록
+            BudgetScreen() // 예산 설정 화면 표시
+        }
+
+        composable(route = Route.Analysis.route) { // 소비 분석 화면 경로를 등록
+            AnalysisScreen() // 소비 분석 화면 표시
+        }
+
+        composable(route = Route.Avatar.route) { // 내 아바타 화면 경로를 등록
+            AvatarScreen() // 내 아바타 화면 표시
+        }
+
+        composable(route = Route.Market.route) { // NFT 마켓 화면 경로를 등록
+            MarketScreen() // NFT 마켓 화면 표시
+        }
+
+        composable(route = Route.Plaza.route) { // 광장 화면 경로를 등록
+            PlazaScreen() // 광장 화면 표시
+        }
+
+        composable(route = Route.Community.route) { // 커뮤니티 화면 경로를 등록
+            CommunityScreen() // 커뮤니티 화면 표시
+        }
     }
-}
-
-@Composable // Compose UI 함수라는 뜻
-fun SignUpStep3Screen(onFinishClick: () -> Unit, onBackClick: () -> Boolean) { // 회원가입 3단계 화면 함수를 임시로 선언
-    TODO("Not yet implemented") // 아직 구현되지 않았기 때문에 실행하면 예외가 발생함
-}
-
-@Composable // Compose UI 함수라는 뜻
-fun SignUpStep2Screen(onNextClick: () -> Unit, onBackClick: () -> Boolean) { // 회원가입 2단계 화면 함수를 임시로 선언
-    TODO("Not yet implemented") // 아직 구현되지 않았기 때문에 실행하면 예외가 발생함
-}
-
-@Composable // Compose UI 함수라는 뜻
-fun SignUpStep1Screen(onNextClick: () -> Unit, onBackClick: () -> Boolean) { // 회원가입 1단계 화면 함수를 임시로 선언
-    TODO("Not yet implemented") // 아직 구현되지 않았기 때문에 실행하면 예외가 발생함
 }

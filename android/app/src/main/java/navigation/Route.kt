@@ -8,4 +8,11 @@ sealed class Route(val route: String) {
     data object Home : Route("home")
     data object Ledger : Route("ledger")
     data object MyPage : Route("mypage")
+
+    data object Budget : Route("budget")
+    data object Analysis : Route("analysis")
+    data object Avatar : Route("avatar")
+    data object Market : Route("market")
+    data object Plaza : Route("plaza")
+    data object Community : Route("community")
 }
