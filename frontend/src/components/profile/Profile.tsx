@@ -6,14 +6,13 @@ import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Badge } from "../ui/badge";
+import { WalletSection } from "./WalletSection";
 import {
   User,
   Mail,
   Phone,
   Lock,
   Bell,
-  Wallet,
-  Link as LinkIcon,
   Edit,
   Save,
   Camera,
@@ -42,8 +41,6 @@ export default function Profile() {
     google: true,
   });
 
-  const [walletConnected] = useState(false);
-
   const handleSave = () => {
     setIsEditing(false);
     toast.success("프로필이 저장되었습니다");
@@ -52,10 +49,6 @@ export default function Profile() {
   const handleNotificationToggle = (key: keyof typeof notifications) => {
     setNotifications({ ...notifications, [key]: !notifications[key] });
     toast.success("알림 설정이 변경되었습니다");
-  };
-
-  const handleDisconnectWallet = () => {
-    toast.success("지갑 연결이 해제되었습니다");
   };
 
   return (
@@ -370,57 +363,7 @@ export default function Profile() {
 
           {/* Wallet Tab */}
           <TabsContent value="wallet">
-            <Card className="border-none bg-white/80 dark:bg-gray-800/80 p-6 backdrop-blur-xl">
-              <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">지갑 관리</h3>
-              {walletConnected ? (
-                <div className="space-y-4">
-                  <div className="rounded-lg border-2 border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-900/20 p-4">
-                    <div className="mb-3 flex items-center gap-2 text-green-700 dark:text-green-400">
-                      <Wallet className="h-5 w-5" />
-                      <span className="font-bold">지갑 연결됨</span>
-                    </div>
-                    <p className="mb-2 font-mono text-sm text-gray-700 dark:text-gray-300">
-                      0x1234...5678
-                    </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      1계정 1지갑 정책으로 하나의 지갑만 연결 가능합니다
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={handleDisconnectWallet}
-                    variant="outline"
-                    className="w-full border-red-300 text-red-600 hover:bg-red-50"
-                  >
-                    지갑 연결 해제
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 p-8 text-center">
-                    <Wallet className="mx-auto mb-3 h-12 w-12 text-gray-400 dark:text-gray-500" />
-                    <p className="mb-2 font-bold text-gray-900 dark:text-gray-100">지갑이 연결되지 않았어요</p>
-                    <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                      지갑을 연결하면 NFT 거래와 블록체인 기능을 이용할 수 있어요
-                    </p>
-                    <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
-                      <LinkIcon className="mr-2 h-4 w-4" />
-                      지갑 연결하기
-                    </Button>
-                  </div>
-
-                  <Card className="bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-900/30 dark:to-blue-900/30 p-4">
-                    <h4 className="mb-2 font-bold text-gray-900 dark:text-gray-100">💡 지갑 연결 혜택</h4>
-                    <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
-                      <li>• NFT로 아바타 아이템 발행</li>
-                      <li>• 마켓에서 자유롭게 거래</li>
-                      <li>• 블록체인 기반 소유권 증명</li>
-                      <li>• 지갑으로 간편 로그인</li>
-                    </ul>
-                  </Card>
-                </div>
-              )}
-            </Card>
+            <WalletSection isLoggedIn isProfileComplete={false} />
           </TabsContent>
         </Tabs>
       </div>

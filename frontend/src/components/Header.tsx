@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Bell, Menu, Wallet, X, Moon, Sun, LogOut } from "lucide-react";
+import { Bell, Menu, Moon, Sun, LogOut } from "lucide-react";
+import { ConnectWalletButton } from "./wallet/ConnectWalletButton";
 import { Button } from "./ui/button";
 import {
   Sheet,
@@ -22,7 +23,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
     { id: 3, text: "7일 연속 기록 달성! 보상이 지급됐어요", time: "2시간 전" },
   ]);
 
-  const [walletConnected] = useState(false);
   const { theme, setTheme } = useTheme();
 
   const handleLogout = () => {
@@ -125,17 +125,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </Sheet>
 
         {/* 지갑 */}
-        {walletConnected ? (
-          <Button className="hidden sm:flex">
-            <Wallet className="mr-2 h-4 w-4" />
-            연결됨
-          </Button>
-        ) : (
-          <Button variant="outline" className="hidden sm:flex">
-            <Wallet className="mr-2 h-4 w-4" />
-            지갑 연결
-          </Button>
-        )}
+        <ConnectWalletButton className="hidden sm:flex" />
 
         {/* 🔥 게임 시작 */}
         <Button className="bg-gradient-to-r from-emerald-500 to-teal-600">
