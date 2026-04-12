@@ -62,7 +62,7 @@ pub struct ListingAccount{
 
 impl ListingAccount{
     /// 8 + 32 + 32 + 8 + 1 + 1
-    pub const LEN: usize = 8 + 32 + 32 + 8 + 8 + 1;
+    pub const LEN: usize = 8 + 32 + 32 + 8 + 1 + 1;
 }
 
 
