@@ -145,31 +145,102 @@ export const signInWithGoogle = async () => {
 
 };
 
-// ── 카카오 소셜 로그인 ──────────────────────────────────────
-// 구글과 동일한 흐름. 카카오 OAuth 페이지로 리다이렉트.
-// 주의: 카카오는 이메일을 안 줄 수도 있음 (카카오 개발자센터 설정에 따라)
-// → 유저 식별은 이메일이 아닌 auth.users.id(JWT sub)로 함
-export const signInWithKakao = async () => {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "kakao",
-    options: {
-      redirectTo: window.location.origin,
-    },
+
+// ── 카카오 로그인 (자체 구현) ────────────────────────────────
+// Supabase OAuth를 안 쓰고 직접 카카오 OAuth를 처리하는 이유:
+// Supabase의 카카오 provider가 account_email 스코프를 자동으로 요청하는데
+// 비즈앱이 아니면 account_email 권한이 없어서 에러가 남.
+// 그래서 프론트에서 직접 카카오 인가 URL을 만들어서
+// profile_nickname, profile_image만 요청하는 방식으로 우회.
+//
+// 전체 흐름:
+// 1) redirectToKakao() → 카카오 로그인 페이지로 이동
+// 2) 유저가 카카오에서 로그인 완료
+// 3) 카카오가 redirect_uri(?code=xxx)로 인가 코드를 보내줌
+// 4) KakaoCallbackPage에서 loginWithKakaoCode(code) 호출
+// 5) 백엔드가 인가 코드 → 카카오 token 교환 → 유저 정보 조회 → JWT 발급
+// 6) 프론트가 JWT 저장 → 메인 또는 프로필 완성 페이지로 이동
+
+// [1단계] 카카오 인가 페이지로 리다이렉트
+// 이 함수가 호출되면 현재 페이지를 떠나서 카카오 로그인 페이지로 이동함
+// 유저가 로그인하면 카카오가 redirect_uri로 인가 코드를 붙여서 돌려보냄
+export const redirectToKakao = () => {
+
+  // .env에서 카카오 REST API 키와 콜백 URL을 가져옴
+  // REST API Key는 공개 키라서 프론트에 노출돼도 안전함
+  // (Client Secret과는 다름 — Secret은 백엔드에서만 사용)
+  const clientId = import.meta.env.VITE_KAKAO_REST_API_KEY;
+  const redirectUri = import.meta.env.VITE_KAKAO_REDIRECT_URI;
+
+  // 카카오 OAuth 인가 요청 URL
+  // 유저가 카카오 로그인 페이지에서 로그인하면
+  // redirectUri로 인가 코드(code)를 보내줌
+  const kakaoAuthUrl =
+    `https://kauth.kakao.com/oauth/authorize` +
+    `?client_id=${clientId}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+    `&response_type=code` +
+    `&scope=profile_nickname,profile_image`;
+
+  //카카오 로그인 페이지로 이동
+  window.location.href = kakaoAuthUrl;
+};
+
+// [2단계] 카카오 인가 코드를 백엔드로 전송
+// KakaoCallbackPage에서 호출됨
+// 카카오가 콜백 URL에 ?code=xxx 형태로 인가 코드를 보내주면
+// 이 코드를 백엔드 /auth/kakao/login으로 POST 전송
+//
+// 백엔드가 하는 일:
+// 1) 인가 코드 → 카카오 토큰 서버에서 access_token 교환
+// 2) access_token → 카카오 유저 정보 API(/v2/user/me) 호출
+// 3) 카카오 유저 ID로 Supabase에서 유저 찾거나 새로 생성
+// 4) Supabase Admin API로 JWT 발급해서 반환
+export const loginWithKakaocode = async (code: string) => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+  const res = await fetch('${BACKEND_URL}/auth/kakao/login', {
+    method: "POST",
+    headers: {"Content-Type" : "application/json"},
+    body: JSON.stringify({code}),
   });
 
-  if (error) throw new Error(error.message);
-};
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || "카카오 로그인 실패");
+  }
+
+  return await res.json();
+
+}
+
+
 
 // ── 비밀번호 찾기 (재설정 이메일 발송) ──────────────────────
 // Supabase가 비밀번호 재설정 링크를 이메일로 보내줌
-// 흐름: 이메일 입력 → Supabase가 메일 발송 → 유저가 링크 클릭
+// 흐름: 이메일 입력 → 백엔드에서 해당 이메일이 DB에 있는지 먼저 확인->
+//  있으면 Supabase가 재설정 링크 이메일 발송 → 유저가 링크 클릭
 // → redirectTo URL(/reset-password)로 이동 → 새 비밀번호 입력
 //
 // Supabase가 링크에 세션 정보를 포함시키기 때문에
 // /reset-password 페이지에서 updateUser()로 바로 비밀번호 변경 가능
 export const resetPassword = async (email: string) => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+  //백엔드에서 이메일 존재 여부 확인
+  const checkRes = await fetch('${BACKEND_URL}/auth/check-email', {
+    method: "POST",
+    headers: {"Content-Type" : "application/json"},
+    body: JSON.stringify({email}),
+  });
+
+  if (!checkRes.ok) {
+    throw new Error("해당 이메일로 가입된 계정이 없습니다");
+  }
+
+  // DB에 있으면 재설정 이메일 발송
   const {error} = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: '${window.location.origin}/reset-password',
+    redirectTo: `${window.location.origin}/reset-password`,
   });
 
   if (error) throw new Error(error.message);

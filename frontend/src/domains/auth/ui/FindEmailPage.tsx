@@ -1,12 +1,17 @@
 // domains/auth/ui/FindEmailPage.tsx
 // ─────────────────────────────────────────────────────────────
 // 이메일 찾기 페이지
-// 전화번호 입력 → 백엔드 API(/auth/find-email) 호출
-// → 마스킹된 이메일 반환 (예: te***@gmail.com)
+//
+// 이메일을 까먹은 유저가 전화번호를 입력하면
+// 백엔드가 public.users에서 해당 전화번호로 이메일을 찾아서
+// 마스킹 처리해서 반환 (예: te***@gmail.com)
 //
 // 왜 백엔드를 거치나?
-// RLS 때문에 프론트에서 다른 유저의 이메일을 직접 조회할 수 없음
-// 백엔드가 service_role로 조회 → 마스킹해서 안전하게 반환
+// 이메일 찾기는 로그인 전 상태에서 호출됨.
+// 로그인 안 되어있으면 Supabase RLS가 auth.uid()를 모르므로
+// 프론트에서 public.users 조회해도 아무 결과가 안 나옴.
+// 백엔드는 service_role 키로 RLS를 우회할 수 있어서
+// 전화번호로 조회 → 이메일을 마스킹해서 안전하게 반환.
 
 import { useState } from "react";
 import { Link } from "react-router";
@@ -20,16 +25,20 @@ import { Sparkles } from "lucide-react";
 export default function FindEmailPage() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
-  const [maskedEmail, setMaskedEmail] = useState<string | null>(null); // 결과
+  // 조회 결과 — null이면 아직 조회 안 함, 값이 있으면 결과 표시
+  const [maskedEmail, setMaskedEmail] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // 백엔드 /auth/find-email로 전화번호 전송
+      // 백엔드가 public.users에서 조회 → 마스킹된 이메일 반환
       const result = await findEmailByPhone(phone);
       setMaskedEmail(result); // "te***@gmail.com"
     } catch (error: any) {
+      // "해당 전화번호로 등록된 계정이 없습니다" 등
       alert(error.message || "이메일 찾기 실패");
     } finally {
       setLoading(false);
@@ -49,7 +58,8 @@ export default function FindEmailPage() {
             </h1>
           </div>
 
-          {/* 결과가 있으면 마스킹된 이메일 표시, 없으면 입력 폼 */}
+          {/* 결과가 있으면 마스킹된 이메일 표시 + 로그인/비번찾기 버튼 */}
+          {/* 결과가 없으면 전화번호 입력 폼 */}
           {maskedEmail ? (
             <div className="text-center space-y-4">
               <p className="text-gray-600 dark:text-gray-400">

@@ -1,11 +1,19 @@
 // domains/auth/ui/ResetPasswordPage.tsx
 // ─────────────────────────────────────────────────────────────
 // 새 비밀번호 설정 페이지
-// Supabase 비밀번호 재설정 이메일의 링크를 클릭하면 여기로 옴
 //
-// Supabase가 링크에 세션 토큰을 포함시키기 때문에
-// 이 페이지에 도착했을 때 이미 임시 세션이 활성화되어 있음
-// → updateUser()로 별도 인증 없이 바로 비밀번호 변경 가능
+// 이 페이지에 도착하는 경로:
+// 1) 유저가 ForgotPasswordPage에서 이메일 입력
+// 2) Supabase가 비밀번호 재설정 링크를 이메일로 발송
+// 3) 유저가 이메일의 링크를 클릭
+// 4) Supabase가 링크에 세션 토큰을 포함시킨 채로 이 페이지로 리다이렉트
+//
+// 이 페이지에 도착했을 때:
+// - Supabase SDK가 URL의 세션 토큰을 자동으로 읽어서 임시 세션 활성화
+// - 별도 인증 없이 updateUser()로 바로 비밀번호 변경 가능
+//
+// ⚠️ 이 URL은 Supabase 대시보드 → Authentication → URL Configuration
+//    → Redirect URLs에 등록되어 있어야 함
 
 import { useState } from "react";
 import { useNavigate } from "react-router";
@@ -33,6 +41,8 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     try {
+      // Supabase updateUser()로 비밀번호 변경
+      // 이미 임시 세션이 활성화되어 있어서 별도 인증 불필요
       await updatePassword(password);
       alert("비밀번호가 변경되었습니다!");
       navigate("/login"); // 변경 완료 → 로그인 페이지로
