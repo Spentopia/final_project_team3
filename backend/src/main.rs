@@ -18,6 +18,7 @@ mod auth;
 mod route;
 mod openapi;
 pub mod wallet;
+pub mod avatar;
 
 use tower_http::trace::TraceLayer;
 

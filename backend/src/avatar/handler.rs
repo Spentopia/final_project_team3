@@ -19,7 +19,8 @@ use axum::{
     response::IntoResponse,
     Extension, Json,
 };
-use hyper::StatusCode;
+use axum::http::StatusCode;
+
 use uuid::Uuid;
 
 use crate::state::AppState;
@@ -39,7 +40,7 @@ use super::{
 /// # 에러
 /// service에서 anyhow::Error가 반환되면 500 Internal Server Error로 응답한다.
 pub async fn mint_nft(
-    State(state): state<AppState>,  // 공유 앱 상태(http_client, config 등)
+    State(state): State<AppState>,  // 공유 앱 상태(http_client, config 등)
     Extension(user_id): Extension<Uuid>, // JWT 미들웨어가 삽입한 인증된 유저 UUID
     Json(req): Json<MintNftRequest>,// 요청 바디: { user_item_id, nft_mint_address }
 )->impl IntoResponse{
@@ -86,7 +87,7 @@ pub async fn get_user_items(
     State(state): State<AppState>,      // 공유 앱 상태
     Extension(user_id): Extension<Uuid>,// JWT 인증된 유저 UUID
 )->impl IntoResponse{
-    match service::get_user_items(&state, user_id).awiat{
+    match service::get_user_items(&state, user_id).await{
         Ok(items) => (StatusCode::OK, Json(items)).into_response(),
         Err(e) =>(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
