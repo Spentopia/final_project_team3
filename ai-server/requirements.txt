@@ -3,4 +3,5 @@ uvicorn
 streamlit
 openai
 python-dotenv
+matplotlib
 requests

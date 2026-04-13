@@ -6,34 +6,6 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
-// ── NFT 민팅 요청/응답 ───────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct MintNftRequest {
-    pub user_item_id: Uuid,
-    pub nft_mint_address: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct MintNftResponse {
-    pub message: String,
-    pub nft_mint_address: String,
-}
-
-// ── NFT 전송 요청/응답 ───────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct TransferNftRequest {
-    pub avatar_id: Uuid,
-    pub nft_mint_address: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct TransferNftResponse {
-    pub message: String,
-    pub nft_mint_address: String,
-}
-
 // ── 아바타 응답 ───────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

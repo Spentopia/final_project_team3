@@ -1,3 +1,16 @@
+// domains/auth/ui/SignupPage.tsx
+// ─────────────────────────────────────────────────────────────
+// 회원가입 페이지 (3단계)
+//
+// Step 1: 이메일 + 비밀번호 입력 → Supabase auth.users에 가입
+//   → handle_new_user() 트리거가 public.users + user_settings + streaks 자동 생성
+//
+// Step 2: 닉네임 + 전화번호 입력 (프로필 이미지는 선택)
+//
+// Step 3: 아바타 선택 → completeProfile() 호출
+//   → public.users에 nickname, phone UPDATE
+//   → handle_profile_completed() 트리거가 profile_completed = true
+
 import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { authStorage } from "@/shared/lib/auth";
@@ -6,9 +19,9 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
-import type { FormEvent } from "react";
 import { Sparkles, Upload } from "lucide-react";
 
+// 아바타 선택지 (나중에 DB에서 가져오는 것으로 변경 가능)
 const avatarOptions = [
   { id: 1, name: "해피", emoji: "😊" },
   { id: 2, name: "쿨가이", emoji: "😎" },
@@ -20,24 +33,25 @@ const avatarOptions = [
 
 export default function Signup() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(1);      // 현재 단계 (1~3)
+  const [loading, setLoading] = useState(false); // 요청 중 버튼 비활성화
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     confirmPassword: "",
     phone: "",
     nickname: "",
-    avatar: 1,
+    avatar: 1,  // 기본 선택 아바타 ID
   });
 
-  const handleNext = async (e: FormEvent<HTMLFormElement>) => {
+  // 각 Step의 "다음" 또는 "가입 완료" 버튼 클릭 시 호출
+  const handleNext = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // ── Step 1 → 2: 이메일/비밀번호로 Supabase 회원가입 ──────
-    // auth.users에 row 생성 → handle_new_user 트리거가
-    // public.users + user_settings + streaks 자동 생성
+    // ── Step 1 → 2: Supabase 회원가입 ───────────────────────
+    // auth.users에 row 생성 → handle_new_user 트리거 실행
     if (step === 1) {
+      // 비밀번호 확인 체크
       if (formData.password !== formData.confirmPassword) {
         alert("비밀번호가 일치하지 않습니다");
         return;
@@ -50,8 +64,8 @@ export default function Signup() {
           password: formData.password,
         });
 
+        // 이메일 인증이 필요한 경우 (Supabase 대시보드 설정에 따라)
         if (!result.accessToken) {
-          // 이메일 인증이 필요한 경우
           alert("이메일을 확인해주세요!");
           navigate("/login");
           return;
@@ -69,15 +83,15 @@ export default function Signup() {
       return;
     }
 
-    // ── Step 2 → 3 ───────────────────────────────────────────
+    // ── Step 2 → 3: 다음 단계로만 이동 ─────────────────────
     if (step === 2) {
       setStep(3);
       return;
     }
 
-    // ── Step 3: 프로필 완성 ──────────────────────────────────
+    // ── Step 3: 프로필 완성 + 가입 완료 ─────────────────────
     // public.users에 nickname, phone UPDATE
-    // → handle_profile_completed 트리거가 profile_completed = true
+    // → handle_profile_completed 트리거 → profile_completed = true
     setLoading(true);
     try {
       await completeProfile({
@@ -86,6 +100,7 @@ export default function Signup() {
         avatar: formData.avatar,
       });
 
+      // 가입 완료 → 메인 페이지로
       navigate("/");
     } catch (error: any) {
       alert(error.message || "프로필 저장 실패");
@@ -94,12 +109,14 @@ export default function Signup() {
     }
   };
 
+  // 이전 단계로 돌아가기
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
     }
   };
 
+  // formData의 특정 필드 업데이트 (입력값 변경 시)
   const updateFormData = (field: string, value: string | number) => {
     setFormData({ ...formData, [field]: value });
   };
@@ -119,7 +136,7 @@ export default function Signup() {
             </p>
           </div>
 
-          {/* Progress Bar */}
+          {/* 진행 바 — 현재 단계까지 색칠 */}
           <div className="mb-6 flex gap-2">
             {[1, 2, 3].map((s) => (
               <div
@@ -132,7 +149,7 @@ export default function Signup() {
           </div>
 
           <form onSubmit={handleNext} className="space-y-4">
-            {/* Step 1: 이메일/비밀번호 (Supabase auth.users 생성) */}
+            {/* Step 1: 이메일/비밀번호 (auth.users 생성) */}
             {step === 1 && (
               <>
                 <div>
@@ -177,7 +194,7 @@ export default function Signup() {
               </>
             )}
 
-            {/* Step 2: 닉네임/전화번호 (public.users UPDATE) */}
+            {/* Step 2: 닉네임/전화번호 (public.users UPDATE용 데이터 수집) */}
             {step === 2 && (
               <>
                 <div>
@@ -248,6 +265,7 @@ export default function Signup() {
                   </div>
                 </div>
 
+                {/* 가입 축하 안내 */}
                 <div className="rounded-lg border border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/30 p-4">
                   <p className="mb-2 font-bold text-purple-900 dark:text-purple-100">🎁 가입 축하 선물!</p>
                   <p className="text-sm text-purple-700 dark:text-purple-300">
@@ -257,7 +275,7 @@ export default function Signup() {
               </>
             )}
 
-            {/* Buttons */}
+            {/* 이전/다음 버튼 */}
             <div className="flex gap-3 pt-4">
               {step > 1 && (
                 <Button type="button" variant="outline" onClick={handleBack} className="flex-1">
@@ -269,12 +287,12 @@ export default function Signup() {
                 disabled={loading}
                 className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
               >
-                {loading ? "처리 중..." : step === 3 ? "가입 완료" : step === 1 ? "다음" : "다음"}
+                {loading ? "처리 중..." : step === 3 ? "가입 완료" : "다음"}
               </Button>
             </div>
           </form>
 
-          {/* Login Link */}
+          {/* 로그인 링크 */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               이미 계정이 있으신가요?{" "}

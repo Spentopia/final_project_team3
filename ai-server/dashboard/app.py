@@ -1,55 +1,46 @@
 import streamlit as st
-from api_client import analyze_spending, get_history, chat_ai
-from charts import category_chart
+import matplotlib.pyplot as plt
+from api_client import analyze_spending
 
-st.title("💸 AI 소비 분석 플랫폼")
+st.set_page_config(page_title="AI 소비 분석", layout="centered")
 
-# -------------------------------
-# 소비 입력
-# -------------------------------
-st.subheader("📥 소비 입력")
+st.title("💰 AI 소비 패턴 분석")
 
-user_input = st.text_input("예: 스타벅스 5000원")
+user_input = st.text_area(
+    "소비 내역 입력",
+    placeholder="예: 스타벅스 5000원, 택시 12000원"
+)
 
 if st.button("분석하기"):
 
-    result = analyze_spending(user_input)
+    if not user_input.strip():
+        st.warning("소비 데이터를 입력해주세요")
+    else:
+        with st.spinner("AI 분석 중..."):
+            result = analyze_spending(user_input)
 
-    st.subheader("📊 분석 결과")
-    st.metric("소비 점수", result["score"])
-    st.write("카테고리:", result["category"])
-    st.write("패턴:", result["pattern"])
-    st.write("위험도:", result["risk"])
-    st.success("💡 조언: " + result["advice"])
+        st.success("분석 완료")
 
+        st.subheader("📊 소비 점수")
+        st.metric("점수", f"{result['score']} / 100")
 
-# -------------------------------
-# 소비 기록 + 그래프
-# -------------------------------
-st.subheader("📂 소비 기록")
+        st.subheader("📌 분석 요약")
+        st.write("패턴:", result["pattern"])
+        st.write("위험도:", result["risk_level"])
+        st.write("월 예상 지출:", result["monthly_estimate"])
+        st.write("절약 가능 금액:", result["saving_possible"])
 
-if st.button("기록 불러오기"):
+        st.subheader("📈 소비 카테고리")
 
-    history = get_history()
+        if result["category_amount"]:
+            labels = list(result["category_amount"].keys())
+            sizes = list(result["category_amount"].values())
 
-    for item in history:
-        st.write(item)
+            fig, ax = plt.subplots()
+            ax.pie(sizes, labels=labels, autopct="%1.1f%%")
+            st.pyplot(fig)
+        else:
+            st.info("데이터 없음")
 
-    fig = category_chart(history)
-
-    if fig:
-        st.pyplot(fig)
-
-
-# -------------------------------
-# AI 챗봇
-# -------------------------------
-st.subheader("🤖 AI 소비 상담")
-
-chat_input = st.text_input("질문 입력 (예: 요즘 소비 줄이는 방법 알려줘)")
-
-if st.button("질문하기"):
-
-    res = chat_ai(chat_input)
-
-    st.info(res["response"])
+        st.subheader("🧠 AI 리포트")
+        st.info(result["report"])
