@@ -39,5 +39,3 @@ export function SolanaWalletProvider({children}: PropsWithChildren) {
     )
 
 }
-
-export default SolanaWalletProvider;
