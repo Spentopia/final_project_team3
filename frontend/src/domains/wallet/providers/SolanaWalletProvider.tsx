@@ -4,6 +4,7 @@
 import {PropsWithChildren, useMemo} from "react";
 import {getSolanaEndpoint} from "@/domains/wallet/lib/solana";
 import {PhantomWalletAdapter, SolflareWalletAdapter} from "@solana/wallet-adapter-wallets";
+import {BackpackWalletAdapter} from "@solana/wallet-adapter-backpack";
 import {ConnectionProvider, WalletProvider} from "@solana/wallet-adapter-react";
 import {WalletModalProvider} from "@solana/wallet-adapter-react-ui";
 import "@solana/wallet-adapter-react-ui/styles.css";
@@ -19,6 +20,7 @@ export function SolanaWalletProvider({children}: PropsWithChildren) {
         () => [
             new PhantomWalletAdapter(),
             new SolflareWalletAdapter(),
+            new BackpackWalletAdapter(),
         ],
         [],
     );
@@ -37,5 +39,3 @@ export function SolanaWalletProvider({children}: PropsWithChildren) {
     )
 
 }
-
-export default SolanaWalletProvider;

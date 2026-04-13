@@ -24,10 +24,14 @@ pub fn init_platform_handler(ctx: Context<InitPlatform>, fee_rate: u16) -> Resul
 
     // bump: PDA 서명이 필요한 CPI에서 seeds + bump 조합으로 활용.
     // ctx.bumps는 Anchor가 #[derive(Accounts)] 검증 시 자동으로 채워준다.
+    // spt_token_mint PDA와 spt_token_authority PDA의 bump를 저장.
+    // 이후 CPI 서명 시 find_program_address 재탐색 없이 바로 사용하기 위함.
     config.bump = ctx.bumps.platform_config;
+    config.spt_mint_bump = ctx.bumps.spt_token_mint;
+    config.spt_authority_bump = ctx.bumps.spt_token_authority;
 
     msg!(
-        "플랫폼 초기화 완료 | admin: {} | ree_rate: {} bps",
+        "플랫폼 초기화 완료 | admin: {} | fee_rate: {} bps",
         config.admin,
         config.fee_rate
     );
