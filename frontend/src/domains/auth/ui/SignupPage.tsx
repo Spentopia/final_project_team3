@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { authStorage } from "@/shared/lib/auth";
+import { signUp, completeProfile } from "@/domains/auth/api/auth";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
+import type { FormEvent } from "react";
 import { Sparkles, Upload } from "lucide-react";
-import { ImageWithFallback } from "@/shared/ui/media/ImageWithFallback";
 
 const avatarOptions = [
   { id: 1, name: "해피", emoji: "😊" },
@@ -20,6 +21,7 @@ const avatarOptions = [
 export default function Signup() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -29,14 +31,66 @@ export default function Signup() {
     avatar: 1,
   });
 
-  const handleNext = (e: React.FormEvent) => {
+  const handleNext = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (step < 3) {
-      setStep(step + 1);
-    } else {
-      authStorage.setToken("mock_token");
-      localStorage.setItem("spentopia_auth", "mock_token");
+
+    // ── Step 1 → 2: 이메일/비밀번호로 Supabase 회원가입 ──────
+    // auth.users에 row 생성 → handle_new_user 트리거가
+    // public.users + user_settings + streaks 자동 생성
+    if (step === 1) {
+      if (formData.password !== formData.confirmPassword) {
+        alert("비밀번호가 일치하지 않습니다");
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const result = await signUp({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (!result.accessToken) {
+          // 이메일 인증이 필요한 경우
+          alert("이메일을 확인해주세요!");
+          navigate("/login");
+          return;
+        }
+
+        // 토큰 저장 후 다음 스텝으로
+        authStorage.setToken(result.accessToken);
+        localStorage.setItem("spentopia_auth", result.accessToken);
+        setStep(2);
+      } catch (error: any) {
+        alert(error.message || "회원가입 실패");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // ── Step 2 → 3 ───────────────────────────────────────────
+    if (step === 2) {
+      setStep(3);
+      return;
+    }
+
+    // ── Step 3: 프로필 완성 ──────────────────────────────────
+    // public.users에 nickname, phone UPDATE
+    // → handle_profile_completed 트리거가 profile_completed = true
+    setLoading(true);
+    try {
+      await completeProfile({
+        nickname: formData.nickname,
+        phone: formData.phone,
+        avatar: formData.avatar,
+      });
+
       navigate("/");
+    } catch (error: any) {
+      alert(error.message || "프로필 저장 실패");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -78,7 +132,7 @@ export default function Signup() {
           </div>
 
           <form onSubmit={handleNext} className="space-y-4">
-            {/* Step 1: Account Info */}
+            {/* Step 1: 이메일/비밀번호 (Supabase auth.users 생성) */}
             {step === 1 && (
               <>
                 <div>
@@ -123,7 +177,7 @@ export default function Signup() {
               </>
             )}
 
-            {/* Step 2: Personal Info */}
+            {/* Step 2: 닉네임/전화번호 (public.users UPDATE) */}
             {step === 2 && (
               <>
                 <div>
@@ -167,7 +221,7 @@ export default function Signup() {
               </>
             )}
 
-            {/* Step 3: Avatar Selection */}
+            {/* Step 3: 아바타 선택 */}
             {step === 3 && (
               <>
                 <div>
@@ -212,9 +266,10 @@ export default function Signup() {
               )}
               <Button
                 type="submit"
+                disabled={loading}
                 className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
               >
-                {step === 3 ? "가입 완료" : "다음"}
+                {loading ? "처리 중..." : step === 3 ? "가입 완료" : step === 1 ? "다음" : "다음"}
               </Button>
             </div>
           </form>
