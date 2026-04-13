@@ -1,27 +1,23 @@
-import json
-from app.clients.openai_client import analyze_with_ai
-
+from app.clients.openai_client import OpenAIClient
+from app.services.storage_service import StorageService
+from datetime import datetime
 
 class AnalyzeService:
 
     @staticmethod
     def analyze(spending: str):
 
-        try:
-            ai_result = analyze_with_ai(spending)
+        result = OpenAIClient.analyze(spending)
 
-            # 🔥 문자열 → JSON 변환
-            result = json.loads(ai_result)
+        # 저장 (여기만 나중에 Supabase로 교체됨)
+        StorageService.save({
+            "spending": spending,
+            "score": result.get("score", 0),
+            "category": result.get("category", ""),
+            "pattern": result.get("pattern", ""),
+            "risk": result.get("risk", ""),
+            "advice": result.get("advice", ""),
+            "date": datetime.now().strftime("%Y-%m-%d")
+        })
 
-            return result
-
-        except Exception as e:
-            return {
-                "score": 0,
-                "pattern": "분석 실패",
-                "risk_level": "오류",
-                "category_amount": {},
-                "monthly_estimate": "0원",
-                "saving_possible": "0원",
-                "report": f"에러 발생: {str(e)}"
-            }
+        return result
