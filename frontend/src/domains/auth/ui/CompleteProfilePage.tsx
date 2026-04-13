@@ -86,7 +86,7 @@ export default function CompleteProfilePage() {
             </div>
             <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">프로필 완성</h1>
             <p className="text-center text-gray-600 dark:text-gray-400">
-              마지막 단계예요! Step {step} / 2
+              거의 다 왔어요! Step {step} / 2
             </p>
           </div>
 
@@ -109,7 +109,7 @@ export default function CompleteProfilePage() {
                   <Input
                     id="nickname"
                     type="text"
-                    placeholder="멋진 닉네임을 입력해주세요"
+                    placeholder="닉네임을 입력해주세요"
                     value={formData.nickname}
                     onChange={(e) => updateFormData("nickname", e.target.value)}
                     required

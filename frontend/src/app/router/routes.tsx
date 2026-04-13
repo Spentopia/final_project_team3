@@ -12,6 +12,7 @@ import MarketplacePage from "@/domains/marketplace/pages/MarketplacePage";
 import ProfilePage from "@/domains/profile/ui/ProfilePage";
 import CommunityPage from "@/domains/community/pages/CommunityPage";
 import PlazaPage from "@/domains/plaza/pages/PlazaPage";
+import CompleteProfilePage from "@/domains/auth/ui/CompleteProfilePage";
 
 export const router = createBrowserRouter([
   {
@@ -40,5 +41,10 @@ export const router = createBrowserRouter([
   {
     path: "/signup",
     Component: SignupPage,
+  },
+  {
+    // 소셜 로그인 후 프로필 미완성 시 여기로 리다이렉트
+    path: "/complete-profile",
+    Component: CompleteProfilePage,
   },
 ]);
