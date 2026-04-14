@@ -13,6 +13,10 @@ import ProfilePage from "@/domains/profile/ui/ProfilePage";
 import CommunityPage from "@/domains/community/pages/CommunityPage";
 import PlazaPage from "@/domains/plaza/pages/PlazaPage";
 import CompleteProfilePage from "@/domains/auth/ui/CompleteProfilePage";
+import ForgotPasswordPage from "@/domains/auth/ui/ForgotPasswordPage";
+import FindEmailPage from "@/domains/auth/ui/FindEmailPage";
+import ResetPasswordPage from "@/domains/auth/ui/ResetPasswordPage";
+import KakaoCallbackPage from "@/domains/auth/ui/KakaoCallbackPage";
 
 export const router = createBrowserRouter([
   {
@@ -46,5 +50,22 @@ export const router = createBrowserRouter([
     // 소셜 로그인 후 프로필 미완성 시 여기로 리다이렉트
     path: "/complete-profile",
     Component: CompleteProfilePage,
+  },
+  {
+    path: "/forgot-password",
+    Component: ForgotPasswordPage,
+  },
+  {
+    path: "/find-email",
+    Component: FindEmailPage,
+  },
+  {
+    path: "/reset-password",
+    Component: ResetPasswordPage,
+  },
+  {
+  // 카카오 로그인 후 인가 코드를 받는 콜백 페이지
+    path: "/auth/kakao/callback",
+    Component: KakaoCallbackPage,
   },
 ]);

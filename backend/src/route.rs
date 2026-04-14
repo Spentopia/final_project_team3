@@ -55,7 +55,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/health", get(|| async { "ok" }))
         .route("/auth/wallet/nonce", post(auth::handler::request_nonce))
         .route("/auth/wallet/login", post(auth::handler::wallet_login))
-        .route("/auth/test/login", post(auth::handler::test_email_login));
+        .route("/auth/test/login", post(auth::handler::test_email_login))
+        .route("/auth/find-email", post(auth::handler::find_email))
+        .route("/auth/check-email", post(auth::handler::check_email))
+        .route("/auth/kakao/login", post(auth::handler::kakao_login));
 
     // ── 보호 라우트 ─────────────────────────────────────────
     // JWT 필수. jwt_middleware를 통과해야 핸들러에 도달함.

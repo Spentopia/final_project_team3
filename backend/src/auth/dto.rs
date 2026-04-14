@@ -74,3 +74,23 @@ pub struct LoginResponse {
 
 }
 
+// ── 이메일 찾기 ───────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct FindEmailRequest {
+    pub phone: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct FindEmailResponse {
+    pub masked_email: String,
+}
+
+// ── 카카오 로그인 ─────────────────────────────────────────────
+
+// 카카오 인가 코드 요청 DTO
+// 프론트 콜백 페이지에서 카카오가 준 인가 코드를 백엔드로 보냄
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct KakaoLoginRequest {
+    pub code: String,
+}

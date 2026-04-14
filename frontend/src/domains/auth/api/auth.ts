@@ -199,7 +199,7 @@ export const redirectToKakao = () => {
 export const loginWithKakaocode = async (code: string) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-  const res = await fetch('${BACKEND_URL}/auth/kakao/login', {
+  const res = await fetch(`${BACKEND_URL}/auth/kakao/login`, {
     method: "POST",
     headers: {"Content-Type" : "application/json"},
     body: JSON.stringify({code}),
@@ -228,7 +228,7 @@ export const resetPassword = async (email: string) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   //백엔드에서 이메일 존재 여부 확인
-  const checkRes = await fetch('${BACKEND_URL}/auth/check-email', {
+  const checkRes = await fetch(`${BACKEND_URL}/auth/check-email`, {
     method: "POST",
     headers: {"Content-Type" : "application/json"},
     body: JSON.stringify({email}),
@@ -238,7 +238,14 @@ export const resetPassword = async (email: string) => {
     throw new Error("해당 이메일로 가입된 계정이 없습니다");
   }
 
-  // DB에 있으면 재설정 이메일 발송
+ // DB에 있으면 Supabase에 재설정 이메일 발송 요청
+  // redirectTo: 유저가 이메일 링크 클릭 시 이동할 URL
+  // Supabase가 이 URL에 세션 토큰을 포함시켜서 보내줌
+  // → /reset-password에 도착하면 이미 임시 세션이 활성화되어 있음
+  // → updateUser()로 바로 비밀번호 변경 가능
+  //
+  // ⚠️ 이 URL을 Supabase 대시보드 → Authentication → URL Configuration
+  //    → Redirect URLs에 등록해야 함. 안 하면 Supabase가 리다이렉트 차단
   const {error} = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${window.location.origin}/reset-password`,
   });
@@ -274,7 +281,7 @@ export const updatePassword = async (newPassword: string) => {
 export const findEmailByPhone = async (phone: string): Promise<string> => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-  const res = await fetch('${BACKEND_URL}/auth/find-email', {
+  const res = await fetch(`${BACKEND_URL}/auth/find-email`, {
     method: "POST",
     headers: {"Content-Type" : "application/json"},
     body: JSON.stringify({phone}),

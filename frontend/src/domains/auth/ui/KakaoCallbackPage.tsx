@@ -14,7 +14,7 @@
 // 유저에게는 "카카오 로그인 처리 중..." 메시지만 보이고
 // 자동으로 처리됨 (수동 조작 불필요)
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { loginWithKakaocode } from "@/domains/auth/api/auth";
 import { authStorage } from "@/shared/lib/auth";
@@ -26,23 +26,31 @@ export default function KakaoCallbackPage() {
     // 예: /auth/kakao/callback?code=abc123 → searchParams.get("code") = "abc123"
     const [searchParams] = useSearchParams();
     const [error, setError] = useState<string | null>(null);
-
+    const code = searchParams.get("code");
+    
     //페이지가 로드되면 자동으로 로그인 처리 시작
     useEffect(() => {
-        //URL에서 인가 코드 추출
-        const code = searchParams.get("code");
+    
 
-        //인가 코드가 없으면 에러 (카카오에서 로그인 취소했거나 URL 직접 접근)
-        if (!code) {
-            setError("카카오 인가 코드가 없습니다");
-            return;
-        }
+    if (!code) {
+      setError("카카오 인가 코드가 없습니다");
+      return;
+    }
 
-        //인가 코드가 있으면 백엔드로 전송해서 로그인 처리
-        handleKakaoLogin(code);
-    }, []);
+    const storageKey = `kakao_code_used:${code}`;
+    if (sessionStorage.getItem(storageKey)) {
+      return;
+    }
 
-    const handleKakaoLogin = async (code: string) => {
+    sessionStorage.setItem(storageKey, "true");
+    // URL에서 code 제거: 새로고침 시 재전송 방지
+    window.history.replaceState({}, "", "/auth/kakao/callback");
+
+    void handleKakaoLogin(code, storageKey);
+  }, [code]);
+
+
+    const handleKakaoLogin = async (code: string, storageKey: string) => {
         try {
             // 백엔드 /auth/kakao/login으로 인가 코드 전송
             // 백엔드가 하는 일:
@@ -57,15 +65,18 @@ export default function KakaoCallbackPage() {
             authStorage.setToken(data.access_token);
             localStorage.setItem("spentopia_auth", data.access_token);
 
+            sessionStorage.removeItem(storageKey);
+
             // 첫 가입이면 프로필 완성 페이지로 (닉네임/전화번호 입력)
             // 기존 유저면 메인 페이지로
-            if (data.is_new_user) {
-                navigate("/complete-profile");
-            } else {
-                navigate("/");
-            }
+           if (data.is_new_user) {
+            navigate("/complete-profile", { replace: true });
+          } else {
+            navigate("/", { replace: true });
+          }
         } catch (err:any) {
-            setError(err.message || "카카오 로그인 실패");
+            sessionStorage.removeItem(storageKey);
+          setError(err.message || "카카오 로그인 실패");
         }
     };
 

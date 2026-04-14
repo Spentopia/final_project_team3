@@ -19,6 +19,8 @@ mod route;
 mod openapi;
 pub mod wallet;
 
+use axum::http::{HeaderValue, Method};
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 #[tokio::main]
@@ -55,10 +57,23 @@ async fn main() {
 
     tracing::info!("서버 시작중...");
 
+    let cors = CorsLayer::new()
+        .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers(Any);
+
     // ── 4) 라우터 구성 ──────────────────────────────────────
     // route::create_router()가 공개/보호 라우트를 조립해서 Router를 반환함.
     // .layer(TraceLayer): 모든 라우트에 요청/응답 자동 로깅 적용
     let app = route::create_router(state)
+        .layer(cors)
         .layer(TraceLayer::new_for_http());
 
     //서버 실행

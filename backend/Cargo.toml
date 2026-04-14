@@ -30,4 +30,5 @@ ed25519-dalek = "2"
 bs58 = "0.5"
 dashmap = "5"
 rand = "0.8"
+urlencoding = "2.1.3"
 

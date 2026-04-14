@@ -5,7 +5,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
 import { Sparkles } from "lucide-react";
-import { login } from "@/domains/auth/api/auth";
+import { login, signInWithGoogle, redirectToKakao } from "@/domains/auth/api/auth";
 import { authStorage } from "@/shared/lib/auth";
 
 export default function Login() {
@@ -32,13 +32,18 @@ export default function Login() {
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
-    // 🔥 소셜도 동일하게 처리
-    authStorage.setToken("mock_token");
-    localStorage.setItem("spentopia_auth", "mock_token");
-
-    navigate("/");
-  };
+// handleSocialLogin 함수 수정
+const handleSocialLogin = async (provider: string) => {
+  try {
+    if (provider === "google") {
+      await signInWithGoogle();
+    } else if (provider === "kakao") {
+      redirectToKakao();  // 카카오는 자체 구현
+    }
+  } catch (error: any) {
+    alert(error.message || "소셜 로그인 실패");
+  }
+};
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-500 via-blue-500 to-teal-500 dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900 p-4">
@@ -107,13 +112,20 @@ export default function Login() {
               카카오로 계속하기
             </Button>
 
-            <Button type="button" variant="outline" className="w-full" onClick={() => handleSocialLogin("naver")}>
-              네이버로 계속하기
-            </Button>
-
             <Button type="button" variant="outline" className="w-full" onClick={() => handleSocialLogin("google")}>
               구글로 계속하기
             </Button>
+          </div>
+
+          {/* 이메일/비밀번호 찾기 */}
+          <div className="mt-4 flex justify-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+            <Link to="/find-email" className="hover:text-cyan-600 dark:hover:text-cyan-400">
+              이메일 찾기
+            </Link>
+            <span>|</span>
+            <Link to="/forgot-password" className="hover:text-cyan-600 dark:hover:text-cyan-400">
+              비밀번호 찾기
+            </Link>
           </div>
 
           {/* Sign Up */}
