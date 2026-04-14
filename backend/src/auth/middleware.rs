@@ -24,6 +24,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+use crate::auth::app_jwt::verify_app_access_token;
 use crate::state::AppState;
 
 // ── JWKS 캐시 구조체 ────────────────────────────────────────
@@ -160,8 +161,33 @@ pub async fn jwt_middleware(
             (StatusCode::UNAUTHORIZED, "Bearer 토큰 없음".to_string())
         })?;
 
+    // 1) 먼저 우리 자체 JWT 검증 시도
+    if let Ok(app_claims) = verify_app_access_token(&state.config.app_jwt_secret, token) {
+        let user_id = Uuid::parse_str(&app_claims.sub).map_err(|e| {
+            tracing::warn!("앱 JWT user_id 파싱 실패: sub={}, error={}", app_claims.sub, e);
+            (StatusCode::UNAUTHORIZED, "유저 ID 파싱 실패".to_string())
+        })?;
+
+        tracing::debug!("앱 JWT 검증 통과: user_id={}", user_id);
+
+        request.extensions_mut().insert(user_id);
+        return Ok(next.run(request).await);
+    }
+
+    // 2) 실패하면 Supabase JWT 검증 시도
+    let user_id = verify_supabase_jwt(&state, token).await?;
+    request.extensions_mut().insert(user_id);
+
+    Ok(next.run(request).await)
+}
+
     // ── 2) JWT 헤더에서 kid 추출 ─────────────────────────────
     // JWT header에 있는 kid(Key ID)로 JWKS에서 맞는 공개키를 찾음
+
+    async fn verify_supabase_jwt(
+        state: &AppState,
+        token: &str,
+    ) -> Result<Uuid, (StatusCode, String)> {
 
     let jwt_header = decode_header(token).map_err(|e| {
         tracing::warn!("JWT 헤더 디코딩 실패: {}", e);
@@ -261,9 +287,6 @@ pub async fn jwt_middleware(
             (StatusCode::UNAUTHORIZED, "유저 ID 파싱 실패".to_string())
         })?;
 
-    request.extensions_mut().insert(user_id);
-
-    tracing::debug!("JWT 검증 통과: user_id={}, kid={}", user_id, kid);
-
-    Ok(next.run(request).await)
+        tracing::debug!("Supabase JWT 검증 통과: user_id={}, kid={}", user_id, kid);
+        Ok(user_id)
 }

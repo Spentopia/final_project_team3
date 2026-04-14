@@ -19,6 +19,8 @@ pub struct Config {
 
     //Supabase jWT 검증에 필요한 공개키 목록 가져오는 URL
     pub jwks_url: String,
+
+    pub app_jwt_secret: String,
 }
 
 impl Config {
@@ -33,6 +35,8 @@ impl Config {
             .context("SUPABASE_SECRET_KEY 없음")?,
             jwks_url: std::env::var("JWKS_URL")
             .context("JWKS_URL 없음")?,
+            app_jwt_secret: std::env::var("APP_JWT_SECRET")
+                .context("APP_JWT_SECRET 없음")?,
         })
     }
 }

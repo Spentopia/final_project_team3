@@ -118,7 +118,7 @@ export const completeProfile = async (params: {
   .update({
     nickname: params.nickname,
     phone: params.phone,
-    profileImage: params.profileImage ?? null,
+    profile_image: params.profileImage ?? null,
   })
   .eq("id", user.id);
 

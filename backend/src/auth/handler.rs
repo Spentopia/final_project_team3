@@ -14,7 +14,7 @@ use axum::{
 use utoipa;
 use crate::state::AppState;
 use super::dto::{NonceRequest, NonceResponse, WalletLoginRequest, LoginResponse,
-FindEmailRequest, FindEmailResponse};
+FindEmailRequest, FindEmailResponse,EmailLoginRequest, KakaoLoginRequest};
 use super::service;
 
 // ═══════════════════════════════════════════════════════════════
@@ -164,9 +164,34 @@ pub async fn wallet_login(
     )
 )]
 pub async fn get_me(
+    State(state): State<AppState>,
     axum::Extension(user_id): axum::Extension<uuid::Uuid>,
-) -> String {
-    format!("authenticated: user_id={}", user_id)
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=id,email,profile_completed,login_provider",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let resp = state.http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_publishable_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!("/me 유저 조회 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "유저 조회 실패".to_string())
+        })?;
+
+    let users: Vec<serde_json::Value> = resp.json().await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let user = users.first()
+        .cloned()
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "유저 없음".to_string()))?;
+
+    Ok(Json(user))
 }
 
 /// [테스트용] 이메일 로그인

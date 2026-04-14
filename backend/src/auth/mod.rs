@@ -3,3 +3,4 @@ pub mod handler;
 pub mod service;
 pub mod dto;
 mod model;
+pub mod app_jwt;

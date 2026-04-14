@@ -19,7 +19,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Upload } from "lucide-react";
 
 const avatarOptions = [
   { id: 1, name: "해피", emoji: "😊" },
@@ -38,6 +38,7 @@ export default function CompleteProfilePage() {
     phone: "",
     nickname: "",
     avatar: 1,
+    profileImage: "", // 추가
   });
 
   const handleNext = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -129,6 +130,18 @@ export default function CompleteProfilePage() {
                     className="mt-1"
                   />
                 </div>
+
+                  <div>
+                    <Label htmlFor="profile">프로필 이미지 (선택)</Label>
+                    <div className="mt-2 flex items-center gap-4">
+                      <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed border-gray-300 bg-gray-50">
+                        <Upload className="h-6 w-6 text-gray-400" />
+                      </div>
+                      <Button type="button" variant="outline" size="sm">
+                        이미지 업로드
+                      </Button>
+                    </div>
+                  </div>
               </>
             )}
 

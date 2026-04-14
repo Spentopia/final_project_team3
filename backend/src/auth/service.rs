@@ -45,6 +45,8 @@ use super::dto::LoginResponse;
 
 use serde_json::{json, Value};
 
+use crate::auth::app_jwt::generate_app_tokens;
+
 // SupabaseTokenResponse
 // Supabase Admin API로 JWT를 발급하면 이 형태로 응답이 옴.
 // generate_supabase_token() 함수에서 JSON을 이 구조체로 파싱함.
@@ -69,6 +71,22 @@ struct UserRow {
     // uuid::Uuid 타입으로 받으면 String → UUID 변환을 자동으로 해줌
     id: uuid::Uuid,
 }
+
+fn generate_app_token_pair(
+    state: &AppState,
+    user_id: &str,
+) -> Result<SupabaseTokenResponse> {
+    let user_uuid = uuid::Uuid::parse_str(user_id)
+        .context("user_id UUID 파싱 실패")?;
+
+    let tokens = generate_app_tokens(&state.config.app_jwt_secret, &user_uuid)?;
+
+    Ok(SupabaseTokenResponse {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+    })
+}
+
 
 // generate_nonce - nonce 발급 (로그인 1단계)
 //
@@ -157,7 +175,7 @@ pub async fn verify_and_login(
     // 4) Supabase JWT 발급
     // 찾은 user_id로 Supabase Admin API를 호출해서 JWT를 직접 발급
     // 지갑 로그인은 Supabase의 기본 OAuth 플로우를 타지 않아서 서버가 Admin 권한으로 대신 발급해줘야 함
-    let tokens = generate_supabase_token(state, &user_id.to_string()).await?;
+    let tokens = generate_app_token_pair(state, &user_id.to_string())?;
 
     // 5) 응답 반환
     // 지갑 로그인은 기존 유저만 가능 (신규 유저는 일반 회원가입으로만 생성)
@@ -528,7 +546,7 @@ pub async fn kakao_login(
 
     tracing::info!("🔥 토큰 발급 시도 user_id={}", user_id);
     // 4. JWT 발급
-    let tokens = generate_supabase_token(state, &user_id).await?;
+    let tokens = generate_app_token_pair(state, &user_id)?;
 
     Ok(LoginResponse {
         access_token: tokens.access_token,
