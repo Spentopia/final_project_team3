@@ -13,7 +13,10 @@ use axum::{
 
 use utoipa;
 use crate::state::AppState;
-use super::dto::{NonceRequest, NonceResponse, WalletLoginRequest, LoginResponse};
+use super::dto::{NonceRequest, NonceResponse, WalletLoginRequest, LoginResponse,
+FindEmailRequest, FindEmailResponse,ExchangeTokenRequest,
+                 CheckEmailRequest, KakaoLoginRequest, CompleteProfileRequest,
+                 CompleteProfileResponse,};
 use super::service;
 
 // ═══════════════════════════════════════════════════════════════
@@ -147,74 +150,302 @@ pub async fn wallet_login(
     Ok(Json(response))
 }
 
-/// 내 인증 상태 확인
-///
-/// JWT가 유효한지 테스트하는 용도입니다. 토큰이 유효하면 user_id를 반환합니다.
+// ═══════════════════════════════════════════════════════════════
+// [이메일/구글] Supabase 토큰 -> 앱 JWT 교환
+// POST /auth/exchange
+// ═══════════════════════════════════════════════════════════════
+#[utoipa::path(
+    post,
+    path = "/auth/exchange",
+    tag = "인증",
+    request_body = ExchangeTokenRequest,
+    responses(
+        (status = 200, description = "토큰 교환 성공", body = LoginResponse),
+        (status = 400, description = "access_token 비어있음"),
+        (status = 401, description = "유효하지 않은 Supabase 토큰")
+    )
+)]
+pub async fn exchange_token(
+    State(state): State<AppState>,
+    Json(body): Json<ExchangeTokenRequest>,
+) -> Result<Json<LoginResponse>, (StatusCode, String)> {
+    if body.access_token.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "access_token이 비어있음".to_string()));
+    }
+
+    let response = service::exchange_supabase_token(&state, &body.access_token)
+        .await
+        .map_err(|e| {
+            tracing::error!("토큰 교환 실패: {}", e);
+            (StatusCode::UNAUTHORIZED, e.to_string())
+        })?;
+
+    Ok(Json(response))
+}
+
+// ═══════════════════════════════════════════════════════════════
+// [내 인증 상태 확인] GET /me
+// ═══════════════════════════════════════════════════════════════
 #[utoipa::path(
     get,
     path = "/me",
-    tag = "인증 테스트",
+    tag = "인증",
     security(
         ("bearer_auth" = [])
     ),
     responses(
         (status = 200, description = "인증 성공"),
-        (status = 401, description = "토큰 없음 또는 유효하지 않음")
+        (status = 401, description = "토큰 없음 또는 유효하지 않음"),
+        (status = 404, description = "유저 없음")
     )
 )]
 pub async fn get_me(
-    axum::Extension(user_id): axum::Extension<uuid::Uuid>,
-) -> String {
-    format!("authenticated: user_id={}", user_id)
-}
-
-/// [테스트용] 이메일 로그인
-///
-/// Supabase Auth API를 대신 호출해서 토큰을 반환합니다.
-#[utoipa::path(
-    post,
-    path = "/auth/test/login",
-    tag = "테스트",
-    request_body = EmailLoginRequest,
-    responses(
-        (status = 200, description = "로그인 성공"),
-        (status = 401, description = "이메일 또는 비밀번호 틀림")
-    )
-)]
-pub async fn test_email_login(
     State(state): State<AppState>,
-    Json(body): Json<super::dto::EmailLoginRequest>,
+    axum::Extension(user_id): axum::Extension<uuid::Uuid>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-
     let url = format!(
-        "{}/auth/v1/token?grant_type=password",
-        state.config.supabase_url.trim_end_matches('/')
+        "{}/rest/v1/users?id=eq.{}&select=id,email,profile_completed,login_provider,nickname,phone,profile_image",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
     );
 
     let resp = state.http_client
-        .post(&url)
-        .header("apikey", &state.config.supabase_publishable_key)
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({
-            "email": body.email,
-            "password": body.password
-        }))
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
         .send()
         .await
         .map_err(|e| {
-            tracing::error!("Supabase 로그인 요청 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+            tracing::error!("/me 유저 조회 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "유저 조회 실패".to_string())
         })?;
 
     if !resp.status().is_success() {
         let err = resp.text().await.unwrap_or_default();
-        tracing::warn!("로그인 실패: {}", err);
-        return Err((StatusCode::UNAUTHORIZED, err));
+        tracing::error!("/me 응답 실패: {}", err);
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, err));
     }
 
-    let data: serde_json::Value = resp.json().await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let users: Vec<serde_json::Value> = resp.json().await
+        .map_err(|e| {
+            tracing::error!("/me 응답 파싱 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱 실패".to_string())
+        })?;
 
-    Ok(Json(data))
+    let user = users.first()
+        .cloned()
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "유저 없음".to_string()))?;
+
+    Ok(Json(user))
 }
+
+// ═══════════════════════════════════════════════════════════════
+// [프로필 완성] PATCH /profile/complete
+// ═══════════════════════════════════════════════════════════════
+#[utoipa::path(
+    patch,
+    path = "/profile/complete",
+    tag = "인증",
+    security(
+        ("bearer_auth" = [])
+    ),
+    request_body = CompleteProfileRequest,
+    responses(
+        (status = 200, description = "프로필 저장 성공", body = CompleteProfileResponse),
+        (status = 400, description = "닉네임 또는 전화번호 비어있음"),
+        (status = 401, description = "토큰 없음 또는 유효하지 않음"),
+        (status = 500, description = "서버 내부 오류")
+    )
+)]
+pub async fn complete_profile(
+    State(state): State<AppState>,
+    axum::Extension(user_id): axum::Extension<uuid::Uuid>,
+    Json(body): Json<CompleteProfileRequest>,
+) -> Result<Json<CompleteProfileResponse>, (StatusCode, String)> {
+    if body.nickname.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "닉네임이 비어있음".to_string()));
+    }
+
+    if body.phone.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "전화번호가 비어있음".to_string()));
+    }
+
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let payload = serde_json::json!({
+        "nickname": body.nickname,
+        "phone": body.phone,
+        "profile_image": body.profile_image,
+    });
+
+    let resp = state.http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=representation")
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!("프로필 업데이트 요청 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "프로필 저장 실패".to_string())
+        })?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        tracing::error!("프로필 업데이트 실패: {}", err);
+
+        // 닉네임 unique 충돌
+        if err.contains("users_nickname_key") {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "이미 사용 중인 닉네임입니다".to_string(),
+            ));
+        }
+
+        // 전화번호 unique 충돌
+        if err.contains("users_phone_key") {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "이미 사용 중인 전화번호입니다".to_string(),
+            ));
+        }
+
+        // profile_image 컬럼명 오류 같은 경우
+        if err.contains("profile_image") && err.contains("schema cache") {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "profile_image 컬럼 설정을 확인해주세요".to_string(),
+            ));
+        }
+
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, err));
+    }
+
+    let rows: Vec<serde_json::Value> = resp.json().await
+        .map_err(|e| {
+            tracing::error!("프로필 업데이트 응답 파싱 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱 실패".to_string())
+        })?;
+
+    let updated = rows.first().cloned().unwrap_or_default();
+    let profile_completed = updated["profile_completed"].as_bool().unwrap_or(false);
+
+    Ok(Json(CompleteProfileResponse {
+        success: true,
+        profile_completed,
+    }))
+}
+
+// ═══════════════════════════════════════════════════════════════
+// [이메일 찾기] POST /auth/find-email
+// ═══════════════════════════════════════════════════════════════
+#[utoipa::path(
+    post,
+    path = "/auth/find-email",
+    tag = "인증",
+    request_body = FindEmailRequest,
+    responses(
+        (status = 200, description = "이메일 찾기 성공", body = FindEmailResponse),
+        (status = 404, description = "해당 전화번호로 등록된 계정 없음")
+    )
+)]
+pub async fn find_email(
+    State(state): State<AppState>,
+    Json(body): Json<FindEmailRequest>,
+) -> Result<Json<FindEmailResponse>, (StatusCode, String)> {
+    if body.phone.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "전화번호가 비어있음".to_string()));
+    }
+
+    let masked_email = service::find_email_by_phone(&state, &body.phone)
+        .await
+        .map_err(|e| {
+            tracing::error!("이메일 찾기 실패: {}", e);
+            (StatusCode::BAD_REQUEST, e.to_string())
+        })?;
+
+    Ok(Json(FindEmailResponse { masked_email }))
+}
+
+// ═══════════════════════════════════════════════════════════════
+// [이메일 존재 여부 확인] POST /auth/check-email
+// ═══════════════════════════════════════════════════════════════
+#[utoipa::path(
+    post,
+    path = "/auth/check-email",
+    tag = "인증",
+    request_body = CheckEmailRequest,
+    responses(
+        (status = 200, description = "이메일 존재함"),
+        (status = 404, description = "해당 이메일로 가입된 계정 없음")
+    )
+)]
+pub async fn check_email(
+    State(state): State<AppState>,
+    Json(body): Json<CheckEmailRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if body.email.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "이메일이 비어있음".to_string()));
+    }
+
+    let exists = service::check_email_exists(&state, &body.email)
+        .await
+        .map_err(|e| {
+            tracing::error!("이메일 존재 확인 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+        })?;
+
+    if !exists {
+        return Err((
+            StatusCode::NOT_FOUND,
+            "해당 이메일로 가입된 계정이 없습니다".to_string(),
+        ));
+    }
+
+    Ok(Json(serde_json::json!({ "exists": true })))
+}
+
+// ═══════════════════════════════════════════════════════════════
+// [카카오 로그인] POST /auth/kakao/login
+// ═══════════════════════════════════════════════════════════════
+#[utoipa::path(
+    post,
+    path = "/auth/kakao/login",
+    tag = "소셜 로그인",
+    request_body = KakaoLoginRequest,
+    responses(
+        (status = 200, description = "로그인 성공", body = LoginResponse),
+        (status = 400, description = "인가 코드 비어있음"),
+        (status = 500, description = "서버 내부 오류")
+    )
+)]
+pub async fn kakao_login(
+    State(state): State<AppState>,
+    Json(body): Json<KakaoLoginRequest>,
+) -> Result<Json<LoginResponse>, (StatusCode, String)> {
+    if body.code.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "인가 코드가 비어있음".to_string()));
+    }
+
+    let response = service::kakao_login(&state, &body.code)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            tracing::error!("카카오 로그인 실패: {}", msg);
+            (StatusCode::INTERNAL_SERVER_ERROR, msg)
+        })?;
+
+    tracing::info!("카카오 로그인 성공");
+
+    Ok(Json(response))
+}
+
+
+
 

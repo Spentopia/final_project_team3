@@ -1,6 +1,6 @@
+fastapi
+uvicorn
 streamlit
-pandas
 openai
 python-dotenv
-plotly
-matplotlib
+requests

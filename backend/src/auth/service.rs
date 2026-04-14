@@ -17,6 +17,24 @@
 //  흐름: 일반 회원가입 → 상세정보 입력 → 지갑 연동(wallet/service.rs)
 //  이 파일은 "이미 지갑 연동을 마친 유저"의 로그인만 처리함.
 
+
+// 현재 최종 구조:
+// - 이메일 로그인 / 구글 로그인:
+//   프론트가 Supabase로 1차 인증 -> access_token 획득
+//   -> 백엔드 /auth/exchange 로 전달
+//   -> 백엔드가 Supabase 토큰 검증 후 "우리 앱 JWT" 발급
+//
+// - 카카오 로그인:
+//   백엔드가 카카오 인가 코드를 받아 직접 카카오 API 호출
+//   -> 유저 찾거나 생성
+//   -> "우리 앱 JWT" 발급
+//
+// - 지갑 로그인:
+//   기존 nonce + 서명 검증 로직 유지
+//   -> "우리 앱 JWT" 발급
+//
+// 즉 최종적으로 프론트가 저장하는 건 항상 "우리 앱 JWT" 하나뿐임.
+
 // anyhow: Rust의 에러 처리 라이브러리
 // anyhow!("메세지") → 에러 생성
 // Context → .context("설명") 으로 에러에 설명 추가
@@ -43,6 +61,10 @@ use crate::state::AppState;
 // super = 현재 모듈(auth)의 상위 경로
 use super::dto::LoginResponse;
 
+use serde_json::{json, Value};
+
+use crate::auth::app_jwt::generate_app_tokens;
+
 // SupabaseTokenResponse
 // Supabase Admin API로 JWT를 발급하면 이 형태로 응답이 옴.
 // generate_supabase_token() 함수에서 JSON을 이 구조체로 파싱함.
@@ -67,6 +89,22 @@ struct UserRow {
     // uuid::Uuid 타입으로 받으면 String → UUID 변환을 자동으로 해줌
     id: uuid::Uuid,
 }
+
+fn generate_app_token_pair(
+    state: &AppState,
+    user_id: &str,
+) -> Result<SupabaseTokenResponse> {
+    let user_uuid = uuid::Uuid::parse_str(user_id)
+        .context("user_id UUID 파싱 실패")?;
+
+    let tokens = generate_app_tokens(&state.config.app_jwt_secret, &user_uuid)?;
+
+    Ok(SupabaseTokenResponse {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+    })
+}
+
 
 // generate_nonce - nonce 발급 (로그인 1단계)
 //
@@ -155,7 +193,7 @@ pub async fn verify_and_login(
     // 4) Supabase JWT 발급
     // 찾은 user_id로 Supabase Admin API를 호출해서 JWT를 직접 발급
     // 지갑 로그인은 Supabase의 기본 OAuth 플로우를 타지 않아서 서버가 Admin 권한으로 대신 발급해줘야 함
-    let tokens = generate_supabase_token(state, &user_id.to_string()).await?;
+    let tokens = generate_app_token_pair(state, &user_id.to_string())?;
 
     // 5) 응답 반환
     // 지갑 로그인은 기존 유저만 가능 (신규 유저는 일반 회원가입으로만 생성)
@@ -294,40 +332,505 @@ pub async fn find_user_by_wallet(state: &AppState, wallet_address: &str) -> Resu
 // ■ 발급된 토큰의 형태
 //  이메일/소셜 로그인 JWT와 완전히 동일한 형태.
 //  middleware.rs의 jwt_middleware에서 동일하게 검증 가능.
-async fn generate_supabase_token(
+// ═══════════════════════════════════════════════════════════════
+// [이메일/구글] Supabase access_token -> 앱 JWT 교환
+// ═══════════════════════════════════════════════════════════════
+pub async fn exchange_supabase_token(
     state: &AppState,
-    // JWT를 발급받을 유저의 UUID (문자열 형태)
-    user_id: &str,
-) -> Result<SupabaseTokenResponse> {
-    // POST /auth/v1/admin/users/{}/token?grant_type=id_token
-    // grant_type=id_token → 해당 유저의 JWT를 Admin 권한으로 직접 발급
-    let url = format!(
-        "{}/auth/v1/admin/users/{}/token?grant_type=id_token",
-        state.config.supabase_url, user_id
+    supabase_access_token: &str,
+) -> Result<LoginResponse> {
+    let user_url = format!(
+        "{}/auth/v1/user",
+        state.config.supabase_url.trim_end_matches('/')
     );
 
-    let resp = state
-        .http_client
-        .post(&url)
-        .header(
-            "Authorization",
-            format!("Bearer {}", state.config.supabase_secret_key),
-        )
-        .header("apikey", &state.config.supabase_secret_key)
-        // body는 비어있어도 됨 (Supabase 스펙상 필요 없음)
-        .json(&serde_json::json!({}))
+    let resp = state.http_client
+        .get(&user_url)
+        .header("apikey", &state.config.supabase_publishable_key)
+        .header("Authorization", format!("Bearer {}", supabase_access_token))
         .send()
         .await
-        .context("토큰 발급 HTTP 요청 실패")?;
+        .context("Supabase 유저 조회 요청 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("유효하지 않은 Supabase 토큰: {}", err));
+    }
+
+    let user_data: Value = resp.json().await
+        .context("Supabase 유저 응답 파싱 실패")?;
+
+    let user_id = user_data["id"]
+        .as_str()
+        .ok_or_else(|| anyhow!("Supabase 유저 ID 없음"))?;
+
+    let email = user_data["email"].as_str();
+
+    let provider = user_data["app_metadata"]["provider"]
+        .as_str()
+        .unwrap_or("email");
+
+    let provider_id = user_data["user_metadata"]["provider_id"]
+        .as_str()
+        .or_else(|| {
+            user_data["identities"]
+                .as_array()
+                .and_then(|arr| arr.first())
+                .and_then(|x| x["id"].as_str())
+        });
+
+    ensure_public_user_exists(
+        state,
+        user_id,
+        email,
+        provider,
+        provider_id,
+    ).await?;
+
+    let tokens = generate_app_token_pair(state, user_id)?;
+
+    Ok(LoginResponse {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        is_new_user: false,
+    })
+}
+
+// ═══════════════════════════════════════════════════════════════
+// public.users / user_settings / streaks 보장
+//
+// auth.users는 있어도 public.users가 비는 경우가 있어서,
+// 로그인 시점에 안전하게 upsert함.
+// ═══════════════════════════════════════════════════════════════
+async fn ensure_public_user_exists(
+    state: &AppState,
+    user_id: &str,
+    email: Option<&str>,
+    provider: &str,
+    provider_id: Option<&str>,
+) -> Result<()> {
+    let users_url = format!(
+        "{}/rest/v1/users",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let users_payload = json!([{
+        "id": user_id,
+        "email": email,
+        "login_provider": provider,
+        "provider_id": provider_id,
+        "created_at": chrono::Utc::now(),
+        "updated_at": chrono::Utc::now(),
+        "is_active": true
+    }]);
+
+    let resp = state.http_client
+        .post(&users_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("Content-Type", "application/json")
+        .header("Prefer", "resolution=merge-duplicates")
+        .json(&users_payload)
+        .send()
+        .await
+        .context("public.users upsert 요청 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("public.users upsert 실패: {}", err));
+    }
+
+    let settings_url = format!(
+        "{}/rest/v1/user_settings",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let _ = state.http_client
+        .post(&settings_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("Content-Type", "application/json")
+        .header("Prefer", "resolution=merge-duplicates")
+        .json(&json!([{
+            "user_id": user_id
+        }]))
+        .send()
+        .await;
+
+    let streaks_url = format!(
+        "{}/rest/v1/streaks",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let _ = state.http_client
+        .post(&streaks_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("Content-Type", "application/json")
+        .header("Prefer", "resolution=merge-duplicates")
+        .json(&json!([{
+            "user_id": user_id,
+            "current_streak": 0,
+            "longest_streak": 0
+        }]))
+        .send()
+        .await;
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 카카오 로그인
+// 1) code -> 카카오 access_token 교환
+// 2) access_token -> 카카오 유저 정보 조회
+// 3) provider + provider_id 기준으로 유저 찾거나 생성
+// 4) 앱 JWT 발급
+// ═══════════════════════════════════════════════════════════════
+pub async fn kakao_login(
+    state: &AppState,
+    code: &str,
+) -> Result<LoginResponse> {
+    tracing::info!("카카오 로그인 code={}", code);
+
+    let token_url = "https://kauth.kakao.com/oauth/token";
+
+    let kakao_client_id = std::env::var("KAKAO_REST_API_KEY")
+        .context("KAKAO_REST_API_KEY 환경변수 없음")?;
+    let kakao_client_secret = std::env::var("KAKAO_CLIENT_SECRET")
+        .context("KAKAO_CLIENT_SECRET 환경변수 없음")?;
+    let redirect_uri = std::env::var("KAKAO_REDIRECT_URI")
+        .context("KAKAO_REDIRECT_URI 환경변수 없음")?;
+
+    let token_resp = state.http_client
+        .post(token_url)
+        .form(&[
+            ("grant_type", "authorization_code"),
+            ("client_id", &kakao_client_id),
+            ("client_secret", &kakao_client_secret),
+            ("redirect_uri", &redirect_uri),
+            ("code", code),
+        ])
+        .send()
+        .await
+        .context("카카오 토큰 요청 실패")?;
+
+    if !token_resp.status().is_success() {
+        let err = token_resp.text().await.unwrap_or_default();
+        tracing::error!("카카오 토큰 교환 실패: {}", err);
+        return Err(anyhow!("카카오 토큰 교환 실패: {}", err));
+    }
+
+    let token_data: Value = token_resp.json().await
+        .context("카카오 토큰 응답 파싱 실패")?;
+
+    let kakao_access_token = token_data["access_token"].as_str()
+        .ok_or_else(|| anyhow!("카카오 access_token 없음"))?;
+
+    let user_resp = state.http_client
+        .get("https://kapi.kakao.com/v2/user/me")
+        .header("Authorization", format!("Bearer {}", kakao_access_token))
+        .send()
+        .await
+        .context("카카오 유저 정보 요청 실패")?;
+
+    if !user_resp.status().is_success() {
+        let err = user_resp.text().await.unwrap_or_default();
+        tracing::error!("카카오 유저 정보 조회 실패: {}", err);
+        return Err(anyhow!("카카오 유저 정보 조회 실패: {}", err));
+    }
+
+    let user_data: Value = user_resp.json().await
+        .context("카카오 유저 정보 파싱 실패")?;
+
+    let kakao_id = user_data["id"].as_i64()
+        .ok_or_else(|| anyhow!("카카오 유저 ID 없음"))?;
+
+    let provider = "kakao";
+    let provider_id = kakao_id.to_string();
+
+    let nickname = user_data["kakao_account"]["profile"]["nickname"]
+        .as_str()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
+
+    let email = user_data["kakao_account"]["email"]
+        .as_str()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
+
+    tracing::info!(
+        "카카오 유저 정보 조회 성공: provider={}, provider_id={}, nickname={:?}, email={:?}",
+        provider,
+        provider_id,
+        nickname,
+        email
+    );
+
+    let (user_id, is_new_user) = find_or_create_social_user(
+        state,
+        provider,
+        &provider_id,
+        email,
+        nickname,
+    ).await?;
+
+    let tokens = generate_app_token_pair(state, &user_id)?;
+
+    Ok(LoginResponse {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        is_new_user,
+    })
+}
+
+// ═══════════════════════════════════════════════════════════════
+// provider + provider_id 기준으로 기존 유저 찾거나 생성
+// ═══════════════════════════════════════════════════════════════
+async fn find_or_create_social_user(
+    state: &AppState,
+    provider: &str,
+    provider_id: &str,
+    email: Option<&str>,
+    nickname: Option<&str>,
+) -> Result<(String, bool)> {
+    if let Some(existing_user_id) =
+        find_public_user_by_provider(state, provider, provider_id).await?
+    {
+        tracing::info!(
+            "기존 소셜 유저 발견: provider={}, provider_id={}, user_id={}",
+            provider,
+            provider_id,
+            existing_user_id
+        );
+        return Ok((existing_user_id, false));
+    }
+
+    let final_email = match email {
+        Some(real_email) => real_email.to_string(),
+        None => format!("{}@{}.local", provider_id, provider),
+    };
+
+    let create_url = format!(
+        "{}/auth/v1/admin/users",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let app_metadata = json!({
+        "provider": provider,
+        "provider_id": provider_id,
+    });
+
+    let mut user_metadata = serde_json::Map::new();
+    if let Some(nick) = nickname {
+        user_metadata.insert("nickname".to_string(), json!(nick));
+    }
+
+    let create_body = json!({
+        "email": final_email,
+        "email_confirm": true,
+        "app_metadata": app_metadata,
+        "user_metadata": Value::Object(user_metadata),
+    });
+
+    let create_resp = state.http_client
+        .post(&create_url)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("apikey", &state.config.supabase_secret_key)
+        .json(&create_body)
+        .send()
+        .await
+        .context("소셜 유저 생성 요청 실패")?;
+
+    if !create_resp.status().is_success() {
+        let err_text = create_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("소셜 유저 생성 실패: {}", err_text));
+    }
+
+    let created: Value = create_resp
+        .json()
+        .await
+        .context("생성된 소셜 유저 파싱 실패")?;
+
+    let user_id = created["id"]
+        .as_str()
+        .ok_or_else(|| anyhow!("생성된 유저 ID 없음"))?
+        .to_string();
+
+    tracing::info!(
+        "새 소셜 유저 생성 완료: provider={}, provider_id={}, user_id={}, email={}",
+        provider,
+        provider_id,
+        user_id,
+        final_email
+    );
+
+    upsert_public_user_social_fields(
+        state,
+        &user_id,
+        &final_email,
+        provider,
+        provider_id,
+    ).await?;
+
+    Ok((user_id, true))
+}
+
+// public.users에서 provider + provider_id로 기존 계정 조회
+async fn find_public_user_by_provider(
+    state: &AppState,
+    provider: &str,
+    provider_id: &str,
+) -> Result<Option<String>> {
+    let provider_encoded = urlencoding::encode(provider);
+    let provider_id_encoded = urlencoding::encode(provider_id);
+
+    let url = format!(
+        "{}/rest/v1/users?login_provider=eq.{}&provider_id=eq.{}&select=id&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        provider_encoded,
+        provider_id_encoded
+    );
+
+    let resp = state.http_client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("public.users 조회 실패")?;
 
     if !resp.status().is_success() {
         let err_text = resp.text().await.unwrap_or_default();
-        return Err(anyhow!("토큰 발급 실패: {}", err_text));
+        return Err(anyhow!("public.users 조회 실패: {}", err_text));
     }
 
-    // 응답 JSON → SupabaseTokenResponse 구조체로 파싱
-    // ::<SupabaseTokenResponse> → 어떤 타입으로 파싱할지 명시 (타입 추론 불가 상황)
-    resp.json::<SupabaseTokenResponse>()
+    let rows: Vec<UserRow> = resp
+        .json()
         .await
-        .context("토큰 응답 JSON 파싱 실패")
+        .context("public.users 조회 응답 파싱 실패")?;
+
+    Ok(rows.into_iter().next().map(|row| row.id.to_string()))
+}
+
+// auth.users 생성 후 public.users 의 social 관련 컬럼 보정
+async fn upsert_public_user_social_fields(
+    state: &AppState,
+    user_id: &str,
+    email: &str,
+    provider: &str,
+    provider_id: &str,
+) -> Result<()> {
+    let user_id_encoded = urlencoding::encode(user_id);
+
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id_encoded
+    );
+
+    let resp = state.http_client
+        .patch(&url)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=minimal")
+        .json(&json!({
+            "email": email,
+            "login_provider": provider,
+            "provider_id": provider_id,
+        }))
+        .send()
+        .await
+        .context("public.users social 필드 업데이트 실패")?;
+
+    if !resp.status().is_success() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("public.users social 필드 업데이트 실패: {}", err_text));
+    }
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 이메일 찾기
+// ═══════════════════════════════════════════════════════════════
+pub async fn find_email_by_phone(
+    state: &AppState,
+    phone: &str,
+) -> Result<String> {
+    let url = format!(
+        "{}/rest/v1/users?select=email&phone=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        phone
+    );
+
+    let resp = state.http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .send()
+        .await
+        .context("전화번호로 이메일 조회 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("전화번호로 이메일 조회 실패: {}", err));
+    }
+
+    let rows: Vec<Value> = resp.json().await
+        .context("이메일 조회 응답 파싱 실패")?;
+
+    let email = rows.first()
+        .and_then(|row| row["email"].as_str())
+        .ok_or_else(|| anyhow!("해당 전화번호로 가입된 계정이 없음"))?;
+
+    Ok(mask_email(email))
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 이메일 존재 여부 확인
+// ═══════════════════════════════════════════════════════════════
+pub async fn check_email_exists(
+    state: &AppState,
+    email: &str,
+) -> Result<bool> {
+    let url = format!(
+        "{}/rest/v1/users?select=id&email=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        email
+    );
+
+    let resp = state.http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .send()
+        .await
+        .context("이메일 존재 확인 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("이메일 존재 확인 실패: {}", err));
+    }
+
+    let rows: Vec<Value> = resp.json().await
+        .context("이메일 존재 응답 파싱 실패")?;
+
+    Ok(!rows.is_empty())
+}
+
+// 이메일 마스킹
+fn mask_email(email: &str) -> String {
+    let parts: Vec<&str> = email.split('@').collect();
+    if parts.len() != 2 {
+        return "***".to_string();
+    }
+
+    let local = parts[0];
+    let domain = parts[1];
+
+    let visible = if local.len() <= 2 { 1 } else { 2 };
+    let masked_local = format!("{}***", &local[..visible]);
+
+    format!("{}@{}", masked_local, domain)
 }

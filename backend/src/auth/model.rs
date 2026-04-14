@@ -17,7 +17,7 @@ pub struct User {
     // 사용자가 설정한 닉네임
     pub nickname: String,
 
-    pub profile_imgae: Option<String>,
+    pub profile_image: Option<String>,
 
     // 앎림 수신 여부
     pub notification_on: bool,

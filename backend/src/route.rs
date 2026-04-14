@@ -25,7 +25,11 @@
 //     통과하면 핸들러에 user_id를 Extension으로 넘겨줌
 
 // delete 추가: unlink_wallet이 DELETE 메서드를 사용하므로 import 필요
-use axum::{Router, routing::{delete, get, post}, middleware};
+use axum::{
+    middleware,
+    routing::{delete, get, patch, post},
+    Router,
+};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -53,9 +57,12 @@ pub fn create_router(state: AppState) -> Router {
     //   → JWT를 "발급받는" API니까 당연히 JWT 없이 접근해야 함
     let public_routes = Router::new()
         .route("/health", get(|| async { "ok" }))
+        .route("/auth/exchange", post(auth::handler::exchange_token))
         .route("/auth/wallet/nonce", post(auth::handler::request_nonce))
         .route("/auth/wallet/login", post(auth::handler::wallet_login))
-        .route("/auth/test/login", post(auth::handler::test_email_login));
+        .route("/auth/find-email", post(auth::handler::find_email))
+        .route("/auth/check-email", post(auth::handler::check_email))
+        .route("/auth/kakao/login", post(auth::handler::kakao_login));
 
     // ── 보호 라우트 ─────────────────────────────────────────
     // JWT 필수. jwt_middleware를 통과해야 핸들러에 도달함.
@@ -76,6 +83,7 @@ pub fn create_router(state: AppState) -> Router {
     //   → 요청 body 없음. user_id만으로 처리
     let protected_routes = Router::new()
         .route("/me", get(auth::handler::get_me))
+        .route("/profile/complete", axum::routing::patch(auth::handler::complete_profile))
         .route("/wallet/link", post(wallet::handler::link_wallet))
         .route("/wallet/unlink", delete(wallet::handler::unlink_wallet))
         // 위에 등록된 모든 라우트에 jwt_middleware 적용

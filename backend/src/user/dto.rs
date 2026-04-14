@@ -1,0 +1,54 @@
+// user/dto.rs
+// 클라이언트와 주고받는 유저 관련 요청/응답 구조체
+
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+use uuid::Uuid;
+use chrono::{DateTime, Utc};
+
+// ── 프로필 조회 응답 ───────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UserResponse {
+    pub id: Uuid,
+    pub email: Option<String>,
+    pub nickname: Option<String>,
+    pub phone: Option<String>,
+    pub profile_image: Option<String>,
+    pub login_provider: Option<String>,
+    pub wallet_address: Option<String>,
+    pub role_type: String,
+    pub profile_completed: bool,
+    pub spt_balance: i32,
+    pub created_at: DateTime<Utc>,
+}
+
+// ── 프로필 수정 요청 ───────────────────────────────────────────
+// nickname + phone 모두 입력되면 profile_completed = true로 자동 전환
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UpdateProfileRequest {
+    pub nickname: Option<String>,
+    pub phone: Option<String>,
+    pub profile_image: Option<String>,
+}
+
+// ── 알림 설정 조회 응답 ────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UserSettingsResponse {
+    pub alert_budget: Option<bool>,
+    pub alert_reward: Option<bool>,
+    pub alert_streak: Option<bool>,
+    pub notification_listener: Option<bool>,
+}
+
+// ── 알림 설정 수정 요청 ────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UpdateSettingsRequest {
+    pub alert_budget: Option<bool>,
+    pub alert_reward: Option<bool>,
+    pub alert_streak: Option<bool>,
+    pub notification_listener: Option<bool>,
+}
