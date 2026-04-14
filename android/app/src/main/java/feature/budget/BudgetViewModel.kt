@@ -1,4 +1,4 @@
-package com.example.spentopia.feature.budget
+package com.ict.spentopia.feature.budget
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel

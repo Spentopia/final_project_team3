@@ -1,35 +1,36 @@
-package com.ict.spentopia.feature.home // 패키지 선언: 이 파일이 속한 패키지를 정의
+package com.ict.spentopia.feature.home
 
 import android.app.DatePickerDialog
-import androidx.compose.foundation.* // Compose의 기본 구성요소를 가져옴
-import androidx.compose.foundation.layout.* // 레이아웃을 위한 구성요소를 가져옴
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.* // Material Design 3 구성요소를 가져옴
-import androidx.compose.runtime.Composable // Composable 함수를 사용하기 위한 임포트
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment // 정렬을 위한 클래스
-import androidx.compose.ui.Modifier // 수정자를 위한 클래스
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color // 색상 랜더링을 위한 클래스
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight // 폰트 두께 설정을 위한 클래스
-import androidx.compose.ui.unit.dp // dp 단위를 사용하기 위한 클래스
-import androidx.compose.ui.unit.sp // sp 단위를 사용하기 위한 클래스
-import kotlinx.coroutines.launch
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ict.spentopia.feature.budget.BudgetViewModel
 import java.text.DecimalFormat
 import java.util.Calendar
 import kotlin.math.abs
+
 
 data class ExpenseItemData( // 소비 항목 데이터를 담는 데이터 클래스
     val id: Long, // 항목 고유 ID
@@ -48,11 +49,7 @@ data class CalendarDateData( // 캘린더 날짜 정보를 담는 데이터 클�
     val isCurrentMonth: Boolean // 현재 달 포함 여부
 )
 
-data class HomeMenuItemData( // 홈 드로어 메뉴 항목 데이터를 담는 데이터 클래스
-    val title: String, // 메뉴 제목
-    val emoji: String, // 메뉴 앞 이모지
-    val onClick: () -> Unit // 메뉴 클릭 시 실행할 콜백
-)
+
 
 @Composable
 fun HomeScreen(
@@ -65,7 +62,14 @@ fun HomeScreen(
     onPlazaClick: () -> Unit = {}, // 광장 클릭 이벤트를 위한 콜백
     onCommunityClick: () -> Unit = {} // 커뮤니티 클릭 이벤트를 위한 콜백
 ) {
-    var expenseList by remember { // 소비 목록 상태를 관리
+    // 예산 설정 화면에서 저장한 값을 홈 화면에서도 읽기 위해 ViewModel 연결
+    val budgetViewModel: BudgetViewModel = viewModel()
+
+    // 저장된 예산 상태 구독
+    val budgetState by budgetViewModel.budgetState.collectAsState()
+
+    // 소비 목록 상태를 관리
+    var expenseList by remember {
         mutableStateOf(
             listOf(
                 ExpenseItemData(
@@ -92,21 +96,29 @@ fun HomeScreen(
         )
     }
 
-    var selectedDate by remember { mutableStateOf("2026-04-10") } // 현재 선택된 날짜 상태
-    var currentYear by remember { mutableStateOf(2026) } // 현재 달력에 표시할 연도 상태
-    var currentMonth by remember { mutableStateOf(4) } // 현재 달력에 표시할 월 상태
-    var editingExpense by remember { mutableStateOf<ExpenseItemData?>(null) } // 수정 중인 소비 항목 상태
+    // 현재 선택된 날짜 상태
+    var selectedDate by remember { mutableStateOf("2026-04-10") }
 
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed) // 사이드 메뉴 드로어 상태를 관리
-    val scope = rememberCoroutineScope() // 드로어 열기/닫기를 위한 코루틴 스코프
+    // 현재 달력에 표시할 연도 상태
+    var currentYear by remember { mutableStateOf(2026) }
 
-    val monthlyBudget = 500000 // 이번 달 기본 예산
+    // 현재 달력에 표시할 월 상태
+    var currentMonth by remember { mutableStateOf(4) }
 
-    val expenseDateSet = remember(expenseList) { // 소비 기록이 존재하는 날짜 목록을 Set으로 관리
+    // 수정 중인 소비 항목 상태
+    var editingExpense by remember { mutableStateOf<ExpenseItemData?>(null) }
+
+    // 예산 설정 화면에서 저장한 값으로 월 예산 계산
+    val monthlyBudget = remember(budgetState) {
+        budgetState.monthlyIncome - budgetState.savingGoal
+    }
+    // 소비 기록이 존재하는 날짜 목록을 Set으로 관리
+    val expenseDateSet = remember(expenseList) {
         expenseList.map { it.date }.toSet()
     }
 
-    val today = remember { // 오늘 날짜를 yyyy-MM-dd 형식으로 생성
+    // 오늘 날짜를 yyyy-MM-dd 형식으로 생성
+    val today = remember {
         val cal = Calendar.getInstance()
         formatDate(
             cal.get(Calendar.YEAR),
@@ -115,7 +127,8 @@ fun HomeScreen(
         )
     }
 
-    val currentMonthExpenseList = remember(expenseList, currentYear, currentMonth) { // 현재 보고 있는 달의 소비 목록
+    // 현재 보고 있는 달의 소비 목록
+    val currentMonthExpenseList = remember(expenseList, currentYear, currentMonth) {
         expenseList.filter { expense ->
             val year = expense.date.substring(0, 4).toIntOrNull() ?: 0
             val month = expense.date.substring(5, 7).toIntOrNull() ?: 0
@@ -123,15 +136,18 @@ fun HomeScreen(
         }
     }
 
-    val currentMonthTotalExpense = remember(currentMonthExpenseList) { // 이번 달 총 소비 금액
+    // 이번 달 총 소비 금액
+    val currentMonthTotalExpense = remember(currentMonthExpenseList) {
         currentMonthExpenseList.sumOf { it.amount }
     }
 
-    val previousMonthInfo = remember(currentYear, currentMonth) { // 지난달 연도와 월 계산
+    // 지난달 연도와 월 계산
+    val previousMonthInfo = remember(currentYear, currentMonth) {
         moveMonth(currentYear, currentMonth, -1)
     }
 
-    val previousMonthExpenseList = remember(expenseList, previousMonthInfo) { // 지난달 소비 목록
+    // 지난달 소비 목록
+    val previousMonthExpenseList = remember(expenseList, previousMonthInfo) {
         expenseList.filter { expense ->
             val year = expense.date.substring(0, 4).toIntOrNull() ?: 0
             val month = expense.date.substring(5, 7).toIntOrNull() ?: 0
@@ -139,302 +155,136 @@ fun HomeScreen(
         }
     }
 
-    val previousMonthTotalExpense = remember(previousMonthExpenseList) { // 지난달 총 소비 금액
+    // 지난달 총 소비 금액
+    val previousMonthTotalExpense = remember(previousMonthExpenseList) {
         previousMonthExpenseList.sumOf { it.amount }
     }
 
-    val remainingBudget = monthlyBudget - currentMonthTotalExpense // 남은 예산 계산
+    // 남은 예산 계산
+    val remainingBudget = monthlyBudget - currentMonthTotalExpense
 
-    val usageRate = if (monthlyBudget > 0) { // 사용률 계산
+    // 사용률 계산
+    val usageRate = if (monthlyBudget > 0) {
         ((currentMonthTotalExpense.toFloat() / monthlyBudget.toFloat()) * 100).toInt()
     } else {
         0
     }
 
-    val changeRateText = remember(currentMonthTotalExpense, previousMonthTotalExpense) { // 지난달 대비 증감 문구 계산
+    // 지난달 대비 증감 문구 계산
+    val changeRateText = remember(currentMonthTotalExpense, previousMonthTotalExpense) {
         createChangeRateText(
             currentAmount = currentMonthTotalExpense,
             previousAmount = previousMonthTotalExpense
         )
     }
 
-    val menuItemList = remember( // 드로어에 표시할 메뉴 목록을 구성
-        onLedgerClick,
-        onBudgetClick,
-        onAnalysisClick,
-        onAvatarClick,
-        onMarketClick,
-        onPlazaClick,
-        onCommunityClick,
-        onMyPageClick
-    ) {
-        listOf(
-            HomeMenuItemData(
-                title = "가계부",
-                emoji = "📒",
-                onClick = onLedgerClick
-            ),
-            HomeMenuItemData(
-                title = "예산 설정",
-                emoji = "💰",
-                onClick = onBudgetClick
-            ),
-            HomeMenuItemData(
-                title = "소비 분석",
-                emoji = "📊",
-                onClick = onAnalysisClick
-            ),
-            HomeMenuItemData(
-                title = "내 아바타",
-                emoji = "🧍",
-                onClick = onAvatarClick
-            ),
-            HomeMenuItemData(
-                title = "NFT 마켓",
-                emoji = "🖼️",
-                onClick = onMarketClick
-            ),
-            HomeMenuItemData(
-                title = "광장",
-                emoji = "🏛️",
-                onClick = onPlazaClick
-            ),
-            HomeMenuItemData(
-                title = "커뮤니티",
-                emoji = "💬",
-                onClick = onCommunityClick
-            ),
-            HomeMenuItemData(
-                title = "마이페이지",
-                emoji = "👤",
-                onClick = onMyPageClick
-            )
-        )
-    }
-
-    ModalNavigationDrawer( // 사이드 메뉴가 열리는 드로어 레이아웃
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet(
-                modifier = Modifier.width(300.dp), // 드로어 너비 설정
-                drawerContainerColor = Color.White // 드로어 배경 색상 설정
-            ) {
-                HomeDrawerContent( // 홈 드로어 메뉴 내용을 표시
-                    menuItemList = menuItemList,
-                    onCloseClick = {
-                        scope.launch {
-                            drawerState.close() // 닫기 버튼 클릭 시 드로어 닫기
-                        }
-                    },
-                    onMenuItemClick = { menuItem ->
-                        scope.launch {
-                            drawerState.close() // 메뉴 클릭 시 먼저 드로어 닫기
-                        }
-                        menuItem.onClick() // 각 메뉴에 연결된 화면 이동 콜백 실행
-                    }
-                )
-            }
-        }
-    ) {
-        LazyColumn( // 스크롤 가능한 열 구성 요소입니다.
-            modifier = Modifier
-                .fillMaxSize() // 가능한 최대 크기로 확장
-                .background(Color(0xFFF3F6FA)) // 배경 색상을 설정
-                .padding(horizontal = 16.dp), // 좌우 패딩을 16dp로 설정
-            verticalArrangement = Arrangement.spacedBy(16.dp) // 아이템 간의 수직 간격을 16dp로 설정.
-        ) {
-            item { Spacer(modifier = Modifier.height(12.dp)) } // 위쪽 여백을 추가
-
-            item {
-                TopHeaderSection(
-                    onMenuClick = {
-                        scope.launch {
-                            drawerState.open() // 상단 메뉴 버튼 클릭 시 드로어 열기
-                        }
-                    }
-                ) // 상단 헤더 섹션을 추가합니다.
-            }
-
-            item {
-                MonthlySummaryCard( // 월간 요약 카드에 실제 데이터 전달
-                    currentYear = currentYear,
-                    currentMonth = currentMonth,
-                    currentMonthTotalExpense = currentMonthTotalExpense,
-                    monthlyBudget = monthlyBudget,
-                    remainingBudget = remainingBudget,
-                    usageRate = usageRate,
-                    changeRateText = changeRateText
-                ) // 월간 요약 카드 추가
-            }
-
-            item {
-                CalendarCard(
-                    currentYear = currentYear,
-                    currentMonth = currentMonth,
-                    selectedDate = selectedDate,
-                    expenseDateSet = expenseDateSet,
-                    today = today,
-                    onPrevMonth = {
-                        val previous = moveMonth(currentYear, currentMonth, -1)
-                        currentYear = previous.first
-                        currentMonth = previous.second
-                    },
-                    onNextMonth = {
-                        val next = moveMonth(currentYear, currentMonth, 1)
-                        currentYear = next.first
-                        currentMonth = next.second
-                    },
-                    onDateSelected = { clickedDate ->
-                        selectedDate = clickedDate // 캘린더에서 선택한 날짜로 상태 변경
-                        currentYear = clickedDate.substring(0, 4).toInt() // 선택한 날짜의 연도로 이동
-                        currentMonth = clickedDate.substring(5, 7).toInt() // 선택한 날짜의 월로 이동
-                    }
-                ) // 캘린더 카드 추가
-            }
-
-            item {
-                DailyExpenseCard(
-                    expenseList = expenseList,
-                    selectedDate = selectedDate,
-                    onEditExpense = { expense ->
-                        editingExpense = expense // 수정할 항목 설정
-                        selectedDate = expense.date // 수정할 항목 날짜로 이동
-                        currentYear = expense.date.substring(0, 4).toInt() // 수정할 항목 연도로 이동
-                        currentMonth = expense.date.substring(5, 7).toInt() // 수정할 항목 월로 이동
-                    },
-                    onDeleteExpense = { expenseId ->
-                        expenseList = expenseList.filter { it.id != expenseId } // 선택한 항목 삭제
-                        if (editingExpense?.id == expenseId) {
-                            editingExpense = null // 수정 중이던 항목이 삭제되면 수정 상태 해제
-                        }
-                    }
-                ) // 일일 소비 내역 카드 추가
-            }
-
-            item {
-                WeeklyScoreCard() // 주간 성적 카드 추가
-            }
-
-            item {
-                ExpenseWriteCard(
-                    selectedDate = selectedDate,
-                    editingExpense = editingExpense,
-                    onSaveExpense = { savedExpense ->
-                        if (editingExpense == null) {
-                            expenseList = listOf(savedExpense) + expenseList // 새 항목을 맨 위에 추가
-                        } else {
-                            expenseList = expenseList.map { item ->
-                                if (item.id == savedExpense.id) savedExpense else item
-                            } // 기존 항목 수정 반영
-                        }
-
-                        editingExpense = null // 저장 후 수정 상태 해제
-                        selectedDate = savedExpense.date // 저장한 날짜로 선택 상태 변경
-                        currentYear = savedExpense.date.substring(0, 4).toInt() // 저장한 날짜 연도로 이동
-                        currentMonth = savedExpense.date.substring(5, 7).toInt() // 저장한 날짜 월로 이동
-                    },
-                    onCancelEdit = {
-                        editingExpense = null // 수정 취소
-                    }
-                ) // 소비 기록하기 카드 추가
-            }
-
-            item {
-                RewardGuideCard() // 보상 안내 카드 추가
-            }
-
-            item { Spacer(modifier = Modifier.height(24.dp)) } // 아래쪽 여백을 추가
-        }
-    }
-}
-
-@Composable
-private fun HomeDrawerContent(
-    menuItemList: List<HomeMenuItemData>, // 드로어에 표시할 메뉴 목록
-    onCloseClick: () -> Unit, // 닫기 버튼 클릭 시 호출할 콜백
-    onMenuItemClick: (HomeMenuItemData) -> Unit // 메뉴 클릭 시 호출할 콜백
-) { // 홈 드로어 내용을 정의하는 Composable 함수
-    Column(
+    // 공통 드로어는 AppNavGraph에서 처리하므로 HomeScreen에서는 본문만 그림
+    LazyColumn(
         modifier = Modifier
-            .fillMaxHeight()
-            .background(Color.White)
-            .padding(horizontal = 18.dp, vertical = 18.dp)
+            .fillMaxSize()
+            .background(Color(0xFFF3F6FA))
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween, // 양쪽 정렬
-            verticalAlignment = Alignment.CenterVertically // 세로 가운데 정렬
-        ) {
-            Column {
-                Text(
-                    text = "Spentopia", // 드로어 상단 앱 제목
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF1F2A37)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "원하는 메뉴로 바로 이동해보세요", // 안내 문구
-                    fontSize = 13.sp,
-                    color = Color(0xFF6B7280)
-                )
-            }
+        item { Spacer(modifier = Modifier.height(12.dp)) }
 
-            TextButton(onClick = onCloseClick) { // 닫기 버튼
-                Text(
-                    text = "닫기",
-                    color = Color(0xFF2F7DF6),
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+        item {
+            TopHeaderSection()
         }
 
-        Spacer(modifier = Modifier.height(24.dp)) // 아래쪽 여백 추가
+        item {
+            MonthlySummaryCard(
+                currentYear = currentYear,
+                currentMonth = currentMonth,
+                currentMonthTotalExpense = currentMonthTotalExpense,
+                monthlyBudget = monthlyBudget,
+                remainingBudget = remainingBudget,
+                usageRate = usageRate,
+                changeRateText = changeRateText
+            )
+        }
 
-        menuItemList.forEachIndexed { index, menuItem ->
-            HomeDrawerMenuItem(
-                emoji = menuItem.emoji,
-                title = menuItem.title,
-                onClick = {
-                    onMenuItemClick(menuItem) // 선택한 메뉴 항목 전달
+        item {
+            CalendarCard(
+                currentYear = currentYear,
+                currentMonth = currentMonth,
+                selectedDate = selectedDate,
+                expenseDateSet = expenseDateSet,
+                today = today,
+                onPrevMonth = {
+                    val previous = moveMonth(currentYear, currentMonth, -1)
+                    currentYear = previous.first
+                    currentMonth = previous.second
+                },
+                onNextMonth = {
+                    val next = moveMonth(currentYear, currentMonth, 1)
+                    currentYear = next.first
+                    currentMonth = next.second
+                },
+                onDateSelected = { clickedDate ->
+                    selectedDate = clickedDate
+                    currentYear = clickedDate.substring(0, 4).toInt()
+                    currentMonth = clickedDate.substring(5, 7).toInt()
                 }
             )
-
-            if (index != menuItemList.lastIndex) {
-                Spacer(modifier = Modifier.height(10.dp)) // 메뉴 사이 여백 추가
-            }
         }
 
-        Spacer(modifier = Modifier.weight(1f)) // 하단 영역 밀어내기
-
-        Card(
-            modifier = Modifier.fillMaxWidth(), // 하단 안내 카드 너비 설정
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFFF4F8FF)
-            ),
-            border = BorderStroke(1.dp, Color(0xFFDDE8FF))
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = "오늘의 한마디", // 하단 카드 제목
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF22406A)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "기록이 쌓일수록 소비 습관이 더 또렷하게 보여요.", // 하단 카드 설명
-                    fontSize = 13.sp,
-                    color = Color(0xFF5B6573),
-                    lineHeight = 19.sp
-                )
-            }
+        item {
+            DailyExpenseCard(
+                expenseList = expenseList,
+                selectedDate = selectedDate,
+                onEditExpense = { expense ->
+                    editingExpense = expense
+                    selectedDate = expense.date
+                    currentYear = expense.date.substring(0, 4).toInt()
+                    currentMonth = expense.date.substring(5, 7).toInt()
+                },
+                onDeleteExpense = { expenseId ->
+                    expenseList = expenseList.filter { it.id != expenseId }
+                    if (editingExpense?.id == expenseId) {
+                        editingExpense = null
+                    }
+                }
+            )
         }
+
+        item {
+            WeeklyScoreCard()
+        }
+
+        item {
+            ExpenseWriteCard(
+                selectedDate = selectedDate,
+                editingExpense = editingExpense,
+                onSaveExpense = { savedExpense ->
+                    if (editingExpense == null) {
+                        expenseList = listOf(savedExpense) + expenseList
+                    } else {
+                        expenseList = expenseList.map { item ->
+                            if (item.id == savedExpense.id) savedExpense else item
+                        }
+                    }
+
+                    editingExpense = null
+                    selectedDate = savedExpense.date
+                    currentYear = savedExpense.date.substring(0, 4).toInt()
+                    currentMonth = savedExpense.date.substring(5, 7).toInt()
+                },
+                onCancelEdit = {
+                    editingExpense = null
+                }
+            )
+        }
+
+        item {
+            RewardGuideCard()
+        }
+
+        item { Spacer(modifier = Modifier.height(24.dp)) }
     }
 }
+
+
 
 @Composable
 private fun HomeDrawerMenuItem(
@@ -486,50 +336,41 @@ private fun HomeDrawerMenuItem(
 }
 
 @Composable
-private fun TopHeaderSection(
-    onMenuClick: () -> Unit // 상단 메뉴 버튼 클릭 이벤트
-) { // 상단 헤더 섹션을 정의하는 Composable 함수입니다.
+private fun TopHeaderSection() {
     Card(
-        modifier = Modifier.fillMaxWidth(), // 카드의 너비를 최대 너비로 설정합니다.
-        shape = RoundedCornerShape(24.dp), // 카드 모서리를 둥글게 만듭니다.
-        colors = CardDefaults.cardColors(containerColor = Color.White) // 카드 색상을 흰색으로 설정
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth() // 가로로 최대 너비를 채웁니다.
-                .padding(horizontal = 14.dp, vertical = 12.dp), // 카드 내부 패딩을 설정
-            verticalAlignment = Alignment.Top, // 아이템을 위쪽 정렬
-            horizontalArrangement = Arrangement.SpaceBetween // 가로 방향으로 아이템들 사이에 공간을 두기
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(onClick = onMenuClick) { // 메뉴 아이콘 버튼 클릭 시 드로어 열기
-                Icon(
-                    imageVector = Icons.Outlined.Menu,
-                    contentDescription = "menu"
-                )
-            }
-
-            Column( // 가운데 텍스트 섹션
-                modifier = Modifier.weight(1f) // 남은 공간을 차지하도록 설정
+            Column(
+                modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = "👋 오늘도 알뜰한 소비 하세요", // 인사 메시지
-                    fontSize = 16.sp, // 글자 크기
-                    fontWeight = FontWeight.Bold, // 글자 두께
-                    color = Color(0xFF1F2A37) // 글자 색상
+                    text = "👋 오늘도 알뜰한 소비 하세요",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2A37)
                 )
                 Text(
-                    text = "오늘도 알뜰한 소비 하세요", // 추가 메시지
-                    fontSize = 13.sp, // 글자 크기
-                    color = Color(0xFF6B7280) // 글자 색상
+                    text = "이번 달 소비 흐름을 한눈에 확인해보세요",
+                    fontSize = 13.sp,
+                    color = Color(0xFF6B7280)
                 )
             }
 
-            Row { // 오른쪽 아이콘 버튼 섹션
-                IconButton(onClick = { }) { // 설정 아이콘 버튼
-                    Icon(Icons.Outlined.Settings, contentDescription = "settings") // 설정 아이콘 추가
+            Row {
+                IconButton(onClick = { }) {
+                    Icon(Icons.Outlined.Settings, contentDescription = "settings")
                 }
-                IconButton(onClick = { }) { // 알림 아이콘 버튼
-                    Icon(Icons.Outlined.NotificationsNone, contentDescription = "notification") // 알림 아이콘 추가
+                IconButton(onClick = { }) {
+                    Icon(Icons.Outlined.NotificationsNone, contentDescription = "notification")
                 }
             }
         }

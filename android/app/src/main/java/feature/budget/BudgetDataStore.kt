@@ -24,11 +24,26 @@ class BudgetDataStore(private val context: Context) {
         private val HOBBY_BUDGET = intPreferencesKey("hobby_budget")
     }
 
-    // 저장된 예산 데이터를 읽어오는 Flow
-    // 값이 바뀌면 자동으로 새 데이터를 내보냄
+    // 기존 방식
+    // 저장된 예산 데이터를 BudgetSettingsData 형태로 읽어오는 Flow
     val budgetSettingsFlow: Flow<BudgetSettingsData> =
         context.budgetDataStore.data.map { preferences ->
             BudgetSettingsData(
+                // 저장된 값이 없으면 기본값 사용
+                monthlyIncome = preferences[MONTHLY_INCOME] ?: 500000,
+                savingGoal = preferences[SAVING_GOAL] ?: 50000,
+                foodBudget = preferences[FOOD_BUDGET] ?: 150000,
+                transportBudget = preferences[TRANSPORT_BUDGET] ?: 80000,
+                livingBudget = preferences[LIVING_BUDGET] ?: 120000,
+                hobbyBudget = preferences[HOBBY_BUDGET] ?: 100000
+            )
+        }
+
+    // AnalysisViewModel / BudgetRepository에서 쓰기 쉽게
+    // BudgetState 형태로도 한 번 더 제공
+    val budgetState: Flow<BudgetState> =
+        context.budgetDataStore.data.map { preferences ->
+            BudgetState(
                 // 저장된 값이 없으면 기본값 사용
                 monthlyIncome = preferences[MONTHLY_INCOME] ?: 500000,
                 savingGoal = preferences[SAVING_GOAL] ?: 50000,

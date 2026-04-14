@@ -37,11 +37,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -53,7 +54,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 // 예산 설정 화면
@@ -66,13 +66,13 @@ fun BudgetScreen(
     val scrollState = rememberScrollState()
 
     // 스낵바 상태 저장
-    val snackbarHostState = rememberSnackbarHostState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // ViewModel의 budgetState를 화면에서 구독
-    val budgetState by viewModel.budgetState.collectAsStateWithLifecycle()
+    val budgetState by viewModel.budgetState.collectAsState()
 
     // 저장 성공 여부 상태를 구독
-    val saveSuccess by viewModel.saveSuccess.collectAsStateWithLifecycle()
+    val saveSuccess by viewModel.saveSuccess.collectAsState()
 
     // 총 지출 예정 금액 계산
     val totalExpense = budgetState.foodBudget +
@@ -486,7 +486,7 @@ private fun CustomBudgetSettingCard(
                 title = "월 수입",
                 value = monthlyIncome,
                 valueRange = 100000f..5000000f,
-                steps = 47,
+                steps = 0,
                 onValueChange = onMonthlyIncomeChange
             )
 
@@ -625,7 +625,7 @@ private fun BudgetSliderItem(
                 onValueChange(it.toInt())
             },
             valueRange = valueRange,
-            steps = steps,
+            steps = 0,
             colors = SliderDefaults.colors(
                 thumbColor = Color.White,
                 activeTrackColor = Color(0xFF020226),
