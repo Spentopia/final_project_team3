@@ -17,6 +17,8 @@ import ForgotPasswordPage from "@/domains/auth/ui/ForgotPasswordPage";
 import FindEmailPage from "@/domains/auth/ui/FindEmailPage";
 import ResetPasswordPage from "@/domains/auth/ui/ResetPasswordPage";
 import KakaoCallbackPage from "@/domains/auth/ui/KakaoCallbackPage";
+import SignupPendingPage from "@/domains/auth/ui/SignupPendingPage";
+import EmailConfirmedPage from "@/domains/auth/ui/EmailConfirmedPage";
 
 export const router = createBrowserRouter([
   {
@@ -67,5 +69,13 @@ export const router = createBrowserRouter([
   // 카카오 로그인 후 인가 코드를 받는 콜백 페이지
     path: "/auth/kakao/callback",
     Component: KakaoCallbackPage,
+  },
+  {
+    path: "/signup-pending",
+    Component: SignupPendingPage,
+  },
+  {
+    path: "/email-confirmed",
+    Component: EmailConfirmedPage,
   },
 ]);

@@ -51,9 +51,8 @@ export default function Signup() {
         });
 
         if (!result.accessToken) {
-          // 이메일 인증이 필요한 경우
-          alert("이메일을 확인해주세요!");
-          navigate("/login");
+          alert("회원가입 완료! 이메일 인증 후 로그인해주세요.");
+          navigate("/signup-pending");
           return;
         }
 

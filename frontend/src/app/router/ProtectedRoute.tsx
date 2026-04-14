@@ -18,11 +18,10 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   const checkAuth = async () => {
     try {
-      // 1) 먼저 local 토큰 확인
-      let token =
-        authStorage.getToken?.() || localStorage.getItem("spentopia_auth");
+      // 1) localStorage 토큰만 신뢰
+      let token = localStorage.getItem("spentopia_auth");
 
-      // 2) 없으면 Supabase session에서 한 번 가져와서 동기화
+      // 2) 없으면 Supabase session에서 한 번 가져와서 localStorage에만 저장
       if (!token) {
         const {
           data: { session },
@@ -30,7 +29,6 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
         if (session?.access_token) {
           token = session.access_token;
-          authStorage.setToken?.(session.access_token);
           localStorage.setItem("spentopia_auth", session.access_token);
         }
       }
@@ -49,9 +47,10 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
       if (!res.ok) {
         console.error("/me 호출 실패:", res.status);
-        localStorage.removeItem("spentopia_auth");
 
-        // Supabase 세션도 같이 정리
+        localStorage.removeItem("spentopia_auth");
+        authStorage.clear?.();
+
         try {
           await supabase.auth.signOut();
         } catch (e) {

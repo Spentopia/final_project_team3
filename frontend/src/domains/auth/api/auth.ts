@@ -25,6 +25,26 @@ import {supabase} from "@/shared/lib/supabase"
 import { authStorage } from "@/shared/lib/auth";
 import type { LoginRequest, LoginResponse,SignUpRequest } from "@/domains/auth/model/types";
 
+const clearAllAuthState = async () => {
+  // 앱 토큰 제거
+  localStorage.removeItem("spentopia_auth");
+  authStorage.clear?.();
+
+  // 카카오 콜백 중복 방지 키들도 정리
+  Object.keys(sessionStorage).forEach((key) => {
+    if (key.startsWith("kakao_code_used:")) {
+      sessionStorage.removeItem(key);
+    }
+  });
+
+  // Supabase 세션도 정리
+  try {
+    await supabase.auth.signOut();
+  } catch (e) {
+    console.warn("Supabase 세션 정리 실패:", e);
+  }
+};
+
 // ── 자체 로그인 ─────────────────────────────────────────────
 // 이메일 + 비밀번호로 로그인
 // Supabase SDK가 auth.users에서 확인 → 성공 시 JWT(session) 반환
@@ -67,11 +87,13 @@ export const signUp = async (payload: SignUpRequest): Promise<LoginResponse> => 
   const { data, error } = await supabase.auth.signUp({
     email: payload.email,
     password: payload.password,
+    options: {
+      emailRedirectTo: `${window.location.origin}/email-confirmed`,
+    },
   });
 
   if (error) throw new Error(error.message);
 
-  // 이메일 인증이 필요한 경우 session이 null
   if (!data.session) {
     return {
       accessToken: "",
@@ -84,7 +106,6 @@ export const signUp = async (payload: SignUpRequest): Promise<LoginResponse> => 
     };
   }
 
-  // 이메일 인증 비활성화 시 바로 session이 생성
   return {
     accessToken: data.session.access_token,
     refreshToken: data.session.refresh_token,
@@ -145,15 +166,19 @@ export const completeProfile = async (params: {
 // → 앱으로 돌아오면 ProtectedRoute가 profile_completed 체크
 // → 미완성이면 /complete-profile로 리다이렉트
 export const signInWithGoogle = async () => {
-  const {error} = await supabase.auth.signInWithOAuth({
+  await clearAllAuthState();
+
+  const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo: window.location.origin,
+      queryParams: {
+        prompt: "select_account",
+      },
     },
   });
 
   if (error) throw new Error(error.message);
-
 };
 
 
@@ -175,25 +200,20 @@ export const signInWithGoogle = async () => {
 // [1단계] 카카오 인가 페이지로 리다이렉트
 // 이 함수가 호출되면 현재 페이지를 떠나서 카카오 로그인 페이지로 이동함
 // 유저가 로그인하면 카카오가 redirect_uri로 인가 코드를 붙여서 돌려보냄
-export const redirectToKakao = () => {
+export const redirectToKakao = async () => {
+  await clearAllAuthState();
 
-  // .env에서 카카오 REST API 키와 콜백 URL을 가져옴
-  // REST API Key는 공개 키라서 프론트에 노출돼도 안전함
-  // (Client Secret과는 다름 — Secret은 백엔드에서만 사용)
   const clientId = import.meta.env.VITE_KAKAO_REST_API_KEY;
   const redirectUri = import.meta.env.VITE_KAKAO_REDIRECT_URI;
 
-  // 카카오 OAuth 인가 요청 URL
-  // 유저가 카카오 로그인 페이지에서 로그인하면
-  // redirectUri로 인가 코드(code)를 보내줌
   const kakaoAuthUrl =
     `https://kauth.kakao.com/oauth/authorize` +
     `?client_id=${clientId}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&response_type=code` +
-    `&scope=profile_nickname,profile_image`;
+    `&scope=profile_nickname,profile_image` +
+    `&prompt=select_account`;
 
-  //카카오 로그인 페이지로 이동
   window.location.href = kakaoAuthUrl;
 };
 
@@ -315,12 +335,5 @@ export const findEmailByPhone = async (phone: string): Promise<string> => {
 // 실제 localStorage 정리는 authStorage.clear()에서 함
 // (LoginPage에서 signOut() 호출 후 authStorage.clear()도 같이 호출)
 export const signOut = async () => {
-  localStorage.removeItem("spentopia_auth");
-  authStorage.clear?.();
-
-  try {
-    await supabase.auth.signOut();
-  } catch (error) {
-    console.warn("Supabase signOut 실패:", error);
-  }
+  await clearAllAuthState();
 };
