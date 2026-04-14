@@ -1,3 +1,9 @@
+// domains/auth/ui/EmailConfirmedPage.tsx
+//
+// 이메일 인증 링크 클릭 후 돌아왔을 때 보여줄 페이지.
+// 여기서는 자동 로그인 시도하지 않고,
+// "이제 로그인하세요" 흐름으로 안내한다.
+
 import { useNavigate } from "react-router";
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
@@ -32,7 +38,7 @@ export default function EmailConfirmedPage() {
               </p>
             </div>
             <p className="text-sm text-green-700 dark:text-green-300">
-              로그인 후 프로필을 입력하면 바로 메인 화면으로 들어갈 수 있어요.
+              로그인 후 프로필을 입력하면 바로 메인으로 들어갈 수 있어요.
             </p>
           </div>
 

@@ -1,18 +1,14 @@
 // domains/auth/ui/KakaoCallbackPage.tsx
-// ─────────────────────────────────────────────────────────────
-// 카카오 로그인 후 리다이렉트되는 콜백 페이지
 //
-// 카카오 로그인 흐름에서 이 페이지의 위치:
-// 1) 유저가 LoginPage에서 "카카오로 계속하기" 클릭
-// 2) redirectToKakao() → 카카오 로그인 페이지로 이동
-// 3) 유저가 카카오에서 로그인 완료
-// 4) 카카오가 이 페이지로 리다이렉트 (URL: /auth/kakao/callback?code=xxx)
-//    → 여기서 code 파라미터가 카카오 인가 코드
-// 5) 이 페이지가 code를 백엔드로 전송 → 백엔드가 JWT 발급
-// 6) JWT 저장 후 메인 또는 프로필 완성 페이지로 이동
+// 카카오 로그인 후 redirect_uri로 돌아오는 콜백 페이지.
 //
-// 유저에게는 "카카오 로그인 처리 중..." 메시지만 보이고
-// 자동으로 처리됨 (수동 조작 불필요)
+// 흐름:
+// 1) 카카오 로그인 페이지에서 인증 완료
+// 2) redirect_uri 로 /auth/kakao/callback?code=xxx 로 이동
+// 3) 여기서 code를 백엔드 /auth/kakao/login 으로 전달
+// 4) 백엔드가 카카오 유저 조회 + 앱 JWT 발급
+// 5) 프론트는 그 앱 JWT를 저장
+// 6) / 로 이동 -> ProtectedRoute가 /me 체크
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -20,67 +16,39 @@ import { loginWithKakaocode } from "@/domains/auth/api/auth";
 import { authStorage } from "@/shared/lib/auth";
 
 export default function KakaoCallbackPage() {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [error, setError] = useState<string | null>(null);
+  const calledRef = useRef(false);
 
-    // URL 파라미터에서 카카오 인가 코드를 꺼냄
-    // 예: /auth/kakao/callback?code=abc123 → searchParams.get("code") = "abc123"
-    const [searchParams] = useSearchParams();
-    const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (calledRef.current) return;
+    calledRef.current = true;
+
     const code = searchParams.get("code");
-    
-    //페이지가 로드되면 자동으로 로그인 처리 시작
-    useEffect(() => {
-    
 
     if (!code) {
       setError("카카오 인가 코드가 없습니다");
       return;
     }
 
-    const storageKey = `kakao_code_used:${code}`;
-    if (sessionStorage.getItem(storageKey)) {
-      return;
+    void handleKakaoLogin(code);
+  }, [searchParams]);
+
+  const handleKakaoLogin = async (code: string) => {
+    try {
+      const data = await loginWithKakaocode(code);
+
+      // 최종적으로 받은 건 앱 JWT
+      authStorage.setToken(data.access_token);
+      localStorage.setItem("spentopia_auth", data.access_token);
+
+      navigate("/");
+    } catch (err: any) {
+      setError(err.message || "카카오 로그인 실패");
     }
+  };
 
-    sessionStorage.setItem(storageKey, "true");
-    // URL에서 code 제거: 새로고침 시 재전송 방지
-    window.history.replaceState({}, "", "/auth/kakao/callback");
-
-    void handleKakaoLogin(code, storageKey);
-  }, [code]);
-
-
-    const handleKakaoLogin = async (code: string, storageKey: string) => {
-        try {
-            // 백엔드 /auth/kakao/login으로 인가 코드 전송
-            // 백엔드가 하는 일:
-            // 1) 인가 코드 → 카카오 access_token 교환
-            // 2) access_token → 카카오 유저 정보 조회 (id, nickname 등)
-            // 3) 카카오 ID로 Supabase 유저 찾거나 생성
-            // 4) Supabase JWT 발급해서 반환
-            const data = await loginWithKakaocode(code);
-
-            // 받은 JWT를 localStorage에 저장
-            // 이후 백엔드 API 호출 시 이 토큰이 Authorization 헤더에 들어감
-            authStorage.setToken(data.access_token);
-            localStorage.setItem("spentopia_auth", data.access_token);
-
-            sessionStorage.removeItem(storageKey);
-
-            // 첫 가입이면 프로필 완성 페이지로 (닉네임/전화번호 입력)
-            // 기존 유저면 메인 페이지로
-           if (data.is_new_user) {
-            navigate("/complete-profile", { replace: true });
-          } else {
-            navigate("/", { replace: true });
-          }
-        } catch (err:any) {
-            sessionStorage.removeItem(storageKey);
-          setError(err.message || "카카오 로그인 실패");
-        }
-    };
-
-    // 에러 발생 시 에러 메시지 + 로그인으로 돌아가기 버튼
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -97,12 +65,9 @@ export default function KakaoCallbackPage() {
     );
   }
 
-  // 정상 처리 중일 때 로딩 메시지
   return (
     <div className="flex min-h-screen items-center justify-center">
       <p className="text-gray-500">카카오 로그인 처리 중...</p>
     </div>
   );
 }
-
-

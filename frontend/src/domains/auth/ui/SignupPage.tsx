@@ -1,3 +1,16 @@
+// domains/auth/ui/Signup.tsx
+//
+// Step 기반 회원가입 페이지.
+//
+// Step 1:
+// - 이메일/비밀번호로 Supabase 회원가입
+// - Confirm Email 켜져 있으면 accessToken 없이 끝날 수 있음
+// - 그 경우 /signup-pending 으로 이동
+//
+// Step 2 ~ 3:
+// - accessToken(=앱 JWT)이 있는 경우에만 진행
+// - 마지막에 /profile/complete 호출
+
 import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { authStorage } from "@/shared/lib/auth";
@@ -22,6 +35,7 @@ export default function Signup() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -29,14 +43,14 @@ export default function Signup() {
     phone: "",
     nickname: "",
     avatar: 1,
+    profileImage: "",
   });
 
   const handleNext = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (loading) return;
 
-    // ── Step 1 → 2: 이메일/비밀번호로 Supabase 회원가입 ──────
-    // auth.users에 row 생성 → handle_new_user 트리거가
-    // public.users + user_settings + streaks 자동 생성
+    // ── Step 1: 이메일/비밀번호 회원가입 ──────────────────────
     if (step === 1) {
       if (formData.password !== formData.confirmPassword) {
         alert("비밀번호가 일치하지 않습니다");
@@ -50,15 +64,18 @@ export default function Signup() {
           password: formData.password,
         });
 
+        // 이메일 인증이 필요한 경우
+        // 아직 로그인 상태가 아니므로 Step2로 보내면 안 됨
         if (!result.accessToken) {
           alert("회원가입 완료! 이메일 인증 후 로그인해주세요.");
           navigate("/signup-pending");
           return;
         }
 
-        // 토큰 저장 후 다음 스텝으로
+        // Confirm Email 꺼져 있어서 즉시 로그인 가능한 경우
         authStorage.setToken(result.accessToken);
         localStorage.setItem("spentopia_auth", result.accessToken);
+
         setStep(2);
       } catch (error: any) {
         alert(error.message || "회원가입 실패");
@@ -68,21 +85,19 @@ export default function Signup() {
       return;
     }
 
-    // ── Step 2 → 3 ───────────────────────────────────────────
+    // ── Step 2 -> Step 3 ────────────────────────────────────
     if (step === 2) {
       setStep(3);
       return;
     }
 
-    // ── Step 3: 프로필 완성 ──────────────────────────────────
-    // public.users에 nickname, phone UPDATE
-    // → handle_profile_completed 트리거가 profile_completed = true
+    // ── Step 3: 프로필 저장 ──────────────────────────────────
     setLoading(true);
     try {
       await completeProfile({
         nickname: formData.nickname,
         phone: formData.phone,
-        avatar: formData.avatar,
+        profileImage: formData.profileImage || undefined,
       });
 
       navigate("/");
@@ -107,7 +122,6 @@ export default function Signup() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500 dark:from-purple-900 dark:via-pink-900 dark:to-blue-900 p-4">
       <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl">
         <div className="p-8">
-          {/* Logo */}
           <div className="mb-8 flex flex-col items-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg">
               <Sparkles className="h-8 w-8 text-white" />
@@ -118,20 +132,20 @@ export default function Signup() {
             </p>
           </div>
 
-          {/* Progress Bar */}
           <div className="mb-6 flex gap-2">
             {[1, 2, 3].map((s) => (
               <div
                 key={s}
                 className={`h-2 flex-1 rounded-full ${
-                  s <= step ? "bg-gradient-to-r from-purple-500 to-pink-500" : "bg-gray-200 dark:bg-gray-700"
+                  s <= step
+                    ? "bg-gradient-to-r from-purple-500 to-pink-500"
+                    : "bg-gray-200 dark:bg-gray-700"
                 }`}
-              ></div>
+              />
             ))}
           </div>
 
           <form onSubmit={handleNext} className="space-y-4">
-            {/* Step 1: 이메일/비밀번호 (Supabase auth.users 생성) */}
             {step === 1 && (
               <>
                 <div>
@@ -176,7 +190,6 @@ export default function Signup() {
               </>
             )}
 
-            {/* Step 2: 닉네임/전화번호 (public.users UPDATE) */}
             {step === 2 && (
               <>
                 <div>
@@ -215,12 +228,13 @@ export default function Signup() {
                       이미지 업로드
                     </Button>
                   </div>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">나중에 설정할 수 있어요</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    나중에 설정할 수 있어요
+                  </p>
                 </div>
               </>
             )}
 
-            {/* Step 3: 아바타 선택 */}
             {step === 3 && (
               <>
                 <div>
@@ -228,6 +242,7 @@ export default function Signup() {
                   <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
                     Spentopia에서 사용할 아바타를 선택해주세요
                   </p>
+
                   <div className="grid grid-cols-3 gap-3">
                     {avatarOptions.map((avatar) => (
                       <button
@@ -241,7 +256,9 @@ export default function Signup() {
                         }`}
                       >
                         <span className="mb-2 text-4xl">{avatar.emoji}</span>
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{avatar.name}</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {avatar.name}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -256,7 +273,6 @@ export default function Signup() {
               </>
             )}
 
-            {/* Buttons */}
             <div className="flex gap-3 pt-4">
               {step > 1 && (
                 <Button type="button" variant="outline" onClick={handleBack} className="flex-1">
@@ -268,16 +284,18 @@ export default function Signup() {
                 disabled={loading}
                 className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
               >
-                {loading ? "처리 중..." : step === 3 ? "가입 완료" : step === 1 ? "다음" : "다음"}
+                {loading ? "처리 중..." : step === 3 ? "가입 완료" : "다음"}
               </Button>
             </div>
           </form>
 
-          {/* Login Link */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               이미 계정이 있으신가요?{" "}
-              <Link to="/login" className="font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300">
+              <Link
+                to="/login"
+                className="font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+              >
                 로그인
               </Link>
             </p>

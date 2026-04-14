@@ -1,7 +1,13 @@
+// domains/auth/ui/SignupPendingPage.tsx
+//
+// 이메일 인증이 필요한 회원가입 직후 보여주는 안내 페이지.
+// 이메일 인증 전에는 아직 로그인 상태가 아니므로,
+// 프로필 입력 단계로 보내지 않고 여기서 안내만 한다.
+
 import { useNavigate } from "react-router";
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
-import { Sparkles, MailCheck } from "lucide-react";
+import { MailCheck, Sparkles } from "lucide-react";
 
 export default function SignupPendingPage() {
   const navigate = useNavigate();
@@ -24,18 +30,21 @@ export default function SignupPendingPage() {
             <p className="text-sm text-gray-600 dark:text-gray-400 leading-6">
               회원가입은 완료됐어요.
               <br />
-              네이버 메일에서 인증 링크를 누른 뒤 로그인해주세요.
+              메일함에서 인증 링크를 눌러주세요.
             </p>
           </div>
 
           <div className="mb-6 rounded-lg border border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/30 p-4">
-            <p className="mb-2 font-bold text-purple-900 dark:text-purple-100">
-              💡 안내
-            </p>
+            <div className="mb-2 flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-purple-500" />
+              <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+                안내
+              </p>
+            </div>
             <p className="text-sm text-purple-700 dark:text-purple-300 leading-6">
               메일 링크는 다른 브라우저에서 열릴 수 있어요.
               <br />
-              인증만 완료되면 다시 이 페이지로 돌아와 로그인하면 됩니다.
+              인증 완료 후 다시 로그인하면 서비스를 이용할 수 있어요.
             </p>
           </div>
 
@@ -56,20 +65,6 @@ export default function SignupPendingPage() {
             >
               로그인하러 가기
             </Button>
-          </div>
-
-          <div className="mt-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-purple-500" />
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                인증이 안 보이면
-              </p>
-            </div>
-            <ul className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
-              <li>• 스팸함도 확인해보세요.</li>
-              <li>• 메일이 늦게 올 수 있으니 잠시 기다려보세요.</li>
-              <li>• 인증 후 다시 로그인하면 바로 이용할 수 있어요.</li>
-            </ul>
           </div>
         </div>
       </Card>

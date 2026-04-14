@@ -29,7 +29,6 @@ use crate::wallet;
         crate::auth::handler::get_me,
 
         // ── 테스트용 이메일 로그인 ──────────────────────
-        crate::auth::handler::test_email_login,
 
         // ── 지갑 연동/해제 ──────────────────────────────
         // 로그인 후 지갑을 연결/해제하는 API → 보호 라우트
@@ -45,7 +44,6 @@ use crate::wallet;
             auth::dto::LoginResponse,
 
             // ── 테스트용 DTO ─────────────────────────────
-            auth::dto::EmailLoginRequest,
 
             // ── 지갑 연동/해제 DTO ───────────────────────
             // ToSchema가 붙어있어야 여기 등록 가능

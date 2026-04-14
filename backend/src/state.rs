@@ -6,7 +6,7 @@
 use crate::config::Config;
 use reqwest::Client;
 use dashmap::DashMap;
-use crate::auth::middleware::JwksCache;
+
 
 #[derive(Clone)]
 pub struct AppState {
@@ -19,8 +19,6 @@ pub struct AppState {
     // 지갑주소 -> nonce 임시 저장소
     pub nonce_store: DashMap<String, String>,
 
-    // JWKS 공개키 캐시 (매 요청마다 HTTP 호출 방지)
-    pub jwks_cache: JwksCache,
 }
 
 impl AppState {
@@ -29,7 +27,7 @@ impl AppState {
             config,
             http_client: Client::new(),
             nonce_store: DashMap::new(),
-            jwks_cache: JwksCache::new(),
+            
         }
     }
 }

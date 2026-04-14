@@ -19,31 +19,29 @@ export default function Login() {
     try {
       const result = await login({ email, password });
 
-      // 🔥 핵심 1: 새 구조 토큰 저장
+      // ✅ 실제 앱 JWT 저장
       authStorage.setToken(result.accessToken);
 
-      // 🔥 핵심 2: 기존 앱 호환 (이거 없으면 튕김)
-      localStorage.setItem("spentopia_auth", "mock_token");
+      // ✅ 기존 mock_token → 실제 토큰으로 교체 (핵심)
+      localStorage.setItem("spentopia_auth", result.accessToken);
 
-      // 🔥 이동
       navigate("/");
     } catch (error) {
       alert("로그인 실패");
     }
   };
 
-// handleSocialLogin 함수 수정
-const handleSocialLogin = async (provider: string) => {
-  try {
-    if (provider === "google") {
-      await signInWithGoogle();
-    } else if (provider === "kakao") {
-      redirectToKakao();  // 카카오는 자체 구현
+  const handleSocialLogin = async (provider: string) => {
+    try {
+      if (provider === "google") {
+        await signInWithGoogle();
+      } else if (provider === "kakao") {
+        redirectToKakao();
+      }
+    } catch (error: any) {
+      alert(error.message || "소셜 로그인 실패");
     }
-  } catch (error: any) {
-    alert(error.message || "소셜 로그인 실패");
-  }
-};
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-500 via-blue-500 to-teal-500 dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900 p-4">
