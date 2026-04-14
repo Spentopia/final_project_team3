@@ -119,11 +119,11 @@ export default function Signup() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500 dark:from-purple-900 dark:via-pink-900 dark:to-blue-900 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-500 via-blue-500 to-teal-500 dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900 p-4">
       <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl">
         <div className="p-8">
           <div className="mb-8 flex flex-col items-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg">
               <Sparkles className="h-8 w-8 text-white" />
             </div>
             <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">회원가입</h1>
@@ -138,7 +138,7 @@ export default function Signup() {
                 key={s}
                 className={`h-2 flex-1 rounded-full ${
                   s <= step
-                    ? "bg-gradient-to-r from-purple-500 to-pink-500"
+                    ? "bg-gradient-to-br from-cyan-500 via-blue-500 to-teal-500"
                     : "bg-gray-200 dark:bg-gray-700"
                 }`}
               />
@@ -251,8 +251,8 @@ export default function Signup() {
                         onClick={() => updateFormData("avatar", avatar.id)}
                         className={`flex flex-col items-center justify-center rounded-xl border-2 p-4 transition-all ${
                           formData.avatar === avatar.id
-                            ? "border-purple-500 bg-purple-50 dark:bg-purple-900/30 shadow-lg"
-                            : "border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600"
+                            ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/30 shadow-lg"
+                            : "border-gray-200 dark:border-gray-700 hover:border-cyan-300 dark:hover:border-cyan-600"
                         }`}
                       >
                         <span className="mb-2 text-4xl">{avatar.emoji}</span>
@@ -264,7 +264,7 @@ export default function Signup() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/30 p-4">
+                <div className="rounded-lg border border-cyan-200 dark:border-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 p-4">
                   <p className="mb-2 font-bold text-purple-900 dark:text-purple-100">🎁 가입 축하 선물!</p>
                   <p className="text-sm text-purple-700 dark:text-purple-300">
                     회원가입 완료 시 기본 아바타를 지급하고 프로필 설정을 바로 이어서 할 수 있어요.
@@ -282,7 +282,7 @@ export default function Signup() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
               >
                 {loading ? "처리 중..." : step === 3 ? "가입 완료" : "다음"}
               </Button>
@@ -294,7 +294,7 @@ export default function Signup() {
               이미 계정이 있으신가요?{" "}
               <Link
                 to="/login"
-                className="font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+                className="font-bold text-cyan-600 dark:text-cyan-400 hover:text-purple-700 dark:hover:text-purple-300"
               >
                 로그인
               </Link>

@@ -119,7 +119,7 @@ const myListings = [
 const rarityColors = {
   common: "bg-gray-500",
   rare: "bg-blue-500",
-  epic: "bg-purple-500",
+  epic: "bg-cyan-500",
   legendary: "bg-amber-500",
 };
 
@@ -178,7 +178,7 @@ export default function Marketplace() {
           <p className="text-gray-600">아바타 아이템을 자유롭게 거래해보세요</p>
         </div>
         {!walletConnected && (
-          <Button className="bg-gradient-to-r from-purple-500 to-pink-500">
+          <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
             <Wallet className="mr-2 h-4 w-4" />
             지갑 연결하기
           </Button>
@@ -229,7 +229,7 @@ export default function Marketplace() {
           <p className="text-sm text-green-600">+8% 상승</p>
         </Card>
 
-        <Card className="border-none bg-gradient-to-br from-purple-500 to-pink-500 p-6 text-white backdrop-blur-xl">
+        <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
           <div className="mb-2 flex items-center gap-2">
             <Wallet className="h-4 w-4" />
             <span className="text-sm">내 잔액</span>
@@ -323,7 +323,7 @@ export default function Marketplace() {
 
                   <Button
                     onClick={() => handleBuy(item)}
-                    className="w-full bg-gradient-to-r from-purple-500 to-pink-500"
+                    className="w-full bg-gradient-to-r from-cyan-500 to-blue-500"
                     size="sm"
                   >
                     구매하기
@@ -390,7 +390,7 @@ export default function Marketplace() {
           ) : (
             <Card className="border-none bg-white/80 p-12 text-center backdrop-blur-xl">
               <p className="mb-4 text-gray-500">판매중인 아이템이 없어요</p>
-              <Button className="bg-gradient-to-r from-purple-500 to-pink-500">
+              <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
                 아이템 판매하기
               </Button>
             </Card>
@@ -412,7 +412,7 @@ export default function Marketplace() {
                 <span className="text-gray-700">최소 판매가</span>
                 <span className="font-bold text-gray-900">100 SPT</span>
               </div>
-              <div className="mt-4 rounded-lg border border-purple-200 bg-white p-3 text-sm text-gray-600">
+              <div className="mt-4 rounded-lg border border-cyan-200 bg-white p-3 text-sm text-gray-600">
                 💡 판매 취소는 등록 후 24시간 이내에만 가능해요
               </div>
             </div>

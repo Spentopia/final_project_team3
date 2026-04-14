@@ -16,7 +16,7 @@ export default function Plaza() {
       </div>
 
       {/* Unity WebGL Info */}
-      <Card className="border-none bg-gradient-to-br from-purple-500 to-pink-500 p-8 text-center text-white backdrop-blur-xl">
+      <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-8 text-center text-white backdrop-blur-xl">
         <Gamepad2 className="mx-auto mb-4 h-16 w-16" />
         <h2 className="mb-2 text-2xl font-bold">Unity WebGL 광장</h2>
         <p className="mb-6 opacity-90">
@@ -34,8 +34,8 @@ export default function Plaza() {
           <h3 className="mb-4 font-bold text-gray-900">광장 기능</h3>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-100">
-                <Users className="h-5 w-5 text-purple-600" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-100">
+                <Users className="h-5 w-5 text-cyan-600" />
               </div>
               <div>
                 <h4 className="mb-1 font-bold text-gray-900">아바타 이동 & 채팅</h4>
@@ -143,8 +143,8 @@ export default function Plaza() {
       <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
         <h3 className="mb-4 font-bold text-gray-900">곧 추가될 기능</h3>
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border-2 border-dashed border-purple-300 bg-purple-50 p-4 text-center">
-            <Sparkles className="mx-auto mb-2 h-8 w-8 text-purple-600" />
+          <div className="rounded-lg border-2 border-dashed border-cyan-300 bg-cyan-50 p-4 text-center">
+            <Sparkles className="mx-auto mb-2 h-8 w-8 text-cyan-600" />
             <h4 className="mb-1 font-bold text-gray-900">미니게임</h4>
             <p className="text-sm text-gray-600">다양한 미니게임으로 SPT 획득</p>
           </div>

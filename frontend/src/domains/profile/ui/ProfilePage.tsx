@@ -77,7 +77,7 @@ export default function ProfilePage() {
               <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/20 text-4xl backdrop-blur-sm">
                 😊
               </div>
-              <button className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white text-purple-600 shadow-lg">
+              <button className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white text-cyan-600 shadow-lg">
                 <Camera className="h-4 w-4" />
               </button>
             </div>

@@ -40,7 +40,7 @@ const categories = [
   { value: "food", label: "🍔 식비", color: "bg-orange-500" },
   { value: "transport", label: "🚗 교통", color: "bg-blue-500" },
   { value: "shopping", label: "🛍️ 쇼핑", color: "bg-pink-500" },
-  { value: "entertainment", label: "🎮 여가", color: "bg-purple-500" },
+  { value: "entertainment", label: "🎮 여가", color: "bg-cyan-500" },
   { value: "health", label: "💊 의료", color: "bg-green-500" },
   { value: "education", label: "📚 교육", color: "bg-indigo-500" },
   { value: "utility", label: "💡 공과금", color: "bg-yellow-500" },

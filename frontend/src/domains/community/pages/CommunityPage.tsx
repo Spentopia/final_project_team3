@@ -111,14 +111,14 @@ export default function Community() {
           <h1 className="mb-2 text-3xl font-bold text-gray-900">커뮤니티</h1>
           <p className="text-gray-600">다른 사용자들과 소통하고 경험을 나눠보세요</p>
         </div>
-        <Button className="bg-gradient-to-r from-purple-500 to-pink-500">
+        <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
           <Send className="mr-2 h-4 w-4" />
           글쓰기
         </Button>
       </div>
 
       {/* AI Chatbot Banner */}
-      <Card className="border-none bg-gradient-to-r from-purple-500 to-pink-500 p-6 text-white backdrop-blur-xl">
+      <Card className="border-none bg-gradient-to-r from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white/20 text-3xl backdrop-blur-sm">
             🤖
@@ -235,7 +235,7 @@ export default function Community() {
                 </Button>
                 <Button
                   onClick={handleSubmitPost}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500"
+                  className="bg-gradient-to-r from-cyan-500 to-blue-500"
                 >
                   게시하기
                 </Button>
@@ -318,7 +318,7 @@ export default function Community() {
             </Card>
 
             <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
-              <Badge className="mb-3 bg-purple-500">구독 관리</Badge>
+              <Badge className="mb-3 bg-cyan-500">구독 관리</Badge>
               <h3 className="mb-2 font-bold text-gray-900">안 쓰는 구독 정리로 월 5만원 아끼기</h3>
               <p className="mb-4 text-sm text-gray-600">
                 OTT, 음악 스트리밍 등 안 쓰는 구독은 과감히 정리하세요. 정말 필요한 것만 남기면 월 5만원은 금방이에요.

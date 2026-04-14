@@ -68,7 +68,7 @@ export default function Analytics() {
             <Share2 className="mr-2 h-4 w-4" />
             공유
           </Button>
-          <Button className="bg-gradient-to-r from-purple-500 to-pink-500">
+          <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
             <Download className="mr-2 h-4 w-4" />
             리포트 다운로드
           </Button>
@@ -77,7 +77,7 @@ export default function Analytics() {
 
       {/* Summary Cards */}
       <div className="grid gap-6 md:grid-cols-4">
-        <Card className="border-none bg-gradient-to-br from-purple-500 to-pink-500 p-6 text-white backdrop-blur-xl">
+        <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
           <p className="mb-1 text-sm opacity-90">이번 달 총 지출</p>
           <p className="mb-2 text-3xl font-bold">300,000원</p>
           <div className="flex items-center gap-1 text-sm">
@@ -99,7 +99,7 @@ export default function Analytics() {
           <p className="mb-1 text-sm text-gray-600">예산 사용률</p>
           <p className="mb-2 text-3xl font-bold text-gray-900">60%</p>
           <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-            <div className="h-full w-[60%] bg-gradient-to-r from-purple-500 to-pink-500"></div>
+            <div className="h-full w-[60%] bg-gradient-to-r from-cyan-500 to-blue-500"></div>
           </div>
         </Card>
 
@@ -224,12 +224,12 @@ export default function Analytics() {
       {/* AI Insights */}
       <Card className="border-none bg-gradient-to-br from-purple-50 to-pink-50 p-6 backdrop-blur-xl">
         <div className="mb-4 flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-purple-600" />
+          <Sparkles className="h-5 w-5 text-cyan-600" />
           <h3 className="font-bold text-gray-900">AI 소비 분석 리포트</h3>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg border border-purple-200 bg-white p-4">
+          <div className="rounded-lg border border-cyan-200 bg-white p-4">
             <div className="mb-2 flex items-start gap-2">
               <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
               <div>
@@ -241,7 +241,7 @@ export default function Analytics() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-purple-200 bg-white p-4">
+          <div className="rounded-lg border border-cyan-200 bg-white p-4">
             <div className="mb-2 flex items-start gap-2">
               <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
               <div>
@@ -290,7 +290,7 @@ export default function Analytics() {
                 <span className="text-sm text-gray-600">오전 (06-12시)</span>
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
-                    <div className="h-full w-[30%] bg-purple-500"></div>
+                    <div className="h-full w-[30%] bg-cyan-500"></div>
                   </div>
                   <span className="text-sm font-bold text-gray-900">30%</span>
                 </div>
@@ -299,7 +299,7 @@ export default function Analytics() {
                 <span className="text-sm text-gray-600">오후 (12-18시)</span>
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
-                    <div className="h-full w-[50%] bg-purple-500"></div>
+                    <div className="h-full w-[50%] bg-cyan-500"></div>
                   </div>
                   <span className="text-sm font-bold text-gray-900">50%</span>
                 </div>
@@ -308,7 +308,7 @@ export default function Analytics() {
                 <span className="text-sm text-gray-600">저녁 (18-24시)</span>
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
-                    <div className="h-full w-[20%] bg-purple-500"></div>
+                    <div className="h-full w-[20%] bg-cyan-500"></div>
                   </div>
                   <span className="text-sm font-bold text-gray-900">20%</span>
                 </div>

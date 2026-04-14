@@ -4,7 +4,7 @@ import { Home, Search } from "lucide-react";
 
 export default function NotFoundPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-500 via-blue-500 to-blue-500 p-4">
       <div className="text-center text-white">
         <div className="mb-8">
           <h1 className="mb-4 text-9xl font-bold">404</h1>

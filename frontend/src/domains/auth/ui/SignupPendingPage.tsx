@@ -17,11 +17,11 @@ export default function SignupPendingPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500 dark:from-purple-900 dark:via-pink-900 dark:to-blue-900 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-500 via-blue-500 to-teal-500 dark:from-purple-900 dark:via-pink-900 dark:to-blue-900 p-4">
       <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl">
         <div className="p-8">
           <div className="mb-8 flex flex-col items-center text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg">
               <MailCheck className="h-8 w-8 text-white" />
             </div>
             <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
@@ -34,7 +34,7 @@ export default function SignupPendingPage() {
             </p>
           </div>
 
-          <div className="mb-6 rounded-lg border border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/30 p-4">
+          <div className="mb-6 rounded-lg border border-cyan-200 dark:border-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 p-4">
             <div className="mb-2 flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-purple-500" />
               <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">
@@ -52,7 +52,7 @@ export default function SignupPendingPage() {
             <Button
               type="button"
               onClick={openNaverMail}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
             >
               네이버 메일 열기
             </Button>

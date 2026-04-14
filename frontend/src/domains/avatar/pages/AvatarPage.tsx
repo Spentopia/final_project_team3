@@ -57,7 +57,7 @@ const avatarItems: AvatarItem[] = [
 const rarityColors = {
   common: "bg-gray-500",
   rare: "bg-blue-500",
-  epic: "bg-purple-500",
+  epic: "bg-cyan-500",
   legendary: "bg-amber-500",
 };
 
@@ -137,7 +137,7 @@ export default function Avatar() {
             <Camera className="mr-2 h-4 w-4" />
             스크린샷
           </Button>
-          <Button className="bg-gradient-to-r from-purple-500 to-pink-500">
+          <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
             <Share2 className="mr-2 h-4 w-4" />
             공유하기
           </Button>
@@ -146,7 +146,7 @@ export default function Avatar() {
 
       <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
         {/* Avatar Preview */}
-        <Card className="border-none bg-gradient-to-br from-purple-500 to-pink-500 p-6 text-white backdrop-blur-xl">
+        <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
           <h3 className="mb-4 font-bold">미리보기</h3>
           
           {/* Avatar Display */}
@@ -227,9 +227,9 @@ export default function Avatar() {
                           disabled={!item.owned}
                           className={`relative flex aspect-square flex-col items-center justify-center rounded-lg border-2 p-3 transition-all ${
                             selectedItems[item.type as keyof typeof selectedItems] === item.id
-                              ? "border-purple-500 bg-purple-50 shadow-lg"
+                              ? "border-cyan-500 bg-cyan-50 shadow-lg"
                               : item.owned
-                              ? "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
+                              ? "border-gray-200 hover:border-cyan-300 hover:bg-gray-50"
                               : "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50"
                           }`}
                         >
@@ -264,9 +264,9 @@ export default function Avatar() {
                         disabled={!item.owned}
                         className={`relative flex aspect-square flex-col items-center justify-center rounded-lg border-2 p-4 transition-all ${
                           selectedItems[type] === item.id
-                            ? "border-purple-500 bg-purple-50 shadow-lg"
+                            ? "border-cyan-500 bg-cyan-50 shadow-lg"
                             : item.owned
-                            ? "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
+                            ? "border-gray-200 hover:border-cyan-300 hover:bg-gray-50"
                             : "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50"
                         }`}
                       >
@@ -320,8 +320,8 @@ export default function Avatar() {
               <span className="font-bold text-purple-900">에픽</span>
               <span className="text-sm text-purple-700">2/6</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-purple-200">
-              <div className="h-full w-[33.33%] bg-purple-500"></div>
+            <div className="h-2 overflow-hidden rounded-full bg-cyan-200">
+              <div className="h-full w-[33.33%] bg-cyan-500"></div>
             </div>
           </div>
 
@@ -340,11 +340,11 @@ export default function Avatar() {
       {/* How to Get Items */}
       <Card className="border-none bg-gradient-to-br from-purple-50 to-pink-50 p-6 backdrop-blur-xl">
         <div className="mb-4 flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-purple-600" />
+          <Sparkles className="h-5 w-5 text-cyan-600" />
           <h3 className="font-bold text-gray-900">아이템 획득 방법</h3>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border border-purple-200 bg-white p-4">
+          <div className="rounded-lg border border-cyan-200 bg-white p-4">
             <CheckCircle className="mb-2 h-8 w-8 text-green-500" />
             <h4 className="mb-1 font-bold text-gray-900">성실도 보상</h4>
             <p className="text-sm text-gray-600">
@@ -352,7 +352,7 @@ export default function Avatar() {
             </p>
           </div>
 
-          <div className="rounded-lg border border-purple-200 bg-white p-4">
+          <div className="rounded-lg border border-cyan-200 bg-white p-4">
             <Download className="mb-2 h-8 w-8 text-blue-500" />
             <h4 className="mb-1 font-bold text-gray-900">NFT 마켓</h4>
             <p className="text-sm text-gray-600">
@@ -360,7 +360,7 @@ export default function Avatar() {
             </p>
           </div>
 
-          <div className="rounded-lg border border-purple-200 bg-white p-4">
+          <div className="rounded-lg border border-cyan-200 bg-white p-4">
             <Sparkles className="mb-2 h-8 w-8 text-purple-500" />
             <h4 className="mb-1 font-bold text-gray-900">특별 이벤트</h4>
             <p className="text-sm text-gray-600">

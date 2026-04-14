@@ -103,7 +103,7 @@ export default function Budget() {
           <h1 className="mb-2 text-3xl font-bold text-gray-900">예산 설정</h1>
           <p className="text-gray-600">AI가 추천하는 플랜으로 시작하거나 직접 설정해보세요</p>
         </div>
-        <Button className="bg-gradient-to-r from-purple-500 to-pink-500">
+        <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
           <Sparkles className="mr-2 h-4 w-4" />
           AI 플랜 생성
         </Button>
@@ -112,7 +112,7 @@ export default function Budget() {
       {/* AI Recommended Plans */}
       <div>
         <h2 className="mb-4 flex items-center gap-2 font-bold text-gray-900">
-          <Sparkles className="h-5 w-5 text-purple-600" />
+          <Sparkles className="h-5 w-5 text-cyan-600" />
           AI 추천 플랜
         </h2>
         <div className="grid gap-6 md:grid-cols-3">
@@ -121,15 +121,15 @@ export default function Budget() {
               key={plan.id}
               className={`border-2 bg-white/80 p-6 backdrop-blur-xl transition-all ${
                 selectedPlan === plan.id
-                  ? "border-purple-500 shadow-xl"
-                  : "border-transparent hover:border-purple-300"
+                  ? "border-cyan-500 shadow-xl"
+                  : "border-transparent hover:border-cyan-300"
               }`}
             >
               <div className="mb-4">
                 <div className="mb-2 flex items-start justify-between">
                   <h3 className="font-bold text-gray-900">{plan.name}</h3>
                   {selectedPlan === plan.id && (
-                    <Badge className="bg-purple-500">적용중</Badge>
+                    <Badge className="bg-cyan-500">적용중</Badge>
                   )}
                 </div>
                 <p className="text-sm text-gray-600">{plan.description}</p>
@@ -168,7 +168,7 @@ export default function Budget() {
                 variant={selectedPlan === plan.id ? "default" : "outline"}
                 className={`w-full ${
                   selectedPlan === plan.id
-                    ? "bg-gradient-to-r from-purple-500 to-pink-500"
+                    ? "bg-gradient-to-r from-cyan-500 to-blue-500"
                     : ""
                 }`}
               >
@@ -182,7 +182,7 @@ export default function Budget() {
       {/* Custom Budget Setting */}
       <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
         <h2 className="mb-6 flex items-center gap-2 font-bold text-gray-900">
-          <Target className="h-5 w-5 text-purple-600" />
+          <Target className="h-5 w-5 text-cyan-600" />
           맞춤 예산 설정
         </h2>
 
@@ -307,7 +307,7 @@ export default function Budget() {
 
             <Button
               onClick={handleSaveCustomBudget}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500"
+              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500"
             >
               설정 저장
             </Button>
@@ -315,7 +315,7 @@ export default function Budget() {
 
           {/* Right: Summary */}
           <div className="space-y-6">
-            <div className="rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 p-6 text-white">
+            <div className="rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white">
               <h3 className="mb-4 font-bold">예산 요약</h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -361,7 +361,7 @@ export default function Budget() {
                   <p>저축 비율이 {Math.round((customBudget.savings / customBudget.monthly) * 100)}%예요. 목표 달성 가능해요!</p>
                 </div>
                 <div className="flex items-start gap-2">
-                  <PiggyBank className="mt-0.5 h-4 w-4 shrink-0 text-purple-600" />
+                  <PiggyBank className="mt-0.5 h-4 w-4 shrink-0 text-cyan-600" />
                   <p>
                     이 속도면 {Math.round(10000000 / (customBudget.savings * 12))}년 후 1천만원을 모을 수 있어요!
                   </p>
