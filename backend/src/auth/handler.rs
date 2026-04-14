@@ -299,6 +299,31 @@ pub async fn complete_profile(
     if !resp.status().is_success() {
         let err = resp.text().await.unwrap_or_default();
         tracing::error!("프로필 업데이트 실패: {}", err);
+
+        // 닉네임 unique 충돌
+        if err.contains("users_nickname_key") {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "이미 사용 중인 닉네임입니다".to_string(),
+            ));
+        }
+
+        // 전화번호 unique 충돌
+        if err.contains("users_phone_key") {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "이미 사용 중인 전화번호입니다".to_string(),
+            ));
+        }
+
+        // profile_image 컬럼명 오류 같은 경우
+        if err.contains("profile_image") && err.contains("schema cache") {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "profile_image 컬럼 설정을 확인해주세요".to_string(),
+            ));
+        }
+
         return Err((StatusCode::INTERNAL_SERVER_ERROR, err));
     }
 

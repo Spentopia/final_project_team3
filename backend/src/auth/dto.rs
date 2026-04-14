@@ -111,3 +111,19 @@ pub struct CompleteProfileResponse {
     pub success: bool,
     pub profile_completed: bool,
 }
+
+// ─────────────────────────────────────────────────────────────
+// 프로필 이미지 signed URL 응답
+//
+// 프론트는 이 URL을 img src로 사용하면 됨.
+// URL은 일정 시간 후 만료됨.
+// ─────────────────────────────────────────────────────────────
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ProfileImageUrlResponse {
+    pub signed_url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ProfileImageUrlQuery {
+    pub path: String,
+}
