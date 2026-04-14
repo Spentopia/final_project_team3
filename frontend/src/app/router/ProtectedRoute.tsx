@@ -18,45 +18,29 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   const checkAuth = async () => {
     try {
-      // 1) 먼저 Supabase 세션 확인 (이메일/구글)
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (session) {
-        authStorage.setToken(session.access_token);
-        localStorage.setItem("spentopia_auth", session.access_token);
-
-        const { data: profile, error } = await supabase
-          .from("users")
-          .select("profile_completed")
-          .eq("id", session.user.id)
-          .single();
-
-        if (error) {
-          console.error("Supabase profile 조회 실패:", error);
-          setStatus("not_logged_in");
-          return;
-        }
-
-        if (profile && !profile.profile_completed) {
-          setStatus("need_profile");
-        } else {
-          setStatus("logged_in");
-        }
-        return;
-      }
-
-      // 2) Supabase 세션 없으면 자체 JWT 확인 (카카오/지갑)
-      const token =
+      // 1) 먼저 local 토큰 확인
+      let token =
         authStorage.getToken?.() || localStorage.getItem("spentopia_auth");
+
+      // 2) 없으면 Supabase session에서 한 번 가져와서 동기화
+      if (!token) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session?.access_token) {
+          token = session.access_token;
+          authStorage.setToken?.(session.access_token);
+          localStorage.setItem("spentopia_auth", session.access_token);
+        }
+      }
 
       if (!token) {
         setStatus("not_logged_in");
         return;
       }
 
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/me`, {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/me`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -64,12 +48,22 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       });
 
       if (!res.ok) {
+        console.error("/me 호출 실패:", res.status);
         localStorage.removeItem("spentopia_auth");
+
+        // Supabase 세션도 같이 정리
+        try {
+          await supabase.auth.signOut();
+        } catch (e) {
+          console.warn("Supabase signOut 실패:", e);
+        }
+
         setStatus("not_logged_in");
         return;
       }
 
       const me = await res.json();
+      console.log("me response:", me);
 
       if (!me.profile_completed) {
         setStatus("need_profile");

@@ -22,6 +22,7 @@
 // 백엔드 middleware.rs가 검증함.
 
 import {supabase} from "@/shared/lib/supabase"
+import { authStorage } from "@/shared/lib/auth";
 import type { LoginRequest, LoginResponse,SignUpRequest } from "@/domains/auth/model/types";
 
 // ── 자체 로그인 ─────────────────────────────────────────────
@@ -104,26 +105,36 @@ export const signUp = async (payload: SignUpRequest): Promise<LoginResponse> => 
 // 자체 회원가입: SignupPage Step 2~3에서 호출
 // 소셜 첫 가입: CompleteProfilePage에서 호출
 export const completeProfile = async (params: {
-  nickname: string,
-  phone: string,
-  avatar?: number,
+  nickname: string;
+  phone: string;
+  avatar?: number;
   profileImage?: string;
 }) => {
-  // 현재 로그인 한 유저 정보 가져오기
-  const {data: {user}} = await supabase.auth.getUser();
-  if (!user) throw new Error("로그인 상태가 아닙니다");
+  const token = localStorage.getItem("spentopia_auth");
+  if (!token) throw new Error("로그인 상태가 아닙니다");
 
-  const {error} = await supabase
-  .from("users")
-  .update({
-    nickname: params.nickname,
-    phone: params.phone,
-    profile_image: params.profileImage ?? null,
-  })
-  .eq("id", user.id);
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-  if (error) throw new Error(error.message);
+  const res = await fetch(`${BACKEND_URL}/profile/complete`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      nickname: params.nickname,
+      phone: params.phone,
+      profile_image: params.profileImage ?? null,
+      avatar: params.avatar ?? null,
+    }),
+  });
 
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || "프로필 저장 실패");
+  }
+
+  return await res.json();
 };
 
 // ── 구글 소셜 로그인 ────────────────────────────────────────
@@ -304,5 +315,12 @@ export const findEmailByPhone = async (phone: string): Promise<string> => {
 // 실제 localStorage 정리는 authStorage.clear()에서 함
 // (LoginPage에서 signOut() 호출 후 authStorage.clear()도 같이 호출)
 export const signOut = async () => {
-  await supabase.auth.signOut();
+  localStorage.removeItem("spentopia_auth");
+  authStorage.clear?.();
+
+  try {
+    await supabase.auth.signOut();
+  } catch (error) {
+    console.warn("Supabase signOut 실패:", error);
+  }
 };

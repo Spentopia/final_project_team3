@@ -79,6 +79,7 @@ pub fn create_router(state: AppState) -> Router {
     //   → 요청 body 없음. user_id만으로 처리
     let protected_routes = Router::new()
         .route("/me", get(auth::handler::get_me))
+        .route("/profile/complete", axum::routing::patch(auth::handler::complete_profile))
         .route("/wallet/link", post(wallet::handler::link_wallet))
         .route("/wallet/unlink", delete(wallet::handler::unlink_wallet))
         // 위에 등록된 모든 라우트에 jwt_middleware 적용

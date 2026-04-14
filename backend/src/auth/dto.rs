@@ -94,3 +94,17 @@ pub struct FindEmailResponse {
 pub struct KakaoLoginRequest {
     pub code: String,
 }
+
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct CompleteProfileRequest {
+    pub nickname: String,
+    pub phone: String,
+    pub profile_image: Option<String>,
+
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct CompleteProfileResponse {
+    pub success: bool,
+    pub profile_completed: bool,
+}

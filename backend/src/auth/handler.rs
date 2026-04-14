@@ -14,7 +14,8 @@ use axum::{
 use utoipa;
 use crate::state::AppState;
 use super::dto::{NonceRequest, NonceResponse, WalletLoginRequest, LoginResponse,
-FindEmailRequest, FindEmailResponse,EmailLoginRequest, KakaoLoginRequest};
+FindEmailRequest, FindEmailResponse,EmailLoginRequest, KakaoLoginRequest, CompleteProfileRequest,
+                 CompleteProfileResponse,};
 use super::service;
 
 // ═══════════════════════════════════════════════════════════════
@@ -168,14 +169,14 @@ pub async fn get_me(
     axum::Extension(user_id): axum::Extension<uuid::Uuid>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let url = format!(
-        "{}/rest/v1/users?id=eq.{}&select=id,email,profile_completed,login_provider",
+        "{}/rest/v1/users?id=eq.{}&select=id,email,profile_completed,login_provider,nickname,phone,profile_image",
         state.config.supabase_url.trim_end_matches('/'),
         user_id
     );
 
     let resp = state.http_client
         .get(&url)
-        .header("apikey", &state.config.supabase_publishable_key)
+        .header("apikey", &state.config.supabase_secret_key)
         .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
         .send()
         .await
@@ -184,14 +185,105 @@ pub async fn get_me(
             (StatusCode::INTERNAL_SERVER_ERROR, "유저 조회 실패".to_string())
         })?;
 
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        tracing::error!("/me 응답 실패: {}", err);
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, err));
+    }
+
     let users: Vec<serde_json::Value> = resp.json().await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| {
+            tracing::error!("/me 응답 파싱 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱 실패".to_string())
+        })?;
 
     let user = users.first()
         .cloned()
         .ok_or_else(|| (StatusCode::NOT_FOUND, "유저 없음".to_string()))?;
 
     Ok(Json(user))
+}
+
+
+/// 프로필 완성
+///
+/// 로그인된 유저의 nickname, phone, profile_image, avatar를 업데이트합니다.
+/// jwt_middleware를 통과한 user_id를 사용하므로 프론트에서 user_id를 보낼 필요가 없습니다.
+#[utoipa::path(
+    patch,
+    path = "/profile/complete",
+    tag = "인증",
+    security(
+        ("bearer_auth" = [])
+    ),
+    request_body = CompleteProfileRequest,
+    responses(
+        (status = 200, description = "프로필 저장 성공", body = CompleteProfileResponse),
+        (status = 400, description = "닉네임 또는 전화번호 비어있음"),
+        (status = 401, description = "토큰 없음 또는 유효하지 않음"),
+        (status = 500, description = "서버 내부 오류")
+    )
+)]
+pub async fn complete_profile(
+    State(state): State<AppState>,
+    axum::Extension(user_id): axum::Extension<uuid::Uuid>,
+    Json(body): Json<CompleteProfileRequest>,
+) -> Result<Json<CompleteProfileResponse>, (StatusCode, String)> {
+    if body.nickname.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "닉네임이 비어있음".to_string()));
+    }
+
+    if body.phone.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "전화번호가 비어있음".to_string()));
+    }
+
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let payload = serde_json::json!({
+        "nickname": body.nickname,
+        "phone": body.phone,
+        "profile_image": body.profile_image,
+        // users 테이블에 avatar 컬럼이 실제로 있을 때만 유지
+
+    });
+
+    let resp = state.http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=representation")
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!("프로필 업데이트 요청 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "프로필 저장 실패".to_string())
+        })?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        tracing::error!("프로필 업데이트 실패: {}", err);
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, err));
+    }
+
+    let rows: Vec<serde_json::Value> = resp.json().await
+        .map_err(|e| {
+            tracing::error!("프로필 업데이트 응답 파싱 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱 실패".to_string())
+        })?;
+
+    let updated = rows.first().cloned().unwrap_or_default();
+    let profile_completed = updated["profile_completed"].as_bool().unwrap_or(false);
+
+    Ok(Json(CompleteProfileResponse {
+        success: true,
+        profile_completed,
+    }))
 }
 
 /// [테스트용] 이메일 로그인
