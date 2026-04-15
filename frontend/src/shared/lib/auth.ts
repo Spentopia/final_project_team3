@@ -1,76 +1,38 @@
-// shared/lib/auth.ts
+// src/shared/lib/auth.ts
 //
-// 앱 JWT를 브라우저에 저장하고 꺼내는 유틸 파일.
+// 웹 프론트에서 "access token만" 메모리에 저장하는 유틸
 //
-// 현재 구조의 핵심:
-// - 최종적으로 프론트가 신뢰하는 토큰은 "spentopia_auth" 하나
-// - 그 값은 항상 "백엔드 앱 JWT"
+// 최종 구조:
+// - access token  -> 메모리 저장
+// - refresh token -> HttpOnly 쿠키 (브라우저가 자동 관리)
 //
-// 왜 별도 유틸로 빼나?
-// - localStorage 접근 로직이 여기 한곳에 모임
-// - 나중에 키 이름 바꾸거나 메모리 캐시 정책 바꿀 때 편함
-// - 컴포넌트에서 localStorage 코드를 매번 직접 안 써도 됨
+// 왜 localStorage 안 쓰냐?
+// - XSS 발생 시 localStorage 토큰 탈취 위험이 큼
+//
+// 왜 메모리만 쓰냐?
+// - 페이지 새로고침 시 access는 사라져도 괜찮음
+// - 앱 시작 시 /auth/refresh를 호출해서 새 access를 다시 받으면 됨
 
-const AUTH_STORAGE_KEY = "spentopia_auth";
-
-// 메모리 캐시
-//
-// 이유:
-// - localStorage를 매번 읽는 대신 한 번 메모리에 올려둘 수 있음
-// - 다만 "최종 진실"은 localStorage 기준으로 두는 게 안전함
-//
-// 그래서 ProtectedRoute에서는 localStorage를 우선으로 보고,
-// authStorage는 보조적으로만 써도 됨.
-let memoryToken: string | null = null;
+let accessToken: string | null = null;
 
 export const authStorage = {
-  // ───────────────────────────────────────────────────────────
-  // 토큰 저장
-  //
-  // 로그인 성공 시 호출
-  // localStorage + memory cache 둘 다 갱신
-  // ───────────────────────────────────────────────────────────
+  // 로그인/재발급 성공 시 access token 메모리에 저장
   setToken(token: string) {
-    memoryToken = token;
-    localStorage.setItem(AUTH_STORAGE_KEY, token);
+    accessToken = token;
   },
 
-  // ───────────────────────────────────────────────────────────
-  // 토큰 조회
-  //
-  // 1) 메모리에 있으면 메모리값 반환
-  // 2) 없으면 localStorage에서 읽어서 메모리에 올린 뒤 반환
-  //
-  // 주의:
-  // 앱 구조상 토큰 꼬임이 있었기 때문에,
-  // 중요한 인증 판정은 localStorage를 기준으로 보는 게 더 안전함.
-  // 그래도 다른 화면/유틸에서 빠르게 꺼내 쓸 수 있게 제공함.
-  // ───────────────────────────────────────────────────────────
+  // 현재 메모리에 있는 access token 반환
   getToken(): string | null {
-    if (memoryToken) return memoryToken;
-
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-    memoryToken = stored;
-    return stored;
+    return accessToken;
   },
 
-  // ───────────────────────────────────────────────────────────
-  // 로그인 상태 여부
-  //
-  // 단순히 토큰 존재 여부만 확인
-  // 실제 유효성 검사는 /me 또는 middleware에서 이루어짐
-  // ───────────────────────────────────────────────────────────
+  // access token 존재 여부
   isLoggedIn(): boolean {
-    return !!localStorage.getItem(AUTH_STORAGE_KEY);
+    return !!accessToken;
   },
 
-  // ───────────────────────────────────────────────────────────
-  // 토큰 삭제
-  //
-  // 로그아웃 또는 인증 꼬임 발생 시 호출
-  // ───────────────────────────────────────────────────────────
+  // 로그아웃/refresh 실패 시 메모리 비우기
   clear() {
-    memoryToken = null;
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+    accessToken = null;
   },
 };
