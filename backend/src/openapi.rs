@@ -41,7 +41,7 @@ use crate::wallet;
             auth::dto::NonceRequest,
             auth::dto::NonceResponse,
             auth::dto::WalletLoginRequest,
-            auth::dto::LoginResponse,
+    
 
             // ── 테스트용 DTO ─────────────────────────────
 

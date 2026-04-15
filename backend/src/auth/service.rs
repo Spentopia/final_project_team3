@@ -35,6 +35,24 @@
 //
 // 즉 최종적으로 프론트가 저장하는 건 항상 "우리 앱 JWT" 하나뿐임.
 
+// 이 파일이 담당하는 것:
+// 1) 지갑 로그인용 nonce 발급
+// 2) 지갑 서명 검증 + 로그인
+// 3) Supabase access token -> 우리 앱 토큰 교환
+// 4) 카카오 로그인
+// 5) refresh token rotation
+// 6) public.users / user_settings / streaks 보장
+//
+// 최종 구조:
+// - access token: 짧게 사용, DB 저장 안 함
+// - refresh token: refresh_sessions 테이블에서 관리
+// - 웹: access는 body, refresh는 HttpOnly 쿠키
+// - 앱: access/refresh 둘 다 body
+//
+// 중요:
+// - 이 파일은 "토큰 발급/검증용 비즈니스 로직" 담당
+// - 웹/앱 응답 분기, 쿠키 세팅은 handler.rs에서 담당
+
 // anyhow: Rust의 에러 처리 라이브러리
 // anyhow!("메세지") → 에러 생성
 // Context → .context("설명") 으로 에러에 설명 추가
@@ -58,24 +76,35 @@ use serde::Deserialize;
 // 서버 전체 공유 상태 (Supabase URL, secret key, nonce_store 등)
 use crate::state::{AppState, NonceEntry};
 
-// 로그인 성공 응답 구조체 (access_token, refresh_token, is_new_user)
-// super = 현재 모듈(auth)의 상위 경로
-use super::dto::LoginResponse;
 
 use serde_json::{json, Value};
+use uuid::Uuid;
 
-use crate::auth::app_jwt::generate_app_tokens;
+use crate::auth::app_jwt::{
+    generate_token_pair, verify_app_refresh_token,
+};
+use crate::auth::refresh_store::{
+    create_refresh_session, revoke_refresh_session, verify_refresh_session,
+};
 
-// SupabaseTokenResponse
-// Supabase Admin API로 JWT를 발급하면 이 형태로 응답이 옴.
-// generate_supabase_token() 함수에서 JSON을 이 구조체로 파싱함.
-//
-// access_token → 앱이 이후 모든 API 요청 헤더에 넣는 JWT (유효기간 짧음, 보통 1시간)
-// refresh_token → access_token 만료 시 새로 발급받는 토큰 (유효기간 김)
-#[derive(Debug, Deserialize)]
-struct SupabaseTokenResponse {
-    access_token: String,
-    refresh_token: String,
+/// 로그인 성공 시 공통으로 반환할 내부 결과
+///
+/// handler.rs는 이 값을 받아서
+/// - web이면 access만 body, refresh는 쿠키
+/// - app이면 access/refresh 둘 다 body
+/// 로 분기한다.
+#[derive(Debug, Clone)]
+pub struct LoginIssueResult {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub is_new_user: bool,
+}
+
+/// refresh rotation 성공 시 반환할 내부 결과
+#[derive(Debug, Clone)]
+pub struct RefreshIssueResult {
+    pub access_token: String,
+    pub refresh_token: String,
 }
 
 // UserRow
@@ -91,18 +120,110 @@ struct UserRow {
     id: uuid::Uuid,
 }
 
-fn generate_app_token_pair(
+// ─────────────────────────────────────────────────────────────
+// 공통 토큰 발급 + refresh session 저장
+//
+// 모든 로그인 방식(Supabase, 카카오, 지갑)이
+// 최종적으로 이 함수로 모인다.
+// ─────────────────────────────────────────────────────────────
+pub async fn issue_login_tokens(
     state: &AppState,
-    user_id: &str,
-) -> Result<SupabaseTokenResponse> {
-    let user_uuid = uuid::Uuid::parse_str(user_id)
-        .context("user_id UUID 파싱 실패")?;
+    user_id: Uuid,
+    client_type: &str,
+    is_new_user: bool,
+) -> Result<LoginIssueResult> {
+    // refresh 세션의 고유 ID
+    // 이 값이 refresh JWT 안의 sid로 들어간다.
+    let session_id = Uuid::new_v4();
 
-    let tokens = generate_app_tokens(&state.config.app_jwt_secret, &user_uuid)?;
+    // access / refresh JWT 생성
+    let pair = generate_token_pair(
+        &state.config.app_jwt_secret,
+        &user_id,
+        &session_id,
+    )?;
 
-    Ok(SupabaseTokenResponse {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
+    // refresh 세션을 DB에 저장
+    // 이 row가 있어야 나중에 revoke / rotation / 로그아웃이 가능하다.
+    create_refresh_session(
+        state,
+        session_id,
+        user_id,
+        client_type,
+        &pair.refresh_token,
+    )
+        .await?;
+
+    Ok(LoginIssueResult {
+        access_token: pair.access_token,
+        refresh_token: pair.refresh_token,
+        is_new_user,
+    })
+}
+
+// ─────────────────────────────────────────────────────────────
+// refresh rotation
+//
+// 흐름:
+// 1) refresh JWT 자체 검증
+// 2) sid로 DB refresh_sessions 조회
+// 3) 해시 비교 + revoked 여부 확인
+// 4) 새 access / refresh 발급
+// 5) 새 refresh session 저장
+// 6) 기존 refresh session revoke
+// ─────────────────────────────────────────────────────────────
+pub async fn rotate_refresh_token(
+    state: &AppState,
+    refresh_token: &str,
+    client_type: &str,
+) -> Result<RefreshIssueResult> {
+    // 1) refresh JWT 자체 검증
+    let claims = verify_app_refresh_token(
+        &state.config.app_jwt_secret,
+        refresh_token,
+    )?;
+
+    let session_id = Uuid::parse_str(&claims.sid)
+        .context("refresh sid UUID 파싱 실패")?;
+
+    let user_id = Uuid::parse_str(&claims.sub)
+        .context("refresh sub UUID 파싱 실패")?;
+
+    // 2) DB에 저장된 refresh session 검증
+    let session = verify_refresh_session(state, session_id, refresh_token).await?;
+
+    // 3) client_type 일치 여부 확인
+    // 웹 세션으로 앱 refresh를 하거나, 앱 세션으로 웹 refresh 하는 것을 방지
+    if session.client_type != client_type {
+        return Err(anyhow!("refresh client_type 불일치"));
+    }
+
+    // 4) 새 refresh 세션 ID 생성
+    let new_session_id = Uuid::new_v4();
+
+    // 5) 새 access / refresh JWT 발급
+    let pair = generate_token_pair(
+        &state.config.app_jwt_secret,
+        &user_id,
+        &new_session_id,
+    )?;
+
+    // 6) 새 refresh session 저장
+    create_refresh_session(
+        state,
+        new_session_id,
+        user_id,
+        client_type,
+        &pair.refresh_token,
+    )
+        .await?;
+
+    // 7) 기존 refresh session revoke
+    revoke_refresh_session(state, session_id, Some(new_session_id)).await?;
+
+    Ok(RefreshIssueResult {
+        access_token: pair.access_token,
+        refresh_token: pair.refresh_token,
     })
 }
 
@@ -161,7 +282,8 @@ pub async fn verify_and_login(
     wallet_address: &str,
     nonce: &str,
     signature: &str,
-) -> Result<LoginResponse> {
+    client_type: &str,
+) -> Result<LoginIssueResult> {
     // 1) nonce 검증
     // nonce_store에서 이 지갑 주소에 해당하는 NonceEntry를 꺼냄.
     // ok_or_else: Option이 None이면 에러로 변환
@@ -202,19 +324,9 @@ pub async fn verify_and_login(
     // 없으면 → 지갑 연동을 안 한 유저이므로 로그인 불가 에러 반환
     let user_id = find_user_by_wallet(state, wallet_address).await?;
 
-    // 4) Supabase JWT 발급
-    // 찾은 user_id로 Supabase Admin API를 호출해서 JWT를 직접 발급
-    // 지갑 로그인은 Supabase의 기본 OAuth 플로우를 타지 않아서 서버가 Admin 권한으로 대신 발급해줘야 함
-    let tokens = generate_app_token_pair(state, &user_id.to_string())?;
-
-    // 5) 응답 반환
-    // 지갑 로그인은 기존 유저만 가능 (신규 유저는 일반 회원가입으로만 생성)
-    // 따라서 is_new_user는 항상 false
-    Ok(LoginResponse {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        is_new_user: false,
-    })
+    // 최종 토큰 발급 + refresh session 저장
+    // 지갑 로그인은 기존 유저만 가능하므로 is_new_user = false
+    issue_login_tokens(state, user_id, client_type, false).await
 }
 
 // verify_solana_signature - Solana ed25519 서명 검증
@@ -288,6 +400,7 @@ pub fn verify_solana_signature_pub(
     verify_solana_signature(wallet_address, nonce, signature)
 }
 
+
 // find_user_by_wallet - DB에서 지갑 주소로 유저 조회
 //
 // Supabase PostgREST API로 public.users를 조회
@@ -322,6 +435,11 @@ pub async fn find_user_by_wallet(state: &AppState, wallet_address: &str) -> Resu
         .await
         .context("유저 조회 HTTP 요청 실패")?;
 
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("지갑 유저 조회 실패: {}", err));
+    }
+
     // PostgRest는 항상 배열로 응답: [] 또는 [{"id": "..."}]
     // Vec<UserRow>로 파싱해서 받음
     let rows: Vec<UserRow> = resp.json().await.context("유저 조회 JSON 파싱 실패")?;
@@ -347,10 +465,23 @@ pub async fn find_user_by_wallet(state: &AppState, wallet_address: &str) -> Resu
 // ═══════════════════════════════════════════════════════════════
 // [이메일/구글] Supabase access_token -> 앱 JWT 교환
 // ═══════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────
+// Supabase access_token -> 우리 앱 토큰 교환
+//
+// 기존 흐름:
+// 프론트가 Supabase 로그인 성공 후 access_token 획득
+// -> /auth/exchange 로 전달
+// -> 백엔드가 Supabase user 조회
+// -> public.users 보장
+// -> 우리 access/refresh 발급
+// ─────────────────────────────────────────────────────────────
+
 pub async fn exchange_supabase_token(
     state: &AppState,
     supabase_access_token: &str,
-) -> Result<LoginResponse> {
+    client_type: &str,
+) -> Result<LoginIssueResult> {
     let user_url = format!(
         "{}/auth/v1/user",
         state.config.supabase_url.trim_end_matches('/')
@@ -391,21 +522,20 @@ pub async fn exchange_supabase_token(
                 .and_then(|x| x["id"].as_str())
         });
 
+    // auth.users는 있어도 public.users / user_settings / streaks가 비어 있을 수 있어
     ensure_public_user_exists(
         state,
         user_id,
         email,
         provider,
         provider_id,
-    ).await?;
+    )
+        .await?;
 
-    let tokens = generate_app_token_pair(state, user_id)?;
+    let user_uuid = Uuid::parse_str(user_id)
+        .context("Supabase user_id UUID 파싱 실패")?;
 
-    Ok(LoginResponse {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        is_new_user: false,
-    })
+    issue_login_tokens(state, user_uuid, client_type, false).await
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -494,14 +624,15 @@ async fn ensure_public_user_exists(
 // ═══════════════════════════════════════════════════════════════
 // 카카오 로그인
 // 1) code -> 카카오 access_token 교환
-// 2) access_token -> 카카오 유저 정보 조회
-// 3) provider + provider_id 기준으로 유저 찾거나 생성
-// 4) 앱 JWT 발급
+// 2) 카카오 유저 정보 조회
+// 3) provider + provider_id 기준 기존 유저 찾기 / 없으면 생성
+// 4) 최종 토큰 발급은 issue_login_tokens()로 통일
 // ═══════════════════════════════════════════════════════════════
 pub async fn kakao_login(
     state: &AppState,
     code: &str,
-) -> Result<LoginResponse> {
+    client_type: &str,
+) -> Result<LoginIssueResult> {
     tracing::info!("카카오 로그인 code={}", code);
 
     let token_url = "https://kauth.kakao.com/oauth/token";
@@ -586,13 +717,10 @@ pub async fn kakao_login(
         nickname,
     ).await?;
 
-    let tokens = generate_app_token_pair(state, &user_id)?;
+    let user_uuid = Uuid::parse_str(&user_id)
+        .context("카카오 user_id UUID 파싱 실패")?;
 
-    Ok(LoginResponse {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        is_new_user,
-    })
+    issue_login_tokens(state, user_uuid, client_type, is_new_user).await
 }
 
 // ═══════════════════════════════════════════════════════════════
