@@ -6,3 +6,4 @@ router = APIRouter()
 @router.get("/")
 def get_history():
     return StorageService.load()
+print("import test")
