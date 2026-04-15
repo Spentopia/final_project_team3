@@ -12,6 +12,7 @@ import {
 } from "../ui/sheet";
 import { useTheme } from "next-themes";
 import { authStorage } from "@/shared/lib/auth";
+import { useWallet } from "@solana/wallet-adapter-react";
 
 
 interface HeaderProps {
@@ -26,11 +27,21 @@ export default function Header({ onMenuClick }: HeaderProps) {
   ]);
 
   const { theme, setTheme } = useTheme();
+  const { disconnect, connected } = useWallet();
 
   const handleLogout = async () => {
+    // 지갑이 연결되어 있으면 먼저 브라우저 지갑 연결 해제
+    // → 다른 계정으로 로그인 시 자동 재연결 + 지갑 연동 방지
+    if (connected) {
+      try {
+        await disconnect();
+      } catch (e) {
+        console.warn("지갑 연결 해제 실패:", e);
+      }
+    }
     await signOut();
     window.location.replace("/login");
-};
+  };
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-white/50 dark:border-gray-700/50 bg-white/60 dark:bg-gray-900/60 px-6 backdrop-blur-xl">
