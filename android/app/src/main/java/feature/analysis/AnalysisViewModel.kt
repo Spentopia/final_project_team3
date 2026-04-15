@@ -1,10 +1,18 @@
 package com.ict.spentopia.feature.analysis
 
+import android.app.Application
 import androidx.compose.ui.graphics.Color
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.ict.spentopia.data.local.ExpenseDatabase
+import com.ict.spentopia.data.repository.ExpenseRepository
+import com.ict.spentopia.feature.budget.BudgetDataStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
+import java.util.Calendar
 
 // 카테고리별 지출 데이터 클래스
 // 도넛 차트, 카테고리 상세 리스트에서 함께 사용
@@ -103,22 +111,36 @@ data class AnalysisUiState(
 )
 
 // 분석 화면 ViewModel
-class AnalysisViewModel : ViewModel() {
+class AnalysisViewModel(
+    application: Application
+) : AndroidViewModel(application) {
 
-    // 내부에서 수정 가능한 상태
-    private val _uiState = MutableStateFlow(createDummyUiState())
+    // Room Repository 생성입니다.
+    private val repository = ExpenseRepository(
+        ExpenseDatabase.getDatabase(application).expenseDao()
+    )
 
-    // 외부에서는 읽기만 가능하도록 공개
+    // BudgetDataStore 생성입니다.
+    private val budgetDataStore = BudgetDataStore(application)
+
+    // 내부에서 수정 가능한 상태입니다.
+    private val _uiState = MutableStateFlow(AnalysisUiState())
+
+    // 외부에서는 읽기만 가능하도록 공개합니다.
     val uiState: StateFlow<AnalysisUiState> = _uiState.asStateFlow()
 
-    // 주간 / 월간 선택 변경 함수
+    init {
+        observeAnalysisData()
+    }
+
+    // 주간 / 월간 선택 변경 함수입니다.
     fun selectPeriod(period: String) {
         _uiState.value = _uiState.value.copy(
             selectedPeriod = period
         )
     }
 
-    // 현재 선택 상태에 따라 그래프 데이터를 반환하는 함수
+    // 현재 선택 상태에 따라 그래프 데이터를 반환하는 함수입니다.
     fun getCurrentTrendList(): List<Pair<String, Int>> {
         return if (_uiState.value.selectedPeriod == "주간") {
             _uiState.value.weeklyExpenseList
@@ -127,116 +149,311 @@ class AnalysisViewModel : ViewModel() {
         }
     }
 
-    // 현재는 더미 데이터로 초기 상태를 생성
-    // 나중에는 Room / DataStore 값을 읽어서 여기 대신 실제 계산 함수로 바꾸면 됨
-    private fun createDummyUiState(): AnalysisUiState {
+    // 실제 Room + DataStore 데이터를 계속 관찰해서
+    // 분석 화면 상태를 업데이트하는 함수입니다.
+    private fun observeAnalysisData() {
+        viewModelScope.launch {
+            combine(
+                repository.getExpensesByMonth(getCurrentYearMonth()),
+                budgetDataStore.budgetSettingsFlow
+            ) { expenseList, budgetSettings ->
 
-        // 카테고리별 지출 더미 데이터
-        val categoryList = listOf(
-            CategorySpendUiModel(
-                name = "식비",
-                amount = 135000,
-                ratio = 0.45f,
-                color = Color(0xFFFF7A00)
-            ),
-            CategorySpendUiModel(
-                name = "교통",
-                amount = 60000,
-                ratio = 0.20f,
-                color = Color(0xFF4D8DFF)
-            ),
-            CategorySpendUiModel(
-                name = "쇼핑",
-                amount = 45000,
-                ratio = 0.15f,
-                color = Color(0xFFE84AA8)
-            ),
-            CategorySpendUiModel(
-                name = "여가",
-                amount = 36000,
-                ratio = 0.12f,
-                color = Color(0xFFA14CFF)
-            ),
-            CategorySpendUiModel(
-                name = "기타",
-                amount = 24000,
-                ratio = 0.08f,
-                color = Color(0xFF6B7280)
+                // 이번 달 총 지출입니다.
+                val totalExpense = expenseList.sumOf { it.amount }
+
+                // 이번 달 일 평균 지출입니다.
+                // 초보자 기준으로 이해하기 쉽게 "오늘 날짜 기준"으로 나눕니다.
+                // 예: 4월 15일이면 15일로 나눔
+                val currentDayOfMonth = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+                val averageDailyExpense =
+                    if (currentDayOfMonth > 0) totalExpense / currentDayOfMonth else 0
+
+                // 현재 프로젝트 기준 월 예산입니다.
+                // Home과 동일하게 "월 수입 - 저축 목표"를 사용합니다.
+                val monthlyBudget = budgetSettings.monthlyIncome - budgetSettings.savingGoal
+
+                // 예산 사용률입니다.
+                // AnalysisScreen에서는 0.60f = 60% 구조를 기대하고 있으므로
+                // 0~1 사이 Float 값으로 계산합니다.
+                val budgetUsageRate =
+                    if (monthlyBudget > 0) {
+                        totalExpense.toFloat() / monthlyBudget.toFloat()
+                    } else {
+                        0f
+                    }
+
+                // 카테고리별로 소비를 묶습니다.
+                val categoryAmountMap = expenseList
+                    .groupBy { expense ->
+                        expense.category
+                    }
+                    .mapValues { entry ->
+                        entry.value.sumOf { expense ->
+                            expense.amount
+                        }
+                    }
+
+                // 카테고리별 UI 리스트를 만듭니다.
+                val categoryList = categoryAmountMap
+                    .map { (categoryName, categoryAmount) ->
+                        CategorySpendUiModel(
+                            name = categoryName,
+                            amount = categoryAmount,
+                            ratio = if (totalExpense > 0) {
+                                categoryAmount.toFloat() / totalExpense.toFloat()
+                            } else {
+                                0f
+                            },
+                            color = getCategoryColor(categoryName)
+                        )
+                    }
+                    // 금액 큰 순서대로 정렬하면 화면에서 보기 편합니다.
+                    .sortedByDescending { it.amount }
+
+                // 가장 많이 쓴 카테고리입니다.
+                val topCategory = categoryList.firstOrNull()
+
+                // 주간 그래프 데이터입니다.
+                // 현재 달의 소비를 "요일별"이 아니라 "최근 7일 라벨 형태"로 단순화하지 않고,
+                // 지금 프로젝트 구조에 맞게 "월~일" 기준 합계로 보여줍니다.
+                val weeklyExpenseList = createWeeklyExpenseList(expenseList)
+
+                // 월간 그래프 데이터입니다.
+                // 이번 달 소비를 1주, 2주, 3주, 4주, 5주 단위로 묶습니다.
+                val monthlyExpenseList = createMonthlyExpenseList(expenseList)
+
+                // AI 분석 카드입니다.
+                // 아직 완전한 AI 분석은 아니지만,
+                // 실제 데이터 기반 안내 문구가 뜨도록 만듭니다.
+                val tipList = createAnalysisTipList(
+                    totalExpense = totalExpense,
+                    monthlyBudget = monthlyBudget,
+                    topCategory = topCategory
+                )
+
+                // 현재 ExpenseEntity에는 시간대 / 결제수단 정보가 없어서
+                // 이 부분은 일단 빈 리스트로 둡니다.
+                val timePatternList = emptyList<PatternProgressUiModel>()
+                val paymentPatternList = emptyList<PatternProgressUiModel>()
+
+                // 현재 ExpenseEntity에는 평일/주말 세부 패턴 계산용 데이터가 부족하므로
+                // 이 부분은 우선 기본 문구로 둡니다.
+                val weekdayAverageText = ""
+                val weekendAverageText = ""
+                val weekendComment = ""
+
+                // 최종 UI 상태를 반환합니다.
+                AnalysisUiState(
+                    // 기본 진입은 월간으로 두는 편이 지금 구조상 더 자연스럽습니다.
+                    selectedPeriod = _uiState.value.selectedPeriod,
+                    totalExpense = totalExpense,
+                    averageDailyExpense = averageDailyExpense,
+                    budgetUsageRate = budgetUsageRate,
+                    topCategoryName = topCategory?.name ?: "",
+                    topCategoryRatio = topCategory?.ratio ?: 0f,
+                    weeklyExpenseList = weeklyExpenseList,
+                    monthlyExpenseList = monthlyExpenseList,
+                    categoryList = categoryList,
+                    tipList = tipList,
+                    timePatternList = timePatternList,
+                    weekdayAverageText = weekdayAverageText,
+                    weekendAverageText = weekendAverageText,
+                    weekendComment = weekendComment,
+                    paymentPatternList = paymentPatternList
+                )
+            }.collect { newUiState ->
+                _uiState.value = newUiState
+            }
+        }
+    }
+
+    // 현재 연-월 문자열을 구하는 함수입니다.
+    // 예: 2026-04
+    private fun getCurrentYearMonth(): String {
+        val calendar = Calendar.getInstance()
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH) + 1
+        return String.format("%04d-%02d", year, month)
+    }
+
+    // 카테고리별 색상 반환 함수입니다.
+    private fun getCategoryColor(category: String): Color {
+        return when (category) {
+            "식비" -> Color(0xFFFF7A00)
+            "교통" -> Color(0xFF4D8DFF)
+            "쇼핑" -> Color(0xFFE84AA8)
+            "카페" -> Color(0xFFA14CFF)
+            "여가" -> Color(0xFF7C3AED)
+            "생활비" -> Color(0xFF06B6D4)
+            else -> Color(0xFF6B7280)
+        }
+    }
+
+    // 주간 그래프 데이터 생성 함수입니다.
+    // 월~일 순서로 요일별 합계를 만듭니다.
+    private fun createWeeklyExpenseList(
+        expenseList: List<com.ict.spentopia.data.local.ExpenseEntity>
+    ): List<Pair<String, Int>> {
+
+        // 요일별 기본값을 0으로 먼저 넣어둡니다.
+        val dayMap = linkedMapOf(
+            "월" to 0,
+            "화" to 0,
+            "수" to 0,
+            "목" to 0,
+            "금" to 0,
+            "토" to 0,
+            "일" to 0
+        )
+
+        expenseList.forEach { expense ->
+            try {
+                val parts = expense.date.split("-")
+                val year = parts[0].toInt()
+                val month = parts[1].toInt()
+                val day = parts[2].toInt()
+
+                val calendar = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, month - 1)
+                    set(Calendar.DAY_OF_MONTH, day)
+                }
+
+                val dayLabel = when (calendar.get(Calendar.DAY_OF_WEEK)) {
+                    Calendar.MONDAY -> "월"
+                    Calendar.TUESDAY -> "화"
+                    Calendar.WEDNESDAY -> "수"
+                    Calendar.THURSDAY -> "목"
+                    Calendar.FRIDAY -> "금"
+                    Calendar.SATURDAY -> "토"
+                    Calendar.SUNDAY -> "일"
+                    else -> ""
+                }
+
+                if (dayLabel.isNotBlank()) {
+                    dayMap[dayLabel] = (dayMap[dayLabel] ?: 0) + expense.amount
+                }
+            } catch (_: Exception) {
+                // 날짜 파싱 실패 시 그냥 넘어갑니다.
+            }
+        }
+
+        return dayMap.toList()
+    }
+
+    // 월간 그래프 데이터 생성 함수입니다.
+    // 이번 달 소비를 주차별로 묶어서 1주~5주 리스트를 만듭니다.
+    private fun createMonthlyExpenseList(
+        expenseList: List<com.ict.spentopia.data.local.ExpenseEntity>
+    ): List<Pair<String, Int>> {
+
+        val weekMap = linkedMapOf(
+            "1주" to 0,
+            "2주" to 0,
+            "3주" to 0,
+            "4주" to 0,
+            "5주" to 0
+        )
+
+        expenseList.forEach { expense ->
+            try {
+                val day = expense.date.split("-")[2].toInt()
+
+                val weekLabel = when (day) {
+                    in 1..7 -> "1주"
+                    in 8..14 -> "2주"
+                    in 15..21 -> "3주"
+                    in 22..28 -> "4주"
+                    else -> "5주"
+                }
+
+                weekMap[weekLabel] = (weekMap[weekLabel] ?: 0) + expense.amount
+            } catch (_: Exception) {
+                // 날짜 파싱 실패 시 그냥 넘어갑니다.
+            }
+        }
+
+        return weekMap.toList()
+    }
+
+    // 분석 팁 리스트 생성 함수입니다.
+    // 아직 완전한 AI 분석은 아니지만,
+    // 실제 금액/예산/최대 카테고리 기준 문구를 만듭니다.
+    private fun createAnalysisTipList(
+        totalExpense: Int,
+        monthlyBudget: Int,
+        topCategory: CategorySpendUiModel?
+    ): List<AnalysisTipUiModel> {
+
+        val result = mutableListOf<AnalysisTipUiModel>()
+
+        if (totalExpense == 0) {
+            result.add(
+                AnalysisTipUiModel(
+                    title = "기록을 시작해보세요",
+                    description = "아직 이번 달 소비 기록이 없어요. Home 화면에서 소비를 입력하면 분석이 자동으로 시작돼요.",
+                    emoji = "📝",
+                    borderColor = Color(0xFFA7C7FF)
+                )
             )
-        )
+            return result
+        }
 
-        // AI 분석 카드 더미 데이터
-        val tipList = listOf(
-            AnalysisTipUiModel(
-                title = "잘하고 있어요!",
-                description = "식비 지출이 지난달 대비 15% 줄었어요. 지금의 절약 흐름을 유지해보세요.",
-                emoji = "✅",
-                borderColor = Color(0xFFB7E4C7)
-            ),
-            AnalysisTipUiModel(
-                title = "절약 습관 형성",
-                description = "대중교통 이용이 늘어나서 교통비 비율이 안정적이에요. 아주 좋은 변화예요.",
-                emoji = "💡",
-                borderColor = Color(0xFFD6C8FF)
-            ),
-            AnalysisTipUiModel(
-                title = "주의가 필요해요",
-                description = "여가/취미 지출이 예산 대비 높아요. 다음 주에는 소소한 소비를 조금 줄여보세요.",
-                emoji = "⚠️",
-                borderColor = Color(0xFFFFD166)
-            ),
-            AnalysisTipUiModel(
-                title = "목표 달성 예상",
-                description = "현재 소비 흐름이라면 이번 달 저축 목표를 무난하게 지킬 가능성이 높아요.",
-                emoji = "📈",
-                borderColor = Color(0xFFA7C7FF)
+        if (monthlyBudget > 0) {
+            val usageRate = totalExpense.toFloat() / monthlyBudget.toFloat()
+
+            if (usageRate < 0.5f) {
+                result.add(
+                    AnalysisTipUiModel(
+                        title = "좋은 흐름이에요",
+                        description = "현재 예산의 절반 이하만 사용했어요. 지금의 소비 흐름을 유지하면 목표를 지키기 좋아요.",
+                        emoji = "✅",
+                        borderColor = Color(0xFFB7E4C7)
+                    )
+                )
+            } else if (usageRate < 1f) {
+                result.add(
+                    AnalysisTipUiModel(
+                        title = "예산 안에서 잘 쓰고 있어요",
+                        description = "현재 예산 범위 안에서 소비 중이에요. 남은 기간 동안 큰 지출만 조심하면 좋아요.",
+                        emoji = "💡",
+                        borderColor = Color(0xFFD6C8FF)
+                    )
+                )
+            } else {
+                result.add(
+                    AnalysisTipUiModel(
+                        title = "예산 초과에 주의해요",
+                        description = "이번 달 예산을 이미 넘겼어요. 고정 지출이 아닌 소비부터 먼저 줄여보는 게 좋아요.",
+                        emoji = "⚠️",
+                        borderColor = Color(0xFFFFD166)
+                    )
+                )
+            }
+        }
+
+        if (topCategory != null) {
+            result.add(
+                AnalysisTipUiModel(
+                    title = "가장 큰 지출 카테고리",
+                    description = "이번 달에는 ${topCategory.name} 소비가 가장 컸어요. 전체 소비의 ${(topCategory.ratio * 100).toInt()}%를 차지하고 있어요.",
+                    emoji = "📊",
+                    borderColor = Color(0xFFA7C7FF)
+                )
             )
-        )
+        }
 
-        // 시간대별 소비 패턴 더미 데이터
-        val timePatternList = listOf(
-            PatternProgressUiModel("오전 (06-12시)", 0.30f),
-            PatternProgressUiModel("오후 (12-18시)", 0.50f),
-            PatternProgressUiModel("저녁 (18-24시)", 0.20f)
-        )
+        if (result.size < 3) {
+            result.add(
+                AnalysisTipUiModel(
+                    title = "소비 기록을 이어가보세요",
+                    description = "기록이 쌓일수록 더 정확한 소비 패턴을 볼 수 있어요. 지금처럼 꾸준히 입력하는 게 가장 중요해요.",
+                    emoji = "🌱",
+                    borderColor = Color(0xFFD6C8FF)
+                )
+            )
+        }
 
-        // 결제 방법 더미 데이터
-        val paymentPatternList = listOf(
-            PatternProgressUiModel("카드", 0.75f),
-            PatternProgressUiModel("현금", 0.15f),
-            PatternProgressUiModel("기타", 0.10f)
-        )
-
-        // 최종 UI 상태 반환
-        return AnalysisUiState(
-            selectedPeriod = "주간",
-            totalExpense = 300000,
-            averageDailyExpense = 23571,
-            budgetUsageRate = 0.60f,
-            topCategoryName = "식비",
-            topCategoryRatio = 0.45f,
-            weeklyExpenseList = listOf(
-                "월" to 15000,
-                "화" to 8000,
-                "수" to 22000,
-                "목" to 12000,
-                "금" to 35000,
-                "토" to 45000,
-                "일" to 28000
-            ),
-            monthlyExpenseList = listOf(
-                "1주" to 65000,
-                "2주" to 72000,
-                "3주" to 94000,
-                "4주" to 69000
-            ),
-            categoryList = categoryList,
-            tipList = tipList,
-            timePatternList = timePatternList,
-            weekdayAverageText = "65,000원",
-            weekendAverageText = "100,000원",
-            weekendComment = "주말 소비가 54% 더 많아요",
-            paymentPatternList = paymentPatternList
-        )
+        return result
     }
 }

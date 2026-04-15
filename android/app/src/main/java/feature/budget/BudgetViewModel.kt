@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 // 화면에서 수정되는 값과 저장/불러오기를 담당
 class BudgetViewModel(application: Application) : AndroidViewModel(application) {
 
+    // DataStore 인스턴스 생성
     private val budgetDataStore = BudgetDataStore(application)
 
     // 현재 화면에서 사용하는 예산 설정 상태

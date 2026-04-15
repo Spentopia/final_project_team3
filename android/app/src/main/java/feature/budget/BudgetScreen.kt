@@ -10,9 +10,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -42,7 +42,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 // 예산 설정 화면
@@ -68,11 +68,11 @@ fun BudgetScreen(
     // 스낵바 상태 저장
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ViewModel의 budgetState를 화면에서 구독
-    val budgetState by viewModel.budgetState.collectAsState()
+    // ViewModel의 budgetState를 화면에서 안전하게 구독
+    val budgetState by viewModel.budgetState.collectAsStateWithLifecycle()
 
-    // 저장 성공 여부 상태를 구독
-    val saveSuccess by viewModel.saveSuccess.collectAsState()
+    // 저장 성공 여부 상태를 화면에서 안전하게 구독
+    val saveSuccess by viewModel.saveSuccess.collectAsStateWithLifecycle()
 
     // 총 지출 예정 금액 계산
     val totalExpense = budgetState.foodBudget +
@@ -480,81 +480,98 @@ private fun CustomBudgetSettingCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(horizontal = 18.dp, vertical = 20.dp)
         ) {
+            // 월 수입 슬라이더
             BudgetSliderItem(
                 title = "월 수입",
                 value = monthlyIncome,
                 valueRange = 100000f..5000000f,
                 steps = 0,
+                icon = null,
+                valueColor = Color(0xFF111827),
                 onValueChange = onMonthlyIncomeChange
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
+            // 저축 목표 슬라이더
             BudgetSliderItem(
                 title = "저축 목표",
                 value = savingGoal,
                 valueRange = 0f..500000f,
-                steps = 49,
-                valueColor = Color(0xFF119C49),
+                steps = 0,
+                icon = null,
+                valueColor = Color(0xFF16A34A),
                 onValueChange = onSavingGoalChange
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 상단 공통 항목과 카테고리 항목을 시각적으로 분리
             HorizontalDivider(color = Color(0xFFE5E7EB))
+
             Spacer(modifier = Modifier.height(18.dp))
 
+            // 식비 슬라이더
             BudgetSliderItem(
                 title = "식비",
                 value = foodBudget,
                 valueRange = 0f..400000f,
-                steps = 39,
+                steps = 0,
                 icon = Icons.Default.Restaurant,
+                valueColor = Color(0xFF111827),
                 onValueChange = onFoodBudgetChange
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
+            // 교통비 슬라이더
             BudgetSliderItem(
                 title = "교통비",
                 value = transportBudget,
                 valueRange = 0f..300000f,
-                steps = 29,
+                steps = 0,
                 icon = Icons.Default.Subway,
+                valueColor = Color(0xFF111827),
                 onValueChange = onTransportBudgetChange
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
+            // 생활비 슬라이더
             BudgetSliderItem(
                 title = "생활비",
                 value = livingBudget,
                 valueRange = 0f..400000f,
-                steps = 39,
+                steps = 0,
                 icon = Icons.Default.Home,
+                valueColor = Color(0xFF111827),
                 onValueChange = onLivingBudgetChange
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
+            // 여가/취미 슬라이더
             BudgetSliderItem(
                 title = "여가/취미",
                 value = hobbyBudget,
                 valueRange = 0f..300000f,
-                steps = 29,
+                steps = 0,
                 icon = Icons.Default.FavoriteBorder,
+                valueColor = Color(0xFF111827),
                 onValueChange = onHobbyBudgetChange
             )
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(26.dp))
 
+            // 설정 저장 버튼
             Button(
                 onClick = onSaveClick,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE23AAE),
+                    containerColor = Color(0xFFE83AAE),
                     contentColor = Color.White
                 )
             ) {
@@ -585,66 +602,94 @@ private fun BudgetSliderItem(
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
+        // 제목과 현재 값을 한 줄에 배치
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // 왼쪽 제목 영역
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 아이콘이 있는 항목만 아이콘 출력
                 if (icon != null) {
                     Icon(
                         imageVector = icon,
                         contentDescription = title,
-                        tint = Color(0xFF475569)
+                        tint = Color(0xFF64748B)
                     )
+
                     Spacer(modifier = Modifier.width(8.dp))
                 }
 
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color(0xFF111827)
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF374151)
                 )
             }
 
+            // 오른쪽 현재 금액 출력
             Text(
                 text = formatWon(value),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.ExtraBold,
                 color = valueColor
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
+        // 일반형 슬라이더
+        // 사용자가 원하는 첫 번째 스크린샷 스타일에 맞춰
+        // 점 없는 기본 슬라이더 모양으로 사용
         Slider(
             value = sliderPosition,
-            onValueChange = {
-                // 슬라이더 움직일 때 현재 값 변경
-                sliderPosition = it
-                onValueChange(it.toInt())
+            onValueChange = { changedValue ->
+                // 슬라이더를 움직이는 동안 현재 위치 갱신
+                sliderPosition = changedValue
+
+                // Int 값으로 변환해서 상위로 전달
+                onValueChange(changedValue.toInt())
             },
             valueRange = valueRange,
-            steps = 0,
+
+            // 첫 번째 스타일처럼 연속형 슬라이더로 사용
+            steps = steps,
+
             colors = SliderDefaults.colors(
+                // 손잡이 색상
                 thumbColor = Color.White,
+
+                // 채워진 구간 색상
                 activeTrackColor = Color(0xFF020226),
-                inactiveTrackColor = Color(0xFFE5E7EB)
+
+                // 비어있는 구간 색상
+                inactiveTrackColor = Color(0xFFE5E7EB),
+
+                // 점 표시를 눈에 띄지 않게 트랙 색과 동일하게 설정
+                activeTickColor = Color(0xFF020226),
+                inactiveTickColor = Color(0xFFE5E7EB)
             )
         )
 
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // 최소값 / 최대값 표시
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = formatWon(valueRange.start.toInt()),
+                text = formatWonWithoutSuffix(valueRange.start.toInt()),
                 style = MaterialTheme.typography.bodySmall,
                 color = Color(0xFF6B7280)
             )
 
             Text(
-                text = formatWon(valueRange.endInclusive.toInt()),
+                text = formatWonWithoutSuffix(valueRange.endInclusive.toInt()),
                 style = MaterialTheme.typography.bodySmall,
                 color = Color(0xFF6B7280)
             )
@@ -660,6 +705,7 @@ private fun BudgetSummaryCard(
     savingGoal: Int,
     remainingAmount: Int
 ) {
+    // 남는 금액이 0 이상이면 긍정 메시지, 아니면 초과 메시지 출력
     val message = if (remainingAmount >= 0) {
         "균형잡힌 예산이에요! 남은 금액: ${formatWon(remainingAmount)}"
     } else {
@@ -775,18 +821,21 @@ private fun BudgetAnalysisCard(
     // 식비가 전체 지출에서 차지하는 비율 계산
     val foodRatio = if (totalExpense == 0) 0 else (foodBudget * 100 / totalExpense)
 
+    // 첫 번째 메시지
     val firstMessage = when {
         foodRatio <= 30 -> "식비 비중이 적정 수준이에요. 건강한 소비 습관이에요!"
         foodRatio <= 40 -> "식비 비중이 조금 높아요. 외식 횟수를 줄이면 더 좋아요."
         else -> "식비 비중이 높은 편이에요. 식비 관리가 핵심 포인트예요."
     }
 
+    // 두 번째 메시지
     val secondMessage = when {
         savingGoal >= 100000 -> "저축 비율이 높아요! 목표 달성 가능성이 좋아요."
         savingGoal >= 50000 -> "저축 비율이 안정적이에요. 꾸준히 유지해보세요."
         else -> "저축 목표를 조금만 더 높이면 미래 준비에 도움이 돼요."
     }
 
+    // 세 번째 메시지
     val thirdMessage = when {
         savingGoal >= 150000 -> "이 속도면 장기 목표 달성에 훨씬 가까워질 수 있어요!"
         savingGoal >= 50000 -> "이 흐름이면 꾸준한 자산 형성이 가능해요!"
@@ -854,12 +903,14 @@ private fun SavingTipCard(
     foodBudget: Int,
     transportBudget: Int
 ) {
+    // 식비 관련 팁
     val foodTip = if (foodBudget >= 150000) {
         "식비는 외식을 줄이면 월 5만원 이상 절약 가능해요"
     } else {
         "현재 식비는 비교적 안정적이에요. 유지해도 좋아요"
     }
 
+    // 교통비 관련 팁
     val transportTip = if (transportBudget >= 80000) {
         "대중교통 정기권으로 교통비 20% 절감할 수 있어요"
     } else {
@@ -948,6 +999,11 @@ data class BudgetPlanUiData(
     val hobby: Int,
     val saving: Int
 )
+
+// 숫자를 "1,000" 형태로 바꿔주는 함수
+private fun formatWonWithoutSuffix(amount: Int): String {
+    return "%,d".format(amount)
+}
 
 // 숫자를 "1,000원" 형태로 바꿔주는 함수
 private fun formatWon(amount: Int): String {

@@ -2,6 +2,8 @@ package com.ict.spentopia.feature.auth // 로그인 화면 관련 코드를 모�
 
 import androidx.compose.foundation.Image // 이미지 표시용 컴포넌트
 import androidx.compose.foundation.background // 배경색/배경 브러시 적용
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement // Row/Column 내부 정렬 방식 설정
 import androidx.compose.foundation.layout.Box // 겹쳐서 배치할 수 있는 레이아웃
 import androidx.compose.foundation.layout.Column // 세로로 배치하는 레이아웃
@@ -12,12 +14,14 @@ import androidx.compose.foundation.layout.fillMaxWidth // 가로를 최대 너�
 import androidx.compose.foundation.layout.height // 높이 지정
 import androidx.compose.foundation.layout.padding // 안쪽 여백 지정
 import androidx.compose.foundation.layout.size // 가로/세로 크기 지정
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions // 키보드 옵션 설정
 import androidx.compose.material3.Button // 기본 버튼 컴포넌트
 import androidx.compose.material3.ButtonDefaults // 버튼 기본 스타일 관련 설정
 import androidx.compose.material3.HorizontalDivider // 가로 구분선
 import androidx.compose.material3.OutlinedTextField // 외곽선 형태의 입력창
 import androidx.compose.material3.OutlinedTextFieldDefaults // 입력창 기본 색상 설정
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text // 텍스트 출력 컴포넌트
 import androidx.compose.material3.TextButton // 텍스트 형태 버튼
 import androidx.compose.runtime.Composable // Compose UI 함수임을 나타내는 어노테이션
@@ -36,6 +40,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation // 비밀번�
 import androidx.compose.ui.text.style.TextDecoration // 밑줄 등 텍스트 장식 설정
 import androidx.compose.ui.unit.dp // 여백/크기 단위
 import androidx.compose.ui.unit.sp // 글자 크기 단위
+import androidx.compose.ui.window.Dialog
 import com.ict.spentopia.R // 프로젝트 리소스(drawable 등) 접근
 import com.ict.spentopia.feature.social.SocialLoginButton // 커스텀 소셜 로그인 버튼 컴포넌트 가져오기
 
@@ -45,10 +50,12 @@ fun LoginScreen( // 로그인 화면 전체 UI를 담당하는 함수
     onSignUpClick: () -> Unit, // 회원가입 버튼 클릭 시 실행할 함수
     onKakaoClick: () -> Unit = {}, // 카카오 로그인 버튼 클릭 시 실행할 함수, 기본값은 빈 함수
     onNaverClick: () -> Unit = {}, // 네이버 로그인 버튼 클릭 시 실행할 함수, 기본값은 빈 함수
-    onGoogleClick: () -> Unit = {} // 구글 로그인 버튼 클릭 시 실행할 함수, 기본값은 빈 함수
+    onGoogleClick: () -> Unit = {}, // 구글 로그인 버튼 클릭 시 실행할 함수, 기본값은 빈 함수
+    onSolanaWalletSelected: (String) -> Unit = {} // Solana 지갑 종류 선택 시 실행할 함수
 ) {
     var email by remember { mutableStateOf("") } // 이메일 입력값을 저장하는 상태 변수
     var password by remember { mutableStateOf("") } // 비밀번호 입력값을 저장하는 상태 변수
+    var showWalletDialog by remember { mutableStateOf(false) }
 
     Column( // 화면 전체를 세로 방향으로 배치
         modifier = Modifier
@@ -165,6 +172,14 @@ fun LoginScreen( // 로그인 화면 전체 UI를 담당하는 함수
             onClick = onLoginClick
         )
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SocialLoginButton(
+            text = "Solana 지갑 연결",
+            iconRes = null,
+            onClick = { showWalletDialog = true }
+        )
+
         Spacer(modifier = Modifier.height(24.dp)) // 로그인 버튼과 구분선 사이 여백
 
         OrDivider() // "또는" 구분선 표시
@@ -218,6 +233,16 @@ fun LoginScreen( // 로그인 화면 전체 UI를 담당하는 함수
                 )
             }
         }
+    }
+
+    if (showWalletDialog) {
+        SolanaWalletDialog(
+            onDismiss = { showWalletDialog = false },
+            onWalletSelected = { walletName ->
+                showWalletDialog = false
+                onSolanaWalletSelected(walletName)
+            }
+        )
     }
 }
 
@@ -281,6 +306,116 @@ private fun OrDivider() { // 로그인 방식 구분용 "또는" 선을 그리�
         HorizontalDivider( // 오른쪽 구분선
             modifier = Modifier.weight(1f), // 왼쪽과 동일 비율로 공간 차지
             color = Color(0xFFD6D6D6) // 선 색상
+        )
+    }
+}
+
+@Composable
+private fun SolanaWalletDialog(
+    onDismiss: () -> Unit,
+    onWalletSelected: (String) -> Unit
+) {
+    val wallets = listOf(
+        "Phantom" to "가장 대중적인 Solana 지갑",
+        "Solflare" to "NFT와 스테이킹 사용이 많은 지갑",
+        "Backpack" to "xNFT 생태계 중심 지갑"
+    )
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White,
+            tonalElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp)
+            ) {
+                Text(
+                    text = "Solana 지갑 연결",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "연결할 지갑을 선택하세요.",
+                    fontSize = 14.sp,
+                    color = Color(0xFF6B7280)
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                wallets.forEachIndexed { index, (walletName, description) ->
+                    WalletOptionCard(
+                        walletName = walletName,
+                        description = description,
+                        onClick = { onWalletSelected(walletName) }
+                    )
+
+                    if (index != wallets.lastIndex) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text(
+                        text = "닫기",
+                        color = Color(0xFF2F7DF6),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WalletOptionCard(
+    walletName: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = Color(0xFFE5E7EB),
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = walletName,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF111827)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = description,
+                fontSize = 13.sp,
+                color = Color(0xFF6B7280)
+            )
+        }
+
+        Text(
+            text = "연결",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF2F7DF6)
         )
     }
 }

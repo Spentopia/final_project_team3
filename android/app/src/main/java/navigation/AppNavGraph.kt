@@ -25,12 +25,16 @@ import androidx.navigation.compose.currentBackStackEntryAsState // 현재 route 
 import androidx.navigation.compose.rememberNavController // NavController 생성
 import com.ict.spentopia.feature.analysis.AnalysisScreen // 소비 분석 화면
 import com.ict.spentopia.feature.avatar.AvatarScreen // 아바타 화면
+import com.ict.spentopia.feature.auth.LoginScreen
 import com.ict.spentopia.feature.budget.BudgetScreen // 예산 설정 화면
 import com.ict.spentopia.feature.community.CommunityScreen // 커뮤니티 화면
 import com.ict.spentopia.feature.home.HomeScreen // 홈 화면
 import com.ict.spentopia.feature.market.MarketScreen // NFT 마켓 화면
 import com.ict.spentopia.feature.mypage.MyPageScreen // 마이페이지 화면
 import com.ict.spentopia.feature.plaza.PlazaScreen // 광장 화면
+import com.ict.spentopia.feature.signup.SignUpStep1Screen
+import com.ict.spentopia.feature.signup.SignUpStep2Screen
+import com.ict.spentopia.feature.signup.SignUpStep3Screen
 import kotlinx.coroutines.launch // 드로어 열고 닫을 때 코루틴으로 실행
 
 @OptIn(ExperimentalMaterial3Api::class) // Material3 실험 API 사용 허용
@@ -151,9 +155,64 @@ fun AppNavGraph() { // 앱 전체 화면 이동 구조를 담당하는 함수
         ) { innerPadding -> // Scaffold가 본문에 줄 패딩 값 받기
             NavHost( // 실제 화면 이동을 담당하는 NavHost
                 navController = navController, // 위에서 만든 navController 연결
-                startDestination = Route.Home.route, // 앱 시작 화면을 홈으로 지정
+                startDestination = Route.Login.route, // 앱 시작 화면을 로그인으로 지정
                 modifier = Modifier.padding(innerPadding) // 상단바와 겹치지 않게 패딩 적용
             ) {
+                composable(Route.Login.route) {
+                    LoginScreen(
+                        onLoginClick = {
+                            navController.navigate(Route.Home.route) {
+                                popUpTo(Route.Login.route) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        },
+                        onSignUpClick = {
+                            navController.navigate(Route.SignUpStep1.route) {
+                                launchSingleTop = true
+                            }
+                        }
+                    )
+                }
+
+                composable(Route.SignUpStep1.route) {
+                    SignUpStep1Screen(
+                        onNextClick = {
+                            navController.navigate(Route.SignUpStep2.route) {
+                                launchSingleTop = true
+                            }
+                        },
+                        onBackClick = {
+                            navController.popBackStack()
+                        }
+                    )
+                }
+
+                composable(Route.SignUpStep2.route) {
+                    SignUpStep2Screen(
+                        onNextClick = {
+                            navController.navigate(Route.SignUpStep3.route) {
+                                launchSingleTop = true
+                            }
+                        },
+                        onBackClick = {
+                            navController.popBackStack()
+                        }
+                    )
+                }
+
+                composable(Route.SignUpStep3.route) {
+                    SignUpStep3Screen(
+                        onFinishClick = {
+                            navController.navigate(Route.Home.route) {
+                                popUpTo(Route.Login.route) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        },
+                        onBackClick = {
+                            navController.popBackStack()
+                        }
+                    )
+                }
 
                 composable(Route.Home.route) { // 홈 route 등록
                     HomeScreen( // 홈 화면 표시

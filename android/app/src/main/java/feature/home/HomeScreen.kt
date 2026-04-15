@@ -1,22 +1,61 @@
 package com.ict.spentopia.feature.home
 
+// 날짜 선택 다이얼로그를 위한 import입니다.
 import android.app.DatePickerDialog
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
+
+// Compose foundation 관련 import입니다.
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+
+// 아이콘 관련 import입니다.
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.*
+
+// Material3 관련 import입니다.
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+
+// Compose runtime 관련 import입니다.
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+
+// UI 관련 import입니다.
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -25,14 +64,31 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+// ViewModel을 Compose에서 사용하기 위한 import입니다.
 import androidx.lifecycle.viewmodel.compose.viewModel
+
+// Flow를 Compose 상태로 안전하게 수집하기 위한 import입니다.
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+// BudgetViewModel import입니다.
 import com.ict.spentopia.feature.budget.BudgetViewModel
+
+// Room Entity import입니다.
+import com.ict.spentopia.data.local.ExpenseEntity
+
+// 숫자 포맷 및 날짜 계산 관련 import입니다.
 import java.text.DecimalFormat
 import java.util.Calendar
 import kotlin.math.abs
 
-
-data class ExpenseItemData( // 소비 항목 데이터를 담는 데이터 클래스
+// --------------------------------------------------
+// UI에서 사용할 소비 항목 데이터 클래스입니다.
+// 기존 HomeScreen UI 구조를 최대한 유지하기 위해 남겨둡니다.
+// 즉, DB의 ExpenseEntity를 바로 화면에 쓰지 않고,
+// 화면에서 쓰기 좋은 ExpenseItemData로 변환해서 사용합니다.
+// --------------------------------------------------
+data class ExpenseItemData(
     val id: Long, // 항목 고유 ID
     val date: String, // 소비 날짜
     val title: String, // 소비 제목
@@ -43,81 +99,89 @@ data class ExpenseItemData( // 소비 항목 데이터를 담는 데이터 클�
     val diary: String // 한줄 소비 일기
 )
 
-data class CalendarDateData( // 캘린더 날짜 정보를 담는 데이터 클래스
+// 달력에서 사용할 날짜 데이터 클래스입니다.
+data class CalendarDateData(
     val fullDate: String, // 실제 날짜 값 yyyy-MM-dd
     val dayText: String, // 화면에 보여줄 날짜 텍스트
     val isCurrentMonth: Boolean // 현재 달 포함 여부
 )
 
-
-
 @Composable
 fun HomeScreen(
-    onLedgerClick: () -> Unit = {}, // 가계부 클릭 이벤트를 위한 콜백
-    onMyPageClick: () -> Unit = {}, // 마이페이지 클릭 이벤트를 위한 콜백
-    onBudgetClick: () -> Unit = {}, // 예산 설정 클릭 이벤트를 위한 콜백
-    onAnalysisClick: () -> Unit = {}, // 소비 분석 클릭 이벤트를 위한 콜백
-    onAvatarClick: () -> Unit = {}, // 내 아바타 클릭 이벤트를 위한 콜백
-    onMarketClick: () -> Unit = {}, // NFT 마켓 클릭 이벤트를 위한 콜백
-    onPlazaClick: () -> Unit = {}, // 광장 클릭 이벤트를 위한 콜백
-    onCommunityClick: () -> Unit = {} // 커뮤니티 클릭 이벤트를 위한 콜백
+    onLedgerClick: () -> Unit = {},
+    onMyPageClick: () -> Unit = {},
+    onBudgetClick: () -> Unit = {},
+    onAnalysisClick: () -> Unit = {},
+    onAvatarClick: () -> Unit = {},
+    onMarketClick: () -> Unit = {},
+    onPlazaClick: () -> Unit = {},
+    onCommunityClick: () -> Unit = {}
 ) {
-    // 예산 설정 화면에서 저장한 값을 홈 화면에서도 읽기 위해 ViewModel 연결
+    // 예산 설정 화면에서 저장한 값을 읽어오기 위한 ViewModel입니다.
     val budgetViewModel: BudgetViewModel = viewModel()
 
-    // 저장된 예산 상태 구독
-    val budgetState by budgetViewModel.budgetState.collectAsState()
+    // 홈 화면에서 Room 소비 데이터를 가져오기 위한 ViewModel입니다.
+    val context = LocalContext.current
 
-    // 소비 목록 상태를 관리
-    var expenseList by remember {
-        mutableStateOf(
-            listOf(
-                ExpenseItemData(
-                    id = 1L,
-                    date = "2026-04-10",
-                    title = "점심 식사",
-                    category = "식비",
-                    amount = 12000,
-                    memo = "친구들이랑 점심 먹음",
-                    receiptImageName = "lunch_receipt.jpg",
-                    diary = "오늘은 친구들과 맛있는 점심을 먹었다"
-                ),
-                ExpenseItemData(
-                    id = 2L,
-                    date = "2026-04-10",
-                    title = "택시",
-                    category = "교통",
-                    amount = 3500,
-                    memo = "집까지 이동",
-                    receiptImageName = "",
-                    diary = ""
+    val homeViewModel: HomeViewModel = viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                val database = com.ict.spentopia.data.local.ExpenseDatabase.getDatabase(context)
+                val repository = com.ict.spentopia.data.repository.ExpenseRepository(
+                    database.expenseDao()
                 )
-            )
-        )
-    }
+                return HomeViewModel(repository) as T
+            }
+        }
+    )
 
-    // 현재 선택된 날짜 상태
-    var selectedDate by remember { mutableStateOf("2026-04-10") }
+    // 저장된 예산 상태를 lifecycle-aware 방식으로 구독합니다.
+    val budgetState by budgetViewModel.budgetState.collectAsStateWithLifecycle()
 
-    // 현재 달력에 표시할 연도 상태
-    var currentYear by remember { mutableStateOf(2026) }
+    // HomeViewModel의 전체 UI용 소비 목록을 구독합니다.
+    // DailyExpenseCard는 "선택한 날짜" 기준으로 여기서 다시 필터링합니다.
+    val expenseList by homeViewModel.expenseUiList.collectAsStateWithLifecycle()
 
-    // 현재 달력에 표시할 월 상태
-    var currentMonth by remember { mutableStateOf(4) }
+    // HomeViewModel에서 현재 선택한 연-월을 구독합니다.
+    // 예: "2026-04"
+    val selectedYearMonth by homeViewModel.selectedYearMonth.collectAsStateWithLifecycle()
 
-    // 수정 중인 소비 항목 상태
+    // HomeViewModel에서 현재 선택한 날짜를 구독합니다.
+    // 예: "2026-04-15"
+    val selectedDate by homeViewModel.selectedDate.collectAsStateWithLifecycle()
+
+    // HomeViewModel에서 현재 선택한 월의 소비 목록(UI용)을 구독합니다.
+    val monthlyExpenseList by homeViewModel.monthlyExpenseUiList.collectAsStateWithLifecycle()
+
+    // HomeViewModel에서 현재 선택한 월의 총 소비 금액을 구독합니다.
+    val currentMonthTotalExpense by homeViewModel.monthlyTotalAmount.collectAsStateWithLifecycle()
+
+    // HomeViewModel에서 현재 선택한 월의 소비 건수를 구독합니다.
+    val currentMonthExpenseCount by homeViewModel.monthlyExpenseCount.collectAsStateWithLifecycle()
+
+    // HomeViewModel에서 이전 달 총 소비 금액을 구독합니다.
+    val previousMonthTotalExpense by homeViewModel.previousMonthTotalAmount.collectAsStateWithLifecycle()
+
+    // 소비 기록이 존재하는 날짜 목록을 Set으로 관리합니다.
+    val expenseDateSet by homeViewModel.expenseDateSet.collectAsStateWithLifecycle()
+
+    // 현재 선택된 연-월 문자열에서 연도와 월을 분리합니다.
+    // selectedYearMonth는 "yyyy-MM" 형식이므로 substring으로 안전하게 꺼냅니다.
+    val currentYear = selectedYearMonth.substring(0, 4).toIntOrNull() ?: Calendar.getInstance().get(Calendar.YEAR)
+    val currentMonth = selectedYearMonth.substring(5, 7).toIntOrNull() ?: (Calendar.getInstance().get(Calendar.MONTH) + 1)
+
+    // 수정 중인 소비 항목 상태입니다.
     var editingExpense by remember { mutableStateOf<ExpenseItemData?>(null) }
 
-    // 예산 설정 화면에서 저장한 값으로 월 예산 계산
+    // 예산 설정 화면에서 저장한 값으로 월 예산을 계산합니다.
+    // 현재 프로젝트 구조에서는
+    // "월 수입 - 저축 목표"를 실제 사용 가능한 한 달 예산으로 사용하고 있습니다.
     val monthlyBudget = remember(budgetState) {
         budgetState.monthlyIncome - budgetState.savingGoal
     }
-    // 소비 기록이 존재하는 날짜 목록을 Set으로 관리
-    val expenseDateSet = remember(expenseList) {
-        expenseList.map { it.date }.toSet()
-    }
 
-    // 오늘 날짜를 yyyy-MM-dd 형식으로 생성
+    // 오늘 날짜를 yyyy-MM-dd 형식으로 생성합니다.
     val today = remember {
         val cal = Calendar.getInstance()
         formatDate(
@@ -127,50 +191,21 @@ fun HomeScreen(
         )
     }
 
-    // 현재 보고 있는 달의 소비 목록
-    val currentMonthExpenseList = remember(expenseList, currentYear, currentMonth) {
-        expenseList.filter { expense ->
-            val year = expense.date.substring(0, 4).toIntOrNull() ?: 0
-            val month = expense.date.substring(5, 7).toIntOrNull() ?: 0
-            year == currentYear && month == currentMonth
-        }
-    }
-
-    // 이번 달 총 소비 금액
-    val currentMonthTotalExpense = remember(currentMonthExpenseList) {
-        currentMonthExpenseList.sumOf { it.amount }
-    }
-
-    // 지난달 연도와 월 계산
-    val previousMonthInfo = remember(currentYear, currentMonth) {
-        moveMonth(currentYear, currentMonth, -1)
-    }
-
-    // 지난달 소비 목록
-    val previousMonthExpenseList = remember(expenseList, previousMonthInfo) {
-        expenseList.filter { expense ->
-            val year = expense.date.substring(0, 4).toIntOrNull() ?: 0
-            val month = expense.date.substring(5, 7).toIntOrNull() ?: 0
-            year == previousMonthInfo.first && month == previousMonthInfo.second
-        }
-    }
-
-    // 지난달 총 소비 금액
-    val previousMonthTotalExpense = remember(previousMonthExpenseList) {
-        previousMonthExpenseList.sumOf { it.amount }
-    }
-
-    // 남은 예산 계산
+    // 현재 달의 남은 예산 계산입니다.
+    // 예산보다 소비가 많으면 음수가 될 수 있습니다.
     val remainingBudget = monthlyBudget - currentMonthTotalExpense
 
-    // 사용률 계산
-    val usageRate = if (monthlyBudget > 0) {
-        ((currentMonthTotalExpense.toFloat() / monthlyBudget.toFloat()) * 100).toInt()
-    } else {
-        0
+    // 사용률 텍스트 계산입니다.
+    // 기존에는 Int로 바로 잘라서 0.2% 같은 값이 0%가 되는 문제가 있었기 때문에
+    // 이제는 문자열로 만들어서 0.3% 같은 값도 보이게 처리합니다.
+    val usageRateText = remember(currentMonthTotalExpense, monthlyBudget) {
+        createUsageRateText(
+            currentAmount = currentMonthTotalExpense,
+            monthlyBudget = monthlyBudget
+        )
     }
 
-    // 지난달 대비 증감 문구 계산
+    // 지난달 대비 증감 문구 계산입니다.
     val changeRateText = remember(currentMonthTotalExpense, previousMonthTotalExpense) {
         createChangeRateText(
             currentAmount = currentMonthTotalExpense,
@@ -178,7 +213,7 @@ fun HomeScreen(
         )
     }
 
-    // 공통 드로어는 AppNavGraph에서 처리하므로 HomeScreen에서는 본문만 그림
+    // 드로어는 AppNavGraph에서 처리하므로 HomeScreen에서는 본문만 그립니다.
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -197,50 +232,61 @@ fun HomeScreen(
                 currentYear = currentYear,
                 currentMonth = currentMonth,
                 currentMonthTotalExpense = currentMonthTotalExpense,
+                currentMonthExpenseCount = currentMonthExpenseCount,
                 monthlyBudget = monthlyBudget,
                 remainingBudget = remainingBudget,
-                usageRate = usageRate,
-                changeRateText = changeRateText
-            )
-        }
-
-        item {
-            CalendarCard(
-                currentYear = currentYear,
-                currentMonth = currentMonth,
-                selectedDate = selectedDate,
-                expenseDateSet = expenseDateSet,
-                today = today,
+                usageRateText = usageRateText,
+                changeRateText = changeRateText,
                 onPrevMonth = {
-                    val previous = moveMonth(currentYear, currentMonth, -1)
-                    currentYear = previous.first
-                    currentMonth = previous.second
+                    // 이전 달로 이동합니다.
+                    // 선택 날짜도 자동으로 해당 월 1일로 맞춰집니다.
+                    homeViewModel.moveToPreviousMonth()
                 },
                 onNextMonth = {
-                    val next = moveMonth(currentYear, currentMonth, 1)
-                    currentYear = next.first
-                    currentMonth = next.second
-                },
-                onDateSelected = { clickedDate ->
-                    selectedDate = clickedDate
-                    currentYear = clickedDate.substring(0, 4).toInt()
-                    currentMonth = clickedDate.substring(5, 7).toInt()
+                    // 다음 달로 이동합니다.
+                    // 선택 날짜도 자동으로 해당 월 1일로 맞춰집니다.
+                    homeViewModel.moveToNextMonth()
                 }
             )
         }
+
+        // 현재는 달력 UI를 주석 처리한 상태지만,
+        // 나중에 다시 활성화할 때도 ViewModel의 selectDate()를 그대로 쓰면 됩니다.
+        //
+        // item {
+        //     CalendarCard(
+        //         currentYear = currentYear,
+        //         currentMonth = currentMonth,
+        //         selectedDate = selectedDate,
+        //         expenseDateSet = expenseDateSet,
+        //         today = today,
+        //         onPrevMonth = {
+        //             homeViewModel.moveToPreviousMonth()
+        //         },
+        //         onNextMonth = {
+        //             homeViewModel.moveToNextMonth()
+        //         },
+        //         onDateSelected = { clickedDate ->
+        //             homeViewModel.selectDate(clickedDate)
+        //         }
+        //     )
+        // }
 
         item {
             DailyExpenseCard(
                 expenseList = expenseList,
                 selectedDate = selectedDate,
                 onEditExpense = { expense ->
+                    // 수정 버튼을 누르면 수정 모드로 바꾸고,
+                    // 선택 날짜도 해당 항목 날짜로 맞춰줍니다.
                     editingExpense = expense
-                    selectedDate = expense.date
-                    currentYear = expense.date.substring(0, 4).toInt()
-                    currentMonth = expense.date.substring(5, 7).toInt()
+                    homeViewModel.selectDate(expense.date)
                 },
                 onDeleteExpense = { expenseId ->
-                    expenseList = expenseList.filter { it.id != expenseId }
+                    // 실제 Room DB에서 삭제합니다.
+                    homeViewModel.deleteExpenseById(expenseId)
+
+                    // 삭제한 항목이 수정 중이던 항목이면 수정 상태도 비웁니다.
                     if (editingExpense?.id == expenseId) {
                         editingExpense = null
                     }
@@ -257,18 +303,18 @@ fun HomeScreen(
                 selectedDate = selectedDate,
                 editingExpense = editingExpense,
                 onSaveExpense = { savedExpense ->
+                    // 화면용 모델을 DB용 Entity로 변환합니다.
+                    val entity = savedExpense.toEntity()
+
+                    // 수정 중이 아니면 insert, 수정 중이면 update를 호출합니다.
                     if (editingExpense == null) {
-                        expenseList = listOf(savedExpense) + expenseList
+                        homeViewModel.insertExpense(entity)
                     } else {
-                        expenseList = expenseList.map { item ->
-                            if (item.id == savedExpense.id) savedExpense else item
-                        }
+                        homeViewModel.updateExpense(entity)
                     }
 
+                    // 저장 후 수정 상태를 초기화합니다.
                     editingExpense = null
-                    selectedDate = savedExpense.date
-                    currentYear = savedExpense.date.substring(0, 4).toInt()
-                    currentMonth = savedExpense.date.substring(5, 7).toInt()
                 },
                 onCancelEdit = {
                     editingExpense = null
@@ -281,57 +327,6 @@ fun HomeScreen(
         }
 
         item { Spacer(modifier = Modifier.height(24.dp)) }
-    }
-}
-
-
-
-@Composable
-private fun HomeDrawerMenuItem(
-    emoji: String, // 메뉴 앞에 표시할 이모지
-    title: String, // 메뉴 제목
-    onClick: () -> Unit // 메뉴 클릭 시 호출할 콜백
-) { // 드로어 메뉴 한 줄을 정의하는 Composable 함수
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }, // 메뉴 클릭 시 콜백 실행
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFBFCFE)
-        ),
-        border = BorderStroke(1.dp, Color(0xFFE8EDF5))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 15.dp),
-            verticalAlignment = Alignment.CenterVertically // 세로 가운데 정렬
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(
-                        color = Color(0xFFEAF3FF),
-                        shape = RoundedCornerShape(14.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = emoji,
-                    fontSize = 19.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp)) // 오른쪽 여백 추가
-
-            Text(
-                text = title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1F2A37)
-            )
-        }
     }
 }
 
@@ -378,96 +373,138 @@ private fun TopHeaderSection() {
 }
 
 @Composable
-private fun MonthlySummaryCard( // 월간 요약 카드를 정의하는 Composable 함수
-    currentYear: Int, // 현재 표시 중인 연도
-    currentMonth: Int, // 현재 표시 중인 월
-    currentMonthTotalExpense: Int, // 이번 달 총 소비 금액
-    monthlyBudget: Int, // 예산 금액
-    remainingBudget: Int, // 남은 예산 금액
-    usageRate: Int, // 예산 사용률
-    changeRateText: String // 지난달 대비 변화 텍스트
+private fun MonthlySummaryCard(
+    currentYear: Int,
+    currentMonth: Int,
+    currentMonthTotalExpense: Int,
+    currentMonthExpenseCount: Int,
+    monthlyBudget: Int,
+    remainingBudget: Int,
+    usageRateText: String,
+    changeRateText: String,
+    onPrevMonth: () -> Unit,
+    onNextMonth: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(), // 카드의 너비를 최대 너비로 설정
-        shape = RoundedCornerShape(24.dp), // 카드 모서리를 둥글게 만듬
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F6FA)) // 카드 색상을 연한 회색으로 설정함
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F6FA))
     ) {
         Column(
-            modifier = Modifier.padding(20.dp) // 카드 내부에 패딩을 추가
+            modifier = Modifier.padding(20.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(), // 가로 방향으로 최대 너비를 채움
-                horizontalArrangement = Arrangement.SpaceBetween // 아이템들 사이에 공간을 둠
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
             ) {
-                Column { // 왼쪽 요약 섹션
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CalendarArrowButton(
+                            text = "‹",
+                            onClick = onPrevMonth
+                        )
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Text(
+                            text = "${currentYear}년 ${currentMonth}월",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1F2A37)
+                        )
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        CalendarArrowButton(
+                            text = "›",
+                            onClick = onNextMonth
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
                     Text(
-                        text = "${currentYear}년 ${currentMonth}월", // 현재 월 표시
-                        fontSize = 16.sp, // 글자 크기
-                        fontWeight = FontWeight.Bold, // 글자 두께
-                        color = Color(0xFF1F2A37) // 글자 색상
-                    )
-                    Text(
-                        text = "이번 달 소비 내역", // 소비 내역 제목
-                        fontSize = 13.sp, // 글자 크기
-                        color = Color(0xFF6B7280) // 글자 색상
+                        text = "이번 달 소비 내역 · ${currentMonthExpenseCount}건",
+                        fontSize = 13.sp,
+                        color = Color(0xFF6B7280)
                     )
                 }
 
-                Column(horizontalAlignment = Alignment.End) { // 오른쪽 금액 섹션
+                Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "${formatAmount(currentMonthTotalExpense)}원", // 실제 소비 금액
-                        fontSize = 28.sp, // 글자 크기
-                        fontWeight = FontWeight.Bold, // 글자 두께
-                        color = Color(0xFF1F2A37) // 글자 색상
+                        text = "${formatAmount(currentMonthTotalExpense)}원",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1F2A37)
                     )
                     Text(
-                        text = changeRateText, // 지난달 대비 소비 변화량
-                        fontSize = 13.sp, // 글자 크기
-                        color = getChangeRateColor(changeRateText) // 변화 방향에 따른 색상
+                        text = changeRateText,
+                        fontSize = 13.sp,
+                        color = getChangeRateColor(changeRateText)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(20.dp))
 
             Row(
-                modifier = Modifier.fillMaxWidth(), // 가로 방향으로 최대 너비를 채움
-                horizontalArrangement = Arrangement.spacedBy(12.dp) // 아이템 간의 간격을 12dp로 설정
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                SummaryMiniCard("예산", "${formatAmount(monthlyBudget)}원", Color(0xFFDDF3F7), Modifier.weight(1f)) // 예산 카드
-                SummaryMiniCard("남은 예산", "${formatAmount(remainingBudget)}원", Color(0xFFE1EAFF), Modifier.weight(1f)) // 남은 예산 카드
-                SummaryMiniCard("사용률", "${usageRate}%", Color(0xFFDFF2EC), Modifier.weight(1f)) // 소비 사용률 카드
+                SummaryMiniCard(
+                    title = "예산",
+                    value = "${formatAmount(monthlyBudget)}원",
+                    bgColor = Color(0xFFDDF3F7),
+                    modifier = Modifier.weight(1f)
+                )
+
+                SummaryMiniCard(
+                    title = if (remainingBudget >= 0) "남은 예산" else "초과 예산",
+                    value = "${formatAmount(abs(remainingBudget))}원",
+                    bgColor = if (remainingBudget >= 0) Color(0xFFE1EAFF) else Color(0xFFFFE3E3),
+                    modifier = Modifier.weight(1f)
+                )
+
+                SummaryMiniCard(
+                    title = "사용률",
+                    value = usageRateText,
+                    bgColor = Color(0xFFDFF2EC),
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SummaryMiniCard( // 요약 미니 카드를 정의하는 Composable 함수
-    title: String, // 카드 제목
-    value: String, // 카드 값
-    bgColor: Color, // 카드 배경 색상
-    modifier: Modifier = Modifier // 수정자
+private fun SummaryMiniCard(
+    title: String,
+    value: String,
+    bgColor: Color,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier, // 수정자 적용
-        shape = RoundedCornerShape(16.dp), // 카드 모서리를 둥글게 만듬
-        colors = CardDefaults.cardColors(containerColor = bgColor) // 카드 배경 색상
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = bgColor)
     ) {
         Column(
-            modifier = Modifier.padding(14.dp) // 카드 내부에 패딩 추가
+            modifier = Modifier.padding(14.dp)
         ) {
             Text(
-                text = title, // 카드 제목
-                fontSize = 12.sp, // 글자 크기
-                color = Color(0xFF315072) // 글자 색상
+                text = title,
+                fontSize = 12.sp,
+                color = Color(0xFF315072)
             )
-            Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = value, // 카드 값
-                fontSize = 20.sp, // 글자 크기
-                fontWeight = FontWeight.Bold, // 글자 두께
-                color = Color(0xFF22406A) // 글자 색상
+                text = value,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF22406A)
             )
         }
     }
@@ -475,52 +512,52 @@ private fun SummaryMiniCard( // 요약 미니 카드를 정의하는 Composable 
 
 @Composable
 private fun CalendarCard(
-    currentYear: Int, // 현재 달력에 표시할 연도
-    currentMonth: Int, // 현재 달력에 표시할 월
-    selectedDate: String, // 현재 선택된 날짜
-    expenseDateSet: Set<String>, // 소비 기록이 있는 날짜 집합
-    today: String, // 오늘 날짜
-    onPrevMonth: () -> Unit, // 이전 달 이동 콜백
-    onNextMonth: () -> Unit, // 다음 달 이동 콜백
-    onDateSelected: (String) -> Unit // 날짜 클릭 시 호출할 콜백
-) { // 캘린더 카드를 정의하는 Composable 함수
-    val daysOfWeek = listOf("일", "월", "화", "수", "목", "금", "토") // 요일 목록
-    val calendarDates = generateCalendarDates(currentYear, currentMonth) // 현재 달 기준 날짜 목록 생성
-    val rows = calendarDates.chunked(7) // 7개씩 묶어서 주 단위로 분리
-    val cellWidth = 40.dp // 날짜 한 칸의 고정 너비
+    currentYear: Int,
+    currentMonth: Int,
+    selectedDate: String,
+    expenseDateSet: Set<String>,
+    today: String,
+    onPrevMonth: () -> Unit,
+    onNextMonth: () -> Unit,
+    onDateSelected: (String) -> Unit
+) {
+    val daysOfWeek = listOf("일", "월", "화", "수", "목", "금", "토")
+    val calendarDates = generateCalendarDates(currentYear, currentMonth)
+    val rows = calendarDates.chunked(7)
+    val cellWidth = 40.dp
 
     Card(
-        modifier = Modifier.fillMaxWidth(), // 카드의 너비를 최대 너비로 설정
-        shape = RoundedCornerShape(24.dp), // 카드 모서리를 둥글게 설정
-        colors = CardDefaults.cardColors(containerColor = Color.White) // 카드 배경 색상
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(
-            modifier = Modifier.padding(20.dp) // 카드 내부 패딩
+            modifier = Modifier.padding(20.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(), // 가로 최대 너비 사용
-                horizontalArrangement = Arrangement.SpaceBetween, // 양쪽 정렬
-                verticalAlignment = Alignment.CenterVertically // 세로 가운데 정렬
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 CalendarArrowButton(
                     text = "‹",
                     onClick = onPrevMonth
-                ) // 이전 달 버튼
+                )
 
                 Text(
-                    text = "${currentMonth}월 ${currentYear}", // 현재 달 표시
-                    fontSize = 18.sp, // 글자 크기
-                    fontWeight = FontWeight.Medium, // 글자 두께
-                    color = Color(0xFF1F2A37) // 글자 색상
+                    text = "${currentMonth}월 ${currentYear}",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1F2A37)
                 )
 
                 CalendarArrowButton(
                     text = "›",
                     onClick = onNextMonth
-                ) // 다음 달 버튼
+                )
             }
 
-            Spacer(modifier = Modifier.height(20.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(20.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -528,7 +565,7 @@ private fun CalendarCard(
             ) {
                 daysOfWeek.forEach { day ->
                     Box(
-                        modifier = Modifier.width(cellWidth), // 요일 칸 고정 너비
+                        modifier = Modifier.width(cellWidth),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -540,7 +577,7 @@ private fun CalendarCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(14.dp))
 
             rows.forEach { week ->
                 Row(
@@ -550,13 +587,13 @@ private fun CalendarCard(
                     horizontalArrangement = Arrangement.Start
                 ) {
                     week.forEach { dateItem ->
-                        val isSelected = dateItem.fullDate == selectedDate // 현재 선택된 날짜인지 확인
-                        val hasExpense = expenseDateSet.contains(dateItem.fullDate) // 소비 기록이 있는 날짜인지 확인
-                        val isToday = dateItem.fullDate == today // 오늘 날짜인지 확인
+                        val isSelected = dateItem.fullDate == selectedDate
+                        val hasExpense = expenseDateSet.contains(dateItem.fullDate)
+                        val isToday = dateItem.fullDate == today
 
                         Box(
                             modifier = Modifier
-                                .width(cellWidth) // 날짜 칸 고정 너비
+                                .width(cellWidth)
                                 .height(42.dp)
                                 .clickable {
                                     onDateSelected(dateItem.fullDate)
@@ -597,9 +634,9 @@ private fun CalendarCard(
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.height(3.dp)) // 날짜와 점 사이 여백
+                                Spacer(modifier = Modifier.height(3.dp))
 
-                                if (hasExpense) { // 소비 기록이 있는 날짜면 dot 표시
+                                if (hasExpense) {
                                     Box(
                                         modifier = Modifier
                                             .size(4.dp)
@@ -609,7 +646,7 @@ private fun CalendarCard(
                                             )
                                     )
                                 } else {
-                                    Spacer(modifier = Modifier.height(4.dp)) // dot이 없을 때도 높이 유지
+                                    Spacer(modifier = Modifier.height(4.dp))
                                 }
                             }
                         }
@@ -622,69 +659,69 @@ private fun CalendarCard(
 
 @Composable
 private fun CalendarArrowButton(
-    text: String, // 화살표 버튼 텍스트
-    onClick: () -> Unit // 버튼 클릭 이벤트
-) { // 달력 이동 화살표 버튼을 정의하는 Composable 함수
+    text: String,
+    onClick: () -> Unit
+) {
     Box(
         modifier = Modifier
-            .size(28.dp) // 버튼 크기
+            .size(28.dp)
             .background(
-                color = Color(0xFFF3F4F6), // 버튼 배경 색상
-                shape = RoundedCornerShape(8.dp) // 둥근 모서리
+                color = Color(0xFFF3F4F6),
+                shape = RoundedCornerShape(8.dp)
             )
             .clickable { onClick() },
-        contentAlignment = Alignment.Center // 가운데 정렬
+        contentAlignment = Alignment.Center
     ) {
         Text(
-            text = text, // 화살표 텍스트
-            color = Color(0xFF6B7280), // 글자 색상
-            fontSize = 16.sp, // 글자 크기
-            fontWeight = FontWeight.Medium // 글자 두께
+            text = text,
+            color = Color(0xFF6B7280),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium
         )
     }
 }
 
 @Composable
 private fun DailyExpenseCard(
-    expenseList: List<ExpenseItemData>, // 화면에 표시할 소비 목록
-    selectedDate: String, // 캘린더에서 선택된 날짜
-    onEditExpense: (ExpenseItemData) -> Unit, // 수정 버튼 클릭 시 호출할 콜백
-    onDeleteExpense: (Long) -> Unit // 삭제 버튼 클릭 시 호출할 콜백
-) { // 일일 소비 내역 카드를 정의하는 Composable 함수
-    val filteredList = expenseList.filter { it.date == selectedDate } // 선택된 날짜의 소비 내역만 필터링
-    val totalAmount = filteredList.sumOf { it.amount } // 총 소비 금액 계산
-    val diaryText = filteredList.firstOrNull { it.diary.isNotBlank() }?.diary ?: "" // 한줄 소비 일기 추출
+    expenseList: List<ExpenseItemData>,
+    selectedDate: String,
+    onEditExpense: (ExpenseItemData) -> Unit,
+    onDeleteExpense: (Long) -> Unit
+) {
+    val filteredList = expenseList.filter { it.date == selectedDate }
+    val totalAmount = filteredList.sumOf { it.amount }
+    val diaryText = filteredList.firstOrNull { it.diary.isNotBlank() }?.diary ?: ""
 
     Card(
-        modifier = Modifier.fillMaxWidth(), // 카드의 너비를 최대 너비로 설정
-        shape = RoundedCornerShape(24.dp), // 카드 모서리를 둥글게 설정
-        colors = CardDefaults.cardColors(containerColor = Color.White) // 카드 배경 색상
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(
-            modifier = Modifier.padding(20.dp) // 카드 내부 패딩
+            modifier = Modifier.padding(20.dp)
         ) {
             Text(
-                text = formatDisplayDate(selectedDate), // 카드 제목
-                fontSize = 22.sp, // 글자 크기
-                fontWeight = FontWeight.Bold, // 글자 두께
-                color = Color(0xFF1F2A37) // 글자 색상
+                text = formatDisplayDate(selectedDate),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1F2A37)
             )
 
-            Spacer(modifier = Modifier.height(6.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "총 ${formatAmount(totalAmount)}원 · ${filteredList.size}건", // 총 소비 금액 및 건수
-                fontSize = 14.sp, // 글자 크기
-                color = Color(0xFF6B7280) // 글자 색상
+                text = "총 ${formatAmount(totalAmount)}원 · ${filteredList.size}건",
+                fontSize = 14.sp,
+                color = Color(0xFF6B7280)
             )
 
-            Spacer(modifier = Modifier.height(20.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(20.dp))
 
             if (filteredList.isEmpty()) {
                 Text(
-                    text = "이 날짜에는 아직 저장된 소비 내역이 없어요", // 빈 상태 문구
-                    fontSize = 14.sp, // 글자 크기
-                    color = Color(0xFF6B7280) // 글자 색상
+                    text = "이 날짜에는 아직 저장된 소비 내역이 없어요",
+                    fontSize = 14.sp,
+                    color = Color(0xFF6B7280)
                 )
             } else {
                 filteredList.forEachIndexed { index, item ->
@@ -700,48 +737,48 @@ private fun DailyExpenseCard(
                         },
                         iconColors = getCategoryColors(item.category),
                         onEditClick = {
-                            onEditExpense(item) // 수정 이벤트 전달
+                            onEditExpense(item)
                         },
                         onDeleteClick = {
-                            onDeleteExpense(item.id) // 삭제 이벤트 전달
+                            onDeleteExpense(item.id)
                         }
-                    ) // 소비 항목 카드 표시
+                    )
 
                     if (index != filteredList.lastIndex) {
-                        Spacer(modifier = Modifier.height(12.dp)) // 카드 간 여백 추가
+                        Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
 
                 if (diaryText.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(20.dp)) // 아래쪽 여백 추가
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     Card(
-                        modifier = Modifier.fillMaxWidth(), // 카드의 너비를 최대 너비로 설정
-                        shape = RoundedCornerShape(16.dp), // 카드 모서리를 둥글게 설정
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFF7FBFE) // 카드 배경 색상
+                            containerColor = Color(0xFFF7FBFE)
                         ),
                         border = BorderStroke(
                             1.dp,
                             Color(0xFF86D4FF)
-                        ) // 테두리 설정
+                        )
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp) // 카드 내부 패딩
+                            modifier = Modifier.padding(16.dp)
                         ) {
                             Text(
-                                text = "오늘의 소비 일기", // 소제목
-                                fontSize = 15.sp, // 글자 크기
-                                fontWeight = FontWeight.Bold, // 글자 두께
-                                color = Color(0xFF22406A) // 글자 색상
+                                text = "오늘의 소비 일기",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF22406A)
                             )
 
-                            Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
-                                text = diaryText, // 일기 내용
-                                fontSize = 14.sp, // 글자 크기
-                                color = Color(0xFF475569) // 글자 색상
+                                text = diaryText,
+                                fontSize = 14.sp,
+                                color = Color(0xFF475569)
                             )
                         }
                     }
@@ -752,24 +789,24 @@ private fun DailyExpenseCard(
 }
 
 @Composable
-private fun ExpenseItemCard( // 소비 항목 카드를 정의하는 Composable 함수
-    emoji: String, // 아이콘 대신 사용할 이모지
-    title: String, // 소비 제목
-    category: String, // 소비 카테고리
-    amount: String, // 소비 금액
-    tag: String?, // 선택적으로 표시할 태그
-    iconColors: List<Color>, // 아이콘 배경 그라데이션 색상 목록
-    onEditClick: () -> Unit, // 수정 버튼 클릭 이벤트
-    onDeleteClick: () -> Unit // 삭제 버튼 클릭 이벤트
+private fun ExpenseItemCard(
+    emoji: String,
+    title: String,
+    category: String,
+    amount: String,
+    tag: String?,
+    iconColors: List<Color>,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(), // 카드의 너비를 최대 너비로 설정
-        shape = RoundedCornerShape(18.dp), // 카드 모서리를 둥글게 설정
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFCFCFD)), // 카드 배경 색상
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFCFCFD)),
         border = BorderStroke(
             1.dp,
             Color(0xFFE5E7EB)
-        ) // 카드 테두리 설정
+        )
     ) {
         Column(
             modifier = Modifier
@@ -777,79 +814,79 @@ private fun ExpenseItemCard( // 소비 항목 카드를 정의하는 Composable 
                 .padding(horizontal = 14.dp, vertical = 14.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(), // 가로 최대 너비 사용
-                verticalAlignment = Alignment.CenterVertically // 세로 가운데 정렬
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp) // 아이콘 박스 크기
+                        .size(40.dp)
                         .background(
-                            brush = Brush.horizontalGradient(iconColors), // 그라데이션 배경 적용
-                            shape = RoundedCornerShape(12.dp) // 둥근 모서리
+                            brush = Brush.horizontalGradient(iconColors),
+                            shape = RoundedCornerShape(12.dp)
                         ),
-                    contentAlignment = Alignment.Center // 가운데 정렬
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = emoji, // 이모지 표시
-                        fontSize = 18.sp // 글자 크기
+                        text = emoji,
+                        fontSize = 18.sp
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp)) // 오른쪽 여백 추가
+                Spacer(modifier = Modifier.width(12.dp))
 
                 Column(
-                    modifier = Modifier.weight(1f) // 남은 공간 차지
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = title, // 소비 제목
-                        fontSize = 16.sp, // 글자 크기
-                        fontWeight = FontWeight.Bold, // 글자 두께
-                        color = Color(0xFF1F2A37) // 글자 색상
+                        text = title,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1F2A37)
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp)) // 아래쪽 여백 추가
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                    Row(verticalAlignment = Alignment.CenterVertically) { // 카테고리와 태그를 가로 배치
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = category, // 카테고리 텍스트
-                            fontSize = 13.sp, // 글자 크기
-                            color = Color(0xFF6B7280) // 글자 색상
+                            text = category,
+                            fontSize = 13.sp,
+                            color = Color(0xFF6B7280)
                         )
 
                         if (tag != null) {
-                            Spacer(modifier = Modifier.width(8.dp)) // 태그 앞 여백 추가
+                            Spacer(modifier = Modifier.width(8.dp))
 
                             Box(
                                 modifier = Modifier
                                     .background(
-                                        color = Color(0xFFEFFCF3), // 태그 배경 색상
-                                        shape = RoundedCornerShape(20.dp) // 둥근 모서리
+                                        color = Color(0xFFEFFCF3),
+                                        shape = RoundedCornerShape(20.dp)
                                     )
-                                    .padding(horizontal = 8.dp, vertical = 4.dp), // 태그 내부 패딩
-                                contentAlignment = Alignment.Center // 가운데 정렬
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = tag, // 태그 텍스트
-                                    fontSize = 11.sp, // 글자 크기
-                                    color = Color(0xFF16A34A), // 글자 색상
-                                    fontWeight = FontWeight.Medium // 글자 두께
+                                    text = tag,
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF16A34A),
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.width(12.dp)) // 오른쪽 금액과의 여백 추가
+                Spacer(modifier = Modifier.width(12.dp))
 
                 Text(
-                    text = amount, // 금액 텍스트
-                    fontSize = 16.sp, // 글자 크기
-                    fontWeight = FontWeight.Bold, // 글자 두께
-                    color = Color(0xFF1F2A37) // 글자 색상
+                    text = amount,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2A37)
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(10.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -882,64 +919,64 @@ private fun ExpenseItemCard( // 소비 항목 카드를 정의하는 Composable 
 }
 
 @Composable
-private fun WeeklyScoreCard() { // 주간 성실도 카드를 정의하는 Composable 함수
+private fun WeeklyScoreCard() {
     Card(
-        modifier = Modifier.fillMaxWidth(), // 카드의 너비를 최대 너비로 설정
-        shape = RoundedCornerShape(24.dp), // 카드 모서리를 둥글게 설정
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF8FBFF) // 카드 배경 색상을 연한 블루톤으로 설정
+            containerColor = Color(0xFFF8FBFF)
         ),
         border = BorderStroke(
             1.dp,
             Color(0xFFDCEBFF)
-        ) // 카드 테두리 설정
+        )
     ) {
         Column(
-            modifier = Modifier.padding(20.dp) // 카드 내부 패딩
+            modifier = Modifier.padding(20.dp)
         ) {
             Text(
-                text = "이번 주 성실도", // 카드 제목
-                fontSize = 20.sp, // 글자 크기
-                fontWeight = FontWeight.Bold, // 글자 두께
-                color = Color(0xFF1F2A37) // 글자 색상
+                text = "이번 주 성실도",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1F2A37)
             )
 
-            Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "소비 기록을 꾸준히 남긴 정도를 보여줘요", // 안내 문구
-                fontSize = 14.sp, // 글자 크기
-                color = Color(0xFF6B7280) // 글자 색상
+                text = "소비 기록을 꾸준히 남긴 정도를 보여줘요",
+                fontSize = 14.sp,
+                color = Color(0xFF6B7280)
             )
 
-            Spacer(modifier = Modifier.height(20.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(20.dp))
 
             Row(
-                modifier = Modifier.fillMaxWidth(), // 가로 최대 너비 사용
-                horizontalArrangement = Arrangement.SpaceBetween, // 양쪽 정렬
-                verticalAlignment = Alignment.CenterVertically // 세로 가운데 정렬
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
                     Text(
-                        text = "85%", // 성실도 수치
-                        fontSize = 34.sp, // 글자 크기
-                        fontWeight = FontWeight.ExtraBold, // 글자 두께
-                        color = Color(0xFF2F7DF6) // 강조 색상
+                        text = "85%",
+                        fontSize = 34.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF2F7DF6)
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp)) // 아래쪽 여백 추가
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "아주 잘하고 있어요!", // 칭찬 문구
-                        fontSize = 14.sp, // 글자 크기
-                        color = Color(0xFF16A34A), // 글자 색상
-                        fontWeight = FontWeight.SemiBold // 글자 두께
+                        text = "아주 잘하고 있어요!",
+                        fontSize = 14.sp,
+                        color = Color(0xFF16A34A),
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
 
                 Box(
                     modifier = Modifier
-                        .size(72.dp) // 원 크기
+                        .size(72.dp)
                         .background(
                             brush = Brush.radialGradient(
                                 colors = listOf(
@@ -947,31 +984,31 @@ private fun WeeklyScoreCard() { // 주간 성실도 카드를 정의하는 Compo
                                     Color(0xFF2F7DF6)
                                 )
                             ),
-                            shape = RoundedCornerShape(100.dp) // 원형에 가까운 둥근 모서리
+                            shape = RoundedCornerShape(100.dp)
                         ),
-                    contentAlignment = Alignment.Center // 가운데 정렬
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "🌟", // 임시 아이콘
-                        fontSize = 28.sp // 글자 크기
+                        text = "🌟",
+                        fontSize = 28.sp
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "주간 기록", // 소제목
-                fontSize = 15.sp, // 글자 크기
-                fontWeight = FontWeight.Bold, // 글자 두께
-                color = Color(0xFF22406A) // 글자 색상
+                text = "주간 기록",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF22406A)
             )
 
-            Spacer(modifier = Modifier.height(14.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(14.dp))
 
             Row(
-                modifier = Modifier.fillMaxWidth(), // 가로 최대 너비 사용
-                horizontalArrangement = Arrangement.SpaceBetween // 아이템들 사이 간격 균등
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 WeekDayItem(day = "월", checked = true)
                 WeekDayItem(day = "화", checked = true)
@@ -982,40 +1019,40 @@ private fun WeeklyScoreCard() { // 주간 성실도 카드를 정의하는 Compo
                 WeekDayItem(day = "일", checked = false)
             }
 
-            Spacer(modifier = Modifier.height(20.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(20.dp))
 
             Card(
-                modifier = Modifier.fillMaxWidth(), // 카드의 너비를 최대 너비로 설정
-                shape = RoundedCornerShape(16.dp), // 카드 모서리를 둥글게 설정
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color.White // 카드 배경 색상
+                    containerColor = Color.White
                 )
             ) {
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth() // 가로 최대 너비 사용
-                        .padding(horizontal = 16.dp, vertical = 14.dp), // 내부 패딩
-                    verticalAlignment = Alignment.CenterVertically // 세로 가운데 정렬
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "🔥", // 아이콘
-                        fontSize = 22.sp // 글자 크기
+                        text = "🔥",
+                        fontSize = 22.sp
                     )
 
-                    Spacer(modifier = Modifier.width(10.dp)) // 오른쪽 여백 추가
+                    Spacer(modifier = Modifier.width(10.dp))
 
                     Column {
                         Text(
-                            text = "5일 연속 기록 중", // 연속 기록 문구
-                            fontSize = 15.sp, // 글자 크기
-                            fontWeight = FontWeight.Bold, // 글자 두께
-                            color = Color(0xFF1F2A37) // 글자 색상
+                            text = "5일 연속 기록 중",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1F2A37)
                         )
 
                         Text(
-                            text = "조금만 더 힘내면 주간 목표 달성이에요", // 하단 설명
-                            fontSize = 13.sp, // 글자 크기
-                            color = Color(0xFF6B7280) // 글자 색상
+                            text = "조금만 더 힘내면 주간 목표 달성이에요",
+                            fontSize = 13.sp,
+                            color = Color(0xFF6B7280)
                         )
                     }
                 }
@@ -1025,36 +1062,36 @@ private fun WeeklyScoreCard() { // 주간 성실도 카드를 정의하는 Compo
 }
 
 @Composable
-private fun WeekDayItem( // 요일 아이템을 정의하는 Composable 함수
-    day: String, // 요일 텍스트
-    checked: Boolean // 체크 여부
+private fun WeekDayItem(
+    day: String,
+    checked: Boolean
 ) {
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally // 가운데 정렬
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
             modifier = Modifier
-                .size(36.dp) // 동그라미 크기
+                .size(36.dp)
                 .background(
-                    color = if (checked) Color(0xFF2F7DF6) else Color(0xFFE5EAF2), // 체크 여부에 따라 색상 변경
-                    shape = RoundedCornerShape(100.dp) // 원형에 가까운 둥근 모서리
+                    color = if (checked) Color(0xFF2F7DF6) else Color(0xFFE5EAF2),
+                    shape = RoundedCornerShape(100.dp)
                 ),
-            contentAlignment = Alignment.Center // 가운데 정렬
+            contentAlignment = Alignment.Center
         ) {
             Text(
-                text = if (checked) "✓" else "", // 체크된 경우 체크 표시
-                color = Color.White, // 글자 색상
-                fontSize = 16.sp, // 글자 크기
-                fontWeight = FontWeight.Bold // 글자 두께
+                text = if (checked) "✓" else "",
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = day, // 요일 텍스트
-            fontSize = 13.sp, // 글자 크기
-            color = Color(0xFF5B6573) // 글자 색상
+            text = day,
+            fontSize = 13.sp,
+            color = Color(0xFF5B6573)
         )
     }
 }
@@ -1062,85 +1099,85 @@ private fun WeekDayItem( // 요일 아이템을 정의하는 Composable 함수
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExpenseWriteCard(
-    selectedDate: String, // 현재 선택된 날짜
-    editingExpense: ExpenseItemData?, // 수정 중인 항목
-    onSaveExpense: (ExpenseItemData) -> Unit, // 저장 버튼 클릭 시 호출할 콜백
-    onCancelEdit: () -> Unit // 수정 취소 버튼 클릭 시 호출할 콜백
-) { // 소비 기록하기 카드를 정의하는 Composable 함수
-    val context = LocalContext.current // 현재 Context를 가져옴
-    val calendar = Calendar.getInstance() // 현재 날짜 정보를 가져옴
+    selectedDate: String,
+    editingExpense: ExpenseItemData?,
+    onSaveExpense: (ExpenseItemData) -> Unit,
+    onCancelEdit: () -> Unit
+) {
+    val context = LocalContext.current
+    val calendar = Calendar.getInstance()
 
-    var formDate by remember { mutableStateOf(selectedDate) } // 폼의 날짜 상태
-    var selectedCategory by remember { mutableStateOf("식비") } // 선택된 카테고리 상태
-    var amount by remember { mutableStateOf("") } // 금액 입력 상태
-    var memo by remember { mutableStateOf("") } // 메모 입력 상태
-    var receiptImageName by remember { mutableStateOf("") } // 영수증 이미지 이름 상태
-    var diary by remember { mutableStateOf("") } // 한줄 소비 일기 상태
-    var expanded by remember { mutableStateOf(false) } // 드롭다운 열림 여부 상태
-    val categoryList = listOf("식비", "교통", "쇼핑", "카페", "기타") // 카테고리 목록
+    var formDate by remember { mutableStateOf(selectedDate) }
+    var selectedCategory by remember { mutableStateOf("식비") }
+    var amount by remember { mutableStateOf("") }
+    var memo by remember { mutableStateOf("") }
+    var receiptImageName by remember { mutableStateOf("") }
+    var diary by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+    val categoryList = listOf("식비", "교통", "쇼핑", "카페", "기타")
 
     LaunchedEffect(editingExpense?.id, selectedDate) {
         if (editingExpense != null) {
-            formDate = editingExpense.date // 수정 모드일 때 기존 날짜 반영
-            selectedCategory = editingExpense.category // 수정 모드일 때 기존 카테고리 반영
-            amount = editingExpense.amount.toString() // 수정 모드일 때 기존 금액 반영
-            memo = editingExpense.memo // 수정 모드일 때 기존 메모 반영
-            receiptImageName = editingExpense.receiptImageName // 수정 모드일 때 기존 영수증 반영
-            diary = editingExpense.diary // 수정 모드일 때 기존 일기 반영
+            formDate = editingExpense.date
+            selectedCategory = editingExpense.category
+            amount = editingExpense.amount.toString()
+            memo = editingExpense.memo
+            receiptImageName = editingExpense.receiptImageName
+            diary = editingExpense.diary
         } else {
-            formDate = selectedDate // 새 기록 모드일 때 선택 날짜 반영
-            selectedCategory = "식비" // 기본 카테고리 설정
-            amount = "" // 금액 초기화
-            memo = "" // 메모 초기화
-            receiptImageName = "" // 영수증 초기화
-            diary = "" // 일기 초기화
+            formDate = selectedDate
+            selectedCategory = "식비"
+            amount = ""
+            memo = ""
+            receiptImageName = ""
+            diary = ""
         }
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(), // 카드의 너비를 최대 너비로 설정
-        shape = RoundedCornerShape(24.dp), // 카드 모서리를 둥글게 설정
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White // 카드 배경 색상
+            containerColor = Color.White
         )
     ) {
         Column(
-            modifier = Modifier.padding(20.dp) // 카드 내부 패딩
+            modifier = Modifier.padding(20.dp)
         ) {
             Text(
-                text = if (editingExpense == null) "소비 기록하기" else "소비 기록 수정", // 카드 제목
-                fontSize = 20.sp, // 글자 크기
-                fontWeight = FontWeight.Bold, // 글자 두께
-                color = Color(0xFF1F2A37) // 글자 색상
+                text = if (editingExpense == null) "소비 기록하기" else "소비 기록 수정",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1F2A37)
             )
 
-            Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = if (editingExpense == null)
                     "날짜와 카테고리를 선택해서 소비를 기록해보세요"
                 else
-                    "선택한 소비 내역을 수정할 수 있어요", // 안내 문구
-                fontSize = 14.sp, // 글자 크기
-                color = Color(0xFF6B7280) // 글자 색상
+                    "선택한 소비 내역을 수정할 수 있어요",
+                fontSize = 14.sp,
+                color = Color(0xFF6B7280)
             )
 
-            Spacer(modifier = Modifier.height(20.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "날짜", // 날짜 라벨
-                fontSize = 15.sp, // 글자 크기
-                fontWeight = FontWeight.SemiBold, // 글자 두께
-                color = Color(0xFF163D8F) // 글자 색상
+                text = "날짜",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF163D8F)
             )
 
-            Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
                 value = formDate,
                 onValueChange = { },
                 readOnly = true,
-                modifier = Modifier.fillMaxWidth(), // 가로 최대 너비 사용
+                modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
                     Text(
                         text = "📅",
@@ -1164,7 +1201,7 @@ private fun ExpenseWriteCard(
                 )
             )
 
-            Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(8.dp))
 
             TextButton(
                 onClick = {
@@ -1195,21 +1232,21 @@ private fun ExpenseWriteCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "금액", // 금액 라벨
-                fontSize = 15.sp, // 글자 크기
-                fontWeight = FontWeight.SemiBold, // 글자 두께
-                color = Color(0xFF163D8F) // 글자 색상
+                text = "금액",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF163D8F)
             )
 
-            Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
                 value = amount,
                 onValueChange = { amount = it.filter { char -> char.isDigit() } },
-                modifier = Modifier.fillMaxWidth(), // 가로 최대 너비 사용
+                modifier = Modifier.fillMaxWidth(),
                 placeholder = {
                     Text(
                         text = "예: 12000",
@@ -1227,16 +1264,16 @@ private fun ExpenseWriteCard(
                 )
             )
 
-            Spacer(modifier = Modifier.height(20.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "카테고리", // 카테고리 라벨
-                fontSize = 15.sp, // 글자 크기
-                fontWeight = FontWeight.SemiBold, // 글자 두께
-                color = Color(0xFF163D8F) // 글자 색상
+                text = "카테고리",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF163D8F)
             )
 
-            Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(8.dp))
 
             ExposedDropdownMenuBox(
                 expanded = expanded,
@@ -1269,7 +1306,7 @@ private fun ExpenseWriteCard(
                     )
                 )
 
-                ExposedDropdownMenu(
+                DropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
@@ -1287,16 +1324,16 @@ private fun ExpenseWriteCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "메모", // 메모 라벨
-                fontSize = 15.sp, // 글자 크기
-                fontWeight = FontWeight.SemiBold, // 글자 두께
-                color = Color(0xFF163D8F) // 글자 색상
+                text = "메모",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF163D8F)
             )
 
-            Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
                 value = memo,
@@ -1319,20 +1356,20 @@ private fun ExpenseWriteCard(
                 )
             )
 
-            Spacer(modifier = Modifier.height(20.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "영수증 인증 (+20 SPT)", // 영수증 인증 라벨
-                fontSize = 15.sp, // 글자 크기
-                fontWeight = FontWeight.SemiBold, // 글자 두께
-                color = Color(0xFF163D8F) // 글자 색상
+                text = "영수증 인증 ",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF163D8F)
             )
 
-            Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedButton(
                 onClick = {
-                    receiptImageName = "receipt_sample.jpg" // 임시 업로드 상태 표시
+                    receiptImageName = "receipt_sample.jpg"
                 },
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, Color(0xFFDCE7F3)),
@@ -1347,23 +1384,23 @@ private fun ExpenseWriteCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "한줄 소비 일기 (+15 SPT)", // 소비 일기 라벨
-                fontSize = 15.sp, // 글자 크기
-                fontWeight = FontWeight.SemiBold, // 글자 두께
-                color = Color(0xFF163D8F) // 글자 색상
+                text = "한줄 소비 일기 ",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF163D8F)
             )
 
-            Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
                 value = diary,
                 onValueChange = { diary = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(96.dp), // 높이 지정
+                    .height(96.dp),
                 placeholder = {
                     Text(
                         text = "오늘 소비에 대한 생각을 기록해보세요",
@@ -1380,7 +1417,7 @@ private fun ExpenseWriteCard(
                 )
             )
 
-            Spacer(modifier = Modifier.height(24.dp)) // 아래쪽 여백 추가
+            Spacer(modifier = Modifier.height(24.dp))
 
             if (editingExpense != null) {
                 Row(
@@ -1408,7 +1445,7 @@ private fun ExpenseWriteCard(
 
                     Button(
                         onClick = {
-                            val amountInt = amount.toIntOrNull() ?: 0 // 입력한 금액을 숫자로 변환
+                            val amountInt = amount.toIntOrNull() ?: 0
 
                             if (amountInt > 0) {
                                 val updatedExpense = ExpenseItemData(
@@ -1420,14 +1457,14 @@ private fun ExpenseWriteCard(
                                     memo = memo,
                                     receiptImageName = receiptImageName,
                                     diary = diary
-                                ) // 수정된 소비 항목 생성
+                                )
 
-                                onSaveExpense(updatedExpense) // 상위 HomeScreen으로 수정 데이터 전달
+                                onSaveExpense(updatedExpense)
                             }
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(54.dp), // 버튼 높이
+                            .height(54.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color.Transparent
@@ -1460,7 +1497,7 @@ private fun ExpenseWriteCard(
             } else {
                 Button(
                     onClick = {
-                        val amountInt = amount.toIntOrNull() ?: 0 // 입력한 금액을 숫자로 변환
+                        val amountInt = amount.toIntOrNull() ?: 0
 
                         if (amountInt > 0) {
                             val newExpense = ExpenseItemData(
@@ -1472,14 +1509,14 @@ private fun ExpenseWriteCard(
                                 memo = memo,
                                 receiptImageName = receiptImageName,
                                 diary = diary
-                            ) // 새 소비 항목 생성
+                            )
 
-                            onSaveExpense(newExpense) // 상위 HomeScreen으로 데이터 전달
+                            onSaveExpense(newExpense)
                         }
-                    }, // 기록 완료 버튼 클릭 이벤트
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp), // 버튼 높이
+                        .height(54.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent
@@ -1514,123 +1551,94 @@ private fun ExpenseWriteCard(
 }
 
 @Composable
-private fun CategoryChip( // 카테고리 선택 칩을 정의하는 Composable 함수
-    text: String, // 칩 텍스트
-    selected: Boolean, // 선택 여부
-    modifier: Modifier = Modifier // 수정자
-) {
-    Box(
-        modifier = modifier
-            .background(
-                color = if (selected) Color(0xFFDCEBFF) else Color(0xFFF7FAFC), // 선택 여부에 따른 배경색
-                shape = RoundedCornerShape(12.dp) // 둥근 모서리
-            )
-            .border(
-                width = 1.dp,
-                color = if (selected) Color(0xFF7CB3FF) else Color(0xFFDCE7F3), // 선택 여부에 따른 테두리색
-                shape = RoundedCornerShape(12.dp) // 둥근 모서리
-            )
-            .padding(vertical = 12.dp), // 내부 패딩
-        contentAlignment = Alignment.Center // 가운데 정렬
-    ) {
-        Text(
-            text = text, // 칩 텍스트
-            color = if (selected) Color(0xFF2F7DF6) else Color(0xFF5B6573), // 선택 여부에 따른 글자색
-            fontSize = 14.sp, // 글자 크기
-            fontWeight = FontWeight.Medium // 글자 두께
-        )
-    }
-}
-
-@Composable
-private fun RewardGuideCard() { // 보상 안내 카드를 정의하는 Composable 함수
+private fun RewardGuideCard() {
     Card(
-        modifier = Modifier.fillMaxWidth(), // 카드의 너비를 최대 너비로 설정
-        shape = RoundedCornerShape(20.dp), // 카드 모서리를 둥글게 설정
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF4EEDB) // 카드 배경 색상을 연한 베이지 톤으로 설정
+            containerColor = Color(0xFFF4EEDB)
         )
     ) {
-        Box( // 카드 내부를 겹쳐 배치하기 위한 Box
+        Box(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 18.dp) // 카드 내부 패딩
+                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 18.dp)
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(), // 가로 최대 너비 사용
-                    horizontalArrangement = Arrangement.SpaceBetween, // 양쪽 정렬
-                    verticalAlignment = Alignment.CenterVertically // 세로 가운데 정렬
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically // 세로 가운데 정렬
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "🎁", // 제목 왼쪽 아이콘
+                            text = "🎁",
                             fontSize = 14.sp
                         )
 
-                        Spacer(modifier = Modifier.width(6.dp)) // 오른쪽 여백 추가
+                        Spacer(modifier = Modifier.width(6.dp))
 
                         Text(
-                            text = "보상 안내", // 카드 제목
-                            fontSize = 15.sp, // 글자 크기
-                            fontWeight = FontWeight.Bold, // 글자 두께
-                            color = Color(0xFF222222) // 글자 색상
+                            text = "보상 안내",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF222222)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp)) // 아래쪽 여백 추가
+                Spacer(modifier = Modifier.height(14.dp))
 
                 RewardPointRow(
                     title = "기본 기록",
                     point = "+10 SPT"
-                ) // 첫 번째 보상 항목
+                )
 
-                Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+                Spacer(modifier = Modifier.height(8.dp))
 
                 RewardPointRow(
                     title = "영수증 인증",
                     point = "+20 SPT"
-                ) // 두 번째 보상 항목
+                )
 
-                Spacer(modifier = Modifier.height(8.dp)) // 아래쪽 여백 추가
+                Spacer(modifier = Modifier.height(8.dp))
 
                 RewardPointRow(
                     title = "일기 작성",
                     point = "+15 SPT"
-                ) // 세 번째 보상 항목
+                )
 
-                Spacer(modifier = Modifier.height(14.dp)) // 아래쪽 여백 추가
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .border(
                             width = 1.5.dp,
-                            color = Color(0xFFF0C244), // 안내 박스 테두리 색상
+                            color = Color(0xFFF0C244),
                             shape = RoundedCornerShape(10.dp)
                         )
-                        .padding(vertical = 8.dp, horizontal = 10.dp), // 안내 박스 내부 패딩
-                    contentAlignment = Alignment.Center // 가운데 정렬
+                        .padding(vertical = 8.dp, horizontal = 10.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally // 가로 가운데 정렬
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "주간 성실도 90점 이상 시", // 첫 줄 안내 문구
-                            fontSize = 12.sp, // 글자 크기
-                            fontWeight = FontWeight.Bold, // 글자 두께
-                            color = Color(0xFF8A4B00) // 글자 색상
+                            text = "주간 성실도 90점 이상 시",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF8A4B00)
                         )
 
                         Text(
-                            text = "랜덤 아바타 + 보너스 SPT!", // 두 번째 줄 안내 문구
-                            fontSize = 11.sp, // 글자 크기
-                            color = Color(0xFFB06A00) // 글자 색상
+                            text = "랜덤 아바타 + 보너스 SPT!",
+                            fontSize = 11.sp,
+                            color = Color(0xFFB06A00)
                         )
                     }
                 }
@@ -1638,26 +1646,26 @@ private fun RewardGuideCard() { // 보상 안내 카드를 정의하는 Composab
 
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd) // 우하단 정렬
-                    .padding(end = 10.dp, bottom = 10.dp) // 바깥 여백
-                    .size(52.dp) // 원형 버튼 크기
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 10.dp, bottom = 10.dp)
+                    .size(52.dp)
                     .background(
-                        color = Color(0xFF2196F3), // 파란색 버튼 배경
+                        color = Color(0xFF2196F3),
                         shape = CircleShape
                     ),
-                contentAlignment = Alignment.Center // 가운데 정렬
+                contentAlignment = Alignment.Center
             ) {
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally // 가운데 정렬
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Q", // 버튼 내부 아이콘 대체 텍스트
+                        text = "Q",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                     Text(
-                        text = "소비백과", // 버튼 텍스트
+                        text = "소비백과",
                         fontSize = 8.sp,
                         color = Color.White
                     )
@@ -1669,30 +1677,60 @@ private fun RewardGuideCard() { // 보상 안내 카드를 정의하는 Composab
 
 @Composable
 private fun RewardPointRow(
-    title: String, // 보상 항목 제목
-    point: String // 보상 포인트 텍스트
+    title: String,
+    point: String
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(), // 가로 최대 너비 사용
-        horizontalArrangement = Arrangement.SpaceBetween, // 양쪽 정렬
-        verticalAlignment = Alignment.CenterVertically // 세로 가운데 정렬
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = title, // 왼쪽 항목명
-            fontSize = 13.sp, // 글자 크기
-            color = Color(0xFF444444) // 글자 색상
+            text = title,
+            fontSize = 13.sp,
+            color = Color(0xFF444444)
         )
 
         Text(
-            text = point, // 오른쪽 포인트
-            fontSize = 13.sp, // 글자 크기
-            fontWeight = FontWeight.Bold, // 글자 두께
-            color = Color(0xFFE67E22) // 주황색 포인트 텍스트
+            text = point,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFFE67E22)
         )
     }
 }
 
-private fun getCategoryEmoji(category: String): String { // 카테고리에 맞는 이모지를 반환하는 함수
+// --------------------------------------------------
+// 아래 2개 변환 함수가 이번 Room 연결의 핵심입니다.
+// --------------------------------------------------
+
+// DB용 Entity를 화면용 UI 모델로 변환합니다.
+private fun ExpenseEntity.toUiModel(): ExpenseItemData {
+    return ExpenseItemData(
+        id = id,
+        date = date,
+        title = title,
+        category = category,
+        amount = amount,
+        memo = memo,
+        receiptImageName = "",
+        diary = diary
+    )
+}
+
+private fun ExpenseItemData.toEntity(): ExpenseEntity {
+    return ExpenseEntity(
+        id = id,
+        date = date,
+        title = title,
+        category = category,
+        amount = amount,
+        memo = memo,
+        diary = diary
+    )
+}
+
+private fun getCategoryEmoji(category: String): String {
     return when (category) {
         "식비" -> "🍔"
         "교통" -> "🚕"
@@ -1702,7 +1740,7 @@ private fun getCategoryEmoji(category: String): String { // 카테고리에 맞�
     }
 }
 
-private fun getCategoryColors(category: String): List<Color> { // 카테고리에 맞는 색상 목록을 반환하는 함수
+private fun getCategoryColors(category: String): List<Color> {
     return when (category) {
         "식비" -> listOf(Color(0xFFFF8A00), Color(0xFFFF5C00))
         "교통" -> listOf(Color(0xFF4C8DFF), Color(0xFF2F6BFF))
@@ -1712,7 +1750,7 @@ private fun getCategoryColors(category: String): List<Color> { // 카테고리�
     }
 }
 
-private fun createExpenseTitle(category: String, memo: String): String { // 카테고리와 메모를 바탕으로 제목을 생성하는 함수
+private fun createExpenseTitle(category: String, memo: String): String {
     return if (memo.isNotBlank()) {
         memo
     } else {
@@ -1726,12 +1764,12 @@ private fun createExpenseTitle(category: String, memo: String): String { // 카�
     }
 }
 
-private fun formatAmount(amount: Int): String { // 금액을 세 자리마다 콤마 형식으로 변환하는 함수
+private fun formatAmount(amount: Int): String {
     val formatter = DecimalFormat("#,###")
     return formatter.format(amount)
 }
 
-private fun formatDisplayDate(date: String): String { // yyyy-MM-dd 형식의 날짜를 M월 d일 소비 내역 형식으로 변환하는 함수
+private fun formatDisplayDate(date: String): String {
     return try {
         val yearMonthDay = date.split("-")
         val month = yearMonthDay[1].toInt()
@@ -1742,7 +1780,7 @@ private fun formatDisplayDate(date: String): String { // yyyy-MM-dd 형식의 �
     }
 }
 
-private fun moveMonth(year: Int, month: Int, delta: Int): Pair<Int, Int> { // 이전달/다음달 이동을 계산하는 함수
+private fun moveMonth(year: Int, month: Int, delta: Int): Pair<Int, Int> {
     var newYear = year
     var newMonth = month + delta
 
@@ -1759,24 +1797,24 @@ private fun moveMonth(year: Int, month: Int, delta: Int): Pair<Int, Int> { // �
     return Pair(newYear, newMonth)
 }
 
-private fun generateCalendarDates(year: Int, month: Int): List<CalendarDateData> { // 달력에 표시할 날짜 데이터를 생성하는 함수
-    val result = mutableListOf<CalendarDateData>() // 최종 날짜 목록
+private fun generateCalendarDates(year: Int, month: Int): List<CalendarDateData> {
+    val result = mutableListOf<CalendarDateData>()
 
     val currentCalendar = Calendar.getInstance().apply {
         set(Calendar.YEAR, year)
         set(Calendar.MONTH, month - 1)
         set(Calendar.DAY_OF_MONTH, 1)
-    } // 현재 달의 첫째 날로 설정
+    }
 
-    val firstDayOfWeek = currentCalendar.get(Calendar.DAY_OF_WEEK) // 현재 달 1일의 요일 정보
-    val daysInCurrentMonth = currentCalendar.getActualMaximum(Calendar.DAY_OF_MONTH) // 현재 달의 마지막 날짜
-    val leadingDays = firstDayOfWeek - 1 // 첫 주 앞쪽에 채울 이전 달 날짜 개수
+    val firstDayOfWeek = currentCalendar.get(Calendar.DAY_OF_WEEK)
+    val daysInCurrentMonth = currentCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val leadingDays = firstDayOfWeek - 1
 
     val previousCalendar = currentCalendar.clone() as Calendar
-    previousCalendar.add(Calendar.MONTH, -1) // 이전 달로 이동
-    val previousYear = previousCalendar.get(Calendar.YEAR) // 이전 달 연도
-    val previousMonth = previousCalendar.get(Calendar.MONTH) + 1 // 이전 달 월
-    val daysInPreviousMonth = previousCalendar.getActualMaximum(Calendar.DAY_OF_MONTH) // 이전 달 마지막 날짜
+    previousCalendar.add(Calendar.MONTH, -1)
+    val previousYear = previousCalendar.get(Calendar.YEAR)
+    val previousMonth = previousCalendar.get(Calendar.MONTH) + 1
+    val daysInPreviousMonth = previousCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
 
     for (day in (daysInPreviousMonth - leadingDays + 1)..daysInPreviousMonth) {
         result.add(
@@ -1786,7 +1824,7 @@ private fun generateCalendarDates(year: Int, month: Int): List<CalendarDateData>
                 isCurrentMonth = false
             )
         )
-    } // 앞쪽 이전 달 날짜 추가
+    }
 
     for (day in 1..daysInCurrentMonth) {
         result.add(
@@ -1796,15 +1834,15 @@ private fun generateCalendarDates(year: Int, month: Int): List<CalendarDateData>
                 isCurrentMonth = true
             )
         )
-    } // 현재 달 날짜 추가
+    }
 
-    val remain = result.size % 7 // 마지막 줄에서 비어 있는 칸 수 계산
-    val trailingDays = if (remain == 0) 0 else 7 - remain // 다음 달에서 채워야 할 날짜 수
+    val remain = result.size % 7
+    val trailingDays = if (remain == 0) 0 else 7 - remain
 
     val nextCalendar = currentCalendar.clone() as Calendar
-    nextCalendar.add(Calendar.MONTH, 1) // 다음 달로 이동
-    val nextYear = nextCalendar.get(Calendar.YEAR) // 다음 달 연도
-    val nextMonth = nextCalendar.get(Calendar.MONTH) + 1 // 다음 달 월
+    nextCalendar.add(Calendar.MONTH, 1)
+    val nextYear = nextCalendar.get(Calendar.YEAR)
+    val nextMonth = nextCalendar.get(Calendar.MONTH) + 1
 
     for (day in 1..trailingDays) {
         result.add(
@@ -1814,16 +1852,16 @@ private fun generateCalendarDates(year: Int, month: Int): List<CalendarDateData>
                 isCurrentMonth = false
             )
         )
-    } // 마지막 줄을 맞추기 위한 다음 달 날짜 추가
+    }
 
     return result
 }
 
-private fun formatDate(year: Int, month: Int, day: Int): String { // 연/월/일을 yyyy-MM-dd 문자열로 변환하는 함수
+private fun formatDate(year: Int, month: Int, day: Int): String {
     return String.format("%04d-%02d-%02d", year, month, day)
 }
 
-private fun createChangeRateText(currentAmount: Int, previousAmount: Int): String { // 지난달 대비 증감 텍스트를 생성하는 함수
+private fun createChangeRateText(currentAmount: Int, previousAmount: Int): String {
     return if (previousAmount == 0) {
         when {
             currentAmount == 0 -> "지난달과 동일 0%"
@@ -1839,10 +1877,30 @@ private fun createChangeRateText(currentAmount: Int, previousAmount: Int): Strin
     }
 }
 
-private fun getChangeRateColor(changeRateText: String): Color { // 지난달 대비 변화 문구에 따른 색상을 반환하는 함수
+private fun getChangeRateColor(changeRateText: String): Color {
     return when {
         changeRateText.contains("↗") -> Color(0xFFE53935)
         changeRateText.contains("↘") -> Color(0xFF16A34A)
         else -> Color(0xFF6B7280)
+    }
+}
+
+// 사용률 텍스트를 만드는 함수입니다.
+// 기존에는 Int로 바로 잘라서 0.2% 같은 값이 0%가 되었기 때문에
+// 이제는 소수 1자리까지 보여주도록 문자열로 만듭니다.
+private fun createUsageRateText(currentAmount: Int, monthlyBudget: Int): String {
+    // 예산이 0 이하이면 나눗셈이 불가능하므로 0%로 처리합니다.
+    if (monthlyBudget <= 0) {
+        return "0%"
+    }
+
+    // 사용률을 Double로 계산합니다.
+    val rate = (currentAmount.toDouble() / monthlyBudget.toDouble()) * 100.0
+
+    // 정수로 딱 떨어지면 소수점 없이 보여줍니다.
+    return if (rate % 1.0 == 0.0) {
+        "${rate.toInt()}%"
+    } else {
+        String.format("%.1f%%", rate)
     }
 }
