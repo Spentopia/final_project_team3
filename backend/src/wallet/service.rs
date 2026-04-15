@@ -88,7 +88,7 @@ pub async fn link_wallet(
     // PATCH /reset/v1/users?id=eq.{user_id}
     // body: { "wallet_address": "7xKXt..." }
     let url = format!(
-        "{}/reset/v1/users?id=eq.{}",
+        "{}/rest/v1/users?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
