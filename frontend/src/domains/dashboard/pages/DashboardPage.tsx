@@ -5,6 +5,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Textarea } from "@/shared/ui/textarea";
+import { verifyReceiptOcr, ReceiptOcrResponse } from "@/shared/api/receiptOcr";
 import { Badge } from "@/shared/ui/badge";
 import {
   Select,
@@ -77,6 +78,60 @@ export default function Dashboard() {
   });
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrResult, setOcrResult] = useState<ReceiptOcrResponse | null>(null);
+  const [isReceiptVerified, setIsReceiptVerified] = useState(false);
+  const [ocrError, setOcrError] = useState("");
+
+  const handleVerifyReceipt = async () => {
+    if (!receiptFile) {
+      toast.error("영수증 이미지를 먼저 업로드해주세요");
+      return;
+    }
+
+    if (!selectedDate) {
+      toast.error("날짜를 먼저 선택해주세요");
+      return;
+    }
+
+    if (!newExpense.amount || Number.isNaN(Number(newExpense.amount))) {
+      toast.error("금액을 먼저 입력해주세요");
+      return;
+    }
+
+    try {
+      setOcrLoading(true);
+      setOcrError("");
+      setOcrResult(null);
+      setIsReceiptVerified(false);
+
+      const expectedDate = format(selectedDate, "yyyy-MM-dd");
+      const expectedAmount = Number(newExpense.amount);
+
+      const result = await verifyReceiptOcr({
+        image: receiptFile,
+        expectedDate,
+        expectedAmount,
+      });
+
+      setOcrResult(result);
+      setIsReceiptVerified(result.verification.is_verified);
+
+      if (result.verification.is_verified) {
+        toast.success("영수증 인증 성공");
+      } else {
+        toast.error(result.verification.reason);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "영수증 검증 중 오류가 발생했습니다.";
+      setOcrError(message);
+      setIsReceiptVerified(false);
+      toast.error("영수증 검증 실패");
+    } finally {
+      setOcrLoading(false);
+    }
+  };
 
   const handleAddExpense = () => {
     if (!newExpense.amount || !newExpense.category) {
@@ -84,13 +139,18 @@ export default function Dashboard() {
       return;
     }
 
+    if (receiptFile && !isReceiptVerified) {
+      toast.error("영수증을 업로드했다면 검증을 먼저 완료해주세요");
+      return;
+    }  
+
     const expense: Expense = {
       id: Date.now(),
       date: selectedDate || new Date(),
       amount: parseInt(newExpense.amount),
       category: newExpense.category,
       memo: newExpense.memo,
-      receipt: !!receiptFile,
+      receipt: isReceiptVerified,
       diary: newExpense.diary,
     };
 
@@ -98,7 +158,7 @@ export default function Dashboard() {
     
     // Calculate reward
     let reward = 10; // Base SPT
-    if (receiptFile) reward += 20;
+    if (isReceiptVerified) reward += 20;
     if (newExpense.diary) reward += 15;
 
     toast.success(
@@ -111,6 +171,9 @@ export default function Dashboard() {
     // Reset form
     setNewExpense({ amount: "", category: "", memo: "", diary: "" });
     setReceiptFile(null);
+    setOcrResult(null);
+    setOcrError("");
+    setIsReceiptVerified(false);
   };
 
   const handleDeleteExpense = (id: number) => {
@@ -327,7 +390,12 @@ export default function Dashboard() {
                 type="number"
                 placeholder="10,000"
                 value={newExpense.amount}
-                onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                onChange={(e) => {
+                  setNewExpense({ ...newExpense, amount: e.target.value });
+                  setIsReceiptVerified(false);
+                  setOcrResult(null);
+                  setOcrError("");
+                }}
                 className="mt-1"
               />
             </div>
@@ -378,6 +446,9 @@ export default function Dashboard() {
                       const file = (e.target as HTMLInputElement).files?.[0];
                       if (file) {
                         setReceiptFile(file);
+                        setIsReceiptVerified(false);
+                        setOcrResult(null);
+                        setOcrError("");
                         toast.success("영수증이 업로드되었습니다");
                       }
                     };
@@ -387,13 +458,53 @@ export default function Dashboard() {
                   <Upload className="mr-2 h-4 w-4" />
                   {receiptFile ? "변경" : "업로드"}
                 </Button>
+
                 {receiptFile && (
-                  <Badge className="bg-green-500">
+                  <Badge className={isReceiptVerified ? "bg-green-500" : "bg-gray-500"}>
                     <CheckCircle className="mr-1 h-3 w-3" />
                     {receiptFile.name}
                   </Badge>
                 )}
               </div>
+
+              {receiptFile && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="mt-3"
+                  onClick={handleVerifyReceipt}
+                  disabled={ocrLoading}
+                >
+                  {ocrLoading ? "영수증 확인 중..." : "영수증 검증하기"}
+                </Button>
+              )}
+
+              {ocrError && (
+                <p className="mt-3 text-sm text-red-500">{ocrError}</p>
+              )}
+
+              {ocrResult && (
+                <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-700 dark:bg-gray-900/50">
+                  <p className="font-semibold">OCR 결과</p>
+                  <p>추출 날짜: {ocrResult.ocr.receipt_date ?? "없음"}</p>
+                  <p>추출 금액: {ocrResult.ocr.total_amount ?? "없음"}</p>
+                  <p>근거 텍스트: {ocrResult.ocr.raw_text || "없음"}</p>
+
+                  <div className="mt-2">
+                    <p
+                      className={
+                        ocrResult.verification.is_verified
+                          ? "font-semibold text-green-600"
+                          : "font-semibold text-red-500"
+                      }
+                    >
+                      {ocrResult.verification.is_verified ? "인증 성공" : "인증 실패"}
+                    </p>
+                    <p>사유: {ocrResult.verification.reason}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>

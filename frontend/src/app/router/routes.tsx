@@ -29,6 +29,7 @@ import MarketplacePage from "@/domains/marketplace/pages/MarketplacePage";
 import ProfilePage from "@/domains/profile/ui/ProfilePage";
 import CommunityPage from "@/domains/community/pages/CommunityPage";
 import PlazaPage from "@/domains/plaza/pages/PlazaPage";
+import ReceiptOcrPanel from "@/components/receipt/ReceiptOcrPanel";
 
 export const router = createBrowserRouter([
   {
@@ -85,5 +86,9 @@ export const router = createBrowserRouter([
   {
     path: "/reset-password",
     Component: ResetPasswordPage,
+  },
+  {
+    path: "/receipt-test",
+    element: <ReceiptOcrPanel />,
   },
 ]);
