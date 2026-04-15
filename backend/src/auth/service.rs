@@ -351,10 +351,17 @@ fn verify_solana_signature(
     // 앱이 지갑으로 서명한 값 (Base58 인코딩된 64바이트)
     signature: &str,
 ) -> Result<()> {
+    tracing::warn!(
+        "[서명검증] 시작: wallet={}, nonce={:?}({}bytes), sig_chars={}",
+        wallet_address, nonce, nonce.len(), signature.len()
+    );
+
     // Base58 문자열("7xKXtg2...") → 바이트 배열([0x7a, 0x2b, ...])로 변환
     let pubkey_bytes = bs58::decode(wallet_address)
         .into_vec()
         .context("지갑 주소 Base58 디코딩 실패. 유효한 Solana 주소인지 확인 필요.")?;
+
+    tracing::warn!("[서명검증] 공개키 바이트 수: {}", pubkey_bytes.len());
 
     // ed25519 공개키는 정확히 32바이트여야 함
     // try_into(): Vec<u8> → [u8; 32] 고정 배열로 변환 시도
@@ -372,6 +379,8 @@ fn verify_solana_signature(
         .into_vec()
         .context("서명 Base58 디코딩 실패")?;
 
+    tracing::warn!("[서명검증] 서명 바이트 수: {}", sig_bytes.len());
+
     // ed25519 서명은 정확히 64바이트여야 함
     let sig_array: [u8; 64] = sig_bytes
         .try_into()
@@ -383,9 +392,16 @@ fn verify_solana_signature(
     // nonce.as_bytes(): nonce 원문을 바이트로 변환해서 검증 대상으로 사용
     // 성공 → 이 서명은 이 공개키에 대응하는 개인키로 만든 것이 맞음
     // 실패 → 서명이 위조됐거나 다른 지갑으로 서명한 것
-    verifying_key
-        .verify(nonce.as_bytes(), &sig)
-        .context("서명 검증 실패. 지갑 주인이 아니거나 nonce가 변조됨.")?;
+    let result = verifying_key.verify(nonce.as_bytes(), &sig);
+    if let Err(ref e) = result {
+        tracing::warn!(
+            "[서명검증] 실패! nonce_bytes={:?}, 에러={:?}",
+            nonce.as_bytes(), e
+        );
+    } else {
+        tracing::warn!("[서명검증] 성공");
+    }
+    result.context("서명 검증 실패. 지갑 주인이 아니거나 nonce가 변조됨.")?;
     Ok(())
 }
 

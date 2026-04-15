@@ -15,6 +15,7 @@
 use crate::config::Config;
 use reqwest::Client;
 use dashmap::DashMap;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 // nonce + 만료 시각을 묶어서 저장하는 구조체
@@ -33,7 +34,8 @@ pub struct AppState {
     pub http_client: Client,
 
     // 지갑주소 -> NonceEntry(nonce + 만료시각) 임시 저장소
-    pub nonce_store: DashMap<String, NonceEntry>,
+    // Arc로 감쌈 → AppState clone 시에도 같은 DashMap을 공유
+    pub nonce_store: Arc<DashMap<String, NonceEntry>>,
 
 }
 
@@ -42,7 +44,7 @@ impl AppState {
         Self{
             config,
             http_client: Client::new(),
-            nonce_store: DashMap::new(),
+            nonce_store: Arc::new(DashMap::new()),
             
         }
     }
