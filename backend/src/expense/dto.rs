@@ -6,6 +6,33 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+// ── 웹 소비 내역 생성 요청 ─────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateExpenseWebRequest {
+    pub date: NaiveDate,
+    pub amount: i32,
+    pub category: String,
+    pub memo: Option<String>,
+    pub receipt_verified: bool,
+    pub diary: Option<String>,
+}
+
+// ── 웹 소비 내역 응답 ─────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpenseWebResponse {
+    pub id: Uuid,
+    pub date: NaiveDate,
+    pub amount: i32,
+    pub category: String,
+    pub memo: Option<String>,
+    pub receipt_verified: bool,
+    pub diary: Option<String>,
+}
+
 // ── 소비 내역 생성 요청 ────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

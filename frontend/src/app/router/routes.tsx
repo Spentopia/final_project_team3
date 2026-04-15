@@ -31,6 +31,21 @@ import CommunityPage from "@/domains/community/pages/CommunityPage";
 import PlazaPage from "@/domains/plaza/pages/PlazaPage";
 import ReceiptOcrPanel from "@/components/receipt/ReceiptOcrPanel";
 
+function ReceiptOcrTestPage() {
+  return (
+    <div style={{ padding: 24 }}>
+      <h2>영수증 OCR 테스트</h2>
+      <ReceiptOcrPanel
+        expectedDate="2026-04-15"
+        expectedAmount="12000"
+        onApplyOcrResult={(data) => {
+          console.log("OCR 결과:", data);
+        }}
+      />
+    </div>
+  );
+}
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -89,6 +104,6 @@ export const router = createBrowserRouter([
   },
   {
     path: "/receipt-test",
-    element: <ReceiptOcrPanel />,
+    Component: ReceiptOcrTestPage ,
   },
 ]);
