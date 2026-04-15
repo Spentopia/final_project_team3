@@ -39,6 +39,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
         console.warn("지갑 연결 해제 실패:", e);
       }
     }
+    // wallet-adapter가 localStorage에 저장한 마지막 선택 지갑 이름 삭제
+    // 이걸 지우지 않으면 autoConnect가 로그인 페이지에서 이전 지갑을 자동 선택함
+    localStorage.removeItem("walletName");
     await signOut();
     window.location.replace("/login");
   };
