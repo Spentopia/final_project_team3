@@ -17,6 +17,7 @@ use uuid::Uuid;
 
 use crate::state::AppState;
 use std::time::SystemTime;
+use chrono::Utc;
 
 // find_user_by_wallet: wallet_address로 DB에서 유저를 조회하는 함수 (auth/service.rs)
 // 중복 연동 체크 시 재사용
@@ -103,7 +104,10 @@ pub async fn link_wallet(
         .header("apikey", &state.config.supabase_secret_key)
         // Prefer: return = minimal → 업데이트 후 row를 반환하지 않음 (불필요하므로 성능 절약)
         .header("Prefer", "return=minimal")
-        .json(&serde_json::json!({ "wallet_address": wallet_address }))
+        .json(&serde_json::json!({
+            "wallet_address": wallet_address,
+            "wallet_connected_at": Utc::now().to_rfc3339(),
+        }))
         .send()
         .await
         .context("지갑 연동 DB 업데이트 HTTP 요청 실패")?;
