@@ -6,6 +6,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Textarea } from "@/shared/ui/textarea";
 import { verifyReceiptOcr, ReceiptOcrResponse } from "@/shared/api/receiptOcr";
+import { createExpense } from "@/shared/api/expenseApi";
 import { Badge } from "@/shared/ui/badge";
 import {
   Select,
@@ -14,21 +15,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
-import { 
-  Plus, 
-  Upload, 
-  Trash2, 
+import {
+  Plus,
+  Upload,
+  Trash2,
   CheckCircle,
-  TrendingUp,
   TrendingDown,
-  Zap
+  Zap,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { toast } from "sonner";
 
 interface Expense {
-  id: number;
+  id: string | number;
   date: Date;
   amount: number;
   category: string;
@@ -48,7 +48,7 @@ const categories = [
   { value: "other", label: "📦 기타", color: "bg-gray-500" },
 ];
 
-export default function Dashboard() {
+export default function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [expenses, setExpenses] = useState<Expense[]>([
     {
@@ -79,6 +79,7 @@ export default function Dashboard() {
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
   const [ocrResult, setOcrResult] = useState<ReceiptOcrResponse | null>(null);
   const [isReceiptVerified, setIsReceiptVerified] = useState(false);
   const [ocrError, setOcrError] = useState("");
@@ -133,51 +134,80 @@ export default function Dashboard() {
     }
   };
 
-  const handleAddExpense = () => {
+  const handleAddExpense = async () => {
     if (!newExpense.amount || !newExpense.category) {
       toast.error("금액과 카테고리를 입력해주세요");
+      return;
+    }
+
+    if (!selectedDate) {
+      toast.error("날짜를 먼저 선택해주세요");
       return;
     }
 
     if (receiptFile && !isReceiptVerified) {
       toast.error("영수증을 업로드했다면 검증을 먼저 완료해주세요");
       return;
-    }  
+    }
 
-    const expense: Expense = {
-      id: Date.now(),
-      date: selectedDate || new Date(),
-      amount: parseInt(newExpense.amount),
-      category: newExpense.category,
-      memo: newExpense.memo,
-      receipt: isReceiptVerified,
-      diary: newExpense.diary,
-    };
+    try {
+      setSaveLoading(true);
 
-    setExpenses([...expenses, expense]);
-    
-    // Calculate reward
-    let reward = 10; // Base SPT
-    if (isReceiptVerified) reward += 20;
-    if (newExpense.diary) reward += 15;
+      const payload = {
+        date: format(selectedDate, "yyyy-MM-dd"),
+        amount: Number(newExpense.amount),
+        category: newExpense.category,
+        memo: newExpense.memo,
+        receiptVerified: isReceiptVerified,
+        diary: newExpense.diary,
+      };
 
-    toast.success(
-      <div>
-        <p className="font-bold">소비 기록 완료! 🎉</p>
-        <p className="text-sm">+{reward} SPT 획득</p>
-      </div>
-    );
+      const savedExpense = await createExpense(payload);
 
-    // Reset form
-    setNewExpense({ amount: "", category: "", memo: "", diary: "" });
-    setReceiptFile(null);
-    setOcrResult(null);
-    setOcrError("");
-    setIsReceiptVerified(false);
+      const expense: Expense = {
+        id: savedExpense.id ?? Date.now(),
+        date: selectedDate,
+        amount: savedExpense.amount ?? Number(newExpense.amount),
+        category: savedExpense.category ?? newExpense.category,
+        memo: savedExpense.memo ?? newExpense.memo,
+        receipt: savedExpense.receiptVerified ?? isReceiptVerified,
+        diary: savedExpense.diary ?? newExpense.diary,
+      };
+
+      setExpenses((prev) => [...prev, expense]);
+
+      let reward = 10;
+      if (isReceiptVerified) reward += 20;
+      if (newExpense.diary.trim()) reward += 15;
+
+      toast.success(
+        <div>
+          <p className="font-bold">소비 기록 완료! 🎉</p>
+          <p className="text-sm">+{reward} SPT 획득</p>
+        </div>
+      );
+
+      setNewExpense({
+        amount: "",
+        category: "",
+        memo: "",
+        diary: "",
+      });
+      setReceiptFile(null);
+      setOcrResult(null);
+      setOcrError("");
+      setIsReceiptVerified(false);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "소비 저장 중 오류가 발생했습니다.";
+      toast.error(message);
+    } finally {
+      setSaveLoading(false);
+    }
   };
 
-  const handleDeleteExpense = (id: number) => {
-    setExpenses(expenses.filter((e) => e.id !== id));
+  const handleDeleteExpense = (id: string | number) => {
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
     toast.success("삭제되었습니다");
   };
 
@@ -186,8 +216,13 @@ export default function Dashboard() {
   );
 
   const dailyTotal = selectedDateExpenses.reduce((sum, e) => sum + e.amount, 0);
+
   const monthlyTotal = expenses
-    .filter((e) => e.date.getMonth() === (selectedDate || new Date()).getMonth())
+    .filter(
+      (e) =>
+        e.date.getFullYear() === (selectedDate || new Date()).getFullYear() &&
+        e.date.getMonth() === (selectedDate || new Date()).getMonth()
+    )
     .reduce((sum, e) => sum + e.amount, 0);
 
   const getCategoryInfo = (categoryValue: string) => {
@@ -199,7 +234,7 @@ export default function Dashboard() {
       {/* Left Column - Calendar & Expenses */}
       <div className="space-y-6">
         {/* Monthly Summary */}
-        <Card className="border-none bg-white/80 dark:bg-gray-800/80 p-6 backdrop-blur-xl">
+        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -219,25 +254,27 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-lg bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900/30 dark:to-cyan-800/30 p-4">
+            <div className="rounded-lg bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 dark:from-cyan-900/30 dark:to-cyan-800/30">
               <p className="mb-1 text-sm text-cyan-700 dark:text-cyan-300">예산</p>
               <p className="font-bold text-cyan-900 dark:text-cyan-100">500,000원</p>
             </div>
-            <div className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 p-4">
+            <div className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 p-4 dark:from-blue-900/30 dark:to-blue-800/30">
               <p className="mb-1 text-sm text-blue-700 dark:text-blue-300">남은 예산</p>
               <p className="font-bold text-blue-900 dark:text-blue-100">
                 {(500000 - monthlyTotal).toLocaleString()}원
               </p>
             </div>
-            <div className="rounded-lg bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/30 dark:to-teal-800/30 p-4">
+            <div className="rounded-lg bg-gradient-to-br from-teal-50 to-teal-100 p-4 dark:from-teal-900/30 dark:to-teal-800/30">
               <p className="mb-1 text-sm text-teal-700 dark:text-teal-300">사용률</p>
-              <p className="font-bold text-teal-900 dark:text-teal-100">{Math.round((monthlyTotal / 500000) * 100)}%</p>
+              <p className="font-bold text-teal-900 dark:text-teal-100">
+                {Math.round((monthlyTotal / 500000) * 100)}%
+              </p>
             </div>
           </div>
         </Card>
 
         {/* Calendar */}
-        <Card className="border-none bg-white/80 dark:bg-gray-800/80 p-6 backdrop-blur-xl">
+        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
           <Calendar
             mode="single"
             selected={selectedDate}
@@ -248,7 +285,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Daily Expenses List */}
-        <Card className="border-none bg-white/80 dark:bg-gray-800/80 p-6 backdrop-blur-xl">
+        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="font-bold text-gray-900 dark:text-gray-100">
@@ -275,21 +312,29 @@ export default function Dashboard() {
             ) : (
               selectedDateExpenses.map((expense) => {
                 const categoryInfo = getCategoryInfo(expense.category);
+
                 return (
                   <div
                     key={expense.id}
-                    className="flex items-center justify-between rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-900/50 p-4 transition-all hover:shadow-md"
+                    className="flex items-center justify-between rounded-lg border bg-white p-4 transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900/50"
                   >
                     <div className="flex items-center gap-3">
                       <div className={`rounded-lg ${categoryInfo.color} p-3 text-white`}>
                         {categoryInfo.label.split(" ")[0]}
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900 dark:text-gray-100">{expense.memo || "메모 없음"}</p>
+                        <p className="font-bold text-gray-900 dark:text-gray-100">
+                          {expense.memo || "메모 없음"}
+                        </p>
                         <div className="mt-1 flex items-center gap-2">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{categoryInfo.label}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {categoryInfo.label}
+                          </p>
                           {expense.receipt && (
-                            <Badge variant="outline" className="h-5 border-green-500 text-green-700 dark:text-green-400">
+                            <Badge
+                              variant="outline"
+                              className="h-5 border-green-500 text-green-700 dark:text-green-400"
+                            >
                               <CheckCircle className="mr-1 h-3 w-3" />
                               영수증
                             </Badge>
@@ -297,8 +342,11 @@ export default function Dashboard() {
                         </div>
                       </div>
                     </div>
+
                     <div className="flex items-center gap-3">
-                      <p className="font-bold text-gray-900 dark:text-gray-100">{expense.amount.toLocaleString()}원</p>
+                      <p className="font-bold text-gray-900 dark:text-gray-100">
+                        {expense.amount.toLocaleString()}원
+                      </p>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -315,14 +363,16 @@ export default function Dashboard() {
 
           {/* Daily Diary */}
           {selectedDateExpenses.length > 0 && (
-            <div className="mt-6 rounded-lg border-2 border-dashed border-cyan-300 dark:border-cyan-600 bg-cyan-50/50 dark:bg-cyan-900/20 p-4">
+            <div className="mt-6 rounded-lg border-2 border-dashed border-cyan-300 bg-cyan-50/50 p-4 dark:border-cyan-600 dark:bg-cyan-900/20">
               <p className="mb-2 font-bold text-cyan-900 dark:text-cyan-100">오늘의 소비 일기</p>
               {selectedDateExpenses.find((e) => e.diary) ? (
                 <p className="text-sm text-gray-700 dark:text-gray-300">
                   {selectedDateExpenses.find((e) => e.diary)?.diary}
                 </p>
               ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400">일기를 작성하면 보상이 추가돼요!</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  일기를 작성하면 보상이 추가돼요!
+                </p>
               )}
             </div>
           )}
@@ -366,7 +416,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Add Expense Form */}
-        <Card className="border-none bg-white/80 dark:bg-gray-800/80 p-6 backdrop-blur-xl">
+        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
           <div className="mb-4 flex items-center gap-2">
             <Plus className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
             <h3 className="font-bold text-gray-900 dark:text-gray-100">소비 기록하기</h3>
@@ -480,9 +530,7 @@ export default function Dashboard() {
                 </Button>
               )}
 
-              {ocrError && (
-                <p className="mt-3 text-sm text-red-500">{ocrError}</p>
-              )}
+              {ocrError && <p className="mt-3 text-sm text-red-500">{ocrError}</p>}
 
               {ocrResult && (
                 <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-700 dark:bg-gray-900/50">
@@ -521,10 +569,11 @@ export default function Dashboard() {
 
             <Button
               onClick={handleAddExpense}
+              disabled={saveLoading}
               className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
             >
               <Plus className="mr-2 h-4 w-4" />
-              기록 완료
+              {saveLoading ? "저장 중..." : "기록 완료"}
             </Button>
           </div>
         </Card>

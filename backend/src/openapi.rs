@@ -13,6 +13,7 @@
 use utoipa::OpenApi;
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use crate::auth;
+use crate::expense;
 // wallet 모듈 import: dto, handler를 schemas/paths에 등록하기 위해 필요
 use crate::wallet;
 
@@ -36,6 +37,7 @@ use crate::wallet;
         // ─────────────────────────────────────────────
         crate::auth::handler::get_me,
         crate::auth::handler::complete_profile,
+        crate::expense::handler::create_expense,
 
         // ── 지갑 연동/해제 ──────────────────────────────
         // 로그인 후 지갑을 연결/해제하는 API → 보호 라우트
@@ -70,6 +72,8 @@ use crate::wallet;
 
             auth::dto::ProfileImageUrlResponse,
             auth::dto::ProfileImageUrlQuery,
+            expense::dto::CreateExpenseWebRequest,
+            expense::dto::ExpenseWebResponse,
     
 
 

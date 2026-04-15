@@ -1,0 +1,41 @@
+import { apiClient } from "@/shared/api/client";
+
+export interface CreateExpenseRequest {
+  date: string;
+  amount: number;
+  category: string;
+  memo: string;
+  receiptVerified: boolean;
+  diary: string;
+}
+
+export interface CreateExpenseResponse {
+  id: string;
+  date: string;
+  amount: number;
+  category: string;
+  memo: string;
+  receiptVerified: boolean;
+  diary: string;
+}
+
+export async function createExpense(
+  payload: CreateExpenseRequest
+): Promise<CreateExpenseResponse> {
+  try {
+    const response = await apiClient.post<CreateExpenseResponse>("/api/expenses", payload);
+    return response.data;
+  } catch (error: unknown) {
+    if (error && typeof error === "object" && "response" in error) {
+      const axiosError = error as {
+        response?: { status?: number; data?: unknown };
+      };
+      const status = axiosError.response?.status;
+      const data = axiosError.response?.data;
+      const detail = typeof data === "string" ? data : JSON.stringify(data);
+      throw new Error(`소비 저장 실패: ${status ?? "unknown"} ${detail ?? ""}`);
+    }
+
+    throw error;
+  }
+}

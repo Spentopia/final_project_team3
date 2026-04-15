@@ -26,6 +26,7 @@ mod auth;
 mod route;
 mod openapi;
 pub mod wallet;
+pub mod expense;
 
 use axum::http::{header, HeaderValue, Method};
 use tower_http::cors::CorsLayer;
