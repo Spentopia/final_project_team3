@@ -23,14 +23,17 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
       isProcessing,
   }=useWalletConnection();
 
-  const prevConnected = useRef(connected);
+  // connected && walletAddress 둘 다 준비됐을 때를 "ready" 상태로 판단
+  const wasReady = useRef(connected && !!walletAddress);
 
-  // 지갑이 새로 연결되는 순간(false → true) 자동으로 계정 연동 시도
+  // ready 상태가 false → true로 바뀌는 순간 연동 시도
+  // connected와 walletAddress가 별도 렌더에서 세팅되는 경우도 안전하게 처리
   useEffect(() => {
-    if (!prevConnected.current && connected && walletAddress) {
+    const isReady = connected && !!walletAddress;
+    if (!wasReady.current && isReady) {
       void linkWallet();
     }
-    prevConnected.current = connected;
+    wasReady.current = isReady;
   }, [connected, walletAddress, linkWallet]);
 
   const label = useMemo(()=>{
