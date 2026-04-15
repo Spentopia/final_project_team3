@@ -11,6 +11,16 @@
 //
 // 즉 최종적으로 프론트가 들고 다니는 토큰은 항상 "우리 앱 JWT"임.
 
+// 변경 핵심:
+// - web / app 응답 분리
+// - refresh 요청 DTO 추가
+//
+// 최종 정책:
+// - 웹 로그인 응답: access만 body, refresh는 쿠키
+// - 앱 로그인 응답: access + refresh 둘 다 body
+// - 웹 refresh 요청: body 없이 가능 (쿠키에서 refresh 추출)
+// - 앱 refresh 요청: body에 refresh_token 포함
+
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -21,6 +31,13 @@ use utoipa::ToSchema;
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ExchangeTokenRequest {
     pub access_token: String,
+}
+
+// ── refresh 요청 ─────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct RefreshRequest {
+    pub refresh_token: Option<String>,
 }
 
 // ── 지갑 로그인 ───────────────────────────────────────────────
@@ -45,26 +62,32 @@ pub struct WalletLoginRequest {
     pub signature: String,
 }
 
-// ── 공통 응답 ─────────────────────────────────────────────────
-//
-// 로그인 성공 응답 DTO
-// 모든 로그인 방식(이메일/구글/카카오/지갑)이
-// 최종적으로 동일한 응답 형태를 반환함.
-//
-// 중요:
-// 여기 들어가는 access_token / refresh_token은
-// Supabase JWT가 아니라 "우리 백엔드가 발급한 앱 JWT"임.
+// ── 로그인 응답 분리 ─────────────────────────────────────────
+
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct LoginResponse {
-    // 우리 앱 access token
+pub struct WebLoginResponse {
     pub access_token: String,
-
-    // 우리 앱 refresh token
-    pub refresh_token: String,
-
-    // 첫 가입 여부
-    // 필요 없으면 나중에 제거 가능하지만, 카카오/구글 첫 가입 분기용으로 남겨둠
     pub is_new_user: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AppLoginResponse {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub is_new_user: bool,
+}
+
+// ── refresh 응답 분리 ────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct WebRefreshResponse {
+    pub access_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AppRefreshResponse {
+    pub access_token: String,
+    pub refresh_token: String,
 }
 
 // ── 이메일 찾기 ───────────────────────────────────────────────

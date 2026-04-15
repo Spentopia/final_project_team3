@@ -13,22 +13,31 @@
 use utoipa::OpenApi;
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use crate::auth;
+use crate::expense;
 // wallet 모듈 import: dto, handler를 schemas/paths에 등록하기 위해 필요
 use crate::wallet;
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        // ── 지갑 로그인 ─────────────────────────────────
-        // 로그인 전 단계 → 공개 라우트
+        // ─────────────────────────────────────────────
+        // 인증 / 로그인
+        // ─────────────────────────────────────────────
         crate::auth::handler::request_nonce,
         crate::auth::handler::wallet_login,
+        crate::auth::handler::exchange_token,
+        crate::auth::handler::refresh_token,
+        crate::auth::handler::logout,
+        crate::auth::handler::find_email,
+        crate::auth::handler::check_email,
+        crate::auth::handler::kakao_login,
 
-        // ── 인증 테스트 ─────────────────────────────────
-        // JWT 검증 확인용 → 보호 라우트
+        // ─────────────────────────────────────────────
+        // 보호 API
+        // ─────────────────────────────────────────────
         crate::auth::handler::get_me,
-
-        // ── 테스트용 이메일 로그인 ──────────────────────
+        crate::auth::handler::complete_profile,
+        crate::expense::handler::create_expense,
 
         // ── 지갑 연동/해제 ──────────────────────────────
         // 로그인 후 지갑을 연결/해제하는 API → 보호 라우트
@@ -37,13 +46,37 @@ use crate::wallet;
     ),
     components(
         schemas(
-            // ── 지갑 로그인 DTO ──────────────────────────
+            // ─────────────────────────────────────────
+            // auth DTO
+            // ─────────────────────────────────────────
             auth::dto::NonceRequest,
             auth::dto::NonceResponse,
             auth::dto::WalletLoginRequest,
-            auth::dto::LoginResponse,
 
-            // ── 테스트용 DTO ─────────────────────────────
+            auth::dto::ExchangeTokenRequest,
+            auth::dto::RefreshRequest,
+
+            auth::dto::WebLoginResponse,
+            auth::dto::AppLoginResponse,
+            auth::dto::WebRefreshResponse,
+            auth::dto::AppRefreshResponse,
+
+            auth::dto::FindEmailRequest,
+            auth::dto::FindEmailResponse,
+            auth::dto::CheckEmailRequest,
+
+            auth::dto::KakaoLoginRequest,
+
+            auth::dto::CompleteProfileRequest,
+            auth::dto::CompleteProfileResponse,
+
+            auth::dto::ProfileImageUrlResponse,
+            auth::dto::ProfileImageUrlQuery,
+            expense::dto::CreateExpenseWebRequest,
+            expense::dto::ExpenseWebResponse,
+    
+
+
 
             // ── 지갑 연동/해제 DTO ───────────────────────
             // ToSchema가 붙어있어야 여기 등록 가능

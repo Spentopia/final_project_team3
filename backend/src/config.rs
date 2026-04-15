@@ -3,12 +3,15 @@
 // 서버에서 쓰는 환경변수들을 읽어서 Config 구조체로 만드는 파일.
 // 프론트의 .env와 달리 여기는 절대 브라우저로 노출되면 안 되는 값들도 포함됨.
 //
-// 역할:
-// - Supabase 프로젝트 URL
-// - Supabase service role key
-// - Supabase publishable key
-// - 우리 앱 JWT 서명용 secret
-// - 카카오 OAuth 관련 설정
+// 기존 역할:
+// - Supabase URL / secret / publishable key
+// - 앱 JWT secret
+// - 카카오 OAuth 설정
+//
+// 이번 변경:
+// - CORS_ORIGIN 추가
+// - ENVIRONMENT 추가
+//   → production 여부 판단해서 쿠키 Secure 옵션에 사용
 
 use anyhow::{Context, Result};
 
@@ -34,6 +37,9 @@ pub struct Config {
 
     // 프로필 이미지 저장용 private bucket 이름
     pub supabase_profile_image_bucket: String,
+
+    // CORS 허용 origin
+    pub cors_origin: String,
 }
 
 impl Config {
@@ -62,6 +68,10 @@ impl Config {
 
             supabase_profile_image_bucket: std::env::var("SUPABASE_PROFILE_IMAGE_BUCKET")
                 .context("SUPABASE_PROFILE_IMAGE_BUCKET 환경변수 없음")?,
+
+            // 프론트 origin 하드코딩 대신 환경변수 사용
+            cors_origin: std::env::var("CORS_ORIGIN")
+                .unwrap_or_else(|_| "http://localhost:5173".to_string()),
         })
     }
 }

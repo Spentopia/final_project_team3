@@ -16,6 +16,8 @@ use anyhow::{Context, Result, anyhow};
 use uuid::Uuid;
 
 use crate::state::AppState;
+use std::time::SystemTime;
+use chrono::Utc;
 
 // find_user_by_wallet: wallet_address로 DB에서 유저를 조회하는 함수 (auth/service.rs)
 // 중복 연동 체크 시 재사용
@@ -39,22 +41,37 @@ pub async fn link_wallet(
     // nonce를 지갑으로 서명한 값
     signature: &str,
 ) -> Result<()> {
+    tracing::warn!("[지갑연동] link_wallet 시작: user_id={}, wallet={}, nonce={:?}", user_id, wallet_address, nonce);
+
     // 1) nonce 검증
     // nonce_store에서 이 지갑 주소에 해당하는 nonce를 꺼냄
     // ok_or_else: None이면 에러로 변환
     // None인 경우 → /auth/wallet/nonce를 먼저 호출하지 않은 것
-    let stored_nonce = state
+    let entry = state
         .nonce_store
         .get(wallet_address)
         .ok_or_else(|| anyhow!("nonce가 없거나 만료됨. /auth/wallet/nonce를 먼저 호출하세요."))?;
+    tracing::warn!("[지갑연동] nonce_store 에서 찾음: stored_nonce={:?}", entry.nonce);
 
-    if stored_nonce.value() != nonce {
+    // TTL 체크: 발급 후 5분이 지났으면 만료 처리
+    if SystemTime::now() > entry.expires_at {
+        drop(entry);
+        state.nonce_store.remove(wallet_address);
+        return Err(anyhow!("nonce가 만료됨. /auth/wallet/nonce를 다시 호출하세요."));
+    }
+
+    if entry.nonce != nonce {
+        tracing::warn!(
+            "[지갑연동] nonce 불일치! 저장된={:?}({}bytes), 받은={:?}({}bytes)",
+            entry.nonce, entry.nonce.len(), nonce, nonce.len()
+        );
         return Err(anyhow!("nonce 불일치. 위조된 요청일 수 있음."));
     }
+    tracing::warn!("[지갑연동] nonce 일치 확인, 서명 검증 시작");
 
     // nonce는 1회용 → 검증 즉시 삭제
     // drop() 먼저: DashMap 읽기 잠금 해제 후 remove() 해야 함
-    drop(stored_nonce);
+    drop(entry);
     state.nonce_store.remove(wallet_address);
 
     // 2) 서명 검증
@@ -80,7 +97,7 @@ pub async fn link_wallet(
     // PATCH /reset/v1/users?id=eq.{user_id}
     // body: { "wallet_address": "7xKXt..." }
     let url = format!(
-        "{}/reset/v1/users?id=eq.{}",
+        "{}/rest/v1/users?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
@@ -95,7 +112,10 @@ pub async fn link_wallet(
         .header("apikey", &state.config.supabase_secret_key)
         // Prefer: return = minimal → 업데이트 후 row를 반환하지 않음 (불필요하므로 성능 절약)
         .header("Prefer", "return=minimal")
-        .json(&serde_json::json!({ "wallet_address": wallet_address }))
+        .json(&serde_json::json!({
+            "wallet_address": wallet_address,
+            "wallet_connected_at": Utc::now().to_rfc3339(),
+        }))
         .send()
         .await
         .context("지갑 연동 DB 업데이트 HTTP 요청 실패")?;

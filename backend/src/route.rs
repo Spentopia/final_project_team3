@@ -35,6 +35,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::state::AppState;
 use crate::auth;
+use crate::expense;
 // wallet 모듈 import: wallet::handler::link_wallet, unlink_wallet 접근용
 use crate::wallet;
 use crate::openapi::ApiDoc;
@@ -59,6 +60,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/health", get(|| async { "ok" }))
         .route("/auth/exchange", post(auth::handler::exchange_token))
         .route("/auth/wallet/nonce", post(auth::handler::request_nonce))
+        .route("/auth/refresh", post(auth::handler::refresh_token))
+        .route("/auth/logout", post(auth::handler::logout))
         .route("/auth/wallet/login", post(auth::handler::wallet_login))
         .route("/auth/find-email", post(auth::handler::find_email))
         .route("/auth/check-email", post(auth::handler::check_email))
@@ -86,6 +89,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/profile/complete", axum::routing::patch(auth::handler::complete_profile))
         .route("/wallet/link", post(wallet::handler::link_wallet))
         .route("/wallet/unlink", delete(wallet::handler::unlink_wallet))
+        .route("/api/expenses", post(expense::handler::create_expense))
         // 위에 등록된 모든 라우트에 jwt_middleware 적용
         // from_fn_with_state: 미들웨어 안에서 AppState를 쓸 수 있게 state 전달
         // .clone(): state를 공개 라우트와 with_state()에도 넘겨야 해서 소유권 공유

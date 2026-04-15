@@ -7,6 +7,7 @@ import { Card } from "@/shared/ui/card";
 import { Sparkles } from "lucide-react";
 import { login, signInWithGoogle, redirectToKakao } from "@/domains/auth/api/auth";
 import { authStorage } from "@/shared/lib/auth";
+import { WalletLoginButton } from "@/domains/auth/ui/WalletLoginButton";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -21,9 +22,6 @@ export default function Login() {
 
       // ✅ 실제 앱 JWT 저장
       authStorage.setToken(result.accessToken);
-
-      // ✅ 기존 mock_token → 실제 토큰으로 교체 (핵심)
-      localStorage.setItem("spentopia_auth", result.accessToken);
 
       navigate("/");
     } catch (error) {
@@ -107,12 +105,14 @@ export default function Login() {
           {/* Social Login */}
           <div className="space-y-3">
             <Button type="button" variant="outline" className="w-full" onClick={() => handleSocialLogin("kakao")}>
-              카카오로 계속하기
+              카카오로 로그인
             </Button>
 
             <Button type="button" variant="outline" className="w-full" onClick={() => handleSocialLogin("google")}>
-              구글로 계속하기
+              구글로 로그인
             </Button>
+
+            <WalletLoginButton className="w-full inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground disabled:opacity-50" />
           </div>
 
           {/* 이메일/비밀번호 찾기 */}

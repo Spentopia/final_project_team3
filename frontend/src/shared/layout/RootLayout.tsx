@@ -1,33 +1,18 @@
 import { Outlet, useNavigate } from "react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { MessageCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import { toast } from "sonner";
-import { authStorage } from "@/shared/lib/auth";
+
 
 export default function RootLayout() {
-  const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    if (!authStorage.isLoggedIn()) {
-      setIsAuthenticated(false);
-      navigate("/login");
-    } else {
-      setIsAuthenticated(true);
-    }
-  }, [navigate]);
 
   const handleChatbotClick = () => {
     toast.info("AI챗바타 기능은 곧 제공될 예정입니다!");
   };
-
-  if (!isAuthenticated) {
-    return null;
-  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-cyan-50 via-blue-50 to-teal-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">

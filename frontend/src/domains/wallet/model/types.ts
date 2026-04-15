@@ -31,7 +31,7 @@ export interface WalletLoginRequest {
 // auth/dto.rs의 LoginResponse 기준
 export interface WalletLoginResponse {
     access_token: string;
-    refresh_token: string;
+    refresh_token?: string; // web: 쿠키로 전달, app: body에 포함
     is_new_user: boolean;
 }
 

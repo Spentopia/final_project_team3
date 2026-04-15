@@ -68,13 +68,12 @@ export default function Signup() {
         // 아직 로그인 상태가 아니므로 Step2로 보내면 안 됨
         if (!result.accessToken) {
           alert("회원가입 완료! 이메일 인증 후 로그인해주세요.");
-          navigate("/signup-pending");
+          navigate("/signup-pending", { state: { email: formData.email } });
           return;
         }
 
         // Confirm Email 꺼져 있어서 즉시 로그인 가능한 경우
         authStorage.setToken(result.accessToken);
-        localStorage.setItem("spentopia_auth", result.accessToken);
 
         setStep(2);
       } catch (error: any) {

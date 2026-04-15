@@ -41,7 +41,6 @@ export default function KakaoCallbackPage() {
 
       // 최종적으로 받은 건 앱 JWT
       authStorage.setToken(data.access_token);
-      localStorage.setItem("spentopia_auth", data.access_token);
 
       navigate("/");
     } catch (err: any) {

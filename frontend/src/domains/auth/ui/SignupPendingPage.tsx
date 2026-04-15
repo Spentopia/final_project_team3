@@ -3,17 +3,44 @@
 // 이메일 인증이 필요한 회원가입 직후 보여주는 안내 페이지.
 // 이메일 인증 전에는 아직 로그인 상태가 아니므로,
 // 프로필 입력 단계로 보내지 않고 여기서 안내만 한다.
+//
+// SignupPage에서 navigate state로 email을 받아와서
+// 도메인에 맞는 메일 서비스 버튼을 보여준다.
 
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { MailCheck, Sparkles } from "lucide-react";
 
+// 이메일 도메인 → 메일 서비스 매핑
+const MAIL_SERVICES: Record<string, { name: string; url: string }> = {
+  "gmail.com": { name: "Gmail", url: "https://mail.google.com" },
+  "naver.com": { name: "네이버 메일", url: "https://mail.naver.com" },
+  "daum.net": { name: "다음 메일", url: "https://mail.daum.net" },
+  "hanmail.net": { name: "한메일", url: "https://mail.daum.net" },
+  "kakao.com": { name: "카카오 메일", url: "https://mail.kakao.com" },
+  "nate.com": { name: "네이트 메일", url: "https://mail.nate.com" },
+  "outlook.com": { name: "Outlook", url: "https://outlook.live.com" },
+  "hotmail.com": { name: "Outlook", url: "https://outlook.live.com" },
+  "yahoo.com": { name: "Yahoo Mail", url: "https://mail.yahoo.com" },
+};
+
+function getMailService(email: string) {
+  const domain = email.split("@")[1]?.toLowerCase();
+  if (!domain) return null;
+  return MAIL_SERVICES[domain] ?? null;
+}
+
 export default function SignupPendingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const email = (location.state as { email?: string })?.email ?? "";
+  const mailService = email ? getMailService(email) : null;
 
-  const openNaverMail = () => {
-    window.open("https://mail.naver.com", "_blank");
+  const openMailService = () => {
+    if (mailService) {
+      window.open(mailService.url, "_blank");
+    }
   };
 
   return (
@@ -30,7 +57,14 @@ export default function SignupPendingPage() {
             <p className="text-sm text-gray-600 dark:text-gray-400 leading-6">
               회원가입은 완료됐어요.
               <br />
-              메일함에서 인증 링크를 눌러주세요.
+              {email ? (
+                <>
+                  <span className="font-semibold text-cyan-600 dark:text-cyan-400">{email}</span>
+                  에서 인증 링크를 눌러주세요.
+                </>
+              ) : (
+                "메일함에서 인증 링크를 눌러주세요."
+              )}
             </p>
           </div>
 
@@ -49,13 +83,19 @@ export default function SignupPendingPage() {
           </div>
 
           <div className="space-y-3">
-            <Button
-              type="button"
-              onClick={openNaverMail}
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
-            >
-              네이버 메일 열기
-            </Button>
+            {mailService ? (
+              <Button
+                type="button"
+                onClick={openMailService}
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+              >
+                {mailService.name} 열기
+              </Button>
+            ) : (
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+                메일함에서 인증 링크를 확인해주세요.
+              </p>
+            )}
 
             <Button
               type="button"
