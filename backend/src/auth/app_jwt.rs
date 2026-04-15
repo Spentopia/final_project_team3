@@ -83,7 +83,7 @@ pub fn generate_refresh_token(
     // refresh는 sid를 포함해서 DB 세션과 연결
     let claims = RefreshClaims {
         sub: user_id.to_string(),
-        exp: (now + Duration::days(30)).timestamp() as usize,
+        exp: (now + Duration::days(14)).timestamp() as usize,
         token_type: "refresh".to_string(),
         sid: session_id.to_string(),
     };

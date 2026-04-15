@@ -74,7 +74,6 @@ export default function Signup() {
 
         // Confirm Email 꺼져 있어서 즉시 로그인 가능한 경우
         authStorage.setToken(result.accessToken);
-        localStorage.setItem("spentopia_auth", result.accessToken);
 
         setStep(2);
       } catch (error: any) {

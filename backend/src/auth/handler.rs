@@ -231,7 +231,7 @@ pub async fn request_nonce(
     tag = "지갑 로그인",
     request_body = WalletLoginRequest,
     responses(
-        (status = 200, description = "로그인 성공", body = LoginResponse),
+        (status = 200, description = "로그인 성공"),
         (status = 400, description = "필수 필드 비어있음"),
         (status = 401, description = "서명 검증 실패 또는 nonce 불일치"),
         (status = 500, description = "서버 내부 오류")
@@ -610,7 +610,7 @@ pub async fn check_email(
     tag = "소셜 로그인",
     request_body = KakaoLoginRequest,
     responses(
-        (status = 200, description = "로그인 성공", body = LoginResponse),
+        (status = 200, description = "로그인 성공"),
         (status = 400, description = "인가 코드 비어있음"),
         (status = 500, description = "서버 내부 오류")
     )
