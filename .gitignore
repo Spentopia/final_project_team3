@@ -70,7 +70,7 @@ unity/.vs/
 
 # AI Server
 __pycache__/
-ai-server/.venv/    
+ai-server/.venv/
 ai-server/venv/
 .venv/
 venv/

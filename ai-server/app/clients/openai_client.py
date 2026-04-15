@@ -1,17 +1,18 @@
 import os
-from openai import OpenAI
-from dotenv import load_dotenv
 import json
 import base64
 
+from openai import OpenAI
+from dotenv import load_dotenv
+
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 
 class OpenAIClient:
 
     @staticmethod
     def analyze(spending: str):
-
         prompt = f"""
 다음 소비를 분석해줘:
 
@@ -32,8 +33,8 @@ class OpenAIClient:
                 model="gpt-4.1-mini",
                 messages=[
                     {"role": "system", "content": "너는 소비 분석 AI다."},
-                    {"role": "user", "content": prompt}
-                ]
+                    {"role": "user", "content": prompt},
+                ],
             )
 
             return json.loads(response.choices[0].message.content)
@@ -44,19 +45,18 @@ class OpenAIClient:
                 "category": "오류",
                 "pattern": "분석 실패",
                 "risk": "오류",
-                "advice": str(e)
+                "advice": str(e),
             }
 
     @staticmethod
     def chat(message: str):
-
         try:
             response = client.chat.completions.create(
                 model="gpt-4.1-mini",
                 messages=[
                     {"role": "system", "content": "너는 소비 상담 AI다."},
-                    {"role": "user", "content": message}
-                ]
+                    {"role": "user", "content": message},
+                ],
             )
 
             return {"response": response.choices[0].message.content}
@@ -66,7 +66,6 @@ class OpenAIClient:
 
     @staticmethod
     def extract_receipt_fields(image_bytes: bytes, mime_type: str):
-
         image_base64 = base64.b64encode(image_bytes).decode("utf-8")
         data_url = f"data:{mime_type};base64,{image_base64}"
 
@@ -92,7 +91,7 @@ class OpenAIClient:
 
         try:
             response = client.chat.completions.create(
-                model="gpt-4.1-mini",
+                model="gpt-4o-mini",
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content": "너는 영수증 OCR 전용 AI다. 날짜와 총액만 정확히 추출한다."},
@@ -102,11 +101,11 @@ class OpenAIClient:
                             {"type": "text", "text": prompt},
                             {
                                 "type": "image_url",
-                                "image_url": {"url": data_url}
-                            }
-                        ]
-                    }
-                ]
+                                "image_url": {"url": data_url},
+                            },
+                        ],
+                    },
+                ],
             )
 
             return json.loads(response.choices[0].message.content)
@@ -117,5 +116,5 @@ class OpenAIClient:
                 "total_amount": None,
                 "raw_text": "",
                 "confidence": 0.0,
-                "error": str(e)
+                "error": str(e),
             }

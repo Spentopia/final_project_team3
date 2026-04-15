@@ -24,6 +24,7 @@ class ReceiptOcrService:
                 "total_amount": receipt_amount,
                 "raw_text": ocr_result.get("raw_text", ""),
                 "confidence": ocr_result.get("confidence", 0.0),
+                "error": ocr_result.get("error"),
             },
             "expected": {
                 "date": user_date.isoformat() if user_date else expected_date,
