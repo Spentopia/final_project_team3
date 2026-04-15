@@ -34,7 +34,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
             //토큰이 있으면 Authorization 헤더에 넣고, 없으면 안 넣음
             ...(token ? {Authorization: 'Bearer ${token}'} : {}),
             //호출자가 추가 헤더를 넣었으면 그것도 합침
-            ...options.headers,
+            ...options.headers,//
         },
     });
 
