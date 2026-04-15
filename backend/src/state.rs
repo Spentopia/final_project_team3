@@ -3,6 +3,15 @@
 // 핸들러마다 Config나 HTTP 클라이언트를 새로 만들면 낭비라서
 // 여기서 한 번만 만들고 모든 핸들러에 전달함.
 
+// 변경 핵심:
+// - nonce_store 타입 변경
+//   기존: DashMap<String, String>
+//   변경: DashMap<String, NonceEntry>
+//
+// 이유:
+// - nonce에 TTL(예: 5분)을 부여하려면
+//   발급 시각/만료 시각 정보가 같이 필요함.
+
 use crate::config::Config;
 use reqwest::Client;
 use dashmap::DashMap;

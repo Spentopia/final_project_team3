@@ -41,7 +41,7 @@ pub fn generate_app_tokens(secret: &str, user_id: &Uuid) -> Result<AppTokenPair>
 
     let access_claims = AppClaims {
         sub: user_id.to_string(),
-        exp: (now + Duration::hours(12)).timestamp() as usize,
+        exp: (now + Duration::hours(1)).timestamp() as usize,
         token_type: "access".to_string(),
     };
 
