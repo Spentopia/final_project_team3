@@ -17,7 +17,11 @@ import {authStorage} from "@/shared/lib/auth";
 function persistWalletTokens(payload: WalletLoginResponse): void {
     authStorage.setToken(payload.access_token);
     localStorage.setItem("spentopia_auth", payload.access_token);
-    localStorage.setItem("refreshToken", payload.refresh_token);
+    // web: refresh_token은 쿠키로 자동 저장됨
+    // app: body에 포함되어 있을 때만 저장
+    if (payload.refresh_token) {
+        localStorage.setItem("refreshToken", payload.refresh_token);
+    }
 }
 
 // axios 에러 응답을 화면에 표시할 수 있는 문자열로 정규화한다.
