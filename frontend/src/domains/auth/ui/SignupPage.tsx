@@ -68,7 +68,7 @@ export default function Signup() {
         // 아직 로그인 상태가 아니므로 Step2로 보내면 안 됨
         if (!result.accessToken) {
           alert("회원가입 완료! 이메일 인증 후 로그인해주세요.");
-          navigate("/signup-pending");
+          navigate("/signup-pending", { state: { email: formData.email } });
           return;
         }
 
