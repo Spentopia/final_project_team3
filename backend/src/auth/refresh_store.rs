@@ -47,7 +47,7 @@ pub async fn create_refresh_session(
     );
 
     let token_hash = hash_refresh_token(refresh_token);
-    let expires_at = (Utc::now() + Duration::days(30)).to_rfc3339();
+    let expires_at = (Utc::now() + Duration::days(14)).to_rfc3339();
 
     let payload = serde_json::json!([{
         "id": session_id,

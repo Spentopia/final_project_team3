@@ -5,7 +5,7 @@
 // 왜 필요한가?
 // 소셜 로그인은 외부 페이지(구글/카카오)로 리다이렉트된 후 돌아오는 방식임.
 // 돌아왔을 때 Supabase SDK가 URL 파라미터에서 세션을 자동으로 추출하는데,
-// 이걸 감지해서 토큰을 localStorage에 저장해줘야 함.
+// // 이걸 감지해서 ProtectedRoute에서 /auth/exchange로 앱 JWT를 교환함
 //
 // onAuthStateChange가 감지하는 이벤트들:
 // - SIGNED_IN: 로그인 성공 (소셜 로그인 리다이렉트 후 포함)
@@ -31,12 +31,10 @@ export function useAuth() {
   useEffect(() => {
     // ── 1) 현재 세션 확인 ───────────────────────────────────
     // 앱이 처음 열릴 때 (새로고침 포함) 기존 세션이 있는지 확인
-    // Supabase SDK가 localStorage에 저장해둔 세션을 읽어옴
+    // Supabase SDK가 내부 저장소에 저장해둔 세션을 읽어옴
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
         setUser(data.session.user);
-        // localStorage에도 토큰 저장 (apiFetch에서 동기적으로 꺼내 쓰기 위함)
-        authStorage.setToken(data.session.access_token);
       }
       setLoading(false);
     });
@@ -48,7 +46,6 @@ export function useAuth() {
       (_event, session) => {
         if (session) {
           setUser(session.user);
-          authStorage.setToken(session.access_token);
         } else {
           setUser(null);
           authStorage.clear();

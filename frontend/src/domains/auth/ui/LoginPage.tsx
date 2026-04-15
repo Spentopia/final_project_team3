@@ -22,9 +22,6 @@ export default function Login() {
       // ✅ 실제 앱 JWT 저장
       authStorage.setToken(result.accessToken);
 
-      // ✅ 기존 mock_token → 실제 토큰으로 교체 (핵심)
-      localStorage.setItem("spentopia_auth", result.accessToken);
-
       navigate("/");
     } catch (error) {
       alert("로그인 실패");

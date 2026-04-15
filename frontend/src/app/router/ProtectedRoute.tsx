@@ -1,20 +1,24 @@
 // app/router/ProtectedRoute.tsx
 //
-// 보호된 페이지에 접근하기 전에 인증 상태를 확인하는 컴포넌트.
+// 보호된 페이지 접근 전 인증 상태 확인 컴포넌트
 //
-// 현재 구조의 핵심:
-// 1) 먼저 localStorage의 spentopia_auth(앱 JWT) 확인
-// 2) 없으면 Supabase session 있는지 확인
-//    - 구글 로그인 직후나 이메일 로그인 직후일 수 있음
-// 3) session이 있으면 /auth/exchange 로 백엔드 JWT 교환
-// 4) /me 호출해서 profile_completed 여부 확인
+// 최종 흐름:
+// 1) 먼저 메모리에 access token이 있는지 확인
+// 2) 없으면 Supabase session이 있는지 확인
+//    - 구글 로그인 직후 / 이메일 로그인 직후일 수 있음
+// 3) session이 있으면 /auth/exchange 로 백엔드 앱 JWT 교환
+// 4) 교환 성공 후 access token을 메모리에 저장
+// 5) /me 호출해서 profile_completed 여부 확인
 //
-// 결국 최종적으로는 항상 "앱 JWT"만 사용하게 만드는 게 목적
+// 중요:
+// - access token은 localStorage가 아니라 메모리에만 저장
+// - refresh token은 HttpOnly 쿠키라 프론트 JS가 직접 만지지 않음
 
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router";
 import { supabase } from "@/shared/lib/supabase";
 import { authStorage } from "@/shared/lib/auth";
+import { apiClient } from "@/shared/api/client";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -31,31 +35,30 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   // Supabase session의 access_token을 백엔드 앱 JWT로 교환
   const exchangeSupabaseToken = async (accessToken: string) => {
-    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/exchange`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const res = await apiClient.post(
+      "/auth/exchange",
+      {
         access_token: accessToken,
-      }),
-    });
+      },
+      {
+        headers: {
+          "X-Client-Type": "web",
+        },
+      }
+    );
 
-    if (!res.ok) {
-      throw new Error(`/auth/exchange 실패: ${res.status}`);
-    }
-
-    return await res.json();
+    return res.data;
   };
 
   const checkAuth = async () => {
     try {
-      // 1) 이미 저장된 앱 JWT 먼저 확인
-      let token = localStorage.getItem("spentopia_auth");
+      // 1) 현재 메모리에 저장된 앱 access token 확인
+      let token = authStorage.getToken();
 
-      // 2) 앱 JWT가 없으면 Supabase session 확인
-      //    구글 로그인 후 돌아온 직후에는 session만 있고
-      //    아직 앱 JWT로 교환되지 않았을 수 있음
+      // 2) access token이 없으면 Supabase session 확인
+      //
+      // 구글 로그인 직후 / 이메일 로그인 직후에는
+      // 아직 앱 JWT로 교환되지 않고 Supabase session만 있을 수 있음
       if (!token) {
         const {
           data: { session },
@@ -66,11 +69,11 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
           token = exchanged.access_token;
 
-          // 교환된 앱 JWT 저장
-          localStorage.setItem("spentopia_auth", exchanged.access_token);
-          authStorage.setToken?.(exchanged.access_token);
+          // 교환된 앱 access token을 메모리에 저장
+          authStorage.setToken(exchanged.access_token);
 
-          // 이제 앱 내부에서는 Supabase session 안 쓰므로 정리
+          // 앱 내부 보호 API는 이제 우리 앱 JWT만 사용하므로
+          // Supabase session은 정리
           try {
             await supabase.auth.signOut();
           } catch (e) {
@@ -79,32 +82,17 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         }
       }
 
-      // 3) 토큰이 없거나 JWT 형태가 이상하면 비로그인 처리
-      if (!token || !token.includes(".")) {
-        localStorage.removeItem("spentopia_auth");
-        authStorage.clear?.();
+      // 3) 그래도 token이 없으면 비로그인
+      if (!token) {
+        authStorage.clear();
         setStatus("not_logged_in");
         return;
       }
 
       // 4) /me 호출해서 실제 로그인 유저 정보 확인
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/me`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await apiClient.get("/me");
 
-      if (!res.ok) {
-        console.error("/me 호출 실패:", res.status);
-        localStorage.removeItem("spentopia_auth");
-        authStorage.clear?.();
-        setStatus("not_logged_in");
-        return;
-      }
-
-      const me = await res.json();
-      console.log("me response:", me);
+      const me = res.data;
 
       // 5) 프로필 완성 여부에 따라 라우팅 분기
       if (!me.profile_completed) {
@@ -114,8 +102,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       }
     } catch (error) {
       console.error("인증 확인 실패:", error);
-      localStorage.removeItem("spentopia_auth");
-      authStorage.clear?.();
+      authStorage.clear();
       setStatus("not_logged_in");
     }
   };

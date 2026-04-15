@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Bell, Menu, Moon, Sun, LogOut } from "lucide-react";
 import { ConnectWalletButton } from "@/domains/wallet/ui/ConnectWalletButton";
 import { Button } from "../ui/button";
+import { signOut } from "@/domains/auth/api/auth";
 import {
   Sheet,
   SheetContent,
@@ -11,6 +12,7 @@ import {
 } from "../ui/sheet";
 import { useTheme } from "next-themes";
 import { authStorage } from "@/shared/lib/auth";
+
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -25,9 +27,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   const { theme, setTheme } = useTheme();
 
-  const handleLogout = () => {
-  authStorage.clear();
-  window.location.replace("/login");
+  const handleLogout = async () => {
+    await signOut();
+    window.location.replace("/login");
 };
 
   return (
