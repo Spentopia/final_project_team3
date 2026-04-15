@@ -16,6 +16,7 @@ use anyhow::{Context, Result, anyhow};
 use uuid::Uuid;
 
 use crate::state::AppState;
+use std::time::SystemTime;
 
 // find_user_by_wallet: wallet_address로 DB에서 유저를 조회하는 함수 (auth/service.rs)
 // 중복 연동 체크 시 재사용
@@ -43,18 +44,25 @@ pub async fn link_wallet(
     // nonce_store에서 이 지갑 주소에 해당하는 nonce를 꺼냄
     // ok_or_else: None이면 에러로 변환
     // None인 경우 → /auth/wallet/nonce를 먼저 호출하지 않은 것
-    let stored_nonce = state
+    let entry = state
         .nonce_store
         .get(wallet_address)
         .ok_or_else(|| anyhow!("nonce가 없거나 만료됨. /auth/wallet/nonce를 먼저 호출하세요."))?;
 
-    if stored_nonce.value() != nonce {
+    // TTL 체크: 발급 후 5분이 지났으면 만료 처리
+    if SystemTime::now() > entry.expires_at {
+        drop(entry);
+        state.nonce_store.remove(wallet_address);
+        return Err(anyhow!("nonce가 만료됨. /auth/wallet/nonce를 다시 호출하세요."));
+    }
+
+    if entry.nonce != nonce {
         return Err(anyhow!("nonce 불일치. 위조된 요청일 수 있음."));
     }
 
     // nonce는 1회용 → 검증 즉시 삭제
     // drop() 먼저: DashMap 읽기 잠금 해제 후 remove() 해야 함
-    drop(stored_nonce);
+    drop(entry);
     state.nonce_store.remove(wallet_address);
 
     // 2) 서명 검증
