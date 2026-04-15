@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api.v1.endpoints import analyze, history, chat
+from app.api.v1.endpoints import analyze, history, chat, receipt
 
 app = FastAPI()
 
@@ -10,3 +10,4 @@ def root():
 app.include_router(analyze.router, prefix="/api/v1/analyze")
 app.include_router(history.router, prefix="/api/v1/history")
 app.include_router(chat.router, prefix="/api/v1/chat")
+app.include_router(receipt.router, prefix="/api/v1/receipt")
