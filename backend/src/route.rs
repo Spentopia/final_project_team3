@@ -59,6 +59,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/health", get(|| async { "ok" }))
         .route("/auth/exchange", post(auth::handler::exchange_token))
         .route("/auth/wallet/nonce", post(auth::handler::request_nonce))
+        .route("/auth/refresh", post(auth::handler::refresh_token))
+        .route("/auth/logout", post(auth::handler::logout))
         .route("/auth/wallet/login", post(auth::handler::wallet_login))
         .route("/auth/find-email", post(auth::handler::find_email))
         .route("/auth/check-email", post(auth::handler::check_email))

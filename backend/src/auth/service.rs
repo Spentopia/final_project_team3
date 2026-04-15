@@ -40,6 +40,7 @@
 // Context → .context("설명") 으로 에러에 설명 추가
 // Result → 성공이면 Ok(값), 실패면 Err(에러)
 use anyhow::{Context, Result, anyhow};
+use std::time::{Duration, SystemTime};
 
 // ed25519_dalek: Solana 지갑이 사용하는 ed25519 서명 알고리즘 라이브러리
 // Signature → 서명 값을 담는 구조체 (64바이트)
@@ -55,7 +56,7 @@ use rand::Rng;
 use serde::Deserialize;
 
 // 서버 전체 공유 상태 (Supabase URL, secret key, nonce_store 등)
-use crate::state::AppState;
+use crate::state::{AppState, NonceEntry};
 
 // 로그인 성공 응답 구조체 (access_token, refresh_token, is_new_user)
 // super = 현재 모듈(auth)의 상위 경로
@@ -130,11 +131,15 @@ pub fn generate_nonce(state: &AppState, wallet_address: &str) -> String {
         .map(char::from)
         .collect();
 
-    // nonce store에 저장: 키=지갑주소, 값=nonce
+    // nonce store에 저장: 키=지갑주소, 값=NonceEntry(nonce + 5분 후 만료시각)
     // 2단계 verify_and_login()에서 꺼내서 비교함
-    state
-        .nonce_store
-        .insert(wallet_address.to_string(), nonce.clone());
+    state.nonce_store.insert(
+        wallet_address.to_string(),
+        NonceEntry {
+            nonce: nonce.clone(),
+            expires_at: SystemTime::now() + Duration::from_secs(300),
+        },
+    );
 
     tracing::info!("nonce 발급 완료: wallet={}", wallet_address);
 
@@ -158,22 +163,29 @@ pub async fn verify_and_login(
     signature: &str,
 ) -> Result<LoginResponse> {
     // 1) nonce 검증
-    // nonce_store에서 이 지갑 주소에 해당하는 nonce를 꺼냄.
+    // nonce_store에서 이 지갑 주소에 해당하는 NonceEntry를 꺼냄.
     // ok_or_else: Option이 None이면 에러로 변환
     // None인 경우 → 1단계를 호출하지 않았거나 이미 사용된 nonce
-    let stored_nonce = state
+    let entry = state
         .nonce_store
         .get(wallet_address)
         .ok_or_else(|| anyhow!("nonce가 없거나 만료됨. /auth/wallet/nonce를 먼저 호출하세요."))?;
 
+    // TTL 체크: 발급 후 5분이 지났으면 만료 처리
+    if SystemTime::now() > entry.expires_at {
+        drop(entry);
+        state.nonce_store.remove(wallet_address);
+        return Err(anyhow!("nonce가 만료됨. /auth/wallet/nonce를 다시 호출하세요."));
+    }
+
     // 저장된 nonce와 앱이 보낸 nonce가 다르면 위조된 요청
-    if stored_nonce.value() != nonce {
+    if entry.nonce != nonce {
         return Err(anyhow!("nonce 불일치. 위조된 요청일 수 있음."));
     }
 
     // nonce는 1회용이므로 검증 즉시 삭제
     // drop()을 먼저 해야 DashMap의 읽기 잠금이 풀려서 remove()가 가능함
-    drop(stored_nonce);
+    drop(entry);
     state.nonce_store.remove(wallet_address);
 
     // 2) Solana 서명검증

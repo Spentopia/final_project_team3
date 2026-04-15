@@ -1,16 +1,15 @@
-// main.rs
-// 서버의 진입점(entry point). 자바의 main() 메서드와 동일.
-// 여기서 하는 일:
-// 1) .env 파일에서 환경변수 로드
-// 2) 로깅 시스템 초기화
-// 3) 설정값 로드 + AppState 생성
-// 4) 라우터 구성 (route.rs에 위임)
-// 5) 서버 실행
+// src/main.rs
 //
-// 이전에는 main.rs 안에서 Router::new()로 직접 라우트를 등록했는데,
-// 라우트가 많아지면 main.rs가 비대해지니까
-// route.rs로 분리해서 create_router()를 호출하는 구조로 변경
-
+// 서버 진입점
+//
+// 변경 핵심:
+// - CORS origin 하드코딩 제거
+// - allow_credentials(true) 추가
+// - 쿠키/Authorization 헤더 허용
+//
+// 이유:
+// - 웹 refresh token을 HttpOnly 쿠키로 보낼 것이므로
+//   브라우저가 쿠키를 포함할 수 있게 credentials 허용이 필요함.
 
 mod config;
 mod state;
@@ -19,24 +18,14 @@ mod route;
 mod openapi;
 pub mod wallet;
 
-use axum::http::{HeaderValue, Method};
-use tower_http::cors::{Any, CorsLayer};
+use axum::http::{header, HeaderValue, Method};
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
 #[tokio::main]
 async fn main() {
-
-    // ── 1) .env 파일 로드 ────────────────────────────────────
-    // .env 파일에 있는 SUPABASE_URL, SUPABASE_SECRET_KEY 등을
-    // 환경변수로 등록함. ok()는 .env 파일이 없어도 패닉 안 하겠다는 뜻.
-    // 배포 환경에서는 .env 대신 시스템 환경변수를 쓰니까 없을 수 있음.
     dotenv::dotenv().ok();
 
-    // ── 2) 로깅 초기화 ──────────────────────────────────────
-    // with_env_filter: RUST_LOG 환경변수로 로그 레벨 제어 (debug/info/warn/error)
-    // with_target: 어느 모듈에서 발생했는지 표시 (예: backend::auth::middleware)
-    // with_file: 파일명 표시 (예: src/auth/middleware.rs)
-    // with_line_number: 몇 번째 줄인지 표시
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_target(true)
@@ -44,21 +33,17 @@ async fn main() {
         .with_line_number(true)
         .init();
 
-    // ── 3) 설정값 로드 + AppState 생성 ──────────────────────
-    // Config::from_env()가 환경변수를 읽어서 Config 구조체를 만듦.
-    // 하나라도 빠져있으면 여기서 에러 메시지와 함께 서버가 종료
     let config = config::Config::from_env().expect("설정 로드 실패");
-
-    // 서버 시작 시 어떤 Supabase 프로젝트에 연결하는지 로그로 확인
     tracing::info!("Supabase URL: {}", config.supabase_url);
 
-    //AppState 생성
-    let state = state::AppState::new(config);
+    let state = state::AppState::new(config.clone());
 
     tracing::info!("서버 시작중...");
 
+    // credentials(true)와 allow_origin("*")은 같이 못 쓴다.
+    // 반드시 구체적인 origin을 명시해야 한다.
     let cors = CorsLayer::new()
-        .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
+        .allow_origin(config.cors_origin.parse::<HeaderValue>().unwrap())
         .allow_methods([
             Method::GET,
             Method::POST,
@@ -67,16 +52,18 @@ async fn main() {
             Method::DELETE,
             Method::OPTIONS,
         ])
-        .allow_headers(Any);
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::AUTHORIZATION,
+            header::COOKIE,
+            "x-client-type".parse().unwrap(),
+        ])
+        .allow_credentials(true);
 
-    // ── 4) 라우터 구성 ──────────────────────────────────────
-    // route::create_router()가 공개/보호 라우트를 조립해서 Router를 반환함.
-    // .layer(TraceLayer): 모든 라우트에 요청/응답 자동 로깅 적용
     let app = route::create_router(state)
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 
-    //서버 실행
     let listener = tokio::net::TcpListener::bind("127.0.0.1:1113").await
         .expect("포트 바인딩 실패");
 
@@ -85,5 +72,4 @@ async fn main() {
     axum::serve(listener, app)
         .await
         .expect("서버 실행 실패");
-
 }
