@@ -40,6 +40,12 @@ pub struct Config {
 
     // CORS 허용 origin
     pub cors_origin: String,
+
+    // AI 서버 URL (챗봇, 소비 분석, 예산 플랜)
+    pub ai_server_url: String,
+
+    // Unity 서버 URL (아바타 렌더링, 게임 연동)
+    pub unity_server_url: String,
 }
 
 impl Config {
@@ -72,6 +78,12 @@ impl Config {
             // 프론트 origin 하드코딩 대신 환경변수 사용
             cors_origin: std::env::var("CORS_ORIGIN")
                 .unwrap_or_else(|_| "http://localhost:5173".to_string()),
+
+            ai_server_url: std::env::var("AI_SERVER_URL")
+                .unwrap_or_else(|_| "http://localhost:8000".to_string()),
+
+            unity_server_url: std::env::var("UNITY_SERVER_URL")
+                .unwrap_or_else(|_| "http://localhost:9000".to_string()),
         })
     }
 }

@@ -27,6 +27,16 @@ mod route;
 mod openapi;
 pub mod wallet;
 pub mod expense;
+pub mod avatar;
+pub mod budget;
+pub mod community;
+pub mod ledger;
+pub mod market;
+pub mod notification;
+pub mod payment;
+pub mod report;
+pub mod reward;
+pub mod user;
 
 use axum::http::{header, HeaderValue, Method};
 use std::net::SocketAddr;
