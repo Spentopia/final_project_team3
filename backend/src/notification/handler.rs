@@ -1,9 +1,4 @@
 // notification/handler.rs
-// 알림 HTTP 핸들러
-//
-// 보호 라우트 (JWT 필수):
-//  GET  /api/notifications      → list_notifications
-//  POST /api/notifications/read → mark_read
 
 use axum::{
     extract::State,
@@ -16,7 +11,12 @@ use uuid::Uuid;
 use crate::state::AppState;
 use super::{dto::MarkReadRequest, service};
 
-// GET /api/notifications
+#[utoipa::path(
+    get, path = "/api/notifications",
+    tag = "알림",
+    responses((status = 200, description = "알림 목록 조회 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn list_notifications(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -27,7 +27,13 @@ pub async fn list_notifications(
     }
 }
 
-// POST /api/notifications/read
+#[utoipa::path(
+    post, path = "/api/notifications/read",
+    tag = "알림",
+    request_body = MarkReadRequest,
+    responses((status = 200, description = "읽음 처리 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn mark_read(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,

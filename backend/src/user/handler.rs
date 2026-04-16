@@ -1,11 +1,4 @@
 // user/handler.rs
-// 유저 프로필, 설정 HTTP 핸들러
-//
-// 보호 라우트 (JWT 필수):
-//  GET   /api/user/profile   → get_profile
-//  PATCH /api/user/profile   → update_profile
-//  GET   /api/user/settings  → get_settings
-//  PATCH /api/user/settings  → update_settings
 
 use axum::{
     extract::State,
@@ -18,7 +11,12 @@ use uuid::Uuid;
 use crate::state::AppState;
 use super::{dto::{UpdateProfileRequest, UpdateSettingsRequest}, service};
 
-// GET /api/user/profile
+#[utoipa::path(
+    get, path = "/api/user/profile",
+    tag = "유저",
+    responses((status = 200, description = "프로필 조회 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_profile(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -29,7 +27,13 @@ pub async fn get_profile(
     }
 }
 
-// PATCH /api/user/profile
+#[utoipa::path(
+    patch, path = "/api/user/profile",
+    tag = "유저",
+    request_body = UpdateProfileRequest,
+    responses((status = 200, description = "프로필 수정 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn update_profile(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -41,7 +45,12 @@ pub async fn update_profile(
     }
 }
 
-// GET /api/user/settings
+#[utoipa::path(
+    get, path = "/api/user/settings",
+    tag = "유저",
+    responses((status = 200, description = "알림 설정 조회 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_settings(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -52,7 +61,13 @@ pub async fn get_settings(
     }
 }
 
-// PATCH /api/user/settings
+#[utoipa::path(
+    patch, path = "/api/user/settings",
+    tag = "유저",
+    request_body = UpdateSettingsRequest,
+    responses((status = 200, description = "알림 설정 수정 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn update_settings(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,

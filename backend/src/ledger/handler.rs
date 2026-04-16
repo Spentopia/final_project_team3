@@ -1,12 +1,4 @@
 // ledger/handler.rs
-// 가계부, 공유 멤버 HTTP 핸들러
-//
-// 보호 라우트 (JWT 필수):
-//  GET    /api/ledgers             → list_ledgers
-//  POST   /api/ledgers             → create_ledger
-//  PATCH  /api/ledgers/:id         → update_ledger
-//  DELETE /api/ledgers/:id         → delete_ledger
-//  POST   /api/ledgers/:id/members → invite_member
 
 use axum::{
     extract::{Path, State},
@@ -19,7 +11,12 @@ use uuid::Uuid;
 use crate::state::AppState;
 use super::{dto::{CreateLedgerRequest, InviteMemberRequest, UpdateLedgerRequest}, service};
 
-// GET /api/ledgers
+#[utoipa::path(
+    get, path = "/api/ledgers",
+    tag = "가계부",
+    responses((status = 200, description = "가계부 목록 조회 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn list_ledgers(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -30,7 +27,13 @@ pub async fn list_ledgers(
     }
 }
 
-// POST /api/ledgers
+#[utoipa::path(
+    post, path = "/api/ledgers",
+    tag = "가계부",
+    request_body = CreateLedgerRequest,
+    responses((status = 201, description = "가계부 생성 성공"), (status = 400, description = "잘못된 요청")),
+    security(("bearer_auth" = []))
+)]
 pub async fn create_ledger(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -45,7 +48,14 @@ pub async fn create_ledger(
     }
 }
 
-// PATCH /api/ledgers/:id
+#[utoipa::path(
+    patch, path = "/api/ledgers/{id}",
+    tag = "가계부",
+    params(("id" = Uuid, Path, description = "가계부 ID")),
+    request_body = UpdateLedgerRequest,
+    responses((status = 200, description = "가계부 수정 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn update_ledger(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -58,7 +68,13 @@ pub async fn update_ledger(
     }
 }
 
-// DELETE /api/ledgers/:id
+#[utoipa::path(
+    delete, path = "/api/ledgers/{id}",
+    tag = "가계부",
+    params(("id" = Uuid, Path, description = "가계부 ID")),
+    responses((status = 204, description = "가계부 삭제 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn delete_ledger(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -70,7 +86,14 @@ pub async fn delete_ledger(
     }
 }
 
-// POST /api/ledgers/:id/members
+#[utoipa::path(
+    post, path = "/api/ledgers/{id}/members",
+    tag = "가계부",
+    params(("id" = Uuid, Path, description = "가계부 ID")),
+    request_body = InviteMemberRequest,
+    responses((status = 201, description = "멤버 초대 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn invite_member(
     State(state): State<AppState>,
     Extension(_user_id): Extension<Uuid>,

@@ -1,9 +1,4 @@
 // report/handler.rs
-// 소비 리포트 HTTP 핸들러
-//
-// 보호 라우트 (JWT 필수):
-//  POST /api/reports → generate_report
-//  GET  /api/reports → list_reports
 
 use axum::{
     extract::State,
@@ -16,7 +11,13 @@ use uuid::Uuid;
 use crate::state::AppState;
 use super::{dto::GenerateReportRequest, service};
 
-// POST /api/reports
+#[utoipa::path(
+    post, path = "/api/reports",
+    tag = "리포트",
+    request_body = GenerateReportRequest,
+    responses((status = 201, description = "리포트 생성 성공"), (status = 400, description = "잘못된 날짜")),
+    security(("bearer_auth" = []))
+)]
 pub async fn generate_report(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -31,7 +32,12 @@ pub async fn generate_report(
     }
 }
 
-// GET /api/reports
+#[utoipa::path(
+    get, path = "/api/reports",
+    tag = "리포트",
+    responses((status = 200, description = "리포트 목록 조회 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn list_reports(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,

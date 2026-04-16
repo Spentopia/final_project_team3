@@ -38,6 +38,13 @@ use super::{
 ///
 /// # 에러
 /// service에서 anyhow::Error가 반환되면 500 Internal Server Error로 응답한다.
+#[utoipa::path(
+    post, path = "/api/avatar/mint-nft",
+    tag = "아바타",
+    request_body = MintNftRequest,
+    responses((status = 200, description = "NFT 민팅 완료")),
+    security(("bearer_auth" = []))
+)]
 pub async fn mint_nft(
     State(state): State<AppState>,  // 공유 앱 상태(http_client, config 등)
     Extension(user_id): Extension<Uuid>, // JWT 미들웨어가 삽입한 인증된 유저 UUID
@@ -59,6 +66,13 @@ pub async fn mint_nft(
 ///
 ///  # 에러
 ///  service에서 anyhow::Error가 반환되면 500 Internal Server Error로 응답한다.
+#[utoipa::path(
+    post, path = "/api/avatar/transfer-nft",
+    tag = "아바타",
+    request_body = TransferNftRequest,
+    responses((status = 200, description = "NFT 전송 완료")),
+    security(("bearer_auth" = []))
+)]
 pub async fn transfer_nft(
     State(state): State<AppState>,          // 공유 앱 상태
     Extension(user_id): Extension<Uuid>,    // JWT 인증된 유저 UUID
@@ -82,6 +96,12 @@ pub async fn transfer_nft(
 ///
 /// # 에러
 /// service에서 anyhow::Error가 반환되면 500 Internal Server Error로 응답한다.
+#[utoipa::path(
+    get, path = "/api/avatar/items",
+    tag = "아바타",
+    responses((status = 200, description = "보유 아이템 목록 조회 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_user_items(
     State(state): State<AppState>,      // 공유 앱 상태
     Extension(user_id): Extension<Uuid>,// JWT 인증된 유저 UUID
