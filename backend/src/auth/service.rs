@@ -612,30 +612,79 @@ async fn ensure_public_user_exists(
         state.config.supabase_url.trim_end_matches('/')
     );
 
-    let users_payload = json!([{
+    // ── 1단계: 신규 유저 INSERT (이미 존재하면 무시) ──────────────
+    //
+    // resolution=ignore-duplicates:
+    //   id 충돌(= 이미 가입된 유저)이면 아무것도 하지 않음.
+    //   신규 유저면 전체 행을 새로 삽입함.
+    //
+    // profile_image를 여기서만 "defaults/avatar.png"로 세팅하는 이유:
+    //   - merge-duplicates를 쓰면 기존 유저가 업로드한 프로필 이미지를
+    //     로그인할 때마다 기본값으로 덮어쓰는 문제가 생김.
+    //   - ignore-duplicates는 INSERT에만 적용되므로,
+    //     신규 유저는 기본 이미지를 받고, 기존 유저는 영향받지 않음.
+    //
+    // created_at도 여기서만 세팅:
+    //   - merge-duplicates였을 때는 매 로그인마다 created_at이 갱신되는
+    //     버그가 있었음. ignore-duplicates로 바꾸면서 함께 해결됨.
+    // ────────────────────────────────────────────────────────────
+    let insert_payload = json!([{
         "id": user_id,
         "email": email,
         "login_provider": provider,
         "provider_id": provider_id,
+        "profile_image": "defaults/avatar.png",
         "created_at": chrono::Utc::now(),
         "updated_at": chrono::Utc::now(),
         "is_active": true
     }]);
 
-    let resp = state.http_client
+    let insert_resp = state.http_client
         .post(&users_url)
         .header("apikey", &state.config.supabase_secret_key)
         .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
         .header("Content-Type", "application/json")
-        .header("Prefer", "resolution=merge-duplicates")
-        .json(&users_payload)
+        .header("Prefer", "resolution=ignore-duplicates")
+        .json(&insert_payload)
         .send()
         .await
-        .context("public.users upsert 요청 실패")?;
+        .context("public.users INSERT 요청 실패")?;
 
-    if !resp.status().is_success() {
-        let err = resp.text().await.unwrap_or_default();
-        return Err(anyhow!("public.users upsert 실패: {}", err));
+    if !insert_resp.status().is_success() {
+        let err = insert_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("public.users INSERT 실패: {}", err));
+    }
+
+    // ── 2단계: 기존/신규 모두 활성 상태 갱신 ─────────────────────
+    //
+    // INSERT에서 ignore-duplicates를 쓰면 기존 유저의 is_active / updated_at이
+    // 갱신되지 않으므로, PATCH로 별도 업데이트.
+    //
+    // profile_image / created_at / email 등 초기값 필드는 건드리지 않음.
+    // ────────────────────────────────────────────────────────────
+    let patch_url = format!(
+        "{}/rest/v1/users?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        urlencoding::encode(user_id)
+    );
+
+    let patch_resp = state.http_client
+        .patch(&patch_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=minimal")
+        .json(&json!({
+            "is_active": true,
+            "updated_at": chrono::Utc::now()
+        }))
+        .send()
+        .await
+        .context("public.users 활성 상태 갱신 실패")?;
+
+    if !patch_resp.status().is_success() {
+        let err = patch_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("public.users 활성 상태 갱신 실패: {}", err));
     }
 
     let settings_url = format!(
@@ -689,7 +738,10 @@ pub async fn kakao_login(
     code: &str,
     client_type: &str,
 ) -> Result<LoginIssueResult> {
-    tracing::info!("카카오 로그인 code={}", code);
+    // OAuth 인가 code는 단기 자격증명이므로 로그에 남기지 않음.
+    // 로그에 code가 기록되면 로그 열람 권한을 가진 사람이
+    // 만료(약 10분) 전에 재사용할 수 있어 계정 탈취로 이어질 수 있음.
+    tracing::info!("카카오 로그인 시작");
 
     let token_url = "https://kauth.kakao.com/oauth/token";
 
@@ -924,6 +976,9 @@ async fn upsert_public_user_social_fields(
         user_id_encoded
     );
 
+    // 카카오 신규 유저에게만 호출되는 함수이므로 (find_or_create_social_user 참고)
+    // profile_image 기본값을 안전하게 세팅할 수 있음.
+    // 기존 유저의 이미지를 덮어쓸 위험이 없음.
     let resp = state.http_client
         .patch(&url)
         .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
@@ -934,6 +989,7 @@ async fn upsert_public_user_social_fields(
             "email": email,
             "login_provider": provider,
             "provider_id": provider_id,
+            "profile_image": "defaults/avatar.png",
         }))
         .send()
         .await

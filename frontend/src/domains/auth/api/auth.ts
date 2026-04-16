@@ -125,7 +125,7 @@ export const signInWithGoogle = async () => {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: window.location.origin,
+      redirectTo: `${window.location.origin}/auth/google/callback`,
       queryParams: {
         prompt: "select_account",
       },
@@ -141,6 +141,25 @@ export const signInWithGoogle = async () => {
 export const redirectToKakao = async () => {
   await clearAllAuthState();
 
+  // ── CSRF 방지: OAuth state 파라미터 ────────────────────────
+  //
+  // 공격 시나리오 (state 없을 때):
+  //   1) 공격자가 자기 카카오 계정으로 로그인 흐름을 시작하다가
+  //      카카오가 돌려주는 code 값을 가로챔
+  //   2) 피해자에게 /auth/kakao/callback?code=공격자_code 링크를 클릭하게 만듦
+  //   3) 피해자가 의도치 않게 공격자 카카오 계정으로 로그인됨
+  //      (계정 혼동 / Login CSRF)
+  //
+  // 해결책: 로그인 시작 시 예측 불가한 state 값을 생성해 sessionStorage에 저장.
+  //   카카오가 콜백 URL에 state를 그대로 실어 돌려주면,
+  //   콜백 페이지에서 저장값과 비교 → 불일치 시 즉시 중단.
+  //
+  // crypto.randomUUID()는 브라우저 내장 CSPRNG 기반이라 예측 불가.
+  // sessionStorage는 탭 단위로 격리되어 다른 탭에서 접근 불가.
+  // ────────────────────────────────────────────────────────────
+  const state = crypto.randomUUID();
+  sessionStorage.setItem("kakao_oauth_state", state);
+
   const clientId = import.meta.env.VITE_KAKAO_REST_API_KEY;
   const redirectUri = import.meta.env.VITE_KAKAO_REDIRECT_URI;
 
@@ -150,7 +169,8 @@ export const redirectToKakao = async () => {
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&response_type=code` +
     `&scope=profile_nickname,profile_image` +
-    `&prompt=select_account`;
+    `&prompt=select_account` +
+    `&state=${state}`;  // 카카오가 콜백 시 그대로 반환해줌
 
   window.location.href = kakaoAuthUrl;
 };

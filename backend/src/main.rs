@@ -29,6 +29,7 @@ pub mod wallet;
 pub mod expense;
 
 use axum::http::{header, HeaderValue, Method};
+use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
@@ -120,8 +121,8 @@ async fn main() {
     // - 지금은 로컬 시연이니까 기본값(peer_addr)으로 충분
     // ─────────────────────────────────────────────────────────
     let governor_conf = GovernorConfigBuilder::default()
-        .per_second(2)    // 초당 2개 토큰 보충
-        .burst_size(5)    // 최대 5개까지 누적
+        .per_second(10)   // 초당 10개 토큰 보충
+        .burst_size(30)   // 최대 30개까지 누적 (페이지 로드 시 초기 요청 묶음 허용)
         .finish()
         .unwrap();
 
@@ -169,6 +170,7 @@ async fn main() {
 
 
     let app = route::create_router(state)
+        .layer(governor_limiter)
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 
@@ -177,7 +179,7 @@ async fn main() {
 
     tracing::info!("서버 실행: http://localhost:1113");
 
-    axum::serve(listener, app)
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
         .await
         .expect("서버 실행 실패");
 }
