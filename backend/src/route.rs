@@ -90,6 +90,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/wallet/link", post(wallet::handler::link_wallet))
         .route("/wallet/unlink", delete(wallet::handler::unlink_wallet))
         .route("/api/expenses", post(expense::handler::create_expense))
+        // 프로필 이미지 업로드
+        .route("/profile/image/upload", post(auth::handler::upload_profile_image))
+        // private bucket 이미지 signed URL 발급
+        .route("/profile/image-url", get(auth::handler::get_profile_image_signed_url))
         // 위에 등록된 모든 라우트에 jwt_middleware 적용
         // from_fn_with_state: 미들웨어 안에서 AppState를 쓸 수 있게 state 전달
         // .clone(): state를 공개 라우트와 with_state()에도 넘겨야 해서 소유권 공유

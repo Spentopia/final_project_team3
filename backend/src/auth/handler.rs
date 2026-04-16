@@ -26,16 +26,17 @@
 // - refresh 쿠키는 항상 secure(false)
 
 use axum::{
-    extract::State,
+    extract::{Multipart, Query, State},
     http::{header::SET_COOKIE, HeaderMap, StatusCode},
     Json,
 };
 
 use cookie::{Cookie, SameSite};
+use serde_json::json;
 
 use utoipa;
 use crate::state::AppState;
-use super::dto::{AppLoginResponse,
+use crate::auth::dto::{AppLoginResponse,
                  AppRefreshResponse,
                  CheckEmailRequest,
                  CompleteProfileRequest,
@@ -47,10 +48,13 @@ use super::dto::{AppLoginResponse,
                  NonceRequest,
                  NonceResponse,
                  RefreshRequest,
+                 ProfileImageUrlQuery,
+                 ProfileImageUrlResponse,
                  WalletLoginRequest,
                  WebLoginResponse,
                  WebRefreshResponse,};
-use super::service;
+use crate::auth::service;
+
 
 /// 클라이언트 타입 판별
 ///
@@ -531,6 +535,175 @@ pub async fn complete_profile(
         profile_completed,
     }))
 }
+
+// ─────────────────────────────────────────────────────────────
+// 프로필 이미지 업로드
+//
+// 요청 형식:
+// multipart/form-data
+// field name = "file"
+//
+// 처리 흐름:
+// 1) JWT에서 user_id 가져옴
+// 2) 파일 타입 확인
+// 3) 파일 크기 확인
+// 4) service role key로 private bucket에 업로드
+// 5) DB에 저장할 object path 반환
+// ─────────────────────────────────────────────────────────────
+pub async fn upload_profile_image(
+    State(state): State<AppState>,
+    axum::Extension(user_id): axum::Extension<uuid::Uuid>,
+    mut multipart: Multipart,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let bucket = &state.config.supabase_profile_image_bucket;
+
+    let mut file_bytes: Option<Vec<u8>> = None;
+    let mut content_type: Option<String> = None;
+    let mut file_extension = "png".to_string();
+
+    while let Some(field) = multipart.next_field().await.map_err(|e| {
+        tracing::error!("multipart 파싱 실패: {}", e);
+        (StatusCode::BAD_REQUEST, "multipart 파싱 실패".to_string())
+    })? {
+        let name = field.name().unwrap_or_default().to_string();
+
+        if name == "file" {
+            if let Some(ct) = field.content_type() {
+                content_type = Some(ct.to_string());
+
+                file_extension = match ct {
+                    "image/png" => "png".to_string(),
+                    "image/jpeg" | "image/jpg" => "jpg".to_string(),
+                    "image/webp" => "webp".to_string(),
+                    _ => {
+                        return Err((
+                            StatusCode::BAD_REQUEST,
+                            "png, jpg, webp 이미지만 업로드 가능합니다".to_string(),
+                        ));
+                    }
+                };
+            }
+
+            let bytes = field.bytes().await.map_err(|e| {
+                tracing::error!("파일 읽기 실패: {}", e);
+                (StatusCode::BAD_REQUEST, "파일 읽기 실패".to_string())
+            })?;
+
+            // 최대 5MB 제한
+            if bytes.len() > 5 * 1024 * 1024 {
+                return Err((StatusCode::BAD_REQUEST, "파일 크기는 5MB 이하여야 합니다".to_string()));
+            }
+
+            file_bytes = Some(bytes.to_vec());
+            break;
+        }
+    }
+
+    let file_bytes = file_bytes.ok_or_else(|| {
+        (StatusCode::BAD_REQUEST, "file 필드가 없습니다".to_string())
+    })?;
+
+    let content_type = content_type.unwrap_or_else(|| "image/png".to_string());
+
+    // 유저마다 고정 파일 경로 사용
+    // 같은 유저가 다시 업로드하면 같은 경로를 덮어씀
+    let object_path = format!("{}/avatar.{}", user_id, file_extension);
+
+    let upload_url = format!(
+        "{}/storage/v1/object/{}/{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        bucket,
+        object_path
+    );
+
+    let resp = state.http_client
+        .post(&upload_url)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Content-Type", content_type)
+        .header("x-upsert", "true")
+        .body(file_bytes)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!("스토리지 업로드 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "스토리지 업로드 실패".to_string())
+        })?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        tracing::error!("스토리지 업로드 응답 실패: {}", err);
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, err));
+    }
+
+    Ok(Json(json!({
+        "path": object_path
+    })))
+}
+
+// ─────────────────────────────────────────────────────────────
+// private bucket 이미지 signed URL 발급
+//
+// 프론트는 DB에 저장된 path를 보내고,
+// 백엔드는 signed URL을 만들어서 반환한다.
+//
+// URL은 24시간짜리로 줘서 쉽게 안 끊기게 함.
+// 만료되면 프론트가 다시 요청하면 된다.
+// ─────────────────────────────────────────────────────────────
+pub async fn get_profile_image_signed_url(
+    State(state): State<AppState>,
+    Query(query): Query<ProfileImageUrlQuery>,
+) -> Result<Json<ProfileImageUrlResponse>, (StatusCode, String)> {
+    let bucket = &state.config.supabase_profile_image_bucket;
+
+    let url = format!(
+        "{}/storage/v1/object/sign/{}/{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        bucket,
+        query.path
+    );
+
+    let body = json!({
+        "expiresIn": 86400
+    });
+
+    let resp = state.http_client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!("signed URL 생성 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "signed URL 생성 실패".to_string())
+        })?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        tracing::error!("signed URL 응답 실패: {}", err);
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, err));
+    }
+
+    let data: serde_json::Value = resp.json().await.map_err(|e| {
+        tracing::error!("signed URL 응답 파싱 실패: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "signed URL 응답 파싱 실패".to_string())
+    })?;
+
+    let signed_path = data["signedURL"].as_str().ok_or_else(|| {
+        (StatusCode::INTERNAL_SERVER_ERROR, "signedURL 필드가 없습니다".to_string())
+    })?;
+
+    let signed_url = format!(
+        "{}/storage/v1{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        signed_path
+    );
+
+    Ok(Json(ProfileImageUrlResponse { signed_url }))
+}
+
 
 // ═══════════════════════════════════════════════════════════════
 // [이메일 찾기] POST /auth/find-email
