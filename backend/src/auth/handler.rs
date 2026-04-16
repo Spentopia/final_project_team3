@@ -114,6 +114,10 @@ fn build_refresh_cookie(refresh_token: &str) -> HeaderMap {
         cookie.to_string().parse().unwrap(),
     );
 
+    tracing::debug!(
+        "refresh 쿠키 발급: name=spentopia_refresh path=/auth/refresh same_site=Lax secure=false"
+    );
+
     headers
 }
 
@@ -136,6 +140,8 @@ fn build_clear_refresh_cookie() -> HeaderMap {
         cookie.to_string().parse().unwrap(),
     );
 
+    tracing::debug!("refresh 쿠키 삭제 헤더 발급: name=spentopia_refresh path=/auth/refresh");
+
     headers
 }
 
@@ -146,15 +152,28 @@ fn build_clear_refresh_cookie() -> HeaderMap {
 /// 앱은 쿠키를 안 쓰고 body.refresh_token을 쓰므로
 /// 앱 쪽에서는 이 함수 사용 안 함
 fn extract_refresh_cookie(headers: &HeaderMap) -> Option<String> {
-    headers
+    let raw_cookie = headers
         .get("cookie")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|cookie_header| {
+        .and_then(|v| v.to_str().ok());
+
+    tracing::debug!(
+        "요청 Cookie 헤더 존재 여부: present={} path_sensitive_cookie_check=spentopia_refresh",
+        raw_cookie.is_some()
+    );
+
+    let extracted = raw_cookie.and_then(|cookie_header| {
             cookie::Cookie::split_parse(cookie_header)
                 .filter_map(Result::ok)
                 .find(|c| c.name() == "spentopia_refresh")
                 .map(|c| c.value().to_string())
-        })
+        });
+
+    tracing::debug!(
+        "spentopia_refresh 쿠키 추출 결과: found={}",
+        extracted.is_some()
+    );
+
+    extracted
 }
 
 
@@ -361,6 +380,7 @@ pub async fn exchange_token(
 
     if client_type == "web" {
         let cookie_headers = build_refresh_cookie(&issued.refresh_token);
+        tracing::debug!("토큰 교환 응답: web refresh 쿠키를 Set-Cookie로 반환");
 
         let body = WebLoginResponse {
             access_token: issued.access_token,
@@ -856,6 +876,7 @@ pub async fn refresh_token(
     Json(body): Json<RefreshRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     let client_type = resolve_client_type(&headers);
+    tracing::debug!("refresh 요청 수신: client_type={}", client_type);
 
     let refresh_token = if client_type == "web" {
         // 웹은 쿠키에서 읽음
@@ -882,6 +903,7 @@ pub async fn refresh_token(
     if client_type == "web" {
         // 웹은 새 refresh를 다시 쿠키로 넣음
         let cookie_headers = build_refresh_cookie(&rotated.refresh_token);
+        tracing::debug!("refresh 성공 응답: web refresh 쿠키 재발급");
 
         let body = WebRefreshResponse {
             access_token: rotated.access_token,
