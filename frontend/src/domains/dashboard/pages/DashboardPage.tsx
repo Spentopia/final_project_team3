@@ -23,7 +23,7 @@ import {
   TrendingDown,
   Zap,
 } from "lucide-react";
-import { format, parse } from "date-fns";
+import { format, isValid, parse } from "date-fns";
 import { ko } from "date-fns/locale";
 import { toast } from "sonner";
 
@@ -214,6 +214,19 @@ export default function DashboardPage() {
     toast.success("삭제되었습니다");
   };
 
+  const handleExpenseDateChange = (value: string) => {
+    if (!value) {
+      setSelectedDate(undefined);
+      return;
+    }
+
+    const nextDate = parse(value, "yyyy-MM-dd", new Date());
+
+    if (isValid(nextDate)) {
+      setSelectedDate(nextDate);
+    }
+  };
+
   const selectedDateExpenses = expenses.filter(
     (e) => format(e.date, "yyyy-MM-dd") === format(selectedDate || new Date(), "yyyy-MM-dd")
   );
@@ -229,6 +242,7 @@ export default function DashboardPage() {
     .reduce((sum, e) => sum + e.amount, 0);
 
   const recordedDates = expenses.map((expense) => expense.date);
+  const selectedDateInputValue = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
 
   const getCategoryInfo = (categoryValue: string) => {
     return categories.find((c) => c.value === categoryValue) || categories[categories.length - 1];
@@ -436,11 +450,14 @@ export default function DashboardPage() {
             <div>
               <Label>날짜</Label>
               <Input
-                type="text"
-                value={format(selectedDate || new Date(), "yyyy년 M월 d일", { locale: ko })}
-                disabled
+                type="date"
+                value={selectedDateInputValue}
+                onChange={(e) => handleExpenseDateChange(e.target.value)}
                 className="mt-1"
               />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                날짜를 직접 입력하거나 왼쪽 달력에서 선택할 수 있어요.
+              </p>
             </div>
 
             <div>
