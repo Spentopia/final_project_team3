@@ -75,6 +75,7 @@ export function useWalletConnection() {
         disconnecting,
         connect,
         disconnect,
+        select,
         signMessage,
     } = useWallet();
 
@@ -119,7 +120,12 @@ export function useWalletConnection() {
         try {
             await connect();
         } catch (error) {
-            setErrorMessage(getErrorMessage(error));
+            const message = getErrorMessage(error);
+            // 사용자가 직접 취소한 경우("rejected")는 에러 메시지를 표시하지 않는다.
+            // 취소는 오류가 아닌 정상 흐름이므로 UI에 노출할 필요가 없다.
+            if (!message.toLowerCase().includes('rejected')) {
+                setErrorMessage(message);
+            }
             throw error;
         }
     }, [connect, resetMessages]);
@@ -136,6 +142,15 @@ export function useWalletConnection() {
             throw error;
         }
     }, [disconnect, resetMessages]);
+
+    // 지갑 선택 자체를 해제한다.
+    // disconnect()는 연결만 끊을 뿐 adapter의 선택 상태(localStorage)를 초기화하지 않는다.
+    // 모달을 다시 열어 다른 지갑을 고를 수 있도록 선택을 완전히 지운다.
+    const deselectWallet = useCallback(() => {
+        // select(null)은 현재 어댑터를 disconnect하고 localStorage의 지갑 이름도 초기화한다.
+        // WalletName branded type이지만 null을 넘기면 wallet-adapter 내부에서 정상 처리된다.
+        select(null as Parameters<typeof select>[0]);
+    }, [select]);
 
     // 로그인과 연동에 공통으로 쓰이는 인증 payload 생성기.
     //
@@ -310,6 +325,7 @@ export function useWalletConnection() {
         openWalletModal,
         connectWallet,
         disconnectWallet,
+        deselectWallet,
 
         // 비즈니스 액션
         loginWithWallet,

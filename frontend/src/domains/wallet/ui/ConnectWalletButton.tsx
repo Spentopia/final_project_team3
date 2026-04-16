@@ -18,68 +18,72 @@ interface ConnectWalletButtonProps{
   className?: string;
 }
 
-// 브라우저 지갑 연결 + 계정 연동 버튼
-// 지갑이 새로 연결되면 자동으로 /wallet/link 를 호출해 DB에 지갑 주소를 저장한다.
 export function ConnectWalletButton({className}: ConnectWalletButtonProps){
   const {
+      wallet,
       connected,
       connecting,
       disconnecting,
       walletAddress,
       walletName,
       openWalletModal,
+      connectWallet,
       disconnectWallet,
       linkWallet,
       unlinkWallet,
       isProcessing,
-  }=useWalletConnection();
+  } = useWalletConnection();
 
-  // connected && walletAddress 둘 다 준비됐을 때를 "ready" 상태로 판단
-  const wasReady = useRef(connected && !!walletAddress);
-
-  // linkWallet을 ref로 보관해 effect 의존성에서 제외한다.
-  // linkWallet 레퍼런스 변경으로 인한 불필요한 effect 재실행을 막기 위해서다.
+  // 최신 함수를 ref로 보관해 effect 의존성에서 제외한다.
   const linkWalletRef = useRef(linkWallet);
-  useEffect(() => {
-    linkWalletRef.current = linkWallet;
-  }, [linkWallet]);
+  useEffect(() => { linkWalletRef.current = linkWallet; }, [linkWallet]);
 
-  // ready 상태가 false → true로 바뀌는 순간 연동 시도
+  // 사용자가 직접 버튼을 눌렀을 때만 true.
+  // 모달에서 지갑 선택 → connect() → linkWallet() 흐름을 직접 제어하기 위한 플래그.
+  const pendingRef = useRef(false);
+
+  // 이전 wallet 어댑터 이름을 기억해 "새 지갑이 선택됐는지"를 판단한다.
+  const prevWalletNameRef = useRef<string | null>(wallet?.adapter.name ?? null);
+
+  // autoConnect=false 이므로 모달에서 지갑이 선택(wallet 변경)되면 직접 connect()를 호출한다.
   useEffect(() => {
-    const isReady = connected && !!walletAddress;
-    if (!wasReady.current && isReady) {
+    const currentName = wallet?.adapter.name ?? null;
+    const prevName = prevWalletNameRef.current;
+    prevWalletNameRef.current = currentName;
+
+    if (currentName && currentName !== prevName && pendingRef.current && !connected && !connecting) {
+      connectWallet().catch(() => {});
+    }
+  }, [wallet, connected, connecting, connectWallet]);
+
+  // 지갑이 연결되면 연동(linkWallet) 시도.
+  useEffect(() => {
+    if (connected && walletAddress && pendingRef.current) {
+      pendingRef.current = false;
       void linkWalletRef.current();
     }
-    wasReady.current = isReady;
   }, [connected, walletAddress]);
 
-  // 지갑 연동 해제 확인 팝업 상태
   const [showUnlinkDialog, setShowUnlinkDialog] = useState(false);
 
-  const label = useMemo(()=>{
-    if (connecting){
-      return '지갑 연결 중...';
-    }
-
-    if (disconnecting){
-      return '지갑 연결 해제 중...';
-    }
-
-    if (isProcessing) {
-      return '처리 중...';
-    }
-
-    if (connected && walletAddress){
+  const label = useMemo(() => {
+    if (connecting)    return '지갑 연결 중...';
+    if (disconnecting) return '지갑 연결 해제 중...';
+    if (isProcessing)  return '처리 중...';
+    if (connected && walletAddress) {
       return `${walletName ?? 'Wallet'} · ${shortenWalletAddress(walletAddress)}`;
     }
     return '지갑 연결';
-  },[connected,connecting,disconnecting,walletAddress,walletName,isProcessing]);
+  }, [connected, connecting, disconnecting, walletAddress, walletName, isProcessing]);
 
   const handleClick = () => {
-    if (connected){
+    if (connected) {
       setShowUnlinkDialog(true);
       return;
     }
+    pendingRef.current = true;
+    // 이전 선택 기록을 초기화해서 같은 지갑을 다시 선택해도 connect()가 호출되도록 한다.
+    prevWalletNameRef.current = null;
     openWalletModal();
   };
 
@@ -89,36 +93,34 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
   };
 
   return (
-      <>
-        <Button
-          type="button"
-          className={className}
-          onClick={handleClick}
-          disabled={connecting || disconnecting || isProcessing}
-          variant={connected ? "outline" : "default"}
-        >
-          {connected ? <Wallet className="h-4 w-4" /> : <LinkIcon className="h-4 w-4" />}
-          {label}
-        </Button>
+    <>
+      <Button
+        type="button"
+        className={className}
+        onClick={handleClick}
+        disabled={connecting || disconnecting || isProcessing}
+        variant={connected ? "outline" : "default"}
+      >
+        {connected ? <Wallet className="h-4 w-4" /> : <LinkIcon className="h-4 w-4" />}
+        {label}
+      </Button>
 
-        <AlertDialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>지갑 연동을 해제하시겠습니까?</AlertDialogTitle>
-              <AlertDialogDescription>
-                지갑 연동을 해제하면 지갑 로그인을 사용할 수 없게 됩니다.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>취소</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => { void handleUnlinkConfirm(); }}
-              >
-                해제
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </>
+      <AlertDialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>지갑 연동을 해제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>
+              지갑 연동을 해제하면 지갑 로그인을 사용할 수 없게 됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { void handleUnlinkConfirm(); }}>
+              해제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

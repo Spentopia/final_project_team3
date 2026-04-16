@@ -1,29 +1,26 @@
 import {useNavigate} from "react-router";
 import {useWalletConnection} from "@/domains/wallet/hooks/useWalletConnection";
-import {useState} from "react";
+import {useEffect, useRef, useState} from "react";
 
 interface WalletLoginButtonProps {
     className?: string;
-
-    // 로그인 성공 후 이동할 경로
     redirectTo?: string;
 }
 
-// 지갑 로그인 버튼.
-// 화면 역할은 단순하다.
-// 1) 아직 브라우저 지갑이 없으면 wallet modal을 연다.
-// 2) 지갑이 연결되어 있으면 useWalletConnection.loginWithWallet()을 호출한다.
-// 실제 nonce 발급/서명/백엔드 검증은 훅 내부로 숨겨서 UI를 단순하게 유지한다.
 export function WalletLoginButton({
-                                      className,
-                                      redirectTo = '/',
-                                  }: WalletLoginButtonProps) {
+    className,
+    redirectTo = '/',
+}: WalletLoginButtonProps) {
     const navigate = useNavigate();
 
     const {
+        wallet,
         connected,
+        connecting,
+        walletAddress,
         canSignMessage,
         openWalletModal,
+        connectWallet,
         loginWithWallet,
         isProcessing,
         currentProcess,
@@ -31,31 +28,59 @@ export function WalletLoginButton({
         successMessage,
     } = useWalletConnection();
 
-    // 이 컴포넌트 단에서만 잠깐 보여줄 메세지
     const [localMessage, setLocalMessage] = useState<string | null>(null);
+
+    // loginWithWallet을 ref로 보관해 effect 의존성에서 제외한다.
+    const loginWithWalletRef = useRef(loginWithWallet);
+    useEffect(() => { loginWithWalletRef.current = loginWithWallet; }, [loginWithWallet]);
+
+    // 사용자가 이 버튼을 눌러 로그인 흐름을 시작했을 때만 true.
+    const pendingRef = useRef(false);
+
+    // 이전 wallet 어댑터 이름을 기억해 "새 지갑이 선택됐는지"를 판단한다.
+    const prevWalletNameRef = useRef<string | null>(wallet?.adapter.name ?? null);
+
+    // autoConnect=false 이므로 모달에서 지갑이 선택(wallet 변경)되면 직접 connect()를 호출한다.
+    useEffect(() => {
+        const currentName = wallet?.adapter.name ?? null;
+        const prevName = prevWalletNameRef.current;
+        prevWalletNameRef.current = currentName;
+
+        if (currentName && currentName !== prevName && pendingRef.current && !connected && !connecting) {
+            connectWallet().catch(() => {});
+        }
+    }, [wallet, connected, connecting, connectWallet]);
+
+    // 지갑이 연결되면 자동으로 로그인 서명 요청.
+    useEffect(() => {
+        if (connected && walletAddress && pendingRef.current) {
+            pendingRef.current = false;
+            loginWithWalletRef.current().then(result => {
+                setLocalMessage(result.message);
+                if (result.success) void navigate(redirectTo);
+            }).catch(() => {});
+        }
+    }, [connected, walletAddress, navigate, redirectTo]);
 
     const handleClick = async () => {
         setLocalMessage(null);
 
-        // 아직 브라우저 지갑이 연결되지 않았으면 먼저 연결 유도
         if (!connected) {
+            pendingRef.current = true;
+            // 이전 선택 기록을 초기화해서 같은 지갑을 다시 선택해도 connect()가 호출되도록 한다.
+            prevWalletNameRef.current = null;
             openWalletModal();
             return;
         }
 
-        // 일부 지갑은 signMessage를 지원하지 않을 수 있음
         if (!canSignMessage) {
             setLocalMessage('현재 지갑은 signMessage를 지원하지 않습니다.');
             return;
         }
 
         const result = await loginWithWallet();
-
         setLocalMessage(result.message);
-
-        if (result.success) {
-            navigate(redirectTo);
-        }
+        if (result.success) void navigate(redirectTo);
     };
 
     return (
@@ -63,9 +88,7 @@ export function WalletLoginButton({
             <button
                 type="button"
                 className={className}
-                onClick={() => {
-                    void handleClick();
-                }}
+                onClick={() => { void handleClick(); }}
                 disabled={isProcessing}
             >
                 {isProcessing && currentProcess === 'login'
@@ -75,7 +98,7 @@ export function WalletLoginButton({
 
             {localMessage ? <p>{localMessage}</p> : null}
             {!localMessage && successMessage ? <p>{successMessage}</p> : null}
-            {!localMessage && errorMessage?<p>{errorMessage}</p> : null}
+            {!localMessage && errorMessage ? <p>{errorMessage}</p> : null}
         </div>
     );
 }
