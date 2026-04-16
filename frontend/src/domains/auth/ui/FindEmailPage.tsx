@@ -6,6 +6,11 @@
 // 백엔드가 public.users에서 해당 전화번호로 이메일을 찾아서
 // 마스킹 처리해서 반환 (예: te***@gmail.com)
 //
+// 전화번호 입력:
+// - 화면에서는 "010-1234-5678" 형식으로 자동 포맷팅
+// - API 전송 시 auth.ts의 findEmailByPhone에서 숫자만 추출
+// - DB에는 "01012345678"로 저장되어 있으므로 숫자로 검색
+//
 // 왜 백엔드를 거치나?
 // 이메일 찾기는 로그인 전 상태에서 호출됨.
 // 로그인 안 되어있으면 Supabase RLS가 auth.uid()를 모르므로
@@ -16,6 +21,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { findEmailByPhone } from "@/domains/auth/api/auth";
+import { formatPhone } from "@/shared/lib/phone";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -34,7 +40,7 @@ export default function FindEmailPage() {
 
     try {
       // 백엔드 /auth/find-email로 전화번호 전송
-      // 백엔드가 public.users에서 조회 → 마스킹된 이메일 반환
+      // auth.ts의 findEmailByPhone 내부에서 stripPhone 처리함
       const result = await findEmailByPhone(phone);
       setMaskedEmail(result); // "te***@gmail.com"
     } catch (error: any) {
@@ -90,8 +96,9 @@ export default function FindEmailPage() {
                   type="tel"
                   placeholder="010-1234-5678"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(formatPhone(e.target.value))}
                   required
+                  maxLength={13}
                   className="mt-1"
                 />
               </div>

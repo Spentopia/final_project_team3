@@ -914,16 +914,27 @@ pub async fn find_email_by_phone(
     state: &AppState,
     phone: &str,
 ) -> Result<String> {
+    // 프론트에서 "01012345678" 또는 "010-1234-5678" 어떤 형식으로 와도
+    // DB 저장 형식인 "010-1234-5678"로 맞춰서 조회
+    let formatted_phone = format_phone(phone);
+
+    tracing::info!("이메일 찾기 요청 phone(raw) = {}", phone);
+    tracing::info!("이메일 찾기 요청 phone(formatted) = {}", formatted_phone);
+
     let url = format!(
         "{}/rest/v1/users?select=email&phone=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
-        phone
+        formatted_phone
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .get(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .send()
         .await
         .context("전화번호로 이메일 조회 실패")?;
@@ -933,11 +944,15 @@ pub async fn find_email_by_phone(
         return Err(anyhow!("전화번호로 이메일 조회 실패: {}", err));
     }
 
-    let rows: Vec<Value> = resp.json().await
+    let rows: Vec<Value> = resp
+        .json()
+        .await
         .context("이메일 조회 응답 파싱 실패")?;
 
-    let email = rows.first()
-        .and_then(|row| row["email"].as_str())
+    let email = rows
+        .first()
+        .and_then(|row| row.get("email"))
+        .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow!("해당 전화번호로 가입된 계정이 없음"))?;
 
     Ok(mask_email(email))
@@ -989,4 +1004,15 @@ fn mask_email(email: &str) -> String {
     let masked_local = format!("{}***", &local[..visible]);
 
     format!("{}@{}", masked_local, domain)
+}
+
+// 전화번호 포맷 함수
+fn format_phone(phone: &str) -> String {
+    let digits: String = phone.chars().filter(|c| c.is_ascii_digit()).collect();
+
+    if digits.len() == 11 {
+        format!("{}-{}-{}", &digits[0..3], &digits[3..7], &digits[7..11])
+    } else {
+        digits
+    }
 }

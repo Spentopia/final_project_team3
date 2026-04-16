@@ -27,6 +27,7 @@ import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
 import type { FormEvent } from "react";
 import { Sparkles } from "lucide-react";
+import { formatPhone } from "@/shared/lib/phone";
 
 const avatarOptions = [
   { id: 1, name: "해피", emoji: "😊" },
@@ -214,8 +215,9 @@ export default function Signup() {
                     type="tel"
                     placeholder="010-1234-5678"
                     value={formData.phone}
-                    onChange={(e) => updateFormData("phone", e.target.value)}
+                    onChange={(e) => updateFormData("phone", formatPhone(e.target.value))}
                     required
+                    maxLength={13}
                     className="mt-1"
                   />
                 </div>
