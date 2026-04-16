@@ -144,7 +144,7 @@ pub async fn unlink_wallet(state: &AppState, user_id: Uuid)->Result<()>{
     //  public.users에서 이 user_id의 wallet_address가 NULL인지 확인
     //  wallet_address=is.null 필터: IS NULL 조건
     let url = format!(
-        "{}/rest/v1/users?/id=eq.{}&wallet_address=not.is.null&select=id",
+        "{}/rest/v1/users?id=eq.{}&wallet_address=not.is.null&select=id",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
