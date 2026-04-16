@@ -10,6 +10,8 @@ import type {
   SignUpRequest,
 } from "@/domains/auth/model/types";
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
 // 기존 인증 상태를 정리
 const clearAllAuthState = async () => {
   // 앱 access token 메모리 삭제
@@ -43,9 +45,10 @@ const exchangeSupabaseToken = async (accessToken: string) => {
 // 이메일 로그인
 export const login = async (payload: LoginRequest): Promise<LoginResponse> => {
   await clearAllAuthState();
+  const normalizedEmail = normalizeEmail(payload.email);
 
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: payload.email,
+    email: normalizedEmail,
     password: payload.password,
   });
 
@@ -68,6 +71,7 @@ export const login = async (payload: LoginRequest): Promise<LoginResponse> => {
 // 회원가입
 export const signUp = async (payload: SignUpRequest): Promise<LoginResponse> => {
   await clearAllAuthState();
+  const normalizedEmail = normalizeEmail(payload.email);
 
   // ── 1) 이메일 중복 확인 ────────────────────────────────────
   // 백엔드의 /auth/check-email은 public.users에서 이메일 존재 여부를 확인
@@ -75,7 +79,7 @@ export const signUp = async (payload: SignUpRequest): Promise<LoginResponse> => 
   // 404 → 가입 가능한 이메일
   try {
     const checkRes = await apiClient.post("/auth/check-email", {
-      email: payload.email,
+      email: normalizedEmail,
     });
  
     // 200이 왔다는 건 이메일이 존재한다는 뜻
@@ -91,7 +95,7 @@ export const signUp = async (payload: SignUpRequest): Promise<LoginResponse> => 
   }
 
   const { data, error } = await supabase.auth.signUp({
-    email: payload.email,
+    email: normalizedEmail,
     password: payload.password,
     options: {
       emailRedirectTo: `${window.location.origin}/email-confirmed`,
@@ -207,13 +211,17 @@ export const completeProfile = async (params: {
 
 // 비밀번호 재설정 메일 발송
 export const resetPassword = async (email: string) => {
-  const checkRes = await apiClient.post("/auth/check-email", { email });
+  const normalizedEmail = normalizeEmail(email);
+
+  const checkRes = await apiClient.post("/auth/check-reset-password-email", {
+    email: normalizedEmail,
+  });
 
   if (checkRes.status !== 200) {
     throw new Error("해당 이메일로 가입된 계정이 없습니다");
   }
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
     redirectTo: `${window.location.origin}/reset-password`,
   });
 

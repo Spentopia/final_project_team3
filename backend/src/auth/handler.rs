@@ -830,6 +830,48 @@ pub async fn check_email(
     Ok(Json(json!({ "exists": true })))
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/check-reset-password-email",
+    tag = "인증",
+    request_body = CheckEmailRequest,
+    responses(
+        (status = 200, description = "비밀번호 재설정 가능한 이메일입니다"),
+        (status = 403, description = "소셜 로그인 계정은 비밀번호 재설정을 할 수 없습니다"),
+        (status = 404, description = "해당 이메일로 가입된 계정이 없습니다")
+    )
+)]
+pub async fn check_reset_password_email(
+    State(state): State<AppState>,
+    Json(body): Json<CheckEmailRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if body.email.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "이메일을 입력해 주세요.".to_string()));
+    }
+
+    let can_reset = service::can_reset_password(&state, &body.email)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+
+            if msg.contains("해당 이메일로 가입된 계정이 없습니다") {
+                return (StatusCode::NOT_FOUND, msg);
+            }
+
+            tracing::error!("비밀번호 재설정 가능 여부 확인 실패: {}", msg);
+            (StatusCode::INTERNAL_SERVER_ERROR, msg)
+        })?;
+
+    if !can_reset {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "자체 회원가입 계정만 비밀번호 재설정을 할 수 있습니다".to_string(),
+        ));
+    }
+
+    Ok(Json(json!({ "exists": true, "can_reset_password": true })))
+}
+
 // ═══════════════════════════════════════════════════════════════
 // [카카오 로그인] POST /auth/kakao/login
 // ═══════════════════════════════════════════════════════════════

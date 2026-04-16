@@ -1061,10 +1061,13 @@ pub async fn check_email_exists(
     state: &AppState,
     email: &str,
 ) -> Result<bool> {
+    let normalized_email = email.trim().to_lowercase();
+    let encoded_email = urlencoding::encode(&normalized_email);
+
     let url = format!(
         "{}/rest/v1/users?select=id&email=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
-        email
+        encoded_email
     );
 
     let resp = state.http_client
@@ -1084,6 +1087,44 @@ pub async fn check_email_exists(
         .context("이메일 존재 응답 파싱 실패")?;
 
     Ok(!rows.is_empty())
+}
+
+pub async fn can_reset_password(
+    state: &AppState,
+    email: &str,
+) -> Result<bool> {
+    let normalized_email = email.trim().to_lowercase();
+    let encoded_email = urlencoding::encode(&normalized_email);
+
+    let url = format!(
+        "{}/rest/v1/users?select=login_provider&email=eq.{}&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        encoded_email
+    );
+
+    let resp = state.http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .send()
+        .await
+        .context("비밀번호 재설정 가능 여부 확인 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("비밀번호 재설정 가능 여부 확인 실패: {}", err));
+    }
+
+    let rows: Vec<Value> = resp.json().await
+        .context("비밀번호 재설정 가능 여부 응답 파싱 실패")?;
+
+    let provider = rows
+        .first()
+        .and_then(|row| row.get("login_provider"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow!("해당 이메일로 가입된 계정이 없습니다"))?;
+
+    Ok(provider == "email")
 }
 
 // 이메일 마스킹
