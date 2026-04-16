@@ -104,15 +104,25 @@ export default function Login() {
 
           {/* Social Login */}
           <div className="space-y-3">
-            <Button type="button" variant="outline" className="w-full" onClick={() => handleSocialLogin("kakao")}>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-gray-200 bg-white text-[#191600] shadow-sm hover:bg-gray-50"
+              onClick={() => handleSocialLogin("kakao")}
+            >
               카카오로 로그인
             </Button>
 
-            <Button type="button" variant="outline" className="w-full" onClick={() => handleSocialLogin("google")}>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50"
+              onClick={() => handleSocialLogin("google")}
+            >
               구글로 로그인
             </Button>
 
-            <WalletLoginButton className="w-full inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground disabled:opacity-50" />
+            <WalletLoginButton className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50" />
           </div>
 
           {/* 이메일/비밀번호 찾기 */}
