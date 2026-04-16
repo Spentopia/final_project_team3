@@ -20,27 +20,27 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 // 아이콘 관련 import입니다.
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.filled.CalendarMonth
 
 // Material3 관련 import입니다.
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -81,6 +82,14 @@ import com.ict.spentopia.data.local.ExpenseEntity
 import java.text.DecimalFormat
 import java.util.Calendar
 import kotlin.math.abs
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import coil.compose.rememberAsyncImagePainter
 
 // --------------------------------------------------
 // UI에서 사용할 소비 항목 데이터 클래스입니다.
@@ -104,6 +113,12 @@ data class CalendarDateData(
     val fullDate: String, // 실제 날짜 값 yyyy-MM-dd
     val dayText: String, // 화면에 보여줄 날짜 텍스트
     val isCurrentMonth: Boolean // 현재 달 포함 여부
+)
+
+// 이번 주 성실도 계산에 사용할 데이터 클래스입니다.
+data class WeeklyRecordData(
+    val fullDate: String, // 실제 날짜 값 yyyy-MM-dd
+    val dayLabel: String // 화면에 보여줄 요일 텍스트
 )
 
 @Composable
@@ -174,6 +189,9 @@ fun HomeScreen(
     // 수정 중인 소비 항목 상태입니다.
     var editingExpense by remember { mutableStateOf<ExpenseItemData?>(null) }
 
+    // 월 달력 팝업 표시 여부 상태입니다.
+    var showCalendarDialog by remember { mutableStateOf(false) }
+
     // 예산 설정 화면에서 저장한 값으로 월 예산을 계산합니다.
     // 현재 프로젝트 구조에서는
     // "월 수입 - 저축 목표"를 실제 사용 가능한 한 달 예산으로 사용하고 있습니다.
@@ -224,7 +242,11 @@ fun HomeScreen(
         item { Spacer(modifier = Modifier.height(12.dp)) }
 
         item {
-            TopHeaderSection()
+            TopHeaderSection(
+                onWalletConnectClick = {
+                    // 팬텀 지갑 연결 기능은 추후 여기에 연결하면 됩니다.
+                }
+            )
         }
 
         item {
@@ -246,31 +268,13 @@ fun HomeScreen(
                     // 다음 달로 이동합니다.
                     // 선택 날짜도 자동으로 해당 월 1일로 맞춰집니다.
                     homeViewModel.moveToNextMonth()
+                },
+                onCalendarClick = {
+                    // 월 표시 영역의 달력 버튼을 누르면 팝업 달력을 엽니다.
+                    showCalendarDialog = true
                 }
             )
         }
-
-        // 현재는 달력 UI를 주석 처리한 상태지만,
-        // 나중에 다시 활성화할 때도 ViewModel의 selectDate()를 그대로 쓰면 됩니다.
-        //
-        // item {
-        //     CalendarCard(
-        //         currentYear = currentYear,
-        //         currentMonth = currentMonth,
-        //         selectedDate = selectedDate,
-        //         expenseDateSet = expenseDateSet,
-        //         today = today,
-        //         onPrevMonth = {
-        //             homeViewModel.moveToPreviousMonth()
-        //         },
-        //         onNextMonth = {
-        //             homeViewModel.moveToNextMonth()
-        //         },
-        //         onDateSelected = { clickedDate ->
-        //             homeViewModel.selectDate(clickedDate)
-        //         }
-        //     )
-        // }
 
         item {
             DailyExpenseCard(
@@ -295,7 +299,9 @@ fun HomeScreen(
         }
 
         item {
-            WeeklyScoreCard()
+            WeeklyScoreCard(
+                expenseDateSet = expenseDateSet
+            )
         }
 
         item {
@@ -303,6 +309,7 @@ fun HomeScreen(
                 selectedDate = selectedDate,
                 editingExpense = editingExpense,
                 onSaveExpense = { savedExpense ->
+
                     // 화면용 모델을 DB용 Entity로 변환합니다.
                     val entity = savedExpense.toEntity()
 
@@ -328,10 +335,45 @@ fun HomeScreen(
 
         item { Spacer(modifier = Modifier.height(24.dp)) }
     }
+
+    // 월 상단에서 날짜를 빠르게 바꾸기 위한 팝업 달력입니다.
+    if (showCalendarDialog) {
+        Dialog(
+            onDismissRequest = {
+                showCalendarDialog = false
+            }
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                CalendarCard(
+                    currentYear = currentYear,
+                    currentMonth = currentMonth,
+                    selectedDate = selectedDate,
+                    expenseDateSet = expenseDateSet,
+                    today = today,
+                    onPrevMonth = {
+                        homeViewModel.moveToPreviousMonth()
+                    },
+                    onNextMonth = {
+                        homeViewModel.moveToNextMonth()
+                    },
+                    onDateSelected = { clickedDate ->
+                        homeViewModel.selectDate(clickedDate)
+                        showCalendarDialog = false
+                    }
+                )
+            }
+        }
+    }
 }
 
 @Composable
-private fun TopHeaderSection() {
+private fun TopHeaderSection(
+    onWalletConnectClick: () -> Unit = {}
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -340,32 +382,71 @@ private fun TopHeaderSection() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = "👋 오늘도 알뜰한 소비 하세요",
+                    text = "NFT 거래 및 토큰 교환 지갑",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1F2A37)
+                    color = Color(0xFF1F2A37),
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "이번 달 소비 흐름을 한눈에 확인해보세요",
+                    text = "지갑 연결이 필요합니다.",
                     fontSize = 13.sp,
                     color = Color(0xFF6B7280)
                 )
             }
 
-            Row {
-                IconButton(onClick = { }) {
-                    Icon(Icons.Outlined.Settings, contentDescription = "settings")
-                }
-                IconButton(onClick = { }) {
-                    Icon(Icons.Outlined.NotificationsNone, contentDescription = "notification")
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Button(
+                onClick = onWalletConnectClick,
+                modifier = Modifier.widthIn(min = 110.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent
+                ),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color(0xFFB980FF),
+                                    Color(0xFF8B5CF6),
+                                    Color(0xFF5B4BFF)
+                                )
+                            ),
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "👻",
+                        fontSize = 12.sp
+                    )
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Text(
+                        text = "지갑 연결",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines =1,
+                        softWrap = false,
+                        overflow = TextOverflow.Clip
+                    )
                 }
             }
         }
@@ -383,7 +464,8 @@ private fun MonthlySummaryCard(
     usageRateText: String,
     changeRateText: String,
     onPrevMonth: () -> Unit,
-    onNextMonth: () -> Unit
+    onNextMonth: () -> Unit,
+    onCalendarClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -415,6 +497,26 @@ private fun MonthlySummaryCard(
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1F2A37)
                         )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .background(
+                                    color = Color.White,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .clickable { onCalendarClick() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.CalendarMonth,
+                                contentDescription = "calendar",
+                                tint = Color(0xFF5B4BFF),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
 
                         Spacer(modifier = Modifier.width(10.dp))
 
@@ -919,7 +1021,27 @@ private fun ExpenseItemCard(
 }
 
 @Composable
-private fun WeeklyScoreCard() {
+private fun WeeklyScoreCard(
+    expenseDateSet: Set<String>
+) {
+    // 이번 주 월~일 날짜 목록을 만듭니다.
+    val weeklyRecordList = remember(expenseDateSet) {
+        generateCurrentWeekDates()
+    }
+
+    // 이번 주에 기록한 날짜 수를 계산합니다.
+    val recordedDaysCount = weeklyRecordList.count { weekItem ->
+        expenseDateSet.contains(weekItem.fullDate)
+    }
+
+    // 주간 성실도를 퍼센트로 계산합니다.
+    val weeklyScore = ((recordedDaysCount / 7f) * 100f).toInt()
+
+    // 오늘 기준 연속 기록 일수를 계산합니다.
+    val streakDays = remember(expenseDateSet) {
+        calculateConsecutiveRecordDays(expenseDateSet)
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -958,7 +1080,7 @@ private fun WeeklyScoreCard() {
             ) {
                 Column {
                     Text(
-                        text = "85%",
+                        text = "${weeklyScore}%",
                         fontSize = 34.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color(0xFF2F7DF6)
@@ -967,7 +1089,7 @@ private fun WeeklyScoreCard() {
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "아주 잘하고 있어요!",
+                        text = getWeeklyScoreMessage(weeklyScore),
                         fontSize = 14.sp,
                         color = Color(0xFF16A34A),
                         fontWeight = FontWeight.SemiBold
@@ -1010,13 +1132,12 @@ private fun WeeklyScoreCard() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                WeekDayItem(day = "월", checked = true)
-                WeekDayItem(day = "화", checked = true)
-                WeekDayItem(day = "수", checked = true)
-                WeekDayItem(day = "목", checked = true)
-                WeekDayItem(day = "금", checked = true)
-                WeekDayItem(day = "토", checked = false)
-                WeekDayItem(day = "일", checked = false)
+                weeklyRecordList.forEach { weekItem ->
+                    WeekDayItem(
+                        day = weekItem.dayLabel,
+                        checked = expenseDateSet.contains(weekItem.fullDate)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -1043,14 +1164,14 @@ private fun WeeklyScoreCard() {
 
                     Column {
                         Text(
-                            text = "5일 연속 기록 중",
+                            text = "${streakDays}일 연속 기록 중",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1F2A37)
                         )
 
                         Text(
-                            text = "조금만 더 힘내면 주간 목표 달성이에요",
+                            text = "오늘도 기록하면 성실도가 올라가요",
                             fontSize = 13.sp,
                             color = Color(0xFF6B7280)
                         )
@@ -1107,6 +1228,7 @@ private fun ExpenseWriteCard(
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
 
+
     var formDate by remember { mutableStateOf(selectedDate) }
     var selectedCategory by remember { mutableStateOf("식비") }
     var amount by remember { mutableStateOf("") }
@@ -1115,6 +1237,14 @@ private fun ExpenseWriteCard(
     var diary by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
     val categoryList = listOf("식비", "교통", "쇼핑", "카페", "기타")
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            receiptImageName = uri.toString()
+        }
+    }
 
     LaunchedEffect(editingExpense?.id, selectedDate) {
         if (editingExpense != null) {
@@ -1369,7 +1499,7 @@ private fun ExpenseWriteCard(
 
             OutlinedButton(
                 onClick = {
-                    receiptImageName = "receipt_sample.jpg"
+                    galleryLauncher.launch("image/*")
                 },
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, Color(0xFFDCE7F3)),
@@ -1378,9 +1508,21 @@ private fun ExpenseWriteCard(
                 )
             ) {
                 Text(
-                    text = if (receiptImageName.isBlank()) "업로드" else receiptImageName,
+                    text = if (receiptImageName.isBlank()) "사진 앨범에서 업로드" else "사진 변경하기",
                     color = Color(0xFF1F2A37),
                     fontSize = 14.sp
+                )
+            }
+            if (receiptImageName.isNotBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Image(
+                    painter = rememberAsyncImagePainter(receiptImageName),
+                    contentDescription = "영수증 이미지",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    contentScale = ContentScale.Crop
                 )
             }
 
@@ -1713,7 +1855,7 @@ private fun ExpenseEntity.toUiModel(): ExpenseItemData {
         category = category,
         amount = amount,
         memo = memo,
-        receiptImageName = "",
+        receiptImageName = receiptImageUri,
         diary = diary
     )
 }
@@ -1726,7 +1868,8 @@ private fun ExpenseItemData.toEntity(): ExpenseEntity {
         category = category,
         amount = amount,
         memo = memo,
-        diary = diary
+        diary = diary,
+        receiptImageUri = receiptImageName
     )
 }
 
@@ -1902,5 +2045,66 @@ private fun createUsageRateText(currentAmount: Int, monthlyBudget: Int): String 
         "${rate.toInt()}%"
     } else {
         String.format("%.1f%%", rate)
+    }
+}
+
+// 이번 주 월요일부터 일요일까지의 날짜 목록을 생성합니다.
+private fun generateCurrentWeekDates(): List<WeeklyRecordData> {
+    val calendar = Calendar.getInstance()
+
+    while (calendar.get(Calendar.DAY_OF_WEEK) != Calendar.MONDAY) {
+        calendar.add(Calendar.DAY_OF_MONTH, -1)
+    }
+
+    val dayLabels = listOf("월", "화", "수", "목", "금", "토", "일")
+    val result = mutableListOf<WeeklyRecordData>()
+
+    dayLabels.forEach { label ->
+        result.add(
+            WeeklyRecordData(
+                fullDate = formatDate(
+                    calendar.get(Calendar.YEAR),
+                    calendar.get(Calendar.MONTH) + 1,
+                    calendar.get(Calendar.DAY_OF_MONTH)
+                ),
+                dayLabel = label
+            )
+        )
+        calendar.add(Calendar.DAY_OF_MONTH, 1)
+    }
+
+    return result
+}
+
+// 오늘 기준으로 연속 기록 일수를 계산합니다.
+private fun calculateConsecutiveRecordDays(expenseDateSet: Set<String>): Int {
+    val calendar = Calendar.getInstance()
+    var streak = 0
+
+    while (true) {
+        val currentDate = formatDate(
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH) + 1,
+            calendar.get(Calendar.DAY_OF_MONTH)
+        )
+
+        if (expenseDateSet.contains(currentDate)) {
+            streak++
+            calendar.add(Calendar.DAY_OF_MONTH, -1)
+        } else {
+            break
+        }
+    }
+
+    return streak
+}
+
+// 주간 성실도 점수에 따라 문구를 계산합니다.
+private fun getWeeklyScoreMessage(score: Int): String {
+    return when {
+        score >= 90 -> "아주 잘하고 있어요!"
+        score >= 70 -> "좋은 흐름이에요!"
+        score >= 40 -> "조금만 더 기록해봐요!"
+        else -> "오늘부터 다시 시작해봐요!"
     }
 }

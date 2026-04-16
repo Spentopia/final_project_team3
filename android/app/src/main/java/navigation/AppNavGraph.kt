@@ -1,113 +1,166 @@
-package com.ict.spentopia.navigation // 네비게이션 관련 코드를 모아두는 패키지
+package com.ict.spentopia.navigation
 
-import androidx.compose.foundation.layout.padding // Scaffold 안쪽 패딩을 적용할 때 사용
-import androidx.compose.material.icons.Icons // 기본 아이콘 묶음
-import androidx.compose.material.icons.filled.Menu // 햄버거 메뉴 아이콘
-import androidx.compose.material.icons.filled.NotificationsNone // 알림 아이콘
-import androidx.compose.material.icons.filled.Settings // 설정 아이콘
-import androidx.compose.material3.CenterAlignedTopAppBar // 가운데 정렬된 상단 앱바
-import androidx.compose.material3.ExperimentalMaterial3Api // TopAppBar 사용 시 필요한 실험용 어노테이션
-import androidx.compose.material3.Icon // 아이콘 표시
-import androidx.compose.material3.IconButton // 아이콘 버튼
-import androidx.compose.material3.ModalNavigationDrawer // 왼쪽에서 나오는 드로어 레이아웃
-import androidx.compose.material3.ModalDrawerSheet // 드로어 안쪽 시트 UI
-import androidx.compose.material3.Scaffold // 상단바/하단바/본문을 나누는 레이아웃
-import androidx.compose.material3.Text // 텍스트 표시
-import androidx.compose.material3.TopAppBarDefaults // TopAppBar 기본 설정
-import androidx.compose.material3.rememberDrawerState // 드로어 상태를 기억하는 함수
-import androidx.compose.material3.DrawerValue // 드로어 열림/닫힘 상태 값
-import androidx.compose.runtime.Composable // Compose UI 함수 표시
-import androidx.compose.runtime.rememberCoroutineScope // 코루틴 스코프 생성
-import androidx.compose.ui.Modifier // UI 수정자
-import androidx.navigation.compose.NavHost // 여러 화면을 연결하는 네비게이션 호스트
-import androidx.navigation.compose.composable // 각 route별 화면 등록
-import androidx.navigation.compose.currentBackStackEntryAsState // 현재 route 확인
-import androidx.navigation.compose.rememberNavController // NavController 생성
-import com.ict.spentopia.feature.analysis.AnalysisScreen // 소비 분석 화면
-import com.ict.spentopia.feature.avatar.AvatarScreen // 아바타 화면
+// ------------------------------------------------------------
+// AppNavGraph.kt
+// ------------------------------------------------------------
+// 이 파일은 앱 전체 네비게이션을 담당합니다.
+//
+// 이번 버전에서 바뀐 점:
+// 1. 새 댓글 등록 시 authorId를 함께 저장합니다.
+// 2. 댓글 수정 / 댓글 삭제는 "내 댓글만" 가능하도록 안전 장치를 넣었습니다.
+//
+// 중요:
+// - UI에서 버튼을 숨기는 것만으로 끝내지 않고,
+//   실제 데이터 변경 로직에서도 authorId를 검사합니다.
+// - 즉, 혹시 UI를 우회하더라도 남의 댓글은 수정/삭제되지 않도록 한 번 더 막습니다.
+// ------------------------------------------------------------
+
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.ict.spentopia.feature.analysis.AnalysisScreen
+import com.ict.spentopia.feature.avatar.AvatarScreen
 import com.ict.spentopia.feature.auth.LoginScreen
-import com.ict.spentopia.feature.budget.BudgetScreen // 예산 설정 화면
-import com.ict.spentopia.feature.community.CommunityScreen // 커뮤니티 화면
-import com.ict.spentopia.feature.home.HomeScreen // 홈 화면
-import com.ict.spentopia.feature.market.MarketScreen // NFT 마켓 화면
-import com.ict.spentopia.feature.mypage.MyPageScreen // 마이페이지 화면
-import com.ict.spentopia.feature.plaza.PlazaScreen // 광장 화면
+import com.ict.spentopia.feature.budget.BudgetScreen
+import com.ict.spentopia.feature.community.CommunityCategory
+import com.ict.spentopia.feature.community.CommunityComment
+import com.ict.spentopia.feature.community.CommunityDetailScreen
+import com.ict.spentopia.feature.community.CommunityPost
+import com.ict.spentopia.feature.community.CommunityScreen
+import com.ict.spentopia.feature.community.CommunityWriteScreen
+import com.ict.spentopia.feature.community.getInitialCommunityPosts
+import com.ict.spentopia.feature.home.HomeScreen
+import com.ict.spentopia.feature.market.MarketScreen
+import com.ict.spentopia.feature.mypage.MyPageScreen
+import com.ict.spentopia.feature.plaza.PlazaScreen
 import com.ict.spentopia.feature.signup.SignUpStep1Screen
 import com.ict.spentopia.feature.signup.SignUpStep2Screen
 import com.ict.spentopia.feature.signup.SignUpStep3Screen
-import kotlinx.coroutines.launch // 드로어 열고 닫을 때 코루틴으로 실행
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class) // Material3 실험 API 사용 허용
-@Composable // Compose 화면 함수
-fun AppNavGraph() { // 앱 전체 화면 이동 구조를 담당하는 함수
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppNavGraph() {
+    // NavigationController입니다.
+    val navController = rememberNavController()
 
-    val navController = rememberNavController() // 화면 이동을 제어하는 navController 생성
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed) // 드로어 초기 상태를 닫힘으로 설정
-    val scope = rememberCoroutineScope() // 드로어 열기/닫기를 위한 코루틴 스코프 생성
+    // Drawer 상태입니다.
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
-    val navBackStackEntry = navController.currentBackStackEntryAsState() // 현재 네비게이션 스택 상태를 가져옴
-    val currentRoute = navBackStackEntry.value?.destination?.route // 현재 보고 있는 화면 route를 꺼냄
+    // 코루틴 scope입니다.
+    val scope = rememberCoroutineScope()
 
-    val showDrawerScreens = setOf( // 드로어와 상단바를 보여줄 메인 화면 목록
-        Route.Home.route, // 홈 화면
-        Route.Budget.route, // 예산 설정 화면
-        Route.Analysis.route, // 소비 분석 화면
-        Route.Avatar.route, // 아바타 화면
-        Route.Market.route, // NFT 마켓 화면
-        Route.Plaza.route, // 광장 화면
-        Route.Community.route, // 커뮤니티 화면
-        Route.MyPage.route // 마이페이지 화면
+    // 현재 back stack entry 상태입니다.
+    val navBackStackEntry = navController.currentBackStackEntryAsState()
+
+    // 현재 route 문자열입니다.
+    val currentRoute = navBackStackEntry.value?.destination?.route
+
+    // --------------------------------------------------------
+    // 현재 로그인한 사용자라고 가정하는 임시 id입니다.
+    // --------------------------------------------------------
+    // 아직 실제 로그인 연동 전이기 때문에 문자열로 고정합니다.
+    // 나중에 로그인 기능이 붙으면 실제 사용자 id로 바꾸면 됩니다.
+    // --------------------------------------------------------
+    val currentUserId = "current_user"
+
+    // --------------------------------------------------------
+    // 커뮤니티 게시글 목록을 메모리 상태로 관리합니다.
+    // --------------------------------------------------------
+    val communityPosts = remember {
+        mutableStateListOf<CommunityPost>().apply {
+            addAll(getInitialCommunityPosts())
+        }
+    }
+
+    // Drawer를 보여줄 화면 route 집합입니다.
+    val showDrawerScreens = setOf(
+        Route.Home.route,
+        Route.Budget.route,
+        Route.Analysis.route,
+        Route.Avatar.route,
+        Route.Market.route,
+        Route.Plaza.route,
+        Route.Community.route,
+        Route.MyPage.route,
+        Route.CommunityWrite.route,
+        Route.CommunityDetail.route
     )
 
-    val shouldShowDrawer = currentRoute in showDrawerScreens // 현재 화면이 메인 화면이면 드로어 표시 여부 true
+    // 현재 route가 Drawer를 보여줄 화면인지 검사합니다.
+    val shouldShowDrawer = currentRoute in showDrawerScreens
 
-    ModalNavigationDrawer( // 전체 화면을 드로어로 감싸는 레이아웃 시작
-        drawerState = drawerState, // 위에서 만든 드로어 상태 연결
-        gesturesEnabled = shouldShowDrawer, // 메인 화면일 때만 손가락 스와이프로 드로어 열기 허용
-        drawerContent = { // 왼쪽 메뉴 내용 정의
-            if (shouldShowDrawer) { // 현재 화면이 메인 화면일 때만 드로어 내용 표시
-                ModalDrawerSheet { // 드로어 안쪽 흰색 시트 UI
-                    AppDrawerContent( // 우리가 따로 만든 공통 메뉴 UI 호출
-                        onLedgerClick = { // 가계부 메뉴 클릭 시 실행
-                            scope.launch { drawerState.close() } // 먼저 드로어 닫기
-                            navController.navigate(Route.Home.route) { // 홈 화면으로 이동
-                                launchSingleTop = true // 같은 화면 중복 생성 방지
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = shouldShowDrawer,
+        drawerContent = {
+            if (shouldShowDrawer) {
+                ModalDrawerSheet {
+                    AppDrawerContent(
+                        onLedgerClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate(Route.Home.route) {
+                                launchSingleTop = true
                             }
                         },
-                        onBudgetClick = { // 예산 설정 메뉴 클릭 시 실행
-                            scope.launch { drawerState.close() } // 먼저 드로어 닫기
-                            navController.navigate(Route.Budget.route) { // 예산 설정 화면으로 이동
-                                launchSingleTop = true // 같은 화면 중복 생성 방지
+                        onBudgetClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate(Route.Budget.route) {
+                                launchSingleTop = true
                             }
                         },
-                        onAnalysisClick = { // 소비 분석 메뉴 클릭 시 실행
-                            scope.launch { drawerState.close() } // 먼저 드로어 닫기
-                            navController.navigate(Route.Analysis.route) { // 소비 분석 화면으로 이동
-                                launchSingleTop = true // 같은 화면 중복 생성 방지
+                        onAnalysisClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate(Route.Analysis.route) {
+                                launchSingleTop = true
                             }
                         },
-                        onAvatarClick = { // 아바타 메뉴 클릭 시 실행
-                            scope.launch { drawerState.close() } // 먼저 드로어 닫기
-                            navController.navigate(Route.Avatar.route) { // 아바타 화면으로 이동
-                                launchSingleTop = true // 같은 화면 중복 생성 방지
+                        onAvatarClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate(Route.Avatar.route) {
+                                launchSingleTop = true
                             }
                         },
-                        onMarketClick = { // NFT 마켓 메뉴 클릭 시 실행
-                            scope.launch { drawerState.close() } // 먼저 드로어 닫기
-                            navController.navigate(Route.Market.route) { // 마켓 화면으로 이동
-                                launchSingleTop = true // 같은 화면 중복 생성 방지
+                        onMarketClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate(Route.Market.route) {
+                                launchSingleTop = true
                             }
                         },
-                        onPlazaClick = { // 광장 메뉴 클릭 시 실행
-                            scope.launch { drawerState.close() } // 먼저 드로어 닫기
-                            navController.navigate(Route.Plaza.route) { // 광장 화면으로 이동
-                                launchSingleTop = true // 같은 화면 중복 생성 방지
+                        onPlazaClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate(Route.Plaza.route) {
+                                launchSingleTop = true
                             }
                         },
-                        onCommunityClick = { // 커뮤니티 메뉴 클릭 시 실행
-                            scope.launch { drawerState.close() } // 먼저 드로어 닫기
-                            navController.navigate(Route.Community.route) { // 커뮤니티 화면으로 이동
-                                launchSingleTop = true // 같은 화면 중복 생성 방지
+                        onCommunityClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate(Route.Community.route) {
+                                launchSingleTop = true
                             }
                         }
                     )
@@ -115,48 +168,48 @@ fun AppNavGraph() { // 앱 전체 화면 이동 구조를 담당하는 함수
             }
         }
     ) {
-        Scaffold( // 상단바 + 본문 구조를 잡는 Scaffold 시작
-            topBar = { // 상단 앱바 정의
-                if (shouldShowDrawer) { // 메인 화면일 때만 상단바 표시
-                    CenterAlignedTopAppBar( // 가운데 정렬된 상단바 사용
-                        title = { // 상단바 제목 영역
-                            Text("Spentopia") // 앱 이름 표시
+        Scaffold(
+            topBar = {
+                if (shouldShowDrawer) {
+                    CenterAlignedTopAppBar(
+                        title = {
+                            Text("Spentopia")
                         },
-                        navigationIcon = { // 왼쪽 햄버거 메뉴 버튼 영역
-                            IconButton( // 메뉴 버튼
-                                onClick = { // 버튼 클릭 시 실행
-                                    scope.launch { drawerState.open() } // 드로어 열기
+                        navigationIcon = {
+                            IconButton(
+                                onClick = {
+                                    scope.launch { drawerState.open() }
                                 }
                             ) {
-                                Icon( // 메뉴 아이콘 표시
-                                    imageVector = Icons.Default.Menu, // 햄버거 메뉴 아이콘 사용
-                                    contentDescription = "메뉴" // 접근성용 설명
+                                Icon(
+                                    imageVector = Icons.Default.Menu,
+                                    contentDescription = "메뉴"
                                 )
                             }
                         },
-                        actions = { // 오른쪽 액션 아이콘 영역
-                            IconButton(onClick = { }) { // 설정 버튼 클릭 이벤트는 아직 비워둠
-                                Icon( // 설정 아이콘 표시
-                                    imageVector = Icons.Default.Settings, // 설정 아이콘
-                                    contentDescription = "설정" // 접근성용 설명
+                        actions = {
+                            IconButton(onClick = { }) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "설정"
                                 )
                             }
-                            IconButton(onClick = { }) { // 알림 버튼 클릭 이벤트는 아직 비워둠
-                                Icon( // 알림 아이콘 표시
-                                    imageVector = Icons.Default.NotificationsNone, // 알림 아이콘
-                                    contentDescription = "알림" // 접근성용 설명
+                            IconButton(onClick = { }) {
+                                Icon(
+                                    imageVector = Icons.Default.NotificationsNone,
+                                    contentDescription = "알림"
                                 )
                             }
                         },
-                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors() // 기본 상단바 색상 사용
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors()
                     )
                 }
             }
-        ) { innerPadding -> // Scaffold가 본문에 줄 패딩 값 받기
-            NavHost( // 실제 화면 이동을 담당하는 NavHost
-                navController = navController, // 위에서 만든 navController 연결
-                startDestination = Route.Login.route, // 앱 시작 화면을 로그인으로 지정
-                modifier = Modifier.padding(innerPadding) // 상단바와 겹치지 않게 패딩 적용
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = Route.Login.route,
+                modifier = Modifier.padding(innerPadding)
             ) {
                 composable(Route.Login.route) {
                     LoginScreen(
@@ -214,77 +267,290 @@ fun AppNavGraph() { // 앱 전체 화면 이동 구조를 담당하는 함수
                     )
                 }
 
-                composable(Route.Home.route) { // 홈 route 등록
-                    HomeScreen( // 홈 화면 표시
-                        onLedgerClick = { // 가계부 클릭 시
-                            navController.navigate(Route.Home.route) { // 홈으로 이동
-                                launchSingleTop = true // 중복 방지
+                composable(Route.Home.route) {
+                    HomeScreen(
+                        onLedgerClick = {
+                            navController.navigate(Route.Home.route) {
+                                launchSingleTop = true
                             }
                         },
-                        onMyPageClick = { // 마이페이지 클릭 시
-                            navController.navigate(Route.MyPage.route) { // 마이페이지로 이동
-                                launchSingleTop = true // 중복 방지
+                        onMyPageClick = {
+                            navController.navigate(Route.MyPage.route) {
+                                launchSingleTop = true
                             }
                         },
-                        onBudgetClick = { // 예산 설정 클릭 시
-                            navController.navigate(Route.Budget.route) { // 예산 설정으로 이동
-                                launchSingleTop = true // 중복 방지
+                        onBudgetClick = {
+                            navController.navigate(Route.Budget.route) {
+                                launchSingleTop = true
                             }
                         },
-                        onAnalysisClick = { // 소비 분석 클릭 시
-                            navController.navigate(Route.Analysis.route) { // 소비 분석으로 이동
-                                launchSingleTop = true // 중복 방지
+                        onAnalysisClick = {
+                            navController.navigate(Route.Analysis.route) {
+                                launchSingleTop = true
                             }
                         },
-                        onAvatarClick = { // 아바타 클릭 시
-                            navController.navigate(Route.Avatar.route) { // 아바타 화면으로 이동
-                                launchSingleTop = true // 중복 방지
+                        onAvatarClick = {
+                            navController.navigate(Route.Avatar.route) {
+                                launchSingleTop = true
                             }
                         },
-                        onMarketClick = { // NFT 마켓 클릭 시
-                            navController.navigate(Route.Market.route) { // NFT 마켓 화면으로 이동
-                                launchSingleTop = true // 중복 방지
+                        onMarketClick = {
+                            navController.navigate(Route.Market.route) {
+                                launchSingleTop = true
                             }
                         },
-                        onPlazaClick = { // 광장 클릭 시
-                            navController.navigate(Route.Plaza.route) { // 광장 화면으로 이동
-                                launchSingleTop = true // 중복 방지
+                        onPlazaClick = {
+                            navController.navigate(Route.Plaza.route) {
+                                launchSingleTop = true
                             }
                         },
-                        onCommunityClick = { // 커뮤니티 클릭 시
-                            navController.navigate(Route.Community.route) { // 커뮤니티 화면으로 이동
-                                launchSingleTop = true // 중복 방지
+                        onCommunityClick = {
+                            navController.navigate(Route.Community.route) {
+                                launchSingleTop = true
                             }
                         }
                     )
                 }
 
-                composable(Route.Budget.route) { // 예산 설정 route 등록
-                    BudgetScreen() // 예산 설정 화면 표시
+                composable(Route.Budget.route) {
+                    BudgetScreen()
                 }
 
-                composable(Route.Analysis.route) { // 소비 분석 route 등록
-                    AnalysisScreen() // 소비 분석 화면 표시
+                composable(Route.Analysis.route) {
+                    AnalysisScreen()
                 }
 
-                composable(Route.Avatar.route) { // 아바타 route 등록
-                    AvatarScreen() // 아바타 화면 표시
+                composable(Route.Avatar.route) {
+                    AvatarScreen()
                 }
 
-                composable(Route.Market.route) { // NFT 마켓 route 등록
-                    MarketScreen() // NFT 마켓 화면 표시
+                composable(Route.Market.route) {
+                    MarketScreen()
                 }
 
-                composable(Route.Plaza.route) { // 광장 route 등록
-                    PlazaScreen() // 광장 화면 표시
+                composable(Route.Plaza.route) {
+                    PlazaScreen()
                 }
 
-                composable(Route.Community.route) { // 커뮤니티 route 등록
-                    CommunityScreen() // 커뮤니티 화면 표시
+                composable(Route.Community.route) {
+                    CommunityScreen(
+                        posts = communityPosts,
+                        onWriteClick = {
+                            navController.navigate(Route.CommunityWrite.route) {
+                                launchSingleTop = true
+                            }
+                        },
+                        onChatClick = {
+                            println("채팅 시작 클릭됨")
+                        },
+                        onPostClick = { post ->
+                            navController.navigate(
+                                Route.CommunityDetail.createRoute(post.id)
+                            ) {
+                                launchSingleTop = true
+                            }
+                        }
+                    )
                 }
 
-                composable(Route.MyPage.route) { // 마이페이지 route 등록
-                    MyPageScreen() // 마이페이지 화면 표시
+                composable(Route.CommunityWrite.route) {
+                    CommunityWriteScreen(
+                        onBackClick = {
+                            navController.popBackStack()
+                        },
+                        onSubmitClick = { category, title, content ->
+                            val nextId = (communityPosts.maxOfOrNull { it.id } ?: 0) + 1
+
+                            val defaultTagText = when (category) {
+                                CommunityCategory.AVATAR_CONTEST -> "새아바타글"
+                                CommunityCategory.FREE_BOARD -> "새자유글"
+                                CommunityCategory.SAVING_TIP -> "새꿀팁글"
+                            }
+
+                            val newPost = CommunityPost(
+                                id = nextId,
+                                title = title,
+                                content = content.take(60),
+                                fullContent = content,
+                                author = "현재사용자",
+                                timeText = "방금 전",
+                                likeCount = 0,
+                                commentCount = 0,
+                                tagText = defaultTagText,
+                                category = category,
+                                comments = emptyList(),
+                                isLiked = false
+                            )
+
+                            communityPosts.add(0, newPost)
+                            navController.popBackStack()
+                        }
+                    )
+                }
+
+                composable(
+                    route = Route.CommunityDetail.route,
+                    arguments = listOf(
+                        navArgument("postId") {
+                            type = NavType.IntType
+                        }
+                    )
+                ) { backStackEntry ->
+                    val postId = backStackEntry.arguments?.getInt("postId") ?: -1
+
+                    val selectedPost = communityPosts.find { post ->
+                        post.id == postId
+                    }
+
+                    CommunityDetailScreen(
+                        post = selectedPost,
+                        onBackClick = {
+                            navController.popBackStack()
+                        },
+
+                        // 게시글 수정 처리입니다.
+                        onUpdateClick = { updatedPost ->
+                            val targetIndex = communityPosts.indexOfFirst { post ->
+                                post.id == updatedPost.id
+                            }
+
+                            if (targetIndex != -1) {
+                                communityPosts[targetIndex] = updatedPost
+                            }
+                        },
+
+                        // 게시글 삭제 처리입니다.
+                        onDeleteClick = { deletePostId ->
+                            communityPosts.removeAll { post ->
+                                post.id == deletePostId
+                            }
+
+                            navController.popBackStack()
+                        },
+
+                        // 좋아요 처리입니다.
+                        onToggleLikeClick = { targetPostId ->
+                            val targetIndex = communityPosts.indexOfFirst { post ->
+                                post.id == targetPostId
+                            }
+
+                            if (targetIndex != -1) {
+                                val oldPost = communityPosts[targetIndex]
+                                val newLikeState = !oldPost.isLiked
+
+                                val newLikeCount = if (newLikeState) {
+                                    oldPost.likeCount + 1
+                                } else {
+                                    (oldPost.likeCount - 1).coerceAtLeast(0)
+                                }
+
+                                communityPosts[targetIndex] = oldPost.copy(
+                                    likeCount = newLikeCount,
+                                    isLiked = newLikeState
+                                )
+                            }
+                        },
+
+                        // 댓글 추가 처리입니다.
+                        onAddCommentClick = { targetPostId, commentContent ->
+                            val targetIndex = communityPosts.indexOfFirst { post ->
+                                post.id == targetPostId
+                            }
+
+                            if (targetIndex != -1) {
+                                val oldPost = communityPosts[targetIndex]
+
+                                val nextCommentId =
+                                    (oldPost.comments.maxOfOrNull { it.id } ?: 0) + 1
+
+                                val newComment = CommunityComment(
+                                    id = nextCommentId,
+                                    authorId = currentUserId,
+                                    author = "현재사용자",
+                                    content = commentContent,
+                                    timeText = "방금 전"
+                                )
+
+                                val updatedComments = oldPost.comments + newComment
+
+                                communityPosts[targetIndex] = oldPost.copy(
+                                    comments = updatedComments,
+                                    commentCount = updatedComments.size
+                                )
+                            }
+                        },
+
+                        // ----------------------------------------------------
+                        // 댓글 수정 처리입니다.
+                        // ----------------------------------------------------
+                        // 중요:
+                        // 1. 해당 게시글을 찾습니다.
+                        // 2. 해당 댓글을 찾습니다.
+                        // 3. 그 댓글의 authorId가 currentUserId와 같은지 검사합니다.
+                        // 4. 내 댓글일 때만 수정합니다.
+                        // ----------------------------------------------------
+                        onUpdateCommentClick = { targetPostId, commentId, updatedContent ->
+                            val targetIndex = communityPosts.indexOfFirst { post ->
+                                post.id == targetPostId
+                            }
+
+                            if (targetIndex != -1) {
+                                val oldPost = communityPosts[targetIndex]
+
+                                val updatedComments = oldPost.comments.map { comment ->
+                                    if (
+                                        comment.id == commentId &&
+                                        comment.authorId == currentUserId
+                                    ) {
+                                        comment.copy(
+                                            content = updatedContent,
+                                            timeText = "방금 수정됨"
+                                        )
+                                    } else {
+                                        comment
+                                    }
+                                }
+
+                                communityPosts[targetIndex] = oldPost.copy(
+                                    comments = updatedComments,
+                                    commentCount = updatedComments.size
+                                )
+                            }
+                        },
+
+                        // ----------------------------------------------------
+                        // 댓글 삭제 처리입니다.
+                        // ----------------------------------------------------
+                        // 중요:
+                        // authorId가 currentUserId인 댓글만 삭제합니다.
+                        // 즉, 내 댓글만 삭제 가능합니다.
+                        // ----------------------------------------------------
+                        onDeleteCommentClick = { targetPostId, commentId ->
+                            val targetIndex = communityPosts.indexOfFirst { post ->
+                                post.id == targetPostId
+                            }
+
+                            if (targetIndex != -1) {
+                                val oldPost = communityPosts[targetIndex]
+
+                                val updatedComments = oldPost.comments.filter { comment ->
+                                    // 남길 조건을 쓰는 방식입니다.
+                                    // commentId가 다르거나,
+                                    // authorId가 currentUserId가 아니면 남깁니다.
+                                    !(comment.id == commentId && comment.authorId == currentUserId)
+                                }
+
+                                communityPosts[targetIndex] = oldPost.copy(
+                                    comments = updatedComments,
+                                    commentCount = updatedComments.size
+                                )
+                            }
+                        }
+                    )
+                }
+
+                composable(Route.MyPage.route) {
+                    MyPageScreen()
                 }
             }
         }

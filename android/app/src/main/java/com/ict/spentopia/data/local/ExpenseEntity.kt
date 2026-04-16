@@ -28,5 +28,9 @@ data class ExpenseEntity(
     val memo: String,
 
     // 짧은 일기
-    val diary: String
+    val diary: String,
+
+    // 영수증 이미지 Uri 문자열
+
+    val receiptImageUri: String = ""
 )

@@ -1,9 +1,734 @@
 package com.ict.spentopia.feature.community
 
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+// ------------------------------------------------------------
+// CommunityScreen.kt
+// ------------------------------------------------------------
+// 이 파일은 커뮤니티 메인 화면 전체 UI를 담당합니다.
+//
+// 이번 버전에서 바뀐 점:
+// 1. CommunityComment에 authorId를 추가했습니다.
+// 2. authorId는 "댓글 작성자의 고유 식별값" 역할을 합니다.
+// 3. 나중에 로그인 기능이 붙으면 실제 사용자 id로 바꿔서 쓸 수 있습니다.
+// 4. 현재는 임시 문자열로만 구분합니다.
+// ------------------------------------------------------------
 
+// Compose Foundation 관련 import입니다.
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+
+// Material3 관련 import입니다.
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Text
+
+// Compose 상태 관련 import입니다.
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+
+// UI 스타일 관련 import입니다.
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+// ------------------------------------------------------------
+// 커뮤니티 카테고리 enum 클래스입니다.
+// ------------------------------------------------------------
+// enum을 사용하면 카테고리를 안전하게 고정된 값으로 관리할 수 있습니다.
+// ------------------------------------------------------------
+enum class CommunityCategory(
+    val label: String
+) {
+    AVATAR_CONTEST("아바타 콘테스트"),
+    FREE_BOARD("자유게시판"),
+    SAVING_TIP("절약 꿀팁")
+}
+
+// ------------------------------------------------------------
+// 댓글 1개를 표현하는 모델입니다.
+// ------------------------------------------------------------
+// authorId:
+// - 댓글 작성자를 구분하기 위한 고유 문자열입니다.
+// - 지금은 임시로 사용하지만,
+//   나중에 로그인 기능이 연결되면 실제 사용자 id로 바꿀 수 있습니다.
+//
+// author:
+// - 화면에 표시할 작성자 이름입니다.
+//
+// content:
+// - 댓글 본문입니다.
+//
+// timeText:
+// - "방금 전", "1시간 전" 같은 표시용 문자열입니다.
+// ------------------------------------------------------------
+data class CommunityComment(
+    val id: Int,            // 댓글 고유 ID입니다.
+    val authorId: String,   // 댓글 작성자 고유 식별값입니다.
+    val author: String,     // 댓글 작성자 이름입니다.
+    val content: String,    // 댓글 내용입니다.
+    val timeText: String    // 댓글 작성 시간 표시 문자열입니다.
+)
+
+// ------------------------------------------------------------
+// 커뮤니티 게시글 UI 모델입니다.
+// ------------------------------------------------------------
+// comments:
+// - 게시글에 달린 댓글 목록입니다.
+//
+// isLiked:
+// - 현재 사용자가 이 게시글에 좋아요를 눌렀는지 여부입니다.
+// ------------------------------------------------------------
+data class CommunityPost(
+    val id: Int,                        // 게시글 ID입니다.
+    val title: String,                  // 게시글 제목입니다.
+    val content: String,                // 목록에서 보여줄 짧은 미리보기 내용입니다.
+    val fullContent: String,            // 상세 화면에서 보여줄 전체 내용입니다.
+    val author: String,                 // 작성자 이름입니다.
+    val timeText: String,               // 시간 표시 문자열입니다.
+    val likeCount: Int,                 // 좋아요 개수입니다.
+    val commentCount: Int,              // 댓글 개수입니다.
+    val tagText: String,                // 하단 왼쪽 태그 텍스트입니다.
+    val category: CommunityCategory,    // 카테고리입니다.
+    val comments: List<CommunityComment> = emptyList(), // 댓글 목록입니다.
+    val isLiked: Boolean = false        // 현재 사용자의 좋아요 여부입니다.
+)
+
+// ------------------------------------------------------------
+// CommunityScreen 메인 Composable입니다.
+// ------------------------------------------------------------
+// posts:
+// - 외부(AppNavGraph)에서 전달받은 게시글 목록입니다.
+//
+// onWriteClick:
+// - 글쓰기 버튼 클릭 시 실행됩니다.
+//
+// onChatClick:
+// - AI 카드 버튼 클릭 시 실행됩니다.
+//
+// onPostClick:
+// - 게시글 카드 클릭 시 실행됩니다.
+// ------------------------------------------------------------
 @Composable
-fun CommunityScreen() {
-    Text("커뮤니티")
+fun CommunityScreen(
+    posts: List<CommunityPost>,
+    onWriteClick: () -> Unit = {},
+    onChatClick: () -> Unit = {},
+    onPostClick: (CommunityPost) -> Unit = {}
+) {
+    // 현재 선택된 카테고리 인덱스를 저장합니다.
+    var selectedCategoryIndex by remember { mutableIntStateOf(0) }
+
+    // 카테고리 전체 목록입니다.
+    val categories = remember { CommunityCategory.entries }
+
+    // 현재 선택된 카테고리입니다.
+    val selectedCategory = categories[selectedCategoryIndex]
+
+    // 선택된 카테고리에 해당하는 게시글만 화면에 보여주기 위해 필터링합니다.
+    val filteredPosts = remember(selectedCategory, posts) {
+        posts.filter { post ->
+            post.category == selectedCategory
+        }
+    }
+
+    // 전체 화면을 세로 스크롤 가능한 LazyColumn으로 구성합니다.
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F6FA)),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 20.dp,
+            bottom = 24.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // 상단 커뮤니티 제목/설명/글쓰기 버튼 영역입니다.
+        item {
+            CommunityTopHeader(
+                onWriteClick = onWriteClick
+            )
+        }
+
+        // AI 챗봇 카드 영역입니다.
+        item {
+            CommunityAiCard(
+                onChatClick = onChatClick
+            )
+        }
+
+        // 카테고리 칩 영역입니다.
+        item {
+            CommunityCategoryChipRow(
+                categories = categories,
+                selectedCategoryIndex = selectedCategoryIndex,
+                onCategorySelected = { clickedIndex ->
+                    selectedCategoryIndex = clickedIndex
+                }
+            )
+        }
+
+        // 현재 카테고리에 게시글이 하나도 없으면 안내 카드를 보여줍니다.
+        if (filteredPosts.isEmpty()) {
+            item {
+                EmptyPostCard()
+            }
+        }
+
+        // 게시글 목록을 카드 형태로 렌더링합니다.
+        items(
+            items = filteredPosts,
+            key = { post -> post.id }
+        ) { post ->
+            CommunityPostCard(
+                post = post,
+                onClick = {
+                    onPostClick(post)
+                }
+            )
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// 게시글이 없을 때 보여줄 카드입니다.
+// ------------------------------------------------------------
+@Composable
+private fun EmptyPostCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Text(
+                text = "아직 게시글이 없어요",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF20242C)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "첫 번째 글을 작성해서 커뮤니티를 시작해보세요.",
+                fontSize = 13.sp,
+                color = Color(0xFF6E7684),
+                lineHeight = 19.sp
+            )
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// 상단 헤더 영역입니다.
+// ------------------------------------------------------------
+@Composable
+private fun CommunityTopHeader(
+    onWriteClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = "커뮤니티",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111111)
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "다른 사용자들과 소통하고 경험을 나눠보세요",
+                fontSize = 12.sp,
+                color = Color(0xFF6F7785),
+                lineHeight = 18.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Button(
+            onClick = onWriteClick,
+            shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFE24BB4),
+                contentColor = Color.White
+            ),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "글쓰기",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// AI 카드 영역입니다.
+// ------------------------------------------------------------
+@Composable
+private fun CommunityAiCard(
+    onChatClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0xFFA34CF6),
+                            Color(0xFFE93AA5)
+                        )
+                    )
+                )
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "🤖",
+                    fontSize = 22.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "AI 챗봇 고객센터",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "내 아바타가 상황이 되어 궁금한 점을 답변해드려요!",
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.95f),
+                    lineHeight = 17.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Button(
+                onClick = onChatClick,
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF1F1F1F)
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "채팅 시작",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// 카테고리 칩 Row입니다.
+// ------------------------------------------------------------
+@Composable
+private fun CommunityCategoryChipRow(
+    categories: List<CommunityCategory>,
+    selectedCategoryIndex: Int,
+    onCategorySelected: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        categories.forEachIndexed { index, category ->
+            val isSelected = index == selectedCategoryIndex
+
+            Box(
+                modifier = Modifier
+                    .widthIn(min = 80.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(
+                        if (isSelected) {
+                            Color(0xFFF0F1F5)
+                        } else {
+                            Color.White
+                        }
+                    )
+                    .clickable {
+                        onCategorySelected(index)
+                    }
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
+            ) {
+                Text(
+                    text = category.label,
+                    fontSize = 12.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    color = Color(0xFF222222)
+                )
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// 게시글 카드 UI입니다.
+// ------------------------------------------------------------
+@Composable
+private fun CommunityPostCard(
+    post: CommunityPost,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                onClick()
+            },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color(0xFFE9EEF9))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "최신글",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF4A7AE8)
+                    )
+                }
+
+                Text(
+                    text = post.timeText,
+                    fontSize = 12.sp,
+                    color = Color(0xFF9AA1AE)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = post.title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF20242C),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = post.content,
+                fontSize = 14.sp,
+                color = Color(0xFF6E7684),
+                lineHeight = 20.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = post.tagText,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF3B3F47)
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SmallCountChip(
+                        text = "좋아요 ${post.likeCount}"
+                    )
+
+                    SmallCountChip(
+                        text = "댓글 ${post.commentCount}"
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// 좋아요 / 댓글 개수용 작은 칩 UI입니다.
+// ------------------------------------------------------------
+@Composable
+private fun SmallCountChip(
+    text: String
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(Color(0xFFF1F3F7))
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = text,
+            fontSize = 12.sp,
+            color = Color(0xFF6D7480)
+        )
+    }
+}
+
+// ------------------------------------------------------------
+// 기본 더미 게시글 목록을 반환하는 함수입니다.
+// ------------------------------------------------------------
+// 중요:
+// - authorId를 일부는 "current_user"로,
+//   일부는 다른 값으로 넣어두었습니다.
+// - 이렇게 해야 "내 댓글만 수정/삭제 가능"한지 테스트할 수 있습니다.
+// ------------------------------------------------------------
+fun getInitialCommunityPosts(): List<CommunityPost> {
+    return listOf(
+        CommunityPost(
+            id = 1,
+            title = "이번 달 아바타 7일 연속 기록 성공했어요!",
+            content = "작은 금액은 놓칠 때도 있었지만, 그래도 소비 패턴이 조금씩 보이기 시작해서 뿌듯해요.",
+            fullContent = "작은 금액은 놓칠 때도 있었지만, 그래도 소비 패턴이 조금씩 보이기 시작해서 뿌듯해요. 처음에는 귀찮았는데 습관이 생기니까 훨씬 편해졌어요.",
+            author = "기록요정",
+            timeText = "1시간 전",
+            likeCount = 8,
+            commentCount = 2,
+            tagText = "기록초보",
+            category = CommunityCategory.AVATAR_CONTEST,
+            comments = listOf(
+                CommunityComment(
+                    id = 1,
+                    authorId = "user_a",
+                    author = "절약메이트",
+                    content = "와 7일 연속이면 진짜 대단해요!",
+                    timeText = "50분 전"
+                ),
+                CommunityComment(
+                    id = 2,
+                    authorId = "current_user",
+                    author = "현재사용자",
+                    content = "저도 이번 달에는 꾸준히 기록해보려고요.",
+                    timeText = "30분 전"
+                )
+            ),
+            isLiked = false
+        ),
+        CommunityPost(
+            id = 2,
+            title = "아바타 꾸미기 보상 받으려면 어떤 미션부터 하는 게 좋을까요?",
+            content = "출석이랑 소비기록 중에서 어떤 걸 먼저 챙기는 게 효율적인지 궁금해요.",
+            fullContent = "출석이랑 소비기록 중에서 어떤 걸 먼저 챙기는 게 효율적인지 궁금해요. 시작 단계라 어떤 순서가 좋은지 잘 모르겠어요.",
+            author = "코디초보",
+            timeText = "3시간 전",
+            likeCount = 5,
+            commentCount = 1,
+            tagText = "미션질문",
+            category = CommunityCategory.AVATAR_CONTEST,
+            comments = listOf(
+                CommunityComment(
+                    id = 1,
+                    authorId = "user_b",
+                    author = "보상수집가",
+                    content = "저는 출석부터 챙기고 기록 습관을 붙였어요.",
+                    timeText = "2시간 전"
+                )
+            ),
+            isLiked = false
+        ),
+        CommunityPost(
+            id = 3,
+            title = "주말 지출이 평일보다 두 배인 이유를 찾았어요",
+            content = "모임, 카페, 충동구매가 한 번에 몰려 있더라고요. 이번 주부터는 주말 예산을 따로 잡아보려 합니다.",
+            fullContent = "모임, 카페, 충동구매가 한 번에 몰려 있더라고요. 그래서 이번 주부터는 주말 예산을 따로 잡아보려고 합니다. 평일보다 지출이 커지는 이유가 확실히 보였어요.",
+            author = "토요소비왕",
+            timeText = "5시간 전",
+            likeCount = 11,
+            commentCount = 2,
+            tagText = "분석해보는중",
+            category = CommunityCategory.FREE_BOARD,
+            comments = listOf(
+                CommunityComment(
+                    id = 1,
+                    authorId = "current_user",
+                    author = "현재사용자",
+                    content = "주말 예산 따로 잡는 방법 괜찮네요.",
+                    timeText = "4시간 전"
+                ),
+                CommunityComment(
+                    id = 2,
+                    authorId = "user_c",
+                    author = "카페중독탈출",
+                    content = "저도 모임비 때문에 주말이 항상 문제였어요.",
+                    timeText = "3시간 전"
+                )
+            ),
+            isLiked = true
+        ),
+        CommunityPost(
+            id = 4,
+            title = "가계부 쓰다 보니 생각보다 배달비가 너무 크네요",
+            content = "한 번 주문할 때는 얼마 안 되는 것 같았는데, 한 달 합계를 보니까 꽤 부담이 되더라고요.",
+            fullContent = "한 번 주문할 때는 얼마 안 되는 것 같았는데, 한 달 합계를 보니까 꽤 부담이 되더라고요. 이번 달부터는 주 1회만 배달을 허용해보려 합니다.",
+            author = "배달줄이기중",
+            timeText = "7시간 전",
+            likeCount = 6,
+            commentCount = 1,
+            tagText = "배달줄이기",
+            category = CommunityCategory.FREE_BOARD,
+            comments = listOf(
+                CommunityComment(
+                    id = 1,
+                    authorId = "user_d",
+                    author = "식비절약러",
+                    content = "배달앱 삭제하고 확실히 줄었어요.",
+                    timeText = "6시간 전"
+                )
+            ),
+            isLiked = false
+        ),
+        CommunityPost(
+            id = 5,
+            title = "카페 지출 줄이려면 예산을 먼저 따로 빼두는 게 좋더라고요",
+            content = "저는 아예 주간 간식비를 따로 정해두니까 훨씬 덜 흔들렸어요. 생각보다 효과가 꽤 컸습니다.",
+            fullContent = "저는 아예 주간 간식비를 따로 정해두니까 훨씬 덜 흔들렸어요. 그냥 아껴야지 하는 것보다 실제 숫자를 정하는 게 더 효과적이었어요.",
+            author = "절약실험러",
+            timeText = "2시간 전",
+            likeCount = 14,
+            commentCount = 2,
+            tagText = "절약실험중",
+            category = CommunityCategory.SAVING_TIP,
+            comments = listOf(
+                CommunityComment(
+                    id = 1,
+                    authorId = "user_e",
+                    author = "예산지킴이",
+                    content = "숫자로 정하는 게 진짜 중요한 것 같아요.",
+                    timeText = "1시간 전"
+                ),
+                CommunityComment(
+                    id = 2,
+                    authorId = "current_user",
+                    author = "현재사용자",
+                    content = "저도 이번 주부터 따라해보겠습니다.",
+                    timeText = "40분 전"
+                )
+            ),
+            isLiked = true
+        ),
+        CommunityPost(
+            id = 6,
+            title = "장보기 전에 냉장고 사진 찍는 습관이 은근 도움 됩니다",
+            content = "이미 있는 재료를 또 사는 일이 줄어들어서 식비를 아끼는 데 꽤 효과가 있었어요.",
+            fullContent = "이미 있는 재료를 또 사는 일이 줄어들어서 식비를 아끼는 데 꽤 효과가 있었어요. 특히 퇴근 후 급하게 장볼 때 중복 구매가 줄더라고요.",
+            author = "장보기고수",
+            timeText = "8시간 전",
+            likeCount = 9,
+            commentCount = 1,
+            tagText = "식비절약",
+            category = CommunityCategory.SAVING_TIP,
+            comments = listOf(
+                CommunityComment(
+                    id = 1,
+                    authorId = "user_f",
+                    author = "냉장고정리왕",
+                    content = "이 팁 좋네요. 저도 바로 써먹어볼게요.",
+                    timeText = "7시간 전"
+                )
+            ),
+            isLiked = false
+        )
+    )
+}
+
+// ------------------------------------------------------------
+// 프리뷰입니다.
+// ------------------------------------------------------------
+@Preview(showBackground = true)
+@Composable
+private fun CommunityScreenPreview() {
+    CommunityScreen(
+        posts = getInitialCommunityPosts()
+    )
 }
