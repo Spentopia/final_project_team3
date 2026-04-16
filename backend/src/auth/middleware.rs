@@ -48,7 +48,7 @@ pub async fn jwt_middleware(
             tracing::warn!("Authorization 헤더 없음");
             (
                 StatusCode::UNAUTHORIZED,
-                "Authorization 헤더 없음".to_string(),
+                "Authorization 헤더가 없습니다.".to_string(),
             )
         })?;
 
@@ -57,7 +57,7 @@ pub async fn jwt_middleware(
         tracing::warn!("헤더 형식 오류: {}", e);
         (
             StatusCode::UNAUTHORIZED,
-            "헤더 형식 오류".to_string(),
+            "헤더 형식이 올바르지 않습니다.".to_string(),
         )
     })?;
 
@@ -70,7 +70,7 @@ pub async fn jwt_middleware(
             tracing::warn!("Bearer 토큰 없음 (헤더값: {})", value);
             (
                 StatusCode::UNAUTHORIZED,
-                "Bearer 토큰 없음".to_string(),
+                "Bearer 토큰이 없습니다.".to_string(),
             )
         })?;
 
@@ -80,7 +80,7 @@ pub async fn jwt_middleware(
             tracing::warn!("앱 JWT 검증 실패: {}", e);
             (
                 StatusCode::UNAUTHORIZED,
-                "유효하지 않은 토큰".to_string(),
+                "유효하지 않은 토큰입니다.".to_string(),
             )
         })?;
 
@@ -93,7 +93,7 @@ pub async fn jwt_middleware(
         );
         (
             StatusCode::UNAUTHORIZED,
-            "유저 ID 파싱 실패".to_string(),
+            "사용자 ID를 확인할 수 없습니다.".to_string(),
         )
     })?;
 

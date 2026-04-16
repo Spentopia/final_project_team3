@@ -291,18 +291,18 @@ pub async fn verify_and_login(
     let entry = state
         .nonce_store
         .get(wallet_address)
-        .ok_or_else(|| anyhow!("nonce가 없거나 만료됨. /auth/wallet/nonce를 먼저 호출하세요."))?;
+        .ok_or_else(|| anyhow!("nonce가 없거나 만료되었습니다. 다시 시도해 주세요."))?;
 
     // TTL 체크: 발급 후 5분이 지났으면 만료 처리
     if SystemTime::now() > entry.expires_at {
         drop(entry);
         state.nonce_store.remove(wallet_address);
-        return Err(anyhow!("nonce가 만료됨. /auth/wallet/nonce를 다시 호출하세요."));
+        return Err(anyhow!("nonce가 만료되었습니다. 다시 시도해 주세요."));
     }
 
     // 저장된 nonce와 앱이 보낸 nonce가 다르면 위조된 요청
     if entry.nonce != nonce {
-        return Err(anyhow!("nonce 불일치. 위조된 요청일 수 있음."));
+        return Err(anyhow!("nonce가 일치하지 않습니다."));
     }
 
     // nonce는 1회용이므로 검증 즉시 삭제
@@ -465,7 +465,7 @@ pub async fn find_user_by_wallet(state: &AppState, wallet_address: &str) -> Resu
     // ,map(|row| row.id): UserRow에서 id만 추출
     // .ok_or_else: None(결과 없음)이면 에러로 변환
     rows.into_iter().next().map(|row| row.id).ok_or_else(|| {
-        anyhow!("해당 지갑 주소로 연동된 계정 없음. 앱에서 먼저 지갑 연동을 해주세요.")
+        anyhow!("해당 지갑 주소로 연동된 계정이 없습니다. 지갑 연동 후 다시 시도해 주세요.")
     })
 }
 
@@ -938,7 +938,7 @@ pub async fn find_email_by_phone(
 
     let email = rows.first()
         .and_then(|row| row["email"].as_str())
-        .ok_or_else(|| anyhow!("해당 전화번호로 가입된 계정이 없음"))?;
+        .ok_or_else(|| anyhow!("해당 전화번호로 가입된 계정이 없습니다."))?;
 
     Ok(mask_email(email))
 }
