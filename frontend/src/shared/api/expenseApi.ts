@@ -14,9 +14,9 @@ export interface CreateExpenseResponse {
   date: string;
   amount: number;
   category: string;
-  memo: string;
+  memo: string | null;
   receiptVerified: boolean;
-  diary: string;
+  diary: string | null;
 }
 
 export async function createExpense(
