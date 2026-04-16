@@ -30,6 +30,8 @@ use axum::{
     routing::{delete, get, patch, post},
     Router,
 };
+use std::sync::Arc;
+use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -63,9 +65,25 @@ pub fn create_router(state: AppState) -> Router {
         .route("/auth/refresh", post(auth::handler::refresh_token))
         .route("/auth/logout", post(auth::handler::logout))
         .route("/auth/wallet/login", post(auth::handler::wallet_login))
+        .route("/auth/kakao/login", post(auth::handler::kakao_login));
+
+    // ── 열거 공격 방어 전용 rate limit ───────────────────────────
+    // 글로벌(main.rs): burst 5 + 초당 2건 → 일반 API는 충분
+    // 이 두 엔드포인트는 인증 없이 계정 존재 여부를 알 수 있으므로 별도로 더 엄격하게 적용
+    // burst 5 + 12초마다 1토큰 보충 = 분당 5건 지속
+    // 일반 사용자(1~2번 호출)는 체감 없고, 자동화 열거는 사실상 불가
+    let enumeration_rate_limit = Arc::new(
+        GovernorConfigBuilder::default()
+            .per_millisecond(12_000) // 12초마다 토큰 1개 보충 → 분당 5건
+            .burst_size(5)
+            .finish()
+            .unwrap(),
+    );
+
+    let sensitive_routes = Router::new()
         .route("/auth/find-email", post(auth::handler::find_email))
         .route("/auth/check-email", post(auth::handler::check_email))
-        .route("/auth/kakao/login", post(auth::handler::kakao_login));
+        .layer(GovernorLayer { config: enumeration_rate_limit });
 
     // ── 보호 라우트 ─────────────────────────────────────────
     // JWT 필수. jwt_middleware를 통과해야 핸들러에 도달함.
@@ -115,6 +133,7 @@ pub fn create_router(state: AppState) -> Router {
     //   → handler.rs에서 State(state): State<AppState> 하면 이게 들어감
     Router::new()
         .merge(public_routes)
+        .merge(sensitive_routes)
         .merge(protected_routes)
         .merge(
             SwaggerUi::new("/swagger-ui")

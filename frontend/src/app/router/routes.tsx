@@ -18,6 +18,7 @@ import ForgotPasswordPage from "@/domains/auth/ui/ForgotPasswordPage";
 import FindEmailPage from "@/domains/auth/ui/FindEmailPage";
 import ResetPasswordPage from "@/domains/auth/ui/ResetPasswordPage";
 import KakaoCallbackPage from "@/domains/auth/ui/KakaoCallbackPage";
+import GoogleCallbackPage from "@/domains/auth/ui/GoogleCallbackPage";
 import SignupPendingPage from "@/domains/auth/ui/SignupPendingPage";
 import EmailConfirmedPage from "@/domains/auth/ui/EmailConfirmedPage";
 
@@ -85,6 +86,10 @@ export const router = createBrowserRouter([
   {
     path: "/auth/kakao/callback",
     Component: KakaoCallbackPage,
+  },
+  {
+    path: "/auth/google/callback",
+    Component: GoogleCallbackPage,
   },
   {
     path: "/complete-profile",

@@ -92,9 +92,9 @@ fn resolve_client_type(headers: &HeaderMap) -> &'static str {
 /// - SameSite=Lax:
 ///   기본적인 CSRF 위험을 줄이기 위한 설정
 ///
-/// - Path=/auth/refresh:
-///   refresh 쿠키가 모든 요청에 붙지 않고
-///   refresh 요청에만 붙도록 제한
+/// - Path=/auth:
+///   refresh 쿠키가 /auth 하위 요청들에만 붙도록 제한
+///   -> /auth/refresh 뿐 아니라 /auth/logout 에도 자동 포함됨
 ///
 /// 왜 refresh만 쿠키냐:
 /// - access는 프론트 메모리에 저장하고 Authorization 헤더로 보냄
@@ -105,7 +105,7 @@ fn build_refresh_cookie(refresh_token: &str) -> HeaderMap {
     let cookie = Cookie::build(("spentopia_refresh", refresh_token.to_string()))
         .http_only(true)
         .same_site(SameSite::Lax)
-        .path("/auth/refresh")
+        .path("/auth")
         .secure(false) // 로컬 시연용. HTTPS 아님.
         .build();
 
@@ -115,7 +115,7 @@ fn build_refresh_cookie(refresh_token: &str) -> HeaderMap {
     );
 
     tracing::debug!(
-        "refresh 쿠키 발급: name=spentopia_refresh path=/auth/refresh same_site=Lax secure=false"
+        "refresh 쿠키 발급: name=spentopia_refresh path=/auth same_site=Lax secure=false"
     );
 
     headers
@@ -130,7 +130,7 @@ fn build_clear_refresh_cookie() -> HeaderMap {
     let cookie = Cookie::build(("spentopia_refresh", "".to_string()))
         .http_only(true)
         .same_site(SameSite::Lax)
-        .path("/auth/refresh")
+        .path("/auth")
         .secure(false) // 로컬 시연용
         .max_age(cookie::time::Duration::seconds(0))
         .build();
@@ -140,7 +140,7 @@ fn build_clear_refresh_cookie() -> HeaderMap {
         cookie.to_string().parse().unwrap(),
     );
 
-    tracing::debug!("refresh 쿠키 삭제 헤더 발급: name=spentopia_refresh path=/auth/refresh");
+    tracing::debug!("refresh 쿠키 삭제 헤더 발급: name=spentopia_refresh path=/auth");
 
     headers
 }
@@ -493,11 +493,21 @@ pub async fn complete_profile(
         user_id
     );
 
-    let payload = json!({
+    // profile_image가 None이면 페이로드에서 제외.
+    //
+    // 이유: PATCH에 "profile_image": null을 포함하면
+    // Supabase가 해당 컬럼을 NULL로 덮어씀.
+    // 사용자가 이미지를 선택하지 않은 경우
+    // 트리거가 삽입해 둔 "defaults/avatar.png"가 지워지는 버그 발생.
+    // 필드를 아예 빼면 DB는 기존 값을 그대로 유지함.
+    let mut payload = json!({
         "nickname": body.nickname,
         "phone": body.phone,
-        "profile_image": body.profile_image,
     });
+
+    if let Some(ref img) = body.profile_image {
+        payload["profile_image"] = json!(img);
+    }
 
     let resp = state.http_client
         .patch(&url)
@@ -672,20 +682,46 @@ pub async fn upload_profile_image(
 // ─────────────────────────────────────────────────────────────
 pub async fn get_profile_image_signed_url(
     State(state): State<AppState>,
+    axum::Extension(user_id): axum::Extension<uuid::Uuid>,
     Query(query): Query<ProfileImageUrlQuery>,
 ) -> Result<Json<ProfileImageUrlResponse>, (StatusCode, String)> {
     let bucket = &state.config.supabase_profile_image_bucket;
+
+    let requested_path = query.path.trim();
+
+    if requested_path.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "path가 비어 있습니다".to_string()));
+    }
+
+    // 단순 경로 오용 방지
+    if requested_path.contains("..") || requested_path.contains('\\') {
+        return Err((StatusCode::BAD_REQUEST, "올바르지 않은 path 입니다".to_string()));
+    }
+
+    // 기본 이미지(defaults/) 또는 현재 로그인한 유저 폴더만 허용
+    let allowed_user_prefix = format!("{}/", user_id);
+    let is_default_image = requested_path.starts_with("defaults/");
+    let is_user_owned_image = requested_path.starts_with(&allowed_user_prefix);
+
+    if !is_default_image && !is_user_owned_image {
+        tracing::warn!(
+              "signed URL 권한 없음: user_id={}, requested_path={}",
+              user_id,
+              requested_path
+          );
+        return Err((StatusCode::FORBIDDEN, "해당 이미지에 접근할 수 없습니다".to_string()));
+    }
 
     let url = format!(
         "{}/storage/v1/object/sign/{}/{}",
         state.config.supabase_url.trim_end_matches('/'),
         bucket,
-        query.path
+        requested_path
     );
 
     let body = json!({
-        "expiresIn": 86400
-    });
+          "expiresIn": 86400
+      });
 
     let resp = state.http_client
         .post(&url)
