@@ -5,6 +5,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Input } from "@/shared/ui/input";
 import { Textarea } from "@/shared/ui/textarea";
+import AiChatbotDialog from "@/components/chat/AiChatbotDialog";
 import {
   MessageCircle,
   Heart,
@@ -85,6 +86,7 @@ const communityPosts: Post[] = [
 
 export default function Community() {
   const [selectedTab, setSelectedTab] = useState("contest");
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [newPost, setNewPost] = useState({
     title: "",
     content: "",
@@ -129,7 +131,7 @@ export default function Community() {
               내 아바타가 상담원이 되어 궁금한 점을 답변해드려요!
             </p>
           </div>
-          <Button variant="secondary">
+          <Button variant="secondary" onClick={() => setIsChatbotOpen(true)}>
             <MessageCircle className="mr-2 h-4 w-4" />
             채팅 시작
           </Button>
@@ -349,6 +351,8 @@ export default function Community() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <AiChatbotDialog open={isChatbotOpen} onOpenChange={setIsChatbotOpen} />
     </div>
   );
 }
