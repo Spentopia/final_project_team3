@@ -1,12 +1,4 @@
 // budget/handler.rs
-// 예산, 카테고리 배분, AI 플랜 관련 HTTP 핸들러
-//
-// 보호 라우트 (JWT 필수):
-//  GET    /api/budget              → get_budget (year, month 쿼리 파라미터)
-//  POST   /api/budget              → create_budget
-//  PATCH  /api/budget/:id          → update_budget
-//  PATCH  /api/budget/:id/categories → update_categories
-//  POST   /api/budget/:id/ai-plan  → generate_ai_plan
 
 use axum::{
     extract::{Path, Query, State},
@@ -32,7 +24,13 @@ pub struct BudgetQuery {
     pub month: i32,
 }
 
-// GET /api/budget?year=&month=
+#[utoipa::path(
+    get, path = "/api/budget",
+    tag = "예산",
+    params(("year" = i32, Query, description = "연도"), ("month" = i32, Query, description = "월")),
+    responses((status = 200, description = "예산 조회 성공"), (status = 404, description = "없음")),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_budget(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -45,7 +43,13 @@ pub async fn get_budget(
     }
 }
 
-// POST /api/budget
+#[utoipa::path(
+    post, path = "/api/budget",
+    tag = "예산",
+    request_body = CreateBudgetRequest,
+    responses((status = 201, description = "예산 생성 성공"), (status = 400, description = "잘못된 요청")),
+    security(("bearer_auth" = []))
+)]
 pub async fn create_budget(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -63,7 +67,14 @@ pub async fn create_budget(
     }
 }
 
-// PATCH /api/budget/:id
+#[utoipa::path(
+    patch, path = "/api/budget/{id}",
+    tag = "예산",
+    params(("id" = Uuid, Path, description = "예산 ID")),
+    request_body = UpdateBudgetRequest,
+    responses((status = 200, description = "예산 수정 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn update_budget(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -76,7 +87,14 @@ pub async fn update_budget(
     }
 }
 
-// PATCH /api/budget/:id/categories
+#[utoipa::path(
+    patch, path = "/api/budget/{id}/categories",
+    tag = "예산",
+    params(("id" = Uuid, Path, description = "예산 ID")),
+    request_body = UpdateBudgetCategoriesRequest,
+    responses((status = 200, description = "카테고리 배분 수정 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn update_categories(
     State(state): State<AppState>,
     Extension(_user_id): Extension<Uuid>,
@@ -89,7 +107,13 @@ pub async fn update_categories(
     }
 }
 
-// POST /api/budget/:id/ai-plan
+#[utoipa::path(
+    post, path = "/api/budget/{id}/ai-plan",
+    tag = "예산",
+    params(("id" = Uuid, Path, description = "예산 ID")),
+    responses((status = 200, description = "AI 예산 플랜 생성 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn generate_ai_plan(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,

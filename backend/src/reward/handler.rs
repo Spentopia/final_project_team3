@@ -1,10 +1,4 @@
 // reward/handler.rs
-// 보상, 스트릭, 주간 성실도 HTTP 핸들러
-//
-// 보호 라우트 (JWT 필수):
-//  GET /api/rewards              → list_rewards
-//  GET /api/rewards/streak       → get_streak
-//  GET /api/rewards/weekly-score → get_weekly_scores
 
 use axum::{
     extract::State,
@@ -17,7 +11,12 @@ use uuid::Uuid;
 use crate::state::AppState;
 use super::service;
 
-// GET /api/rewards
+#[utoipa::path(
+    get, path = "/api/rewards",
+    tag = "보상",
+    responses((status = 200, description = "보상 이력 조회 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn list_rewards(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -28,7 +27,12 @@ pub async fn list_rewards(
     }
 }
 
-// GET /api/rewards/streak
+#[utoipa::path(
+    get, path = "/api/rewards/streak",
+    tag = "보상",
+    responses((status = 200, description = "스트릭 조회 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_streak(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -39,7 +43,12 @@ pub async fn get_streak(
     }
 }
 
-// GET /api/rewards/weekly-score
+#[utoipa::path(
+    get, path = "/api/rewards/weekly-score",
+    tag = "보상",
+    responses((status = 200, description = "주간 성실도 점수 조회 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_weekly_scores(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,

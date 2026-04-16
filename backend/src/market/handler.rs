@@ -46,6 +46,13 @@ use super::{
 ///   프론트가 list_nft 온체인 호출 완료 후 PATCH /market/listings/:id/escrow로 따로 업데이트한다.
 /// # 응답
 /// 201 Created + ListingResponse
+#[utoipa::path(
+    post, path = "/api/market/listings",
+    tag = "마켓",
+    request_body = CreateListingRequest,
+    responses((status = 201, description = "판매 등록 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn create_listing(
     State(state): State<AppState>,          // 공유 앱 상태
     Extension(user_id): Extension<Uuid>,    // JWT 인증된 유저 UUID (=seller_id)
@@ -73,6 +80,13 @@ pub async fn create_listing(
 ///
 /// # 응답
 /// 200 OK + { "message": "escrow 주소 저장 완료" }
+#[utoipa::path(
+    patch, path = "/api/market/listings/{id}/escrow",
+    tag = "마켓",
+    params(("id" = Uuid, Path, description = "listing ID")),
+    responses((status = 200, description = "escrow 주소 저장 성공")),
+    security(("bearer_auth" = []))
+)]
 pub async fn update_escrow(
     State(state): State<AppState>,                  // 공유 앱 상태
     Extension(user_id): Extension<Uuid>,            // JWT 인증된 유저 UUID (= seller_id)
@@ -113,6 +127,13 @@ pub async fn update_escrow(
 /// # 응답
 /// 201 Created + TransactionResponse
 /// 400 Bad Request: tx_signature 누락
+#[utoipa::path(
+    post, path = "/api/market/purchase",
+    tag = "마켓",
+    request_body = PurchaseRequest,
+    responses((status = 201, description = "구매 성공"), (status = 400, description = "tx_signature 누락")),
+    security(("bearer_auth" = []))
+)]
 pub async fn purchase(
     State(state): State<AppState>,          // 공유 앱 상태
     Extension(user_id): Extension<Uuid>,    // JWT 인증된 유저 UUID (=buyer_id)

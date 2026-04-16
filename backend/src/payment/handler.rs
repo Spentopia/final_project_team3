@@ -16,7 +16,13 @@ use uuid::Uuid;
 use crate::state::AppState;
 use super::{dto::{ConfirmPaymentRequest, CreatePaymentRequest}, service};
 
-// POST /api/payments
+#[utoipa::path(
+    post, path = "/api/payments",
+    tag = "결제",
+    request_body = CreatePaymentRequest,
+    responses((status = 201, description = "결제 생성 성공"), (status = 400, description = "잘못된 요청")),
+    security(("bearer_auth" = []))
+)]
 pub async fn create_payment(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -31,7 +37,13 @@ pub async fn create_payment(
     }
 }
 
-// POST /api/payments/confirm
+#[utoipa::path(
+    post, path = "/api/payments/confirm",
+    tag = "결제",
+    request_body = ConfirmPaymentRequest,
+    responses((status = 200, description = "결제 승인 성공"), (status = 400, description = "잘못된 요청")),
+    security(("bearer_auth" = []))
+)]
 pub async fn confirm_payment(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
