@@ -285,41 +285,18 @@ pub async fn generate_ai_plan(
         vec![]
     };
 
-    // 3. AI 서버에 예산 플랜 요청 (백엔드 → AI 서버 클라이언트 역할)
-    #[derive(Serialize)]
-    struct AiPlanRequestPayload {
-        user_id: String,
-        total_budget: i32,
-        savings_goal: Option<i32>,
-        year: i32,
-        month: i32,
-        fixed_expenses: Vec<FixedExpenseInfo>,
-    }
-
-    #[derive(Deserialize)]
-    struct AiPlanAiResponse {
-        plan: String,
-        categories: Vec<BudgetCategoryItem>,
-    }
-
-    let ai_url = format!("{}/api/v1/budget-plan", state.config.ai_server_url.trim_end_matches('/'));
-    let ai_res = state.http_client.post(&ai_url)
-        .json(&AiPlanRequestPayload {
+    // 3. AI 서버에 예산 플랜 요청 (ai_client 모듈로 중앙화)
+    let ai_plan = crate::clients::ai_client::budget_plan(
+        state,
+        crate::clients::ai_client::BudgetPlanPayload {
             user_id: user_id.to_string(),
             total_budget: budget.total_budget,
             savings_goal: budget.savings_goal,
             year: budget.year,
             month: budget.month,
-            fixed_expenses,
-        })
-        .send().await.context("AI 서버 budget-plan 요청 실패")?;
-
-    if !ai_res.status().is_success() {
-        let body = ai_res.text().await.unwrap_or_default();
-        return Err(anyhow!("AI 서버 budget-plan 실패: {}", body));
-    }
-
-    let ai_plan: AiPlanAiResponse = ai_res.json().await.context("AI 플랜 응답 역직렬화 실패")?;
+            fixed_expenses: serde_json::to_value(&fixed_expenses).unwrap_or_default(),
+        },
+    ).await?;
 
     // 4. budgets.ai_plan 업데이트
     #[derive(Serialize)]
@@ -337,9 +314,12 @@ pub async fn generate_ai_plan(
         .json(&PatchAiPlan { ai_plan: ai_plan.plan.clone() })
         .send().await.context("budgets ai_plan 업데이트 실패")?;
 
+    let categories: Vec<BudgetCategoryItem> = serde_json::from_value(ai_plan.categories)
+        .unwrap_or_default();
+
     Ok(AiPlanResponse {
         ai_plan: ai_plan.plan,
-        categories: ai_plan.categories,
+        categories,
     })
 }
 

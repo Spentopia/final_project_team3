@@ -60,39 +60,18 @@ pub async fn generate_report(
     let category_summary = serde_json::to_value(&category_map).ok();
     let daily_summary = serde_json::to_value(&daily_map).ok();
 
-    // 3. AI 서버에 분석 요청 (백엔드 → AI 서버 클라이언트 역할)
-    #[derive(Serialize)]
-    struct AiAnalyzeRequest {
-        user_id: String,
-        report_type: String,
-        start_date: String,
-        end_date: String,
-        expenses: Vec<ExpenseInfo>,
-        category_summary: Option<Value>,
-    }
-
-    #[derive(Deserialize)]
-    struct AiAnalyzeResponse {
-        analysis: String,
-    }
-
-    let ai_url = format!("{}/api/v1/analyze", state.config.ai_server_url.trim_end_matches('/'));
-    let ai_analysis = match state.http_client.post(&ai_url)
-        .json(&AiAnalyzeRequest {
+    // 3. AI 서버에 분석 요청 (ai_client 모듈로 중앙화)
+    let ai_analysis = crate::clients::ai_client::analyze(
+        state,
+        crate::clients::ai_client::AnalyzePayload {
             user_id: user_id.to_string(),
             report_type: req.report_type.clone(),
             start_date: req.start_date.to_string(),
             end_date: req.end_date.to_string(),
-            expenses,
+            expenses: serde_json::to_value(&expenses).unwrap_or_default(),
             category_summary: category_summary.clone(),
-        })
-        .send().await
-    {
-        Ok(r) if r.status().is_success() => {
-            r.json::<AiAnalyzeResponse>().await.ok().map(|r| r.analysis)
-        }
-        _ => None,
-    };
+        },
+    ).await.ok().map(|r| r.analysis);
 
     // 4. reports 테이블에 저장
     let url = format!(

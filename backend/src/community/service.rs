@@ -205,32 +205,14 @@ pub async fn chat(
     user_id: Uuid,
     req: ChatRequest,
 ) -> Result<ChatResponse> {
-    // 1. AI 서버 호출 (백엔드 클라이언트 역할)
-    #[derive(Serialize)]
-    struct AiChatRequest {
-        user_id: String,
-        message: String,
-    }
-
-    #[derive(Deserialize)]
-    struct AiChatResponse {
-        response: String,
-    }
-
-    let ai_url = format!("{}/api/v1/chat", state.config.ai_server_url.trim_end_matches('/'));
-    let ai_res = state.http_client.post(&ai_url)
-        .json(&AiChatRequest {
+    // 1. AI 서버 호출 (ai_client 모듈로 중앙화)
+    let ai_response = crate::clients::ai_client::chat(
+        state,
+        crate::clients::ai_client::ChatPayload {
             user_id: user_id.to_string(),
             message: req.message.clone(),
-        })
-        .send().await.context("AI 서버 chat 요청 실패")?;
-
-    if !ai_res.status().is_success() {
-        let body = ai_res.text().await.unwrap_or_default();
-        return Err(anyhow!("AI 서버 chat 실패: {}", body));
-    }
-
-    let ai_response: AiChatResponse = ai_res.json().await.context("AI chat 응답 역직렬화 실패")?;
+        },
+    ).await?;
 
     // 2. chatbot_logs에 대화 기록 저장
     let log_url = format!(
@@ -257,6 +239,7 @@ pub async fn chat(
         .send().await;
 
     Ok(ChatResponse { response: ai_response.response })
+
 }
 
 // ── 챗봇 대화 이력 조회 ────────────────────────────────────────

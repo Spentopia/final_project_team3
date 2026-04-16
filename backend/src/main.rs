@@ -22,6 +22,7 @@
 
 mod config;
 mod state;
+pub mod clients;
 mod auth;
 mod route;
 mod openapi;
