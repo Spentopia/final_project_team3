@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+TEXT_MODEL = os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini")
+VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini")
 
 
 class OpenAIClient:
@@ -30,7 +32,7 @@ class OpenAIClient:
 
         try:
             response = client.chat.completions.create(
-                model="gpt-4.1-mini",
+                model=TEXT_MODEL,
                 messages=[
                     {"role": "system", "content": "너는 소비 분석 AI다."},
                     {"role": "user", "content": prompt},
@@ -52,7 +54,7 @@ class OpenAIClient:
     def chat(message: str):
         try:
             response = client.chat.completions.create(
-                model="gpt-4.1-mini",
+                model=TEXT_MODEL,
                 messages=[
                     {"role": "system", "content": "너는 소비 상담 AI다."},
                     {"role": "user", "content": message},
@@ -91,7 +93,7 @@ class OpenAIClient:
 
         try:
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=VISION_MODEL,
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content": "너는 영수증 OCR 전용 AI다. 날짜와 총액만 정확히 추출한다."},

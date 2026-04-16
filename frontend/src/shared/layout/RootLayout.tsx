@@ -1,18 +1,14 @@
-import { Outlet, useNavigate } from "react-router";
+import { Outlet } from "react-router";
 import { useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { MessageCircle } from "lucide-react";
 import { Button } from "../ui/button";
-import { toast } from "sonner";
-
+import AiChatbotDialog from "@/components/chat/AiChatbotDialog";
 
 export default function RootLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const handleChatbotClick = () => {
-    toast.info("AI챗바타 기능은 곧 제공될 예정입니다!");
-  };
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-cyan-50 via-blue-50 to-teal-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -43,7 +39,7 @@ export default function RootLayout() {
       </div>
 
       <Button
-        onClick={handleChatbotClick}
+        onClick={() => setIsChatbotOpen(true)}
         className="fixed bottom-8 right-8 z-30 h-20 w-20 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 shadow-2xl transition-all hover:scale-110 hover:from-cyan-600 hover:to-blue-700 hover:shadow-cyan-500/50 dark:shadow-cyan-900/50"
       >
         <div className="flex flex-col items-center gap-1">
@@ -51,6 +47,8 @@ export default function RootLayout() {
           <span className="text-[10px] font-bold">AI챗바타</span>
         </div>
       </Button>
+
+      <AiChatbotDialog open={isChatbotOpen} onOpenChange={setIsChatbotOpen} />
     </div>
   );
 }
