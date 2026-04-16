@@ -125,7 +125,7 @@ pub async fn get_refresh_session_by_id(
 
     rows.into_iter()
         .next()
-        .ok_or_else(|| anyhow!("refresh session 없음"))
+        .ok_or_else(|| anyhow!("refresh 세션을 찾을 수 없습니다."))
 }
 
 // refresh 세션 검증
@@ -146,7 +146,7 @@ pub async fn verify_refresh_session(
     let session = get_refresh_session_by_id(state, session_id).await?;
 
     if session.revoked {
-        return Err(anyhow!("이미 폐기된 refresh session"));
+        return Err(anyhow!("이미 폐기된 refresh 세션입니다."));
     }
 
     // 2) DB 기준 만료 시각 검사
@@ -173,7 +173,7 @@ pub async fn verify_refresh_session(
     let incoming_hash = hash_refresh_token(refresh_token);
 
     if session.token_hash != incoming_hash {
-        return Err(anyhow!("refresh token hash 불일치"));
+        return Err(anyhow!("refresh 토큰이 유효하지 않습니다."));
     }
 
     Ok(session)

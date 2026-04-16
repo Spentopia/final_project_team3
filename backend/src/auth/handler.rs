@@ -196,7 +196,7 @@ pub async fn request_nonce(
     // 지갑 주소가 비어있으면 400 반환
     if body.wallet_address.trim().is_empty() {
         tracing::warn!("nonce 요청: 지갑 주소 비어있음");
-        return Err((StatusCode::BAD_REQUEST, "지갑 주소가 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "지갑 주소를 입력해 주세요.".to_string()));
     }
 
     // service에서 nonce 생성
@@ -252,15 +252,15 @@ pub async fn wallet_login(
     // 필수 필드 비어있는지 체크
     if body.wallet_address.trim().is_empty() {
         tracing::warn!("지갑 로그인: 지갑 주소 비어있음");
-        return Err((StatusCode::BAD_REQUEST, "지갑 주소가 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "지갑 주소를 입력해 주세요.".to_string()));
     }
     if body.nonce.trim().is_empty() {
         tracing::warn!("지갑 로그인: nonce 비어있음");
-        return Err((StatusCode::BAD_REQUEST, "nonce가 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "nonce를 입력해 주세요.".to_string()));
     }
     if body.signature.trim().is_empty() {
         tracing::warn!("지갑 로그인: 서명 비어있음");
-        return Err((StatusCode::BAD_REQUEST, "서명이 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "서명을 입력해 주세요.".to_string()));
     }
 
     // service에서 서명 검증 + 로그인 처리
@@ -343,7 +343,7 @@ pub async fn exchange_token(
     Json(body): Json<ExchangeTokenRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     if body.access_token.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "access_token이 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "access_token을 입력해 주세요.".to_string()));
     }
 
     let client_type = resolve_client_type(&headers);
@@ -413,7 +413,7 @@ pub async fn get_me(
         .await
         .map_err(|e| {
             tracing::error!("/me 유저 조회 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "유저 조회 실패".to_string())
+            (StatusCode::INTERNAL_SERVER_ERROR, "사용자 조회에 실패했습니다.".to_string())
         })?;
 
     if !resp.status().is_success() {
@@ -425,13 +425,13 @@ pub async fn get_me(
     let users: Vec<serde_json::Value> = resp.json().await
         .map_err(|e| {
             tracing::error!("/me 응답 파싱 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱 실패".to_string())
+            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱에 실패했습니다.".to_string())
         })?;
 
     let user = users
         .first()
         .cloned()
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "유저 없음".to_string()))?;
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "사용자를 찾을 수 없습니다.".to_string()))?;
 
     Ok(Json(user))
 }
@@ -460,11 +460,11 @@ pub async fn complete_profile(
     Json(body): Json<CompleteProfileRequest>,
 ) -> Result<Json<CompleteProfileResponse>, (StatusCode, String)> {
     if body.nickname.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "닉네임이 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "닉네임을 입력해 주세요.".to_string()));
     }
 
     if body.phone.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "전화번호가 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "전화번호를 입력해 주세요.".to_string()));
     }
 
     let url = format!(
@@ -490,7 +490,7 @@ pub async fn complete_profile(
         .await
         .map_err(|e| {
             tracing::error!("프로필 업데이트 요청 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "프로필 저장 실패".to_string())
+            (StatusCode::INTERNAL_SERVER_ERROR, "프로필 저장에 실패했습니다.".to_string())
         })?;
 
     if !resp.status().is_success() {
@@ -524,7 +524,7 @@ pub async fn complete_profile(
     let rows: Vec<serde_json::Value> = resp.json().await
         .map_err(|e| {
             tracing::error!("프로필 업데이트 응답 파싱 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱 실패".to_string())
+            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱에 실패했습니다.".to_string())
         })?;
 
     let updated = rows.first().cloned().unwrap_or_default();
@@ -563,7 +563,7 @@ pub async fn upload_profile_image(
 
     while let Some(field) = multipart.next_field().await.map_err(|e| {
         tracing::error!("multipart 파싱 실패: {}", e);
-        (StatusCode::BAD_REQUEST, "multipart 파싱 실패".to_string())
+        (StatusCode::BAD_REQUEST, "멀티파트 파싱에 실패했습니다.".to_string())
     })? {
         let name = field.name().unwrap_or_default().to_string();
 
@@ -586,12 +586,12 @@ pub async fn upload_profile_image(
 
             let bytes = field.bytes().await.map_err(|e| {
                 tracing::error!("파일 읽기 실패: {}", e);
-                (StatusCode::BAD_REQUEST, "파일 읽기 실패".to_string())
+                (StatusCode::BAD_REQUEST, "파일 읽기에 실패했습니다.".to_string())
             })?;
 
             // 최대 5MB 제한
             if bytes.len() > 5 * 1024 * 1024 {
-                return Err((StatusCode::BAD_REQUEST, "파일 크기는 5MB 이하여야 합니다".to_string()));
+                return Err((StatusCode::BAD_REQUEST, "파일 크기는 5MB 이하여야 합니다.".to_string()));
             }
 
             file_bytes = Some(bytes.to_vec());
@@ -627,7 +627,7 @@ pub async fn upload_profile_image(
         .await
         .map_err(|e| {
             tracing::error!("스토리지 업로드 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "스토리지 업로드 실패".to_string())
+            (StatusCode::INTERNAL_SERVER_ERROR, "스토리지 업로드에 실패했습니다.".to_string())
         })?;
 
     if !resp.status().is_success() {
@@ -677,7 +677,7 @@ pub async fn get_profile_image_signed_url(
         .await
         .map_err(|e| {
             tracing::error!("signed URL 생성 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "signed URL 생성 실패".to_string())
+            (StatusCode::INTERNAL_SERVER_ERROR, "서명된 URL 생성에 실패했습니다.".to_string())
         })?;
 
     if !resp.status().is_success() {
@@ -688,7 +688,7 @@ pub async fn get_profile_image_signed_url(
 
     let data: serde_json::Value = resp.json().await.map_err(|e| {
         tracing::error!("signed URL 응답 파싱 실패: {}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "signed URL 응답 파싱 실패".to_string())
+        (StatusCode::INTERNAL_SERVER_ERROR, "서명된 URL 응답 파싱에 실패했습니다.".to_string())
     })?;
 
     let signed_path = data["signedURL"].as_str().ok_or_else(|| {
@@ -723,7 +723,7 @@ pub async fn find_email(
     Json(body): Json<FindEmailRequest>,
 ) -> Result<Json<FindEmailResponse>, (StatusCode, String)> {
     if body.phone.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "전화번호가 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "전화번호를 입력해 주세요.".to_string()));
     }
 
     let masked_email = service::find_email_by_phone(&state, &body.phone)
@@ -754,7 +754,7 @@ pub async fn check_email(
     Json(body): Json<CheckEmailRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     if body.email.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "이메일이 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "이메일을 입력해 주세요.".to_string()));
     }
 
     let exists = service::check_email_exists(&state, &body.email)
@@ -794,7 +794,7 @@ pub async fn kakao_login(
     Json(body): Json<KakaoLoginRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     if body.code.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "인가 코드가 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "인가 코드를 입력해 주세요.".to_string()));
     }
 
     let client_type = resolve_client_type(&headers);
@@ -860,12 +860,12 @@ pub async fn refresh_token(
     let refresh_token = if client_type == "web" {
         // 웹은 쿠키에서 읽음
         extract_refresh_cookie(&headers)
-            .ok_or_else(|| (StatusCode::UNAUTHORIZED, "refresh 쿠키 없음".to_string()))?
+            .ok_or_else(|| (StatusCode::UNAUTHORIZED, "refresh 쿠키가 없습니다.".to_string()))?
     } else {
         // 앱은 body에서 읽음
         body.refresh_token
             .filter(|v| !v.trim().is_empty())
-            .ok_or_else(|| (StatusCode::BAD_REQUEST, "refresh_token이 비어있음".to_string()))?
+            .ok_or_else(|| (StatusCode::BAD_REQUEST, "refresh_token을 입력해 주세요.".to_string()))?
     };
 
     let rotated = service::rotate_refresh_token(

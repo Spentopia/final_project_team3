@@ -83,7 +83,7 @@ pub async fn update_escrow(
         Ok(_)=>(
             StatusCode::OK,
             // 단순 메세지 응답 → serde_json::json! 매크로의 인라인 생성
-            Json(serde_json!({"message": "escrow 주소 저장 완료"})),
+            Json(serde_json!({"message": "escrow 주소가 저장되었습니다."})),
             )
             .into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
@@ -123,7 +123,7 @@ pub async fn purchase(
     if req.tx_signature.is_none(){
         return (
             StatusCode::BAD_REQUEST,
-            "tx_signature는 필수입니다. 온체인 트랜잭션 완료 후 요청해주세요".to_string(),
+            "tx_signature는 필수입니다. 온체인 트랜잭션 완료 후 요청해 주세요.".to_string(),
             )
             .into_response();
     }
