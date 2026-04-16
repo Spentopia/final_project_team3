@@ -102,7 +102,7 @@ pub async fn get_refresh_session_by_id(
     session_id: Uuid,
 ) -> Result<RefreshSessionRow> {
     let url = format!(
-        "{}/rest/v1/refresh_sessions?id=eq.{}&select=id,user_id,client_type,token_hash,revoked",
+        "{}/rest/v1/refresh_sessions?id=eq.{}&select=id,user_id,client_type,token_hash,revoked,expires_at,replaced_by_session_id",
         state.config.supabase_url.trim_end_matches('/'),
         session_id
     );
