@@ -22,7 +22,7 @@ use axum::{
     Extension, Json,
 };
 
-use hyper::StatusCode;
+use axum::http::StatusCode;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -51,7 +51,7 @@ pub async fn create_listing(
     Extension(user_id): Extension<Uuid>,    // JWT 인증된 유저 UUID (=seller_id)
     Json(req): Json<CreateListingRequest>,  // 요청 바디: {item_id, price_spt}
 )->impl IntoResponse{
-    match service::create_listing(&state, user_id, req).await{
+    match service::create_listing(&state, user_id, &req).await{
         Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
@@ -79,11 +79,11 @@ pub async fn update_escrow(
     Path(listing_id): Path<Uuid>,                   // URL 경로에서 추출한 listing_UUID
     Json(req): Json<UpdateEscrowRequest>,           // 요청 바디: { escrow+address }
 )->impl IntoResponse{
-    match service::update_escrow(&state, listing_id, req.escrow_address).await{
+    match service::update_escrow(&state, user_id, listing_id, req.escrow_address).await{
         Ok(_)=>(
             StatusCode::OK,
             // 단순 메세지 응답 → serde_json::json! 매크로의 인라인 생성
-            Json(serde_json!({"message": "escrow 주소가 저장되었습니다."})),
+            Json(serde_json::json!({"message": "escrow 주소가 저장되었습니다."})),
             )
             .into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),

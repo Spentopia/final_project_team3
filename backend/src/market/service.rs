@@ -20,7 +20,6 @@
 //  예: users!seller_id(nickname) → market_listings.seller_id FK를 통해 users 테이블 JOIN
 //  명시하지 않으면 PostgREST가 ambigous 에러를 뱉는다.
 
-use std::fmt::format;
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -94,8 +93,8 @@ pub async fn create_listing(
         .ok_or_else(|| anyhow!("INSERT 결과가 비어있음"))?;
 
     // 2. JOIN 조회로 ListingResponse 구성
-    // INSERT 응답에는 sellet, nickname, 아이템 상세가 없으므로 별도 SELECT(embedding)로 가져온다.
-    fetch_listing_response(state,listing.id).await;
+    // INSERT 응답에는 seller, nickname, 아이템 상세가 없으므로 별도 SELECT(embedding)로 가져온다.
+    fetch_listing_response(state, listing.id).await
 }
 
 
@@ -183,7 +182,7 @@ async fn fetch_listing_response(state: &AppState, listing_id: Uuid)-> Result<Lis
     let r = raw
         .into_iter()
         .next()
-        .or_or_else(|| anyhow!("listing을 찾을 수 없음: {}", listing_id));
+        .ok_or_else(|| anyhow!("listing을 찾을 수 없음: {}", listing_id))?;
 
     // 중첩 구조를 flat한 ListingResponse DTO로 변환
     Ok(ListingResponse{
@@ -235,10 +234,11 @@ pub async fn update_escrow(
 
     let res = state
         .http_client
+        .patch(&url)
         .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
-        .header("apiKey", &state.config.supabase_secret_key)
-        .header("Prefer", "return=representation")
-        .json(&PatchPayload { escrow_address})
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=minimal")
+        .json(&PatchPayload { escrow_address })
         .send()
         .await
         .context("market_listings escrow PATCH 요청 실패")?;
@@ -275,7 +275,7 @@ pub async fn purchase(
     state: &AppState,
     user_id: Uuid,          // JWT에서 추출한 현재 로그인 유저 UUID (= buyer_id)
     req: PurchaseRequest,   // { listing_id, tx_signature }
-)->Result<PurchaseResponse> {
+)->Result<TransactionResponse> {
     // tx_signature 방어적 재확인
     // 핸들러에서 None이면 이미 400 반환했지만, service가 직접 호출되는 테스트 시나리오 등을 위해 재검증
     let tx_signature = req
