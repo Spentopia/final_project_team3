@@ -3,6 +3,7 @@
 import { supabase } from "@/shared/lib/supabase";
 import { authStorage } from "@/shared/lib/auth";
 import { apiClient } from "@/shared/api/client";
+import { stripPhone } from "@/shared/lib/phone";
 import type {
   LoginRequest,
   LoginResponse,
@@ -67,6 +68,27 @@ export const login = async (payload: LoginRequest): Promise<LoginResponse> => {
 // 회원가입
 export const signUp = async (payload: SignUpRequest): Promise<LoginResponse> => {
   await clearAllAuthState();
+
+  // ── 1) 이메일 중복 확인 ────────────────────────────────────
+  // 백엔드의 /auth/check-email은 public.users에서 이메일 존재 여부를 확인
+  // 200 + { exists: true } → 이미 가입된 이메일
+  // 404 → 가입 가능한 이메일
+  try {
+    const checkRes = await apiClient.post("/auth/check-email", {
+      email: payload.email,
+    });
+ 
+    // 200이 왔다는 건 이메일이 존재한다는 뜻
+    if (checkRes.data?.exists) {
+      throw new Error("이미 가입된 이메일입니다.");
+    }
+  } catch (error: any) {
+    // 404면 이메일이 없다는 뜻 → 정상, 회원가입 진행
+    // 그 외 에러(이미 가입된 이메일 포함)는 그대로 throw
+    if (error.response?.status !== 404) {
+      throw error;
+    }
+  }
 
   const { data, error } = await supabase.auth.signUp({
     email: payload.email,
@@ -192,8 +214,14 @@ export const updatePassword = async (newPassword: string) => {
 };
 
 // 전화번호로 이메일 찾기
+//
+// 유저가 "010-1234-5678" 형식으로 입력해도
+// DB에는 "01012345678"로 저장되어 있으므로
+// stripPhone으로 숫자만 추출해서 검색
 export const findEmailByPhone = async (phone: string): Promise<string> => {
-  const res = await apiClient.post("/auth/find-email", { phone });
+  const res = await apiClient.post("/auth/find-email", {
+    phone: stripPhone(phone),
+  });
   return res.data.masked_email;
 };
 
