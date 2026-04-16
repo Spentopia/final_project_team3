@@ -126,6 +126,10 @@ pub struct KakaoLoginRequest {
 pub struct CompleteProfileRequest {
     pub nickname: String,
     pub phone: String,
+
+    // 여기는 최종 url이 아니라 Storage patth 저장
+    // 예: defaults/avatar.png
+    // 예: user-uuid/avatar.png
     pub profile_image: Option<String>,
 }
 
@@ -136,17 +140,19 @@ pub struct CompleteProfileResponse {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 프로필 이미지 signed URL 응답
-//
-// 프론트는 이 URL을 img src로 사용하면 됨.
-// URL은 일정 시간 후 만료됨.
+// private bucket 이미지 signed URL 요청용 query
+// 예: /profile/image-url?path=defaults/avatar.png
+// ─────────────────────────────────────────────────────────────
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ProfileImageUrlQuery {
+    pub path: String,
+}
+
+// ─────────────────────────────────────────────────────────────
+// signed URL 응답
+// 프론트는 이 값을 img src에 넣어 보여주면 됨
 // ─────────────────────────────────────────────────────────────
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ProfileImageUrlResponse {
     pub signed_url: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ProfileImageUrlQuery {
-    pub path: String,
 }

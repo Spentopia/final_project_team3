@@ -1,26 +1,32 @@
-// domains/auth/ui/Signup.tsx
+// domains/auth/ui/SignupPage.tsx
 //
 // Step 기반 회원가입 페이지.
 //
-// Step 1:
-// - 이메일/비밀번호로 Supabase 회원가입
-// - Confirm Email 켜져 있으면 accessToken 없이 끝날 수 있음
-// - 그 경우 /signup-pending 으로 이동
+// Step 1: 이메일/비밀번호로 Supabase 회원가입
+//   - Confirm Email 켜져 있으면 accessToken 없이 끝날 수 있음
+//   - 그 경우 /signup-pending 으로 이동
 //
-// Step 2 ~ 3:
-// - accessToken(=앱 JWT)이 있는 경우에만 진행
-// - 마지막에 /profile/complete 호출
+// Step 2: 닉네임 + 전화번호 + 프로필 이미지 입력
+//   - 프로필 이미지는 useProfileImage 훅으로 관리
+//   - 파일 선택 시 로컬 미리보기만 보여주고
+//   - Step 3 완료 시 서버에 업로드
+//
+// Step 3: 아바타 선택 → completeProfile() 호출 → 메인으로
+//   - 이미지가 선택되어 있으면 먼저 업로드 후 path를 받아서
+//   - completeProfile에 profileImage로 전달
 
 import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { authStorage } from "@/shared/lib/auth";
 import { signUp, completeProfile } from "@/domains/auth/api/auth";
+import { useProfileImage } from "@/domains/auth/hooks/useProfileImage";
+import ProfileImageUploader from "@/domains/auth/ui/ProfileImageUploader";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
 import type { FormEvent } from "react";
-import { Sparkles, Upload } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 const avatarOptions = [
   { id: 1, name: "해피", emoji: "😊" },
@@ -36,6 +42,10 @@ export default function Signup() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
+  // 프로필 이미지 훅
+  // 파일 선택, 미리보기, 업로드를 한꺼번에 관리
+  const profileImage = useProfileImage();
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -43,7 +53,6 @@ export default function Signup() {
     phone: "",
     nickname: "",
     avatar: 1,
-    profileImage: "",
   });
 
   const handleNext = async (e: FormEvent<HTMLFormElement>) => {
@@ -91,12 +100,19 @@ export default function Signup() {
     }
 
     // ── Step 3: 프로필 저장 ──────────────────────────────────
+    // 1) 선택된 이미지가 있으면 먼저 서버에 업로드
+    // 2) 업로드된 path를 completeProfile에 전달
+    // 3) 이미지를 선택하지 않았으면 profileImage 없이 진행
     setLoading(true);
     try {
+      // 이미지 업로드 (선택된 파일이 있을 때만 실제 업로드 실행)
+      // 없으면 null 반환
+      const imagePath = await profileImage.upload();
+
       await completeProfile({
         nickname: formData.nickname,
         phone: formData.phone,
-        profileImage: formData.profileImage || undefined,
+        profileImage: imagePath || undefined,
       });
 
       navigate("/");
@@ -217,15 +233,19 @@ export default function Signup() {
                   />
                 </div>
 
+                {/* ── 프로필 이미지 업로드 ────────────────────── */}
+                {/* ProfileImageUploader 공통 컴포넌트 사용 */}
+                {/* 파일 선택만 하면 로컬 미리보기가 보이고, */}
+                {/* 실제 서버 업로드는 Step 3 완료 시 일괄 처리 */}
                 <div>
-                  <Label htmlFor="profile">프로필 이미지 (선택)</Label>
-                  <div className="mt-2 flex items-center gap-4">
-                    <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800">
-                      <Upload className="h-6 w-6 text-gray-400" />
-                    </div>
-                    <Button type="button" variant="outline" size="sm">
-                      이미지 업로드
-                    </Button>
+                  <Label>프로필 이미지 (선택)</Label>
+                  <div className="mt-2">
+                    <ProfileImageUploader
+                      previewUrl={profileImage.previewUrl}
+                      uploading={profileImage.uploading}
+                      error={profileImage.error}
+                      onFileSelect={profileImage.handleFileSelect}
+                    />
                   </div>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     나중에 설정할 수 있어요
@@ -280,10 +300,14 @@ export default function Signup() {
               )}
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={loading || profileImage.uploading}
                 className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
               >
-                {loading ? "처리 중..." : step === 3 ? "가입 완료" : "다음"}
+                {loading || profileImage.uploading
+                  ? "처리 중..."
+                  : step === 3
+                    ? "가입 완료"
+                    : "다음"}
               </Button>
             </div>
           </form>
