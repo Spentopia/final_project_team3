@@ -50,14 +50,14 @@ pub async fn link_wallet(
     let entry = state
         .nonce_store
         .get(wallet_address)
-        .ok_or_else(|| anyhow!("nonce가 없거나 만료됨. /auth/wallet/nonce를 먼저 호출하세요."))?;
+        .ok_or_else(|| anyhow!("nonce가 없거나 만료되었습니다. 다시 시도해 주세요."))?;
     tracing::warn!("[지갑연동] nonce_store 에서 찾음: stored_nonce={:?}", entry.nonce);
 
     // TTL 체크: 발급 후 5분이 지났으면 만료 처리
     if SystemTime::now() > entry.expires_at {
         drop(entry);
         state.nonce_store.remove(wallet_address);
-        return Err(anyhow!("nonce가 만료됨. /auth/wallet/nonce를 다시 호출하세요."));
+        return Err(anyhow!("nonce가 만료되었습니다. 다시 시도해 주세요."));
     }
 
     if entry.nonce != nonce {
@@ -65,7 +65,7 @@ pub async fn link_wallet(
             "[지갑연동] nonce 불일치! 저장된={:?}({}bytes), 받은={:?}({}bytes)",
             entry.nonce, entry.nonce.len(), nonce, nonce.len()
         );
-        return Err(anyhow!("nonce 불일치. 위조된 요청일 수 있음."));
+        return Err(anyhow!("nonce가 일치하지 않습니다."));
     }
     tracing::warn!("[지갑연동] nonce 일치 확인, 서명 검증 시작");
 
@@ -87,10 +87,7 @@ pub async fn link_wallet(
     if let Ok(existing_user_id) = find_user_by_wallet(state, wallet_address).await {
         // 이미 연동됐는데 내 계정이라면 재연동이므로 에러 처리 방식은 기획에 따라 다름
         // 일단 "이미 연동된 지갑"으로 막음
-        return Err(anyhow!(
-            "이미 다른 계정에 연동된 지갑 주소입니다. (user_id: {})",
-            existing_user_id
-        ));
+        return Err(anyhow!("이미 다른 계정에 연동된 지갑 주소입니다."));
     }
 
     // 4) DB 업데이트

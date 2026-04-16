@@ -44,9 +44,17 @@ function getErrorMessage(error: unknown): string {
     }
 
     if (error instanceof Error) {
+        const lower = error.message.toLowerCase();
+        // 지갑 어댑터의 영문 에러를 한국어로 변환한다.
+        if (lower.includes('user rejected') || lower.includes('rejected the request')) {
+            return '취소했어요.';
+        }
+        if (lower.includes('plugin closed') || lower.includes('closed')) {
+            return '지갑 창이 닫혔어요.';
+        }
         return error.message;
     }
-    return '알 수 없는 오류가 발생했습니다';
+    return '알 수 없는 오류가 발생했어요';
 }
 
 // Solana wallet adapter와 백엔드 지갑 인증 API를 묶는 핵심 훅.

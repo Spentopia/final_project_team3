@@ -18,6 +18,7 @@ export function WalletLoginButton({
         wallet,
         connected,
         connecting,
+        disconnecting,
         walletAddress,
         canSignMessage,
         openWalletModal,
@@ -40,20 +41,31 @@ export function WalletLoginButton({
     // 이전 wallet 어댑터 이름을 기억해 "새 지갑이 선택됐는지"를 판단한다.
     const prevWalletNameRef = useRef<string | null>(wallet?.adapter.name ?? null);
 
+    // deselectWallet()이 disconnect를 유발하면 disconnecting=true가 되고
+    // wallet-adapter 내부에서 connect()가 즉시 return된다.
+    // 새 지갑이 선택됐는데 아직 disconnecting 중이면 이 플래그를 세우고,
+    // disconnecting이 끝난 뒤 effect가 재발화할 때 connect()를 호출한다.
+    const pendingConnectRef = useRef(false);
+
     // autoConnect=false 이므로 모달에서 지갑이 선택(wallet 변경)되면 직접 connect()를 호출한다.
     useEffect(() => {
         const currentName = wallet?.adapter.name ?? null;
         const prevName = prevWalletNameRef.current;
         prevWalletNameRef.current = currentName;
 
-        if (currentName && currentName !== prevName && pendingRef.current && !connected && !connecting) {
+        // 새 지갑이 선택되면 connect 대기 플래그를 세운다.
+        if (currentName && currentName !== prevName && pendingRef.current && !connected) {
+            pendingConnectRef.current = true;
+        }
+
+        // disconnecting이 끝나야 connect()가 실제로 실행된다.
+        if (pendingConnectRef.current && wallet && !connected && !connecting && !disconnecting) {
+            pendingConnectRef.current = false;
             connectWallet().catch(() => {
-                // 사용자가 취소하면 wallet 상태가 순간 초기화됐다가 복구되면서
-                // useEffect가 재발화할 수 있다. pending을 내려서 재시도를 막는다.
                 pendingRef.current = false;
             });
         }
-    }, [wallet, connected, connecting, connectWallet]);
+    }, [wallet, connected, connecting, disconnecting, connectWallet]);
 
     // 지갑이 연결되면 자동으로 로그인 서명 요청.
     useEffect(() => {
