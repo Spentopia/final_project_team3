@@ -150,7 +150,7 @@ fn extract_refresh_cookie(headers: &HeaderMap) -> Option<String> {
         .get("cookie")
         .and_then(|v| v.to_str().ok())
         .and_then(|cookie_header| {
-            cookie::Cookie::split_parse(cookie_header)
+            Cookie::split_parse(cookie_header)
                 .filter_map(Result::ok)
                 .find(|c| c.name() == "spentopia_refresh")
                 .map(|c| c.value().to_string())
@@ -180,7 +180,7 @@ fn extract_refresh_cookie(headers: &HeaderMap) -> Option<String> {
     request_body = NonceRequest,
     responses(
         (status = 200, description = "nonce 발급 성공", body = NonceResponse),
-        (status = 400, description = "지갑 주소가 비어있음")
+        (status = 400, description = "지갑 주소가 비어있습니다")
     )
 )]
 pub async fn request_nonce(
@@ -473,7 +473,7 @@ pub async fn complete_profile(
         user_id
     );
 
-    let payload = serde_json::json!({
+    let payload = json!({
         "nickname": body.nickname,
         "phone": body.phone,
         "profile_image": body.profile_image,
@@ -715,7 +715,7 @@ pub async fn get_profile_image_signed_url(
     request_body = FindEmailRequest,
     responses(
         (status = 200, description = "이메일 찾기 성공", body = FindEmailResponse),
-        (status = 404, description = "해당 전화번호로 등록된 계정 없음")
+        (status = 404, description = "해당 전화번호로 등록된 계정이 없습니다")
     )
 )]
 pub async fn find_email(
@@ -745,8 +745,8 @@ pub async fn find_email(
     tag = "인증",
     request_body = CheckEmailRequest,
     responses(
-        (status = 200, description = "이메일 존재함"),
-        (status = 404, description = "해당 이메일로 가입된 계정 없음")
+        (status = 200, description = "이미 사용중인 이메일이 존재합니다"),
+        (status = 404, description = "해당 이메일로 가입된 계정이 없습니다")
     )
 )]
 pub async fn check_email(
@@ -771,7 +771,7 @@ pub async fn check_email(
         ));
     }
 
-    Ok(Json(serde_json::json!({ "exists": true })))
+    Ok(Json(json!({ "exists": true })))
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -954,9 +954,9 @@ pub async fn logout(
     if client_type == "web" {
         // 웹은 쿠키도 같이 지워야 함
         let headers = build_clear_refresh_cookie();
-        Ok((headers, Json(serde_json::json!({ "logged_out": true }))))
+        Ok((headers, Json(json!({ "logged_out": true }))))
     } else {
-        Ok((HeaderMap::new(), Json(serde_json::json!({ "logged_out": true }))))
+        Ok((HeaderMap::new(), Json(json!({ "logged_out": true }))))
     }
 }
 
