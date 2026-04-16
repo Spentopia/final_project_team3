@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useFinance } from "@/shared/providers/FinanceProvider";
+
 import { Calendar } from "@/shared/ui/calendar";
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
@@ -8,6 +10,7 @@ import { Textarea } from "@/shared/ui/textarea";
 import { verifyReceiptOcr, ReceiptOcrResponse } from "@/shared/api/receiptOcr";
 import { createExpense } from "@/shared/api/expenseApi";
 import { Badge } from "@/shared/ui/badge";
+
 import {
   Select,
   SelectContent,
@@ -49,26 +52,10 @@ const categories = [
 ];
 
 export default function DashboardPage() {
+  const { budget } = useFinance();
+
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [expenses, setExpenses] = useState<Expense[]>([
-    {
-      id: 1,
-      date: new Date(),
-      amount: 12000,
-      category: "food",
-      memo: "점심 식사",
-      receipt: true,
-      diary: "오늘은 친구들과 맛있는 점심을 먹었다",
-    },
-    {
-      id: 2,
-      date: new Date(),
-      amount: 3500,
-      category: "transport",
-      memo: "택시",
-      receipt: false,
-    },
-  ]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
 
   const [newExpense, setNewExpense] = useState({
     amount: "",
@@ -234,40 +221,43 @@ export default function DashboardPage() {
       {/* Left Column - Calendar & Expenses */}
       <div className="space-y-6">
         {/* Monthly Summary */}
-        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <h3 className="text-2xl font-bold">
                 {format(selectedDate || new Date(), "yyyy년 M월", { locale: ko })}
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">이번 달 소비 내역</p>
+              <p className="text-sm text-gray-600">이번 달 소비 내역</p>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+              <p className="text-3xl font-bold">
                 {monthlyTotal.toLocaleString()}원
               </p>
-              <div className="mt-1 flex items-center justify-end gap-1 text-sm text-green-600 dark:text-green-400">
-                <TrendingDown className="h-4 w-4" />
-                <span>지난달 대비 -12%</span>
-              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-lg bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 dark:from-cyan-900/30 dark:to-cyan-800/30">
-              <p className="mb-1 text-sm text-cyan-700 dark:text-cyan-300">예산</p>
-              <p className="font-bold text-cyan-900 dark:text-cyan-100">500,000원</p>
-            </div>
-            <div className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 p-4 dark:from-blue-900/30 dark:to-blue-800/30">
-              <p className="mb-1 text-sm text-blue-700 dark:text-blue-300">남은 예산</p>
-              <p className="font-bold text-blue-900 dark:text-blue-100">
-                {(500000 - monthlyTotal).toLocaleString()}원
+            <div className="p-4 bg-cyan-100 rounded-lg">
+              <p>예산</p>
+              <p className="font-bold">
+                {budget.toLocaleString()}원
               </p>
             </div>
-            <div className="rounded-lg bg-gradient-to-br from-teal-50 to-teal-100 p-4 dark:from-teal-900/30 dark:to-teal-800/30">
-              <p className="mb-1 text-sm text-teal-700 dark:text-teal-300">사용률</p>
-              <p className="font-bold text-teal-900 dark:text-teal-100">
-                {Math.round((monthlyTotal / 500000) * 100)}%
+
+            <div className="p-4 bg-blue-100 rounded-lg">
+              <p>남은 예산</p>
+              <p className="font-bold">
+                {(budget - monthlyTotal).toLocaleString()}원
+              </p>
+            </div>
+
+            <div className="p-4 bg-teal-100 rounded-lg">
+              <p>사용률</p>
+              <p className="font-bold">
+                {budget > 0
+                  ? Math.round((monthlyTotal / budget) * 100)
+                  : 0}
+                %
               </p>
             </div>
           </div>

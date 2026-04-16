@@ -1,7 +1,10 @@
+import { useFinance } from "@/shared/providers/FinanceProvider";
+
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+
 import {
   BarChart,
   Bar,
@@ -55,6 +58,22 @@ const categoryData = [
 ];
 
 export default function Analytics() {
+  const { transactions } = useFinance(); // ✅ 여기 (제일 위)
+  const now = new Date();
+
+  // 👉 여기부터 계산 코드들
+  const thisMonthTransactions = transactions.filter((t: any) => {
+    const date = new Date(t.date);
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth()
+    );
+  });
+
+  const totalExpense = thisMonthTransactions.reduce(
+    (sum: number, t: any) => sum + t.amount,
+    0
+  );
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -79,7 +98,9 @@ export default function Analytics() {
       <div className="grid gap-6 md:grid-cols-4">
         <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
           <p className="mb-1 text-sm opacity-90">이번 달 총 지출</p>
-          <p className="mb-2 text-3xl font-bold">300,000원</p>
+          <p className="mb-2 text-3xl font-bold">
+  {totalExpense.toLocaleString()}원
+</p>
           <div className="flex items-center gap-1 text-sm">
             <TrendingDown className="h-4 w-4" />
             <span>지난 달 대비 -12%</span>
