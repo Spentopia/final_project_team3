@@ -120,11 +120,12 @@ export function useWalletConnection() {
         try {
             await connect();
         } catch (error) {
-            const message = getErrorMessage(error);
-            // 사용자가 직접 취소한 경우("rejected")는 에러 메시지를 표시하지 않는다.
-            // 취소는 오류가 아닌 정상 흐름이므로 UI에 노출할 필요가 없다.
-            if (!message.toLowerCase().includes('rejected')) {
-                setErrorMessage(message);
+            const message = getErrorMessage(error).toLowerCase();
+            // 사용자가 취소하거나 팝업을 닫은 경우는 정상 흐름이므로 에러 메시지를 표시하지 않는다.
+            // "rejected" → 승인 거부, "closed" → Plugin Closed(팝업 창 닫음)
+            const isCancellation = message.includes('rejected') || message.includes('closed');
+            if (!isCancellation) {
+                setErrorMessage(getErrorMessage(error));
             }
             throw error;
         }

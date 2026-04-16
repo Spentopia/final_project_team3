@@ -29,6 +29,7 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
       openWalletModal,
       connectWallet,
       disconnectWallet,
+      deselectWallet,
       linkWallet,
       unlinkWallet,
       isProcessing,
@@ -52,7 +53,11 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
     prevWalletNameRef.current = currentName;
 
     if (currentName && currentName !== prevName && pendingRef.current && !connected && !connecting) {
-      connectWallet().catch(() => {});
+      connectWallet().catch(() => {
+        // 사용자가 취소하면 wallet 상태가 순간 초기화됐다가 복구되면서
+        // useEffect가 재발화할 수 있다. pending을 내려서 재시도를 막는다.
+        pendingRef.current = false;
+      });
     }
   }, [wallet, connected, connecting, connectWallet]);
 
@@ -84,6 +89,9 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
     pendingRef.current = true;
     // 이전 선택 기록을 초기화해서 같은 지갑을 다시 선택해도 connect()가 호출되도록 한다.
     prevWalletNameRef.current = null;
+    // wallet을 null로 초기화해야 같은 지갑을 다시 선택할 때 wallet 상태가 변해서 useEffect가 발화한다.
+    // (이미 Phantom이 선택된 상태에서 Phantom을 다시 선택하면 상태 변화가 없어 connect()가 불리지 않음)
+    deselectWallet();
     openWalletModal();
   };
 
