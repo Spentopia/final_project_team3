@@ -6,7 +6,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Textarea } from "@/shared/ui/textarea";
 import { verifyReceiptOcr, ReceiptOcrResponse } from "@/shared/api/receiptOcr";
-import { createExpense } from "@/shared/api/expenseApi";
+import { createExpense, type CreateExpenseResponse } from "@/shared/api/expenseApi";
 import { Badge } from "@/shared/ui/badge";
 import {
   Select,
@@ -23,7 +23,7 @@ import {
   TrendingDown,
   Zap,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isValid, parse } from "date-fns";
 import { ko } from "date-fns/locale";
 import { toast } from "sonner";
 
@@ -36,6 +36,16 @@ interface Expense {
   receipt?: boolean;
   diary?: string;
 }
+
+const toDashboardExpense = (savedExpense: CreateExpenseResponse): Expense => ({
+  id: savedExpense.id,
+  date: parse(savedExpense.date, "yyyy-MM-dd", new Date()),
+  amount: savedExpense.amount,
+  category: savedExpense.category,
+  memo: savedExpense.memo ?? "",
+  receipt: savedExpense.receiptVerified,
+  diary: savedExpense.diary ?? "",
+});
 
 const categories = [
   { value: "food", label: "🍔 식비", color: "bg-orange-500" },
@@ -164,17 +174,10 @@ export default function DashboardPage() {
 
       const savedExpense = await createExpense(payload);
 
-      const expense: Expense = {
-        id: savedExpense.id ?? Date.now(),
-        date: selectedDate,
-        amount: savedExpense.amount ?? Number(newExpense.amount),
-        category: savedExpense.category ?? newExpense.category,
-        memo: savedExpense.memo ?? newExpense.memo,
-        receipt: savedExpense.receiptVerified ?? isReceiptVerified,
-        diary: savedExpense.diary ?? newExpense.diary,
-      };
+      const expense = toDashboardExpense(savedExpense);
 
-      setExpenses((prev) => [...prev, expense]);
+      setExpenses((prev) => [expense, ...prev]);
+      setSelectedDate(expense.date);
 
       let reward = 10;
       if (isReceiptVerified) reward += 20;
@@ -211,6 +214,19 @@ export default function DashboardPage() {
     toast.success("삭제되었습니다");
   };
 
+  const handleExpenseDateChange = (value: string) => {
+    if (!value) {
+      setSelectedDate(undefined);
+      return;
+    }
+
+    const nextDate = parse(value, "yyyy-MM-dd", new Date());
+
+    if (isValid(nextDate)) {
+      setSelectedDate(nextDate);
+    }
+  };
+
   const selectedDateExpenses = expenses.filter(
     (e) => format(e.date, "yyyy-MM-dd") === format(selectedDate || new Date(), "yyyy-MM-dd")
   );
@@ -224,6 +240,9 @@ export default function DashboardPage() {
         e.date.getMonth() === (selectedDate || new Date()).getMonth()
     )
     .reduce((sum, e) => sum + e.amount, 0);
+
+  const recordedDates = expenses.map((expense) => expense.date);
+  const selectedDateInputValue = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
 
   const getCategoryInfo = (categoryValue: string) => {
     return categories.find((c) => c.value === categoryValue) || categories[categories.length - 1];
@@ -281,6 +300,11 @@ export default function DashboardPage() {
             onSelect={setSelectedDate}
             className="rounded-lg"
             locale={ko}
+            modifiers={{ recorded: recordedDates }}
+            modifiersClassNames={{
+              recorded:
+                "relative font-bold text-cyan-700 after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-cyan-500 dark:text-cyan-300 dark:after:bg-cyan-300",
+            }}
           />
         </Card>
 
@@ -426,11 +450,14 @@ export default function DashboardPage() {
             <div>
               <Label>날짜</Label>
               <Input
-                type="text"
-                value={format(selectedDate || new Date(), "yyyy년 M월 d일", { locale: ko })}
-                disabled
+                type="date"
+                value={selectedDateInputValue}
+                onChange={(e) => handleExpenseDateChange(e.target.value)}
                 className="mt-1"
               />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                날짜를 직접 입력하거나 왼쪽 달력에서 선택할 수 있어요.
+              </p>
             </div>
 
             <div>

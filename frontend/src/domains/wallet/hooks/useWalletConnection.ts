@@ -16,12 +16,7 @@ import {authStorage} from "@/shared/lib/auth";
 // 현재 프로젝트는 authStorage와 spentopia_auth 플래그를 함께 보고 있으므로 둘 다 맞춰준다.
 function persistWalletTokens(payload: WalletLoginResponse): void {
     authStorage.setToken(payload.access_token);
-    localStorage.setItem("spentopia_auth", payload.access_token);
-    // web: refresh_token은 쿠키로 자동 저장됨
-    // app: body에 포함되어 있을 때만 저장
-    if (payload.refresh_token) {
-        localStorage.setItem("refreshToken", payload.refresh_token);
-    }
+    
 }
 
 // axios 에러 응답을 화면에 표시할 수 있는 문자열로 정규화한다.
@@ -49,9 +44,17 @@ function getErrorMessage(error: unknown): string {
     }
 
     if (error instanceof Error) {
+        const lower = error.message.toLowerCase();
+        // 지갑 어댑터의 영문 에러를 한국어로 변환한다.
+        if (lower.includes('user rejected') || lower.includes('rejected the request')) {
+            return '취소했어요.';
+        }
+        if (lower.includes('plugin closed') || lower.includes('closed')) {
+            return '지갑 창이 닫혔어요.';
+        }
         return error.message;
     }
-    return '알 수 없는 오류가 발생했습니다';
+    return '알 수 없는 오류가 발생했어요';
 }
 
 // Solana wallet adapter와 백엔드 지갑 인증 API를 묶는 핵심 훅.
@@ -80,6 +83,7 @@ export function useWalletConnection() {
         disconnecting,
         connect,
         disconnect,
+        select,
         signMessage,
     } = useWallet();
 
@@ -124,7 +128,13 @@ export function useWalletConnection() {
         try {
             await connect();
         } catch (error) {
-            setErrorMessage(getErrorMessage(error));
+            const message = getErrorMessage(error).toLowerCase();
+            // 사용자가 취소하거나 팝업을 닫은 경우는 정상 흐름이므로 에러 메시지를 표시하지 않는다.
+            // "rejected" → 승인 거부, "closed" → Plugin Closed(팝업 창 닫음)
+            const isCancellation = message.includes('rejected') || message.includes('closed');
+            if (!isCancellation) {
+                setErrorMessage(getErrorMessage(error));
+            }
             throw error;
         }
     }, [connect, resetMessages]);
@@ -141,6 +151,15 @@ export function useWalletConnection() {
             throw error;
         }
     }, [disconnect, resetMessages]);
+
+    // 지갑 선택 자체를 해제한다.
+    // disconnect()는 연결만 끊을 뿐 adapter의 선택 상태(localStorage)를 초기화하지 않는다.
+    // 모달을 다시 열어 다른 지갑을 고를 수 있도록 선택을 완전히 지운다.
+    const deselectWallet = useCallback(() => {
+        // select(null)은 현재 어댑터를 disconnect하고 localStorage의 지갑 이름도 초기화한다.
+        // WalletName branded type이지만 null을 넘기면 wallet-adapter 내부에서 정상 처리된다.
+        select(null as Parameters<typeof select>[0]);
+    }, [select]);
 
     // 로그인과 연동에 공통으로 쓰이는 인증 payload 생성기.
     //
@@ -315,6 +334,7 @@ export function useWalletConnection() {
         openWalletModal,
         connectWallet,
         disconnectWallet,
+        deselectWallet,
 
         // 비즈니스 액션
         loginWithWallet,

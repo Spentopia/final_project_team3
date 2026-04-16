@@ -39,17 +39,17 @@ export async function signNonceToBase58(
 }
 
 // UI 표시용 지갑 주소 축약 함수.
-// 예: 7xKX...87d4
+// 예: 7xKX...
 export function shortenWalletAddress(address: string | null | undefined): string {
     if (!address) {
         return '-';
     }
 
-    if (address.length <= 10) {
+    if (address.length <= 6) {
         return address;
     }
 
-    return `${address.slice(0, 4)}...${address.slice(-4)}`;
+    return `${address.slice(0, 4)}...`;
 }
 
 // 로그인/연동 직전에 현재 지갑이 인증 가능한 상태인지 검증한다.

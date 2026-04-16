@@ -127,7 +127,7 @@ pub async fn link_wallet(
                 // 요청에서 받은 지갑 주소를 그대로 돌려줌
                 // 클라이언트가 "어떤 지갑이 연동됐는지" 확인할 수 있게 포함
                 wallet_address: req.wallet_address,
-                message: "지갑 연동 완료".to_string(),
+                message: "지갑이 연동되었습니다.".to_string(),
             }),
             )
             .into_response(),

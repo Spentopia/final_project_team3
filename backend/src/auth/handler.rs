@@ -26,16 +26,17 @@
 // - refresh 쿠키는 항상 secure(false)
 
 use axum::{
-    extract::State,
+    extract::{Multipart, Query, State},
     http::{header::SET_COOKIE, HeaderMap, StatusCode},
     Json,
 };
 
 use cookie::{Cookie, SameSite};
+use serde_json::json;
 
 use utoipa;
 use crate::state::AppState;
-use super::dto::{AppLoginResponse,
+use crate::auth::dto::{AppLoginResponse,
                  AppRefreshResponse,
                  CheckEmailRequest,
                  CompleteProfileRequest,
@@ -47,10 +48,13 @@ use super::dto::{AppLoginResponse,
                  NonceRequest,
                  NonceResponse,
                  RefreshRequest,
+                 ProfileImageUrlQuery,
+                 ProfileImageUrlResponse,
                  WalletLoginRequest,
                  WebLoginResponse,
                  WebRefreshResponse,};
-use super::service;
+use crate::auth::service;
+
 
 /// 클라이언트 타입 판별
 ///
@@ -88,9 +92,9 @@ fn resolve_client_type(headers: &HeaderMap) -> &'static str {
 /// - SameSite=Lax:
 ///   기본적인 CSRF 위험을 줄이기 위한 설정
 ///
-/// - Path=/auth/refresh:
-///   refresh 쿠키가 모든 요청에 붙지 않고
-///   refresh 요청에만 붙도록 제한
+/// - Path=/auth:
+///   refresh 쿠키가 /auth 하위 요청들에만 붙도록 제한
+///   -> /auth/refresh 뿐 아니라 /auth/logout 에도 자동 포함됨
 ///
 /// 왜 refresh만 쿠키냐:
 /// - access는 프론트 메모리에 저장하고 Authorization 헤더로 보냄
@@ -101,13 +105,17 @@ fn build_refresh_cookie(refresh_token: &str) -> HeaderMap {
     let cookie = Cookie::build(("spentopia_refresh", refresh_token.to_string()))
         .http_only(true)
         .same_site(SameSite::Lax)
-        .path("/auth/refresh")
+        .path("/auth")
         .secure(false) // 로컬 시연용. HTTPS 아님.
         .build();
 
     headers.append(
         SET_COOKIE,
         cookie.to_string().parse().unwrap(),
+    );
+
+    tracing::debug!(
+        "refresh 쿠키 발급: name=spentopia_refresh path=/auth same_site=Lax secure=false"
     );
 
     headers
@@ -122,7 +130,7 @@ fn build_clear_refresh_cookie() -> HeaderMap {
     let cookie = Cookie::build(("spentopia_refresh", "".to_string()))
         .http_only(true)
         .same_site(SameSite::Lax)
-        .path("/auth/refresh")
+        .path("/auth")
         .secure(false) // 로컬 시연용
         .max_age(cookie::time::Duration::seconds(0))
         .build();
@@ -131,6 +139,8 @@ fn build_clear_refresh_cookie() -> HeaderMap {
         SET_COOKIE,
         cookie.to_string().parse().unwrap(),
     );
+
+    tracing::debug!("refresh 쿠키 삭제 헤더 발급: name=spentopia_refresh path=/auth");
 
     headers
 }
@@ -142,15 +152,28 @@ fn build_clear_refresh_cookie() -> HeaderMap {
 /// 앱은 쿠키를 안 쓰고 body.refresh_token을 쓰므로
 /// 앱 쪽에서는 이 함수 사용 안 함
 fn extract_refresh_cookie(headers: &HeaderMap) -> Option<String> {
-    headers
+    let raw_cookie = headers
         .get("cookie")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|cookie_header| {
-            cookie::Cookie::split_parse(cookie_header)
+        .and_then(|v| v.to_str().ok());
+
+    tracing::debug!(
+        "요청 Cookie 헤더 존재 여부: present={} path_sensitive_cookie_check=spentopia_refresh",
+        raw_cookie.is_some()
+    );
+
+    let extracted = raw_cookie.and_then(|cookie_header| {
+            Cookie::split_parse(cookie_header)
                 .filter_map(Result::ok)
                 .find(|c| c.name() == "spentopia_refresh")
                 .map(|c| c.value().to_string())
-        })
+        });
+
+    tracing::debug!(
+        "spentopia_refresh 쿠키 추출 결과: found={}",
+        extracted.is_some()
+    );
+
+    extracted
 }
 
 
@@ -176,7 +199,7 @@ fn extract_refresh_cookie(headers: &HeaderMap) -> Option<String> {
     request_body = NonceRequest,
     responses(
         (status = 200, description = "nonce 발급 성공", body = NonceResponse),
-        (status = 400, description = "지갑 주소가 비어있음")
+        (status = 400, description = "지갑 주소가 비어있습니다")
     )
 )]
 pub async fn request_nonce(
@@ -192,7 +215,7 @@ pub async fn request_nonce(
     // 지갑 주소가 비어있으면 400 반환
     if body.wallet_address.trim().is_empty() {
         tracing::warn!("nonce 요청: 지갑 주소 비어있음");
-        return Err((StatusCode::BAD_REQUEST, "지갑 주소가 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "지갑 주소를 입력해 주세요.".to_string()));
     }
 
     // service에서 nonce 생성
@@ -248,15 +271,15 @@ pub async fn wallet_login(
     // 필수 필드 비어있는지 체크
     if body.wallet_address.trim().is_empty() {
         tracing::warn!("지갑 로그인: 지갑 주소 비어있음");
-        return Err((StatusCode::BAD_REQUEST, "지갑 주소가 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "지갑 주소를 입력해 주세요.".to_string()));
     }
     if body.nonce.trim().is_empty() {
         tracing::warn!("지갑 로그인: nonce 비어있음");
-        return Err((StatusCode::BAD_REQUEST, "nonce가 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "nonce를 입력해 주세요.".to_string()));
     }
     if body.signature.trim().is_empty() {
         tracing::warn!("지갑 로그인: 서명 비어있음");
-        return Err((StatusCode::BAD_REQUEST, "서명이 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "서명을 입력해 주세요.".to_string()));
     }
 
     // service에서 서명 검증 + 로그인 처리
@@ -339,7 +362,7 @@ pub async fn exchange_token(
     Json(body): Json<ExchangeTokenRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     if body.access_token.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "access_token이 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "access_token을 입력해 주세요.".to_string()));
     }
 
     let client_type = resolve_client_type(&headers);
@@ -357,6 +380,7 @@ pub async fn exchange_token(
 
     if client_type == "web" {
         let cookie_headers = build_refresh_cookie(&issued.refresh_token);
+        tracing::debug!("토큰 교환 응답: web refresh 쿠키를 Set-Cookie로 반환");
 
         let body = WebLoginResponse {
             access_token: issued.access_token,
@@ -409,7 +433,7 @@ pub async fn get_me(
         .await
         .map_err(|e| {
             tracing::error!("/me 유저 조회 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "유저 조회 실패".to_string())
+            (StatusCode::INTERNAL_SERVER_ERROR, "사용자 조회에 실패했습니다.".to_string())
         })?;
 
     if !resp.status().is_success() {
@@ -421,13 +445,13 @@ pub async fn get_me(
     let users: Vec<serde_json::Value> = resp.json().await
         .map_err(|e| {
             tracing::error!("/me 응답 파싱 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱 실패".to_string())
+            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱에 실패했습니다.".to_string())
         })?;
 
     let user = users
         .first()
         .cloned()
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "유저 없음".to_string()))?;
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "사용자를 찾을 수 없습니다.".to_string()))?;
 
     Ok(Json(user))
 }
@@ -456,11 +480,11 @@ pub async fn complete_profile(
     Json(body): Json<CompleteProfileRequest>,
 ) -> Result<Json<CompleteProfileResponse>, (StatusCode, String)> {
     if body.nickname.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "닉네임이 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "닉네임을 입력해 주세요.".to_string()));
     }
 
     if body.phone.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "전화번호가 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "전화번호를 입력해 주세요.".to_string()));
     }
 
     let url = format!(
@@ -469,11 +493,21 @@ pub async fn complete_profile(
         user_id
     );
 
-    let payload = serde_json::json!({
+    // profile_image가 None이면 페이로드에서 제외.
+    //
+    // 이유: PATCH에 "profile_image": null을 포함하면
+    // Supabase가 해당 컬럼을 NULL로 덮어씀.
+    // 사용자가 이미지를 선택하지 않은 경우
+    // 트리거가 삽입해 둔 "defaults/avatar.png"가 지워지는 버그 발생.
+    // 필드를 아예 빼면 DB는 기존 값을 그대로 유지함.
+    let mut payload = json!({
         "nickname": body.nickname,
         "phone": body.phone,
-        "profile_image": body.profile_image,
     });
+
+    if let Some(ref img) = body.profile_image {
+        payload["profile_image"] = json!(img);
+    }
 
     let resp = state.http_client
         .patch(&url)
@@ -486,7 +520,7 @@ pub async fn complete_profile(
         .await
         .map_err(|e| {
             tracing::error!("프로필 업데이트 요청 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "프로필 저장 실패".to_string())
+            (StatusCode::INTERNAL_SERVER_ERROR, "프로필 저장에 실패했습니다.".to_string())
         })?;
 
     if !resp.status().is_success() {
@@ -520,7 +554,7 @@ pub async fn complete_profile(
     let rows: Vec<serde_json::Value> = resp.json().await
         .map_err(|e| {
             tracing::error!("프로필 업데이트 응답 파싱 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱 실패".to_string())
+            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱에 실패했습니다.".to_string())
         })?;
 
     let updated = rows.first().cloned().unwrap_or_default();
@@ -532,6 +566,201 @@ pub async fn complete_profile(
     }))
 }
 
+// ─────────────────────────────────────────────────────────────
+// 프로필 이미지 업로드
+//
+// 요청 형식:
+// multipart/form-data
+// field name = "file"
+//
+// 처리 흐름:
+// 1) JWT에서 user_id 가져옴
+// 2) 파일 타입 확인
+// 3) 파일 크기 확인
+// 4) service role key로 private bucket에 업로드
+// 5) DB에 저장할 object path 반환
+// ─────────────────────────────────────────────────────────────
+pub async fn upload_profile_image(
+    State(state): State<AppState>,
+    axum::Extension(user_id): axum::Extension<uuid::Uuid>,
+    mut multipart: Multipart,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let bucket = &state.config.supabase_profile_image_bucket;
+
+    let mut file_bytes: Option<Vec<u8>> = None;
+    let mut content_type: Option<String> = None;
+    let mut file_extension = "png".to_string();
+
+    while let Some(field) = multipart.next_field().await.map_err(|e| {
+        tracing::error!("multipart 파싱 실패: {}", e);
+        (StatusCode::BAD_REQUEST, "멀티파트 파싱에 실패했습니다.".to_string())
+    })? {
+        let name = field.name().unwrap_or_default().to_string();
+
+        if name == "file" {
+            if let Some(ct) = field.content_type() {
+                content_type = Some(ct.to_string());
+
+                file_extension = match ct {
+                    "image/png" => "png".to_string(),
+                    "image/jpeg" | "image/jpg" => "jpg".to_string(),
+                    "image/webp" => "webp".to_string(),
+                    _ => {
+                        return Err((
+                            StatusCode::BAD_REQUEST,
+                            "png, jpg, webp 이미지만 업로드 가능합니다".to_string(),
+                        ));
+                    }
+                };
+            }
+
+            let bytes = field.bytes().await.map_err(|e| {
+                tracing::error!("파일 읽기 실패: {}", e);
+                (StatusCode::BAD_REQUEST, "파일 읽기에 실패했습니다.".to_string())
+            })?;
+
+            // 최대 5MB 제한
+            if bytes.len() > 5 * 1024 * 1024 {
+                return Err((StatusCode::BAD_REQUEST, "파일 크기는 5MB 이하여야 합니다.".to_string()));
+            }
+
+            file_bytes = Some(bytes.to_vec());
+            break;
+        }
+    }
+
+    let file_bytes = file_bytes.ok_or_else(|| {
+        (StatusCode::BAD_REQUEST, "file 필드가 없습니다".to_string())
+    })?;
+
+    let content_type = content_type.unwrap_or_else(|| "image/png".to_string());
+
+    // 유저마다 고정 파일 경로 사용
+    // 같은 유저가 다시 업로드하면 같은 경로를 덮어씀
+    let object_path = format!("{}/avatar.{}", user_id, file_extension);
+
+    let upload_url = format!(
+        "{}/storage/v1/object/{}/{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        bucket,
+        object_path
+    );
+
+    let resp = state.http_client
+        .post(&upload_url)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Content-Type", content_type)
+        .header("x-upsert", "true")
+        .body(file_bytes)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!("스토리지 업로드 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "스토리지 업로드에 실패했습니다.".to_string())
+        })?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        tracing::error!("스토리지 업로드 응답 실패: {}", err);
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, err));
+    }
+
+    Ok(Json(json!({
+        "path": object_path
+    })))
+}
+
+// ─────────────────────────────────────────────────────────────
+// private bucket 이미지 signed URL 발급
+//
+// 프론트는 DB에 저장된 path를 보내고,
+// 백엔드는 signed URL을 만들어서 반환한다.
+//
+// URL은 24시간짜리로 줘서 쉽게 안 끊기게 함.
+// 만료되면 프론트가 다시 요청하면 된다.
+// ─────────────────────────────────────────────────────────────
+pub async fn get_profile_image_signed_url(
+    State(state): State<AppState>,
+    axum::Extension(user_id): axum::Extension<uuid::Uuid>,
+    Query(query): Query<ProfileImageUrlQuery>,
+) -> Result<Json<ProfileImageUrlResponse>, (StatusCode, String)> {
+    let bucket = &state.config.supabase_profile_image_bucket;
+
+    let requested_path = query.path.trim();
+
+    if requested_path.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "path가 비어 있습니다".to_string()));
+    }
+
+    // 단순 경로 오용 방지
+    if requested_path.contains("..") || requested_path.contains('\\') {
+        return Err((StatusCode::BAD_REQUEST, "올바르지 않은 path 입니다".to_string()));
+    }
+
+    // 기본 이미지(defaults/) 또는 현재 로그인한 유저 폴더만 허용
+    let allowed_user_prefix = format!("{}/", user_id);
+    let is_default_image = requested_path.starts_with("defaults/");
+    let is_user_owned_image = requested_path.starts_with(&allowed_user_prefix);
+
+    if !is_default_image && !is_user_owned_image {
+        tracing::warn!(
+              "signed URL 권한 없음: user_id={}, requested_path={}",
+              user_id,
+              requested_path
+          );
+        return Err((StatusCode::FORBIDDEN, "해당 이미지에 접근할 수 없습니다".to_string()));
+    }
+
+    let url = format!(
+        "{}/storage/v1/object/sign/{}/{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        bucket,
+        requested_path
+    );
+
+    let body = json!({
+          "expiresIn": 86400
+      });
+
+    let resp = state.http_client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!("signed URL 생성 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "서명된 URL 생성에 실패했습니다.".to_string())
+        })?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        tracing::error!("signed URL 응답 실패: {}", err);
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, err));
+    }
+
+    let data: serde_json::Value = resp.json().await.map_err(|e| {
+        tracing::error!("signed URL 응답 파싱 실패: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "서명된 URL 응답 파싱에 실패했습니다.".to_string())
+    })?;
+
+    let signed_path = data["signedURL"].as_str().ok_or_else(|| {
+        (StatusCode::INTERNAL_SERVER_ERROR, "signedURL 필드가 없습니다".to_string())
+    })?;
+
+    let signed_url = format!(
+        "{}/storage/v1{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        signed_path
+    );
+
+    Ok(Json(ProfileImageUrlResponse { signed_url }))
+}
+
+
 // ═══════════════════════════════════════════════════════════════
 // [이메일 찾기] POST /auth/find-email
 // ═══════════════════════════════════════════════════════════════
@@ -542,7 +771,7 @@ pub async fn complete_profile(
     request_body = FindEmailRequest,
     responses(
         (status = 200, description = "이메일 찾기 성공", body = FindEmailResponse),
-        (status = 404, description = "해당 전화번호로 등록된 계정 없음")
+        (status = 404, description = "해당 전화번호로 등록된 계정이 없습니다")
     )
 )]
 pub async fn find_email(
@@ -550,7 +779,7 @@ pub async fn find_email(
     Json(body): Json<FindEmailRequest>,
 ) -> Result<Json<FindEmailResponse>, (StatusCode, String)> {
     if body.phone.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "전화번호가 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "전화번호를 입력해 주세요.".to_string()));
     }
 
     let masked_email = service::find_email_by_phone(&state, &body.phone)
@@ -572,8 +801,8 @@ pub async fn find_email(
     tag = "인증",
     request_body = CheckEmailRequest,
     responses(
-        (status = 200, description = "이메일 존재함"),
-        (status = 404, description = "해당 이메일로 가입된 계정 없음")
+        (status = 200, description = "이미 사용중인 이메일이 존재합니다"),
+        (status = 404, description = "해당 이메일로 가입된 계정이 없습니다")
     )
 )]
 pub async fn check_email(
@@ -581,7 +810,7 @@ pub async fn check_email(
     Json(body): Json<CheckEmailRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     if body.email.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "이메일이 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "이메일을 입력해 주세요.".to_string()));
     }
 
     let exists = service::check_email_exists(&state, &body.email)
@@ -598,7 +827,49 @@ pub async fn check_email(
         ));
     }
 
-    Ok(Json(serde_json::json!({ "exists": true })))
+    Ok(Json(json!({ "exists": true })))
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/check-reset-password-email",
+    tag = "인증",
+    request_body = CheckEmailRequest,
+    responses(
+        (status = 200, description = "비밀번호 재설정 가능한 이메일입니다"),
+        (status = 403, description = "소셜 로그인 계정은 비밀번호 재설정을 할 수 없습니다"),
+        (status = 404, description = "해당 이메일로 가입된 계정이 없습니다")
+    )
+)]
+pub async fn check_reset_password_email(
+    State(state): State<AppState>,
+    Json(body): Json<CheckEmailRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if body.email.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "이메일을 입력해 주세요.".to_string()));
+    }
+
+    let can_reset = service::can_reset_password(&state, &body.email)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+
+            if msg.contains("해당 이메일로 가입된 계정이 없습니다") {
+                return (StatusCode::NOT_FOUND, msg);
+            }
+
+            tracing::error!("비밀번호 재설정 가능 여부 확인 실패: {}", msg);
+            (StatusCode::INTERNAL_SERVER_ERROR, msg)
+        })?;
+
+    if !can_reset {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "자체 회원가입 계정만 비밀번호 재설정을 할 수 있습니다".to_string(),
+        ));
+    }
+
+    Ok(Json(json!({ "exists": true, "can_reset_password": true })))
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -621,7 +892,7 @@ pub async fn kakao_login(
     Json(body): Json<KakaoLoginRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     if body.code.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "인가 코드가 비어있음".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "인가 코드를 입력해 주세요.".to_string()));
     }
 
     let client_type = resolve_client_type(&headers);
@@ -683,16 +954,17 @@ pub async fn refresh_token(
     Json(body): Json<RefreshRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     let client_type = resolve_client_type(&headers);
+    tracing::debug!("refresh 요청 수신: client_type={}", client_type);
 
     let refresh_token = if client_type == "web" {
         // 웹은 쿠키에서 읽음
         extract_refresh_cookie(&headers)
-            .ok_or_else(|| (StatusCode::UNAUTHORIZED, "refresh 쿠키 없음".to_string()))?
+            .ok_or_else(|| (StatusCode::UNAUTHORIZED, "refresh 쿠키가 없습니다.".to_string()))?
     } else {
         // 앱은 body에서 읽음
         body.refresh_token
             .filter(|v| !v.trim().is_empty())
-            .ok_or_else(|| (StatusCode::BAD_REQUEST, "refresh_token이 비어있음".to_string()))?
+            .ok_or_else(|| (StatusCode::BAD_REQUEST, "refresh_token을 입력해 주세요.".to_string()))?
     };
 
     let rotated = service::rotate_refresh_token(
@@ -709,6 +981,7 @@ pub async fn refresh_token(
     if client_type == "web" {
         // 웹은 새 refresh를 다시 쿠키로 넣음
         let cookie_headers = build_refresh_cookie(&rotated.refresh_token);
+        tracing::debug!("refresh 성공 응답: web refresh 쿠키 재발급");
 
         let body = WebRefreshResponse {
             access_token: rotated.access_token,
@@ -781,9 +1054,9 @@ pub async fn logout(
     if client_type == "web" {
         // 웹은 쿠키도 같이 지워야 함
         let headers = build_clear_refresh_cookie();
-        Ok((headers, Json(serde_json::json!({ "logged_out": true }))))
+        Ok((headers, Json(json!({ "logged_out": true }))))
     } else {
-        Ok((HeaderMap::new(), Json(serde_json::json!({ "logged_out": true }))))
+        Ok((HeaderMap::new(), Json(json!({ "logged_out": true }))))
     }
 }
 

@@ -1,60 +1,115 @@
 import {useNavigate} from "react-router";
 import {useWalletConnection} from "@/domains/wallet/hooks/useWalletConnection";
-import {useState} from "react";
+import {useEffect, useRef} from "react";
+import {toast} from "sonner";
 
 interface WalletLoginButtonProps {
     className?: string;
-
-    // 로그인 성공 후 이동할 경로
     redirectTo?: string;
 }
 
-// 지갑 로그인 버튼.
-// 화면 역할은 단순하다.
-// 1) 아직 브라우저 지갑이 없으면 wallet modal을 연다.
-// 2) 지갑이 연결되어 있으면 useWalletConnection.loginWithWallet()을 호출한다.
-// 실제 nonce 발급/서명/백엔드 검증은 훅 내부로 숨겨서 UI를 단순하게 유지한다.
 export function WalletLoginButton({
-                                      className,
-                                      redirectTo = '/',
-                                  }: WalletLoginButtonProps) {
+    className,
+    redirectTo = '/',
+}: WalletLoginButtonProps) {
     const navigate = useNavigate();
 
     const {
+        wallet,
         connected,
+        connecting,
+        disconnecting,
+        walletAddress,
         canSignMessage,
         openWalletModal,
+        connectWallet,
+        deselectWallet,
         loginWithWallet,
         isProcessing,
         currentProcess,
-        errorMessage,
-        successMessage,
     } = useWalletConnection();
 
-    // 이 컴포넌트 단에서만 잠깐 보여줄 메세지
-    const [localMessage, setLocalMessage] = useState<string | null>(null);
+    // loginWithWallet, deselectWallet을 ref로 보관해 effect 의존성에서 제외한다.
+    const loginWithWalletRef = useRef(loginWithWallet);
+    useEffect(() => { loginWithWalletRef.current = loginWithWallet; }, [loginWithWallet]);
+    const deselectWalletRef = useRef(deselectWallet);
+    useEffect(() => { deselectWalletRef.current = deselectWallet; }, [deselectWallet]);
+
+    // 사용자가 이 버튼을 눌러 로그인 흐름을 시작했을 때만 true.
+    const pendingRef = useRef(false);
+
+    // 이전 wallet 어댑터 이름을 기억해 "새 지갑이 선택됐는지"를 판단한다.
+    const prevWalletNameRef = useRef<string | null>(wallet?.adapter.name ?? null);
+
+    // deselectWallet()이 disconnect를 유발하면 disconnecting=true가 되고
+    // wallet-adapter 내부에서 connect()가 즉시 return된다.
+    // 새 지갑이 선택됐는데 아직 disconnecting 중이면 이 플래그를 세우고,
+    // disconnecting이 끝난 뒤 effect가 재발화할 때 connect()를 호출한다.
+    const pendingConnectRef = useRef(false);
+
+    // autoConnect=false 이므로 모달에서 지갑이 선택(wallet 변경)되면 직접 connect()를 호출한다.
+    useEffect(() => {
+        const currentName = wallet?.adapter.name ?? null;
+        const prevName = prevWalletNameRef.current;
+        prevWalletNameRef.current = currentName;
+
+        // 새 지갑이 선택되면 connect 대기 플래그를 세운다.
+        if (currentName && currentName !== prevName && pendingRef.current && !connected) {
+            pendingConnectRef.current = true;
+        }
+
+        // disconnecting이 끝나야 connect()가 실제로 실행된다.
+        if (pendingConnectRef.current && wallet && !connected && !connecting && !disconnecting) {
+            pendingConnectRef.current = false;
+            connectWallet().catch(() => {
+                pendingRef.current = false;
+            });
+        }
+    }, [wallet, connected, connecting, disconnecting, connectWallet]);
+
+    // 지갑이 연결되면 자동으로 로그인 서명 요청.
+    useEffect(() => {
+        if (connected && walletAddress && pendingRef.current) {
+            pendingRef.current = false;
+            loginWithWalletRef.current().then(result => {
+                if (result.success) {
+                    toast.success(result.message);
+                    void navigate(redirectTo);
+                } else {
+                    toast.error(result.message);
+                    // 서명 취소 등 로그인 실패 시 지갑 연결을 해제한다.
+                    // 그래야 다음 버튼 클릭 시 connected=false가 되어 모달이 열린다.
+                    deselectWalletRef.current();
+                }
+            }).catch(() => {});
+        }
+    }, [connected, walletAddress, navigate, redirectTo]);
 
     const handleClick = async () => {
-        setLocalMessage(null);
-
-        // 아직 브라우저 지갑이 연결되지 않았으면 먼저 연결 유도
         if (!connected) {
+            pendingRef.current = true;
+            // 이전 선택 기록을 초기화해서 같은 지갑을 다시 선택해도 connect()가 호출되도록 한다.
+            prevWalletNameRef.current = null;
+            // wallet을 null로 초기화해야 같은 지갑을 다시 선택할 때 wallet 상태가 변해서 useEffect가 발화한다.
+            // (이미 Phantom이 선택된 상태에서 Phantom을 다시 선택하면 상태 변화가 없어 connect()가 불리지 않음)
+            deselectWallet();
             openWalletModal();
             return;
         }
 
-        // 일부 지갑은 signMessage를 지원하지 않을 수 있음
         if (!canSignMessage) {
-            setLocalMessage('현재 지갑은 signMessage를 지원하지 않습니다.');
+            toast.error('현재 지갑은 signMessage를 지원하지 않습니다.');
             return;
         }
 
         const result = await loginWithWallet();
-
-        setLocalMessage(result.message);
-
         if (result.success) {
-            navigate(redirectTo);
+            toast.success(result.message);
+            void navigate(redirectTo);
+        } else {
+            toast.error(result.message);
+            // 서명 취소 등 로그인 실패 시 지갑 연결을 해제한다.
+            deselectWallet();
         }
     };
 
@@ -63,9 +118,7 @@ export function WalletLoginButton({
             <button
                 type="button"
                 className={className}
-                onClick={() => {
-                    void handleClick();
-                }}
+                onClick={() => { void handleClick(); }}
                 disabled={isProcessing}
             >
                 {isProcessing && currentProcess === 'login'
@@ -73,9 +126,6 @@ export function WalletLoginButton({
                     : '지갑으로 로그인'}
             </button>
 
-            {localMessage ? <p>{localMessage}</p> : null}
-            {!localMessage && successMessage ? <p>{successMessage}</p> : null}
-            {!localMessage && errorMessage?<p>{errorMessage}</p> : null}
         </div>
     );
 }

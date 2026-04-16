@@ -3,39 +3,36 @@
 // 실제 로그인/연동 검증은 useWalletConnection -> backend API에서 처리한다.
 import {PropsWithChildren, useMemo} from "react";
 import {getSolanaEndpoint} from "@/domains/wallet/lib/solana";
-import {PhantomWalletAdapter, SolflareWalletAdapter} from "@solana/wallet-adapter-wallets";
-import {BackpackWalletAdapter} from "@solana/wallet-adapter-backpack";
 import {ConnectionProvider, WalletProvider} from "@solana/wallet-adapter-react";
 import {WalletModalProvider} from "@solana/wallet-adapter-react-ui";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 export function SolanaWalletProvider({children}: PropsWithChildren) {
-    // RPC endpoint는 앱 전체에서 동일하게 쓰므로 한 번만 계산한다.
     const endpoint = useMemo(() => getSolanaEndpoint(), []);
 
-    // 브라우저에서 노출할 지갑 어댑터 목록.
-    // 여기서 지갑 종류를 추가해도 백엔드 계약은 바뀌지 않는다.
-    // 백엔드는 최종적으로 wallet_address / nonce / signature만 받는다.
-    const wallets = useMemo(
-        () => [
-            new PhantomWalletAdapter(),
-            new SolflareWalletAdapter(),
-            new BackpackWalletAdapter(),
-        ],
-        [],
-    );
+    // Phantom, Solflare, Backpack은 모두 Wallet Standard를 지원하므로
+    // WalletProvider가 자동으로 감지한다. 여기서 명시적으로 추가하면
+    // 어댑터가 중복 등록되어 "Connection rejected" 충돌이 발생한다.
+    const wallets = useMemo(() => [], []);
 
     return (
         <ConnectionProvider endpoint={endpoint}>
-            {/* autoConnect:
-                사용자가 이전에 승인했던 지갑이 있으면 브라우저에서 재연결을 시도한다.
-                이건 "지갑 연결 상태" 복원일 뿐, 서버 로그인 상태를 복원하는 것은 아니다. */}
-            <WalletProvider wallets={wallets} autoConnect>
-                {/* wallet-adapter 기본 모달 UI.
-                    ConnectWalletButton / WalletLoginButton 에서 이 모달을 띄운다. */}
+            {/* autoConnect=false:
+                true로 두면 취소 후에도 wallet adapter가 선택된 지갑을 계속 재시도한다.
+                connect()는 각 버튼(ConnectWalletButton, WalletLoginButton)에서
+                모달 wallet 선택 감지 후 직접 호출한다. */}
+            <WalletProvider
+                wallets={wallets}
+                autoConnect={false}
+                onError={(error) => {
+                    // 사용자 취소(rejected)나 팝업 닫기(closed/Plugin Closed)는 정상 흐름이므로 무시한다.
+                    const msg = (error.message ?? '').toLowerCase();
+                    if (msg.includes('rejected') || msg.includes('closed')) return;
+                    console.error('[Wallet]', error);
+                }}
+            >
                 <WalletModalProvider>{children}</WalletModalProvider>
             </WalletProvider>
         </ConnectionProvider>
-    )
-
+    );
 }

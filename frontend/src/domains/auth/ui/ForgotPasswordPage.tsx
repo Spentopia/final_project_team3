@@ -56,8 +56,11 @@ export default function ForgotPasswordPage() {
       await resetPassword(email);
       setSent(true); // 발송 완료 → 안내 메시지로 전환
     } catch (error: any) {
-      // "해당 이메일로 가입된 계정이 없습니다" 등
-      alert(error.message || "이메일 발송 실패");
+      if (error.response?.status === 403) {
+        alert("소셜 로그인 계정은 비밀번호 재설정을 할 수 없습니다. 해당 소셜 로그인으로 다시 로그인해주세요.");
+      } else {
+        alert(error.message || "이메일 발송 실패");
+      }
     } finally {
       setLoading(false);
     }
