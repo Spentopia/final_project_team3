@@ -1,0 +1,29 @@
+.categoryMeter {
+  height: 100%;
+  border-radius: 9999px;
+}
+
+.categoryMeterFood {
+  width: 45%;
+  background-color: #f97316;
+}
+
+.categoryMeterTransport {
+  width: 20%;
+  background-color: #3b82f6;
+}
+
+.categoryMeterShopping {
+  width: 15%;
+  background-color: #ec4899;
+}
+
+.categoryMeterLeisure {
+  width: 12%;
+  background-color: #a855f7;
+}
+
+.categoryMeterEtc {
+  width: 8%;
+  background-color: #6b7280;
+}

@@ -1,5 +1,17 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { signOut } from "@/domains/auth/api/auth";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/shared/ui/alert-dialog";
 import {
   Calendar,
   BarChart3,
@@ -30,14 +42,20 @@ type SidebarProps = {
 export default function Sidebar({ onWeeklyScoreClick }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    await signOut();
-    navigate("/login", { replace: true });
+    try {
+      setIsLoggingOut(true);
+      await signOut();
+      navigate("/login", { replace: true });
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   return (
-    <aside className="flex w-64 flex-col border-r border-white/50 bg-white/80 backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/80">
+    <aside className="flex h-full w-64 flex-col border-r border-white/50 bg-white/80 backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/80">
       
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-white/50 px-6 dark:border-gray-700/50">
@@ -51,7 +69,7 @@ export default function Sidebar({ onWeeklyScoreClick }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
@@ -73,7 +91,7 @@ export default function Sidebar({ onWeeklyScoreClick }: SidebarProps) {
         })}
       </nav>
 
-      <div className="mt-auto border-t border-white/50 p-4 pt-28 dark:border-gray-700/50">
+      <div className="shrink-0 border-t border-white/50 p-4 dark:border-gray-700/50">
         <button
           type="button"
           onClick={onWeeklyScoreClick}
@@ -94,13 +112,38 @@ export default function Sidebar({ onWeeklyScoreClick }: SidebarProps) {
           이용가이드
         </Link>
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="mt-2 w-full rounded-lg px-3 py-1 text-center transition-colors hover:bg-white/60 dark:hover:bg-gray-800/60"
-        >
-          <span className="text-xs text-gray-500 dark:text-gray-400">로그아웃</span>
-        </button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button
+              type="button"
+              className="mt-2 w-full rounded-lg px-3 py-2 text-center transition-colors hover:bg-white/60 dark:hover:bg-gray-800/60"
+            >
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                로그아웃
+              </span>
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>로그아웃 하시겠습니까?</AlertDialogTitle>
+              <AlertDialogDescription>
+                현재 계정에서 로그아웃하고 로그인 화면으로 이동합니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isLoggingOut}>취소</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isLoggingOut}
+                onClick={() => {
+                  void handleLogout();
+                }}
+                className="bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40"
+              >
+                {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </aside>
   );
