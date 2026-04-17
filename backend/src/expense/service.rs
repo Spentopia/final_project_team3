@@ -22,6 +22,14 @@ pub async fn create_expense(
     user_id: Uuid,
     req: CreateExpenseWebRequest,
 ) -> Result<ExpenseWebResponse> {
+    tracing::info!(
+        user_id = %user_id,
+        amount = req.amount,
+        category = %req.category,
+        receipt_verified = req.receipt_verified,
+        "소비 저장 요청 수신"
+    );
+
     let ledger_id = get_or_create_personal_ledger(state, user_id).await?;
 
     #[derive(Serialize)]
@@ -33,6 +41,7 @@ pub async fn create_expense(
         category: String,
         memo: Option<String>,
         one_line_diary: Option<String>,
+        receipt_verified: bool,
         source: &'static str,
     }
 
@@ -58,6 +67,7 @@ pub async fn create_expense(
             category: req.category,
             memo: empty_to_none(req.memo),
             one_line_diary: empty_to_none(req.diary),
+            receipt_verified: req.receipt_verified,
             source: "manual",
         })
         .send()
@@ -91,6 +101,8 @@ pub async fn verify_receipt_ocr(
     state: &AppState,
     mut multipart: Multipart,
 ) -> Result<ReceiptOcrResult> {
+    tracing::info!("영수증 OCR 검증 요청 수신");
+
     let mut image_bytes: Option<Vec<u8>> = None;
     let mut file_name = "receipt".to_string();
     let mut mime_type: Option<String> = None;
