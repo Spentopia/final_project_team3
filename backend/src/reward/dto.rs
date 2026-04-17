@@ -11,7 +11,7 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct RewardResponse {
     pub id: Uuid,
-    pub reward_type: String,    // report / contest
+    pub reward_type: String, // report / contest
     pub amount: i32,
     pub description: Option<String>,
     pub earned_at: Option<DateTime<Utc>>,

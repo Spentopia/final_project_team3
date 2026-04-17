@@ -1,15 +1,10 @@
 // report/handler.rs
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Extension, Json,
-};
+use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use uuid::Uuid;
 
-use crate::state::AppState;
 use super::{dto::GenerateReportRequest, service};
+use crate::state::AppState;
 
 #[utoipa::path(
     post, path = "/api/reports",
@@ -24,7 +19,11 @@ pub async fn generate_report(
     Json(req): Json<GenerateReportRequest>,
 ) -> impl IntoResponse {
     if req.start_date > req.end_date {
-        return (StatusCode::BAD_REQUEST, "start_date가 end_date보다 늦을 수 없습니다.".to_string()).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            "start_date가 end_date보다 늦을 수 없습니다.".to_string(),
+        )
+            .into_response();
     }
     match service::generate_report(&state, user_id, req).await {
         Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),

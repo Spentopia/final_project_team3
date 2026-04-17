@@ -21,8 +21,8 @@
 // - 이미 rotation으로 교체된 refresh token이 다시 들어오면
 //   "토큰 재사용(reuse) 공격"으로 간주하고 차단하기 위함
 
-use anyhow::{anyhow, Context, Result};
-use chrono::{Duration, Utc, DateTime};
+use anyhow::{Context, Result, anyhow};
+use chrono::{DateTime, Duration, Utc};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -79,10 +79,14 @@ pub async fn create_refresh_session(
         "updated_at": Utc::now().to_rfc3339()
     }]);
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .post(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .json(&payload)
         .send()
@@ -107,10 +111,14 @@ pub async fn get_refresh_session_by_id(
         session_id
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .get(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .send()
         .await
         .context("refresh_sessions 조회 요청 실패")?;
@@ -120,7 +128,9 @@ pub async fn get_refresh_session_by_id(
         return Err(anyhow!("refresh_sessions 조회 실패: {}", err));
     }
 
-    let rows: Vec<RefreshSessionRow> = resp.json().await
+    let rows: Vec<RefreshSessionRow> = resp
+        .json()
+        .await
         .context("refresh_sessions 응답 파싱 실패")?;
 
     rows.into_iter()
@@ -203,10 +213,14 @@ pub async fn revoke_refresh_session(
         "updated_at": Utc::now().to_rfc3339()
     });
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .patch(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .json(&payload)
         .send()
@@ -227,10 +241,7 @@ pub async fn revoke_refresh_session(
 // - 해당 세션 폐기
 // - 필요하면 user 전체 세션 폐기
 // 같은 확장에 쓰기 좋다.
-pub async fn revoke_refresh_session_as_reused(
-    state: &AppState,
-    session_id: Uuid,
-) -> Result<()> {
+pub async fn revoke_refresh_session_as_reused(state: &AppState, session_id: Uuid) -> Result<()> {
     let url = format!(
         "{}/rest/v1/refresh_sessions?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
@@ -242,10 +253,14 @@ pub async fn revoke_refresh_session_as_reused(
         "updated_at": Utc::now().to_rfc3339()
     });
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .patch(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .json(&payload)
         .send()

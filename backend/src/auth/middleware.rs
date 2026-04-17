@@ -19,7 +19,7 @@
 
 use axum::{
     extract::{Request, State},
-    http::{header::AUTHORIZATION, StatusCode},
+    http::{StatusCode, header::AUTHORIZATION},
     middleware::Next,
     response::Response,
 };
@@ -41,16 +41,13 @@ pub async fn jwt_middleware(
     next: Next,
 ) -> Result<Response, (StatusCode, String)> {
     // ── 1) Authorization 헤더 꺼내기 ─────────────────────────
-    let header = request
-        .headers()
-        .get(AUTHORIZATION)
-        .ok_or_else(|| {
-            tracing::warn!("Authorization 헤더 없음");
-            (
-                StatusCode::UNAUTHORIZED,
-                "Authorization 헤더가 없습니다.".to_string(),
-            )
-        })?;
+    let header = request.headers().get(AUTHORIZATION).ok_or_else(|| {
+        tracing::warn!("Authorization 헤더 없음");
+        (
+            StatusCode::UNAUTHORIZED,
+            "Authorization 헤더가 없습니다.".to_string(),
+        )
+    })?;
 
     // HeaderValue -> &str 변환
     let value = header.to_str().map_err(|e| {
@@ -75,22 +72,17 @@ pub async fn jwt_middleware(
         })?;
 
     // ── 2) 우리 앱 JWT 검증 ─────────────────────────────────
-    let claims = verify_app_access_token(&state.config.app_jwt_secret, token)
-        .map_err(|e| {
-            tracing::warn!("앱 JWT 검증 실패: {}", e);
-            (
-                StatusCode::UNAUTHORIZED,
-                "유효하지 않은 토큰입니다.".to_string(),
-            )
-        })?;
+    let claims = verify_app_access_token(&state.config.app_jwt_secret, token).map_err(|e| {
+        tracing::warn!("앱 JWT 검증 실패: {}", e);
+        (
+            StatusCode::UNAUTHORIZED,
+            "유효하지 않은 토큰입니다.".to_string(),
+        )
+    })?;
 
     // claims.sub -> UUID 파싱
     let user_id = Uuid::parse_str(&claims.sub).map_err(|e| {
-        tracing::warn!(
-            "앱 JWT user_id 파싱 실패: sub={}, error={}",
-            claims.sub,
-            e
-        );
+        tracing::warn!("앱 JWT user_id 파싱 실패: sub={}, error={}", claims.sub, e);
         (
             StatusCode::UNAUTHORIZED,
             "사용자 ID를 확인할 수 없습니다.".to_string(),

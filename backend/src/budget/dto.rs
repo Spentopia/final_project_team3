@@ -1,17 +1,17 @@
 // budget/dto.rs
 // 예산, 카테고리 배분 관련 요청/응답 구조체
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 // ── 예산 생성 요청 ────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreateBudgetRequest {
     pub year: i32,
-    pub month: i32,         // 1~12
+    pub month: i32, // 1~12
     pub total_budget: i32,
     pub savings_goal: Option<i32>,
 }

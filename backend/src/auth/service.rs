@@ -17,7 +17,6 @@
 //  흐름: 일반 회원가입 → 상세정보 입력 → 지갑 연동(wallet/service.rs)
 //  이 파일은 "이미 지갑 연동을 마친 유저"의 로그인만 처리함.
 
-
 // 현재 최종 구조:
 // - 이메일 로그인 / 구글 로그인:
 //   프론트가 Supabase로 1차 인증 -> access_token 획득
@@ -76,17 +75,12 @@ use serde::Deserialize;
 // 서버 전체 공유 상태 (Supabase URL, secret key, nonce_store 등)
 use crate::state::{AppState, NonceEntry};
 
-
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::auth::app_jwt::{
-    generate_token_pair, verify_app_refresh_token,
-};
+use crate::auth::app_jwt::{generate_token_pair, verify_app_refresh_token};
 use crate::auth::refresh_store::{
-    create_refresh_session,
-    revoke_refresh_session,
-    revoke_refresh_session_as_reused,
+    create_refresh_session, revoke_refresh_session, revoke_refresh_session_as_reused,
     verify_refresh_session,
 };
 
@@ -140,22 +134,11 @@ pub async fn issue_login_tokens(
     let session_id = Uuid::new_v4();
 
     // access / refresh JWT 생성
-    let pair = generate_token_pair(
-        &state.config.app_jwt_secret,
-        &user_id,
-        &session_id,
-    )?;
+    let pair = generate_token_pair(&state.config.app_jwt_secret, &user_id, &session_id)?;
 
     // refresh 세션을 DB에 저장
     // 이 row가 있어야 나중에 revoke / rotation / 로그아웃이 가능하다.
-    create_refresh_session(
-        state,
-        session_id,
-        user_id,
-        client_type,
-        &pair.refresh_token,
-    )
-        .await?;
+    create_refresh_session(state, session_id, user_id, client_type, &pair.refresh_token).await?;
 
     Ok(LoginIssueResult {
         access_token: pair.access_token,
@@ -189,16 +172,11 @@ pub async fn rotate_refresh_token(
     // 1) refresh JWT 자체 검증
     //
     // 여기서 JWT 서명 위조 여부와 JWT exp를 1차로 체크한다.
-    let claims = verify_app_refresh_token(
-        &state.config.app_jwt_secret,
-        refresh_token,
-    )?;
+    let claims = verify_app_refresh_token(&state.config.app_jwt_secret, refresh_token)?;
 
-    let session_id = Uuid::parse_str(&claims.sid)
-        .context("refresh sid UUID 파싱 실패")?;
+    let session_id = Uuid::parse_str(&claims.sid).context("refresh sid UUID 파싱 실패")?;
 
-    let user_id = Uuid::parse_str(&claims.sub)
-        .context("refresh sub UUID 파싱 실패")?;
+    let user_id = Uuid::parse_str(&claims.sub).context("refresh sub UUID 파싱 실패")?;
 
     // 2) DB에 저장된 refresh session 검증
     //
@@ -238,11 +216,7 @@ pub async fn rotate_refresh_token(
     let new_session_id = Uuid::new_v4();
 
     // 5) 새 access / refresh JWT 발급
-    let pair = generate_token_pair(
-        &state.config.app_jwt_secret,
-        &user_id,
-        &new_session_id,
-    )?;
+    let pair = generate_token_pair(&state.config.app_jwt_secret, &user_id, &new_session_id)?;
 
     // 6) 새 refresh session 저장
     create_refresh_session(
@@ -252,7 +226,7 @@ pub async fn rotate_refresh_token(
         client_type,
         &pair.refresh_token,
     )
-        .await?;
+    .await?;
 
     // 7) 기존 refresh session revoke
     //
@@ -266,7 +240,6 @@ pub async fn rotate_refresh_token(
         refresh_token: pair.refresh_token,
     })
 }
-
 
 // generate_nonce - nonce 발급 (로그인 1단계)
 //
@@ -337,7 +310,9 @@ pub async fn verify_and_login(
     if SystemTime::now() > entry.expires_at {
         drop(entry);
         state.nonce_store.remove(wallet_address);
-        return Err(anyhow!("nonce가 만료됨. /auth/wallet/nonce를 다시 호출하세요."));
+        return Err(anyhow!(
+            "nonce가 만료됨. /auth/wallet/nonce를 다시 호출하세요."
+        ));
     }
 
     // 저장된 nonce와 앱이 보낸 nonce가 다르면 위조된 요청
@@ -393,7 +368,10 @@ fn verify_solana_signature(
 ) -> Result<()> {
     tracing::warn!(
         "[서명검증] 시작: wallet={}, nonce={:?}({}bytes), sig_chars={}",
-        wallet_address, nonce, nonce.len(), signature.len()
+        wallet_address,
+        nonce,
+        nonce.len(),
+        signature.len()
     );
 
     // Base58 문자열("7xKXtg2...") → 바이트 배열([0x7a, 0x2b, ...])로 변환
@@ -436,7 +414,8 @@ fn verify_solana_signature(
     if let Err(ref e) = result {
         tracing::warn!(
             "[서명검증] 실패! nonce_bytes={:?}, 에러={:?}",
-            nonce.as_bytes(), e
+            nonce.as_bytes(),
+            e
         );
     } else {
         tracing::warn!("[서명검증] 성공");
@@ -455,7 +434,6 @@ pub fn verify_solana_signature_pub(
 ) -> Result<()> {
     verify_solana_signature(wallet_address, nonce, signature)
 }
-
 
 // find_user_by_wallet - DB에서 지갑 주소로 유저 조회
 //
@@ -543,7 +521,8 @@ pub async fn exchange_supabase_token(
         state.config.supabase_url.trim_end_matches('/')
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .get(&user_url)
         .header("apikey", &state.config.supabase_publishable_key)
         .header("Authorization", format!("Bearer {}", supabase_access_token))
@@ -556,8 +535,7 @@ pub async fn exchange_supabase_token(
         return Err(anyhow!("유효하지 않은 Supabase 토큰: {}", err));
     }
 
-    let user_data: Value = resp.json().await
-        .context("Supabase 유저 응답 파싱 실패")?;
+    let user_data: Value = resp.json().await.context("Supabase 유저 응답 파싱 실패")?;
 
     let user_id = user_data["id"]
         .as_str()
@@ -579,17 +557,9 @@ pub async fn exchange_supabase_token(
         });
 
     // auth.users는 있어도 public.users / user_settings / streaks가 비어 있을 수 있어
-    ensure_public_user_exists(
-        state,
-        user_id,
-        email,
-        provider,
-        provider_id,
-    )
-        .await?;
+    ensure_public_user_exists(state, user_id, email, provider, provider_id).await?;
 
-    let user_uuid = Uuid::parse_str(user_id)
-        .context("Supabase user_id UUID 파싱 실패")?;
+    let user_uuid = Uuid::parse_str(user_id).context("Supabase user_id UUID 파싱 실패")?;
 
     issue_login_tokens(state, user_uuid, client_type, false).await
 }
@@ -639,10 +609,14 @@ async fn ensure_public_user_exists(
         "is_active": true
     }]);
 
-    let insert_resp = state.http_client
+    let insert_resp = state
+        .http_client
         .post(&users_url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .header("Prefer", "resolution=ignore-duplicates")
         .json(&insert_payload)
@@ -668,10 +642,14 @@ async fn ensure_public_user_exists(
         urlencoding::encode(user_id)
     );
 
-    let patch_resp = state.http_client
+    let patch_resp = state
+        .http_client
         .patch(&patch_url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .header("Prefer", "return=minimal")
         .json(&json!({
@@ -692,10 +670,14 @@ async fn ensure_public_user_exists(
         state.config.supabase_url.trim_end_matches('/')
     );
 
-    let _ = state.http_client
+    let _ = state
+        .http_client
         .post(&settings_url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .header("Prefer", "resolution=merge-duplicates")
         .json(&json!([{
@@ -709,10 +691,14 @@ async fn ensure_public_user_exists(
         state.config.supabase_url.trim_end_matches('/')
     );
 
-    let _ = state.http_client
+    let _ = state
+        .http_client
         .post(&streaks_url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .header("Prefer", "resolution=merge-duplicates")
         .json(&json!([{
@@ -745,14 +731,15 @@ pub async fn kakao_login(
 
     let token_url = "https://kauth.kakao.com/oauth/token";
 
-    let kakao_client_id = std::env::var("KAKAO_REST_API_KEY")
-        .context("KAKAO_REST_API_KEY 환경변수 없음")?;
-    let kakao_client_secret = std::env::var("KAKAO_CLIENT_SECRET")
-        .context("KAKAO_CLIENT_SECRET 환경변수 없음")?;
-    let redirect_uri = std::env::var("KAKAO_REDIRECT_URI")
-        .context("KAKAO_REDIRECT_URI 환경변수 없음")?;
+    let kakao_client_id =
+        std::env::var("KAKAO_REST_API_KEY").context("KAKAO_REST_API_KEY 환경변수 없음")?;
+    let kakao_client_secret =
+        std::env::var("KAKAO_CLIENT_SECRET").context("KAKAO_CLIENT_SECRET 환경변수 없음")?;
+    let redirect_uri =
+        std::env::var("KAKAO_REDIRECT_URI").context("KAKAO_REDIRECT_URI 환경변수 없음")?;
 
-    let token_resp = state.http_client
+    let token_resp = state
+        .http_client
         .post(token_url)
         .form(&[
             ("grant_type", "authorization_code"),
@@ -771,13 +758,17 @@ pub async fn kakao_login(
         return Err(anyhow!("카카오 토큰 교환 실패: {}", err));
     }
 
-    let token_data: Value = token_resp.json().await
+    let token_data: Value = token_resp
+        .json()
+        .await
         .context("카카오 토큰 응답 파싱 실패")?;
 
-    let kakao_access_token = token_data["access_token"].as_str()
+    let kakao_access_token = token_data["access_token"]
+        .as_str()
         .ok_or_else(|| anyhow!("카카오 access_token 없음"))?;
 
-    let user_resp = state.http_client
+    let user_resp = state
+        .http_client
         .get("https://kapi.kakao.com/v2/user/me")
         .header("Authorization", format!("Bearer {}", kakao_access_token))
         .send()
@@ -790,10 +781,13 @@ pub async fn kakao_login(
         return Err(anyhow!("카카오 유저 정보 조회 실패: {}", err));
     }
 
-    let user_data: Value = user_resp.json().await
+    let user_data: Value = user_resp
+        .json()
+        .await
         .context("카카오 유저 정보 파싱 실패")?;
 
-    let kakao_id = user_data["id"].as_i64()
+    let kakao_id = user_data["id"]
+        .as_i64()
         .ok_or_else(|| anyhow!("카카오 유저 ID 없음"))?;
 
     let provider = "kakao";
@@ -817,16 +811,10 @@ pub async fn kakao_login(
         email
     );
 
-    let (user_id, is_new_user) = find_or_create_social_user(
-        state,
-        provider,
-        &provider_id,
-        email,
-        nickname,
-    ).await?;
+    let (user_id, is_new_user) =
+        find_or_create_social_user(state, provider, &provider_id, email, nickname).await?;
 
-    let user_uuid = Uuid::parse_str(&user_id)
-        .context("카카오 user_id UUID 파싱 실패")?;
+    let user_uuid = Uuid::parse_str(&user_id).context("카카오 user_id UUID 파싱 실패")?;
 
     issue_login_tokens(state, user_uuid, client_type, is_new_user).await
 }
@@ -880,9 +868,13 @@ async fn find_or_create_social_user(
         "user_metadata": Value::Object(user_metadata),
     });
 
-    let create_resp = state.http_client
+    let create_resp = state
+        .http_client
         .post(&create_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .json(&create_body)
         .send()
@@ -912,13 +904,7 @@ async fn find_or_create_social_user(
         final_email
     );
 
-    upsert_public_user_social_fields(
-        state,
-        &user_id,
-        &final_email,
-        provider,
-        provider_id,
-    ).await?;
+    upsert_public_user_social_fields(state, &user_id, &final_email, provider, provider_id).await?;
 
     Ok((user_id, true))
 }
@@ -939,9 +925,13 @@ async fn find_public_user_by_provider(
         provider_id_encoded
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .send()
         .await
@@ -979,9 +969,13 @@ async fn upsert_public_user_social_fields(
     // 카카오 신규 유저에게만 호출되는 함수이므로 (find_or_create_social_user 참고)
     // profile_image 기본값을 안전하게 세팅할 수 있음.
     // 기존 유저의 이미지를 덮어쓸 위험이 없음.
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .patch(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Content-Type", "application/json")
         .header("Prefer", "return=minimal")
@@ -997,7 +991,10 @@ async fn upsert_public_user_social_fields(
 
     if !resp.status().is_success() {
         let err_text = resp.text().await.unwrap_or_default();
-        return Err(anyhow!("public.users social 필드 업데이트 실패: {}", err_text));
+        return Err(anyhow!(
+            "public.users social 필드 업데이트 실패: {}",
+            err_text
+        ));
     }
 
     Ok(())
@@ -1006,10 +1003,7 @@ async fn upsert_public_user_social_fields(
 // ═══════════════════════════════════════════════════════════════
 // 이메일 찾기
 // ═══════════════════════════════════════════════════════════════
-pub async fn find_email_by_phone(
-    state: &AppState,
-    phone: &str,
-) -> Result<String> {
+pub async fn find_email_by_phone(state: &AppState, phone: &str) -> Result<String> {
     // 프론트에서 "01012345678" 또는 "010-1234-5678" 어떤 형식으로 와도
     // DB 저장 형식인 "010-1234-5678"로 맞춰서 조회
     let formatted_phone = format_phone(phone);
@@ -1040,10 +1034,7 @@ pub async fn find_email_by_phone(
         return Err(anyhow!("전화번호로 이메일 조회 실패: {}", err));
     }
 
-    let rows: Vec<Value> = resp
-        .json()
-        .await
-        .context("이메일 조회 응답 파싱 실패")?;
+    let rows: Vec<Value> = resp.json().await.context("이메일 조회 응답 파싱 실패")?;
 
     let email = rows
         .first()
@@ -1057,10 +1048,7 @@ pub async fn find_email_by_phone(
 // ═══════════════════════════════════════════════════════════════
 // 이메일 존재 여부 확인
 // ═══════════════════════════════════════════════════════════════
-pub async fn check_email_exists(
-    state: &AppState,
-    email: &str,
-) -> Result<bool> {
+pub async fn check_email_exists(state: &AppState, email: &str) -> Result<bool> {
     let normalized_email = email.trim().to_lowercase();
     let encoded_email = urlencoding::encode(&normalized_email);
 
@@ -1070,10 +1058,14 @@ pub async fn check_email_exists(
         encoded_email
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .get(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .send()
         .await
         .context("이메일 존재 확인 실패")?;
@@ -1083,16 +1075,12 @@ pub async fn check_email_exists(
         return Err(anyhow!("이메일 존재 확인 실패: {}", err));
     }
 
-    let rows: Vec<Value> = resp.json().await
-        .context("이메일 존재 응답 파싱 실패")?;
+    let rows: Vec<Value> = resp.json().await.context("이메일 존재 응답 파싱 실패")?;
 
     Ok(!rows.is_empty())
 }
 
-pub async fn can_reset_password(
-    state: &AppState,
-    email: &str,
-) -> Result<bool> {
+pub async fn can_reset_password(state: &AppState, email: &str) -> Result<bool> {
     let normalized_email = email.trim().to_lowercase();
     let encoded_email = urlencoding::encode(&normalized_email);
 
@@ -1102,10 +1090,14 @@ pub async fn can_reset_password(
         encoded_email
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .get(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .send()
         .await
         .context("비밀번호 재설정 가능 여부 확인 실패")?;
@@ -1115,7 +1107,9 @@ pub async fn can_reset_password(
         return Err(anyhow!("비밀번호 재설정 가능 여부 확인 실패: {}", err));
     }
 
-    let rows: Vec<Value> = resp.json().await
+    let rows: Vec<Value> = resp
+        .json()
+        .await
         .context("비밀번호 재설정 가능 여부 응답 파싱 실패")?;
 
     let provider = rows

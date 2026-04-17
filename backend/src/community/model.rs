@@ -14,7 +14,7 @@ pub struct ContestEvent {
     pub description: Option<String>,
     pub start_date: DateTime<Utc>,
     pub end_date: DateTime<Utc>,
-    pub status: Option<String>,              // upcoming / active / ended
+    pub status: Option<String>, // upcoming / active / ended
     pub reward_description: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
 }
@@ -25,7 +25,7 @@ pub struct ContestEvent {
 pub struct Post {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub contest_id: Option<Uuid>,   // 일반 게시물이면 null
+    pub contest_id: Option<Uuid>, // 일반 게시물이면 null
     pub image_url: String,
     pub content: Option<String>,
     pub vote_count: Option<i32>,

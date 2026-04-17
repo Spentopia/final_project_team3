@@ -5,30 +5,29 @@
 // ── 보호 라우트: JWT 필수. jwt_middleware를 통과해야 핸들러에 도달
 
 use axum::{
-    middleware,
+    Router, middleware,
     routing::{delete, get, patch, post},
-    Router,
 };
 use std::sync::Arc;
-use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
+use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::state::AppState;
 use crate::auth;
-use crate::expense;
-use crate::wallet;
 use crate::avatar;
 use crate::budget;
 use crate::community;
+use crate::expense;
 use crate::ledger;
 use crate::market;
 use crate::notification;
+use crate::openapi::ApiDoc;
 use crate::payment;
 use crate::report;
 use crate::reward;
+use crate::state::AppState;
 use crate::user;
-use crate::openapi::ApiDoc;
+use crate::wallet;
 
 pub fn create_router(state: AppState) -> Router {
     // ── 공개 라우트 ─────────────────────────────────────────
@@ -53,44 +52,70 @@ pub fn create_router(state: AppState) -> Router {
     let sensitive_routes = Router::new()
         .route("/auth/find-email", post(auth::handler::find_email))
         .route("/auth/check-email", post(auth::handler::check_email))
-        .route("/auth/check-reset-password-email", post(auth::handler::check_reset_password_email))
-        .layer(GovernorLayer { config: enumeration_rate_limit });
+        .route(
+            "/auth/check-reset-password-email",
+            post(auth::handler::check_reset_password_email),
+        )
+        .layer(GovernorLayer {
+            config: enumeration_rate_limit,
+        });
 
     // ── 보호 라우트 ─────────────────────────────────────────
     let protected_routes = Router::new()
         // ── 인증 / 프로필 ──────────────────────────────────
         .route("/me", get(auth::handler::get_me))
         .route("/profile/complete", patch(auth::handler::complete_profile))
-        .route("/profile/image/upload", post(auth::handler::upload_profile_image))
-        .route("/profile/image-url", get(auth::handler::get_profile_image_signed_url))
-
+        .route(
+            "/profile/image/upload",
+            post(auth::handler::upload_profile_image),
+        )
+        .route(
+            "/profile/image-url",
+            get(auth::handler::get_profile_image_signed_url),
+        )
         // ── 지갑 연동 ──────────────────────────────────────
         .route("/wallet/link", post(wallet::handler::link_wallet))
         .route("/wallet/unlink", delete(wallet::handler::unlink_wallet))
-
         // ── 유저 프로필 / 설정 ─────────────────────────────
         .route("/api/user/profile", get(user::handler::get_profile))
         .route("/api/user/profile", patch(user::handler::update_profile))
         .route("/api/user/settings", get(user::handler::get_settings))
         .route("/api/user/settings", patch(user::handler::update_settings))
-
         // ── 소비 내역 ──────────────────────────────────────
         .route("/api/expenses", post(expense::handler::create_expense))
-
+        .route(
+            "/api/receipt/ocr",
+            post(expense::handler::verify_receipt_ocr),
+        )
+        .route(
+            "/api/receipt/ocr/",
+            post(expense::handler::verify_receipt_ocr),
+        )
+        .route(
+            "/api/v1/receipt/ocr",
+            post(expense::handler::verify_receipt_ocr),
+        )
         // ── 예산 ──────────────────────────────────────────
         .route("/api/budget", get(budget::handler::get_budget))
         .route("/api/budget", post(budget::handler::create_budget))
         .route("/api/budget/:id", patch(budget::handler::update_budget))
-        .route("/api/budget/:id/categories", patch(budget::handler::update_categories))
-        .route("/api/budget/:id/ai-plan", post(budget::handler::generate_ai_plan))
-
+        .route(
+            "/api/budget/:id/categories",
+            patch(budget::handler::update_categories),
+        )
+        .route(
+            "/api/budget/:id/ai-plan",
+            post(budget::handler::generate_ai_plan),
+        )
         // ── 가계부 ────────────────────────────────────────
         .route("/api/ledgers", get(ledger::handler::list_ledgers))
         .route("/api/ledgers", post(ledger::handler::create_ledger))
         .route("/api/ledgers/:id", patch(ledger::handler::update_ledger))
         .route("/api/ledgers/:id", delete(ledger::handler::delete_ledger))
-        .route("/api/ledgers/:id/members", post(ledger::handler::invite_member))
-
+        .route(
+            "/api/ledgers/:id/members",
+            post(ledger::handler::invite_member),
+        )
         // ── 커뮤니티 ─────────────────────────────────────
         .route("/api/contests", get(community::handler::list_contests))
         .route("/api/posts", get(community::handler::list_posts))
@@ -99,34 +124,48 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/posts/:id/vote", post(community::handler::vote_post))
         .route("/api/chat", post(community::handler::chat))
         .route("/api/chat/logs", get(community::handler::list_chat_logs))
-
         // ── 알림 ──────────────────────────────────────────
-        .route("/api/notifications", get(notification::handler::list_notifications))
-        .route("/api/notifications/read", post(notification::handler::mark_read))
-
+        .route(
+            "/api/notifications",
+            get(notification::handler::list_notifications),
+        )
+        .route(
+            "/api/notifications/read",
+            post(notification::handler::mark_read),
+        )
         // ── 결제 ──────────────────────────────────────────
         .route("/api/payments", post(payment::handler::create_payment))
-        .route("/api/payments/confirm", post(payment::handler::confirm_payment))
-
+        .route(
+            "/api/payments/confirm",
+            post(payment::handler::confirm_payment),
+        )
         // ── 리포트 ────────────────────────────────────────
         .route("/api/reports", post(report::handler::generate_report))
         .route("/api/reports", get(report::handler::list_reports))
-
         // ── 보상 / 스트릭 ─────────────────────────────────
         .route("/api/rewards", get(reward::handler::list_rewards))
         .route("/api/rewards/streak", get(reward::handler::get_streak))
-        .route("/api/rewards/weekly-score", get(reward::handler::get_weekly_scores))
-
+        .route(
+            "/api/rewards/weekly-score",
+            get(reward::handler::get_weekly_scores),
+        )
         // ── 아바타 / 아이템 ───────────────────────────────
         .route("/api/avatar/mint-nft", post(avatar::handler::mint_nft))
-        .route("/api/avatar/transfer-nft", post(avatar::handler::transfer_nft))
+        .route(
+            "/api/avatar/transfer-nft",
+            post(avatar::handler::transfer_nft),
+        )
         .route("/api/avatar/items", get(avatar::handler::get_user_items))
-
         // ── 마켓 ──────────────────────────────────────────
-        .route("/api/market/listings", post(market::handler::create_listing))
-        .route("/api/market/listings/:id/escrow", patch(market::handler::update_escrow))
+        .route(
+            "/api/market/listings",
+            post(market::handler::create_listing),
+        )
+        .route(
+            "/api/market/listings/:id/escrow",
+            patch(market::handler::update_escrow),
+        )
         .route("/api/market/purchase", post(market::handler::purchase))
-
         // JWT 미들웨어: 위 모든 라우트에 적용
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
@@ -138,9 +177,6 @@ pub fn create_router(state: AppState) -> Router {
         .merge(public_routes)
         .merge(sensitive_routes)
         .merge(protected_routes)
-        .merge(
-            SwaggerUi::new("/swagger-ui")
-                .url("/api-docs/openapi.json", ApiDoc::openapi())
-        )
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state)
 }

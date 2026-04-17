@@ -5,11 +5,10 @@ use utoipa::OpenApi;
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 
 use crate::auth;
-use crate::expense;
-use crate::wallet;
 use crate::avatar;
 use crate::budget;
 use crate::community;
+use crate::expense;
 use crate::ledger;
 use crate::market;
 use crate::notification;
@@ -17,6 +16,7 @@ use crate::payment;
 use crate::report;
 use crate::reward;
 use crate::user;
+use crate::wallet;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -226,7 +226,7 @@ impl utoipa::Modify for SecurityAddon {
                 HttpBuilder::new()
                     .scheme(HttpAuthScheme::Bearer)
                     .bearer_format("JWT")
-                    .build()
+                    .build(),
             ),
         );
     }

@@ -51,8 +51,7 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Result<Self> {
         Ok(Self {
-            supabase_url: std::env::var("SUPABASE_URL")
-                .context("SUPABASE_URL 환경변수 없음")?,
+            supabase_url: std::env::var("SUPABASE_URL").context("SUPABASE_URL 환경변수 없음")?,
 
             supabase_secret_key: std::env::var("SUPABASE_SECRET_KEY")
                 .context("SUPABASE_SECRET_KEY 환경변수 없음")?,

@@ -1,15 +1,10 @@
 // reward/handler.rs
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Extension, Json,
-};
+use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use uuid::Uuid;
 
-use crate::state::AppState;
 use super::service;
+use crate::state::AppState;
 
 #[utoipa::path(
     get, path = "/api/rewards",

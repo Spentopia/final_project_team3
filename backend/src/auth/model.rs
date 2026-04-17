@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 // public.users 테이블에 대응하는 구조체
 // Supabase auth.users의 id를 PK로 참조하는 구조
-#[derive(Debug,Clone,Serialize,Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     // auth.users의 id와 동일한 값
     // 로그인하면 Supabase가 auth.users에 row를 만들고

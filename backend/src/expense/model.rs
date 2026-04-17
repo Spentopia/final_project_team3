@@ -17,7 +17,7 @@ pub struct Expense {
     pub category: String,
     pub memo: Option<String>,
     pub one_line_diary: Option<String>,
-    pub source: Option<String>,   // manual / auto
+    pub source: Option<String>, // manual / auto
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -44,7 +44,7 @@ pub struct FixedExpense {
     pub user_id: Uuid,
     pub name: String,
     pub amount: i32,
-    pub due_day: i32,       // 1~31
+    pub due_day: i32, // 1~31
     pub category: String,
     pub is_active: Option<bool>,
     pub created_at: Option<DateTime<Utc>>,

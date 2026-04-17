@@ -15,7 +15,7 @@ pub struct ContestEventResponse {
     pub description: Option<String>,
     pub start_date: DateTime<Utc>,
     pub end_date: DateTime<Utc>,
-    pub status: Option<String>,           // upcoming / active / ended
+    pub status: Option<String>, // upcoming / active / ended
     pub reward_description: Option<String>,
 }
 

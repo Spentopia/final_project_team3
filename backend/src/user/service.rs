@@ -1,15 +1,15 @@
 // user/service.rs
 // 유저 프로필, 설정 비즈니스 로직
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::state::AppState;
 use super::{
     dto::{UpdateProfileRequest, UpdateSettingsRequest, UserResponse, UserSettingsResponse},
     model::{User, UserSettings},
 };
+use crate::state::AppState;
 
 // ── 프로필 조회 ───────────────────────────────────────────────
 
@@ -20,10 +20,17 @@ pub async fn get_profile(state: &AppState, user_id: Uuid) -> Result<UserResponse
         user_id,
     );
 
-    let res = state.http_client.get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
-        .send().await.context("users SELECT 요청 실패")?;
+        .send()
+        .await
+        .context("users SELECT 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
@@ -31,7 +38,9 @@ pub async fn get_profile(state: &AppState, user_id: Uuid) -> Result<UserResponse
     }
 
     let users: Vec<User> = res.json().await.context("users 역직렬화 실패")?;
-    let user = users.into_iter().next()
+    let user = users
+        .into_iter()
+        .next()
         .ok_or_else(|| anyhow!("유저를 찾을 수 없음: {}", user_id))?;
 
     Ok(to_response(user))
@@ -64,8 +73,13 @@ pub async fn update_profile(
 
     let profile_completed = req.nickname.is_some() && req.phone.is_some();
 
-    let res = state.http_client.patch(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let res = state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=representation")
         .json(&PatchPayload {
@@ -74,7 +88,9 @@ pub async fn update_profile(
             profile_image: req.profile_image,
             profile_completed,
         })
-        .send().await.context("users PATCH 요청 실패")?;
+        .send()
+        .await
+        .context("users PATCH 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
@@ -82,7 +98,9 @@ pub async fn update_profile(
     }
 
     let updated: Vec<User> = res.json().await.context("users PATCH 역직렬화 실패")?;
-    let user = updated.into_iter().next()
+    let user = updated
+        .into_iter()
+        .next()
         .ok_or_else(|| anyhow!("수정된 유저 정보를 찾을 수 없음"))?;
 
     Ok(to_response(user))
@@ -90,20 +108,24 @@ pub async fn update_profile(
 
 // ── 알림 설정 조회 ─────────────────────────────────────────────
 
-pub async fn get_settings(
-    state: &AppState,
-    user_id: Uuid,
-) -> Result<UserSettingsResponse> {
+pub async fn get_settings(state: &AppState, user_id: Uuid) -> Result<UserSettingsResponse> {
     let url = format!(
         "{}/rest/v1/user_settings?user_id=eq.{}&select=*&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
 
-    let res = state.http_client.get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
-        .send().await.context("user_settings SELECT 요청 실패")?;
+        .send()
+        .await
+        .context("user_settings SELECT 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
@@ -142,20 +164,32 @@ pub async fn update_settings(
         user_id,
     );
 
-    let res = state.http_client.patch(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let res = state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=representation")
         .json(&req)
-        .send().await.context("user_settings PATCH 요청 실패")?;
+        .send()
+        .await
+        .context("user_settings PATCH 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
         return Err(anyhow!("user_settings PATCH 실패: {}", body));
     }
 
-    let updated: Vec<UserSettings> = res.json().await.context("user_settings PATCH 역직렬화 실패")?;
-    let s = updated.into_iter().next()
+    let updated: Vec<UserSettings> = res
+        .json()
+        .await
+        .context("user_settings PATCH 역직렬화 실패")?;
+    let s = updated
+        .into_iter()
+        .next()
         .ok_or_else(|| anyhow!("수정된 설정을 찾을 수 없음"))?;
 
     Ok(UserSettingsResponse {
