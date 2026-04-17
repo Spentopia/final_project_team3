@@ -12,12 +12,11 @@ export function ImageWithFallback(
     setDidError(true);
   };
 
-  const { src, alt, style, className, ...rest } = props;
+  const { src, alt, style: _style, className, ...rest } = props;
 
   return didError ? (
     <div
       className={`inline-block bg-gray-100 text-center align-middle ${className ?? ""}`}
-      style={style}
     >
       <div className="flex items-center justify-center w-full h-full">
         <img
@@ -33,7 +32,6 @@ export function ImageWithFallback(
       src={src}
       alt={alt}
       className={className}
-      style={style}
       {...rest}
       onError={handleError}
     />

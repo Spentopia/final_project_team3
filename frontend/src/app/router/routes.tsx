@@ -32,10 +32,11 @@ import CommunityPage from "@/domains/community/pages/CommunityPage";
 import PlazaPage from "@/domains/plaza/pages/PlazaPage";
 import ReceiptOcrPanel from "@/components/receipt/ReceiptOcrPanel";
 import GuidePage from "@/guide/guidePage";
+import styles from "./routes.module.css";
 
 function ReceiptOcrTestPage() {
   return (
-    <div style={{ padding: 24 }}>
+    <div className={styles.receiptOcrTestPage}>
       <h2>영수증 OCR 테스트</h2>
       <ReceiptOcrPanel
         expectedDate="2026-04-15"

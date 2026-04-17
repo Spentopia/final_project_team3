@@ -19,7 +19,7 @@ export default function RootLayout() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-cyan-50 via-blue-50 to-teal-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="hidden lg:block">
+      <div className="hidden h-full lg:block">
         <Sidebar onWeeklyScoreClick={() => setIsWeeklyScoreOpen(true)} />
       </div>
 

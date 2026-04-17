@@ -1,0 +1,28 @@
+.wrapper {
+  --sidebar-width: 16rem;
+  --sidebar-width-icon: 3rem;
+}
+
+.mobilePanel {
+  --sidebar-width: 18rem;
+}
+
+.skeletonTextWidth50 {
+  --skeleton-width: 50%;
+}
+
+.skeletonTextWidth60 {
+  --skeleton-width: 60%;
+}
+
+.skeletonTextWidth70 {
+  --skeleton-width: 70%;
+}
+
+.skeletonTextWidth80 {
+  --skeleton-width: 80%;
+}
+
+.skeletonTextWidth90 {
+  --skeleton-width: 90%;
+}

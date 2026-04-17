@@ -29,6 +29,7 @@ import {
   AlertTriangle,
   CheckCircle,
 } from "lucide-react";
+import styles from "./AnalyticsPage.module.css";
 
 const weeklyData = [
   { day: "월", amount: 15000 },
@@ -50,11 +51,41 @@ const monthlyData = [
 ];
 
 const categoryData = [
-  { name: "식비", value: 45, amount: 135000, color: "#f97316" },
-  { name: "교통", value: 20, amount: 60000, color: "#3b82f6" },
-  { name: "쇼핑", value: 15, amount: 45000, color: "#ec4899" },
-  { name: "여가", value: 12, amount: 36000, color: "#a855f7" },
-  { name: "기타", value: 8, amount: 24000, color: "#6b7280" },
+  {
+    name: "식비",
+    value: 45,
+    amount: 135000,
+    color: "#f97316",
+    meterClassName: styles.categoryMeterFood,
+  },
+  {
+    name: "교통",
+    value: 20,
+    amount: 60000,
+    color: "#3b82f6",
+    meterClassName: styles.categoryMeterTransport,
+  },
+  {
+    name: "쇼핑",
+    value: 15,
+    amount: 45000,
+    color: "#ec4899",
+    meterClassName: styles.categoryMeterShopping,
+  },
+  {
+    name: "여가",
+    value: 12,
+    amount: 36000,
+    color: "#a855f7",
+    meterClassName: styles.categoryMeterLeisure,
+  },
+  {
+    name: "기타",
+    value: 8,
+    amount: 24000,
+    color: "#6b7280",
+    meterClassName: styles.categoryMeterEtc,
+  },
 ];
 
 export default function Analytics() {
@@ -230,8 +261,7 @@ export default function Analytics() {
                 <div className="flex items-center gap-2">
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
                     <div
-                      className="h-full rounded-full"
-                      style={{ width: `${cat.value}%`, backgroundColor: cat.color }}
+                      className={`${styles.categoryMeter} ${cat.meterClassName}`}
                     ></div>
                   </div>
                   <span className="text-sm font-medium text-gray-600">{cat.value}%</span>

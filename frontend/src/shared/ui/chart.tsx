@@ -70,20 +70,19 @@ function ChartContainer({
 }
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(
-    ([, config]) => config.theme || config.color,
+  const colorConfig = React.useMemo(
+    () =>
+      Object.entries(config).filter(
+        ([, config]) => config.theme || config.color,
+      ),
+    [config],
   );
 
-  if (!colorConfig.length) {
-    return null;
-  }
-
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
+  const cssText = React.useMemo(
+    () =>
+      Object.entries(THEMES)
+        .map(
+          ([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
@@ -95,11 +94,37 @@ ${colorConfig
   .join("\n")}
 }
 `,
-          )
-          .join("\n"),
-      }}
-    />
+        )
+        .join("\n"),
+    [colorConfig, id],
   );
+
+  React.useInsertionEffect(() => {
+    if (!colorConfig.length) {
+      return;
+    }
+
+    const styleId = `${id}-style`;
+    let styleElement = document.getElementById(styleId) as HTMLStyleElement | null;
+
+    if (!styleElement) {
+      styleElement = document.createElement("style");
+      styleElement.id = styleId;
+      document.head.appendChild(styleElement);
+    }
+
+    styleElement.textContent = cssText;
+
+    return () => {
+      styleElement?.remove();
+    };
+  }, [colorConfig.length, cssText, id]);
+
+  if (!colorConfig.length) {
+    return null;
+  }
+
+  return null;
 };
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
@@ -200,24 +225,39 @@ function ChartTooltipContent({
                     <itemConfig.icon />
                   ) : (
                     !hideIndicator && (
-                      <div
+                      <svg
+                        aria-hidden="true"
                         className={cn(
-                          "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
+                          "shrink-0",
                           {
                             "h-2.5 w-2.5": indicator === "dot",
                             "w-1": indicator === "line",
-                            "w-0 border-[1.5px] border-dashed bg-transparent":
-                              indicator === "dashed",
+                            "h-4 w-1": indicator === "dashed",
                             "my-0.5": nestLabel && indicator === "dashed",
                           },
                         )}
-                        style={
-                          {
-                            "--color-bg": indicatorColor,
-                            "--color-border": indicatorColor,
-                          } as React.CSSProperties
-                        }
-                      />
+                        viewBox="0 0 10 10"
+                      >
+                        {indicator === "dashed" ? (
+                          <line
+                            x1="5"
+                            x2="5"
+                            y1="0"
+                            y2="10"
+                            stroke={indicatorColor}
+                            strokeWidth="3"
+                            strokeDasharray="2 2"
+                          />
+                        ) : (
+                          <rect
+                            width="10"
+                            height="10"
+                            rx="2"
+                            fill={indicatorColor}
+                            stroke={indicatorColor}
+                          />
+                        )}
+                      </svg>
                     )
                   )}
                   <div
@@ -289,12 +329,13 @@ function ChartLegendContent({
             {itemConfig?.icon && !hideIcon ? (
               <itemConfig.icon />
             ) : (
-              <div
-                className="h-2 w-2 shrink-0 rounded-[2px]"
-                style={{
-                  backgroundColor: item.color,
-                }}
-              />
+              <svg
+                aria-hidden="true"
+                className="h-2 w-2 shrink-0"
+                viewBox="0 0 8 8"
+              >
+                <rect width="8" height="8" rx="2" fill={item.color} />
+              </svg>
             )}
             {itemConfig?.label}
           </div>
