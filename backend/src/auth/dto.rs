@@ -117,6 +117,7 @@ pub struct CheckEmailRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct KakaoLoginRequest {
     pub code: String,
+    
 }
 
 // ── 프로필 완성 ───────────────────────────────────────────────
