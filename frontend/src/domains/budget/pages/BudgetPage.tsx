@@ -74,8 +74,8 @@ export default function Budget() {
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved
       ? JSON.parse(saved)
-      : {
-          monthly: 100000,
+        : {
+          monthly: 0,
           savings: 0,
           food: 0,
           transport: 0,
@@ -223,18 +223,20 @@ export default function Budget() {
                   {customBudget.monthly.toLocaleString()}원
                 </span>
               </div>
-              <Slider
-                value={[customBudget.monthly]}
-                onValueChange={([value]) => setCustomBudget({ ...customBudget, monthly: value })}
-                min={100000}
-                max={5000000}
-                step={50000}
-                className="mb-2"
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={customBudget.monthly === 0 ? "" : String(customBudget.monthly)}
+                onChange={(e) => {
+                  const nextValue = Number(e.target.value.replace(/[^0-9]/g, ""));
+                  setCustomBudget({
+                    ...customBudget,
+                    monthly: Number.isNaN(nextValue) ? 0 : nextValue,
+                  });
+                }}
+                className="mt-1"
+                placeholder="월 예산을 입력해주세요."
               />
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>100,000</span>
-                <span>5,000,000</span>
-              </div>
             </div>
 
             <div>
@@ -385,12 +387,20 @@ export default function Budget() {
                 </div>
                 <div className="flex items-start gap-2">
                   <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                  <p>저축 비율이 {Math.round((customBudget.savings / customBudget.monthly) * 100)}%예요. 목표 달성 가능해요!</p>
+                  <p>
+                    저축 비율이{" "}
+                    {customBudget.monthly > 0
+                      ? Math.round((customBudget.savings / customBudget.monthly) * 100)
+                      : 0}
+                    %예요. 목표 달성 가능해요!
+                  </p>
                 </div>
                 <div className="flex items-start gap-2">
                   <PiggyBank className="mt-0.5 h-4 w-4 shrink-0 text-cyan-600" />
                   <p>
-                    이 속도면 {Math.round(10000000 / (customBudget.savings * 12))}년 후 1천만원을 모을 수 있어요!
+                    {customBudget.savings > 0
+                      ? `이 속도면 ${Math.round(10000000 / (customBudget.savings * 12))}년 후 1천만원을 모을 수 있어요!`
+                      : "저축 목표를 입력하면 목표 달성 기간을 계산해드려요!"}
                   </p>
                 </div>
               </div>
