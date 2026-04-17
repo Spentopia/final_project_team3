@@ -24,6 +24,7 @@ import {
   Trash2,
   CheckCircle,
   TrendingDown,
+  TrendingUp,
   Zap,
 } from "lucide-react";
 import { format, isValid, parse } from "date-fns";
@@ -36,6 +37,7 @@ interface Expense {
   amount: number;
   category: string;
   memo: string;
+  type: "expense" | "income";
   receipt?: boolean;
   diary?: string;
 }
@@ -46,6 +48,7 @@ const toDashboardExpense = (savedExpense: CreateExpenseResponse): Expense => ({
   amount: savedExpense.amount,
   category: savedExpense.category,
   memo: savedExpense.memo ?? "",
+  type: "expense",
   receipt: savedExpense.receiptVerified,
   diary: savedExpense.diary ?? "",
 });
@@ -61,11 +64,21 @@ const categories = [
   { value: "other", label: "📦 기타", color: "bg-gray-500" },
 ];
 
+const incomeCategories = [
+  { value: "salary", label: "💼 월급", color: "bg-emerald-500" },
+  { value: "allowance", label: "💵 용돈", color: "bg-green-500" },
+  { value: "bonus", label: "🎁 보너스", color: "bg-lime-500" },
+  { value: "side_job", label: "🧩 부수입", color: "bg-teal-500" },
+  { value: "investment", label: "📈 투자", color: "bg-cyan-500" },
+  { value: "other", label: "📦 기타", color: "bg-gray-500" },
+];
+
 export default function DashboardPage() {
   const { budget } = useFinance();
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [entryType, setEntryType] = useState<"expense" | "income">("expense");
 
   const [newExpense, setNewExpense] = useState({
     amount: "",
@@ -73,6 +86,19 @@ export default function DashboardPage() {
     memo: "",
     diary: "",
   });
+
+  const resetForm = () => {
+    setNewExpense({
+      amount: "",
+      category: "",
+      memo: "",
+      diary: "",
+    });
+    setReceiptFile(null);
+    setOcrResult(null);
+    setOcrError("");
+    setIsReceiptVerified(false);
+  };
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -142,6 +168,23 @@ export default function DashboardPage() {
       return;
     }
 
+    if (entryType === "income") {
+      const income: Expense = {
+        id: `income-${Date.now()}`,
+        date: selectedDate,
+        amount: Number(newExpense.amount),
+        category: newExpense.category,
+        memo: newExpense.memo,
+        type: "income",
+      };
+
+      setExpenses((prev) => [income, ...prev]);
+      setSelectedDate(income.date);
+      toast.success("수입 입력 완료");
+      resetForm();
+      return;
+    }
+
     if (receiptFile && !isReceiptVerified) {
       toast.error("영수증을 업로드했다면 검증을 먼저 완료해주세요");
       return;
@@ -177,16 +220,7 @@ export default function DashboardPage() {
         </div>
       );
 
-      setNewExpense({
-        amount: "",
-        category: "",
-        memo: "",
-        diary: "",
-      });
-      setReceiptFile(null);
-      setOcrResult(null);
-      setOcrError("");
-      setIsReceiptVerified(false);
+      resetForm();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "소비 저장 중 오류가 발생했습니다.";
@@ -218,11 +252,26 @@ export default function DashboardPage() {
     (e) => format(e.date, "yyyy-MM-dd") === format(selectedDate || new Date(), "yyyy-MM-dd")
   );
 
-  const dailyTotal = selectedDateExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const dailyExpenseTotal = selectedDateExpenses
+    .filter((e) => e.type === "expense")
+    .reduce((sum, e) => sum + e.amount, 0);
+  const dailyIncomeTotal = selectedDateExpenses
+    .filter((e) => e.type === "income")
+    .reduce((sum, e) => sum + e.amount, 0);
 
   const monthlyTotal = expenses
     .filter(
       (e) =>
+        e.type === "expense" &&
+        e.date.getFullYear() === (selectedDate || new Date()).getFullYear() &&
+        e.date.getMonth() === (selectedDate || new Date()).getMonth()
+    )
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  const monthlyIncomeTotal = expenses
+    .filter(
+      (e) =>
+        e.type === "income" &&
         e.date.getFullYear() === (selectedDate || new Date()).getFullYear() &&
         e.date.getMonth() === (selectedDate || new Date()).getMonth()
     )
@@ -230,9 +279,11 @@ export default function DashboardPage() {
 
   const recordedDates = expenses.map((expense) => expense.date);
   const selectedDateInputValue = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
+  const activeCategories = entryType === "income" ? incomeCategories : categories;
 
-  const getCategoryInfo = (categoryValue: string) => {
-    return categories.find((c) => c.value === categoryValue) || categories[categories.length - 1];
+  const getCategoryInfo = (categoryValue: string, type: "expense" | "income") => {
+    const source = type === "income" ? incomeCategories : categories;
+    return source.find((c) => c.value === categoryValue) || source[source.length - 1];
   };
 
   return (
@@ -240,43 +291,50 @@ export default function DashboardPage() {
       {/* Left Column - Calendar & Expenses */}
       <div className="space-y-6">
         {/* Monthly Summary */}
-        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
+        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-2xl font-bold">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {format(selectedDate || new Date(), "yyyy년 M월", { locale: ko })}
               </h3>
-              <p className="text-sm text-gray-600">이번 달 소비 내역</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">이번 달 소비 내역</p>
             </div>
-            <div className="text-right">
+            <div className="text-right text-gray-900 dark:text-gray-100">
               <p className="text-3xl font-bold">
                 {monthlyTotal.toLocaleString()}원
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 bg-cyan-100 rounded-lg">
-              <p>예산</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg bg-cyan-100 p-4 text-gray-900 dark:bg-cyan-100 dark:text-gray-900">
+              <p className="text-sm font-medium">예산</p>
               <p className="font-bold">
                 {budget.toLocaleString()}원
               </p>
             </div>
 
-            <div className="p-4 bg-blue-100 rounded-lg">
-              <p>남은 예산</p>
+            <div className="rounded-lg bg-blue-100 p-4 text-gray-900 dark:bg-blue-100 dark:text-gray-900">
+              <p className="text-sm font-medium">남은 예산</p>
               <p className="font-bold">
                 {(budget - monthlyTotal).toLocaleString()}원
               </p>
             </div>
 
-            <div className="p-4 bg-teal-100 rounded-lg">
-              <p>사용률</p>
+            <div className="rounded-lg bg-teal-100 p-4 text-gray-900 dark:bg-teal-100 dark:text-gray-900">
+              <p className="text-sm font-medium">사용률</p>
               <p className="font-bold">
                 {budget > 0
                   ? Math.round((monthlyTotal / budget) * 100)
                   : 0}
                 %
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-emerald-100 p-4 text-gray-900 dark:bg-emerald-100 dark:text-gray-900">
+              <p className="text-sm font-medium">수입</p>
+              <p className="font-bold">
+                {monthlyIncomeTotal.toLocaleString()}원
               </p>
             </div>
           </div>
@@ -288,7 +346,20 @@ export default function DashboardPage() {
             mode="single"
             selected={selectedDate}
             onSelect={setSelectedDate}
-            className="rounded-lg"
+            className="w-full rounded-lg p-0"
+            classNames={{
+              months: "w-full",
+              month: "flex w-full flex-col gap-4",
+              caption: "relative flex w-full items-center justify-center pt-1",
+              caption_label: "text-xl font-bold text-gray-900 dark:text-gray-100 sm:text-2xl",
+              table: "w-full border-collapse",
+              head_row: "grid grid-cols-7",
+              head_cell:
+                "flex h-10 items-center justify-center rounded-md text-sm font-medium text-muted-foreground",
+              row: "mt-2 grid grid-cols-7 gap-2",
+              cell: "relative aspect-square p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:rounded-md [&:has([aria-selected])]:bg-accent",
+              day: "flex h-full w-full items-center justify-center rounded-md p-0 text-base font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground aria-selected:opacity-100 sm:text-lg",
+            }}
             locale={ko}
             modifiers={{ recorded: recordedDates }}
             modifiersClassNames={{
@@ -306,7 +377,7 @@ export default function DashboardPage() {
                 {format(selectedDate || new Date(), "M월 d일", { locale: ko })} 소비 내역
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                총 {dailyTotal.toLocaleString()}원 · {selectedDateExpenses.length}건
+                소비 {dailyExpenseTotal.toLocaleString()}원 · 수입 {dailyIncomeTotal.toLocaleString()}원 · {selectedDateExpenses.length}건
               </p>
             </div>
             {selectedDateExpenses.some((e) => e.diary) && (
@@ -320,12 +391,13 @@ export default function DashboardPage() {
           <div className="space-y-3">
             {selectedDateExpenses.length === 0 ? (
               <div className="py-12 text-center">
-                <p className="text-gray-500">아직 기록된 소비가 없어요</p>
-                <p className="mt-1 text-sm text-gray-400">오른쪽에서 소비를 기록해보세요!</p>
+                <p className="text-gray-500">아직 기록된 내역이 없어요</p>
+                <p className="mt-1 text-sm text-gray-400">오른쪽에서 소비나 수입을 기록해보세요!</p>
               </div>
             ) : (
               selectedDateExpenses.map((expense) => {
-                const categoryInfo = getCategoryInfo(expense.category);
+                const categoryInfo = getCategoryInfo(expense.category, expense.type);
+                const isIncome = expense.type === "income";
 
                 return (
                   <div
@@ -338,12 +410,20 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <p className="font-bold text-gray-900 dark:text-gray-100">
-                          {expense.memo || "메모 없음"}
+                          {expense.memo || "구매품목 없음"}
                         </p>
                         <div className="mt-1 flex items-center gap-2">
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             {categoryInfo.label}
                           </p>
+                          {isIncome && (
+                            <Badge
+                              variant="outline"
+                              className="h-5 border-emerald-500 text-emerald-700 dark:text-emerald-400"
+                            >
+                              수입
+                            </Badge>
+                          )}
                           {expense.receipt && (
                             <Badge
                               variant="outline"
@@ -358,7 +438,14 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <p className="font-bold text-gray-900 dark:text-gray-100">
+                      <p
+                        className={`font-bold ${
+                          isIncome
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-gray-900 dark:text-gray-100"
+                        }`}
+                      >
+                        {isIncome ? "+" : "-"}
                         {expense.amount.toLocaleString()}원
                       </p>
                       <Button
@@ -395,45 +482,54 @@ export default function DashboardPage() {
 
       {/* Right Column - Add Expense Form */}
       <div className="space-y-6">
-        {/* Quick Stats */}
-        <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-bold">이번 주 성실도</h3>
-            <Zap className="h-5 w-5" />
-          </div>
-          <p className="mb-2 text-3xl font-bold">85점</p>
-          <div className="mb-4 h-2 overflow-hidden rounded-full bg-white/30">
-            <div className="h-full w-[85%] bg-white"></div>
-          </div>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>소비 기록</span>
-              <span className="font-bold">35/40</span>
-            </div>
-            <div className="flex justify-between">
-              <span>영수증 인증</span>
-              <span className="font-bold">18/20</span>
-            </div>
-            <div className="flex justify-between">
-              <span>일기 작성</span>
-              <span className="font-bold">12/15</span>
-            </div>
-            <div className="flex justify-between">
-              <span>예산 체크</span>
-              <span className="font-bold">15/15</span>
-            </div>
-            <div className="flex justify-between">
-              <span>연속 활동</span>
-              <span className="font-bold">7일 🔥</span>
-            </div>
-          </div>
-        </Card>
-
         {/* Add Expense Form */}
         <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
-          <div className="mb-4 flex items-center gap-2">
-            <Plus className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-            <h3 className="font-bold text-gray-900 dark:text-gray-100">소비 기록하기</h3>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {entryType === "income" ? (
+                <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <TrendingDown className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+              )}
+              <h3 className="font-bold text-gray-900 dark:text-gray-100">
+                {entryType === "income" ? "수입 입력하기" : "소비 입력하기"}
+              </h3>
+            </div>
+
+            <div className="flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+              <Button
+                type="button"
+                size="sm"
+                variant={entryType === "expense" ? "default" : "ghost"}
+                className={
+                  entryType === "expense"
+                    ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-600 hover:to-blue-600"
+                    : "text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100"
+                }
+                onClick={() => {
+                  setEntryType("expense");
+                  resetForm();
+                }}
+              >
+                소비 입력
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={entryType === "income" ? "default" : "ghost"}
+                className={
+                  entryType === "income"
+                    ? "bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600"
+                    : "text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100"
+                }
+                onClick={() => {
+                  setEntryType("income");
+                  resetForm();
+                }}
+              >
+                수입 입력
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -477,7 +573,7 @@ export default function DashboardPage() {
                   <SelectValue placeholder="카테고리 선택" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
+                  {activeCategories.map((cat) => (
                     <SelectItem key={cat.value} value={cat.value}>
                       {cat.label}
                     </SelectItem>
@@ -487,116 +583,124 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <Label htmlFor="memo">메모</Label>
+              <Label htmlFor="memo">{entryType === "income" ? "수입 내용" : "구매품목"}</Label>
               <Input
                 id="memo"
                 type="text"
-                placeholder="무엇을 구매했나요?"
+                placeholder={entryType === "income" ? "어떤 수입인가요?" : "무엇을 구매했나요?"}
                 value={newExpense.memo}
                 onChange={(e) => setNewExpense({ ...newExpense, memo: e.target.value })}
                 className="mt-1"
               />
             </div>
 
-            <div>
-              <Label htmlFor="receipt">영수증 인증 (+20 SPT)</Label>
-              <div className="mt-2 flex items-center gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const input = document.createElement("input");
-                    input.type = "file";
-                    input.accept = "image/*";
-                    input.onchange = (e) => {
-                      const file = (e.target as HTMLInputElement).files?.[0];
-                      if (file) {
-                        setReceiptFile(file);
-                        setIsReceiptVerified(false);
-                        setOcrResult(null);
-                        setOcrError("");
-                        toast.success("영수증이 업로드되었습니다");
-                      }
-                    };
-                    input.click();
-                  }}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  {receiptFile ? "변경" : "업로드"}
-                </Button>
-
-                {receiptFile && (
-                  <Badge className={isReceiptVerified ? "bg-green-500" : "bg-gray-500"}>
-                    <CheckCircle className="mr-1 h-3 w-3" />
-                    {receiptFile.name}
-                  </Badge>
-                )}
-              </div>
-
-              {receiptFile && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="mt-3"
-                  onClick={handleVerifyReceipt}
-                  disabled={ocrLoading}
-                >
-                  {ocrLoading ? "영수증 확인 중..." : "영수증 검증하기"}
-                </Button>
-              )}
-
-              {ocrError && <p className="mt-3 text-sm text-red-500">{ocrError}</p>}
-
-              {ocrResult && (
-                <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-700 dark:bg-gray-900/50">
-                  <p className="font-semibold">OCR 결과</p>
-                  <p>추출 날짜: {ocrResult.ocr.receipt_date ?? "없음"}</p>
-                  <p>추출 금액: {ocrResult.ocr.total_amount ?? "없음"}</p>
-                  <p>근거 텍스트: {ocrResult.ocr.raw_text || "없음"}</p>
-
-                  <div className="mt-2">
-                    <p
-                      className={
-                        ocrResult.verification.is_verified
-                          ? "font-semibold text-green-600"
-                          : "font-semibold text-red-500"
-                      }
+            {entryType === "expense" && (
+              <>
+                <div>
+                  <Label htmlFor="receipt">영수증 인증 (+20 SPT)</Label>
+                  <div className="mt-2 flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const input = document.createElement("input");
+                        input.type = "file";
+                        input.accept = "image/*";
+                        input.onchange = (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (file) {
+                            setReceiptFile(file);
+                            setIsReceiptVerified(false);
+                            setOcrResult(null);
+                            setOcrError("");
+                            toast.success("영수증이 업로드되었습니다");
+                          }
+                        };
+                        input.click();
+                      }}
                     >
-                      {ocrResult.verification.is_verified ? "인증 성공" : "인증 실패"}
-                    </p>
-                    <p>사유: {ocrResult.verification.reason}</p>
-                  </div>
-                </div>
-              )}
-            </div>
+                      <Upload className="mr-2 h-4 w-4" />
+                      {receiptFile ? "변경" : "업로드"}
+                    </Button>
 
-            <div>
-              <Label htmlFor="diary">한줄 소비 일기 (+15 SPT)</Label>
-              <Textarea
-                id="diary"
-                placeholder="오늘 소비에 대한 생각을 기록해보세요"
-                value={newExpense.diary}
-                onChange={(e) => setNewExpense({ ...newExpense, diary: e.target.value })}
-                className="mt-1"
-                rows={3}
-              />
-            </div>
+                    {receiptFile && (
+                      <Badge className={isReceiptVerified ? "bg-green-500" : "bg-gray-500"}>
+                        <CheckCircle className="mr-1 h-3 w-3" />
+                        {receiptFile.name}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {receiptFile && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="mt-3"
+                      onClick={handleVerifyReceipt}
+                      disabled={ocrLoading}
+                    >
+                      {ocrLoading ? "영수증 확인 중..." : "영수증 검증하기"}
+                    </Button>
+                  )}
+
+                  {ocrError && <p className="mt-3 text-sm text-red-500">{ocrError}</p>}
+
+                  {ocrResult && (
+                    <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-50 dark:text-gray-900">
+                      <p className="font-semibold">OCR 결과</p>
+                      <p>추출 날짜: {ocrResult.ocr.receipt_date ?? "없음"}</p>
+                      <p>추출 금액: {ocrResult.ocr.total_amount ?? "없음"}</p>
+                      <p>근거 텍스트: {ocrResult.ocr.raw_text || "없음"}</p>
+
+                      <div className="mt-2">
+                        <p
+                          className={
+                            ocrResult.verification.is_verified
+                              ? "font-semibold text-green-600"
+                              : "font-semibold text-red-500"
+                          }
+                        >
+                          {ocrResult.verification.is_verified ? "인증 성공" : "인증 실패"}
+                        </p>
+                        <p>사유: {ocrResult.verification.reason}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="diary">한줄 소비 일기 (+15 SPT)</Label>
+                  <Textarea
+                    id="diary"
+                    placeholder="오늘 소비에 대한 생각을 기록해보세요"
+                    value={newExpense.diary}
+                    onChange={(e) => setNewExpense({ ...newExpense, diary: e.target.value })}
+                    className="mt-1"
+                    rows={3}
+                  />
+                </div>
+              </>
+            )}
 
             <Button
               onClick={handleAddExpense}
               disabled={saveLoading}
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+              className={`w-full ${
+                entryType === "income"
+                  ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
+                  : "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+              }`}
             >
               <Plus className="mr-2 h-4 w-4" />
-              {saveLoading ? "저장 중..." : "기록 완료"}
+              {saveLoading ? "저장 중..." : entryType === "income" ? "수입 입력 완료" : "소비 입력 완료"}
             </Button>
           </div>
         </Card>
 
         {/* Rewards Info */}
-        <Card className="border-none bg-gradient-to-br from-amber-50 to-yellow-50 p-6 backdrop-blur-xl">
+        <Card className="border-none bg-gradient-to-br from-amber-50 to-yellow-50 p-6 text-gray-900 backdrop-blur-xl dark:from-amber-50 dark:to-yellow-50 dark:text-gray-900">
           <h4 className="mb-3 font-bold text-gray-900">💰 보상 안내</h4>
           <div className="space-y-2 text-sm text-gray-700">
             <div className="flex items-center justify-between">

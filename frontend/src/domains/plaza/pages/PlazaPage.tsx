@@ -9,8 +9,8 @@ export default function Plaza() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">광장</h1>
-          <p className="text-gray-600">아바타와 함께 다른 유저들을 만나보세요</p>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">광장</h1>
+          <p className="text-gray-600 dark:text-gray-300">아바타와 함께 다른 유저들을 만나보세요</p>
         </div>
         <Badge className="bg-amber-500">PC 전용</Badge>
       </div>

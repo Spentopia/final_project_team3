@@ -127,8 +127,8 @@ export default function Budget() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">예산 설정</h1>
-          <p className="text-gray-600">AI가 추천하는 플랜으로 시작하거나 직접 설정해보세요</p>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">예산 설정</h1>
+          <p className="text-gray-600 dark:text-gray-300">AI가 추천하는 플랜으로 시작하거나 직접 설정해보세요</p>
         </div>
         <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
           <Sparkles className="mr-2 h-4 w-4" />

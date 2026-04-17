@@ -31,6 +31,7 @@ import ProfilePage from "@/domains/profile/ui/ProfilePage";
 import CommunityPage from "@/domains/community/pages/CommunityPage";
 import PlazaPage from "@/domains/plaza/pages/PlazaPage";
 import ReceiptOcrPanel from "@/components/receipt/ReceiptOcrPanel";
+import GuidePage from "@/guide/guidePage";
 
 function ReceiptOcrTestPage() {
   return (
@@ -110,5 +111,9 @@ export const router = createBrowserRouter([
   {
     path: "/receipt-test",
     Component: ReceiptOcrTestPage ,
+  },
+  {
+    path: "/guide",
+    Component: GuidePage,
   },
 ]);

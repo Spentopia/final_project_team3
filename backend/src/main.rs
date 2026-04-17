@@ -41,7 +41,7 @@ pub mod wallet;
 
 use axum::http::{HeaderValue, Method, header};
 use std::net::SocketAddr;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 // ─────────────────────────────────────────────────────────────
@@ -84,8 +84,18 @@ async fn main() {
     // - COOKIE: 웹 refresh 토큰이 httpOnly 쿠키로 전달되므로 필요
     // - x-client-type: 웹/앱 분기용 커스텀 헤더
     // ─────────────────────────────────────────────────────────
+    let mut allowed_origins = vec![
+        HeaderValue::from_static("http://localhost:5173"),
+        HeaderValue::from_static("http://127.0.0.1:5173"),
+    ];
+    if let Ok(origin) = config.cors_origin.parse::<HeaderValue>() {
+        if !allowed_origins.contains(&origin) {
+            allowed_origins.push(origin);
+        }
+    }
+
     let cors = CorsLayer::new()
-        .allow_origin(config.cors_origin.parse::<HeaderValue>().unwrap())
+        .allow_origin(AllowOrigin::list(allowed_origins))
         .allow_methods([
             Method::GET,
             Method::POST,

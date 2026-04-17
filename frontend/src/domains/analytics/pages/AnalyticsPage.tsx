@@ -79,8 +79,8 @@ export default function Analytics() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">소비 패턴 분석</h1>
-          <p className="text-gray-600">AI가 분석한 당신의 소비 습관을 확인해보세요</p>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">소비 패턴 분석</h1>
+          <p className="text-gray-600 dark:text-gray-300">AI가 분석한 당신의 소비 습관을 확인해보세요</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline">

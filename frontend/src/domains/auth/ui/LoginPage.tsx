@@ -25,7 +25,8 @@ export default function Login() {
 
       navigate("/");
     } catch (error) {
-      alert("로그인 실패");
+      const message = error instanceof Error ? error.message : "알 수 없는 오류";
+      alert(`로그인 실패: ${message}`);
     }
   };
 

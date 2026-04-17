@@ -174,15 +174,9 @@ export default function Marketplace() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">NFT 마켓플레이스</h1>
-          <p className="text-gray-600">아바타 아이템을 자유롭게 거래해보세요</p>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">NFT 마켓플레이스</h1>
+          <p className="text-gray-600 dark:text-gray-300">아바타 아이템을 자유롭게 거래해보세요</p>
         </div>
-        {!walletConnected && (
-          <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
-            <Wallet className="mr-2 h-4 w-4" />
-            지갑 연결하기
-          </Button>
-        )}
       </div>
 
       {/* Wallet Status Banner */}
