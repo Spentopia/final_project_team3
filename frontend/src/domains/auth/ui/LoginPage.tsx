@@ -20,6 +20,7 @@ export default function Login() {
     try {
       const result = await login({ email, password });
 
+      sessionStorage.setItem("just_logged_in", "true");
       // ✅ 실제 앱 JWT 저장
       authStorage.setToken(result.accessToken);
 

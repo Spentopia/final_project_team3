@@ -63,6 +63,9 @@ export default function KakaoCallbackPage() {
     try {
       const data = await loginWithKakaocode(code);
 
+      // 방금 로그인 성공했음을 잠깐 표시
+      sessionStorage.setItem("just_logged_in", "true");
+
       // 최종적으로 받은 건 앱 JWT
       authStorage.setToken(data.access_token);
 
