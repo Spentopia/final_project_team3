@@ -44,8 +44,8 @@ pub fn create_router(state: AppState) -> Router {
     // ── 열거 공격 방어 전용 rate limit ───────────────────────────
     let enumeration_rate_limit = Arc::new(
         GovernorConfigBuilder::default()
-            .per_millisecond(12_000)
-            .burst_size(5)
+            .per_millisecond(30_000)
+            .burst_size(3)
             .finish()
             .unwrap(),
     );

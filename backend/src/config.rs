@@ -41,6 +41,9 @@ pub struct Config {
     // CORS 허용 origin
     pub cors_origin: String,
 
+    // 로컬/배포 구분
+    pub environment: String,
+
     // AI 서버 URL (챗봇, 소비 분석, 예산 플랜)
     pub ai_server_url: String,
 
@@ -77,6 +80,9 @@ impl Config {
             // 프론트 origin 하드코딩 대신 환경변수 사용
             cors_origin: std::env::var("CORS_ORIGIN")
                 .unwrap_or_else(|_| "http://localhost:5173".to_string()),
+
+            environment: std::env::var("ENVIRONMENT")
+                .unwrap_or_else(|_| "local".to_string()),
 
             ai_server_url: std::env::var("AI_SERVER_URL")
                 .unwrap_or_else(|_| "http://localhost:8000".to_string()),

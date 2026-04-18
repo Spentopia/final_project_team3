@@ -58,7 +58,7 @@ pub fn generate_access_token(secret: &str, user_id: &Uuid) -> Result<String> {
     // 탈취돼도 피해 기간을 줄이기 위함
     let claims = AccessClaims {
         sub: user_id.to_string(),
-        exp: (now + Duration::hours(1)).timestamp() as usize,
+        exp: (now + Duration::minutes(30)).timestamp() as usize,
         token_type: "access".to_string(),
     };
 

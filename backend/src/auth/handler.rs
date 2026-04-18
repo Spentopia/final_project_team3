@@ -88,20 +88,22 @@ fn resolve_client_type(headers: &HeaderMap) -> &'static str {
 /// 왜 refresh만 쿠키냐:
 /// - access는 프론트 메모리에 저장하고 Authorization 헤더로 보냄
 /// - refresh는 브라우저 JS가 직접 읽지 못하게 숨기기 위함
-fn build_refresh_cookie(refresh_token: &str) -> HeaderMap {
+fn build_refresh_cookie(state: &AppState, refresh_token: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
+    let secure = should_use_secure_cookies(state);
 
     let cookie = Cookie::build(("spentopia_refresh", refresh_token.to_string()))
         .http_only(true)
         .same_site(SameSite::Lax)
         .path("/auth")
-        .secure(false) // 로컬 시연용. HTTPS 아님.
+        .secure(secure)
         .build();
 
     headers.append(SET_COOKIE, cookie.to_string().parse().unwrap());
 
     tracing::debug!(
-        "refresh 쿠키 발급: name=spentopia_refresh path=/auth same_site=Lax secure=false"
+        "refresh 쿠키 발급: name=spentopia_refresh path=/auth same_site=Lax secure={}",
+        secure
     );
 
     headers
@@ -110,14 +112,15 @@ fn build_refresh_cookie(refresh_token: &str) -> HeaderMap {
 /// 웹 로그아웃 시 refresh 쿠키 제거용 Set-Cookie 생성
 ///
 /// Max-Age=0 으로 만료시켜서 브라우저가 쿠키를 지우게 함
-fn build_clear_refresh_cookie() -> HeaderMap {
+fn build_clear_refresh_cookie(state: &AppState) -> HeaderMap {
     let mut headers = HeaderMap::new();
+    let secure = should_use_secure_cookies(state);
 
     let cookie = Cookie::build(("spentopia_refresh", "".to_string()))
         .http_only(true)
         .same_site(SameSite::Lax)
         .path("/auth")
-        .secure(false) // 로컬 시연용
+        .secure(secure)
         .max_age(cookie::time::Duration::seconds(0))
         .build();
 
@@ -299,7 +302,7 @@ pub async fn wallet_login(
     // 웹 / 앱 응답 분기
     if client_type == "web" {
         // 웹: refresh는 쿠키
-        let cookie_headers = build_refresh_cookie(&response.refresh_token);
+        let cookie_headers = build_refresh_cookie(&state, &response.refresh_token);
 
         let body = WebLoginResponse {
             access_token: response.access_token,
@@ -364,7 +367,7 @@ pub async fn exchange_token(
         })?;
 
     if client_type == "web" {
-        let cookie_headers = build_refresh_cookie(&issued.refresh_token);
+        let cookie_headers = build_refresh_cookie(&state, &issued.refresh_token);
         tracing::debug!("토큰 교환 응답: web refresh 쿠키를 Set-Cookie로 반환");
 
         let body = WebLoginResponse {
@@ -1024,8 +1027,8 @@ pub async fn kakao_login(
         })?;
 
     if client_type == "web" {
-        let mut merged_headers = build_clear_kakao_state_cookie();
-        let refresh_headers = build_refresh_cookie(&issued.refresh_token);
+        let mut merged_headers = build_clear_kakao_state_cookie(&state);
+        let refresh_headers = build_refresh_cookie(&state, &issued.refresh_token);
 
         for value in refresh_headers.get_all(SET_COOKIE).iter() {
             merged_headers.append(SET_COOKIE, value.clone());
@@ -1068,7 +1071,7 @@ pub async fn kakao_start(
         oauth_state
     );
 
-    let cookie_headers = build_kakao_state_cookie(&oauth_state);
+    let cookie_headers = build_kakao_state_cookie(&state, &oauth_state);
 
     Ok((cookie_headers, Json(KakaoStartResponse { auth_url })))
 }
@@ -1134,7 +1137,7 @@ pub async fn refresh_token(
 
     if client_type == "web" {
         // 웹은 새 refresh를 다시 쿠키로 넣음
-        let cookie_headers = build_refresh_cookie(&rotated.refresh_token);
+        let cookie_headers = build_refresh_cookie(&state, &rotated.refresh_token);
         tracing::debug!("refresh 성공 응답: web refresh 쿠키 재발급");
 
         let body = WebRefreshResponse {
@@ -1203,35 +1206,37 @@ pub async fn logout(
 
     if client_type == "web" {
         // 웹은 쿠키도 같이 지워야 함
-        let headers = build_clear_refresh_cookie();
+        let headers = build_clear_refresh_cookie(&state);
         Ok((headers, Json(json!({ "logged_out": true }))))
     } else {
         Ok((HeaderMap::new(), Json(json!({ "logged_out": true }))))
     }
 }
 
-fn build_kakao_state_cookie(state: &str) -> HeaderMap {
+fn build_kakao_state_cookie(app_state: &AppState, state: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
+    let secure = should_use_secure_cookies(app_state);
 
     let cookie = Cookie::build(("spentopia_kakao_oauth_state", state.to_string()))
         .http_only(true)
         .same_site(SameSite::Lax)
         .path("/auth")
-        .secure(false)
+        .secure(secure)
         .build();
 
     headers.append(SET_COOKIE, cookie.to_string().parse().unwrap());
     headers
 }
 
-fn build_clear_kakao_state_cookie() -> HeaderMap {
+fn build_clear_kakao_state_cookie(app_state: &AppState) -> HeaderMap {
     let mut headers = HeaderMap::new();
+    let secure = should_use_secure_cookies(app_state);
 
     let cookie = Cookie::build(("spentopia_kakao_oauth_state", "".to_string()))
         .http_only(true)
         .same_site(SameSite::Lax)
         .path("/auth")
-        .secure(false)
+        .secure(secure)
         .max_age(cookie::time::Duration::seconds(0))
         .build();
 
@@ -1249,4 +1254,10 @@ fn extract_kakao_state_cookie(headers: &HeaderMap) -> Option<String> {
                 .find(|c| c.name() == "spentopia_kakao_oauth_state")
                 .map(|c| c.value().to_string())
         })
+}
+fn should_use_secure_cookies(state: &AppState) -> bool {
+    matches!(
+        state.config.environment.trim().to_ascii_lowercase().as_str(),
+        "prod" | "production"
+    )
 }
