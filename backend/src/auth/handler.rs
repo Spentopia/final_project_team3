@@ -37,7 +37,7 @@ use serde_json::json;
 use crate::auth::dto::{
     AppLoginResponse, AppRefreshResponse, CheckEmailRequest, CompleteProfileRequest,
     CompleteProfileResponse, ExchangeTokenRequest, FindEmailRequest, FindEmailResponse,
-    KakaoLoginRequest, NonceRequest, NonceResponse, ProfileImageUrlQuery, ProfileImageUrlResponse,
+    KakaoLoginRequest,KakaoStartResponse, NonceRequest, NonceResponse, ProfileImageUrlQuery, ProfileImageUrlResponse,
     RefreshRequest, WalletLoginRequest, WebLoginResponse, WebRefreshResponse,
 };
 use crate::auth::service;
@@ -944,10 +944,23 @@ pub async fn kakao_login(
     Json(body): Json<KakaoLoginRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     if body.code.trim().is_empty() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "인가 코드를 입력해 주세요.".to_string(),
-        ));
+        return Err((StatusCode::BAD_REQUEST, "인가 코드가 비어있음".to_string()));
+    }
+
+    if body.state.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "state가 비어있음".to_string()));
+    }
+
+    let cookie_state = extract_kakao_state_cookie(&headers)
+        .ok_or((StatusCode::UNAUTHORIZED, "OAuth state 쿠키가 없습니다.".to_string()))?;
+
+    if cookie_state != body.state {
+        tracing::warn!(
+            "카카오 OAuth state 불일치: cookie_state={}, body_state={}",
+            cookie_state,
+            body.state
+        );
+        return Err((StatusCode::UNAUTHORIZED, "유효하지 않은 로그인 요청입니다.".to_string()));
     }
 
     let client_type = resolve_client_type(&headers);
@@ -955,19 +968,25 @@ pub async fn kakao_login(
     let issued = service::kakao_login(&state, &body.code, client_type)
         .await
         .map_err(|e| {
-            tracing::error!("카카오 로그인 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+            let msg = e.to_string();
+            tracing::error!("카카오 로그인 실패: {}", msg);
+            (StatusCode::INTERNAL_SERVER_ERROR, msg)
         })?;
 
     if client_type == "web" {
-        let cookie_headers = build_refresh_cookie(&issued.refresh_token);
+        let mut merged_headers = build_clear_kakao_state_cookie();
+        let refresh_headers = build_refresh_cookie(&issued.refresh_token);
+
+        for value in refresh_headers.get_all(SET_COOKIE).iter() {
+            merged_headers.append(SET_COOKIE, value.clone());
+        }
 
         let body = WebLoginResponse {
             access_token: issued.access_token,
             is_new_user: issued.is_new_user,
         };
 
-        Ok((cookie_headers, Json(serde_json::to_value(body).unwrap())))
+        Ok((merged_headers, Json(serde_json::to_value(body).unwrap())))
     } else {
         let body = AppLoginResponse {
             access_token: issued.access_token,
@@ -977,6 +996,31 @@ pub async fn kakao_login(
 
         Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
     }
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/kakao/start",
+    tag = "소셜 로그인",
+    responses(
+        (status = 200, description = "카카오 인가 URL 생성 성공", body = KakaoStartResponse)
+    )
+)]
+pub async fn kakao_start(
+    State(state): State<AppState>,
+) -> Result<(HeaderMap, Json<KakaoStartResponse>), (StatusCode, String)> {
+    let oauth_state = uuid::Uuid::new_v4().to_string();
+
+    let auth_url = format!(
+        "https://kauth.kakao.com/oauth/authorize?client_id={}&redirect_uri={}&response_type=code&scope=profile_nickname,profile_image&prompt=select_account&state={}",
+        state.config.kakao_rest_api_key,
+        urlencoding::encode(&state.config.kakao_redirect_uri),
+        oauth_state
+    );
+
+    let cookie_headers = build_kakao_state_cookie(&oauth_state);
+
+    Ok((cookie_headers, Json(KakaoStartResponse { auth_url })))
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1114,4 +1158,45 @@ pub async fn logout(
     } else {
         Ok((HeaderMap::new(), Json(json!({ "logged_out": true }))))
     }
+}
+
+fn build_kakao_state_cookie(state: &str) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+
+    let cookie = Cookie::build(("spentopia_kakao_oauth_state", state.to_string()))
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .path("/auth")
+        .secure(false)
+        .build();
+
+    headers.append(SET_COOKIE, cookie.to_string().parse().unwrap());
+    headers
+}
+
+fn build_clear_kakao_state_cookie() -> HeaderMap {
+    let mut headers = HeaderMap::new();
+
+    let cookie = Cookie::build(("spentopia_kakao_oauth_state", "".to_string()))
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .path("/auth")
+        .secure(false)
+        .max_age(cookie::time::Duration::seconds(0))
+        .build();
+
+    headers.append(SET_COOKIE, cookie.to_string().parse().unwrap());
+    headers
+}
+
+fn extract_kakao_state_cookie(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("cookie")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|cookie_header| {
+            Cookie::split_parse(cookie_header)
+                .filter_map(Result::ok)
+                .find(|c| c.name() == "spentopia_kakao_oauth_state")
+                .map(|c| c.value().to_string())
+        })
 }

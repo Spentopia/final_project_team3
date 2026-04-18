@@ -24,7 +24,7 @@ export default function Login() {
       // ✅ 실제 앱 JWT 저장
       authStorage.setToken(result.accessToken);
 
-      navigate("/");
+      navigate("/", { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "알 수 없는 오류";
       alert(`로그인 실패: ${message}`);

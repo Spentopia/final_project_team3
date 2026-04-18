@@ -117,7 +117,13 @@ pub struct CheckEmailRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct KakaoLoginRequest {
     pub code: String,
+    pub state: String,
     
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct KakaoStartResponse {
+    pub auth_url: String,
 }
 
 // ── 프로필 완성 ───────────────────────────────────────────────

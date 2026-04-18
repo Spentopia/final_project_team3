@@ -80,7 +80,9 @@ use uuid::Uuid;
 
 use crate::auth::app_jwt::{generate_token_pair, verify_app_refresh_token};
 use crate::auth::refresh_store::{
-    create_refresh_session, revoke_refresh_session, revoke_refresh_session_as_reused,
+    create_refresh_session,
+    revoke_refresh_session,
+    revoke_refresh_session_as_reused,
     verify_refresh_session,
 };
 
@@ -153,50 +155,47 @@ pub async fn issue_login_tokens(
 /// 1) refresh JWT 자체 검증
 /// 2) sid로 DB refresh_sessions 조회
 /// 3) DB 세션 검증
-///    - revoked 아님
+///    - revoked = false
+///    - revoked_at is null
 ///    - expires_at 안 지남
 ///    - replaced_by_session_id 없음
-///    - hash 일치
+///    - token_hash 일치
 /// 4) 새 access / refresh 발급
 /// 5) 새 refresh session 저장
-/// 6) 기존 refresh session revoke + replaced_by_session_id 기록
-///
-/// 보안 포인트:
-/// - 이미 rotation된 refresh token이 다시 들어오면
-///   verify_refresh_session() 단계에서 reuse 감지로 차단됨
+/// 6) 기존 refresh session revoke
 pub async fn rotate_refresh_token(
     state: &AppState,
     refresh_token: &str,
     client_type: &str,
 ) -> Result<RefreshIssueResult> {
     // 1) refresh JWT 자체 검증
+    let claims = verify_app_refresh_token(
+        &state.config.app_jwt_secret,
+        refresh_token,
+    )?;
+
+    let session_id = Uuid::parse_str(&claims.sid)
+        .context("refresh sid UUID 파싱 실패")?;
+
+    let user_id = Uuid::parse_str(&claims.sub)
+        .context("refresh sub UUID 파싱 실패")?;
+
+    // 2) DB refresh session 검증
     //
-    // 여기서 JWT 서명 위조 여부와 JWT exp를 1차로 체크한다.
-    let claims = verify_app_refresh_token(&state.config.app_jwt_secret, refresh_token)?;
-
-    let session_id = Uuid::parse_str(&claims.sid).context("refresh sid UUID 파싱 실패")?;
-
-    let user_id = Uuid::parse_str(&claims.sub).context("refresh sub UUID 파싱 실패")?;
-
-    // 2) DB에 저장된 refresh session 검증
-    //
-    // 여기서 추가로:
+    // 여기서:
     // - revoked
+    // - revoked_at
     // - expires_at
-    // - replaced_by_session_id (reuse 감지)
+    // - replaced_by_session_id
     // - token_hash
-    // 를 체크한다.
-    //
-    // 즉 JWT만 믿지 않고 DB 상태까지 본다.
+    // 를 모두 확인한다.
     let session = match verify_refresh_session(state, session_id, refresh_token).await {
         Ok(session) => session,
         Err(e) => {
             let msg = e.to_string();
 
-            // reuse 감지 시에는 해당 세션을 한 번 더 명시적으로 revoke 해둔다.
-            // (이미 replaced된 세션이라면 사실상 죽어있지만,
-            //  보안상 "재사용 시도된 세션"임을 명확히 남기는 용도)
-            if msg.contains("reuse") {
+            // reuse 감지 시엔 보수적으로 한 번 더 revoke 처리
+            if msg.contains("reuse") || msg.contains("이미 교체된 refresh token") {
                 let _ = revoke_refresh_session_as_reused(state, session_id).await;
             }
 
@@ -204,10 +203,7 @@ pub async fn rotate_refresh_token(
         }
     };
 
-    // 3) client_type 일치 여부 확인
-    //
-    // 웹에서 발급된 refresh token을 앱이 쓰거나,
-    // 앱에서 발급된 refresh token을 웹이 쓰는 걸 막는다.
+    // 3) web/app 클라이언트 타입 불일치 방지
     if session.client_type != client_type {
         return Err(anyhow!("refresh client_type 불일치"));
     }
@@ -216,7 +212,11 @@ pub async fn rotate_refresh_token(
     let new_session_id = Uuid::new_v4();
 
     // 5) 새 access / refresh JWT 발급
-    let pair = generate_token_pair(&state.config.app_jwt_secret, &user_id, &new_session_id)?;
+    let pair = generate_token_pair(
+        &state.config.app_jwt_secret,
+        &user_id,
+        &new_session_id,
+    )?;
 
     // 6) 새 refresh session 저장
     create_refresh_session(
@@ -226,13 +226,11 @@ pub async fn rotate_refresh_token(
         client_type,
         &pair.refresh_token,
     )
-    .await?;
+        .await?;
 
     // 7) 기존 refresh session revoke
     //
-    // replaced_by_session_id에 새 session_id를 기록해 둔다.
-    // 그러면 나중에 옛 refresh token이 다시 들어왔을 때
-    // "이미 교체된 토큰"으로 판단 가능하다.
+    // rotation이므로 replaced_by_session_id에 새 세션 ID 기록
     revoke_refresh_session(state, session_id, Some(new_session_id)).await?;
 
     Ok(RefreshIssueResult {

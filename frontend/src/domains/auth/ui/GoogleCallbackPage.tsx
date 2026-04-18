@@ -45,6 +45,7 @@ export default function GoogleCallbackPage() {
 
       sessionStorage.setItem("just_logged_in", "true"); // 🔥 추가
       authStorage.setToken(exchanged.data.access_token);
+      navigate("/", { replace: true });
 
       try {
         await supabase.auth.signOut();

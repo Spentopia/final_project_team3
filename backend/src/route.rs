@@ -38,6 +38,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/auth/refresh", post(auth::handler::refresh_token))
         .route("/auth/logout", post(auth::handler::logout))
         .route("/auth/wallet/login", post(auth::handler::wallet_login))
+        .route("/auth/kakao/start", post(auth::handler::kakao_start))
         .route("/auth/kakao/login", post(auth::handler::kakao_login));
 
     // ── 열거 공격 방어 전용 rate limit ───────────────────────────
