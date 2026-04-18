@@ -18,8 +18,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { updatePassword } from "@/domains/auth/api/auth";
+import {
+  PASSWORD_REQUIREMENTS_MESSAGE,
+  validatePassword,
+} from "@/domains/auth/lib/password";
+import PasswordInput from "@/domains/auth/ui/PasswordInput";
 import { Button } from "@/shared/ui/button";
-import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
 import { Sparkles } from "lucide-react";
@@ -29,13 +33,21 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setErrorMessage("");
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setErrorMessage(passwordError);
+      return;
+    }
 
     // 비밀번호 확인 체크
     if (password !== confirmPassword) {
-      alert("비밀번호가 일치하지 않습니다");
+      setErrorMessage("비밀번호가 일치하지 않습니다.");
       return;
     }
 
@@ -44,10 +56,10 @@ export default function ResetPasswordPage() {
       // Supabase updateUser()로 비밀번호 변경
       // 이미 임시 세션이 활성화되어 있어서 별도 인증 불필요
       await updatePassword(password);
-      alert("비밀번호가 변경되었습니다!");
+      alert("비밀번호 변경이 완료되었습니다.");
       navigate("/login"); // 변경 완료 → 로그인 페이지로
     } catch (error: any) {
-      alert(error.message || "비밀번호 변경 실패");
+      setErrorMessage(error.message || "비밀번호 변경 실패");
     } finally {
       setLoading(false);
     }
@@ -67,25 +79,31 @@ export default function ResetPasswordPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {errorMessage && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                {errorMessage}
+              </div>
+            )}
+
             <div>
               <Label htmlFor="password">새 비밀번호</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
-                placeholder="8자 이상 입력해주세요"
+                placeholder="영문 대소문자, 숫자, 특수문자를 포함해 주세요"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={8}
                 className="mt-1"
               />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {PASSWORD_REQUIREMENTS_MESSAGE}
+              </p>
             </div>
 
             <div>
               <Label htmlFor="confirmPassword">새 비밀번호 확인</Label>
-              <Input
+              <PasswordInput
                 id="confirmPassword"
-                type="password"
                 placeholder="비밀번호를 다시 입력해주세요"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -100,6 +118,15 @@ export default function ResetPasswordPage() {
               className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
             >
               {loading ? "변경 중..." : "비밀번호 변경"}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate("/login")}
+            >
+              로그인 화면으로 이동
             </Button>
           </form>
         </div>

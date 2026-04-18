@@ -18,8 +18,18 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { authStorage } from "@/shared/lib/auth";
-import { signUp, completeProfile } from "@/domains/auth/api/auth";
+import {
+  signUp,
+  completeProfile,
+  checkProfileAvailability,
+} from "@/domains/auth/api/auth";
+import { validateEmail } from "@/domains/auth/lib/email";
+import {
+  PASSWORD_REQUIREMENTS_MESSAGE,
+  validatePassword,
+} from "@/domains/auth/lib/password";
 import { useProfileImage } from "@/domains/auth/hooks/useProfileImage";
+import PasswordInput from "@/domains/auth/ui/PasswordInput";
 import ProfileImageUploader from "@/domains/auth/ui/ProfileImageUploader";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -62,6 +72,18 @@ export default function Signup() {
 
     // ── Step 1: 이메일/비밀번호 회원가입 ──────────────────────
     if (step === 1) {
+      const emailError = validateEmail(formData.email);
+      if (emailError) {
+        alert(emailError);
+        return;
+      }
+
+      const passwordError = validatePassword(formData.password);
+      if (passwordError) {
+        alert(passwordError);
+        return;
+      }
+
       if (formData.password !== formData.confirmPassword) {
         alert("비밀번호가 일치하지 않습니다");
         return;
@@ -96,7 +118,18 @@ export default function Signup() {
 
     // ── Step 2 -> Step 3 ────────────────────────────────────
     if (step === 2) {
-      setStep(3);
+      setLoading(true);
+      try {
+        await checkProfileAvailability({
+          nickname: formData.nickname,
+          phone: formData.phone,
+        });
+        setStep(3);
+      } catch (error: any) {
+        alert(error.message || "중복 확인에 실패했습니다");
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
@@ -168,7 +201,7 @@ export default function Signup() {
                   <Label htmlFor="email">이메일</Label>
                   <Input
                     id="email"
-                    type="email"
+                    type="text"
                     placeholder="your@email.com"
                     value={formData.email}
                     onChange={(e) => updateFormData("email", e.target.value)}
@@ -179,23 +212,21 @@ export default function Signup() {
 
                 <div>
                   <Label htmlFor="password">비밀번호</Label>
-                  <Input
+                  <PasswordInput
                     id="password"
-                    type="password"
-                    placeholder="8자 이상 입력해주세요"
+                    placeholder="영문 대소문자, 숫자, 특수문자를 포함해 주세요"
                     value={formData.password}
                     onChange={(e) => updateFormData("password", e.target.value)}
                     required
-                    minLength={8}
                     className="mt-1"
                   />
+                  
                 </div>
 
                 <div>
                   <Label htmlFor="confirmPassword">비밀번호 확인</Label>
-                  <Input
+                  <PasswordInput
                     id="confirmPassword"
-                    type="password"
                     placeholder="비밀번호를 다시 입력해주세요"
                     value={formData.confirmPassword}
                     onChange={(e) => updateFormData("confirmPassword", e.target.value)}

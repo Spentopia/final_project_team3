@@ -111,6 +111,12 @@ pub struct CheckEmailRequest {
     pub email: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CheckProfileAvailabilityRequest {
+    pub nickname: String,
+    pub phone: String,
+}
+
 // ── 카카오 로그인 ─────────────────────────────────────────────
 //
 // 프론트 콜백 페이지에서 카카오가 준 인가 코드를 백엔드로 보낼 때 사용

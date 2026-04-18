@@ -6,6 +6,8 @@ import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
 import { Sparkles } from "lucide-react";
 import { login, signInWithGoogle, redirectToKakao } from "@/domains/auth/api/auth";
+import { validateEmail } from "@/domains/auth/lib/email";
+import PasswordInput from "@/domains/auth/ui/PasswordInput";
 import { authStorage } from "@/shared/lib/auth";
 import { WalletLoginButton } from "@/domains/auth/ui/WalletLoginButton";
 
@@ -16,6 +18,12 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const emailError = validateEmail(email);
+    if (emailError) {
+      alert(emailError);
+      return;
+    }
 
     try {
       const result = await login({ email, password });
@@ -67,7 +75,7 @@ export default function Login() {
               <Label htmlFor="email">이메일</Label>
               <Input
                 id="email"
-                type="email"
+                type="text"
                 placeholder="test@test.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -78,9 +86,8 @@ export default function Login() {
 
             <div>
               <Label htmlFor="password">비밀번호</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 placeholder="Test1234!"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

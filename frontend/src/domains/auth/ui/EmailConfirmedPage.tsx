@@ -17,7 +17,7 @@ export default function EmailConfirmedPage() {
       <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl">
         <div className="p-8">
           <div className="mb-8 flex flex-col items-center text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 shadow-lg">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 shadow-lg">
               <CheckCircle2 className="h-8 w-8 text-white" />
             </div>
             <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">

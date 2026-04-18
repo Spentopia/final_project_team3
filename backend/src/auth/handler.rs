@@ -35,10 +35,11 @@ use cookie::{Cookie, SameSite};
 use serde_json::json;
 
 use crate::auth::dto::{
-    AppLoginResponse, AppRefreshResponse, CheckEmailRequest, CompleteProfileRequest,
-    CompleteProfileResponse, ExchangeTokenRequest, FindEmailRequest, FindEmailResponse,
-    KakaoLoginRequest,KakaoStartResponse, NonceRequest, NonceResponse, ProfileImageUrlQuery, ProfileImageUrlResponse,
-    RefreshRequest, WalletLoginRequest, WebLoginResponse, WebRefreshResponse,
+    AppLoginResponse, AppRefreshResponse, CheckEmailRequest, CheckProfileAvailabilityRequest,
+    CompleteProfileRequest, CompleteProfileResponse, ExchangeTokenRequest, FindEmailRequest,
+    FindEmailResponse, KakaoLoginRequest, KakaoStartResponse, NonceRequest, NonceResponse,
+    ProfileImageUrlQuery, ProfileImageUrlResponse, RefreshRequest, WalletLoginRequest,
+    WebLoginResponse, WebRefreshResponse,
 };
 use crate::auth::service;
 use crate::state::AppState;
@@ -576,6 +577,55 @@ pub async fn complete_profile(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/profile/check-availability",
+    tag = "인증",
+    request_body = CheckProfileAvailabilityRequest,
+    responses(
+        (status = 200, description = "닉네임/전화번호 사용 가능"),
+        (status = 400, description = "중복 또는 입력값 오류")
+    )
+)]
+pub async fn check_profile_availability(
+    State(state): State<AppState>,
+    Json(body): Json<CheckProfileAvailabilityRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if body.nickname.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "닉네임을 입력해 주세요.".to_string(),
+        ));
+    }
+
+    if body.phone.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "전화번호를 입력해 주세요.".to_string(),
+        ));
+    }
+
+    service::check_profile_availability(&state, &body.nickname, &body.phone)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+
+            if msg.contains("이미 사용 중인 닉네임입니다")
+                || msg.contains("이미 사용 중인 전화번호입니다")
+            {
+                return (StatusCode::BAD_REQUEST, msg);
+            }
+
+            tracing::error!("프로필 중복 확인 실패: {}", msg);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "프로필 중복 확인에 실패했습니다.".to_string(),
+            )
+        })?;
+
+    Ok(Json(json!({ "available": true })))
+}
+
 // ─────────────────────────────────────────────────────────────
 // 프로필 이미지 업로드
 //
@@ -906,7 +956,7 @@ pub async fn check_reset_password_email(
         .map_err(|e| {
             let msg = e.to_string();
 
-            if msg.contains("해당 이메일로 가입된 계정이 없습니다") {
+            if msg.contains("입력한 정보와 일치하는 계정을 찾을 수 없습니다") {
                 return (StatusCode::NOT_FOUND, msg);
             }
 

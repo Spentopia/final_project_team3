@@ -1038,7 +1038,7 @@ pub async fn find_email_by_phone(state: &AppState, phone: &str) -> Result<String
         .first()
         .and_then(|row| row.get("email"))
         .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow!("해당 전화번호로 가입된 계정이 없음"))?;
+        .ok_or_else(|| anyhow!("입력한 정보와 일치하는 계정을 찾을 수 없습니다"))?;
 
     Ok(mask_email(email))
 }
@@ -1114,9 +1114,84 @@ pub async fn can_reset_password(state: &AppState, email: &str) -> Result<bool> {
         .first()
         .and_then(|row| row.get("login_provider"))
         .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow!("해당 이메일로 가입된 계정이 없습니다"))?;
+        .ok_or_else(|| anyhow!("입력한 정보와 일치하는 계정을 찾을 수 없습니다"))?;
 
     Ok(provider == "email")
+}
+
+pub async fn check_profile_availability(
+    state: &AppState,
+    nickname: &str,
+    phone: &str,
+) -> Result<()> {
+    let normalized_nickname = nickname.trim();
+    let formatted_phone = format_phone(phone);
+
+    let nickname_url = format!(
+        "{}/rest/v1/users?select=id&nickname=eq.{}&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        urlencoding::encode(normalized_nickname)
+    );
+
+    let nickname_resp = state
+        .http_client
+        .get(&nickname_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("닉네임 중복 확인 실패")?;
+
+    if !nickname_resp.status().is_success() {
+        let err = nickname_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("닉네임 중복 확인 실패: {}", err));
+    }
+
+    let nickname_rows: Vec<Value> = nickname_resp
+        .json()
+        .await
+        .context("닉네임 중복 확인 응답 파싱 실패")?;
+
+    if !nickname_rows.is_empty() {
+        return Err(anyhow!("이미 사용 중인 닉네임입니다"));
+    }
+
+    let phone_url = format!(
+        "{}/rest/v1/users?select=id&phone=eq.{}&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        urlencoding::encode(&formatted_phone)
+    );
+
+    let phone_resp = state
+        .http_client
+        .get(&phone_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("전화번호 중복 확인 실패")?;
+
+    if !phone_resp.status().is_success() {
+        let err = phone_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("전화번호 중복 확인 실패: {}", err));
+    }
+
+    let phone_rows: Vec<Value> = phone_resp
+        .json()
+        .await
+        .context("전화번호 중복 확인 응답 파싱 실패")?;
+
+    if !phone_rows.is_empty() {
+        return Err(anyhow!("이미 사용 중인 전화번호입니다"));
+    }
+
+    Ok(())
 }
 
 // 이메일 마스킹

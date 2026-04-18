@@ -13,6 +13,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { resetPassword } from "@/domains/auth/api/auth";
+import { validateEmail } from "@/domains/auth/lib/email";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -48,6 +49,13 @@ export default function ForgotPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault(); // form 기본 동작(페이지 새로고침) 방지
+
+    const emailError = validateEmail(email);
+    if (emailError) {
+      alert(emailError);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -141,7 +149,7 @@ export default function ForgotPasswordPage() {
                 <Label htmlFor="email">가입한 이메일</Label>
                 <Input
                   id="email"
-                  type="email"
+                  type="text"
                   placeholder="your@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

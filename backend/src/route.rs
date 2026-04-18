@@ -67,6 +67,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/me", get(auth::handler::get_me))
         .route("/profile/complete", patch(auth::handler::complete_profile))
         .route(
+            "/profile/check-availability",
+            post(auth::handler::check_profile_availability),
+        )
+        .route(
             "/profile/image/upload",
             post(auth::handler::upload_profile_image),
         )
