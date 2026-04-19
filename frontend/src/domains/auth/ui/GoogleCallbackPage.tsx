@@ -53,7 +53,7 @@ export default function GoogleCallbackPage() {
         console.warn("Supabase signOut 실패:", signOutError);
       }
 
-      navigate("/");
+      
     } catch (err: any) {
       setError(err.message || "구글 로그인 실패");
     }
