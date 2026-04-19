@@ -31,6 +31,8 @@ use axum::{
     http::{HeaderMap, StatusCode, header::SET_COOKIE},
 };
 
+use crate::auth::handoff::{create_handoff_token, exchange_handoff_token};
+use uuid::Uuid;
 use cookie::{Cookie, SameSite};
 use serde_json::json;
 
@@ -39,7 +41,8 @@ use crate::auth::dto::{
     CompleteProfileRequest, CompleteProfileResponse, ExchangeTokenRequest, FindEmailRequest,
     FindEmailResponse, KakaoLoginRequest, KakaoStartResponse, NonceRequest, NonceResponse,
     ProfileImageUrlQuery, ProfileImageUrlResponse, RefreshRequest, WalletLoginRequest,
-    WebLoginResponse, WebRefreshResponse,
+    WebLoginResponse, WebRefreshResponse,  HandoffExchangeRequest, HandoffExchangeResponse,
+    HandoffRequest, HandoffResponse,
 };
 use crate::auth::service;
 use crate::state::AppState;
@@ -1260,4 +1263,152 @@ fn should_use_secure_cookies(state: &AppState) -> bool {
         state.config.environment.trim().to_ascii_lowercase().as_str(),
         "prod" | "production"
     )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// [handoff 발급] POST /auth/handoff
+// ═══════════════════════════════════════════════════════════════
+//
+// 보호 라우트 → JWT 필수
+//
+// 왜 보호 라우트냐?
+// - 누구의 handoff token인지 알아야 하므로
+// - 반드시 현재 로그인된 user_id가 필요함
+//
+// 요청 예시:
+// POST /auth/handoff
+// Authorization: Bearer <앱 access token>
+// {
+//   "target_service": "unity"
+// }
+//
+// 응답 예시:
+// 200 OK
+// {
+//   "handoff_token": "64자리 랜덤문자열",
+//   "expires_in": 30
+// }
+//
+// 프론트는 이 handoff_token을 URL에 넣지 않고
+// 부모 탭 -> 유니티 탭 postMessage로만 전달해야 함.
+#[utoipa::path(
+    post,
+    path = "/auth/handoff",
+    tag = "Handoff",
+    security(
+        ("bearer_auth" = [])
+    ),
+    request_body = HandoffRequest,
+    responses(
+        (status = 200, description = "handoff token 발급 성공", body = HandoffResponse),
+        (status = 400, description = "target_service가 비어있거나 허용되지 않음"),
+        (status = 401, description = "JWT 인증 실패")
+    )
+)]
+pub async fn create_handoff(
+    State(state): State<AppState>,
+    // jwt_middleware가 넣어준 user_id
+    axum::Extension(user_id): axum::Extension<Uuid>,
+    Json(body): Json<HandoffRequest>,
+) -> Result<Json<HandoffResponse>, (StatusCode, String)> {
+    // ── 1) target_service 검증 ──────────────────────────────
+    // 현재는 "unity"만 허용
+    // 나중에 다른 서비스 추가 시 여기에 추가
+    let target = body.target_service.trim().to_lowercase();
+
+    if target.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "target_service를 입력해 주세요.".to_string(),
+        ));
+    }
+
+    let allowed_services = ["unity"];
+    if !allowed_services.contains(&target.as_str()) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("허용되지 않은 target_service: {}", target),
+        ));
+    }
+
+    // ── 2) handoff token 발급 ───────────────────────────────
+    let token = create_handoff_token(&state, user_id, &target);
+
+    // ── 3) 응답 ─────────────────────────────────────────────
+    Ok(Json(HandoffResponse {
+        handoff_token: token,
+        expires_in: 30,
+    }))
+}
+
+// ═══════════════════════════════════════════════════════════════
+// [handoff 교환] POST /auth/handoff/exchange
+// ═══════════════════════════════════════════════════════════════
+//
+// 공개 라우트 → JWT 불필요
+//
+// 이유:
+// - 유니티는 아직 access token이 없는 상태에서 시작함
+// - 부모 탭이 postMessage로 넘긴 handoff token만 가지고 교환해야 함
+//
+// 요청 예시:
+// POST /auth/handoff/exchange
+// {
+//   "handoff_token": "aB3kQ9xZ2mL7pR4w...(64자리)"
+// }
+//
+// 응답 예시:
+// 200 OK
+// {
+//   "access_token": "eyJhbGci...",
+//   "refresh_token": "eyJhbGci..."
+// }
+//
+// 유니티는 이 토큰들을 메모리에 저장하고:
+// - access_token으로 API 호출
+// - refresh_token으로 /auth/refresh (body 방식)로 세션 연장
+// - 이 시점부터 부모 탭(웹) 닫아도 유니티 독립 운영 가능
+#[utoipa::path(
+    post,
+    path = "/auth/handoff/exchange",
+    tag = "Handoff",
+    request_body = HandoffExchangeRequest,
+    responses(
+        (status = 200, description = "교환 성공 — 유니티용 access+refresh 발급", body = HandoffExchangeResponse),
+        (status = 400, description = "handoff_token 비어있음"),
+        (status = 401, description = "유효하지 않은 handoff token")
+    )
+)]
+pub async fn exchange_handoff(
+    State(state): State<AppState>,
+    Json(body): Json<HandoffExchangeRequest>,
+) -> Result<Json<HandoffExchangeResponse>, (StatusCode, String)> {
+    // ── 1) 입력 검증 ────────────────────────────────────────
+    if body.handoff_token.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "handoff_token을 입력해 주세요.".to_string(),
+        ));
+    }
+
+    // ── 2) handoff token 교환 ───────────────────────────────
+    // 검증 + 1회용 삭제 + 유니티용 access+refresh 발급
+    //
+    // 주의:
+    // target_service는 클라이언트 입력을 믿지 않고
+    // 서버가 handoff_store에 저장해둔 값을 기준으로 검증한다.
+    let result = exchange_handoff_token(&state, &body.handoff_token)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            tracing::warn!("handoff 교환 실패: {}", msg);
+            (StatusCode::UNAUTHORIZED, msg)
+        })?;
+
+    // ── 3) 응답 ─────────────────────────────────────────────
+    // 유니티는 앱 방식이므로 access+refresh 둘 다 body로 반환
+    Ok(Json(HandoffExchangeResponse {
+        access_token: result.access_token,
+        refresh_token: result.refresh_token,
+    }))
 }

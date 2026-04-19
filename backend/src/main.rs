@@ -186,6 +186,33 @@ async fn main() {
     // 지금은 전체 적용이 더 안전함 (DDoS 방어).
     // ─────────────────────────────────────────────────────────
 
+    // ─────────────────────────────────────────────────────────
+    // handoff_store 주기적 정리 (백그라운드 태스크)
+    //
+    // handoff token은 30초 TTL.
+    // nonce보다 훨씬 짧은 수명이므로 30초마다 정리.
+    //
+    // 정상적인 경우 exchange_handoff_token()에서 즉시 삭제되지만,
+    // exchange 안 하고 방치된 handoff가 메모리에 쌓이는 걸 방지.
+    //
+    // 예: 유저가 "게임 시작" 누르고 취소한 경우
+    //     → handoff가 발급됐지만 교환 안 됨
+    //     → 30초 후 여기서 정리
+    // ─────────────────────────────────────────────────────────
+    let handoff_store = state.handoff_store.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+            let now = std::time::SystemTime::now();
+            let before = handoff_store.len();
+            handoff_store.retain(|_, entry| entry.expires_at > now);
+            let removed = before - handoff_store.len();
+            if removed > 0 {
+                tracing::debug!("만료된 handoff {} 건 정리", removed);
+            }
+        }
+    });
+
     let app = route::create_router(state)
         .layer(governor_limiter)
         .layer(cors)

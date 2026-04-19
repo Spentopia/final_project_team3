@@ -10,6 +10,8 @@ import {
   SheetTrigger,
 } from "../ui/sheet";
 import { useTheme } from "next-themes";
+import { startUnityGame } from "@/domains/unity/api/unityHandoff";
+
 
 type HeaderProps = {
   onMenuClick?: () => void;
@@ -23,6 +25,19 @@ export default function Header({ onMenuClick }: HeaderProps) {
   ]);
 
   const { theme, setTheme } = useTheme();
+
+  // 게임 시작 버튼 클릭 시
+  // 1) 백엔드에서 handoff token 발급
+  // 2) 유니티 새 탭 오픈
+  // 3) 유니티 READY 수신 후 postMessage로 handoff 전달
+  const handleStartGame = async () => {
+    try {
+      await startUnityGame();
+    } catch (error) {
+      console.error("게임 시작 실패:", error);
+      alert("게임 시작에 실패했어요.");
+    }
+  };
 
   return (
     <header className="flex min-h-20 items-center justify-between border-b border-white/50 bg-white/60 px-6 py-3 backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/60">
@@ -86,7 +101,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <ConnectWalletButton className="hidden sm:flex" />
         </div>
 
-        <Button className="h-14 rounded-lg border border-orange-300 bg-gradient-to-r from-orange-400 via-amber-500 to-orange-600 px-8 text-lg font-extrabold text-white shadow-xl shadow-orange-500/40 transition-all hover:-translate-y-0.5 hover:scale-[1.03] hover:from-orange-300 hover:via-amber-400 hover:to-orange-500 hover:shadow-orange-500/60 dark:border-orange-300/70 dark:shadow-orange-950/60">
+        <Button
+        onClick={handleStartGame} 
+        className="h-14 rounded-lg border border-orange-300 bg-gradient-to-r from-orange-400 via-amber-500 to-orange-600 px-8 text-lg font-extrabold text-white shadow-xl shadow-orange-500/40 transition-all hover:-translate-y-0.5 hover:scale-[1.03] hover:from-orange-300 hover:via-amber-400 hover:to-orange-500 hover:shadow-orange-500/60 dark:border-orange-300/70 dark:shadow-orange-950/60">
           <Gamepad2 className="mr-3 h-6 w-6" />
           <span>게임시작</span>
         </Button>

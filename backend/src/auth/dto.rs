@@ -169,3 +169,51 @@ pub struct ProfileImageUrlQuery {
 pub struct ProfileImageUrlResponse {
     pub signed_url: String,
 }
+
+// ─────────────────────────────────────────────────────────────
+// handoff token 발급 요청
+//
+// POST /auth/handoff
+// Authorization: Bearer <access_token>
+//
+// 웹에서 "게임 시작" 버튼 클릭 시 호출.
+// JWT 미들웨어가 user_id를 확인한 뒤,
+// 유니티 진입용 1회용 handoff token을 발급한다.
+// ─────────────────────────────────────────────────────────────
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct HandoffRequest {
+    // 현재는 "unity"만 허용
+    pub target_service: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct HandoffResponse {
+    // 부모 탭이 유니티 탭으로 postMessage 할 1회용 token 원문
+    pub handoff_token: String,
+
+    // 프론트 디버깅/UX용
+    pub expires_in: i32,
+}
+
+// ─────────────────────────────────────────────────────────────
+// handoff token 교환 요청
+//
+// POST /auth/handoff/exchange
+//
+// 유니티가 부모 탭에서 postMessage로 받은 handoff token을
+// 자기 서비스용 access/refresh로 교환할 때 사용.
+//
+// 중요:
+// - target_service는 클라이언트가 보내지 않음
+// - 서버 메모리에 저장된 target_service를 기준으로만 검증
+// ─────────────────────────────────────────────────────────────
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct HandoffExchangeRequest {
+    pub handoff_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct HandoffExchangeResponse {
+    pub access_token: String,
+    pub refresh_token: String,
+}

@@ -5,3 +5,4 @@ pub mod middleware;
 pub mod model;
 pub mod refresh_store;
 pub mod service;
+pub mod handoff;
