@@ -140,7 +140,7 @@ function CreateListingDialog({
         onOpenChange: ESC 또는 바깥 클릭 시 isOpen=false로 호출됨
         → handleClose()로 내부 상태 초기화 + 부모 onClose 호출
       */}
-        <DialogContent>
+        <DialogContent className={styles.marketDialogContent}>
           <DialogHeader>
             <DialogTitle>판매 등록</DialogTitle>
             <DialogDescription>
@@ -354,12 +354,17 @@ export default function MarketplacePage() {
         <div className={styles.pageHeader}>
           <h1 className={styles.pageTitle}>마켓플레이스</h1>
           {/* 판매 등록 버튼 → Dialog 열기 */}
-          <Button onClick={() => setIsCreateDialogOpen(true)}>판매 등록</Button>
+          <Button className={styles.createButton} onClick={() => setIsCreateDialogOpen(true)}>
+            판매 등록
+          </Button>
         </div>
 
         {/* ── 판매 목록 섹션 ── */}
-        <section>
-          <h2 className={styles.sectionTitle}>판매 중인 아이템</h2>
+        <section className={styles.marketSection}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>판매 중인 아이템</h2>
+            <span className={styles.sectionCount}>{listings.length.toLocaleString()} listings</span>
+          </div>
 
           {listings.length === 0 ? (
               // 로컬 listings 배열이 비어있을 때
@@ -402,7 +407,7 @@ export default function MarketplacePage() {
             open={!!purchaseTarget}
             onOpenChange={(open) => !open && setPurchaseTarget(null)}
         >
-          <AlertDialogContent>
+          <AlertDialogContent className={styles.marketDialogContent}>
             <AlertDialogHeader>
               <AlertDialogTitle>구매 확인</AlertDialogTitle>
               <AlertDialogDescription>

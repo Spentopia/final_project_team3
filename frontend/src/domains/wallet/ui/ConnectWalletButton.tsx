@@ -27,7 +27,6 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
       walletAddress,
       walletName,
       openWalletModal,
-      connectWallet,
       disconnectWallet,
       deselectWallet,
       linkWallet,
@@ -43,50 +42,37 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
   const linkWalletRef = useRef(linkWallet);
   useEffect(() => { linkWalletRef.current = linkWallet; }, [linkWallet]);
 
-  const pendingRef = useRef(false);
-  const pendingConnectRef = useRef(false);
-  const pendingOpenModalRef = useRef(false);
-  const prevWalletNameRef = useRef<string | null>(wallet?.adapter.name ?? null);
+  const [linkRequested, setLinkRequested] = useState(false);
+  const [openingWalletModal, setOpeningWalletModal] = useState(false);
+  const linkInFlightRef = useRef(false);
 
   useEffect(() => {
-    if (!pendingOpenModalRef.current || wallet || disconnecting) return;
+    if (!openingWalletModal || wallet || disconnecting) return;
 
-    pendingOpenModalRef.current = false;
-    prevWalletNameRef.current = null;
+    setOpeningWalletModal(false);
     openWalletModal();
-  }, [wallet, disconnecting, openWalletModal]);
-
-  // 모달에서 지갑 선택 감지 → connect
-  // disconnecting 중이면 pendingConnectRef로 대기
-  useEffect(() => {
-    const currentName = wallet?.adapter.name ?? null;
-    const prevName = prevWalletNameRef.current;
-    prevWalletNameRef.current = currentName;
-
-    if (!pendingRef.current || !currentName || currentName === prevName) return;
-
-    if (disconnecting) {
-      pendingConnectRef.current = true;
-    } else if (!connected && !connecting) {
-      connectWallet().catch(() => { pendingRef.current = false; });
-    }
-  }, [wallet, disconnecting, connected, connecting, connectWallet]);
-
-  // deselectWallet disconnect 완료 후 대기 중인 connect 실행
-  useEffect(() => {
-    if (!disconnecting && pendingConnectRef.current && wallet && !connected && !connecting) {
-      pendingConnectRef.current = false;
-      connectWallet().catch(() => { pendingRef.current = false; });
-    }
-  }, [disconnecting, wallet, connected, connecting, connectWallet]);
+  }, [openingWalletModal, wallet, disconnecting, openWalletModal]);
 
   // 지갑이 연결되면 연동(linkWallet) 시도.
   useEffect(() => {
-    if (connected && walletAddress && pendingRef.current) {
-      pendingRef.current = false;
-      void linkWalletRef.current();
-    }
-  }, [connected, walletAddress]);
+    if (!linkRequested || !connected || !walletAddress || connecting || disconnecting || linkInFlightRef.current) return;
+
+    linkInFlightRef.current = true;
+    setLinkRequested(false);
+    linkWalletRef.current().finally(() => {
+      linkInFlightRef.current = false;
+    });
+  }, [linkRequested, connected, walletAddress, connecting, disconnecting]);
+
+  useEffect(() => {
+    if (!linkRequested || wallet || openingWalletModal || connected) return;
+
+    const timer = window.setTimeout(() => {
+      setLinkRequested(false);
+    }, 120000);
+
+    return () => window.clearTimeout(timer);
+  }, [linkRequested, wallet, openingWalletModal, connected]);
 
   const [showUnlinkDialog, setShowUnlinkDialog] = useState(false);
 
@@ -105,12 +91,13 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
       setShowUnlinkDialog(true);
       return;
     }
-    pendingRef.current = true;
+
+    setLinkRequested(true);
+
     if (wallet) {
-      pendingOpenModalRef.current = true;
+      setOpeningWalletModal(true);
       deselectWallet();               // 이전 선택 초기화 → 모달에서 동일 지갑 재선택 가능
     } else {
-      prevWalletNameRef.current = null; // 같은 지갑 재선택도 감지하기 위해 초기화
       openWalletModal();
     }
   };
@@ -120,7 +107,7 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
     await disconnectWallet();
   };
 
-  const isLoading = connecting || disconnecting || isProcessing || !isWalletReady;
+  const isLoading = connecting || disconnecting || isProcessing || linkRequested || !isWalletReady;
 
   return (
     <>
