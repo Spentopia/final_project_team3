@@ -95,6 +95,7 @@ pub struct AppRefreshResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct FindEmailRequest {
     pub phone: String,
+    pub captcha_token: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

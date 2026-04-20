@@ -1006,8 +1006,8 @@ pub async fn find_email_by_phone(state: &AppState, phone: &str) -> Result<String
     // DB 저장 형식인 "010-1234-5678"로 맞춰서 조회
     let formatted_phone = format_phone(phone);
 
-    tracing::info!("이메일 찾기 요청 phone(raw) = {}", phone);
-    tracing::info!("이메일 찾기 요청 phone(formatted) = {}", formatted_phone);
+    tracing::info!("이메일 찾기 요청 수신");
+
 
     let url = format!(
         "{}/rest/v1/users?select=email&phone=eq.{}",

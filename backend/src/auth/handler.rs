@@ -31,6 +31,7 @@ use axum::{
     http::{HeaderMap, StatusCode, header::SET_COOKIE},
 };
 
+use crate::auth::turnstile::verify_turnstile;
 use crate::auth::handoff::{create_handoff_token, exchange_handoff_token};
 use uuid::Uuid;
 use cookie::{Cookie, SameSite};
@@ -877,6 +878,27 @@ pub async fn find_email(
     State(state): State<AppState>,
     Json(body): Json<FindEmailRequest>,
 ) -> Result<Json<FindEmailResponse>, (StatusCode, String)> {
+    // 1) captcha token 비어있는지 검사
+    if body.captcha_token.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "사람 인증이 필요합니다.".to_string(),
+        ));
+    }
+
+    // 2) Turnstile 검증
+    verify_turnstile(
+        &state.http_client,
+        &state.config.turnstile_secret_key,
+        &body.captcha_token,
+    )
+        .await
+        .map_err(|e| {
+            tracing::warn!("Turnstile 검증 실패: {}", e);
+            (StatusCode::BAD_REQUEST, e.to_string())
+        })?;
+
+    // 3) 기존 전화번호 검증
     if body.phone.trim().is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -884,11 +906,17 @@ pub async fn find_email(
         ));
     }
 
-    let masked_email = service::find_email_by_phone(&state, &body.phone)
+    // 4) 기존 이메일 찾기 로직 호출
+    // 여기 함수명은 네 service.rs에 맞춰 쓰면 됨
+    let masked_email = crate::auth::service::find_email_by_phone(
+        &state,
+        &body.phone,
+    )
         .await
         .map_err(|e| {
-            tracing::error!("이메일 찾기 실패: {}", e);
-            (StatusCode::BAD_REQUEST, e.to_string())
+            let msg = e.to_string();
+            tracing::warn!("이메일 찾기 실패: {}", msg);
+            (StatusCode::NOT_FOUND, msg)
         })?;
 
     Ok(Json(FindEmailResponse { masked_email }))

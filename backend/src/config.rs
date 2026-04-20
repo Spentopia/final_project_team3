@@ -49,6 +49,8 @@ pub struct Config {
 
     // Unity 서버 URL (아바타 렌더링, 게임 연동)
     pub unity_server_url: String,
+
+    pub turnstile_secret_key: String,
 }
 
 impl Config {
@@ -89,6 +91,9 @@ impl Config {
 
             unity_server_url: std::env::var("UNITY_SERVER_URL")
                 .unwrap_or_else(|_| "http://localhost:9000".to_string()),
+
+            turnstile_secret_key: std::env::var("TURNSTILE_SECRET_KEY")
+                .expect("TURNSTILE_SECRET_KEY 환경변수 없음"),
         })
     }
 }

@@ -317,14 +317,19 @@ export const updatePassword = async (newPassword: string) => {
 
 // 전화번호로 이메일 찾기
 //
-// 유저가 "010-1234-5678" 형식으로 입력해도
-// DB에는 "01012345678"로 저장되어 있으므로
-// stripPhone으로 숫자만 추출해서 검색
-export const findEmailByPhone = async (phone: string): Promise<string> => {
+// Turnstile captcha_token도 함께 전송한다.
+// - phone: 사용자가 입력한 전화번호
+// - captchaToken: Cloudflare Turnstile에서 발급받은 토큰
+export const findEmailByPhone = async (
+  phone: string,
+  captchaToken: string
+): Promise<string> => {
   try {
     const res = await apiClient.post("/auth/find-email", {
       phone: stripPhone(phone),
+      captcha_token: captchaToken,
     });
+
     return res.data.masked_email;
   } catch (error) {
     throw new Error(
