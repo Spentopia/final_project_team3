@@ -53,7 +53,7 @@ const mapSupabaseAuthError = (message: string, fallback: string) => {
   }
 
   if (normalizedMessage.includes("user already registered")) {
-    return "이미 가입된 이메일입니다.";
+    return "이미 사용 중인 이메일이거나 가입할 수 없는 이메일입니다.";
   }
 
   if (normalizedMessage.includes("email not confirmed")) {
