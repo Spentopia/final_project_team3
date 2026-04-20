@@ -84,4 +84,11 @@ dependencies {
 
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
     implementation("io.coil-kt:coil-compose:2.6.0")
+    // build.gradle.kts (app)
+    // Mobile Wallet Adapter 클라이언트
+    implementation("com.solanamobile:mobile-wallet-adapter-clientlib-ktx:2.0.3")   // 지갑 의존성
+    // Kotlin coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("androidx.datastore:datastore-preferences:1.1.1") // 월렛 의존성
+
 }

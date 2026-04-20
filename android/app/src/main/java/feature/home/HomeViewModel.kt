@@ -62,9 +62,8 @@ class HomeViewModel(
                         category = entity.category,
                         amount = entity.amount,
                         memo = entity.memo,
-                        // 현재 Entity에는 receiptImageName 필드가 없으므로
-                        // 화면용 모델에서는 빈 문자열을 넣습니다.
-                        receiptImageName = "",
+                        // 영수증 이미지 Uri 문자열을 그대로 화면용 모델에 넣습니다.
+                        receiptImageName = entity.receiptImageUri,
                         diary = entity.diary
                     )
                 }
@@ -123,7 +122,7 @@ class HomeViewModel(
                         category = entity.category,
                         amount = entity.amount,
                         memo = entity.memo,
-                        receiptImageName = "",
+                        receiptImageName = entity.receiptImageUri,
                         diary = entity.diary
                     )
                 }

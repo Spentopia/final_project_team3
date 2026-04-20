@@ -1,5 +1,11 @@
 package com.ict.spentopia.feature.analysis
 
+import android.content.ContentValues
+import android.content.Context
+import android.content.Intent
+import android.os.Environment
+import android.provider.MediaStore
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,6 +42,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,13 +54,27 @@ import kotlin.math.roundToInt
 fun AnalysisScreen(
     viewModel: AnalysisViewModel = viewModel()
 ) {
-    // ViewModel의 UI 상태를 구독
     val uiState by viewModel.uiState.collectAsState()
-
-    // 현재 선택된 탭에 맞는 그래프 데이터 가져오기
     val trendExpenseList = viewModel.getCurrentTrendList()
+    val context = LocalContext.current
 
-    // 전체 화면 스크롤 가능 처리
+    val reportText = buildAnalysisReportText(
+        totalExpense = uiState.totalExpense,
+        averageDailyExpense = uiState.averageDailyExpense,
+        budgetUsageRate = uiState.budgetUsageRate,
+        topCategoryName = uiState.topCategoryName,
+        topCategoryRatio = uiState.topCategoryRatio,
+        selectedPeriod = uiState.selectedPeriod,
+        trendExpenseList = trendExpenseList,
+        categoryList = uiState.categoryList,
+        tipList = uiState.tipList,
+        timePatternList = uiState.timePatternList,
+        weekdayAverageText = uiState.weekdayAverageText,
+        weekendAverageText = uiState.weekendAverageText,
+        weekendComment = uiState.weekendComment,
+        paymentPatternList = uiState.paymentPatternList
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -62,23 +83,38 @@ fun AnalysisScreen(
             .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 상단 제목과 버튼 영역
-        AnalysisHeaderSection()
+        AnalysisHeaderSection(
+            onShareClick = {
+                shareAnalysisReport(context, reportText)
+            },
+            onDownloadClick = {
+                val fileName = "spentopia_analysis_report_${System.currentTimeMillis()}.txt"
 
-        // 요약 카드 영역
+                val isSaved = saveAnalysisReportToDownloads(
+                    context = context,
+                    fileName = fileName,
+                    content = reportText
+                )
+
+                Toast.makeText(
+                    context,
+                    if (isSaved) "리포트가 다운로드 폴더에 저장되었어요." else "리포트 저장에 실패했어요.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        )
+
         SummaryCardSection(
             totalExpense = uiState.totalExpense,
             averageDailyExpense = uiState.averageDailyExpense,
             budgetUsageRate = uiState.budgetUsageRate
         )
 
-        // 최대 소비 카테고리 카드
         TopCategoryCard(
             categoryName = uiState.topCategoryName,
             ratio = uiState.topCategoryRatio
         )
 
-        // 주간 / 월간 토글
         PeriodToggleSection(
             selectedPeriod = uiState.selectedPeriod,
             onSelectPeriod = { selectedPeriod ->
@@ -86,28 +122,23 @@ fun AnalysisScreen(
             }
         )
 
-        // 소비 추이 그래프
         ExpenseTrendCard(
             title = if (uiState.selectedPeriod == "주간") "주간 소비 추이" else "월간 소비 추이",
             expenseList = trendExpenseList
         )
 
-        // 카테고리별 지출 도넛 차트
         CategoryPieChartCard(
             categoryList = uiState.categoryList
         )
 
-        // 카테고리 상세
         CategoryDetailCard(
             categoryList = uiState.categoryList
         )
 
-        // AI 소비 분석 리포트
         AiAnalysisReportSection(
             tipList = uiState.tipList
         )
 
-        // 소비 패턴 분석
         ConsumptionPatternCard(
             timePatternList = uiState.timePatternList,
             weekdayAverageText = uiState.weekdayAverageText,
@@ -116,18 +147,19 @@ fun AnalysisScreen(
             paymentPatternList = uiState.paymentPatternList
         )
 
-        // 하단 여백
         Spacer(modifier = Modifier.height(20.dp))
     }
 }
 
 // 상단 제목 섹션
 @Composable
-fun AnalysisHeaderSection() {
+fun AnalysisHeaderSection(
+    onShareClick: () -> Unit,
+    onDownloadClick: () -> Unit
+) {
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // 화면 제목
         Text(
             text = "소비 패턴 분석",
             fontSize = 28.sp,
@@ -136,7 +168,6 @@ fun AnalysisHeaderSection() {
             lineHeight = 34.sp
         )
 
-        // 설명 문구
         Text(
             text = "AI가 분석한 소비 습관을 확인해보세요.",
             fontSize = 15.sp,
@@ -144,12 +175,11 @@ fun AnalysisHeaderSection() {
             lineHeight = 22.sp
         )
 
-        // 버튼 2개
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Button(
-                onClick = { },
+                onClick = onShareClick,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White,
                     contentColor = Color(0xFF111827)
@@ -165,7 +195,7 @@ fun AnalysisHeaderSection() {
             }
 
             Button(
-                onClick = { },
+                onClick = onDownloadClick,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFD946EF),
                     contentColor = Color.White
@@ -479,7 +509,6 @@ fun SimpleBarChart(
     expenseList: List<Pair<String, Int>>
 ) {
     val maxAmount = (expenseList.maxOfOrNull { it.second } ?: 1).coerceAtLeast(1)
-
     val yAxisSteps = listOf(0, 15000, 30000, 45000, 60000)
 
     Column(
@@ -1042,6 +1071,121 @@ fun SmallCompareCard(
             )
         }
     }
+}
+
+// 공유 함수
+fun shareAnalysisReport(
+    context: Context,
+    reportText: String
+) {
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "Spentopia 소비 패턴 분석 리포트")
+        putExtra(Intent.EXTRA_TEXT, reportText)
+    }
+
+    val chooser = Intent.createChooser(sendIntent, "리포트 공유")
+    context.startActivity(chooser)
+}
+
+// 다운로드 저장 함수
+fun saveAnalysisReportToDownloads(
+    context: Context,
+    fileName: String,
+    content: String
+): Boolean {
+    return try {
+        val resolver = context.contentResolver
+
+        val values = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+            put(MediaStore.Downloads.MIME_TYPE, "text/plain")
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+        }
+
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            ?: return false
+
+        resolver.openOutputStream(uri)?.use { outputStream ->
+            outputStream.write(content.toByteArray())
+            outputStream.flush()
+        } ?: return false
+
+        true
+    } catch (e: Exception) {
+        e.printStackTrace()
+        false
+    }
+}
+
+// 리포트 텍스트 생성
+fun buildAnalysisReportText(
+    totalExpense: Int,
+    averageDailyExpense: Int,
+    budgetUsageRate: Float,
+    topCategoryName: String,
+    topCategoryRatio: Float,
+    selectedPeriod: String,
+    trendExpenseList: List<Pair<String, Int>>,
+    categoryList: List<CategorySpendUiModel>,
+    tipList: List<AnalysisTipUiModel>,
+    timePatternList: List<PatternProgressUiModel>,
+    weekdayAverageText: String,
+    weekendAverageText: String,
+    weekendComment: String,
+    paymentPatternList: List<PatternProgressUiModel>
+): String {
+    val trendText = trendExpenseList.joinToString("\n") { (label, amount) ->
+        "- $label: ${formatWon(amount)}원"
+    }
+
+    val categoryText = categoryList.joinToString("\n") { item ->
+        "- ${item.name}: ${formatWon(item.amount)}원 (${(item.ratio * 100).roundToInt()}%)"
+    }
+
+    val tipText = tipList.joinToString("\n") { tip ->
+        "- ${tip.title}: ${tip.description}"
+    }
+
+    val timePatternText = timePatternList.joinToString("\n") { item ->
+        "- ${item.label}: ${(item.ratio * 100).roundToInt()}%"
+    }
+
+    val paymentPatternText = paymentPatternList.joinToString("\n") { item ->
+        "- ${item.label}: ${(item.ratio * 100).roundToInt()}%"
+    }
+
+    return """
+        [Spentopia 소비 패턴 분석 리포트]
+
+        1. 요약
+        - 이번 달 총 지출: ${formatWon(totalExpense)}원
+        - 일 평균 지출: ${formatWon(averageDailyExpense)}원
+        - 예산 사용률: ${(budgetUsageRate * 100).roundToInt()}%
+
+        2. 최대 소비 카테고리
+        - $topCategoryName (${(topCategoryRatio * 100).roundToInt()}%)
+
+        3. ${selectedPeriod} 소비 추이
+        $trendText
+
+        4. 카테고리별 지출
+        $categoryText
+
+        5. AI 소비 분석
+        $tipText
+
+        6. 시간대별 소비
+        $timePatternText
+
+        7. 요일별 소비
+        - 평일 평균: $weekdayAverageText
+        - 주말 평균: $weekendAverageText
+        - 코멘트: $weekendComment
+
+        8. 결제 방법
+        $paymentPatternText
+    """.trimIndent()
 }
 
 // 금액 포맷 함수

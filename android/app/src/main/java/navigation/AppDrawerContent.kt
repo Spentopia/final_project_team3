@@ -28,7 +28,7 @@ fun AppDrawerContent( // 공통 드로어 메뉴 UI 함수
     onLedgerClick: () -> Unit, // 가계부 클릭 콜백
     onBudgetClick: () -> Unit, // 예산 설정 클릭 콜백
     onAnalysisClick: () -> Unit, // 소비 분석 클릭 콜백
-    onAvatarClick: () -> Unit, // 아바타 클릭 콜백
+    onProfileAvatarClick: () -> Unit, // 수정: 마이페이지/내 아바타 통합 클릭 콜백으로 변경
     onMarketClick: () -> Unit, // NFT 마켓 클릭 콜백
     onPlazaClick: () -> Unit, // 광장 클릭 콜백
     onCommunityClick: () -> Unit // 커뮤니티 클릭 콜백
@@ -87,10 +87,10 @@ fun AppDrawerContent( // 공통 드로어 메뉴 UI 함수
             onClick = onAnalysisClick // 클릭 시 실행
         )
 
-        DrawerMenuItem( // 내 아바타 메뉴 아이템
-            emoji = "🧍", // 이모지
-            title = "내 아바타", // 메뉴 이름
-            onClick = onAvatarClick // 클릭 시 실행
+        DrawerMenuItem( // 수정: 마이페이지 + 내 아바타 통합 메뉴 아이템
+            emoji = "🧍", // 이모지 유지
+            title = "마이페이지 / 내 아바타", // 수정: 두 메뉴를 하나로 통합
+            onClick = onProfileAvatarClick // 수정: 통합 클릭 콜백 실행
         )
 
         DrawerMenuItem( // NFT 마켓 메뉴 아이템
