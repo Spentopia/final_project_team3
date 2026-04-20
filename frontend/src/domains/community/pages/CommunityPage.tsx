@@ -110,8 +110,8 @@ export default function Community() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">커뮤니티</h1>
-          <p className="text-gray-600">다른 사용자들과 소통하고 경험을 나눠보세요</p>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">커뮤니티</h1>
+          <p className="text-gray-600 dark:text-gray-300">다른 사용자들과 소통하고 경험을 나눠보세요</p>
         </div>
         <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
           <Send className="mr-2 h-4 w-4" />

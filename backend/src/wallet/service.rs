@@ -16,8 +16,8 @@ use anyhow::{Context, Result, anyhow};
 use uuid::Uuid;
 
 use crate::state::AppState;
-use std::time::SystemTime;
 use chrono::Utc;
+use std::time::SystemTime;
 
 // find_user_by_wallet: wallet_address로 DB에서 유저를 조회하는 함수 (auth/service.rs)
 // 중복 연동 체크 시 재사용
@@ -41,7 +41,12 @@ pub async fn link_wallet(
     // nonce를 지갑으로 서명한 값
     signature: &str,
 ) -> Result<()> {
-    tracing::warn!("[지갑연동] link_wallet 시작: user_id={}, wallet={}, nonce={:?}", user_id, wallet_address, nonce);
+    tracing::warn!(
+        "[지갑연동] link_wallet 시작: user_id={}, wallet={}, nonce={:?}",
+        user_id,
+        wallet_address,
+        nonce
+    );
 
     // 1) nonce 검증
     // nonce_store에서 이 지갑 주소에 해당하는 nonce를 꺼냄
@@ -51,7 +56,10 @@ pub async fn link_wallet(
         .nonce_store
         .get(wallet_address)
         .ok_or_else(|| anyhow!("nonce가 없거나 만료되었습니다. 다시 시도해 주세요."))?;
-    tracing::warn!("[지갑연동] nonce_store 에서 찾음: stored_nonce={:?}", entry.nonce);
+    tracing::warn!(
+        "[지갑연동] nonce_store 에서 찾음: stored_nonce={:?}",
+        entry.nonce
+    );
 
     // TTL 체크: 발급 후 5분이 지났으면 만료 처리
     if SystemTime::now() > entry.expires_at {
@@ -63,7 +71,10 @@ pub async fn link_wallet(
     if entry.nonce != nonce {
         tracing::warn!(
             "[지갑연동] nonce 불일치! 저장된={:?}({}bytes), 받은={:?}({}bytes)",
-            entry.nonce, entry.nonce.len(), nonce, nonce.len()
+            entry.nonce,
+            entry.nonce.len(),
+            nonce,
+            nonce.len()
         );
         return Err(anyhow!("nonce가 일치하지 않습니다."));
     }
@@ -135,8 +146,7 @@ pub async fn link_wallet(
 // ■ 처리 순서
 //  1) 연동 여부 확인 → 실제로 지갑이 연동된 유저인지 체크
 //  2) DB 업데이트 → wallet_address 컬럼을 NULL로 초기화
-pub async fn unlink_wallet(state: &AppState, user_id: Uuid)->Result<()>{
-
+pub async fn unlink_wallet(state: &AppState, user_id: Uuid) -> Result<()> {
     // 1) 연동 여부 확인
     //  public.users에서 이 user_id의 wallet_address가 NULL인지 확인
     //  wallet_address=is.null 필터: IS NULL 조건
@@ -146,10 +156,12 @@ pub async fn unlink_wallet(state: &AppState, user_id: Uuid)->Result<()>{
         user_id,
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .get(&url)
-        .header("Authorization",
-        format!("Bearer {}", state.config.supabase_secret_key),
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
         )
         .header("apikey", &state.config.supabase_secret_key)
         .send()
@@ -157,7 +169,8 @@ pub async fn unlink_wallet(state: &AppState, user_id: Uuid)->Result<()>{
         .context("지갑 연동 여부 조회 HTTP 요청 실패")?;
 
     // PostgREST는 항상 배열로 응답: [] or [{"id": "..."}]
-    let rows: Vec<serde_json::Value> = resp.json().await.context("지갑 연동 여부 JSON 파싱 실패")?;
+    let rows: Vec<serde_json::Value> =
+        resp.json().await.context("지갑 연동 여부 JSON 파싱 실패")?;
 
     if rows.is_empty() {
         return Err(anyhow!("연동된 지갑이 없습니다."));
@@ -170,7 +183,8 @@ pub async fn unlink_wallet(state: &AppState, user_id: Uuid)->Result<()>{
         user_id,
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .patch(&url)
         .header(
             "Authorization",

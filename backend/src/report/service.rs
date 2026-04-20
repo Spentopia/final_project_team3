@@ -4,16 +4,16 @@
 // 백엔드 클라이언트 역할:
 //  AI 서버를 호출해 소비 데이터 분석 결과를 받아 reports 테이블에 저장
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::state::AppState;
 use super::{
     dto::{GenerateReportRequest, ReportResponse},
     model::Report,
 };
+use crate::state::AppState;
 
 // ── 리포트 생성 ───────────────────────────────────────────────
 // 기간 내 지출 데이터 집계 → AI 서버 분석 요청 → reports 테이블에 저장
@@ -27,7 +27,9 @@ pub async fn generate_report(
     let exp_url = format!(
         "{}/rest/v1/expenses?user_id=eq.{}&expense_date=gte.{}&expense_date=lte.{}&select=amount,category,expense_date",
         state.config.supabase_url.trim_end_matches('/'),
-        user_id, req.start_date, req.end_date,
+        user_id,
+        req.start_date,
+        req.end_date,
     );
 
     #[derive(Serialize, Deserialize)]
@@ -37,10 +39,17 @@ pub async fn generate_report(
         expense_date: String,
     }
 
-    let exp_res = state.http_client.get(&exp_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let exp_res = state
+        .http_client
+        .get(&exp_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
-        .send().await.context("expenses 조회 요청 실패")?;
+        .send()
+        .await
+        .context("expenses 조회 요청 실패")?;
 
     let expenses: Vec<ExpenseInfo> = if exp_res.status().is_success() {
         exp_res.json().await.unwrap_or_default()
@@ -71,7 +80,10 @@ pub async fn generate_report(
             expenses: serde_json::to_value(&expenses).unwrap_or_default(),
             category_summary: category_summary.clone(),
         },
-    ).await.ok().map(|r| r.analysis);
+    )
+    .await
+    .ok()
+    .map(|r| r.analysis);
 
     // 4. reports 테이블에 저장
     let url = format!(
@@ -90,8 +102,13 @@ pub async fn generate_report(
         ai_analysis: Option<String>,
     }
 
-    let res = state.http_client.post(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let res = state
+        .http_client
+        .post(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=representation")
         .json(&InsertPayload {
@@ -103,7 +120,9 @@ pub async fn generate_report(
             daily_summary,
             ai_analysis,
         })
-        .send().await.context("reports INSERT 요청 실패")?;
+        .send()
+        .await
+        .context("reports INSERT 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
@@ -111,7 +130,9 @@ pub async fn generate_report(
     }
 
     let inserted: Vec<Report> = res.json().await.context("reports INSERT 역직렬화 실패")?;
-    let report = inserted.into_iter().next()
+    let report = inserted
+        .into_iter()
+        .next()
         .ok_or_else(|| anyhow!("reports INSERT 결과가 비어있음"))?;
 
     Ok(to_response(report))
@@ -119,20 +140,24 @@ pub async fn generate_report(
 
 // ── 리포트 목록 조회 ───────────────────────────────────────────
 
-pub async fn list_reports(
-    state: &AppState,
-    user_id: Uuid,
-) -> Result<Vec<ReportResponse>> {
+pub async fn list_reports(state: &AppState, user_id: Uuid) -> Result<Vec<ReportResponse>> {
     let url = format!(
         "{}/rest/v1/reports?user_id=eq.{}&select=*&order=created_at.desc",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
 
-    let res = state.http_client.get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
-        .send().await.context("reports SELECT 요청 실패")?;
+        .send()
+        .await
+        .context("reports SELECT 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();

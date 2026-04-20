@@ -1,7 +1,10 @@
+import { useFinance } from "@/shared/providers/FinanceProvider";
+
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+
 import {
   BarChart,
   Bar,
@@ -26,6 +29,7 @@ import {
   AlertTriangle,
   CheckCircle,
 } from "lucide-react";
+import styles from "./AnalyticsPage.module.css";
 
 const weeklyData = [
   { day: "월", amount: 15000 },
@@ -47,21 +51,67 @@ const monthlyData = [
 ];
 
 const categoryData = [
-  { name: "식비", value: 45, amount: 135000, color: "#f97316" },
-  { name: "교통", value: 20, amount: 60000, color: "#3b82f6" },
-  { name: "쇼핑", value: 15, amount: 45000, color: "#ec4899" },
-  { name: "여가", value: 12, amount: 36000, color: "#a855f7" },
-  { name: "기타", value: 8, amount: 24000, color: "#6b7280" },
+  {
+    name: "식비",
+    value: 45,
+    amount: 135000,
+    color: "#f97316",
+    meterClassName: styles.categoryMeterFood,
+  },
+  {
+    name: "교통",
+    value: 20,
+    amount: 60000,
+    color: "#3b82f6",
+    meterClassName: styles.categoryMeterTransport,
+  },
+  {
+    name: "쇼핑",
+    value: 15,
+    amount: 45000,
+    color: "#ec4899",
+    meterClassName: styles.categoryMeterShopping,
+  },
+  {
+    name: "여가",
+    value: 12,
+    amount: 36000,
+    color: "#a855f7",
+    meterClassName: styles.categoryMeterLeisure,
+  },
+  {
+    name: "기타",
+    value: 8,
+    amount: 24000,
+    color: "#6b7280",
+    meterClassName: styles.categoryMeterEtc,
+  },
 ];
 
 export default function Analytics() {
+  const { transactions } = useFinance(); // ✅ 여기 (제일 위)
+  const now = new Date();
+
+  // 👉 여기부터 계산 코드들
+  const thisMonthTransactions = transactions.filter((t: any) => {
+    const date = new Date(t.date);
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth()
+    );
+  });
+
+  const totalExpense = thisMonthTransactions.reduce(
+    (sum: number, t: any) => sum + t.amount,
+    0
+  );
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">소비 패턴 분석</h1>
-          <p className="text-gray-600">AI가 분석한 당신의 소비 습관을 확인해보세요</p>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">소비 패턴 분석</h1>
+          <p className="text-gray-600 dark:text-gray-300">AI가 분석한 당신의 소비 습관을 확인해보세요</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline">
@@ -79,7 +129,9 @@ export default function Analytics() {
       <div className="grid gap-6 md:grid-cols-4">
         <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
           <p className="mb-1 text-sm opacity-90">이번 달 총 지출</p>
-          <p className="mb-2 text-3xl font-bold">300,000원</p>
+          <p className="mb-2 text-3xl font-bold">
+  {totalExpense.toLocaleString()}원
+</p>
           <div className="flex items-center gap-1 text-sm">
             <TrendingDown className="h-4 w-4" />
             <span>지난 달 대비 -12%</span>
@@ -209,8 +261,7 @@ export default function Analytics() {
                 <div className="flex items-center gap-2">
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
                     <div
-                      className="h-full rounded-full"
-                      style={{ width: `${cat.value}%`, backgroundColor: cat.color }}
+                      className={`${styles.categoryMeter} ${cat.meterClassName}`}
                     ></div>
                   </div>
                   <span className="text-sm font-medium text-gray-600">{cat.value}%</span>

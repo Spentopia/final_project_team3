@@ -55,17 +55,20 @@ pub async fn create_listing(
     // escrow_address, sold_at은 null이 기본값이므로 생략
     #[derive(Serialize)]
     struct InsertPayload {
-        seller_id: Uuid,        // 판매자 = 현재 로그인 유저
-        item_id: Uuid,          // 판매할 user_items.id (NFT 발행된 아이템)
-        price_spt: i32,         // 판매 가격 (SPT 토큰 단위)
-        status: &'static str,   // "active" 고정: 판매 등록 직후 상태
+        seller_id: Uuid,      // 판매자 = 현재 로그인 유저
+        item_id: Uuid,        // 판매할 user_items.id (NFT 발행된 아이템)
+        price_spt: i32,       // 판매 가격 (SPT 토큰 단위)
+        status: &'static str, // "active" 고정: 판매 등록 직후 상태
     }
 
     let res = state
         .http_client
         .post(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
-        .header("Prefer", "return=representation")  // INSERT 후 생성된 row 반환
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Prefer", "return=representation") // INSERT 후 생성된 row 반환
         .json(&InsertPayload {
             seller_id: user_id,
             item_id: req.item_id,
@@ -76,17 +79,14 @@ pub async fn create_listing(
         .await
         .context("market_listings INSERT 요청 실패")?;
 
-    if !res.status().is_success(){
-      let body = res.text().await.unwrap_or_default();
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
         return Err(anyhow!("market_listings INSERT 실패: {}", body));
     }
 
     // Prefer: return=representation이면 Vec<T>로 반환됨 (배열 형태)
     // → 첫 번쨰 요소가 방금 생성된 row
-    let inserted: Vec<MarketListing> = res
-        .json()
-        .await
-        .context("market_listings 역직렬화 실패")?;
+    let inserted: Vec<MarketListing> = res.json().await.context("market_listings 역직렬화 실패")?;
     let listing = inserted
         .into_iter()
         .next()
@@ -96,7 +96,6 @@ pub async fn create_listing(
     // INSERT 응답에는 seller, nickname, 아이템 상세가 없으므로 별도 SELECT(embedding)로 가져온다.
     fetch_listing_response(state, listing.id).await
 }
-
 
 // fetch_listing_response (내부 유틸)
 //
@@ -114,7 +113,7 @@ pub async fn create_listing(
 /// !fk 문법이 필요한 이유:
 ///     market_listings → users 관계에서 FK가 seller_id 하나뿐이어도 PostREST는 명시적으로 `users!seler_id`처럼 적어야
 ///     의도를 정확히 인식한다. 생략하면 ambigous 에러 가능.
-async fn fetch_listing_response(state: &AppState, listing_id: Uuid)-> Result<ListingResponse> {
+async fn fetch_listing_response(state: &AppState, listing_id: Uuid) -> Result<ListingResponse> {
     // embedding URL:
     //  users!seller_id(nickname)                   → seller 닉네임
     //  user_items!item_id(avatar_items(...))       → 아이템 마스터 정보
@@ -130,49 +129,52 @@ async fn fetch_listing_response(state: &AppState, listing_id: Uuid)-> Result<Lis
 
     /// users!seller_id 중첩 객체
     #[derive(Deserialize)]
-    struct SellerEmbed{
-        nickname: Option<String>,   // 닉네임 (프로필 미완성 유저는 null 가능)
+    struct SellerEmbed {
+        nickname: Option<String>, // 닉네임 (프로필 미완성 유저는 null 가능)
     }
 
     /// avatar_items 중첩 객체 (user_items 안에 다시 중첩)
     #[derive(Deserialize)]
-    struct AvatarItemEmbed{
-        name: String,           // 아이템 이름
-        image_url: String,      // 아이템 이미지 URL
-        category: String,       // 카테고리 (background / frame / effect / motion)
-        rarity: String,         // 희귀도 (common / rare / epic)
+    struct AvatarItemEmbed {
+        name: String,      // 아이템 이름
+        image_url: String, // 아이템 이미지 URL
+        category: String,  // 카테고리 (background / frame / effect / motion)
+        rarity: String,    // 희귀도 (common / rare / epic)
     }
 
     /// user_items!item_id 중첩 객체
     /// select에서 avatar_items만 지정했으므로 avatar_items 필드만 포함
     #[derive(Deserialize)]
-    struct UserItemEmbed{
-        avatar_items: AvatarItemEmbed,  // user_items.item_id → avatar_items
+    struct UserItemEmbed {
+        avatar_items: AvatarItemEmbed, // user_items.item_id → avatar_items
     }
 
     /// market_listings 최상위 응답 Row
     #[derive(Deserialize)]
-    struct ListingRaw{
+    struct ListingRaw {
         id: Uuid,
         seller_id: Uuid,
-        item_id: Uuid,              // user_items FK
+        item_id: Uuid, // user_items FK
         price_spt: i32,
-        status: Option<String>,     // "active" / "sold" / "calcelled"
+        status: Option<String>, // "active" / "sold" / "calcelled"
         listed_at: Option<DateTime<Utc>>,
-        users: SellerEmbed,         // embedding: seller 정보
-        user_items: UserItemEmbed,  // embedding: 아이템 정보
+        users: SellerEmbed,        // embedding: seller 정보
+        user_items: UserItemEmbed, // embedding: 아이템 정보
     }
 
     let res = state
         .http_client
         .get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apiKey", &state.config.supabase_secret_key)
         .send()
         .await
         .context("market_listings JOIN 조회 요청 실패")?;
 
-    if !res.status().is_success(){
+    if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
         return Err(anyhow!("market_listings JOIN 조회 실패: {}", body));
     }
@@ -185,12 +187,12 @@ async fn fetch_listing_response(state: &AppState, listing_id: Uuid)-> Result<Lis
         .ok_or_else(|| anyhow!("listing을 찾을 수 없음: {}", listing_id))?;
 
     // 중첩 구조를 flat한 ListingResponse DTO로 변환
-    Ok(ListingResponse{
+    Ok(ListingResponse {
         id: r.id,
         seller_id: r.seller_id,
-        seller_nickname: r.users.nickname,          // embedding에서 추출
+        seller_nickname: r.users.nickname, // embedding에서 추출
         item_id: r.item_id,
-        item_name: r.user_items.avatar_items.name,  // 2중 중첩에서 추출
+        item_name: r.user_items.avatar_items.name, // 2중 중첩에서 추출
         item_image_url: r.user_items.avatar_items.image_url,
         item_category: r.user_items.avatar_items.category,
         item_rarity: r.user_items.avatar_items.rarity,
@@ -216,7 +218,7 @@ pub async fn update_escrow(
     user_id: Uuid,          // JWT에서 추출한 현재 로그인 유저 UUID (= seller_id)
     listing_id: Uuid,       // URL path에서 추출한 대상 listing UUID
     escrow_address: String, // 저장할 Solana 에스크로 PDA 주소
-)->Result<()>{
+) -> Result<()> {
     // 필터: id=eq.{listing_id} AND seller_id=eq.{user_id}
     //  → 본인이 등록한 listing만 수정 가능 (보안 필터)
     let url = format!(
@@ -228,14 +230,17 @@ pub async fn update_escrow(
 
     // PATCH 바디: escrow_address 컬럼만 업데이트
     #[derive(Serialize)]
-    struct PatchPayload{
+    struct PatchPayload {
         escrow_address: String,
     }
 
     let res = state
         .http_client
         .patch(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=minimal")
         .json(&PatchPayload { escrow_address })
@@ -273,9 +278,9 @@ pub async fn update_escrow(
 /// - 트리거 내부에서 SPT 잔액 부족 → INSERT 실패 → Err
 pub async fn purchase(
     state: &AppState,
-    user_id: Uuid,          // JWT에서 추출한 현재 로그인 유저 UUID (= buyer_id)
-    req: PurchaseRequest,   // { listing_id, tx_signature }
-)->Result<TransactionResponse> {
+    user_id: Uuid,        // JWT에서 추출한 현재 로그인 유저 UUID (= buyer_id)
+    req: PurchaseRequest, // { listing_id, tx_signature }
+) -> Result<TransactionResponse> {
     // tx_signature 방어적 재확인
     // 핸들러에서 None이면 이미 400 반환했지만, service가 직접 호출되는 테스트 시나리오 등을 위해 재검증
     let tx_signature = req
@@ -293,7 +298,7 @@ pub async fn purchase(
 
     /// listing 조회용 내부 구조체 (필요한 컬럼만)
     #[derive(Deserialize)]
-    struct ListingInfo{
+    struct ListingInfo {
         price_spt: i32,         // 판매 가격 (SPT)
         status: Option<String>, // 현재 상태("active" 여야 구매 가능)
     }
@@ -301,7 +306,10 @@ pub async fn purchase(
     let listing_res = state
         .http_client
         .get(&listing_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apiKey", &state.config.supabase_secret_key)
         .send()
         .await
@@ -312,19 +320,16 @@ pub async fn purchase(
         return Err(anyhow!("market_listings 조회 실패: {}", body));
     }
 
-    let listings: Vec<ListingInfo> = listing_res
-        .json()
-        .await
-        .context("listing 역직렬화 실패")?;
+    let listings: Vec<ListingInfo> = listing_res.json().await.context("listing 역직렬화 실패")?;
 
     let listing = listings
         .into_iter()
         .next()
-        .ok_or_else(|| anyhow!("listing을 찾을 수 없음: {}",req.listing_id))?;
+        .ok_or_else(|| anyhow!("listing을 찾을 수 없음: {}", req.listing_id))?;
 
     // active 상태 확인: sold/cancelled 상태의 상품은 구매 불가
     // 트리거에서도 체크하지만 에러 메세지를 명확히 하기 위해 선제 차단
-    if listing.status.as_deref() != Some("active"){
+    if listing.status.as_deref() != Some("active") {
         return Err(anyhow!(
             "판매 중이 아닌 상품입니다 (현재 status: {:?})",
             listing.status
@@ -348,17 +353,17 @@ pub async fn purchase(
 
     /// market_transactions INSERT 바디
     #[derive(Serialize)]
-    struct InsertPayload{
-        listing_id: Uuid,       // 구매 대상 listing
-        buyer_id: Uuid,         // 구매자 UUID (JWT에서 추출)
-        price: i32,             // 거래 가격 (=listing.price_spt)
-        fee: i32,               // 수수료 5% (burn 처리용)
-        tx_signature: String,   // Solana 트랜잭션 서명 (온체인 크로스체크용, 필수)
+    struct InsertPayload {
+        listing_id: Uuid,     // 구매 대상 listing
+        buyer_id: Uuid,       // 구매자 UUID (JWT에서 추출)
+        price: i32,           // 거래 가격 (=listing.price_spt)
+        fee: i32,             // 수수료 5% (burn 처리용)
+        tx_signature: String, // Solana 트랜잭션 서명 (온체인 크로스체크용, 필수)
     }
 
     /// market_transactions INSERT 응답 Row 역직렬화용
     #[derive(Deserialize)]
-    struct TxRow{
+    struct TxRow {
         id: Uuid,
         listing_id: Uuid,
         buyer_id: Uuid,
@@ -371,10 +376,13 @@ pub async fn purchase(
     let tx_res = state
         .http_client
         .post(&tx_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apiKey", &state.config.supabase_secret_key)
-        .header("Prefer", "return=representation")  // INSERT 후 생성된 row 반환
-        .json(&InsertPayload{
+        .header("Prefer", "return=representation") // INSERT 후 생성된 row 반환
+        .json(&InsertPayload {
             listing_id: req.listing_id,
             buyer_id: user_id,
             price: listing.price_spt,
@@ -405,13 +413,13 @@ pub async fn purchase(
         .ok_or_else(|| anyhow!("INSERT 결과가 비어있음"))?;
 
     // INSERT된 row 데이터로 TransactionResponse 구성
-    Ok(TransactionResponse{
+    Ok(TransactionResponse {
         id: tx.id,
         listing_id: tx.listing_id,
         buyer_id: tx.buyer_id,
         price: tx.price,
         fee: tx.fee,
-        tx_signature: tx.tx_signature,  // Some(서명값)으로 저장됨
-        transacted_at: tx.transacted_at,// DB default now()
+        tx_signature: tx.tx_signature,   // Some(서명값)으로 저장됨
+        transacted_at: tx.transacted_at, // DB default now()
     })
 }

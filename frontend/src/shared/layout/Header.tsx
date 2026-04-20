@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Bell, Menu, Moon, Sun, LogOut } from "lucide-react";
+import { Bell, Gamepad2, Menu, Moon, Sun } from "lucide-react";
 import { ConnectWalletButton } from "@/domains/wallet/ui/ConnectWalletButton";
 import { Button } from "../ui/button";
-import { signOut } from "@/domains/auth/api/auth";
 import {
   Sheet,
   SheetContent,
@@ -11,13 +10,12 @@ import {
   SheetTrigger,
 } from "../ui/sheet";
 import { useTheme } from "next-themes";
-import { authStorage } from "@/shared/lib/auth";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { startUnityGame } from "@/domains/unity/api/unityHandoff";
 
 
-interface HeaderProps {
+type HeaderProps = {
   onMenuClick?: () => void;
-}
+};
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const [notifications] = useState([
@@ -27,69 +25,32 @@ export default function Header({ onMenuClick }: HeaderProps) {
   ]);
 
   const { theme, setTheme } = useTheme();
-  const { disconnect, connected } = useWallet();
 
-  const handleLogout = async () => {
-    // 지갑이 연결되어 있으면 먼저 브라우저 지갑 연결 해제
-    // → 다른 계정으로 로그인 시 자동 재연결 + 지갑 연동 방지
-    if (connected) {
-      try {
-        await disconnect();
-      } catch (e) {
-        console.warn("지갑 연결 해제 실패:", e);
-      }
+  // 게임 시작 버튼 클릭 시
+  // 1) 백엔드에서 handoff token 발급
+  // 2) 유니티 새 탭 오픈
+  // 3) 유니티 READY 수신 후 postMessage로 handoff 전달
+  const handleStartGame = async () => {
+    try {
+      await startUnityGame();
+    } catch (error) {
+      console.error("게임 시작 실패:", error);
+      alert("게임 시작에 실패했어요.");
     }
-    // wallet-adapter가 localStorage에 저장한 마지막 선택 지갑 이름 삭제
-    // 이걸 지우지 않으면 autoConnect가 로그인 페이지에서 이전 지갑을 자동 선택함
-    localStorage.removeItem("walletName");
-    await signOut();
-    window.location.replace("/login");
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-white/50 dark:border-gray-700/50 bg-white/60 dark:bg-gray-900/60 px-6 backdrop-blur-xl">
-      
-      {/* 왼쪽 영역 */}
+    <header className="flex min-h-20 items-center justify-between border-b border-white/50 bg-white/60 px-6 py-3 backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/60">
       <div className="flex items-center gap-4">
-        
-        {/* 모바일 메뉴 버튼 */}
         <Button
           variant="ghost"
           size="icon"
-          className="text-gray-700 dark:text-gray-300 lg:hidden"
+          className="lg:hidden"
           onClick={onMenuClick}
         >
           <Menu className="h-5 w-5" />
         </Button>
 
-        {/* PC 메뉴 (Sheet) */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="hidden lg:flex text-gray-700 dark:text-gray-300">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-
-          <SheetContent side="left" className="w-80">
-            <SheetHeader>
-              <SheetTitle>메뉴</SheetTitle>
-            </SheetHeader>
-
-            {/* 🔥 메뉴 리스트 복구 */}
-            <div className="mt-6 space-y-4">
-              <Button variant="outline" className="w-full justify-start">예산 설정</Button>
-              <Button variant="outline" className="w-full justify-start">공유 기능</Button>
-              <Button variant="outline" className="w-full justify-start">소비 패턴 분석 보고서</Button>
-              <Button variant="outline" className="w-full justify-start">알림 시스템</Button>
-              <Button variant="outline" className="w-full justify-start">내 아바타 보기</Button>
-              <Button variant="outline" className="w-full justify-start">보유 쿠폰, 아이템함</Button>
-              <Button variant="outline" className="w-full justify-start">AI 챗봇 고객센터</Button>
-              <Button variant="outline" className="w-full justify-start">이용 가이드</Button>
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {/* 인사 문구 */}
         <div>
           <h2 className="font-bold text-gray-900 dark:text-gray-100">
             안녕하세요! 👋
@@ -100,64 +61,52 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </div>
       </div>
 
-      {/* 오른쪽 영역 */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 rounded-full border border-white/70 bg-white/70 p-1.5 shadow-sm backdrop-blur-xl dark:border-gray-700/70 dark:bg-gray-900/70">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            <Sun className="h-5 w-5 dark:hidden" />
+            <Moon className="hidden h-5 w-5 dark:block" />
+          </Button>
 
-        {/* 다크모드 */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-5 w-5" />
+                {notifications.length > 0 && (
+                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
+                )}
+              </Button>
+            </SheetTrigger>
+
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>알림</SheetTitle>
+              </SheetHeader>
+
+              <div className="mt-6 space-y-4">
+                {notifications.map((notif) => (
+                  <div key={notif.id} className="rounded border p-3">
+                    {notif.text}
+                    <div className="text-xs text-gray-400">{notif.time}</div>
+                  </div>
+                ))}
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          <ConnectWalletButton className="hidden sm:flex" />
+        </div>
+
         <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        >
-          <Sun className="h-5 w-5 dark:hidden" />
-          <Moon className="h-5 w-5 hidden dark:block" />
+        onClick={handleStartGame} 
+        className="h-14 rounded-lg border border-orange-300 bg-gradient-to-r from-orange-400 via-amber-500 to-orange-600 px-8 text-lg font-extrabold text-white shadow-xl shadow-orange-500/40 transition-all hover:-translate-y-0.5 hover:scale-[1.03] hover:from-orange-300 hover:via-amber-400 hover:to-orange-500 hover:shadow-orange-500/60 dark:border-orange-300/70 dark:shadow-orange-950/60">
+          <Gamepad2 className="mr-3 h-6 w-6" />
+          <span>게임시작</span>
         </Button>
-
-        {/* 알림 */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              {notifications.length > 0 && (
-                <span className="absolute right-1 top-1 h-2 w-2 bg-red-500 rounded-full"></span>
-              )}
-            </Button>
-          </SheetTrigger>
-
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>알림</SheetTitle>
-            </SheetHeader>
-
-            <div className="mt-6 space-y-4">
-              {notifications.map((notif) => (
-                <div key={notif.id} className="p-3 border rounded">
-                  {notif.text}
-                  <div className="text-xs text-gray-400">{notif.time}</div>
-                </div>
-              ))}
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {/* 지갑 */}
-        <ConnectWalletButton className="hidden sm:flex" />
-
-        {/* 🔥 게임 시작 */}
-        <Button className="bg-gradient-to-r from-emerald-500 to-teal-600">
-          게임시작
-        </Button>
-
-        {/* 🔥 로그아웃 (게임시작 오른쪽) */}
-        <Button
-          variant="outline"
-          onClick={handleLogout}
-          className="hidden sm:flex"
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          로그아웃
-        </Button>
-
       </div>
     </header>
   );

@@ -26,35 +26,29 @@
 // - refresh 쿠키는 항상 secure(false)
 
 use axum::{
-    extract::{Multipart, Query, State},
-    http::{header::SET_COOKIE, HeaderMap, StatusCode},
     Json,
+    extract::{Multipart, Query, State},
+    http::{HeaderMap, StatusCode, header::SET_COOKIE},
 };
 
+use crate::auth::turnstile::verify_turnstile;
+use crate::auth::handoff::{create_handoff_token, exchange_handoff_token};
+use uuid::Uuid;
 use cookie::{Cookie, SameSite};
 use serde_json::json;
 
-use utoipa;
-use crate::state::AppState;
-use crate::auth::dto::{AppLoginResponse,
-                 AppRefreshResponse,
-                 CheckEmailRequest,
-                 CompleteProfileRequest,
-                 CompleteProfileResponse,
-                 ExchangeTokenRequest,
-                 FindEmailRequest,
-                 FindEmailResponse,
-                 KakaoLoginRequest,
-                 NonceRequest,
-                 NonceResponse,
-                 RefreshRequest,
-                 ProfileImageUrlQuery,
-                 ProfileImageUrlResponse,
-                 WalletLoginRequest,
-                 WebLoginResponse,
-                 WebRefreshResponse,};
+use crate::auth::dto::{
+    AppLoginResponse, AppRefreshResponse, CheckEmailRequest, CheckEmailResponse,
+    CheckProfileAvailabilityRequest, CheckResetPasswordEmailRequest, CheckResetPasswordEmailResponse,
+    CompleteProfileRequest, CompleteProfileResponse, ExchangeTokenRequest, FindEmailRequest,
+    FindEmailResponse, KakaoLoginRequest, KakaoStartResponse, NonceRequest, NonceResponse,
+    ProfileImageUrlQuery, ProfileImageUrlResponse, RefreshRequest, WalletLoginRequest,
+    WebLoginResponse, WebRefreshResponse,  HandoffExchangeRequest, HandoffExchangeResponse,
+    HandoffRequest, HandoffResponse,
+};
 use crate::auth::service;
-
+use crate::state::AppState;
+use utoipa;
 
 /// 클라이언트 타입 판별
 ///
@@ -99,23 +93,22 @@ fn resolve_client_type(headers: &HeaderMap) -> &'static str {
 /// 왜 refresh만 쿠키냐:
 /// - access는 프론트 메모리에 저장하고 Authorization 헤더로 보냄
 /// - refresh는 브라우저 JS가 직접 읽지 못하게 숨기기 위함
-fn build_refresh_cookie(refresh_token: &str) -> HeaderMap {
+fn build_refresh_cookie(state: &AppState, refresh_token: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
+    let secure = should_use_secure_cookies(state);
 
     let cookie = Cookie::build(("spentopia_refresh", refresh_token.to_string()))
         .http_only(true)
         .same_site(SameSite::Lax)
         .path("/auth")
-        .secure(false) // 로컬 시연용. HTTPS 아님.
+        .secure(secure)
         .build();
 
-    headers.append(
-        SET_COOKIE,
-        cookie.to_string().parse().unwrap(),
-    );
+    headers.append(SET_COOKIE, cookie.to_string().parse().unwrap());
 
     tracing::debug!(
-        "refresh 쿠키 발급: name=spentopia_refresh path=/auth same_site=Lax secure=false"
+        "refresh 쿠키 발급: name=spentopia_refresh path=/auth same_site=Lax secure={}",
+        secure
     );
 
     headers
@@ -124,21 +117,19 @@ fn build_refresh_cookie(refresh_token: &str) -> HeaderMap {
 /// 웹 로그아웃 시 refresh 쿠키 제거용 Set-Cookie 생성
 ///
 /// Max-Age=0 으로 만료시켜서 브라우저가 쿠키를 지우게 함
-fn build_clear_refresh_cookie() -> HeaderMap {
+fn build_clear_refresh_cookie(state: &AppState) -> HeaderMap {
     let mut headers = HeaderMap::new();
+    let secure = should_use_secure_cookies(state);
 
     let cookie = Cookie::build(("spentopia_refresh", "".to_string()))
         .http_only(true)
         .same_site(SameSite::Lax)
         .path("/auth")
-        .secure(false) // 로컬 시연용
+        .secure(secure)
         .max_age(cookie::time::Duration::seconds(0))
         .build();
 
-    headers.append(
-        SET_COOKIE,
-        cookie.to_string().parse().unwrap(),
-    );
+    headers.append(SET_COOKIE, cookie.to_string().parse().unwrap());
 
     tracing::debug!("refresh 쿠키 삭제 헤더 발급: name=spentopia_refresh path=/auth");
 
@@ -152,9 +143,7 @@ fn build_clear_refresh_cookie() -> HeaderMap {
 /// 앱은 쿠키를 안 쓰고 body.refresh_token을 쓰므로
 /// 앱 쪽에서는 이 함수 사용 안 함
 fn extract_refresh_cookie(headers: &HeaderMap) -> Option<String> {
-    let raw_cookie = headers
-        .get("cookie")
-        .and_then(|v| v.to_str().ok());
+    let raw_cookie = headers.get("cookie").and_then(|v| v.to_str().ok());
 
     tracing::debug!(
         "요청 Cookie 헤더 존재 여부: present={} path_sensitive_cookie_check=spentopia_refresh",
@@ -162,11 +151,11 @@ fn extract_refresh_cookie(headers: &HeaderMap) -> Option<String> {
     );
 
     let extracted = raw_cookie.and_then(|cookie_header| {
-            Cookie::split_parse(cookie_header)
-                .filter_map(Result::ok)
-                .find(|c| c.name() == "spentopia_refresh")
-                .map(|c| c.value().to_string())
-        });
+        Cookie::split_parse(cookie_header)
+            .filter_map(Result::ok)
+            .find(|c| c.name() == "spentopia_refresh")
+            .map(|c| c.value().to_string())
+    });
 
     tracing::debug!(
         "spentopia_refresh 쿠키 추출 결과: found={}",
@@ -175,8 +164,6 @@ fn extract_refresh_cookie(headers: &HeaderMap) -> Option<String> {
 
     extracted
 }
-
-
 
 // ═══════════════════════════════════════════════════════════════
 // [지갑 로그인 1단계] POST /auth/wallet/nonce
@@ -211,11 +198,13 @@ pub async fn request_nonce(
     // 스프링부트의 @RequestBody와 동일
     Json(body): Json<NonceRequest>,
 ) -> Result<Json<NonceResponse>, (StatusCode, String)> {
-
     // 지갑 주소가 비어있으면 400 반환
     if body.wallet_address.trim().is_empty() {
         tracing::warn!("nonce 요청: 지갑 주소 비어있음");
-        return Err((StatusCode::BAD_REQUEST, "지갑 주소를 입력해 주세요.".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "지갑 주소를 입력해 주세요.".to_string(),
+        ));
     }
 
     // service에서 nonce 생성
@@ -265,17 +254,22 @@ pub async fn wallet_login(
     headers: HeaderMap,
     Json(body): Json<WalletLoginRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
-
     let client_type = resolve_client_type(&headers);
 
     // 필수 필드 비어있는지 체크
     if body.wallet_address.trim().is_empty() {
         tracing::warn!("지갑 로그인: 지갑 주소 비어있음");
-        return Err((StatusCode::BAD_REQUEST, "지갑 주소를 입력해 주세요.".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "지갑 주소를 입력해 주세요.".to_string(),
+        ));
     }
     if body.nonce.trim().is_empty() {
         tracing::warn!("지갑 로그인: nonce 비어있음");
-        return Err((StatusCode::BAD_REQUEST, "nonce를 입력해 주세요.".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "nonce를 입력해 주세요.".to_string(),
+        ));
     }
     if body.signature.trim().is_empty() {
         tracing::warn!("지갑 로그인: 서명 비어있음");
@@ -292,28 +286,28 @@ pub async fn wallet_login(
         &body.signature,
         client_type,
     )
-        .await
-        .map_err(|e| {
-            // service에서 올라온 에러를 여기서 로깅하고 적절한 HTTP 상태코드로 변환
-            // 에러 메시지에 따라 401(인증실패) 또는 500(서버에러) 구분
-            let msg = e.to_string();
-            if msg.contains("nonce") || msg.contains("서명") {
-                // nonce 불일치, 서명 검증 실패 → 클라이언트 잘못
-                tracing::warn!("지갑 로그인 실패 (클라이언트): {}", msg);
-                (StatusCode::UNAUTHORIZED, msg)
-            } else {
-                // Supabase API 실패 등 → 서버 잘못
-                tracing::error!("지갑 로그인 실패 (서버): {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, msg)
-            }
-        })?;
+    .await
+    .map_err(|e| {
+        // service에서 올라온 에러를 여기서 로깅하고 적절한 HTTP 상태코드로 변환
+        // 에러 메시지에 따라 401(인증실패) 또는 500(서버에러) 구분
+        let msg = e.to_string();
+        if msg.contains("nonce") || msg.contains("서명") {
+            // nonce 불일치, 서명 검증 실패 → 클라이언트 잘못
+            tracing::warn!("지갑 로그인 실패 (클라이언트): {}", msg);
+            (StatusCode::UNAUTHORIZED, msg)
+        } else {
+            // Supabase API 실패 등 → 서버 잘못
+            tracing::error!("지갑 로그인 실패 (서버): {}", msg);
+            (StatusCode::INTERNAL_SERVER_ERROR, msg)
+        }
+    })?;
 
     tracing::info!("지갑 로그인 성공: wallet={}", body.wallet_address);
 
     // 웹 / 앱 응답 분기
     if client_type == "web" {
         // 웹: refresh는 쿠키
-        let cookie_headers = build_refresh_cookie(&response.refresh_token);
+        let cookie_headers = build_refresh_cookie(&state, &response.refresh_token);
 
         let body = WebLoginResponse {
             access_token: response.access_token,
@@ -362,16 +356,15 @@ pub async fn exchange_token(
     Json(body): Json<ExchangeTokenRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     if body.access_token.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "access_token을 입력해 주세요.".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "access_token을 입력해 주세요.".to_string(),
+        ));
     }
 
     let client_type = resolve_client_type(&headers);
 
-    let issued = service::exchange_supabase_token(
-        &state,
-        &body.access_token,
-        client_type,
-    )
+    let issued = service::exchange_supabase_token(&state, &body.access_token, client_type)
         .await
         .map_err(|e| {
             tracing::error!("토큰 교환 실패: {}", e);
@@ -379,7 +372,7 @@ pub async fn exchange_token(
         })?;
 
     if client_type == "web" {
-        let cookie_headers = build_refresh_cookie(&issued.refresh_token);
+        let cookie_headers = build_refresh_cookie(&state, &issued.refresh_token);
         tracing::debug!("토큰 교환 응답: web refresh 쿠키를 Set-Cookie로 반환");
 
         let body = WebLoginResponse {
@@ -425,15 +418,22 @@ pub async fn get_me(
         user_id
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .get(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .send()
         .await
         .map_err(|e| {
             tracing::error!("/me 유저 조회 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "사용자 조회에 실패했습니다.".to_string())
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "사용자 조회에 실패했습니다.".to_string(),
+            )
         })?;
 
     if !resp.status().is_success() {
@@ -442,16 +442,20 @@ pub async fn get_me(
         return Err((StatusCode::INTERNAL_SERVER_ERROR, err));
     }
 
-    let users: Vec<serde_json::Value> = resp.json().await
-        .map_err(|e| {
-            tracing::error!("/me 응답 파싱 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱에 실패했습니다.".to_string())
-        })?;
+    let users: Vec<serde_json::Value> = resp.json().await.map_err(|e| {
+        tracing::error!("/me 응답 파싱 실패: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "응답 파싱에 실패했습니다.".to_string(),
+        )
+    })?;
 
-    let user = users
-        .first()
-        .cloned()
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "사용자를 찾을 수 없습니다.".to_string()))?;
+    let user = users.first().cloned().ok_or_else(|| {
+        (
+            StatusCode::NOT_FOUND,
+            "사용자를 찾을 수 없습니다.".to_string(),
+        )
+    })?;
 
     Ok(Json(user))
 }
@@ -480,11 +484,17 @@ pub async fn complete_profile(
     Json(body): Json<CompleteProfileRequest>,
 ) -> Result<Json<CompleteProfileResponse>, (StatusCode, String)> {
     if body.nickname.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "닉네임을 입력해 주세요.".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "닉네임을 입력해 주세요.".to_string(),
+        ));
     }
 
     if body.phone.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "전화번호를 입력해 주세요.".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "전화번호를 입력해 주세요.".to_string(),
+        ));
     }
 
     let url = format!(
@@ -509,10 +519,14 @@ pub async fn complete_profile(
         payload["profile_image"] = json!(img);
     }
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .patch(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .header("Prefer", "return=representation")
         .json(&payload)
@@ -520,7 +534,10 @@ pub async fn complete_profile(
         .await
         .map_err(|e| {
             tracing::error!("프로필 업데이트 요청 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "프로필 저장에 실패했습니다.".to_string())
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "프로필 저장에 실패했습니다.".to_string(),
+            )
         })?;
 
     if !resp.status().is_success() {
@@ -551,11 +568,13 @@ pub async fn complete_profile(
         return Err((StatusCode::INTERNAL_SERVER_ERROR, err));
     }
 
-    let rows: Vec<serde_json::Value> = resp.json().await
-        .map_err(|e| {
-            tracing::error!("프로필 업데이트 응답 파싱 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "응답 파싱에 실패했습니다.".to_string())
-        })?;
+    let rows: Vec<serde_json::Value> = resp.json().await.map_err(|e| {
+        tracing::error!("프로필 업데이트 응답 파싱 실패: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "응답 파싱에 실패했습니다.".to_string(),
+        )
+    })?;
 
     let updated = rows.first().cloned().unwrap_or_default();
     let profile_completed = updated["profile_completed"].as_bool().unwrap_or(false);
@@ -564,6 +583,55 @@ pub async fn complete_profile(
         success: true,
         profile_completed,
     }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/profile/check-availability",
+    tag = "인증",
+    request_body = CheckProfileAvailabilityRequest,
+    responses(
+        (status = 200, description = "닉네임/전화번호 사용 가능"),
+        (status = 400, description = "중복 또는 입력값 오류")
+    )
+)]
+pub async fn check_profile_availability(
+    State(state): State<AppState>,
+    Json(body): Json<CheckProfileAvailabilityRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if body.nickname.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "닉네임을 입력해 주세요.".to_string(),
+        ));
+    }
+
+    if body.phone.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "전화번호를 입력해 주세요.".to_string(),
+        ));
+    }
+
+    service::check_profile_availability(&state, &body.nickname, &body.phone)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+
+            if msg.contains("이미 사용 중인 닉네임입니다")
+                || msg.contains("이미 사용 중인 전화번호입니다")
+            {
+                return (StatusCode::BAD_REQUEST, msg);
+            }
+
+            tracing::error!("프로필 중복 확인 실패: {}", msg);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "프로필 중복 확인에 실패했습니다.".to_string(),
+            )
+        })?;
+
+    Ok(Json(json!({ "available": true })))
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -593,7 +661,10 @@ pub async fn upload_profile_image(
 
     while let Some(field) = multipart.next_field().await.map_err(|e| {
         tracing::error!("multipart 파싱 실패: {}", e);
-        (StatusCode::BAD_REQUEST, "멀티파트 파싱에 실패했습니다.".to_string())
+        (
+            StatusCode::BAD_REQUEST,
+            "멀티파트 파싱에 실패했습니다.".to_string(),
+        )
     })? {
         let name = field.name().unwrap_or_default().to_string();
 
@@ -616,12 +687,18 @@ pub async fn upload_profile_image(
 
             let bytes = field.bytes().await.map_err(|e| {
                 tracing::error!("파일 읽기 실패: {}", e);
-                (StatusCode::BAD_REQUEST, "파일 읽기에 실패했습니다.".to_string())
+                (
+                    StatusCode::BAD_REQUEST,
+                    "파일 읽기에 실패했습니다.".to_string(),
+                )
             })?;
 
             // 최대 5MB 제한
             if bytes.len() > 5 * 1024 * 1024 {
-                return Err((StatusCode::BAD_REQUEST, "파일 크기는 5MB 이하여야 합니다.".to_string()));
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    "파일 크기는 5MB 이하여야 합니다.".to_string(),
+                ));
             }
 
             file_bytes = Some(bytes.to_vec());
@@ -629,9 +706,8 @@ pub async fn upload_profile_image(
         }
     }
 
-    let file_bytes = file_bytes.ok_or_else(|| {
-        (StatusCode::BAD_REQUEST, "file 필드가 없습니다".to_string())
-    })?;
+    let file_bytes =
+        file_bytes.ok_or_else(|| (StatusCode::BAD_REQUEST, "file 필드가 없습니다".to_string()))?;
 
     let content_type = content_type.unwrap_or_else(|| "image/png".to_string());
 
@@ -646,9 +722,13 @@ pub async fn upload_profile_image(
         object_path
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .post(&upload_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Content-Type", content_type)
         .header("x-upsert", "true")
@@ -657,7 +737,10 @@ pub async fn upload_profile_image(
         .await
         .map_err(|e| {
             tracing::error!("스토리지 업로드 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "스토리지 업로드에 실패했습니다.".to_string())
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "스토리지 업로드에 실패했습니다.".to_string(),
+            )
         })?;
 
     if !resp.status().is_success() {
@@ -695,7 +778,10 @@ pub async fn get_profile_image_signed_url(
 
     // 단순 경로 오용 방지
     if requested_path.contains("..") || requested_path.contains('\\') {
-        return Err((StatusCode::BAD_REQUEST, "올바르지 않은 path 입니다".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "올바르지 않은 path 입니다".to_string(),
+        ));
     }
 
     // 기본 이미지(defaults/) 또는 현재 로그인한 유저 폴더만 허용
@@ -705,11 +791,14 @@ pub async fn get_profile_image_signed_url(
 
     if !is_default_image && !is_user_owned_image {
         tracing::warn!(
-              "signed URL 권한 없음: user_id={}, requested_path={}",
-              user_id,
-              requested_path
-          );
-        return Err((StatusCode::FORBIDDEN, "해당 이미지에 접근할 수 없습니다".to_string()));
+            "signed URL 권한 없음: user_id={}, requested_path={}",
+            user_id,
+            requested_path
+        );
+        return Err((
+            StatusCode::FORBIDDEN,
+            "해당 이미지에 접근할 수 없습니다".to_string(),
+        ));
     }
 
     let url = format!(
@@ -720,12 +809,16 @@ pub async fn get_profile_image_signed_url(
     );
 
     let body = json!({
-          "expiresIn": 86400
-      });
+        "expiresIn": 86400
+    });
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .post(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Content-Type", "application/json")
         .json(&body)
@@ -733,7 +826,10 @@ pub async fn get_profile_image_signed_url(
         .await
         .map_err(|e| {
             tracing::error!("signed URL 생성 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "서명된 URL 생성에 실패했습니다.".to_string())
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "서명된 URL 생성에 실패했습니다.".to_string(),
+            )
         })?;
 
     if !resp.status().is_success() {
@@ -744,11 +840,17 @@ pub async fn get_profile_image_signed_url(
 
     let data: serde_json::Value = resp.json().await.map_err(|e| {
         tracing::error!("signed URL 응답 파싱 실패: {}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "서명된 URL 응답 파싱에 실패했습니다.".to_string())
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "서명된 URL 응답 파싱에 실패했습니다.".to_string(),
+        )
     })?;
 
     let signed_path = data["signedURL"].as_str().ok_or_else(|| {
-        (StatusCode::INTERNAL_SERVER_ERROR, "signedURL 필드가 없습니다".to_string())
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "signedURL 필드가 없습니다".to_string(),
+        )
     })?;
 
     let signed_url = format!(
@@ -759,7 +861,6 @@ pub async fn get_profile_image_signed_url(
 
     Ok(Json(ProfileImageUrlResponse { signed_url }))
 }
-
 
 // ═══════════════════════════════════════════════════════════════
 // [이메일 찾기] POST /auth/find-email
@@ -778,15 +879,45 @@ pub async fn find_email(
     State(state): State<AppState>,
     Json(body): Json<FindEmailRequest>,
 ) -> Result<Json<FindEmailResponse>, (StatusCode, String)> {
-    if body.phone.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "전화번호를 입력해 주세요.".to_string()));
+    // 1) captcha token 비어있는지 검사
+    if body.captcha_token.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "사람 인증이 필요합니다.".to_string(),
+        ));
     }
 
-    let masked_email = service::find_email_by_phone(&state, &body.phone)
+    // 2) Turnstile 검증
+    verify_turnstile(
+        &state.http_client,
+        &state.config.turnstile_secret_key,
+        &body.captcha_token,
+    )
         .await
         .map_err(|e| {
-            tracing::error!("이메일 찾기 실패: {}", e);
+            tracing::warn!("Turnstile 검증 실패: {}", e);
             (StatusCode::BAD_REQUEST, e.to_string())
+        })?;
+
+    // 3) 기존 전화번호 검증
+    if body.phone.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "전화번호를 입력해 주세요.".to_string(),
+        ));
+    }
+
+    // 4) 기존 이메일 찾기 로직 호출
+    // 여기 함수명은 네 service.rs에 맞춰 쓰면 됨
+    let masked_email = crate::auth::service::find_email_by_phone(
+        &state,
+        &body.phone,
+    )
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            tracing::warn!("이메일 찾기 실패: {}", msg);
+            (StatusCode::NOT_FOUND, msg)
         })?;
 
     Ok(Json(FindEmailResponse { masked_email }))
@@ -808,26 +939,61 @@ pub async fn find_email(
 pub async fn check_email(
     State(state): State<AppState>,
     Json(body): Json<CheckEmailRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    if body.email.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "이메일을 입력해 주세요.".to_string()));
-    }
-
-    let exists = service::check_email_exists(&state, &body.email)
-        .await
-        .map_err(|e| {
-            tracing::error!("이메일 존재 확인 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-        })?;
-
-    if !exists {
+) -> Result<Json<CheckEmailResponse>, (StatusCode, String)> {
+    // 1) captcha token 비어있는지 검사
+    if body.captcha_token.trim().is_empty() {
         return Err((
-            StatusCode::NOT_FOUND,
-            "해당 이메일로 가입된 계정이 없습니다".to_string(),
+            StatusCode::BAD_REQUEST,
+            "사람 인증이 필요합니다.".to_string(),
         ));
     }
 
-    Ok(Json(json!({ "exists": true })))
+    // 2) Turnstile 검증
+    verify_turnstile(
+        &state.http_client,
+        &state.config.turnstile_secret_key,
+        &body.captcha_token,
+    )
+        .await
+        .map_err(|e| {
+            tracing::warn!("Turnstile 검증 실패(check_email): {}", e);
+            (
+                StatusCode::BAD_REQUEST,
+                "사람 인증 검증에 실패했습니다.".to_string(),
+            )
+        })?;
+
+    // 3) 이메일 값 검사
+    let email = body.email.trim().to_lowercase();
+    if email.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "이메일을 입력해 주세요.".to_string(),
+        ));
+    }
+
+    // 4) 기존 이메일 존재 확인 로직 호출
+    let exists = crate::auth::service::check_email_exists(&state, &email)
+        .await
+        .map_err(|e| {
+            tracing::warn!("이메일 중복 확인 실패: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "이메일 중복 확인에 실패했습니다.".to_string(),
+            )
+        })?;
+
+    // 프론트 기존 흐름 유지:
+    // - exists == true  -> 200 + { exists: true }
+    // - exists == false -> 404
+    if exists {
+        Ok(Json(CheckEmailResponse { exists: true }))
+    } else {
+        Err((
+            StatusCode::NOT_FOUND,
+            "가입 가능한 이메일입니다.".to_string(),
+        ))
+    }
 }
 
 #[utoipa::path(
@@ -843,33 +1009,74 @@ pub async fn check_email(
 )]
 pub async fn check_reset_password_email(
     State(state): State<AppState>,
-    Json(body): Json<CheckEmailRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    if body.email.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "이메일을 입력해 주세요.".to_string()));
-    }
-
-    let can_reset = service::can_reset_password(&state, &body.email)
-        .await
-        .map_err(|e| {
-            let msg = e.to_string();
-
-            if msg.contains("해당 이메일로 가입된 계정이 없습니다") {
-                return (StatusCode::NOT_FOUND, msg);
-            }
-
-            tracing::error!("비밀번호 재설정 가능 여부 확인 실패: {}", msg);
-            (StatusCode::INTERNAL_SERVER_ERROR, msg)
-        })?;
-
-    if !can_reset {
+    Json(body): Json<CheckResetPasswordEmailRequest>,
+) -> Result<Json<CheckResetPasswordEmailResponse>, (StatusCode, String)> {
+    // 1) captcha token 비어있는지 검사
+    if body.captcha_token.trim().is_empty() {
         return Err((
-            StatusCode::FORBIDDEN,
-            "자체 회원가입 계정만 비밀번호 재설정을 할 수 있습니다".to_string(),
+            StatusCode::BAD_REQUEST,
+            "사람 인증이 필요합니다.".to_string(),
         ));
     }
 
-    Ok(Json(json!({ "exists": true, "can_reset_password": true })))
+    // 2) Turnstile 검증
+    verify_turnstile(
+        &state.http_client,
+        &state.config.turnstile_secret_key,
+        &body.captcha_token,
+    )
+        .await
+        .map_err(|e| {
+            tracing::warn!("Turnstile 검증 실패(check_reset_password_email): {}", e);
+            (
+                StatusCode::BAD_REQUEST,
+                "사람 인증 검증에 실패했습니다.".to_string(),
+            )
+        })?;
+
+    // 3) 이메일 값 검사
+    let email = body.email.trim().to_lowercase();
+    if email.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "이메일을 입력해 주세요.".to_string(),
+        ));
+    }
+
+    // 4) 기존 비밀번호 재설정 가능 여부 확인 로직 호출
+    //
+    // 여기 서비스 함수는 네 프로젝트 함수명에 맞게 바꾸면 됨.
+    // 기대하는 동작:
+    // - 일반 이메일 계정이고 존재함 -> Ok(true)
+    // - 존재하지 않음 -> Ok(false)
+    // - 소셜 로그인 계정이라 재설정 불가 -> Err(anyhow!("소셜 로그인 계정..."))
+    let exists = crate::auth::service::check_reset_password_email(&state, &email)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            tracing::warn!("비밀번호 재설정 이메일 확인 실패: {}", msg);
+
+            if msg.contains("소셜 로그인") {
+                (
+                    StatusCode::FORBIDDEN,
+                    "소셜 로그인 계정은 비밀번호 재설정을 할 수 없습니다. 해당 소셜 로그인으로 다시 로그인해주세요.".to_string(),
+                )
+            } else {
+                (
+                    StatusCode::NOT_FOUND,
+                    "입력한 정보와 일치하는 계정을 찾을 수 없습니다.".to_string(),
+                )
+            }
+        })?;
+
+    if exists {
+        Ok(Json(CheckResetPasswordEmailResponse { exists: true }))
+    } else {
+        Err((
+            StatusCode::NOT_FOUND,
+            "입력한 정보와 일치하는 계정을 찾을 수 없습니다.".to_string(),
+        ))
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -892,7 +1099,23 @@ pub async fn kakao_login(
     Json(body): Json<KakaoLoginRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     if body.code.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "인가 코드를 입력해 주세요.".to_string()));
+        return Err((StatusCode::BAD_REQUEST, "인가 코드가 비어있음".to_string()));
+    }
+
+    if body.state.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "state가 비어있음".to_string()));
+    }
+
+    let cookie_state = extract_kakao_state_cookie(&headers)
+        .ok_or((StatusCode::UNAUTHORIZED, "OAuth state 쿠키가 없습니다.".to_string()))?;
+
+    if cookie_state != body.state {
+        tracing::warn!(
+            "카카오 OAuth state 불일치: cookie_state={}, body_state={}",
+            cookie_state,
+            body.state
+        );
+        return Err((StatusCode::UNAUTHORIZED, "유효하지 않은 로그인 요청입니다.".to_string()));
     }
 
     let client_type = resolve_client_type(&headers);
@@ -900,19 +1123,25 @@ pub async fn kakao_login(
     let issued = service::kakao_login(&state, &body.code, client_type)
         .await
         .map_err(|e| {
-            tracing::error!("카카오 로그인 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+            let msg = e.to_string();
+            tracing::error!("카카오 로그인 실패: {}", msg);
+            (StatusCode::INTERNAL_SERVER_ERROR, msg)
         })?;
 
     if client_type == "web" {
-        let cookie_headers = build_refresh_cookie(&issued.refresh_token);
+        let mut merged_headers = build_clear_kakao_state_cookie(&state);
+        let refresh_headers = build_refresh_cookie(&state, &issued.refresh_token);
+
+        for value in refresh_headers.get_all(SET_COOKIE).iter() {
+            merged_headers.append(SET_COOKIE, value.clone());
+        }
 
         let body = WebLoginResponse {
             access_token: issued.access_token,
             is_new_user: issued.is_new_user,
         };
 
-        Ok((cookie_headers, Json(serde_json::to_value(body).unwrap())))
+        Ok((merged_headers, Json(serde_json::to_value(body).unwrap())))
     } else {
         let body = AppLoginResponse {
             access_token: issued.access_token,
@@ -922,6 +1151,31 @@ pub async fn kakao_login(
 
         Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
     }
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/kakao/start",
+    tag = "소셜 로그인",
+    responses(
+        (status = 200, description = "카카오 인가 URL 생성 성공", body = KakaoStartResponse)
+    )
+)]
+pub async fn kakao_start(
+    State(state): State<AppState>,
+) -> Result<(HeaderMap, Json<KakaoStartResponse>), (StatusCode, String)> {
+    let oauth_state = uuid::Uuid::new_v4().to_string();
+
+    let auth_url = format!(
+        "https://kauth.kakao.com/oauth/authorize?client_id={}&redirect_uri={}&response_type=code&scope=profile_nickname,profile_image&prompt=select_account&state={}",
+        state.config.kakao_rest_api_key,
+        urlencoding::encode(&state.config.kakao_redirect_uri),
+        oauth_state
+    );
+
+    let cookie_headers = build_kakao_state_cookie(&state, &oauth_state);
+
+    Ok((cookie_headers, Json(KakaoStartResponse { auth_url })))
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -958,20 +1212,25 @@ pub async fn refresh_token(
 
     let refresh_token = if client_type == "web" {
         // 웹은 쿠키에서 읽음
-        extract_refresh_cookie(&headers)
-            .ok_or_else(|| (StatusCode::UNAUTHORIZED, "refresh 쿠키가 없습니다.".to_string()))?
+        extract_refresh_cookie(&headers).ok_or_else(|| {
+            (
+                StatusCode::UNAUTHORIZED,
+                "refresh 쿠키가 없습니다.".to_string(),
+            )
+        })?
     } else {
         // 앱은 body에서 읽음
         body.refresh_token
             .filter(|v| !v.trim().is_empty())
-            .ok_or_else(|| (StatusCode::BAD_REQUEST, "refresh_token을 입력해 주세요.".to_string()))?
+            .ok_or_else(|| {
+                (
+                    StatusCode::BAD_REQUEST,
+                    "refresh_token을 입력해 주세요.".to_string(),
+                )
+            })?
     };
 
-    let rotated = service::rotate_refresh_token(
-        &state,
-        &refresh_token,
-        client_type,
-    )
+    let rotated = service::rotate_refresh_token(&state, &refresh_token, client_type)
         .await
         .map_err(|e| {
             tracing::warn!("refresh 실패: {}", e);
@@ -980,7 +1239,7 @@ pub async fn refresh_token(
 
     if client_type == "web" {
         // 웹은 새 refresh를 다시 쿠키로 넣음
-        let cookie_headers = build_refresh_cookie(&rotated.refresh_token);
+        let cookie_headers = build_refresh_cookie(&state, &rotated.refresh_token);
         tracing::debug!("refresh 성공 응답: web refresh 쿠키 재발급");
 
         let body = WebRefreshResponse {
@@ -1036,31 +1295,219 @@ pub async fn logout(
 
     // refresh 토큰이 있다면 해당 세션 revoke 시도
     if let Some(token) = refresh_token {
-        if let Ok(claims) = crate::auth::app_jwt::verify_app_refresh_token(
-            &state.config.app_jwt_secret,
-            &token,
-        ) {
+        if let Ok(claims) =
+            crate::auth::app_jwt::verify_app_refresh_token(&state.config.app_jwt_secret, &token)
+        {
             if let Ok(session_id) = uuid::Uuid::parse_str(&claims.sid) {
-                let _ = crate::auth::refresh_store::revoke_refresh_session(
-                    &state,
-                    session_id,
-                    None,
-                )
-                    .await;
+                let _ =
+                    crate::auth::refresh_store::revoke_refresh_session(&state, session_id, None)
+                        .await;
             }
         }
     }
 
     if client_type == "web" {
         // 웹은 쿠키도 같이 지워야 함
-        let headers = build_clear_refresh_cookie();
+        let headers = build_clear_refresh_cookie(&state);
         Ok((headers, Json(json!({ "logged_out": true }))))
     } else {
         Ok((HeaderMap::new(), Json(json!({ "logged_out": true }))))
     }
 }
 
+fn build_kakao_state_cookie(app_state: &AppState, state: &str) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    let secure = should_use_secure_cookies(app_state);
 
+    let cookie = Cookie::build(("spentopia_kakao_oauth_state", state.to_string()))
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .path("/auth")
+        .secure(secure)
+        .build();
 
+    headers.append(SET_COOKIE, cookie.to_string().parse().unwrap());
+    headers
+}
 
+fn build_clear_kakao_state_cookie(app_state: &AppState) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    let secure = should_use_secure_cookies(app_state);
 
+    let cookie = Cookie::build(("spentopia_kakao_oauth_state", "".to_string()))
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .path("/auth")
+        .secure(secure)
+        .max_age(cookie::time::Duration::seconds(0))
+        .build();
+
+    headers.append(SET_COOKIE, cookie.to_string().parse().unwrap());
+    headers
+}
+
+fn extract_kakao_state_cookie(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("cookie")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|cookie_header| {
+            Cookie::split_parse(cookie_header)
+                .filter_map(Result::ok)
+                .find(|c| c.name() == "spentopia_kakao_oauth_state")
+                .map(|c| c.value().to_string())
+        })
+}
+fn should_use_secure_cookies(state: &AppState) -> bool {
+    matches!(
+        state.config.environment.trim().to_ascii_lowercase().as_str(),
+        "prod" | "production"
+    )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// [handoff 발급] POST /auth/handoff
+// ═══════════════════════════════════════════════════════════════
+//
+// 보호 라우트 → JWT 필수
+//
+// 왜 보호 라우트냐?
+// - 누구의 handoff token인지 알아야 하므로
+// - 반드시 현재 로그인된 user_id가 필요함
+//
+// 요청 예시:
+// POST /auth/handoff
+// Authorization: Bearer <앱 access token>
+// {
+//   "target_service": "unity"
+// }
+//
+// 응답 예시:
+// 200 OK
+// {
+//   "handoff_token": "64자리 랜덤문자열",
+//   "expires_in": 30
+// }
+//
+// 프론트는 이 handoff_token을 URL에 넣지 않고
+// 부모 탭 -> 유니티 탭 postMessage로만 전달해야 함.
+#[utoipa::path(
+    post,
+    path = "/auth/handoff",
+    tag = "Handoff",
+    security(
+        ("bearer_auth" = [])
+    ),
+    request_body = HandoffRequest,
+    responses(
+        (status = 200, description = "handoff token 발급 성공", body = HandoffResponse),
+        (status = 400, description = "target_service가 비어있거나 허용되지 않음"),
+        (status = 401, description = "JWT 인증 실패")
+    )
+)]
+pub async fn create_handoff(
+    State(state): State<AppState>,
+    // jwt_middleware가 넣어준 user_id
+    axum::Extension(user_id): axum::Extension<Uuid>,
+    Json(body): Json<HandoffRequest>,
+) -> Result<Json<HandoffResponse>, (StatusCode, String)> {
+    // ── 1) target_service 검증 ──────────────────────────────
+    // 현재는 "unity"만 허용
+    // 나중에 다른 서비스 추가 시 여기에 추가
+    let target = body.target_service.trim().to_lowercase();
+
+    if target.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "target_service를 입력해 주세요.".to_string(),
+        ));
+    }
+
+    let allowed_services = ["unity"];
+    if !allowed_services.contains(&target.as_str()) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("허용되지 않은 target_service: {}", target),
+        ));
+    }
+
+    // ── 2) handoff token 발급 ───────────────────────────────
+    let token = create_handoff_token(&state, user_id, &target);
+
+    // ── 3) 응답 ─────────────────────────────────────────────
+    Ok(Json(HandoffResponse {
+        handoff_token: token,
+        expires_in: 30,
+    }))
+}
+
+// ═══════════════════════════════════════════════════════════════
+// [handoff 교환] POST /auth/handoff/exchange
+// ═══════════════════════════════════════════════════════════════
+//
+// 공개 라우트 → JWT 불필요
+//
+// 이유:
+// - 유니티는 아직 access token이 없는 상태에서 시작함
+// - 부모 탭이 postMessage로 넘긴 handoff token만 가지고 교환해야 함
+//
+// 요청 예시:
+// POST /auth/handoff/exchange
+// {
+//   "handoff_token": "aB3kQ9xZ2mL7pR4w...(64자리)"
+// }
+//
+// 응답 예시:
+// 200 OK
+// {
+//   "access_token": "eyJhbGci...",
+//   "refresh_token": "eyJhbGci..."
+// }
+//
+// 유니티는 이 토큰들을 메모리에 저장하고:
+// - access_token으로 API 호출
+// - refresh_token으로 /auth/refresh (body 방식)로 세션 연장
+// - 이 시점부터 부모 탭(웹) 닫아도 유니티 독립 운영 가능
+#[utoipa::path(
+    post,
+    path = "/auth/handoff/exchange",
+    tag = "Handoff",
+    request_body = HandoffExchangeRequest,
+    responses(
+        (status = 200, description = "교환 성공 — 유니티용 access+refresh 발급", body = HandoffExchangeResponse),
+        (status = 400, description = "handoff_token 비어있음"),
+        (status = 401, description = "유효하지 않은 handoff token")
+    )
+)]
+pub async fn exchange_handoff(
+    State(state): State<AppState>,
+    Json(body): Json<HandoffExchangeRequest>,
+) -> Result<Json<HandoffExchangeResponse>, (StatusCode, String)> {
+    // ── 1) 입력 검증 ────────────────────────────────────────
+    if body.handoff_token.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "handoff_token을 입력해 주세요.".to_string(),
+        ));
+    }
+
+    // ── 2) handoff token 교환 ───────────────────────────────
+    // 검증 + 1회용 삭제 + 유니티용 access+refresh 발급
+    //
+    // 주의:
+    // target_service는 클라이언트 입력을 믿지 않고
+    // 서버가 handoff_store에 저장해둔 값을 기준으로 검증한다.
+    let result = exchange_handoff_token(&state, &body.handoff_token)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            tracing::warn!("handoff 교환 실패: {}", msg);
+            (StatusCode::UNAUTHORIZED, msg)
+        })?;
+
+    // ── 3) 응답 ─────────────────────────────────────────────
+    // 유니티는 앱 방식이므로 access+refresh 둘 다 body로 반환
+    Ok(Json(HandoffExchangeResponse {
+        access_token: result.access_token,
+        refresh_token: result.refresh_token,
+    }))
+}

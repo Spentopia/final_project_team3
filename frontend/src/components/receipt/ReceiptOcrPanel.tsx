@@ -3,6 +3,7 @@ import {
   ReceiptOcrResponse,
   verifyReceiptOcr,
 } from "@/shared/api/receiptOcr";
+import styles from "./ReceiptOcrPanel.module.css";
 
 type Props = {
   expectedDate: string;
@@ -77,8 +78,8 @@ export default function ReceiptOcrPanel({
   };
 
   return (
-    <div style={{ marginTop: 16 }}>
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
+    <div className={styles.panel}>
+      <form onSubmit={handleSubmit} className={styles.form}>
         <div>
           <label>영수증 이미지</label>
           <input type="file" accept="image/*" onChange={handleFileChange} />
@@ -90,31 +91,23 @@ export default function ReceiptOcrPanel({
       </form>
 
       {error && (
-        <p style={{ color: "crimson", marginTop: 12, whiteSpace: "pre-wrap" }}>
-          {error}
-        </p>
+        <p className={styles.error}>{error}</p>
       )}
 
       {result && (
-        <div
-          style={{
-            marginTop: 16,
-            padding: 16,
-            border: "1px solid #ddd",
-            borderRadius: 12,
-          }}
-        >
+        <div className={styles.result}>
           <h4>OCR 결과</h4>
           <p>추출 날짜: {result.ocr.receipt_date ?? "없음"}</p>
           <p>추출 금액: {result.ocr.total_amount ?? "없음"}</p>
           <p>근거 텍스트: {result.ocr.raw_text || "없음"}</p>
 
-          <h4 style={{ marginTop: 16 }}>검증 결과</h4>
+          <h4 className={styles.verificationTitle}>검증 결과</h4>
           <p
-            style={{
-              color: result.verification.is_verified ? "green" : "crimson",
-              fontWeight: 700,
-            }}
+            className={`${styles.verificationStatus} ${
+              result.verification.is_verified
+                ? styles.verified
+                : styles.rejected
+            }`}
           >
             {result.verification.is_verified ? "인증 성공" : "인증 실패"}
           </p>

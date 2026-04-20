@@ -11,7 +11,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ledger {
     pub id: Uuid,
-    pub user_id: Uuid,       // 생성자
+    pub user_id: Uuid, // 생성자
     pub title: String,
     pub is_shared: Option<bool>,
     pub created_at: Option<DateTime<Utc>>,
@@ -24,6 +24,6 @@ pub struct LedgerMember {
     pub id: Uuid,
     pub ledger_id: Uuid,
     pub user_id: Uuid,
-    pub role: Option<String>,   // owner / member
+    pub role: Option<String>, // owner / member
     pub joined_at: Option<DateTime<Utc>>,
 }

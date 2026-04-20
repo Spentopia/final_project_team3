@@ -99,7 +99,7 @@ pub struct ReceiptResponse {
 pub struct CreateFixedExpenseRequest {
     pub name: String,
     pub amount: i32,
-    pub due_day: i32,    // 1~31
+    pub due_day: i32, // 1~31
     pub category: String,
 }
 

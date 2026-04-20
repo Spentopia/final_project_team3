@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GenerateReportRequest {
-    pub report_type: String,   // weekly / monthly
+    pub report_type: String, // weekly / monthly
     pub start_date: NaiveDate,
     pub end_date: NaiveDate,
 }

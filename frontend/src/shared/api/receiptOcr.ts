@@ -1,3 +1,5 @@
+import { apiClient } from "@/shared/api/client";
+
 export interface ReceiptOcrRequest {
   image: File;
   expectedDate: string;
@@ -27,26 +29,15 @@ export interface ReceiptOcrResponse {
 export async function verifyReceiptOcr(
   payload: ReceiptOcrRequest
 ): Promise<ReceiptOcrResponse> {
-  const baseUrl = import.meta.env.VITE_AI_SERVER_URL;
-
-  if (!baseUrl) {
-    throw new Error("VITE_AI_SERVER_URL이 설정되지 않았습니다.");
-  }
-
   const formData = new FormData();
   formData.append("image", payload.image);
   formData.append("expected_date", payload.expectedDate);
   formData.append("expected_amount", String(payload.expectedAmount));
 
-  const response = await fetch(`${baseUrl}/api/v1/receipt/ocr`, {
-    method: "POST",
-    body: formData,
-  });
+  const response = await apiClient.post<ReceiptOcrResponse>(
+    "/api/receipt/ocr",
+    formData
+  );
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`OCR 요청 실패: ${response.status} ${text}`);
-  }
-
-  return response.json();
+  return response.data;
 }

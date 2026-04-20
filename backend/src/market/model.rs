@@ -14,8 +14,8 @@ pub struct MarketListing {
     pub seller_id: Uuid,
     pub item_id: Uuid,
     pub price_spt: i32,
-    pub status: Option<String>,          // active / sold / cancelled
-    pub escrow_address: Option<String>,  // Solana 에스크로 PDA 주소
+    pub status: Option<String>,         // active / sold / cancelled
+    pub escrow_address: Option<String>, // Solana 에스크로 PDA 주소
     pub listed_at: Option<DateTime<Utc>>,
     pub sold_at: Option<DateTime<Utc>>,
 }
@@ -29,7 +29,7 @@ pub struct MarketTransaction {
     pub listing_id: Uuid,
     pub buyer_id: Uuid,
     pub price: i32,
-    pub fee: i32,                        // 수수료 5% (burn 처리)
-    pub tx_signature: Option<String>,    // Solana 트랜잭션 서명
+    pub fee: i32,                     // 수수료 5% (burn 처리)
+    pub tx_signature: Option<String>, // Solana 트랜잭션 서명
     pub transacted_at: Option<DateTime<Utc>>,
 }

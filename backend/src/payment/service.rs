@@ -5,15 +5,15 @@
 //  confirm 단계에서 토스페이먼츠 API를 호출한다.
 //  TOSS_SECRET_KEY는 config에 추가 예정.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::state::AppState;
 use super::{
     dto::{ConfirmPaymentRequest, CreatePaymentRequest, PaymentResponse},
     model::Payment,
 };
+use crate::state::AppState;
 
 // ── 결제 생성 (pending 상태로 DB 선등록) ─────────────────────
 
@@ -38,10 +38,18 @@ pub async fn create_payment(
     }
 
     // 결제 생성 시점에는 payment_key를 order_id 기반으로 임시 생성
-    let temp_key = req.order_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let temp_key = req
+        .order_id
+        .clone()
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
-    let res = state.http_client.post(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let res = state
+        .http_client
+        .post(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=representation")
         .json(&InsertPayload {
@@ -52,7 +60,9 @@ pub async fn create_payment(
             amount: req.amount,
             status: "pending",
         })
-        .send().await.context("payments INSERT 요청 실패")?;
+        .send()
+        .await
+        .context("payments INSERT 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
@@ -60,7 +70,9 @@ pub async fn create_payment(
     }
 
     let inserted: Vec<Payment> = res.json().await.context("payments INSERT 역직렬화 실패")?;
-    let payment = inserted.into_iter().next()
+    let payment = inserted
+        .into_iter()
+        .next()
         .ok_or_else(|| anyhow!("payments INSERT 결과가 비어있음"))?;
 
     Ok(to_response(payment))
@@ -78,13 +90,21 @@ pub async fn confirm_payment(
     let select_url = format!(
         "{}/rest/v1/payments?order_id=eq.{}&user_id=eq.{}&select=*",
         state.config.supabase_url.trim_end_matches('/'),
-        req.order_id, user_id,
+        req.order_id,
+        user_id,
     );
 
-    let sel_res = state.http_client.get(&select_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let sel_res = state
+        .http_client
+        .get(&select_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
-        .send().await.context("payments SELECT 요청 실패")?;
+        .send()
+        .await
+        .context("payments SELECT 요청 실패")?;
 
     if !sel_res.status().is_success() {
         let body = sel_res.text().await.unwrap_or_default();
@@ -92,19 +112,26 @@ pub async fn confirm_payment(
     }
 
     let payments: Vec<Payment> = sel_res.json().await.context("payments 역직렬화 실패")?;
-    let payment = payments.into_iter().next()
+    let payment = payments
+        .into_iter()
+        .next()
         .ok_or_else(|| anyhow!("결제 정보를 찾을 수 없음: {}", req.order_id))?;
 
     // 금액 불일치 방어
     if payment.amount != req.amount {
-        return Err(anyhow!("결제 금액 불일치: DB={}, 요청={}", payment.amount, req.amount));
+        return Err(anyhow!(
+            "결제 금액 불일치: DB={}, 요청={}",
+            payment.amount,
+            req.amount
+        ));
     }
 
     // 2. payment_key, status → done 업데이트
     let patch_url = format!(
         "{}/rest/v1/payments?id=eq.{}&user_id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
-        payment.id, user_id,
+        payment.id,
+        user_id,
     );
 
     #[derive(Serialize)]
@@ -113,20 +140,35 @@ pub async fn confirm_payment(
         status: &'static str,
     }
 
-    let patch_res = state.http_client.patch(&patch_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let patch_res = state
+        .http_client
+        .patch(&patch_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=representation")
-        .json(&PatchPayload { payment_key: req.payment_key, status: "done" })
-        .send().await.context("payments PATCH 요청 실패")?;
+        .json(&PatchPayload {
+            payment_key: req.payment_key,
+            status: "done",
+        })
+        .send()
+        .await
+        .context("payments PATCH 요청 실패")?;
 
     if !patch_res.status().is_success() {
         let body = patch_res.text().await.unwrap_or_default();
         return Err(anyhow!("payments PATCH 실패: {}", body));
     }
 
-    let updated: Vec<Payment> = patch_res.json().await.context("payments PATCH 역직렬화 실패")?;
-    let updated_payment = updated.into_iter().next()
+    let updated: Vec<Payment> = patch_res
+        .json()
+        .await
+        .context("payments PATCH 역직렬화 실패")?;
+    let updated_payment = updated
+        .into_iter()
+        .next()
         .ok_or_else(|| anyhow!("결제 승인 후 row를 찾을 수 없음"))?;
 
     Ok(to_response(updated_payment))

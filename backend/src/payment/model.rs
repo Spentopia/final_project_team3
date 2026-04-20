@@ -12,10 +12,10 @@ pub struct Payment {
     pub id: Uuid,
     pub user_id: Uuid,
     pub ledger_id: Uuid,
-    pub payment_key: String,        // PG사 결제 키
+    pub payment_key: String, // PG사 결제 키
     pub order_id: Option<String>,
     pub amount: i32,
-    pub status: Option<String>,     // pending / done / cancelled / refunded
+    pub status: Option<String>, // pending / done / cancelled / refunded
     pub paid_at: Option<DateTime<Utc>>,
     pub created_at: Option<DateTime<Utc>>,
 }

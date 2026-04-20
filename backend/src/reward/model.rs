@@ -12,7 +12,7 @@ use uuid::Uuid;
 pub struct Reward {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub reward_type: String,     // report / contest
+    pub reward_type: String, // report / contest
     pub amount: i32,
     pub description: Option<String>,
     pub earned_at: Option<DateTime<Utc>>,
@@ -37,13 +37,13 @@ pub struct Streak {
 pub struct WeeklyScore {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub week_start: NaiveDate,          // 해당 주 시작일 (월요일)
-    pub record_days_score: Option<i32>, // 소비 기록 일수 점수 (만점 40)
-    pub receipt_score: Option<i32>,     // 영수증 인증 점수 (만점 20)
-    pub diary_score: Option<i32>,       // 한줄 일기 점수 (만점 15)
-    pub budget_check_score: Option<i32>,// 예산 체크인 점수 (만점 15)
-    pub streak_score: Option<i32>,      // 스트릭 유지 점수 (만점 10)
-    pub total_score: Option<i32>,       // 총점 (자동 계산)
-    pub reward_granted: Option<bool>,   // 보상 지급 완료 여부
+    pub week_start: NaiveDate,           // 해당 주 시작일 (월요일)
+    pub record_days_score: Option<i32>,  // 소비 기록 일수 점수 (만점 40)
+    pub receipt_score: Option<i32>,      // 영수증 인증 점수 (만점 20)
+    pub diary_score: Option<i32>,        // 한줄 일기 점수 (만점 15)
+    pub budget_check_score: Option<i32>, // 예산 체크인 점수 (만점 15)
+    pub streak_score: Option<i32>,       // 스트릭 유지 점수 (만점 10)
+    pub total_score: Option<i32>,        // 총점 (자동 계산)
+    pub reward_granted: Option<bool>,    // 보상 지급 완료 여부
     pub created_at: Option<DateTime<Utc>>,
 }

@@ -12,10 +12,10 @@ pub struct Budget {
     pub id: Uuid,
     pub user_id: Uuid,
     pub year: i32,
-    pub month: i32,          // 1~12
+    pub month: i32, // 1~12
     pub total_budget: i32,
     pub savings_goal: Option<i32>,
-    pub ai_plan: Option<String>,  // AI가 생성한 소비 플랜
+    pub ai_plan: Option<String>, // AI가 생성한 소비 플랜
     pub created_at: Option<DateTime<Utc>>,
 }
 

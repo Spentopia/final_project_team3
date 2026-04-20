@@ -43,7 +43,9 @@ export default function GoogleCallbackPage() {
         }
       );
 
+      sessionStorage.setItem("just_logged_in", "true"); // 🔥 추가
       authStorage.setToken(exchanged.data.access_token);
+      navigate("/", { replace: true });
 
       try {
         await supabase.auth.signOut();
@@ -51,7 +53,7 @@ export default function GoogleCallbackPage() {
         console.warn("Supabase signOut 실패:", signOutError);
       }
 
-      navigate("/");
+      
     } catch (err: any) {
       setError(err.message || "구글 로그인 실패");
     }

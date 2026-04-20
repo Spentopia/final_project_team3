@@ -1,10 +1,10 @@
 // avatar/dto.rs
 // 아바타, 아이템, 가챠, 스크린샷 관련 요청/응답 구조체
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 // ── NFT 민팅 요청/응답 ───────────────────────────────────────
 

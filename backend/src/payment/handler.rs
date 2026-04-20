@@ -5,16 +5,14 @@
 //  POST /api/payments         → create_payment
 //  POST /api/payments/confirm → confirm_payment
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Extension, Json,
-};
+use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use uuid::Uuid;
 
+use super::{
+    dto::{ConfirmPaymentRequest, CreatePaymentRequest},
+    service,
+};
 use crate::state::AppState;
-use super::{dto::{ConfirmPaymentRequest, CreatePaymentRequest}, service};
 
 #[utoipa::path(
     post, path = "/api/payments",
@@ -29,7 +27,11 @@ pub async fn create_payment(
     Json(req): Json<CreatePaymentRequest>,
 ) -> impl IntoResponse {
     if req.amount <= 0 {
-        return (StatusCode::BAD_REQUEST, "amount는 0보다 커야 합니다.".to_string()).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            "amount는 0보다 커야 합니다.".to_string(),
+        )
+            .into_response();
     }
     match service::create_payment(&state, user_id, req).await {
         Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
@@ -50,7 +52,11 @@ pub async fn confirm_payment(
     Json(req): Json<ConfirmPaymentRequest>,
 ) -> impl IntoResponse {
     if req.payment_key.trim().is_empty() {
-        return (StatusCode::BAD_REQUEST, "payment_key는 필수입니다.".to_string()).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            "payment_key는 필수입니다.".to_string(),
+        )
+            .into_response();
     }
     match service::confirm_payment(&state, user_id, req).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),

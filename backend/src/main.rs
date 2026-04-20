@@ -20,28 +20,28 @@
 // - 보안 점검에서 HIGH로 분류된 이슈
 // - tower_governor: token bucket 알고리즘 기반 IP별 요청 제한 미들웨어
 
-mod config;
-mod state;
-pub mod clients;
 mod auth;
-mod route;
-mod openapi;
-pub mod wallet;
-pub mod expense;
 pub mod avatar;
 pub mod budget;
+pub mod clients;
 pub mod community;
+mod config;
+pub mod expense;
 pub mod ledger;
 pub mod market;
 pub mod notification;
+mod openapi;
 pub mod payment;
 pub mod report;
 pub mod reward;
+mod route;
+mod state;
 pub mod user;
+pub mod wallet;
 
-use axum::http::{header, HeaderValue, Method};
+use axum::http::{HeaderValue, Method, header};
 use std::net::SocketAddr;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 // ─────────────────────────────────────────────────────────────
@@ -54,10 +54,7 @@ use tower_http::trace::TraceLayer;
 // Cargo.toml에 추가 필요:
 //   tower_governor = "0.4"
 // ─────────────────────────────────────────────────────────────
-use tower_governor::{
-    governor::GovernorConfigBuilder,
-    GovernorLayer,
-};
+use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 
 #[tokio::main]
 async fn main() {
@@ -87,8 +84,18 @@ async fn main() {
     // - COOKIE: 웹 refresh 토큰이 httpOnly 쿠키로 전달되므로 필요
     // - x-client-type: 웹/앱 분기용 커스텀 헤더
     // ─────────────────────────────────────────────────────────
+    let mut allowed_origins = vec![
+        HeaderValue::from_static("http://localhost:5173"),
+        HeaderValue::from_static("http://127.0.0.1:5173"),
+    ];
+    if let Ok(origin) = config.cors_origin.parse::<HeaderValue>() {
+        if !allowed_origins.contains(&origin) {
+            allowed_origins.push(origin);
+        }
+    }
+
     let cors = CorsLayer::new()
-        .allow_origin(config.cors_origin.parse::<HeaderValue>().unwrap())
+        .allow_origin(AllowOrigin::list(allowed_origins))
         .allow_methods([
             Method::GET,
             Method::POST,
@@ -132,8 +139,8 @@ async fn main() {
     // - 지금은 로컬 시연이니까 기본값(peer_addr)으로 충분
     // ─────────────────────────────────────────────────────────
     let governor_conf = GovernorConfigBuilder::default()
-        .per_second(10)   // 초당 10개 토큰 보충
-        .burst_size(30)   // 최대 30개까지 누적 (페이지 로드 시 초기 요청 묶음 허용)
+        .per_second(10) // 초당 10개 토큰 보충
+        .burst_size(30) // 최대 30개까지 누적 (페이지 로드 시 초기 요청 묶음 허용)
         .finish()
         .unwrap();
 
@@ -179,18 +186,48 @@ async fn main() {
     // 지금은 전체 적용이 더 안전함 (DDoS 방어).
     // ─────────────────────────────────────────────────────────
 
+    // ─────────────────────────────────────────────────────────
+    // handoff_store 주기적 정리 (백그라운드 태스크)
+    //
+    // handoff token은 30초 TTL.
+    // nonce보다 훨씬 짧은 수명이므로 30초마다 정리.
+    //
+    // 정상적인 경우 exchange_handoff_token()에서 즉시 삭제되지만,
+    // exchange 안 하고 방치된 handoff가 메모리에 쌓이는 걸 방지.
+    //
+    // 예: 유저가 "게임 시작" 누르고 취소한 경우
+    //     → handoff가 발급됐지만 교환 안 됨
+    //     → 30초 후 여기서 정리
+    // ─────────────────────────────────────────────────────────
+    let handoff_store = state.handoff_store.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+            let now = std::time::SystemTime::now();
+            let before = handoff_store.len();
+            handoff_store.retain(|_, entry| entry.expires_at > now);
+            let removed = before - handoff_store.len();
+            if removed > 0 {
+                tracing::debug!("만료된 handoff {} 건 정리", removed);
+            }
+        }
+    });
 
     let app = route::create_router(state)
         .layer(governor_limiter)
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:1113").await
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:1113")
+        .await
         .expect("포트 바인딩 실패");
 
     tracing::info!("서버 실행: http://localhost:1113");
 
-    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-        .await
-        .expect("서버 실행 실패");
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .expect("서버 실행 실패");
 }

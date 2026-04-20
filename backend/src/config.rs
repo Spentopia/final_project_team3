@@ -41,18 +41,22 @@ pub struct Config {
     // CORS 허용 origin
     pub cors_origin: String,
 
+    // 로컬/배포 구분
+    pub environment: String,
+
     // AI 서버 URL (챗봇, 소비 분석, 예산 플랜)
     pub ai_server_url: String,
 
     // Unity 서버 URL (아바타 렌더링, 게임 연동)
     pub unity_server_url: String,
+
+    pub turnstile_secret_key: String,
 }
 
 impl Config {
     pub fn from_env() -> Result<Self> {
         Ok(Self {
-            supabase_url: std::env::var("SUPABASE_URL")
-                .context("SUPABASE_URL 환경변수 없음")?,
+            supabase_url: std::env::var("SUPABASE_URL").context("SUPABASE_URL 환경변수 없음")?,
 
             supabase_secret_key: std::env::var("SUPABASE_SECRET_KEY")
                 .context("SUPABASE_SECRET_KEY 환경변수 없음")?,
@@ -79,11 +83,17 @@ impl Config {
             cors_origin: std::env::var("CORS_ORIGIN")
                 .unwrap_or_else(|_| "http://localhost:5173".to_string()),
 
+            environment: std::env::var("ENVIRONMENT")
+                .unwrap_or_else(|_| "local".to_string()),
+
             ai_server_url: std::env::var("AI_SERVER_URL")
                 .unwrap_or_else(|_| "http://localhost:8000".to_string()),
 
             unity_server_url: std::env::var("UNITY_SERVER_URL")
                 .unwrap_or_else(|_| "http://localhost:9000".to_string()),
+
+            turnstile_secret_key: std::env::var("TURNSTILE_SECRET_KEY")
+                .expect("TURNSTILE_SECRET_KEY 환경변수 없음"),
         })
     }
 }

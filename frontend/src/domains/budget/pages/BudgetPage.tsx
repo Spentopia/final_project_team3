@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useFinance } from "@/shared/providers/FinanceProvider"; // ✅ 추가
+
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Slider } from "@/shared/ui/slider";
 import { Badge } from "@/shared/ui/badge";
-import { 
-  Wallet, 
-  Target, 
-  TrendingUp, 
+import {
+  Wallet,
+  Target,
+  TrendingUp,
   Sparkles,
   PiggyBank,
   Coffee,
@@ -62,23 +64,46 @@ const aiPlans = [
     ],
   },
 ];
+const STORAGE_KEY = "customBudget";
 
 export default function Budget() {
-  const [customBudget, setCustomBudget] = useState({
-    monthly: 500000,
-    savings: 50000,
-    food: 150000,
-    transport: 80000,
-    living: 120000,
-    leisure: 100000,
+  const { setBudget } = useFinance();
+
+  // ✅ localStorage에서 불러오기
+  const [customBudget, setCustomBudget] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved
+      ? JSON.parse(saved)
+        : {
+          monthly: 0,
+          savings: 0,
+          food: 0,
+          transport: 0,
+          living: 0,
+          leisure: 0,
+        };
   });
 
-  const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<number | null>(() => {
+  const saved = localStorage.getItem("selectedPlan");
+  return saved ? Number(saved) : null;
+});
 
+  // ✅ ⭐⭐⭐ 여기 추가 (중요 포인트)
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(customBudget));
+  }, [customBudget]);
+
+  // =========================
+  // AI 플랜 적용
+  // =========================
   const handleApplyPlan = (planId: number) => {
     const plan = aiPlans.find((p) => p.id === planId);
     if (plan) {
       setSelectedPlan(planId);
+
+      setBudget(plan.budget);
+
       toast.success(
         <div>
           <p className="font-bold">{plan.name} 적용 완료! 🎉</p>
@@ -89,6 +114,8 @@ export default function Budget() {
   };
 
   const handleSaveCustomBudget = () => {
+    setBudget(customBudget.monthly);
+
     toast.success("맞춤 예산이 저장되었습니다!");
   };
 
@@ -100,8 +127,8 @@ export default function Budget() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">예산 설정</h1>
-          <p className="text-gray-600">AI가 추천하는 플랜으로 시작하거나 직접 설정해보세요</p>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">예산 설정</h1>
+          <p className="text-gray-600 dark:text-gray-300">AI가 추천하는 플랜으로 시작하거나 직접 설정해보세요</p>
         </div>
         <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
           <Sparkles className="mr-2 h-4 w-4" />
@@ -191,23 +218,25 @@ export default function Budget() {
           <div className="space-y-6">
             <div>
               <div className="mb-3 flex items-center justify-between">
-                <Label>월 수입</Label>
+                <Label>월 예산</Label>
                 <span className="font-bold text-gray-900">
                   {customBudget.monthly.toLocaleString()}원
                 </span>
               </div>
-              <Slider
-                value={[customBudget.monthly]}
-                onValueChange={([value]) => setCustomBudget({ ...customBudget, monthly: value })}
-                min={100000}
-                max={5000000}
-                step={50000}
-                className="mb-2"
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={customBudget.monthly === 0 ? "" : String(customBudget.monthly)}
+                onChange={(e) => {
+                  const nextValue = Number(e.target.value.replace(/[^0-9]/g, ""));
+                  setCustomBudget({
+                    ...customBudget,
+                    monthly: Number.isNaN(nextValue) ? 0 : nextValue,
+                  });
+                }}
+                className="mt-1"
+                placeholder="월 예산을 입력해주세요."
               />
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>100,000</span>
-                <span>5,000,000</span>
-              </div>
             </div>
 
             <div>
@@ -319,7 +348,7 @@ export default function Budget() {
               <h3 className="mb-4 font-bold">예산 요약</h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span>월 수입</span>
+                  <span>월 예산</span>
                   <span className="font-bold">{customBudget.monthly.toLocaleString()}원</span>
                 </div>
                 <div className="h-px bg-white/30"></div>
@@ -358,12 +387,20 @@ export default function Budget() {
                 </div>
                 <div className="flex items-start gap-2">
                   <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                  <p>저축 비율이 {Math.round((customBudget.savings / customBudget.monthly) * 100)}%예요. 목표 달성 가능해요!</p>
+                  <p>
+                    저축 비율이{" "}
+                    {customBudget.monthly > 0
+                      ? Math.round((customBudget.savings / customBudget.monthly) * 100)
+                      : 0}
+                    %예요. 목표 달성 가능해요!
+                  </p>
                 </div>
                 <div className="flex items-start gap-2">
                   <PiggyBank className="mt-0.5 h-4 w-4 shrink-0 text-cyan-600" />
                   <p>
-                    이 속도면 {Math.round(10000000 / (customBudget.savings * 12))}년 후 1천만원을 모을 수 있어요!
+                    {customBudget.savings > 0
+                      ? `이 속도면 ${Math.round(10000000 / (customBudget.savings * 12))}년 후 1천만원을 모을 수 있어요!`
+                      : "저축 목표를 입력하면 목표 달성 기간을 계산해드려요!"}
                   </p>
                 </div>
               </div>
