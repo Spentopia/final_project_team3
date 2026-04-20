@@ -213,12 +213,7 @@ export default function DashboardPage() {
       if (isReceiptVerified) reward += 20;
       if (newExpense.diary.trim()) reward += 15;
 
-      toast.success(
-        <div>
-          <p className="font-bold">소비 기록 완료! 🎉</p>
-          <p className="text-sm">+{reward} SPT 획득</p>
-        </div>
-      );
+      toast.success("소비 기록 완료! 🎉");
 
       resetForm();
     } catch (error) {
@@ -597,7 +592,7 @@ export default function DashboardPage() {
             {entryType === "expense" && (
               <>
                 <div>
-                  <Label htmlFor="receipt">영수증 인증 (+20 SPT)</Label>
+                  <Label htmlFor="receipt">영수증 인증</Label>
                   <div className="mt-2 flex items-center gap-3">
                     <Button
                       type="button"
@@ -671,7 +666,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="diary">한줄 소비 일기 (+15 SPT)</Label>
+                  <Label htmlFor="diary">한줄 소비 일기</Label>
                   <Textarea
                     id="diary"
                     placeholder="오늘 소비에 대한 생각을 기록해보세요"
@@ -705,19 +700,17 @@ export default function DashboardPage() {
           <div className="space-y-2 text-sm text-gray-700">
             <div className="flex items-center justify-between">
               <span>기본 기록</span>
-              <span className="font-bold text-amber-600">+10 SPT</span>
             </div>
             <div className="flex items-center justify-between">
               <span>영수증 인증</span>
-              <span className="font-bold text-amber-600">+20 SPT</span>
+              <span className="font-bold text-amber-600">아바타 뽑기권 지급</span>
             </div>
             <div className="flex items-center justify-between">
               <span>일기 작성</span>
-              <span className="font-bold text-amber-600">+15 SPT</span>
             </div>
             <div className="mt-3 rounded-lg border border-amber-300 bg-white p-2 text-center">
               <p className="font-bold text-amber-700">주간 성실도 90점 이상 시</p>
-              <p className="text-xs text-amber-600">랜덤 아바타 + 보너스 SPT!</p>
+              <p className="text-xs text-amber-600">랜덤 아바타 뽑기권 지급!</p>
             </div>
           </div>
         </Card>
