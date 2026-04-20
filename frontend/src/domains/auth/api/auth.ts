@@ -83,6 +83,13 @@ const mapSupabaseAuthError = (message: string, fallback: string) => {
 
 // 기존 인증 상태를 정리
 const clearAllAuthState = async () => {
+  // 백엔드 refresh 쿠키 정리
+  try {
+    await apiClient.post("/auth/logout", {}, { withCredentials: true });
+  } catch (e) {
+    console.warn("백엔드 refresh 쿠키 정리 실패:", e);
+  }
+
   // 앱 access token 메모리 삭제
   authStorage.clear();
 
@@ -96,17 +103,9 @@ const clearAllAuthState = async () => {
 
 // Supabase access_token -> 백엔드 앱 access token 교환
 const exchangeSupabaseToken = async (accessToken: string) => {
-  const res = await apiClient.post(
-    "/auth/exchange",
-    {
-      access_token: accessToken,
-    },
-    {
-      headers: {
-        "X-Client-Type": "web",
-      },
-    }
-  );
+  const res = await apiClient.post("/auth/exchange", {
+    access_token: accessToken,
+  });
 
   return res.data;
 };
@@ -214,31 +213,13 @@ export const signInWithGoogle = async () => {
 export const redirectToKakao = async () => {
   await clearAllAuthState();
 
-  const res = await apiClient.post(
-    "/auth/kakao/start",
-    {},
-    {
-      headers: {
-        "X-Client-Type": "web",
-      },
-      withCredentials: true,
-    }
-  );
+  const res = await apiClient.post("/auth/kakao/start", {}, { withCredentials: true });
 
   window.location.href = res.data.auth_url;
 };
 
 export const loginWithKakaocode = async (code: string, state: string) => {
-  const res = await apiClient.post(
-    "/auth/kakao/login",
-    { code, state },
-    {
-      headers: {
-        "X-Client-Type": "web",
-      },
-      withCredentials: true,
-    }
-  );
+  const res = await apiClient.post("/auth/kakao/login", { code, state }, { withCredentials: true });
 
   return res.data;
 };
@@ -322,17 +303,24 @@ export const updatePassword = async (newPassword: string) => {
 // Turnstile captcha_token도 함께 전송한다.
 // - phone: 사용자가 입력한 전화번호
 // - captchaToken: Cloudflare Turnstile에서 발급받은 토큰
+export type FindEmailResponse = {
+  masked_email: string | null;
+  login_provider: string;
+  google_connected: boolean;
+  message: string;
+};
+
 export const findEmailByPhone = async (
   phone: string,
   captchaToken: string
-): Promise<string> => {
+): Promise<FindEmailResponse> => {
   try {
     const res = await apiClient.post("/auth/find-email", {
       phone: stripPhone(phone),
       captcha_token: captchaToken,
     });
 
-    return res.data.masked_email;
+    return res.data;
   } catch (error) {
     throw new Error(
       extractApiErrorMessage(error, "입력한 정보와 일치하는 계정을 찾을 수 없습니다.")
@@ -343,16 +331,9 @@ export const findEmailByPhone = async (
 // 로그아웃
 export const signOut = async () => {
   try {
-    await apiClient.post(
-      "/auth/logout",
-      {},
-      {
-        headers: {
-          "X-Client-Type": "web",
-        },
-      }
-    );
+    await apiClient.post("/auth/logout", {});
   } finally {
-    await clearAllAuthState();
+    await supabase.auth.signOut();  // ✅ 여기서만
+    authStorage.clear();
   }
 };
