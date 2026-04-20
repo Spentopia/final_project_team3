@@ -178,7 +178,7 @@ pub fn create_router(state: AppState) -> Router {
         // ── 마켓 ──────────────────────────────────────────
         .route(
             "/api/market/listings",
-            post(market::handler::create_listing),
+            get(market::handler::get_listings).post(market::handler::create_listing),
         )
         .route(
             "/api/market/listings/:id/escrow",

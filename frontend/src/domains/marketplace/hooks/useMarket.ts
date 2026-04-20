@@ -1,12 +1,8 @@
 // useMarket.ts - 마켓플레이스 커스텀 훅
-//
-// 아바타 훅과의 차이점:
-// - 마운트 시 자동 목록 조회가 없음 (GET 엔드포인트 미구현)
-// - 대신 로컬 상태(listings)로 판매 목록을 관리
-// - createListing 성공 → 응답을 직접 로컬 배열에 추가
-import {useState, useCallback} from "react";
+import {useState, useCallback, useEffect} from "react";
 import {toast} from "sonner";
 import {
+    getListings as getListingsApi,
     createListing as createListingApi,
     updateEscrow as updateEscrowApi,
     purchaseItem as purchaseItemApi,
@@ -15,29 +11,35 @@ import type {ListingResponse, TransactionResponse} from "@/domains/marketplace/m
 
 // 훅 반환 타입
 interface UseMarketReturn {
-    listings: ListingResponse[];        // 로컬에서 관리하는 판매 목록
+    listings: ListingResponse[];
+    listingsLoading: boolean;
     createListing: (itemId: string, priceSpt: number) => Promise<ListingResponse | null>;
     updateEscrow: (listingId: string, escrowAddress: string) => Promise<void>;
     purchaseItem: (listingId: string, txSignature: string)=>Promise<TransactionResponse | null>;
-    // 각 액션별 독립 로딩 상태 - 하나의 loading으로 묶으면 UX가 어색해짐
     creatingListing: boolean;
     updatingEscrow: boolean;
     purchasing: boolean;
-    // 에러는 toast로 처리하지만, 컴포넌트에서 직접 쓸 수 있게 노출
     createError: string | null;
     purchaseError: string | null;
 }
 
 export function useMarket(): UseMarketReturn{
-    // listings: 백엔드에 GET이 없으므로 로컬 배열로 관리
-    // createListing 성공 응답을 직접 append
-    // 새로고침하면 초기화됨 (한계 - 추후 GET 구현 시 교체)
     const [listings, setListings] = useState<ListingResponse[]>([]);
+    const [listingsLoading, setListingsLoading] = useState(false);
     const [creatingListing, setCreatingListing] = useState(false);
     const [updatingEscrow, setUpdatingEscrow] = useState(false);
     const [purchasing, setPurchasing] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
     const [purchaseError, setPurchaseError] = useState<string | null>(null);
+
+    // 마운트 시 판매 목록 조회
+    useEffect(() => {
+        setListingsLoading(true);
+        getListingsApi()
+            .then(setListings)
+            .catch(() => toast.error("판매 목록을 불러오지 못했습니다."))
+            .finally(() => setListingsLoading(false));
+    }, []);
 
     // createListing: 판매 등록
     // 반환값: 성공 시 ListingResponse, 실패 시 null
@@ -112,6 +114,7 @@ export function useMarket(): UseMarketReturn{
 
     return {
         listings,
+        listingsLoading,
         createListing,
         updateEscrow,
         purchaseItem,

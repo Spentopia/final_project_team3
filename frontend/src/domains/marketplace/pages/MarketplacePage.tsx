@@ -303,7 +303,7 @@ export default function MarketplacePage() {
   //   → listings는 로컬 상태 (GET API 미구현으로 서버에서 못 가져옴)
   // ──────────────────────────────────────────────────────────
   const { items, loading: itemsLoading } = useAvatarItems();
-  const { listings, createListing, purchaseItem, creatingListing, purchasing } = useMarket();
+  const { listings, listingsLoading, createListing, purchaseItem, creatingListing, purchasing } = useMarket();
 
   // ──────────────────────────────────────────────────────────
   // 로컬 UI 상태
@@ -366,9 +366,11 @@ export default function MarketplacePage() {
             <span className={styles.sectionCount}>{listings.length.toLocaleString()} listings</span>
           </div>
 
-          {listings.length === 0 ? (
-              // 로컬 listings 배열이 비어있을 때
-              // GET API 구현 전까지는 새로고침하면 항상 이 상태로 시작
+          {listingsLoading ? (
+              <div className={styles.emptyState}>
+                <p>판매 목록을 불러오는 중...</p>
+              </div>
+          ) : listings.length === 0 ? (
               <div className={styles.emptyState}>
                 <p>판매 중인 아이템이 없습니다.</p>
                 <p className={styles.emptyStateSub}>판매 등록 후 여기에 표시됩니다.</p>

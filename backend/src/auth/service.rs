@@ -116,7 +116,7 @@ pub struct RefreshIssueResult {
 #[derive(Debug, Deserialize)]
 struct UserRow {
     // uuid::Uuid 타입으로 받으면 String → UUID 변환을 자동으로 해줌
-    id: uuid::Uuid,
+    id: Uuid,
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -443,7 +443,7 @@ pub fn verify_solana_signature_pub(
 //   예: ?wallet_address=eq.7xKXt... → WHERE wallet_address = '7xKXt...'
 //
 // wallet/service.rs에서도 중복 연동 체크 시 재사용하므로 pub으로 선언
-pub async fn find_user_by_wallet(state: &AppState, wallet_address: &str) -> Result<uuid::Uuid> {
+pub async fn find_user_by_wallet(state: &AppState, wallet_address: &str) -> Result<Uuid> {
     // wallet_address=eq.{주소} → WHERE wallet_address = '{주소}'
     // select=id → id 컬럼만 가져옴 (불필요한 컬럼 제외)
     // trim_end_matches('/'): URL 끝 슬래시 제거 (중복 방지)

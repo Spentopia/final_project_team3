@@ -26,6 +26,17 @@ function parseAxiosError(error: unknown, prefix: string): Error {
     return error instanceof Error ? error : new Error(String(error));
 }
 
+// GET /api/market/listings
+// status=active인 판매 목록 전체 조회
+export async function getListings(): Promise<ListingResponse[]> {
+    try {
+        const res = await apiClient.get<ListingResponse[]>("/api/market/listings");
+        return res.data;
+    } catch (error: unknown) {
+        throw parseAxiosError(error, "판매 목록 조회 실패");
+    }
+}
+
 // POST /api/market/listings
 // NFT 아이템을 마켓에 판매 등록
 // 주의: is_nft === true인 아이템만 등록 가능 (백엔드에서도 검증)
