@@ -1,374 +1,410 @@
-import { useState } from "react";
-import { Card } from "@/shared/ui/card";
-import { Button } from "@/shared/ui/button";
-import { Badge } from "@/shared/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
-import {
-  Download,
-  Share2,
-  Sparkles,
-  Lock,
-  CheckCircle,
-  Camera,
-  Shuffle,
-} from "lucide-react";
-import { toast } from "sonner";
+// ============================================================
+// AvatarPage.tsx — 내 아바타 아이템 목록 페이지
+//
+// 구조:
+//   - useAvatarItems 훅에서 데이터/액션 전부 가져옴
+//   - 카테고리 탭 필터 → 아이템 카드 그리드
+//   - 카드 클릭 → 상세 Dialog (NFT 민팅 버튼 포함)
+//   - 로딩: Skeleton 카드 / 에러: 재시도 버튼
+//
+// CSS: AvatarPage.module.css 로 전부 분리
+// import 경로: @/shared/ui/...
+// ============================================================
 
-interface AvatarItem {
-  id: number;
-  type: "body" | "hair" | "face" | "clothes" | "accessory";
-  name: string;
-  emoji: string;
-  owned: boolean;
-  rarity: "common" | "rare" | "epic" | "legendary";
+import { useState } from "react";
+
+// shadcn/ui 컴포넌트 — 프로젝트 실제 경로 @/shared/ui
+import { Card, CardContent } from "@/shared/ui/card";
+import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/shared/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { Skeleton } from "@/shared/ui/skeleton";
+
+// 훅 — 아이템 목록 조회 + 민팅/전송 액션
+import { useAvatarItems } from "../hooks/useAvatarItems";
+
+// 타입 — 이 파일에서 UserItemResponse 구조를 참조해야 하므로 import
+import type { UserItemResponse } from "../model/types";
+
+// CSS Module — styles 객체로 모든 클래스 참조
+// 빌드 시 클래스명이 해시로 변환되어 전역 충돌 방지
+import styles from "./AvatarPage.module.css";
+
+// ────────────────────────────────────────────────────────────
+// 탭 필터 타입
+// "all"은 UserItemResponse["category"] 유니온에 없으므로 별도 추가
+// ────────────────────────────────────────────────────────────
+type TabValue = "all" | UserItemResponse["category"];
+
+// ────────────────────────────────────────────────────────────
+// 레어리티 → CSS Module 클래스명 매핑
+//
+// 왜 Record<rarity, string> 형태로?
+//   - rarityClassMap[item.rarity] 처럼 타입 안전하게 접근 가능
+//   - styles["rarityCommon"] 같은 문자열 인덱싱보다 자동완성 지원
+//
+// 왜 컴포넌트 외부에 선언?
+//   - 렌더링마다 새 객체 생성 방지 (참조 안정)
+//   - 여러 컴포넌트에서 공유 가능
+// ────────────────────────────────────────────────────────────
+const rarityClassMap: Record<UserItemResponse["rarity"], string> = {
+    common: styles.rarityCommon,
+    rare: styles.rarityRare,
+    epic: styles.rarityEpic,
+};
+
+const rarityCardClassMap: Record<UserItemResponse["rarity"], string> = {
+    common: "",
+    rare: styles.itemCardRare,
+    epic: styles.itemCardEpic,
+};
+
+const rarityPlaceholderClassMap: Record<UserItemResponse["rarity"], string> = {
+    common: styles.imagePlaceholderCommon,
+    rare: styles.imagePlaceholderRare,
+    epic: styles.imagePlaceholderEpic,
+};
+
+const rarityEmoji: Record<UserItemResponse["rarity"], string> = {
+    common: "🎨",
+    rare: "💎",
+    epic: "✨",
+};
+
+const rarityLabel: Record<UserItemResponse["rarity"], string> = {
+    common: "일반",
+    rare: "레어",
+    epic: "에픽",
+};
+
+const categoryLabel: Record<UserItemResponse["category"], string> = {
+    background: "배경",
+    frame: "프레임",
+    effect: "효과",
+    motion: "모션",
+};
+
+// ────────────────────────────────────────────────────────────
+// ItemCard 컴포넌트
+//
+// 분리한 이유:
+//   - AvatarPage가 너무 길어지는 것 방지 (관심사 분리)
+//   - 카드 하나의 렌더링 로직을 독립적으로 파악 가능
+//   - 추후 다른 페이지에서 재사용 가능
+// ────────────────────────────────────────────────────────────
+interface ItemCardProps {
+    item: UserItemResponse;
+    onClick: () => void; // 클릭 시 부모에서 selectedItem을 set → Dialog 오픈
 }
 
-const avatarItems: AvatarItem[] = [
-  // Body
-  { id: 1, type: "body", name: "기본 몸", emoji: "🧍", owned: true, rarity: "common" },
-  { id: 2, type: "body", name: "근육질", emoji: "💪", owned: true, rarity: "rare" },
-  { id: 3, type: "body", name: "날씬이", emoji: "🏃", owned: false, rarity: "rare" },
-  
-  // Hair
-  { id: 10, type: "hair", name: "기본 헤어", emoji: "👦", owned: true, rarity: "common" },
-  { id: 11, type: "hair", name: "긴 머리", emoji: "👩", owned: true, rarity: "common" },
-  { id: 12, type: "hair", name: "곱슬머리", emoji: "🦱", owned: false, rarity: "rare" },
-  { id: 13, type: "hair", name: "빨간머리", emoji: "👩‍🦰", owned: false, rarity: "epic" },
-  
-  // Face
-  { id: 20, type: "face", name: "미소", emoji: "😊", owned: true, rarity: "common" },
-  { id: 21, type: "face", name: "쿨", emoji: "😎", owned: true, rarity: "common" },
-  { id: 22, type: "face", name: "하트 눈", emoji: "😍", owned: false, rarity: "rare" },
-  { id: 23, type: "face", name: "별 눈", emoji: "🤩", owned: false, rarity: "epic" },
-  
-  // Clothes
-  { id: 30, type: "clothes", name: "티셔츠", emoji: "👕", owned: true, rarity: "common" },
-  { id: 31, type: "clothes", name: "정장", emoji: "👔", owned: true, rarity: "rare" },
-  { id: 32, type: "clothes", name: "드레스", emoji: "👗", owned: false, rarity: "epic" },
-  { id: 33, type: "clothes", name: "갑옷", emoji: "🛡️", owned: false, rarity: "legendary" },
-  
-  // Accessory
-  { id: 40, type: "accessory", name: "없음", emoji: "✨", owned: true, rarity: "common" },
-  { id: 41, type: "accessory", name: "모자", emoji: "🎩", owned: true, rarity: "common" },
-  { id: 42, type: "accessory", name: "왕관", emoji: "👑", owned: false, rarity: "legendary" },
-  { id: 43, type: "accessory", name: "날개", emoji: "🦋", owned: false, rarity: "epic" },
-];
+function ItemCard({ item, onClick }: ItemCardProps) {
+    const cardClass = [
+        styles.itemCard,
+        rarityCardClassMap[item.rarity],
+        item.is_equipped ? styles.itemCardEquipped : "",
+        item.is_nft ? styles.itemCardNft : "",
+    ].join(" ");
 
-const rarityColors = {
-  common: "bg-gray-500",
-  rare: "bg-blue-500",
-  epic: "bg-cyan-500",
-  legendary: "bg-amber-500",
-};
+    return (
+        <Card className={cardClass} onClick={onClick}>
+            <CardContent className={styles.cardContent}>
 
-const rarityLabels = {
-  common: "일반",
-  rare: "레어",
-  epic: "에픽",
-  legendary: "전설",
-};
-
-export default function Avatar() {
-  const [selectedItems, setSelectedItems] = useState({
-    body: 1,
-    hair: 10,
-    face: 20,
-    clothes: 30,
-    accessory: 40,
-  });
-
-  const handleItemSelect = (item: AvatarItem) => {
-    if (!item.owned) {
-      toast.error("아직 소유하지 않은 아이템이에요");
-      return;
-    }
-    setSelectedItems({
-      ...selectedItems,
-      [item.type]: item.id,
-    });
-    toast.success(`${item.name}(을)를 착용했어요!`);
-  };
-
-  const handleScreenshot = () => {
-    toast.success("아바타 스크린샷이 저장되었어요! 📸");
-  };
-
-  const handleRandomize = () => {
-    const ownedItems = avatarItems.filter((item) => item.owned);
-    const randomBody = ownedItems.find((item) => item.type === "body");
-    const randomHair = ownedItems.find((item) => item.type === "hair");
-    const randomFace = ownedItems.find((item) => item.type === "face");
-    const randomClothes = ownedItems.find((item) => item.type === "clothes");
-    const randomAccessory = ownedItems.find((item) => item.type === "accessory");
-
-    setSelectedItems({
-      body: randomBody?.id || selectedItems.body,
-      hair: randomHair?.id || selectedItems.hair,
-      face: randomFace?.id || selectedItems.face,
-      clothes: randomClothes?.id || selectedItems.clothes,
-      accessory: randomAccessory?.id || selectedItems.accessory,
-    });
-    toast.success("랜덤 코디 완료!");
-  };
-
-  const getSelectedItem = (type: keyof typeof selectedItems) => {
-    return avatarItems.find((item) => item.id === selectedItems[type]);
-  };
-
-  const ownedCount = avatarItems.filter((item) => item.owned).length;
-  const totalCount = avatarItems.length;
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">내 아바타</h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            보유 아이템: {ownedCount}/{totalCount}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRandomize}>
-            <Shuffle className="mr-2 h-4 w-4" />
-            랜덤 코디
-          </Button>
-          <Button variant="outline" onClick={handleScreenshot}>
-            <Camera className="mr-2 h-4 w-4" />
-            스크린샷
-          </Button>
-          <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
-            <Share2 className="mr-2 h-4 w-4" />
-            공유하기
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
-        {/* Avatar Preview */}
-        <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
-          <h3 className="mb-4 font-bold">미리보기</h3>
-          
-          {/* Avatar Display */}
-          <div className="mb-6 flex aspect-square items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
-            <div className="text-center">
-              <div className="mb-4 flex justify-center gap-2 text-6xl">
-                {getSelectedItem("body")?.emoji}
-              </div>
-              <div className="mb-4 flex justify-center gap-2 text-6xl">
-                {getSelectedItem("hair")?.emoji}
-              </div>
-              <div className="mb-4 flex justify-center gap-2 text-6xl">
-                {getSelectedItem("face")?.emoji}
-              </div>
-              <div className="mb-4 flex justify-center gap-2 text-6xl">
-                {getSelectedItem("clothes")?.emoji}
-              </div>
-              <div className="flex justify-center gap-2 text-6xl">
-                {getSelectedItem("accessory")?.emoji}
-              </div>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="space-y-3 rounded-lg bg-white/10 p-4 backdrop-blur-sm">
-            <div className="flex items-center justify-between">
-              <span>총 희귀도</span>
-              <Badge className="bg-white/20">에픽</Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>착용 아이템</span>
-              <span className="font-bold">5개</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>획득 날짜</span>
-              <span className="font-bold">2026.04.08</span>
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-lg bg-white/10 p-4 backdrop-blur-sm">
-            <p className="mb-2 font-bold">🎁 다음 보상까지</p>
-            <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/20">
-              <div className="h-full w-[65%] bg-white"></div>
-            </div>
-            <p className="text-sm">성실도 점수 25점만 더 모으면 랜덤 아바타!</p>
-          </div>
-        </Card>
-
-        {/* Item Selection */}
-        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
-          <Tabs defaultValue="all" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="all">전체</TabsTrigger>
-              <TabsTrigger value="body">몸</TabsTrigger>
-              <TabsTrigger value="hair">헤어</TabsTrigger>
-              <TabsTrigger value="face">표정</TabsTrigger>
-              <TabsTrigger value="clothes">옷</TabsTrigger>
-              <TabsTrigger value="accessory">액세서리</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="all" className="space-y-6">
-              {["body", "hair", "face", "clothes", "accessory"].map((type) => (
-                <div key={type}>
-                  <h3 className="mb-3 font-bold capitalize text-gray-900">
-                    {type === "body" && "몸"}
-                    {type === "hair" && "헤어"}
-                    {type === "face" && "표정"}
-                    {type === "clothes" && "옷"}
-                    {type === "accessory" && "액세서리"}
-                  </h3>
-                  <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
-                    {avatarItems
-                      .filter((item) => item.type === type)
-                      .map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => handleItemSelect(item)}
-                          disabled={!item.owned}
-                          className={`relative flex aspect-square flex-col items-center justify-center rounded-lg border-2 p-3 transition-all ${
-                            selectedItems[item.type as keyof typeof selectedItems] === item.id
-                              ? "border-cyan-500 bg-cyan-50 shadow-lg"
-                              : item.owned
-                              ? "border-gray-200 hover:border-cyan-300 hover:bg-gray-50"
-                              : "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50"
-                          }`}
-                        >
-                          {!item.owned && (
-                            <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
-                              <Lock className="h-6 w-6 text-white" />
-                            </div>
-                          )}
-                          <span className="mb-1 text-3xl">{item.emoji}</span>
-                          <span className="text-xs text-gray-700">{item.name}</span>
-                          <Badge
-                            className={`mt-1 h-4 text-xs ${rarityColors[item.rarity]}`}
-                          >
-                            {rarityLabels[item.rarity]}
-                          </Badge>
-                        </button>
-                      ))}
-                  </div>
+                {/* ── 아이템 이미지 ── */}
+                <div className={styles.imageWrapper}>
+                    {item.image_url ? (
+                        <img src={item.image_url} alt={item.name} className={styles.itemImage} />
+                    ) : (
+                        <div className={rarityPlaceholderClassMap[item.rarity]}>
+                            {rarityEmoji[item.rarity]}
+                        </div>
+                    )}
+                    {item.is_nft && <span className={styles.nftOverlay}>NFT</span>}
                 </div>
-              ))}
-            </TabsContent>
 
-            {(["body", "hair", "face", "clothes", "accessory"] as const).map((type) => (
-              <TabsContent key={type} value={type}>
-                <div className="grid grid-cols-4 gap-4 sm:grid-cols-6">
-                  {avatarItems
-                    .filter((item) => item.type === type)
-                    .map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => handleItemSelect(item)}
-                        disabled={!item.owned}
-                        className={`relative flex aspect-square flex-col items-center justify-center rounded-lg border-2 p-4 transition-all ${
-                          selectedItems[type] === item.id
-                            ? "border-cyan-500 bg-cyan-50 shadow-lg"
-                            : item.owned
-                            ? "border-gray-200 hover:border-cyan-300 hover:bg-gray-50"
-                            : "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50"
-                        }`}
-                      >
-                        {!item.owned && (
-                          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
-                            <Lock className="h-8 w-8 text-white" />
-                          </div>
-                        )}
-                        <span className="mb-2 text-4xl">{item.emoji}</span>
-                        <span className="text-sm text-gray-700">{item.name}</span>
-                        <Badge
-                          className={`mt-2 h-5 text-xs ${rarityColors[item.rarity]}`}
-                        >
-                          {rarityLabels[item.rarity]}
-                        </Badge>
-                      </button>
+                {/* ── 아이템 이름 ── */}
+                {/* overflow: hidden + text-overflow: ellipsis → CSS에서 처리 */}
+                <p className={styles.itemName}>{item.name}</p>
+
+                {/* ── 배지 영역 ── */}
+                <div className={styles.badgeRow}>
+                    {/* 레어리티 배지 — rarityClassMap으로 동적 클래스 적용 */}
+                    <Badge className={rarityClassMap[item.rarity]}>
+                        {rarityLabel[item.rarity]}
+                    </Badge>
+
+                    {/* 카테고리 배지 — outline variant는 shadcn 기본 스타일 사용 */}
+                    <Badge variant="outline">{categoryLabel[item.category]}</Badge>
+
+                    {/* NFT 배지 — is_nft가 true일 때만 렌더링 */}
+                    {item.is_nft && (
+                        <Badge className={styles.badgeNft}>NFT</Badge>
+                    )}
+
+                    {/* 장착중 배지 — is_equipped가 true일 때만 */}
+                    {item.is_equipped && (
+                        <Badge className={styles.badgeEquipped}>장착중</Badge>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+// ────────────────────────────────────────────────────────────
+// SkeletonCard 컴포넌트 — 로딩 중 표시용
+//
+// Skeleton: shadcn의 shimmer 애니메이션 회색 블록
+// 실제 카드와 동일한 구조로 배치 → 로딩 후 레이아웃 점프 없음
+// ────────────────────────────────────────────────────────────
+function SkeletonCard() {
+    return (
+        <Card>
+            <CardContent className={styles.skeletonContent}>
+                {/* 이미지 영역 크기와 동일하게 */}
+                <Skeleton className={styles.skeletonImage} />
+                {/* 아이템 이름 자리 */}
+                <Skeleton className={styles.skeletonText} />
+                {/* 배지 자리 — 더 짧게 */}
+                <Skeleton className={`${styles.skeletonText} ${styles.skeletonTextShort}`} />
+            </CardContent>
+        </Card>
+    );
+}
+
+// ────────────────────────────────────────────────────────────
+// AvatarPage — 메인 페이지 컴포넌트
+// ────────────────────────────────────────────────────────────
+export default function AvatarPage() {
+
+    // ──────────────────────────────────────────────────────────
+    // 훅에서 서버 데이터와 액션 전부 가져오기
+    //
+    // 페이지 컴포넌트는 "어떻게 데이터를 가져오는가"를 몰라도 됨
+    // → useAvatarItems가 API 호출, 상태 관리, toast 처리를 모두 담당
+    //
+    // minting: NFT 민팅 진행 중 여부 — Dialog 버튼 비활성화에 사용
+    // ──────────────────────────────────────────────────────────
+    const { items, loading, error, refetch, mintNft, minting } = useAvatarItems();
+
+    // ──────────────────────────────────────────────────────────
+    // 로컬 UI 상태
+    //
+    // activeTab: 탭 필터 선택값 — 서버 데이터와 무관한 순수 UI 상태
+    // selectedItem: Dialog에 표시할 아이템 — null이면 Dialog 닫힘
+    //
+    // 이 두 상태는 훅으로 분리하지 않음:
+    //   → 이 컴포넌트에서만 쓰이는 UI 상태
+    //   → 훅으로 빼면 오히려 흐름 파악이 어려워짐
+    // ──────────────────────────────────────────────────────────
+    const [activeTab, setActiveTab] = useState<TabValue>("all");
+    const [selectedItem, setSelectedItem] = useState<UserItemResponse | null>(null);
+
+    // ──────────────────────────────────────────────────────────
+    // 탭 필터링
+    //
+    // useMemo 미사용 이유:
+    //   - items 배열이 수백 개 이하면 매 렌더링에 filter해도 충분히 빠름
+    //   - useMemo는 최적화 도구 — 먼저 측정하고 필요할 때 적용
+    // ──────────────────────────────────────────────────────────
+    const filteredItems =
+        activeTab === "all"
+            ? items
+            : items.filter((item) => item.category === activeTab);
+
+    // ──────────────────────────────────────────────────────────
+    // NFT 민팅 핸들러
+    //
+    // selectedItem이 null이면 얼리 리턴 (타입 가드)
+    // 실제 Solana 민팅은 추후 연결 — 지금은 placeholder mint address 사용
+    // mintNft 완료 후 훅 내부에서 fetchItems()가 재호출되므로
+    // 여기서는 Dialog만 닫으면 됨
+    // ──────────────────────────────────────────────────────────
+    const handleMintNft = async () => {
+        if (!selectedItem) return;
+        // TODO: 실제 Solana 온체인 민팅 후 생성된 mint address로 교체
+        await mintNft(selectedItem.id, "11111111111111111111111111111111");
+        setSelectedItem(null); // 성공 시 Dialog 닫기
+    };
+
+    return (
+        <div className={styles.pageWrapper}>
+            <h1 className={styles.pageTitle}>내 아바타 아이템</h1>
+            <p className={styles.pageSubtitle}>보유한 아이템을 확인하고 NFT로 민팅하세요</p>
+
+            {/* ── 카테고리 탭 필터 ── */}
+            {/*
+        Tabs: shadcn의 탭 컴포넌트
+        value/onValueChange: 제어 컴포넌트 패턴 (controlled)
+        v as TabValue: onValueChange는 string을 주는데 우리 타입으로 단언
+      */}
+            <div className={styles.tabsWrapper}>
+                <Tabs
+                    value={activeTab}
+                    onValueChange={(v) => setActiveTab(v as TabValue)}
+                >
+                    <TabsList>
+                        <TabsTrigger value="all">전체</TabsTrigger>
+                        <TabsTrigger value="background">배경</TabsTrigger>
+                        <TabsTrigger value="frame">프레임</TabsTrigger>
+                        <TabsTrigger value="effect">효과</TabsTrigger>
+                        <TabsTrigger value="motion">모션</TabsTrigger>
+                    </TabsList>
+                </Tabs>
+            </div>
+
+            {/* ── 에러 상태 ── */}
+            {/*
+        에러가 있을 때만 렌더링
+        refetch: 훅에서 노출한 수동 재조회 함수
+        → "다시 시도" 버튼에서 직접 호출
+      */}
+            {error && (
+                <div className={styles.errorState}>
+                    <p className={styles.errorMessage}>{error}</p>
+                    <Button variant="outline" onClick={refetch}>
+                        다시 시도
+                    </Button>
+                </div>
+            )}
+
+            {/* ── 로딩 상태 ── */}
+            {/*
+        loading이 true이고 에러가 없을 때만 표시
+        에러가 있는데 loading도 true인 경우는 에러 UI가 우선
+        Array.from({ length: 8 }): 빈 배열 8개 생성 → Skeleton 8개 렌더링
+        index를 key로 쓰는 것은 보통 비권장이지만,
+        Skeleton은 순서가 바뀌지 않으므로 OK
+      */}
+            {loading && !error && (
+                <div className={styles.grid}>
+                    {Array.from({ length: 8 }).map((_, i) => (
+                        <SkeletonCard key={i} />
                     ))}
                 </div>
-              </TabsContent>
-            ))}
-          </Tabs>
-        </Card>
-      </div>
+            )}
 
-      {/* Collection Progress */}
-      <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
-        <h3 className="mb-6 font-bold text-gray-900">컬렉션 진행도</h3>
-        <div className="grid gap-6 md:grid-cols-4">
-          <div className="rounded-lg border bg-gradient-to-br from-gray-50 to-gray-100 p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="font-bold text-gray-900">일반</span>
-              <span className="text-sm text-gray-600">8/10</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-              <div className="h-full w-[80%] bg-gray-500"></div>
-            </div>
-          </div>
+            {/* ── 정상 데이터 표시 ── */}
+            {/*
+        로딩도 아니고 에러도 아닐 때만 렌더링
+        filteredItems가 비어있으면 빈 상태 메시지
+      */}
+            {!loading && !error && (
+                <>
+                    {filteredItems.length === 0 ? (
+                        <div className={styles.emptyState}>
+                            {activeTab === "all"
+                                ? "보유한 아이템이 없습니다."
+                                : "해당 카테고리의 아이템이 없습니다."}
+                        </div>
+                    ) : (
+                        <div className={styles.grid}>
+                            {filteredItems.map((item) => (
+                                <ItemCard
+                                    key={item.id}        // DB UUID를 key로 — 리스트 재정렬 시 안전
+                                    item={item}
+                                    onClick={() => setSelectedItem(item)} // 클릭 시 이 아이템을 선택
+                                />
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
 
-          <div className="rounded-lg border bg-gradient-to-br from-blue-50 to-blue-100 p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="font-bold text-blue-900">레어</span>
-              <span className="text-sm text-blue-700">5/8</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-blue-200">
-              <div className="h-full w-[62.5%] bg-blue-500"></div>
-            </div>
-          </div>
+            {/* ── 아이템 상세 Dialog ── */}
+            {/*
+        open={!!selectedItem}: selectedItem이 null이 아니면 true
+        onOpenChange: ESC키 또는 바깥 클릭 시 Dialog 닫기
+          → open이 false가 되면 selectedItem을 null로 초기화
+      */}
+            <Dialog
+                open={!!selectedItem}
+                onOpenChange={(open) => !open && setSelectedItem(null)}
+            >
+                {/*
+          selectedItem && ...: Dialog가 열려있을 때만 내부 렌더링
+          null일 때 렌더링하면 에러 발생하므로 조건부 렌더링 필수
+        */}
+                {selectedItem && (
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>{selectedItem.name}</DialogTitle>
+                            <DialogDescription>
+                                {categoryLabel[selectedItem.category]} · {rarityLabel[selectedItem.rarity]}
+                            </DialogDescription>
+                        </DialogHeader>
 
-          <div className="rounded-lg border bg-gradient-to-br from-purple-50 to-purple-100 p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="font-bold text-purple-900">에픽</span>
-              <span className="text-sm text-purple-700">2/6</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-cyan-200">
-              <div className="h-full w-[33.33%] bg-cyan-500"></div>
-            </div>
-          </div>
+                        {/* 아이템 이미지 */}
+                        <div className={styles.dialogImageWrapper}>
+                            {selectedItem.image_url ? (
+                                <img
+                                    src={selectedItem.image_url}
+                                    alt={selectedItem.name}
+                                    className={styles.dialogImage}
+                                />
+                            ) : (
+                                <div className={styles.imagePlaceholder}>이미지 없음</div>
+                            )}
+                        </div>
 
-          <div className="rounded-lg border bg-gradient-to-br from-amber-50 to-amber-100 p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="font-bold text-amber-900">전설</span>
-              <span className="text-sm text-amber-700">0/3</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-amber-200">
-              <div className="h-full w-[0%] bg-amber-500"></div>
-            </div>
-          </div>
+                        {/* 상세 정보 테이블 */}
+                        <div className={styles.detailTable}>
+                            <div className={styles.detailRow}>
+                                <span className={styles.detailLabel}>카테고리</span>
+                                <span>{categoryLabel[selectedItem.category]}</span>
+                            </div>
+
+                            <div className={styles.detailRow}>
+                                <span className={styles.detailLabel}>레어리티</span>
+                                <Badge className={rarityClassMap[selectedItem.rarity]}>
+                                    {rarityLabel[selectedItem.rarity]}
+                                </Badge>
+                            </div>
+
+                            <div className={styles.detailRow}>
+                                <span className={styles.detailLabel}>획득일</span>
+                                <span>
+                  {selectedItem.acquired_at
+                      // ISO 8601 문자열 → 한국어 날짜 형식으로 변환
+                      ? new Date(selectedItem.acquired_at).toLocaleDateString("ko-KR")
+                      : "알 수 없음"}
+                </span>
+                            </div>
+
+                            <div className={styles.detailRow}>
+                                <span className={styles.detailLabel}>NFT 여부</span>
+                                <span>{selectedItem.is_nft ? "✅ 민팅됨" : "❌ 미민팅"}</span>
+                            </div>
+
+                            <div className={styles.detailRow}>
+                                <span className={styles.detailLabel}>장착 상태</span>
+                                <span>{selectedItem.is_equipped ? "장착중" : "미장착"}</span>
+                            </div>
+                        </div>
+
+                        {/*
+              NFT 민팅 버튼 — is_nft가 false일 때만 렌더링
+              이미 민팅된 아이템에는 버튼 자체를 숨김
+              disabled={minting}: 민팅 중 중복 클릭 방지
+            */}
+                        {!selectedItem.is_nft && (
+                            <Button
+                                className={styles.mintButton}
+                                onClick={handleMintNft}
+                                disabled={minting}
+                            >
+                                {minting ? "민팅 중..." : "NFT 민팅"}
+                            </Button>
+                        )}
+                    </DialogContent>
+                )}
+            </Dialog>
         </div>
-      </Card>
-
-      {/* How to Get Items */}
-      <Card className="border-none bg-gradient-to-br from-purple-50 to-pink-50 p-6 backdrop-blur-xl">
-        <div className="mb-4 flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-cyan-600" />
-          <h3 className="font-bold text-gray-900">아이템 획득 방법</h3>
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border border-cyan-200 bg-white p-4">
-            <CheckCircle className="mb-2 h-8 w-8 text-green-500" />
-            <h4 className="mb-1 font-bold text-gray-900">성실도 보상</h4>
-            <p className="text-sm text-gray-600">
-              주간 성실도 70점 이상 달성 시 랜덤 아바타 지급
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-cyan-200 bg-white p-4">
-            <Download className="mb-2 h-8 w-8 text-blue-500" />
-            <h4 className="mb-1 font-bold text-gray-900">NFT 마켓</h4>
-            <p className="text-sm text-gray-600">
-              다른 유저와 아이템을 SPT로 거래할 수 있어요
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-cyan-200 bg-white p-4">
-            <Sparkles className="mb-2 h-8 w-8 text-purple-500" />
-            <h4 className="mb-1 font-bold text-gray-900">특별 이벤트</h4>
-            <p className="text-sm text-gray-600">
-              시즌 이벤트와 콘테스트에서 한정 아이템 획득
-            </p>
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
+    );
 }

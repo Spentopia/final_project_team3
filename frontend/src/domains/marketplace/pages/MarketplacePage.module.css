@@ -1,0 +1,260 @@
+/* ============================================================
+   MarketplacePage 전용 CSS Module
+   ============================================================ */
+
+/* ── 페이지 래퍼 ── */
+.pageWrapper {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 16px;
+}
+
+.pageHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+.pageTitle {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+/* ── 섹션 ── */
+.sectionTitle {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+/* ── 리스팅 그리드 ── */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+@media (min-width: 640px) {
+    .grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 768px) {
+    .grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* ── 빈 상태 ── */
+.emptyState {
+    text-align: center;
+    padding: 64px 0;
+    color: #9ca3af;
+}
+
+.emptyStateSub {
+    font-size: 0.875rem;
+    margin-top: 8px;
+}
+
+/* ── 리스팅 카드 ── */
+.listingCard {
+    display: flex;
+    flex-direction: column;
+}
+
+.cardContent {
+    padding: 12px;
+    flex: 1;
+}
+
+.cardFooter {
+    padding: 0 12px 12px;
+}
+
+.imageWrapper {
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 8px;
+    background-color: #f3f4f6;
+    margin-bottom: 8px;
+}
+
+.itemImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.imagePlaceholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: #9ca3af;
+}
+
+.itemName {
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+
+.badgeRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.itemPrice {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #2563eb; /* blue-600 */
+}
+
+.sellerName {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
+.buyButton {
+    width: 100%;
+}
+
+/* ── 레어리티 색상 ── */
+.rarityCommon {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.rarityRare {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+}
+
+.rarityEpic {
+    background-color: #ede9fe;
+    color: #7c3aed;
+}
+
+/* ── 판매 등록 다이얼로그 ── */
+.dialogItemList {
+    max-height: 240px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dialogEmptyText {
+    text-align: center;
+    padding: 16px 0;
+    font-size: 0.875rem;
+    color: #9ca3af;
+}
+
+.selectableItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.selectableItem:hover {
+    background-color: #f9fafb; /* gray-50 */
+}
+
+/* 선택된 아이템 강조 */
+.selectableItemActive {
+    border-color: #3b82f6; /* blue-500 */
+    background-color: #eff6ff; /* blue-50 */
+}
+
+.selectableItemThumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: #e5e7eb;
+    flex-shrink: 0;
+}
+
+.selectableItemThumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.selectableItemInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.selectableItemName {
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+
+/* ── 가격 입력 ── */
+.priceLabel {
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.priceInput {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: box-shadow 0.15s ease;
+}
+
+.priceInput:focus {
+    box-shadow: 0 0 0 2px #3b82f6;
+    border-color: #3b82f6;
+}
+
+.dialogDivider {
+    margin: 12px 0;
+}
+
+.dialogFooter {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+/* ── 구매 확인 AlertDialog ── */
+.purchaseItemName {
+    font-weight: 700;
+}
+
+.purchaseFeeNote {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    display: block;
+    margin-top: 4px;
+}
