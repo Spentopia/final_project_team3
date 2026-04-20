@@ -77,6 +77,7 @@ export function useWalletConnection() {
 
     const {
         wallet,
+        wallets,
         publicKey,
         connected,
         connecting,
@@ -320,6 +321,7 @@ export function useWalletConnection() {
         // wallet-adapter 상태
         connection,
         wallet,
+        wallets,
         walletName,
         publicKey,
         walletAddress,
