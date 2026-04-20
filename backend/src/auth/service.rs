@@ -533,7 +533,10 @@ pub async fn exchange_supabase_token(
         return Err(anyhow!("유효하지 않은 Supabase 토큰: {}", err));
     }
 
-    let user_data: Value = resp.json().await.context("Supabase 유저 응답 파싱 실패")?;
+    let user_data: Value = resp
+        .json()
+        .await
+        .context("Supabase 유저 응답 파싱 실패")?;
 
     let user_id = user_data["id"]
         .as_str()
@@ -541,21 +544,70 @@ pub async fn exchange_supabase_token(
 
     let email = user_data["email"].as_str();
 
+    // 기본 가입 방식(대표 provider)
     let provider = user_data["app_metadata"]["provider"]
         .as_str()
         .unwrap_or("email");
 
+    // Email + Google 같이 연결된 계정까지 감지해야 하므로
+    // provider 하나만 믿지 말고 providers / identities를 같이 본다.
+    let google_connected = user_data["app_metadata"]["providers"]
+        .as_array()
+        .map(|providers| {
+            providers.iter().any(|p| {
+                p.as_str()
+                    .map(|x| x.eq_ignore_ascii_case("google"))
+                    .unwrap_or(false)
+            })
+        })
+        .or_else(|| {
+            user_data["identities"].as_array().map(|arr| {
+                arr.iter().any(|identity| {
+                    identity["provider"]
+                        .as_str()
+                        .map(|p| p.eq_ignore_ascii_case("google"))
+                        .unwrap_or(false)
+                })
+            })
+        })
+        .unwrap_or(false);
+
     let provider_id = user_data["user_metadata"]["provider_id"]
         .as_str()
+        .or_else(|| user_data["user_metadata"]["sub"].as_str())
+        .or_else(|| user_data["app_metadata"]["provider_id"].as_str())
         .or_else(|| {
             user_data["identities"]
                 .as_array()
-                .and_then(|arr| arr.first())
-                .and_then(|x| x["id"].as_str())
+                .and_then(|arr| {
+                    arr.iter().find(|identity| {
+                        identity["provider"]
+                            .as_str()
+                            .map(|p| p.eq_ignore_ascii_case(provider))
+                            .unwrap_or(false)
+                    })
+                })
+                .and_then(|identity| identity["id"].as_str())
         });
 
-    // auth.users는 있어도 public.users / user_settings / streaks가 비어 있을 수 있어
-    ensure_public_user_exists(state, user_id, email, provider, provider_id).await?;
+    tracing::info!(
+        "Supabase exchange: user_id={}, email={:?}, provider={}, provider_id={:?}, google_connected={}",
+        user_id,
+        email,
+        provider,
+        provider_id,
+        google_connected
+    );
+
+    ensure_public_user_exists(
+        state,
+        user_id,
+        email,
+        provider,
+        provider_id,
+        google_connected,
+    )
+        .await?;
 
     let user_uuid = Uuid::parse_str(user_id).context("Supabase user_id UUID 파싱 실패")?;
 
@@ -574,33 +626,47 @@ async fn ensure_public_user_exists(
     email: Option<&str>,
     provider: &str,
     provider_id: Option<&str>,
+    google_connected: bool,
 ) -> Result<()> {
+    // ─────────────────────────────────────────────────────────
+    // 0) 구글 연결 특수 처리
+    //
+    // 이미 같은 이메일의 기존 email 계정이 있고,
+    // 이번 Supabase 유저가 google도 연결된 상태라면
+    // public.users는 기존 계정을 유지하고 google_connected만 true로 바꾼다.
+    // ─────────────────────────────────────────────────────────
+    if google_connected {
+        if let Some(real_email) = email {
+            if let Some(existing_user_id) = find_public_user_by_email(state, real_email).await? {
+                // 현재 auth.users의 id와 public.users 기존 id가 다를 때만 연결 처리
+                if existing_user_id != user_id {
+                    tracing::info!(
+                        "기존 이메일 계정 발견 → google_connected 연결: email={}, existing_user_id={}, supabase_user_id={}",
+                        real_email,
+                        existing_user_id,
+                        user_id
+                    );
+
+                    link_google_to_existing_user(state, &existing_user_id).await?;
+                    ensure_settings_and_streaks_exist(state, &existing_user_id).await?;
+                    return Ok(());
+                }
+            }
+        }
+    }
+
     let users_url = format!(
         "{}/rest/v1/users",
         state.config.supabase_url.trim_end_matches('/')
     );
 
-    // ── 1단계: 신규 유저 INSERT (이미 존재하면 무시) ──────────────
-    //
-    // resolution=ignore-duplicates:
-    //   id 충돌(= 이미 가입된 유저)이면 아무것도 하지 않음.
-    //   신규 유저면 전체 행을 새로 삽입함.
-    //
-    // profile_image를 여기서만 "defaults/avatar.png"로 세팅하는 이유:
-    //   - merge-duplicates를 쓰면 기존 유저가 업로드한 프로필 이미지를
-    //     로그인할 때마다 기본값으로 덮어쓰는 문제가 생김.
-    //   - ignore-duplicates는 INSERT에만 적용되므로,
-    //     신규 유저는 기본 이미지를 받고, 기존 유저는 영향받지 않음.
-    //
-    // created_at도 여기서만 세팅:
-    //   - merge-duplicates였을 때는 매 로그인마다 created_at이 갱신되는
-    //     버그가 있었음. ignore-duplicates로 바꾸면서 함께 해결됨.
-    // ────────────────────────────────────────────────────────────
+    // 1) 신규 유저 INSERT (이미 존재하면 무시)
     let insert_payload = json!([{
         "id": user_id,
         "email": email,
         "login_provider": provider,
         "provider_id": provider_id,
+        "google_connected": google_connected,
         "profile_image": "defaults/avatar.png",
         "created_at": chrono::Utc::now(),
         "updated_at": chrono::Utc::now(),
@@ -627,13 +693,7 @@ async fn ensure_public_user_exists(
         return Err(anyhow!("public.users INSERT 실패: {}", err));
     }
 
-    // ── 2단계: 기존/신규 모두 활성 상태 갱신 ─────────────────────
-    //
-    // INSERT에서 ignore-duplicates를 쓰면 기존 유저의 is_active / updated_at이
-    // 갱신되지 않으므로, PATCH로 별도 업데이트.
-    //
-    // profile_image / created_at / email 등 초기값 필드는 건드리지 않음.
-    // ────────────────────────────────────────────────────────────
+    // 2) 기존/신규 모두 활성 상태 갱신
     let patch_url = format!(
         "{}/rest/v1/users?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
@@ -652,7 +712,8 @@ async fn ensure_public_user_exists(
         .header("Prefer", "return=minimal")
         .json(&json!({
             "is_active": true,
-            "updated_at": chrono::Utc::now()
+            "updated_at": chrono::Utc::now(),
+            "google_connected": google_connected
         }))
         .send()
         .await
@@ -663,12 +724,22 @@ async fn ensure_public_user_exists(
         return Err(anyhow!("public.users 활성 상태 갱신 실패: {}", err));
     }
 
+    // 3) user_settings / streaks 보장
+    ensure_settings_and_streaks_exist(state, user_id).await?;
+
+    Ok(())
+}
+
+async fn ensure_settings_and_streaks_exist(
+    state: &AppState,
+    user_id: &str,
+) -> Result<()> {
     let settings_url = format!(
-        "{}/rest/v1/user_settings",
+        "{}/rest/v1/user_settings?on_conflict=user_id",
         state.config.supabase_url.trim_end_matches('/')
     );
 
-    let _ = state
+    let settings_resp = state
         .http_client
         .post(&settings_url)
         .header("apikey", &state.config.supabase_secret_key)
@@ -677,19 +748,25 @@ async fn ensure_public_user_exists(
             format!("Bearer {}", state.config.supabase_secret_key),
         )
         .header("Content-Type", "application/json")
-        .header("Prefer", "resolution=merge-duplicates")
+        .header("Prefer", "resolution=merge-duplicates,return=minimal")
         .json(&json!([{
             "user_id": user_id
         }]))
         .send()
-        .await;
+        .await
+        .context("user_settings 보장 실패")?;
+
+    if !settings_resp.status().is_success() {
+        let err = settings_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("user_settings 보장 실패: {}", err));
+    }
 
     let streaks_url = format!(
-        "{}/rest/v1/streaks",
+        "{}/rest/v1/streaks?on_conflict=user_id",
         state.config.supabase_url.trim_end_matches('/')
     );
 
-    let _ = state
+    let streaks_resp = state
         .http_client
         .post(&streaks_url)
         .header("apikey", &state.config.supabase_secret_key)
@@ -698,14 +775,20 @@ async fn ensure_public_user_exists(
             format!("Bearer {}", state.config.supabase_secret_key),
         )
         .header("Content-Type", "application/json")
-        .header("Prefer", "resolution=merge-duplicates")
+        .header("Prefer", "resolution=merge-duplicates,return=minimal")
         .json(&json!([{
             "user_id": user_id,
             "current_streak": 0,
             "longest_streak": 0
         }]))
         .send()
-        .await;
+        .await
+        .context("streaks 보장 실패")?;
+
+    if !streaks_resp.status().is_success() {
+        let err = streaks_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("streaks 보장 실패: {}", err));
+    }
 
     Ok(())
 }
@@ -827,6 +910,8 @@ async fn find_or_create_social_user(
     email: Option<&str>,
     nickname: Option<&str>,
 ) -> Result<(String, bool)> {
+
+    // 1️⃣ 기존 소셜 계정 찾기 (provider + provider_id)
     if let Some(existing_user_id) =
         find_public_user_by_provider(state, provider, provider_id).await?
     {
@@ -839,6 +924,32 @@ async fn find_or_create_social_user(
         return Ok((existing_user_id, false));
     }
 
+    // ⭐⭐⭐ 핵심 추가 로직 (구글만) ⭐⭐⭐
+    if provider == "google" {
+        if let Some(real_email) = email {
+
+            if let Some(existing_user_id) =
+                find_public_user_by_email(state, real_email).await?
+            {
+                tracing::info!(
+                    "기존 이메일 계정 발견 → 구글 연결: email={}, user_id={}",
+                    real_email,
+                    existing_user_id
+                );
+
+                // 기존 계정에 google provider 연결
+                link_google_to_existing_user(
+                    state,
+                    &existing_user_id,
+
+                ).await?;
+
+                return Ok((existing_user_id, false));
+            }
+        }
+    }
+
+    // 2️⃣ 신규 유저 생성
     let final_email = match email {
         Some(real_email) => real_email.to_string(),
         None => format!("{}@{}.local", provider_id, provider),
@@ -905,6 +1016,71 @@ async fn find_or_create_social_user(
     upsert_public_user_social_fields(state, &user_id, &final_email, provider, provider_id).await?;
 
     Ok((user_id, true))
+}
+
+async fn find_public_user_by_email(
+    state: &AppState,
+    email: &str,
+) -> Result<Option<String>> {
+    let email_encoded = urlencoding::encode(email);
+
+    let url = format!(
+        "{}/rest/v1/users?email=eq.{}&select=id&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        email_encoded
+    );
+
+    let resp = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await?;
+
+    let rows: Vec<UserRow> = resp.json().await?;
+
+    Ok(rows.into_iter().next().map(|row| row.id.to_string()))
+}
+
+async fn link_google_to_existing_user(
+    state: &AppState,
+    user_id: &str,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        urlencoding::encode(user_id)
+    );
+
+    let resp = state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=minimal")
+        .json(&json!({
+            "google_connected": true,
+            "updated_at": chrono::Utc::now(),
+            "is_active": true
+        }))
+        .send()
+        .await
+        .context("기존 유저에 google 연결 실패")?;
+
+    if !resp.status().is_success() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("기존 유저에 google 연결 실패: {}", err_text));
+    }
+
+    Ok(())
 }
 
 // public.users에서 provider + provider_id로 기존 계정 조회
@@ -1001,16 +1177,14 @@ async fn upsert_public_user_social_fields(
 // ═══════════════════════════════════════════════════════════════
 // 이메일 찾기
 // ═══════════════════════════════════════════════════════════════
-pub async fn find_email_by_phone(state: &AppState, phone: &str) -> Result<String> {
-    // 프론트에서 "01012345678" 또는 "010-1234-5678" 어떤 형식으로 와도
-    // DB 저장 형식인 "010-1234-5678"로 맞춰서 조회
+pub async fn find_email_by_phone(
+    state: &AppState,
+    phone: &str,
+) -> Result<(Option<String>, String, bool)> {
     let formatted_phone = format_phone(phone);
 
-    tracing::info!("이메일 찾기 요청 수신");
-
-
     let url = format!(
-        "{}/rest/v1/users?select=email&phone=eq.{}",
+        "{}/rest/v1/users?select=email,login_provider,google_connected&phone=eq.{}&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         formatted_phone
     );
@@ -1032,17 +1206,47 @@ pub async fn find_email_by_phone(state: &AppState, phone: &str) -> Result<String
         return Err(anyhow!("전화번호로 이메일 조회 실패: {}", err));
     }
 
-    let rows: Vec<Value> = resp.json().await.context("이메일 조회 응답 파싱 실패")?;
+    let rows: Vec<Value> = resp
+        .json()
+        .await
+        .context("이메일 조회 응답 파싱 실패")?;
 
-    let email = rows
+    let row = rows
         .first()
-        .and_then(|row| row.get("email"))
-        .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow!("입력한 정보와 일치하는 계정을 찾을 수 없습니다"))?;
 
-    Ok(mask_email(email))
-}
+    let provider = row
+        .get("login_provider")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
 
+    let google_connected = row
+        .get("google_connected")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let email = row
+        .get("email")
+        .and_then(|v| v.as_str());
+
+    match provider.as_str() {
+        "email" => {
+            let masked = email.map(mask_email);
+            Ok((masked, provider, google_connected))
+        }
+        "google" => {
+            let masked = email.map(mask_email);
+            Ok((masked, provider, google_connected))
+        }
+        "kakao" => {
+            Ok((None, provider, google_connected))
+        }
+        _ => {
+            Ok((None, provider, google_connected))
+        }
+    }
+}
 // ═══════════════════════════════════════════════════════════════
 // 이메일 존재 여부 확인
 // ═══════════════════════════════════════════════════════════════

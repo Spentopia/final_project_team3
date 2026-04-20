@@ -45,17 +45,9 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   // Supabase session의 access_token을 백엔드 앱 JWT로 교환
   const exchangeSupabaseToken = async (accessToken: string) => {
-    const res = await apiClient.post(
-      "/auth/exchange",
-      {
-        access_token: accessToken,
-      },
-      {
-        headers: {
-          "X-Client-Type": "web",
-        },
-      }
-    );
+    const res = await apiClient.post("/auth/exchange", {
+      access_token: accessToken,
+    });
 
     return res.data;
   };

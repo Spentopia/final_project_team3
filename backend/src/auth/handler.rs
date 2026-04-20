@@ -50,28 +50,25 @@ use crate::auth::service;
 use crate::state::AppState;
 use utoipa;
 
-/// 클라이언트 타입 판별
-///
-/// web/app 분기 기준:
-/// - X-Client-Type: web
-/// - X-Client-Type: app
-///
-/// 왜 필요하냐:
-/// - 웹은 refresh token을 쿠키로 내려줘야 하고
-/// - 앱은 refresh token을 body로 내려줘야 하기 때문
-///
-/// 기본값을 web으로 두는 이유:
-/// - 브라우저 쪽에서 헤더를 깜빡 빼먹어도
-///   최소한 웹 흐름으로는 동작하게 하기 위함
-fn resolve_client_type(headers: &HeaderMap) -> &'static str {
+fn ensure_app_request(headers: &HeaderMap) -> Result<(), (StatusCode, String)> {
+    if headers.contains_key("origin") {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "브라우저에서는 사용할 수 없는 앱 전용 인증 엔드포인트입니다.".to_string(),
+        ));
+    }
+
     match headers
         .get("x-client-type")
         .and_then(|v| v.to_str().ok())
         .map(|v| v.to_ascii_lowercase())
         .as_deref()
     {
-        Some("app") => "app",
-        _ => "web",
+        Some("app") => Ok(()),
+        _ => Err((
+            StatusCode::BAD_REQUEST,
+            "앱 전용 인증 요청에는 X-Client-Type: app 헤더가 필요합니다.".to_string(),
+        )),
     }
 }
 
@@ -251,11 +248,8 @@ pub async fn request_nonce(
 )]
 pub async fn wallet_login(
     State(state): State<AppState>,
-    headers: HeaderMap,
     Json(body): Json<WalletLoginRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
-    let client_type = resolve_client_type(&headers);
-
     // 필수 필드 비어있는지 체크
     if body.wallet_address.trim().is_empty() {
         tracing::warn!("지갑 로그인: 지갑 주소 비어있음");
@@ -284,7 +278,7 @@ pub async fn wallet_login(
         &body.wallet_address,
         &body.nonce,
         &body.signature,
-        client_type,
+        "web",
     )
     .await
     .map_err(|e| {
@@ -304,27 +298,68 @@ pub async fn wallet_login(
 
     tracing::info!("지갑 로그인 성공: wallet={}", body.wallet_address);
 
-    // 웹 / 앱 응답 분기
-    if client_type == "web" {
-        // 웹: refresh는 쿠키
-        let cookie_headers = build_refresh_cookie(&state, &response.refresh_token);
+    let cookie_headers = build_refresh_cookie(&state, &response.refresh_token);
 
-        let body = WebLoginResponse {
-            access_token: response.access_token,
-            is_new_user: response.is_new_user,
-        };
+    let body = WebLoginResponse {
+        access_token: response.access_token,
+        is_new_user: response.is_new_user,
+    };
 
-        Ok((cookie_headers, Json(serde_json::to_value(body).unwrap())))
-    } else {
-        // 앱: refresh도 body
-        let body = AppLoginResponse {
-            access_token: response.access_token,
-            refresh_token: response.refresh_token,
-            is_new_user: response.is_new_user,
-        };
+    Ok((cookie_headers, Json(serde_json::to_value(body).unwrap())))
+}
 
-        Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
+pub async fn wallet_login_app(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<WalletLoginRequest>,
+) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
+    ensure_app_request(&headers)?;
+
+    if body.wallet_address.trim().is_empty() {
+        tracing::warn!("앱 지갑 로그인: 지갑 주소 비어있음");
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "지갑 주소를 입력해 주세요.".to_string(),
+        ));
     }
+    if body.nonce.trim().is_empty() {
+        tracing::warn!("앱 지갑 로그인: nonce 비어있음");
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "nonce를 입력해 주세요.".to_string(),
+        ));
+    }
+    if body.signature.trim().is_empty() {
+        tracing::warn!("앱 지갑 로그인: 서명 비어있음");
+        return Err((StatusCode::BAD_REQUEST, "서명을 입력해 주세요.".to_string()));
+    }
+
+    let response = service::verify_and_login(
+        &state,
+        &body.wallet_address,
+        &body.nonce,
+        &body.signature,
+        "app",
+    )
+    .await
+    .map_err(|e| {
+        let msg = e.to_string();
+        if msg.contains("nonce") || msg.contains("서명") {
+            tracing::warn!("앱 지갑 로그인 실패 (클라이언트): {}", msg);
+            (StatusCode::UNAUTHORIZED, msg)
+        } else {
+            tracing::error!("앱 지갑 로그인 실패 (서버): {}", msg);
+            (StatusCode::INTERNAL_SERVER_ERROR, msg)
+        }
+    })?;
+
+    let body = AppLoginResponse {
+        access_token: response.access_token,
+        refresh_token: response.refresh_token,
+        is_new_user: response.is_new_user,
+    };
+
+    Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -352,7 +387,6 @@ pub async fn wallet_login(
 )]
 pub async fn exchange_token(
     State(state): State<AppState>,
-    headers: HeaderMap,
     Json(body): Json<ExchangeTokenRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     if body.access_token.trim().is_empty() {
@@ -362,34 +396,52 @@ pub async fn exchange_token(
         ));
     }
 
-    let client_type = resolve_client_type(&headers);
-
-    let issued = service::exchange_supabase_token(&state, &body.access_token, client_type)
+    let issued = service::exchange_supabase_token(&state, &body.access_token, "web")
         .await
         .map_err(|e| {
             tracing::error!("토큰 교환 실패: {}", e);
             (StatusCode::UNAUTHORIZED, e.to_string())
         })?;
 
-    if client_type == "web" {
-        let cookie_headers = build_refresh_cookie(&state, &issued.refresh_token);
-        tracing::debug!("토큰 교환 응답: web refresh 쿠키를 Set-Cookie로 반환");
+    let cookie_headers = build_refresh_cookie(&state, &issued.refresh_token);
+    tracing::debug!("토큰 교환 응답: web refresh 쿠키를 Set-Cookie로 반환");
 
-        let body = WebLoginResponse {
-            access_token: issued.access_token,
-            is_new_user: issued.is_new_user,
-        };
+    let body = WebLoginResponse {
+        access_token: issued.access_token,
+        is_new_user: issued.is_new_user,
+    };
 
-        Ok((cookie_headers, Json(serde_json::to_value(body).unwrap())))
-    } else {
-        let body = AppLoginResponse {
-            access_token: issued.access_token,
-            refresh_token: issued.refresh_token,
-            is_new_user: issued.is_new_user,
-        };
+    Ok((cookie_headers, Json(serde_json::to_value(body).unwrap())))
+}
 
-        Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
+pub async fn exchange_token_app(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<ExchangeTokenRequest>,
+) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
+    ensure_app_request(&headers)?;
+
+    if body.access_token.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "access_token을 입력해 주세요.".to_string(),
+        ));
     }
+
+    let issued = service::exchange_supabase_token(&state, &body.access_token, "app")
+        .await
+        .map_err(|e| {
+            tracing::error!("앱 토큰 교환 실패: {}", e);
+            (StatusCode::UNAUTHORIZED, e.to_string())
+        })?;
+
+    let body = AppLoginResponse {
+        access_token: issued.access_token,
+        refresh_token: issued.refresh_token,
+        is_new_user: issued.is_new_user,
+    };
+
+    Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -899,7 +951,7 @@ pub async fn find_email(
             (StatusCode::BAD_REQUEST, e.to_string())
         })?;
 
-    // 3) 기존 전화번호 검증
+    // 3) 전화번호 값 검사
     if body.phone.trim().is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -907,20 +959,44 @@ pub async fn find_email(
         ));
     }
 
-    // 4) 기존 이메일 찾기 로직 호출
-    // 여기 함수명은 네 service.rs에 맞춰 쓰면 됨
-    let masked_email = crate::auth::service::find_email_by_phone(
-        &state,
-        &body.phone,
-    )
-        .await
-        .map_err(|e| {
-            let msg = e.to_string();
-            tracing::warn!("이메일 찾기 실패: {}", msg);
-            (StatusCode::NOT_FOUND, msg)
-        })?;
+    // 4) service 호출
+    // 반환값:
+    // - masked_email
+    // - login_provider
+    // - google_connected
+    let (masked_email, provider, google_connected) =
+        crate::auth::service::find_email_by_phone(&state, &body.phone)
+            .await
+            .map_err(|e| {
+                let msg = e.to_string();
+                (StatusCode::NOT_FOUND, msg)
+            })?;
 
-    Ok(Json(FindEmailResponse { masked_email }))
+    // 5) 안내 메시지 생성
+    let message = match provider.as_str() {
+        "email" if google_connected => {
+            "이 계정은 이메일 로그인과 구글 로그인을 모두 사용할 수 있습니다."
+        }
+        "email" => {
+            "이메일 로그인 계정입니다."
+        }
+        "google" => {
+            "구글 로그인으로 가입된 계정입니다."
+        }
+        "kakao" => {
+            "카카오 로그인으로 가입된 계정입니다. 카카오 로그인을 이용해주세요."
+        }
+        _ => {
+            "로그인 방식 정보를 확인할 수 없습니다."
+        }
+    };
+
+    Ok(Json(FindEmailResponse {
+        masked_email,
+        login_provider: provider,
+        google_connected,
+        message: message.to_string(),
+    }))
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1118,9 +1194,7 @@ pub async fn kakao_login(
         return Err((StatusCode::UNAUTHORIZED, "유효하지 않은 로그인 요청입니다.".to_string()));
     }
 
-    let client_type = resolve_client_type(&headers);
-
-    let issued = service::kakao_login(&state, &body.code, client_type)
+    let issued = service::kakao_login(&state, &body.code, "web")
         .await
         .map_err(|e| {
             let msg = e.to_string();
@@ -1128,29 +1202,19 @@ pub async fn kakao_login(
             (StatusCode::INTERNAL_SERVER_ERROR, msg)
         })?;
 
-    if client_type == "web" {
-        let mut merged_headers = build_clear_kakao_state_cookie(&state);
-        let refresh_headers = build_refresh_cookie(&state, &issued.refresh_token);
+    let mut merged_headers = build_clear_kakao_state_cookie(&state);
+    let refresh_headers = build_refresh_cookie(&state, &issued.refresh_token);
 
-        for value in refresh_headers.get_all(SET_COOKIE).iter() {
-            merged_headers.append(SET_COOKIE, value.clone());
-        }
-
-        let body = WebLoginResponse {
-            access_token: issued.access_token,
-            is_new_user: issued.is_new_user,
-        };
-
-        Ok((merged_headers, Json(serde_json::to_value(body).unwrap())))
-    } else {
-        let body = AppLoginResponse {
-            access_token: issued.access_token,
-            refresh_token: issued.refresh_token,
-            is_new_user: issued.is_new_user,
-        };
-
-        Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
+    for value in refresh_headers.get_all(SET_COOKIE).iter() {
+        merged_headers.append(SET_COOKIE, value.clone());
     }
+
+    let body = WebLoginResponse {
+        access_token: issued.access_token,
+        is_new_user: issued.is_new_user,
+    };
+
+    Ok((merged_headers, Json(serde_json::to_value(body).unwrap())))
 }
 
 #[utoipa::path(
@@ -1205,57 +1269,65 @@ pub async fn kakao_start(
 pub async fn refresh_token(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(body): Json<RefreshRequest>,
+    Json(_body): Json<RefreshRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
-    let client_type = resolve_client_type(&headers);
-    tracing::debug!("refresh 요청 수신: client_type={}", client_type);
+    tracing::debug!("refresh 요청 수신: client_type=web");
 
-    let refresh_token = if client_type == "web" {
-        // 웹은 쿠키에서 읽음
-        extract_refresh_cookie(&headers).ok_or_else(|| {
-            (
-                StatusCode::UNAUTHORIZED,
-                "refresh 쿠키가 없습니다.".to_string(),
-            )
-        })?
-    } else {
-        // 앱은 body에서 읽음
-        body.refresh_token
-            .filter(|v| !v.trim().is_empty())
-            .ok_or_else(|| {
-                (
-                    StatusCode::BAD_REQUEST,
-                    "refresh_token을 입력해 주세요.".to_string(),
-                )
-            })?
-    };
+    let refresh_token = extract_refresh_cookie(&headers).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            "refresh 쿠키가 없습니다.".to_string(),
+        )
+    })?;
 
-    let rotated = service::rotate_refresh_token(&state, &refresh_token, client_type)
+    let rotated = service::rotate_refresh_token(&state, &refresh_token, "web")
         .await
         .map_err(|e| {
             tracing::warn!("refresh 실패: {}", e);
             (StatusCode::UNAUTHORIZED, e.to_string())
         })?;
 
-    if client_type == "web" {
-        // 웹은 새 refresh를 다시 쿠키로 넣음
-        let cookie_headers = build_refresh_cookie(&state, &rotated.refresh_token);
-        tracing::debug!("refresh 성공 응답: web refresh 쿠키 재발급");
+    let cookie_headers = build_refresh_cookie(&state, &rotated.refresh_token);
+    tracing::debug!("refresh 성공 응답: web refresh 쿠키 재발급");
 
-        let body = WebRefreshResponse {
-            access_token: rotated.access_token,
-        };
+    let body = WebRefreshResponse {
+        access_token: rotated.access_token,
+    };
 
-        Ok((cookie_headers, Json(serde_json::to_value(body).unwrap())))
-    } else {
-        // 앱은 새 access/refresh 둘 다 body
-        let body = AppRefreshResponse {
-            access_token: rotated.access_token,
-            refresh_token: rotated.refresh_token,
-        };
+    Ok((cookie_headers, Json(serde_json::to_value(body).unwrap())))
+}
 
-        Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
-    }
+pub async fn refresh_token_app(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<RefreshRequest>,
+) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
+    ensure_app_request(&headers)?;
+    tracing::debug!("refresh 요청 수신: client_type=app");
+
+    let refresh_token = body
+        .refresh_token
+        .filter(|v| !v.trim().is_empty())
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                "refresh_token을 입력해 주세요.".to_string(),
+            )
+        })?;
+
+    let rotated = service::rotate_refresh_token(&state, &refresh_token, "app")
+        .await
+        .map_err(|e| {
+            tracing::warn!("앱 refresh 실패: {}", e);
+            (StatusCode::UNAUTHORIZED, e.to_string())
+        })?;
+
+    let body = AppRefreshResponse {
+        access_token: rotated.access_token,
+        refresh_token: rotated.refresh_token,
+    };
+
+    Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1283,15 +1355,9 @@ pub async fn refresh_token(
 pub async fn logout(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(body): Json<RefreshRequest>,
+    Json(_body): Json<RefreshRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
-    let client_type = resolve_client_type(&headers);
-
-    let refresh_token = if client_type == "web" {
-        extract_refresh_cookie(&headers)
-    } else {
-        body.refresh_token
-    };
+    let refresh_token = extract_refresh_cookie(&headers);
 
     // refresh 토큰이 있다면 해당 세션 revoke 시도
     if let Some(token) = refresh_token {
@@ -1306,13 +1372,30 @@ pub async fn logout(
         }
     }
 
-    if client_type == "web" {
-        // 웹은 쿠키도 같이 지워야 함
-        let headers = build_clear_refresh_cookie(&state);
-        Ok((headers, Json(json!({ "logged_out": true }))))
-    } else {
-        Ok((HeaderMap::new(), Json(json!({ "logged_out": true }))))
+    let headers = build_clear_refresh_cookie(&state);
+    Ok((headers, Json(json!({ "logged_out": true }))))
+}
+
+pub async fn logout_app(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<RefreshRequest>,
+) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
+    ensure_app_request(&headers)?;
+
+    if let Some(token) = body.refresh_token {
+        if let Ok(claims) =
+            crate::auth::app_jwt::verify_app_refresh_token(&state.config.app_jwt_secret, &token)
+        {
+            if let Ok(session_id) = uuid::Uuid::parse_str(&claims.sid) {
+                let _ =
+                    crate::auth::refresh_store::revoke_refresh_session(&state, session_id, None)
+                        .await;
+            }
+        }
     }
+
+    Ok((HeaderMap::new(), Json(json!({ "logged_out": true }))))
 }
 
 fn build_kakao_state_cookie(app_state: &AppState, state: &str) -> HeaderMap {

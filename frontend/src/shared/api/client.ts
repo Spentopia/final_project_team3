@@ -80,8 +80,6 @@
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // 웹 프론트는 항상 web
-    config.headers["X-Client-Type"] = "web";
     return config;
   });
 

@@ -100,7 +100,10 @@ pub struct FindEmailRequest {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct FindEmailResponse {
-    pub masked_email: String,
+    pub masked_email: Option<String>,
+    pub login_provider: String,
+    pub google_connected: bool,
+    pub message: String,
 }
 
 // ── 이메일 존재 확인 ─────────────────────────────────────────

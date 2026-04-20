@@ -12,15 +12,7 @@ import { authStorage } from "@/shared/lib/auth";
 
 export async function initAuth(): Promise<boolean> {
   try {
-    const res = await apiClient.post(
-      "/auth/refresh",
-      {},
-      {
-        headers: {
-          "X-Client-Type": "web",
-        },
-      }
-    );
+    const res = await apiClient.post("/auth/refresh", {});
 
     authStorage.setToken(res.data.access_token);
     return true;
