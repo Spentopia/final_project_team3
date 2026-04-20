@@ -4,13 +4,14 @@
 //
 // 흐름:
 // 1) 유저가 이메일 입력 → "재설정 링크 보내기" 버튼 클릭
-// 2) 먼저 백엔드에서 해당 이메일이 DB에 있는지 확인
+// 2) Turnstile 사람 인증 통과
+// 3) 백엔드에서 해당 이메일이 DB에 있는지 확인
 //    (없는 이메일에 발송하는 걸 방지)
-// 3) DB에 있으면 Supabase가 비밀번호 재설정 링크를 이메일로 발송
-// 4) 해당 이메일 서비스 열기 버튼 + 안내 메시지 표시
-// 5) 유저가 이메일의 링크 클릭 → /reset-password 페이지로 이동
+// 4) DB에 있으면 Supabase가 비밀번호 재설정 링크를 이메일로 발송
+// 5) 해당 이메일 서비스 열기 버튼 + 안내 메시지 표시
+// 6) 유저가 이메일의 링크 클릭 → /reset-password 페이지로 이동
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { resetPassword } from "@/domains/auth/api/auth";
 import { validateEmail } from "@/domains/auth/lib/email";
@@ -39,16 +40,99 @@ function getMailService(email: string) {
   return MAIL_SERVICES[domain] ?? null;
 }
 
+// Turnstile 전역 타입 선언
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (
+        container: string | HTMLElement,
+        options: {
+          sitekey: string;
+          callback?: (token: string) => void;
+          "expired-callback"?: () => void;
+          "error-callback"?: () => void;
+        }
+      ) => string;
+      reset: (widgetId?: string) => void;
+      remove: (widgetId?: string) => void;
+    };
+  }
+}
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+
   // 이메일 발송 완료 여부 — true면 입력 폼 대신 안내 메시지 표시
   const [sent, setSent] = useState(false);
 
+  // Turnstile 토큰
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+
+  // 위젯 id / container ref
+  const widgetIdRef = useRef<string | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
   const mailService = getMailService(email);
 
+  // Turnstile 스크립트 로드 + 위젯 렌더
+  useEffect(() => {
+    const scriptId = "cf-turnstile-script";
+
+    const renderWidget = () => {
+      if (!window.turnstile || !containerRef.current || widgetIdRef.current) {
+        return;
+      }
+
+      widgetIdRef.current = window.turnstile.render(containerRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        callback: (token: string) => {
+          setCaptchaToken(token);
+        },
+        "expired-callback": () => {
+          setCaptchaToken(null);
+        },
+        "error-callback": () => {
+          setCaptchaToken(null);
+        },
+      });
+    };
+
+    const existingScript = document.getElementById(scriptId);
+    if (existingScript) {
+      renderWidget();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src =
+      "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.defer = true;
+    script.onload = renderWidget;
+    document.head.appendChild(script);
+
+    return () => {
+      if (widgetIdRef.current && window.turnstile) {
+        window.turnstile.remove(widgetIdRef.current);
+        widgetIdRef.current = null;
+      }
+    };
+  }, []);
+
+  const resetCaptcha = () => {
+    setCaptchaToken(null);
+
+    if (widgetIdRef.current && window.turnstile) {
+      window.turnstile.reset(widgetIdRef.current);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // form 기본 동작(페이지 새로고침) 방지
+    e.preventDefault();
 
     const emailError = validateEmail(email);
     if (emailError) {
@@ -56,19 +140,28 @@ export default function ForgotPasswordPage() {
       return;
     }
 
+    if (!captchaToken) {
+      alert("사람 인증을 먼저 완료해주세요.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // 1) 백엔드에서 이메일 존재 여부 확인
+      // 1) 백엔드에서 이메일 존재 여부 + Turnstile 검증
       // 2) 있으면 Supabase가 재설정 링크 이메일 발송
-      await resetPassword(email);
+      await resetPassword(email, captchaToken);
       setSent(true); // 발송 완료 → 안내 메시지로 전환
     } catch (error: any) {
       if (error.response?.status === 403) {
-        alert("소셜 로그인 계정은 비밀번호 재설정을 할 수 없습니다. 해당 소셜 로그인으로 다시 로그인해주세요.");
+        alert(
+          "소셜 로그인 계정은 비밀번호 재설정을 할 수 없습니다. 해당 소셜 로그인으로 다시 로그인해주세요."
+        );
       } else {
         alert(error.message || "이메일 발송 실패");
       }
+
+      resetCaptcha();
     } finally {
       setLoading(false);
     }
@@ -101,7 +194,9 @@ export default function ForgotPasswordPage() {
           {sent ? (
             <div className="space-y-4">
               <p className="text-center text-gray-600 dark:text-gray-400">
-                <span className="font-semibold text-cyan-600 dark:text-cyan-400">{email}</span>
+                <span className="font-semibold text-cyan-600 dark:text-cyan-400">
+                  {email}
+                </span>
                 으로
                 <br />
                 비밀번호 재설정 링크를 보냈습니다.
@@ -158,16 +253,24 @@ export default function ForgotPasswordPage() {
                 />
               </div>
 
+              {/* Turnstile 위젯 */}
+              <div className="pt-2">
+                <div ref={containerRef} />
+              </div>
+
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !captchaToken}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
               >
                 {loading ? "발송 중..." : "재설정 링크 보내기"}
               </Button>
 
               <div className="text-center">
-                <Link to="/login" className="text-sm text-gray-500 dark:text-gray-400 hover:text-cyan-600">
+                <Link
+                  to="/login"
+                  className="text-sm text-gray-500 dark:text-gray-400 hover:text-cyan-600"
+                >
                   로그인으로 돌아가기
                 </Link>
               </div>

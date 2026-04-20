@@ -11,6 +11,7 @@
 // - 프론트에 위젯만 띄우는 건 보안이 아님
 // - 실제로는 서버가 token을 검증해야 사람 인증이 완료된 것으로 본다
 
+use std::time::Duration;
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 
@@ -34,6 +35,7 @@ pub async fn verify_turnstile(
 
     let resp = http_client
         .post("https://challenges.cloudflare.com/turnstile/v0/siteverify")
+        .timeout(Duration::from_secs(3))
         .form(&form)
         .send()
         .await

@@ -1078,7 +1078,10 @@ pub async fn check_email_exists(state: &AppState, email: &str) -> Result<bool> {
     Ok(!rows.is_empty())
 }
 
-pub async fn can_reset_password(state: &AppState, email: &str) -> Result<bool> {
+pub async fn check_reset_password_email(
+    state: &AppState,
+    email: &str,
+) -> Result<bool> {
     let normalized_email = email.trim().to_lowercase();
     let encoded_email = urlencoding::encode(&normalized_email);
 
@@ -1110,13 +1113,28 @@ pub async fn can_reset_password(state: &AppState, email: &str) -> Result<bool> {
         .await
         .context("비밀번호 재설정 가능 여부 응답 파싱 실패")?;
 
-    let provider = rows
-        .first()
-        .and_then(|row| row.get("login_provider"))
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow!("입력한 정보와 일치하는 계정을 찾을 수 없습니다"))?;
+    // 계정 없음
+    let row = match rows.first() {
+        Some(row) => row,
+        None => return Ok(false),
+    };
 
-    Ok(provider == "email")
+    let provider = row
+        .get("login_provider")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_lowercase();
+
+    // 이메일 로그인 계정 → OK
+    if provider == "email" {
+        return Ok(true);
+    }
+
+    // 소셜 로그인 계정 → 에러로 보내서 handler에서 403 처리
+    Err(anyhow!(
+        "소셜 로그인 계정은 비밀번호 재설정을 할 수 없습니다"
+    ))
 }
 
 pub async fn check_profile_availability(

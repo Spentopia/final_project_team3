@@ -138,7 +138,7 @@ export const login = async (payload: LoginRequest): Promise<LoginResponse> => {
 };
 
 // 회원가입
-export const signUp = async (payload: SignUpRequest): Promise<LoginResponse> => {
+export const signUp = async (payload: SignUpRequest, captchaToken: string): Promise<LoginResponse> => {
   await clearAllAuthState();
   const normalizedEmail = normalizeEmail(payload.email);
 
@@ -149,6 +149,7 @@ export const signUp = async (payload: SignUpRequest): Promise<LoginResponse> => 
   try {
     const checkRes = await apiClient.post("/auth/check-email", {
       email: normalizedEmail,
+      captcha_token: captchaToken,
     });
  
     // 200이 왔다는 건 이메일이 존재한다는 뜻
@@ -278,12 +279,13 @@ export const checkProfileAvailability = async (params: {
 };
 
 // 비밀번호 재설정 메일 발송
-export const resetPassword = async (email: string) => {
+export const resetPassword = async (email: string, captchaToken: string) => {
   const normalizedEmail = normalizeEmail(email);
 
   try {
     await apiClient.post("/auth/check-reset-password-email", {
       email: normalizedEmail,
+      captcha_token: captchaToken,
     });
   } catch (error) {
     throw new Error(

@@ -5,6 +5,7 @@
 // Step 1: 이메일/비밀번호로 Supabase 회원가입
 //   - Confirm Email 켜져 있으면 accessToken 없이 끝날 수 있음
 //   - 그 경우 /signup-pending 으로 이동
+//   - 추가: Turnstile 사람 인증 통과 후에만 회원가입 진행
 //
 // Step 2: 닉네임 + 전화번호 + 프로필 이미지 입력
 //   - 프로필 이미지는 useProfileImage 훅으로 관리
@@ -15,7 +16,7 @@
 //   - 이미지가 선택되어 있으면 먼저 업로드 후 path를 받아서
 //   - completeProfile에 profileImage로 전달
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router";
 import { authStorage } from "@/shared/lib/auth";
 import {
@@ -24,10 +25,7 @@ import {
   checkProfileAvailability,
 } from "@/domains/auth/api/auth";
 import { validateEmail } from "@/domains/auth/lib/email";
-import {
-  PASSWORD_REQUIREMENTS_MESSAGE,
-  validatePassword,
-} from "@/domains/auth/lib/password";
+import { validatePassword } from "@/domains/auth/lib/password";
 import { useProfileImage } from "@/domains/auth/hooks/useProfileImage";
 import PasswordInput from "@/domains/auth/ui/PasswordInput";
 import ProfileImageUploader from "@/domains/auth/ui/ProfileImageUploader";
@@ -48,13 +46,32 @@ const avatarOptions = [
   { id: 6, name: "로봇", emoji: "🤖" },
 ];
 
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (
+        container: string | HTMLElement,
+        options: {
+          sitekey: string;
+          callback?: (token: string) => void;
+          "expired-callback"?: () => void;
+          "error-callback"?: () => void;
+        }
+      ) => string;
+      reset: (widgetId?: string) => void;
+      remove: (widgetId?: string) => void;
+    };
+  }
+}
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+
 export default function Signup() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
   // 프로필 이미지 훅
-  // 파일 선택, 미리보기, 업로드를 한꺼번에 관리
   const profileImage = useProfileImage();
 
   const [formData, setFormData] = useState({
@@ -65,6 +82,68 @@ export default function Signup() {
     nickname: "",
     avatar: 1,
   });
+
+  // Turnstile 상태
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const widgetIdRef = useRef<string | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Turnstile 스크립트 로드 + 위젯 렌더
+  useEffect(() => {
+    const scriptId = "cf-turnstile-script";
+
+    const renderWidget = () => {
+      // Step 1 화면이 아닐 때는 굳이 렌더 안 함
+      if (step !== 1) return;
+
+      if (!window.turnstile || !containerRef.current || widgetIdRef.current) {
+        return;
+      }
+
+      widgetIdRef.current = window.turnstile.render(containerRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        callback: (token: string) => {
+          setCaptchaToken(token);
+        },
+        "expired-callback": () => {
+          setCaptchaToken(null);
+        },
+        "error-callback": () => {
+          setCaptchaToken(null);
+        },
+      });
+    };
+
+    const existingScript = document.getElementById(scriptId);
+    if (existingScript) {
+      renderWidget();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src =
+      "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.defer = true;
+    script.onload = renderWidget;
+    document.head.appendChild(script);
+
+    return () => {
+      if (widgetIdRef.current && window.turnstile) {
+        window.turnstile.remove(widgetIdRef.current);
+        widgetIdRef.current = null;
+      }
+    };
+  }, [step]);
+
+  const resetCaptcha = () => {
+    setCaptchaToken(null);
+
+    if (widgetIdRef.current && window.turnstile) {
+      window.turnstile.reset(widgetIdRef.current);
+    }
+  };
 
   const handleNext = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -89,12 +168,20 @@ export default function Signup() {
         return;
       }
 
+      if (!captchaToken) {
+        alert("사람 인증을 먼저 완료해주세요.");
+        return;
+      }
+
       setLoading(true);
       try {
-        const result = await signUp({
-          email: formData.email,
-          password: formData.password,
-        });
+        const result = await signUp(
+          {
+            email: formData.email,
+            password: formData.password,
+          },
+          captchaToken
+        );
 
         // 이메일 인증이 필요한 경우
         // 아직 로그인 상태가 아니므로 Step2로 보내면 안 됨
@@ -110,6 +197,7 @@ export default function Signup() {
         setStep(2);
       } catch (error: any) {
         alert(error.message || "회원가입 실패");
+        resetCaptcha();
       } finally {
         setLoading(false);
       }
@@ -134,13 +222,8 @@ export default function Signup() {
     }
 
     // ── Step 3: 프로필 저장 ──────────────────────────────────
-    // 1) 선택된 이미지가 있으면 먼저 서버에 업로드
-    // 2) 업로드된 path를 completeProfile에 전달
-    // 3) 이미지를 선택하지 않았으면 profileImage 없이 진행
     setLoading(true);
     try {
-      // 이미지 업로드 (선택된 파일이 있을 때만 실제 업로드 실행)
-      // 없으면 null 반환
       const imagePath = await profileImage.upload();
 
       await completeProfile({
@@ -175,7 +258,9 @@ export default function Signup() {
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg">
               <Sparkles className="h-8 w-8 text-white" />
             </div>
-            <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">회원가입</h1>
+            <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
+              회원가입
+            </h1>
             <p className="text-center text-gray-600 dark:text-gray-400">
               Step {step} / 3
             </p>
@@ -220,7 +305,6 @@ export default function Signup() {
                     required
                     className="mt-1"
                   />
-                  
                 </div>
 
                 <div>
@@ -229,10 +313,17 @@ export default function Signup() {
                     id="confirmPassword"
                     placeholder="비밀번호를 다시 입력해주세요"
                     value={formData.confirmPassword}
-                    onChange={(e) => updateFormData("confirmPassword", e.target.value)}
+                    onChange={(e) =>
+                      updateFormData("confirmPassword", e.target.value)
+                    }
                     required
                     className="mt-1"
                   />
+                </div>
+
+                {/* Turnstile: Step 1에서만 표시 */}
+                <div className="pt-2">
+                  <div ref={containerRef} />
                 </div>
               </>
             )}
@@ -246,7 +337,9 @@ export default function Signup() {
                     type="tel"
                     placeholder="010-1234-5678"
                     value={formData.phone}
-                    onChange={(e) => updateFormData("phone", formatPhone(e.target.value))}
+                    onChange={(e) =>
+                      updateFormData("phone", formatPhone(e.target.value))
+                    }
                     required
                     maxLength={13}
                     className="mt-1"
@@ -260,16 +353,14 @@ export default function Signup() {
                     type="text"
                     placeholder="멋진 닉네임을 입력해주세요"
                     value={formData.nickname}
-                    onChange={(e) => updateFormData("nickname", e.target.value)}
+                    onChange={(e) =>
+                      updateFormData("nickname", e.target.value)
+                    }
                     required
                     className="mt-1"
                   />
                 </div>
 
-                {/* ── 프로필 이미지 업로드 ────────────────────── */}
-                {/* ProfileImageUploader 공통 컴포넌트 사용 */}
-                {/* 파일 선택만 하면 로컬 미리보기가 보이고, */}
-                {/* 실제 서버 업로드는 Step 3 완료 시 일괄 처리 */}
                 <div>
                   <Label>프로필 이미지 (선택)</Label>
                   <div className="mt-2">
@@ -317,9 +408,12 @@ export default function Signup() {
                 </div>
 
                 <div className="rounded-lg border border-cyan-200 dark:border-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 p-4">
-                  <p className="mb-2 font-bold text-purple-900 dark:text-purple-100">🎁 가입 축하 선물!</p>
+                  <p className="mb-2 font-bold text-purple-900 dark:text-purple-100">
+                    🎁 가입 축하 선물!
+                  </p>
                   <p className="text-sm text-purple-700 dark:text-purple-300">
-                    회원가입 완료 시 기본 아바타를 지급하고 프로필 설정을 바로 이어서 할 수 있어요.
+                    회원가입 완료 시 기본 아바타를 지급하고 프로필 설정을 바로 이어서
+                    할 수 있어요.
                   </p>
                 </div>
               </>
@@ -327,13 +421,23 @@ export default function Signup() {
 
             <div className="flex gap-3 pt-4">
               {step > 1 && (
-                <Button type="button" variant="outline" onClick={handleBack} className="flex-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBack}
+                  className="flex-1"
+                >
                   이전
                 </Button>
               )}
+
               <Button
                 type="submit"
-                disabled={loading || profileImage.uploading}
+                disabled={
+                  loading ||
+                  profileImage.uploading ||
+                  (step === 1 && !captchaToken)
+                }
                 className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
               >
                 {loading || profileImage.uploading

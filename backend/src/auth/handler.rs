@@ -38,7 +38,8 @@ use cookie::{Cookie, SameSite};
 use serde_json::json;
 
 use crate::auth::dto::{
-    AppLoginResponse, AppRefreshResponse, CheckEmailRequest, CheckProfileAvailabilityRequest,
+    AppLoginResponse, AppRefreshResponse, CheckEmailRequest, CheckEmailResponse,
+    CheckProfileAvailabilityRequest, CheckResetPasswordEmailRequest, CheckResetPasswordEmailResponse,
     CompleteProfileRequest, CompleteProfileResponse, ExchangeTokenRequest, FindEmailRequest,
     FindEmailResponse, KakaoLoginRequest, KakaoStartResponse, NonceRequest, NonceResponse,
     ProfileImageUrlQuery, ProfileImageUrlResponse, RefreshRequest, WalletLoginRequest,
@@ -938,29 +939,61 @@ pub async fn find_email(
 pub async fn check_email(
     State(state): State<AppState>,
     Json(body): Json<CheckEmailRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    if body.email.trim().is_empty() {
+) -> Result<Json<CheckEmailResponse>, (StatusCode, String)> {
+    // 1) captcha token 비어있는지 검사
+    if body.captcha_token.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "사람 인증이 필요합니다.".to_string(),
+        ));
+    }
+
+    // 2) Turnstile 검증
+    verify_turnstile(
+        &state.http_client,
+        &state.config.turnstile_secret_key,
+        &body.captcha_token,
+    )
+        .await
+        .map_err(|e| {
+            tracing::warn!("Turnstile 검증 실패(check_email): {}", e);
+            (
+                StatusCode::BAD_REQUEST,
+                "사람 인증 검증에 실패했습니다.".to_string(),
+            )
+        })?;
+
+    // 3) 이메일 값 검사
+    let email = body.email.trim().to_lowercase();
+    if email.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
             "이메일을 입력해 주세요.".to_string(),
         ));
     }
 
-    let exists = service::check_email_exists(&state, &body.email)
+    // 4) 기존 이메일 존재 확인 로직 호출
+    let exists = crate::auth::service::check_email_exists(&state, &email)
         .await
         .map_err(|e| {
-            tracing::error!("이메일 존재 확인 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+            tracing::warn!("이메일 중복 확인 실패: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "이메일 중복 확인에 실패했습니다.".to_string(),
+            )
         })?;
 
-    if !exists {
-        return Err((
+    // 프론트 기존 흐름 유지:
+    // - exists == true  -> 200 + { exists: true }
+    // - exists == false -> 404
+    if exists {
+        Ok(Json(CheckEmailResponse { exists: true }))
+    } else {
+        Err((
             StatusCode::NOT_FOUND,
-            "해당 이메일로 가입된 계정이 없습니다".to_string(),
-        ));
+            "가입 가능한 이메일입니다.".to_string(),
+        ))
     }
-
-    Ok(Json(json!({ "exists": true })))
 }
 
 #[utoipa::path(
@@ -976,36 +1009,74 @@ pub async fn check_email(
 )]
 pub async fn check_reset_password_email(
     State(state): State<AppState>,
-    Json(body): Json<CheckEmailRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    if body.email.trim().is_empty() {
+    Json(body): Json<CheckResetPasswordEmailRequest>,
+) -> Result<Json<CheckResetPasswordEmailResponse>, (StatusCode, String)> {
+    // 1) captcha token 비어있는지 검사
+    if body.captcha_token.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "사람 인증이 필요합니다.".to_string(),
+        ));
+    }
+
+    // 2) Turnstile 검증
+    verify_turnstile(
+        &state.http_client,
+        &state.config.turnstile_secret_key,
+        &body.captcha_token,
+    )
+        .await
+        .map_err(|e| {
+            tracing::warn!("Turnstile 검증 실패(check_reset_password_email): {}", e);
+            (
+                StatusCode::BAD_REQUEST,
+                "사람 인증 검증에 실패했습니다.".to_string(),
+            )
+        })?;
+
+    // 3) 이메일 값 검사
+    let email = body.email.trim().to_lowercase();
+    if email.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
             "이메일을 입력해 주세요.".to_string(),
         ));
     }
 
-    let can_reset = service::can_reset_password(&state, &body.email)
+    // 4) 기존 비밀번호 재설정 가능 여부 확인 로직 호출
+    //
+    // 여기 서비스 함수는 네 프로젝트 함수명에 맞게 바꾸면 됨.
+    // 기대하는 동작:
+    // - 일반 이메일 계정이고 존재함 -> Ok(true)
+    // - 존재하지 않음 -> Ok(false)
+    // - 소셜 로그인 계정이라 재설정 불가 -> Err(anyhow!("소셜 로그인 계정..."))
+    let exists = crate::auth::service::check_reset_password_email(&state, &email)
         .await
         .map_err(|e| {
             let msg = e.to_string();
+            tracing::warn!("비밀번호 재설정 이메일 확인 실패: {}", msg);
 
-            if msg.contains("입력한 정보와 일치하는 계정을 찾을 수 없습니다") {
-                return (StatusCode::NOT_FOUND, msg);
+            if msg.contains("소셜 로그인") {
+                (
+                    StatusCode::FORBIDDEN,
+                    "소셜 로그인 계정은 비밀번호 재설정을 할 수 없습니다. 해당 소셜 로그인으로 다시 로그인해주세요.".to_string(),
+                )
+            } else {
+                (
+                    StatusCode::NOT_FOUND,
+                    "입력한 정보와 일치하는 계정을 찾을 수 없습니다.".to_string(),
+                )
             }
-
-            tracing::error!("비밀번호 재설정 가능 여부 확인 실패: {}", msg);
-            (StatusCode::INTERNAL_SERVER_ERROR, msg)
         })?;
 
-    if !can_reset {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "자체 회원가입 계정만 비밀번호 재설정을 할 수 있습니다".to_string(),
-        ));
+    if exists {
+        Ok(Json(CheckResetPasswordEmailResponse { exists: true }))
+    } else {
+        Err((
+            StatusCode::NOT_FOUND,
+            "입력한 정보와 일치하는 계정을 찾을 수 없습니다.".to_string(),
+        ))
     }
-
-    Ok(Json(json!({ "exists": true, "can_reset_password": true })))
 }
 
 // ═══════════════════════════════════════════════════════════════

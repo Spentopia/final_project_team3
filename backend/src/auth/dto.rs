@@ -110,6 +110,25 @@ pub struct FindEmailResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CheckEmailRequest {
     pub email: String,
+    pub captcha_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CheckEmailResponse {
+    pub exists: bool,
+}
+
+// ── 비밀번호 재설정 이메일 확인 ──────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CheckResetPasswordEmailRequest {
+    pub email: String,
+    pub captcha_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CheckResetPasswordEmailResponse {
+    pub exists: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
