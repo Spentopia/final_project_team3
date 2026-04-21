@@ -361,7 +361,7 @@ pub enum ReceiptLimitError {
 pub async fn check_receipt_limit(
     state: &AppState,
     user_id: Uuid,
-    expense_id: Uuid,
+    expense_id: Option<Uuid>,
 ) -> Result<(), ReceiptLimitError> {
     let base_url = state.config.supabase_url.trim_end_matches('/');
     let key = &state.config.supabase_secret_key;
@@ -400,27 +400,29 @@ pub async fn check_receipt_limit(
     }
 
     // ── expense_id 중복 체크 ──
-    let dup_url = format!(
-        "{}/rest/v1/receipts?expense_id=eq.{}&select=id&limit=1",
-        base_url, expense_id
-    );
+    if let Some(expense_id) = expense_id {
+        let dup_url = format!(
+            "{}/rest/v1/receipts?expense_id=eq.{}&select=id&limit=1",
+            base_url, expense_id
+        );
 
-    let dup_res = state
-        .http_client
-        .get(&dup_url)
-        .header("Authorization", format!("Bearer {}", key))
-        .header("apikey", key.as_str())
-        .send()
-        .await
-        .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
-
-    if dup_res.status().is_success() {
-        let rows: Vec<serde_json::Value> = dup_res
-            .json()
+        let dup_res = state
+            .http_client
+            .get(&dup_url)
+            .header("Authorization", format!("Bearer {}", key))
+            .header("apikey", key.as_str())
+            .send()
             .await
             .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
-        if !rows.is_empty() {
-            return Err(ReceiptLimitError::Duplicate);
+
+        if dup_res.status().is_success() {
+            let rows: Vec<serde_json::Value> = dup_res
+                .json()
+                .await
+                .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
+            if !rows.is_empty() {
+                return Err(ReceiptLimitError::Duplicate);
+            }
         }
     }
 
