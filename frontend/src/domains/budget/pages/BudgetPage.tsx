@@ -272,7 +272,7 @@ export default function Budget() {
                 value={[customBudget.food]}
                 onValueChange={([value]) => setCustomBudget({ ...customBudget, food: value })}
                 min={0}
-                max={500000}
+                max={10000000}
                 step={10000}
               />
             </div>
@@ -291,7 +291,7 @@ export default function Budget() {
                 value={[customBudget.transport]}
                 onValueChange={([value]) => setCustomBudget({ ...customBudget, transport: value })}
                 min={0}
-                max={300000}
+                max={10000000}
                 step={10000}
               />
             </div>
@@ -310,7 +310,7 @@ export default function Budget() {
                 value={[customBudget.living]}
                 onValueChange={([value]) => setCustomBudget({ ...customBudget, living: value })}
                 min={0}
-                max={500000}
+                max={10000000}
                 step={10000}
               />
             </div>
@@ -329,7 +329,7 @@ export default function Budget() {
                 value={[customBudget.leisure]}
                 onValueChange={([value]) => setCustomBudget({ ...customBudget, leisure: value })}
                 min={0}
-                max={500000}
+                max={10000000}
                 step={10000}
               />
             </div>

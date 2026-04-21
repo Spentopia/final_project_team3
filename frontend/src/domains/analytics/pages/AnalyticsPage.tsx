@@ -96,6 +96,7 @@ export default function Analytics() {
   const thisMonthTransactions = transactions.filter((t: any) => {
     const date = new Date(t.date);
     return (
+      (t.type ?? "expense") === "expense" &&
       date.getFullYear() === now.getFullYear() &&
       date.getMonth() === now.getMonth()
     );

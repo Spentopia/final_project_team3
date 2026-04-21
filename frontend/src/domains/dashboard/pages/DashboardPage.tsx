@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFinance } from "@/shared/providers/FinanceProvider";
 
 import { Calendar } from "@/shared/ui/calendar";
@@ -74,17 +74,49 @@ const incomeCategories = [
 ];
 
 export default function DashboardPage() {
-  const { budget } = useFinance();
+  const { budget, transactions, addTransaction, removeTransaction } = useFinance();
+  const draftStorageKey = "dashboard-expense-draft";
+  const selectedDateStorageKey = "dashboard-selected-date";
+  const entryTypeStorageKey = "dashboard-entry-type";
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [entryType, setEntryType] = useState<"expense" | "income">("expense");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
+    const saved = localStorage.getItem(selectedDateStorageKey);
+    if (!saved) return new Date();
 
-  const [newExpense, setNewExpense] = useState({
-    amount: "",
-    category: "",
-    memo: "",
-    diary: "",
+    const parsed = parse(saved, "yyyy-MM-dd", new Date());
+    return isValid(parsed) ? parsed : new Date();
+  });
+  const [entryType, setEntryType] = useState<"expense" | "income">(() => {
+    const saved = localStorage.getItem(entryTypeStorageKey);
+    return saved === "income" ? "income" : "expense";
+  });
+  const [newExpense, setNewExpense] = useState(() => {
+    const saved = localStorage.getItem(draftStorageKey);
+    if (!saved) {
+      return {
+        amount: "",
+        category: "",
+        memo: "",
+        diary: "",
+      };
+    }
+
+    try {
+      const parsed = JSON.parse(saved);
+      return {
+        amount: typeof parsed.amount === "string" ? parsed.amount : "",
+        category: typeof parsed.category === "string" ? parsed.category : "",
+        memo: typeof parsed.memo === "string" ? parsed.memo : "",
+        diary: typeof parsed.diary === "string" ? parsed.diary : "",
+      };
+    } catch {
+      return {
+        amount: "",
+        category: "",
+        memo: "",
+        diary: "",
+      };
+    }
   });
 
   const resetForm = () => {
@@ -99,6 +131,23 @@ export default function DashboardPage() {
     setOcrError("");
     setIsReceiptVerified(false);
   };
+
+  useEffect(() => {
+    localStorage.setItem(draftStorageKey, JSON.stringify(newExpense));
+  }, [newExpense]);
+
+  useEffect(() => {
+    if (!selectedDate) {
+      localStorage.removeItem(selectedDateStorageKey);
+      return;
+    }
+
+    localStorage.setItem(selectedDateStorageKey, format(selectedDate, "yyyy-MM-dd"));
+  }, [selectedDate]);
+
+  useEffect(() => {
+    localStorage.setItem(entryTypeStorageKey, entryType);
+  }, [entryType]);
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -178,7 +227,14 @@ export default function DashboardPage() {
         type: "income",
       };
 
-      setExpenses((prev) => [income, ...prev]);
+      addTransaction({
+        id: income.id,
+        date: format(income.date, "yyyy-MM-dd"),
+        amount: income.amount,
+        category: income.category,
+        memo: income.memo,
+        type: income.type,
+      });
       setSelectedDate(income.date);
       toast.success("수입 입력 완료");
       resetForm();
@@ -206,7 +262,16 @@ export default function DashboardPage() {
 
       const expense = toDashboardExpense(savedExpense);
 
-      setExpenses((prev) => [expense, ...prev]);
+      addTransaction({
+        id: String(expense.id),
+        date: format(expense.date, "yyyy-MM-dd"),
+        amount: expense.amount,
+        category: expense.category,
+        memo: expense.memo,
+        type: expense.type,
+        receipt: expense.receipt,
+        diary: expense.diary,
+      });
       setSelectedDate(expense.date);
 
       let reward = 10;
@@ -226,7 +291,7 @@ export default function DashboardPage() {
   };
 
   const handleDeleteExpense = (id: string | number) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    removeTransaction(id);
     toast.success("삭제되었습니다");
   };
 
@@ -242,6 +307,17 @@ export default function DashboardPage() {
       setSelectedDate(nextDate);
     }
   };
+
+  const expenses = transactions.map((transaction) => ({
+    id: transaction.id ?? `tx-${transaction.date ?? "unknown"}-${transaction.amount}`,
+    date: parse(transaction.date ?? format(new Date(), "yyyy-MM-dd"), "yyyy-MM-dd", new Date()),
+    amount: transaction.amount,
+    category: transaction.category ?? "other",
+    memo: transaction.memo ?? "",
+    type: transaction.type ?? "expense",
+    receipt: transaction.receipt,
+    diary: transaction.diary,
+  }));
 
   const selectedDateExpenses = expenses.filter(
     (e) => format(e.date, "yyyy-MM-dd") === format(selectedDate || new Date(), "yyyy-MM-dd")

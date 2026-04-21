@@ -42,8 +42,25 @@ fun AppNavGraph(
     val navBackStackEntry = navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry.value?.destination?.route
 
+    // ------------------------------------------------------------
+    // 현재 로그인 사용자 id라고 가정하는 임시 값입니다.
+    // 아직 로그인 사용자 정보 연결 전이므로 문자열로만 사용합니다.
+    // 나중에는 실제 로그인한 사용자 id로 바꿔주면 됩니다.
+    // ------------------------------------------------------------
     val currentUserId = "current_user"
 
+    // ------------------------------------------------------------
+    // communityPosts:
+    // 커뮤니티 게시글 전체 상태를 이곳에서 관리합니다.
+    //
+    // 왜 여기서 관리하나요?
+    // - CommunityScreen은 목록을 보여주는 화면
+    // - CommunityDetailScreen은 상세를 보여주는 화면
+    // - CommunityWriteScreen은 새 글을 입력하는 화면
+    //
+    // 이 3개 화면이 같은 게시글 데이터를 함께 써야 하므로
+    // 공통 부모인 AppNavGraph에서 상태를 들고 있어야 합니다.
+    // ------------------------------------------------------------
     val communityPosts = remember {
         mutableStateListOf<CommunityPost>().apply {
             addAll(getInitialCommunityPosts())
@@ -149,7 +166,6 @@ fun AppNavGraph(
                         },
 
                         // ❌ 회원가입 완전 제거
-
                         walletActivityResultSender = walletActivityResultSender,
 
                         // 🔥 지갑 주소 + 지갑 종류 같이 받음
@@ -200,7 +216,7 @@ fun AppNavGraph(
                 composable(Route.Plaza.route) { PlazaScreen() }
 
                 // ================================
-                // 커뮤니티
+                // 커뮤니티 메인 화면
                 // ================================
                 composable(Route.Community.route) {
                     CommunityScreen(
@@ -217,10 +233,14 @@ fun AppNavGraph(
                     )
                 }
 
+                // ================================
+                // 커뮤니티 글쓰기 화면
+                // ================================
                 composable(Route.CommunityWrite.route) {
                     CommunityWriteScreen(
                         onBackClick = { navController.popBackStack() },
                         onSubmitClick = { category, title, content ->
+                            // 새 게시글 id를 만들기 위해 현재 최대 id + 1 을 사용합니다.
                             val nextId = (communityPosts.maxOfOrNull { it.id } ?: 0) + 1
 
                             val newPost = CommunityPost(
@@ -238,29 +258,171 @@ fun AppNavGraph(
                                 isLiked = false
                             )
 
+                            // 맨 앞에 새 글을 추가합니다.
                             communityPosts.add(0, newPost)
+
+                            // 글 작성이 끝나면 이전 화면으로 돌아갑니다.
                             navController.popBackStack()
                         }
                     )
                 }
 
+                // ================================
+                // 커뮤니티 상세 화면
+                // ================================
                 composable(
                     route = Route.CommunityDetail.route,
                     arguments = listOf(navArgument("postId") { type = NavType.IntType })
                 ) { backStackEntry ->
 
                     val postId = backStackEntry.arguments?.getInt("postId") ?: -1
+
+                    // ------------------------------------------------------------
+                    // selectedPost:
+                    // 현재 선택한 게시글 id에 맞는 "최신 게시글"을
+                    // communityPosts 리스트에서 다시 찾습니다.
+                    //
+                    // - 좋아요/댓글/수정/삭제가 일어나면 communityPosts가 바뀝니다.
+                    // - 그러면 여기서 다시 찾은 selectedPost도 최신값이 됩니다.
+                    // - 그래서 상세 화면이 자동으로 최신 데이터로 다시 그려집니다.
+                    // ------------------------------------------------------------
                     val selectedPost = communityPosts.find { it.id == postId }
 
                     CommunityDetailScreen(
                         post = selectedPost,
                         onBackClick = { navController.popBackStack() },
-                        onUpdateClick = {},
-                        onDeleteClick = {},
-                        onToggleLikeClick = {},
-                        onAddCommentClick = { _, _ -> },
-                        onUpdateCommentClick = { _, _, _ -> },
-                        onDeleteCommentClick = { _, _ -> }
+
+                        // --------------------------------------------------------
+                        // 게시글 수정
+                        // --------------------------------------------------------
+                        onUpdateClick = { updatedPost ->
+                            val index = communityPosts.indexOfFirst { it.id == updatedPost.id }
+
+                            if (index != -1) {
+                                // 기존 댓글/좋아요 상태가 유지되도록
+                                // 넘어온 updatedPost로 해당 위치만 교체합니다.
+                                communityPosts[index] = updatedPost
+                            }
+                        },
+
+                        // --------------------------------------------------------
+                        // 게시글 삭제
+                        // --------------------------------------------------------
+                        onDeleteClick = { deletePostId ->
+                            val index = communityPosts.indexOfFirst { it.id == deletePostId }
+
+                            if (index != -1) {
+                                communityPosts.removeAt(index)
+                            }
+
+                            // 삭제 후에는 상세 화면에 남아 있을 수 없으므로 뒤로 이동합니다.
+                            navController.popBackStack()
+                        },
+
+                        // --------------------------------------------------------
+                        // 좋아요 토글
+                        // --------------------------------------------------------
+                        onToggleLikeClick = { targetPostId ->
+                            val index = communityPosts.indexOfFirst { it.id == targetPostId }
+
+                            if (index != -1) {
+                                val oldPost = communityPosts[index]
+
+                                val newIsLiked = !oldPost.isLiked
+
+                                // 초보자용 설명:
+                                // 이미 좋아요를 누른 상태였다면 취소이므로 -1
+                                // 아직 안 눌렀다면 새로 누르는 것이므로 +1
+                                val newLikeCount = if (oldPost.isLiked) {
+                                    (oldPost.likeCount - 1).coerceAtLeast(0)
+                                } else {
+                                    oldPost.likeCount + 1
+                                }
+
+                                communityPosts[index] = oldPost.copy(
+                                    isLiked = newIsLiked,
+                                    likeCount = newLikeCount
+                                )
+                            }
+                        },
+
+                        // --------------------------------------------------------
+                        // 댓글 추가
+                        // --------------------------------------------------------
+                        onAddCommentClick = { targetPostId, newCommentText ->
+                            val postIndex = communityPosts.indexOfFirst { it.id == targetPostId }
+
+                            if (postIndex != -1) {
+                                val oldPost = communityPosts[postIndex]
+
+                                // 댓글 id는 현재 댓글들 중 최대값 + 1
+                                val nextCommentId =
+                                    (oldPost.comments.maxOfOrNull { it.id } ?: 0) + 1
+
+                                val newComment = CommunityComment(
+                                    id = nextCommentId,
+                                    authorId = currentUserId,
+                                    author = "현재사용자",
+                                    content = newCommentText,
+                                    timeText = "방금 전"
+                                )
+
+                                val updatedComments = oldPost.comments + newComment
+
+                                communityPosts[postIndex] = oldPost.copy(
+                                    comments = updatedComments,
+                                    commentCount = updatedComments.size
+                                )
+                            }
+                        },
+
+                        // --------------------------------------------------------
+                        // 댓글 수정
+                        // --------------------------------------------------------
+                        onUpdateCommentClick = { targetPostId, commentId, updatedText ->
+                            val postIndex = communityPosts.indexOfFirst { it.id == targetPostId }
+
+                            if (postIndex != -1) {
+                                val oldPost = communityPosts[postIndex]
+
+                                val updatedComments = oldPost.comments.map { comment ->
+                                    if (comment.id == commentId && comment.authorId == currentUserId) {
+                                        comment.copy(
+                                            content = updatedText,
+                                            timeText = "방금 전"
+                                        )
+                                    } else {
+                                        comment
+                                    }
+                                }
+
+                                communityPosts[postIndex] = oldPost.copy(
+                                    comments = updatedComments,
+                                    commentCount = updatedComments.size
+                                )
+                            }
+                        },
+
+                        // --------------------------------------------------------
+                        // 댓글 삭제
+                        // --------------------------------------------------------
+                        onDeleteCommentClick = { targetPostId, commentId ->
+                            val postIndex = communityPosts.indexOfFirst { it.id == targetPostId }
+
+                            if (postIndex != -1) {
+                                val oldPost = communityPosts[postIndex]
+
+                                // 내 댓글만 삭제되도록 한 번 더 안전하게 검사합니다.
+                                val updatedComments = oldPost.comments.filterNot { comment ->
+                                    comment.id == commentId && comment.authorId == currentUserId
+                                }
+
+                                communityPosts[postIndex] = oldPost.copy(
+                                    comments = updatedComments,
+                                    commentCount = updatedComments.size
+                                )
+                            }
+                        }
                     )
                 }
             }
