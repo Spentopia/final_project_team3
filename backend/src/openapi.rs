@@ -81,11 +81,6 @@ use crate::wallet;
         crate::report::handler::generate_report,
         crate::report::handler::list_reports,
 
-        // ── 보상 ──────────────────────────────────────────────
-        crate::reward::handler::list_rewards,
-        crate::reward::handler::get_streak,
-        crate::reward::handler::get_weekly_scores,
-
         // ── 아바타 ────────────────────────────────────────────
         crate::avatar::handler::mint_nft,
         crate::avatar::handler::transfer_nft,

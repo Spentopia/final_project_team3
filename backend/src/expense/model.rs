@@ -18,6 +18,7 @@ pub struct Expense {
     pub memo: Option<String>,
     pub one_line_diary: Option<String>,
     pub source: Option<String>, // manual / auto
+    pub receipt_verified: Option<bool>,
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -27,6 +28,7 @@ pub struct Expense {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Receipt {
     pub id: Uuid,
+    pub user_id: Uuid,
     pub expense_id: Uuid,
     pub image_url: String,
     pub is_verified: Option<bool>,
