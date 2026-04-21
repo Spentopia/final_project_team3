@@ -141,17 +141,54 @@ pub async fn link_wallet(
     Ok(())
 }
 
+fn verify_wallet_nonce_and_signature(
+    state: &AppState,
+    wallet_address: &str,
+    nonce: &str,
+    signature: &str,
+) -> Result<()> {
+    let entry = state
+        .nonce_store
+        .get(wallet_address)
+        .ok_or_else(|| anyhow!("nonce가 없거나 만료되었습니다. 다시 시도해 주세요."))?;
+
+    if SystemTime::now() > entry.expires_at {
+        drop(entry);
+        state.nonce_store.remove(wallet_address);
+        return Err(anyhow!("nonce가 만료되었습니다. 다시 시도해 주세요."));
+    }
+
+    if entry.nonce != nonce {
+        return Err(anyhow!("nonce가 일치하지 않습니다."));
+    }
+
+    drop(entry);
+    state.nonce_store.remove(wallet_address);
+
+    verify_solana_signature_pub(wallet_address, nonce, signature)?;
+
+    Ok(())
+}
+
 // unlink_wallet - 지갑 해제
 //
 // ■ 처리 순서
 //  1) 연동 여부 확인 → 실제로 지갑이 연동된 유저인지 체크
-//  2) DB 업데이트 → wallet_address 컬럼을 NULL로 초기화
-pub async fn unlink_wallet(state: &AppState, user_id: Uuid) -> Result<()> {
+//  2) 요청 지갑 주소가 DB에 연동된 주소와 일치하는지 확인
+//  3) nonce + 서명 검증 → access token만으로 해제하지 못하게 함
+//  4) DB 업데이트 → wallet_address 컬럼을 NULL로 초기화
+pub async fn unlink_wallet(
+    state: &AppState,
+    user_id: Uuid,
+    wallet_address: &str,
+    nonce: &str,
+    signature: &str,
+) -> Result<()> {
     // 1) 연동 여부 확인
     //  public.users에서 이 user_id의 wallet_address가 NULL인지 확인
     //  wallet_address=is.null 필터: IS NULL 조건
     let url = format!(
-        "{}/rest/v1/users?id=eq.{}&wallet_address=not.is.null&select=id",
+        "{}/rest/v1/users?id=eq.{}&wallet_address=not.is.null&select=id,wallet_address",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
@@ -172,9 +209,17 @@ pub async fn unlink_wallet(state: &AppState, user_id: Uuid) -> Result<()> {
     let rows: Vec<serde_json::Value> =
         resp.json().await.context("지갑 연동 여부 JSON 파싱 실패")?;
 
-    if rows.is_empty() {
-        return Err(anyhow!("연동된 지갑이 없습니다."));
+    let linked_wallet_address = rows
+        .first()
+        .and_then(|row| row.get("wallet_address"))
+        .and_then(|value| value.as_str())
+        .ok_or_else(|| anyhow!("연동된 지갑이 없습니다."))?;
+
+    if linked_wallet_address != wallet_address {
+        return Err(anyhow!("연동된 지갑 주소와 서명 지갑 주소가 일치하지 않습니다."));
     }
+
+    verify_wallet_nonce_and_signature(state, wallet_address, nonce, signature)?;
 
     // 2) DB 업데이트 (wallet_address → NULL)
     let url = format!(

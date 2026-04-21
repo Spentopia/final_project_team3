@@ -43,6 +43,12 @@ export interface LinkWalletRequest{
     signature: string;
 }
 
+export interface UnlinkWalletRequest {
+    wallet_address: string;
+    nonce: string;
+    signature: string;
+}
+
 // 지갑 연동 성공 응답 DTO
 export interface LinkWalletResponse {
     wallet_address: string;
