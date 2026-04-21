@@ -5,11 +5,11 @@
 // ── 보호 라우트: JWT 필수. jwt_middleware를 통과해야 핸들러에 도달
 
 use axum::{
-    Router, middleware,
+    middleware, Router,
     routing::{delete, get, patch, post},
 };
 use std::sync::Arc;
-use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
+use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -93,10 +93,7 @@ pub fn create_router(state: AppState) -> Router {
         // ── handoff 발급 (보호) ─────────────────────────────
         // 웹에서 "게임 시작" 클릭 시 호출
         // JWT 필수 → 누구의 handoff인지 알아야 하니까
-        .route(
-            "/auth/handoff",
-            post(auth::handler::create_handoff),
-        )
+        .route("/auth/handoff", post(auth::handler::create_handoff))
         // ── 지갑 연동 ──────────────────────────────────────
         .route("/wallet/link", post(wallet::handler::link_wallet))
         .route("/wallet/unlink", delete(wallet::handler::unlink_wallet))
@@ -110,19 +107,13 @@ pub fn create_router(state: AppState) -> Router {
             "/api/expenses",
             get(expense::handler::list_expenses).post(expense::handler::create_expense),
         )
-        .route("/api/expenses/:expense_id", delete(expense::handler::delete_expense))
         .route(
-            "/api/receipt/ocr",
-            post(expense::handler::verify_receipt_ocr),
+            "/api/expenses/:expense_id",
+            delete(expense::handler::delete_expense),
         )
-        .route(
-            "/api/receipt/ocr/",
-            post(expense::handler::verify_receipt_ocr),
-        )
-        .route(
-            "/api/v1/receipt/ocr",
-            post(expense::handler::verify_receipt_ocr),
-        )
+        .route("/api/receipt/ocr", post(expense::handler::verify_receipt_ocr))
+        .route("/api/receipt/ocr/", post(expense::handler::verify_receipt_ocr))
+        .route("/api/v1/receipt/ocr", post(expense::handler::verify_receipt_ocr))
         // ── 예산 ──────────────────────────────────────────
         .route("/api/budget", get(budget::handler::get_budget))
         .route("/api/budget", post(budget::handler::create_budget))
@@ -210,8 +201,6 @@ pub fn create_router(state: AppState) -> Router {
             auth::middleware::jwt_middleware,
         ));
 
-// ── 어드민 전용 라우트 ───────────────────────────────────
-let admin_routes = Router::new();
     // ── 합치기 ──────────────────────────────────────────────
     Router::new()
         .merge(public_routes)

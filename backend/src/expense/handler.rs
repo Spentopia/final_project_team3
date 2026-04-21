@@ -17,7 +17,7 @@ use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct ReceiptOcrQuery {
-    pub expense_id: Uuid,
+    pub expense_id: Option<Uuid>,
 }
 
 #[utoipa::path(
@@ -121,7 +121,7 @@ pub async fn verify_receipt_ocr(
     Query(query): Query<ReceiptOcrQuery>,
     multipart: Multipart,
 ) -> impl IntoResponse {
-    // 하루 3건 제한 + expense_id 중복 체크
+    // 하루 3건 제한은 항상 적용하고, expense_id가 있을 때만 중복 체크한다.
     match service::check_receipt_limit(&state, user_id, query.expense_id).await {
         Ok(()) => {}
         Err(service::ReceiptLimitError::TooMany) => {
