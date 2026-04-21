@@ -1,8 +1,14 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
-type Transaction = {
+export type Transaction = {
+  id?: string | number;
+  date?: string;
   amount: number;
   category?: string;
+  memo?: string;
+  type?: "expense" | "income";
+  receipt?: boolean;
+  diary?: string;
 };
 
 type FinanceContextType = {
@@ -10,52 +16,59 @@ type FinanceContextType = {
   setBudget: (b: number) => void;
   transactions: Transaction[];
   addTransaction: (t: Transaction) => void;
+  removeTransaction: (id: string | number) => void;
 };
 
 const FinanceContext = createContext<FinanceContextType | null>(null);
 
-export const FinanceProvider = ({ children }: { children: React.ReactNode }) => {
-  // ✅ budget
-  const [budget, setBudgetState] = useState(500000);
-
-  // ✅ transactions
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+const readStoredTransactions = (): Transaction[] => {
   const saved = localStorage.getItem("transactions");
-  return saved ? JSON.parse(saved) : [];
-});
+  if (!saved) return [];
 
-  // 🔥 최초 로딩 시 localStorage에서 불러오기
+  try {
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+export const FinanceProvider = ({ children }: { children: React.ReactNode }) => {
+  const [budget, setBudgetState] = useState(500000);
+  const [transactions, setTransactions] = useState<Transaction[]>(readStoredTransactions);
+
   useEffect(() => {
     const savedBudget = localStorage.getItem("budget");
-    const savedTransactions = localStorage.getItem("transactions");
 
     if (savedBudget) {
       setBudgetState(Number(savedBudget));
     }
-
-    if (savedTransactions) {
-      setTransactions(JSON.parse(savedTransactions));
-    }
   }, []);
 
-  // 🔥 budget 저장
   const setBudget = (b: number) => {
     setBudgetState(b);
     localStorage.setItem("budget", String(b));
   };
 
-  // 🔥 transaction 저장
   const addTransaction = (tx: Transaction) => {
-  setTransactions((prev) => {
-    const updated = [...prev, tx];
-    localStorage.setItem("transactions", JSON.stringify(updated));
-    return updated;
-  });
-};
+    setTransactions((prev) => {
+      const updated = [tx, ...prev];
+      localStorage.setItem("transactions", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const removeTransaction = (id: string | number) => {
+    setTransactions((prev) => {
+      const updated = prev.filter((tx) => tx.id !== id);
+      localStorage.setItem("transactions", JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   return (
     <FinanceContext.Provider
-      value={{ budget, setBudget, transactions, addTransaction }}
+      value={{ budget, setBudget, transactions, addTransaction, removeTransaction }}
     >
       {children}
     </FinanceContext.Provider>
