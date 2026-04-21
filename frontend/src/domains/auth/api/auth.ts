@@ -141,6 +141,11 @@ export const signUp = async (payload: SignUpRequest, captchaToken: string): Prom
   await clearAllAuthState();
   const normalizedEmail = normalizeEmail(payload.email);
 
+  const domain = normalizedEmail.split("@")[1];
+  if (domain === "admin.com") {
+    throw new Error("해당 이메일 도메인으로는 가입할 수 없습니다.");
+  }
+
   // ── 1) 이메일 중복 확인 ────────────────────────────────────
   // 백엔드의 /auth/check-email은 public.users에서 이메일 존재 여부를 확인
   // 200 + { exists: true } → 이미 가입된 이메일
