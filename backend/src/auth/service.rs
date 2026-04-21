@@ -610,6 +610,39 @@ pub async fn exchange_supabase_token(
         google_connected
     );
 
+    // ── 탈퇴 유저 로그인 차단 ────────────────────────────────
+    //
+    // auth.users는 삭제했지만 혹시 토큰이 살아있는 경우를 대비해
+    // public.users의 deleted_at을 한 번 더 확인함
+    //
+    // 확인 방법:
+    // - public.users에서 해당 user_id의 deleted_at 조회
+    // - deleted_at이 NULL이 아니면 탈퇴한 유저 → 로그인 차단
+    let deleted_check_url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=deleted_at&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let deleted_resp = state
+        .http_client
+        .get(&deleted_check_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .send()
+        .await
+        .context("탈퇴 여부 조회 실패")?;
+
+    if deleted_resp.status().is_success() {
+        let rows: Vec<serde_json::Value> = deleted_resp.json().await.unwrap_or_default();
+        if let Some(row) = rows.first() {
+            // deleted_at이 string(타임스탬프 값)이면 탈퇴한 유저
+            if row["deleted_at"].is_string() {
+                return Err(anyhow!("이미 탈퇴한 회원입니다."));
+            }
+        }
+    }
+
     ensure_public_user_exists(
         state,
         user_id,
@@ -910,6 +943,103 @@ pub async fn kakao_login(
 
     issue_login_tokens(state, user_uuid, client_type, is_new_user).await
 }
+
+// withdraw_user - 회원탈퇴 처리
+//
+// 처리 순서:
+// 1) public.users → deleted_at(탈퇴 시각), is_active(비활성) 세팅
+// 2) Supabase auth.users → 삭제 (더 이상 로그인 시도 자체를 못하게)
+// 3) refresh_sessions → 전체 revoke (현재 로그인된 모든 기기 세션 만료)
+//
+// 왜 public.users를 바로 DELETE 안 하냐:
+// - 법적으로 3년 보관 의무가 있을 수 있음
+// - deleted_at으로 soft delete 처리해서 데이터는 남기고 접근만 차단
+//
+// 왜 auth.users는 DELETE 하냐:
+// - auth.users가 남아있으면 Supabase 레벨에서 로그인이 가능해짐
+// - public.users에서 막더라도 auth.users가 살아있으면 토큰 자체가 발급됨
+// - 완전한 로그인 차단을 위해 auth.users는 삭제
+pub async fn withdraw_user(state: &AppState, user_id: Uuid) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}",
+        state.config.supabase_url.trim_end_matches("/"),
+        user_id
+    );
+
+    let resp = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=minimal")
+        .json(&json!({
+              "deleted_at": chrono::Utc::now(), // 탈퇴 시각 기록 (3년 보관 기준점)
+              "is_active": false                // 비활성 처리
+          }))
+        .send()
+        .await
+        .context("public.users 탈퇴 처리 요청 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("public.users 탈퇴 처리 실패: {}", err));
+    }
+
+    // ── 2) auth.users 삭제 ──────────────────────────────────
+    // Supabase Admin API: DELETE /auth/v1/admin/users/{id}
+    // service role key로만 호출 가능 (일반 anon key 불가)
+    let auth_url = format!(
+        "{}/auth/v1/admin/users/{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let auth_resp = state
+        .http_client
+        .delete(&auth_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .send()
+        .await
+        .context("auth.users 삭제 요청 실패")?;
+
+    if !auth_resp.status().is_success() {
+        let err = auth_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("auth.users 삭제 실패: {}", err));
+    }
+
+    // ── 3) refresh_sessions 전체 revoke ────────────────────
+    // 탈퇴 유저가 현재 여러 기기에 로그인되어 있을 수 있음
+    // revoked=false인 세션만 골라서 전부 만료시킴
+    // 실패해도 탈퇴 자체는 성공으로 처리 (치명적 오류 아님)
+    let sessions_url = format!(
+        "{}/rest/v1/refresh_sessions?user_id=eq.{}&revoked=eq.false",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let _ = state
+        .http_client
+        .patch(&sessions_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=minimal")
+        .json(&json!({
+              "revoked": true,
+              "revoked_at": chrono::Utc::now()
+          }))
+        .send()
+        .await;
+    // 세션 revoke 실패는 로그만 남기고 넘어감
+    // 어차피 auth.users가 삭제됐으므로 토큰 갱신 자체가 불가능해짐
+
+    tracing::info!("회원탈퇴 완료: user_id={}", user_id);
+    Ok(())
+
+}
+
 
 // ═══════════════════════════════════════════════════════════════
 // provider + provider_id 기준으로 기존 유저 찾거나 생성

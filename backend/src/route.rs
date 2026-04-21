@@ -82,6 +82,8 @@ pub fn create_router(state: AppState) -> Router {
             "/profile/check-availability",
             post(auth::handler::check_profile_availability),
         )
+        //회원 탈퇴
+        .route("/auth/withdraw", post(auth::handler::withdraw))
         .route(
             "/profile/image/upload",
             post(auth::handler::upload_profile_image),
