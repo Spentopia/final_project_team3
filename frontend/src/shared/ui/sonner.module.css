@@ -3,3 +3,49 @@
   --normal-text: var(--popover-foreground);
   --normal-border: var(--border);
 }
+
+/* 개별 토스트 공통 스타일 */
+.toaster :global([data-sonner-toast]) {
+  border-radius: 14px !important;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.1),
+    0 1px 4px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  padding: 14px 16px !important;
+  gap: 10px !important;
+}
+
+/* 에러 토스트 */
+.toaster :global([data-sonner-toast][data-type="error"]) {
+  border-left: 3px solid #f04438 !important;
+}
+
+/* 성공 토스트 */
+.toaster :global([data-sonner-toast][data-type="success"]) {
+  border-left: 3px solid #00c8a0 !important;
+}
+
+/* 경고 토스트 */
+.toaster :global([data-sonner-toast][data-type="warning"]) {
+  border-left: 3px solid #f79009 !important;
+}
+
+/* 정보 토스트 */
+.toaster :global([data-sonner-toast][data-type="info"]) {
+  border-left: 3px solid #0ba5ec !important;
+}
+
+/* 닫기 버튼 */
+.toaster :global([data-sonner-toast] [data-close-button]) {
+  border-radius: 8px !important;
+  opacity: 0.6 !important;
+  transition: opacity 0.15s !important;
+}
+
+.toaster :global([data-sonner-toast] [data-close-button]:hover) {
+  opacity: 1 !important;
+}

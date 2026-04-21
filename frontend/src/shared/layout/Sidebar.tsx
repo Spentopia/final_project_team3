@@ -35,9 +35,10 @@ const menuItems = [
 
 type SidebarProps = {
   onWeeklyScoreClick?: () => void;
+  weeklyScore?: number;
 };
 
-export default function Sidebar({ onWeeklyScoreClick }: SidebarProps) {
+export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -103,7 +104,7 @@ export default function Sidebar({ onWeeklyScoreClick }: SidebarProps) {
             <Zap className="h-4 w-4 text-luxury-gold" />
             이번 주 성실도
           </span>
-          <span className="mt-1 text-2xl font-extrabold text-foreground">85점</span>
+          <span className="mt-1 text-2xl font-extrabold text-foreground">{weeklyScore}점</span>
         </button>
 
         {/* 이용가이드 버튼 */}

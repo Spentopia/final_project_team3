@@ -6,7 +6,6 @@ export interface CreateExpenseRequest {
   category: string;
   memo: string;
   transactionType: "expense" | "income";
-  receiptVerified: boolean;
   diary: string;
 }
 

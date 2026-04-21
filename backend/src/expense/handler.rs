@@ -77,14 +77,6 @@ pub async fn create_expense(
             .into_response();
     }
 
-    if req.transaction_type == "income" && req.receipt_verified {
-        return (
-            StatusCode::BAD_REQUEST,
-            "수입에는 영수증 인증을 적용할 수 없습니다".to_string(),
-        )
-            .into_response();
-    }
-
     match service::create_expense(&state, user_id, req).await {
         Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
@@ -144,7 +136,19 @@ pub async fn verify_receipt_ocr(
     }
 
     match service::verify_receipt_ocr(&state, multipart).await {
-        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Ok(res) => {
+            // OCR 인증 성공 + expense_id 있으면 서버에서 receipt_verified = true 업데이트
+            if res.verification.is_verified {
+                if let Some(expense_id) = query.expense_id {
+                    if let Err(e) =
+                        service::update_receipt_verified(&state, user_id, expense_id).await
+                    {
+                        tracing::warn!("receipt_verified UPDATE 실패: {}", e);
+                    }
+                }
+            }
+            (StatusCode::OK, Json(res)).into_response()
+        }
         Err(e) => {
             let message = e.to_string();
             if message.contains("필수") || message.contains("이미지") || message.contains("금액")

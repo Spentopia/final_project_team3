@@ -248,7 +248,7 @@ export default function DashboardPage() {
         error instanceof Error ? error.message : "영수증 검증 중 오류가 발생했습니다.";
       setOcrError(message);
       setIsReceiptVerified(false);
-      toast.error("영수증 검증 실패");
+      toast.error(message);
     } finally {
       setOcrLoading(false);
     }
@@ -279,11 +279,38 @@ export default function DashboardPage() {
         category: newExpense.category,
         memo: newExpense.memo,
         transactionType: entryType,
-        receiptVerified: entryType === "expense" ? isReceiptVerified : false,
         diary: entryType === "expense" ? newExpense.diary : "",
       };
 
       const savedExpense = await createExpense(payload);
+
+      // 영수증 인증 서버 반영 (receipt_verified 서버 제어)
+      // 프리뷰 인증 성공 → expense_id 포함해서 OCR 재호출 → 서버가 DB 업데이트
+      // 재호출 실패 시 저장된 소비를 롤백(DELETE)해서 불일치 방지
+      let serverReceiptVerified = false;
+      if (entryType === "expense" && receiptFile && isReceiptVerified) {
+        try {
+          const ocrResult = await verifyReceiptOcr({
+            image: receiptFile,
+            expectedDate: format(selectedDate, "yyyy-MM-dd"),
+            expectedAmount: Number(newExpense.amount),
+            expenseId: String(savedExpense.id),
+          });
+          serverReceiptVerified = ocrResult.verification.is_verified;
+        } catch (ocrError) {
+          // OCR 재호출 실패 → 저장된 소비 롤백
+          try {
+            await deleteExpense(String(savedExpense.id));
+          } catch {
+            // 롤백도 실패한 경우 사용자에게 알림
+            toast.error("오류가 발생했습니다. 가계부에서 해당 내역을 직접 삭제해주세요.");
+          }
+          const message =
+            ocrError instanceof Error ? ocrError.message : "영수증 인증 중 오류가 발생했습니다.";
+          toast.error(`저장 취소: ${message}`);
+          return;
+        }
+      }
 
       const expense = toDashboardExpense(savedExpense);
 
@@ -295,7 +322,7 @@ export default function DashboardPage() {
           category: expense.category,
           memo: expense.memo,
           type: entryType,
-          receipt: entryType === "expense" ? expense.receipt : undefined,
+          receipt: entryType === "expense" ? serverReceiptVerified : undefined,
           diary: entryType === "expense" ? expense.diary : undefined,
         },
         ...transactions,
@@ -308,9 +335,9 @@ export default function DashboardPage() {
         );
       }
 
-      let reward = 10;
-      if (isReceiptVerified) reward += 20;
-      if (newExpense.diary.trim()) reward += 15;
+      if (newExpense.diary.trim()) {
+        // diary 점수 안내 (필요 시 확장)
+      }
       toast.success(entryType === "income" ? "수입 기록 완료!" : "소비 기록 완료! 🎉");
 
       resetForm();
@@ -613,7 +640,7 @@ export default function DashboardPage() {
               </h3>
             </div>
 
-            <div className="flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex rounded-lg border border-gray-200 bg-gray-100 p-1 shadow-sm dark:border-gray-600 dark:bg-gray-700/60">
               <Button
                 type="button"
                 size="sm"
@@ -621,7 +648,7 @@ export default function DashboardPage() {
                 className={
                   entryType === "expense"
                     ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-600 hover:to-blue-600"
-                    : "text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100"
+                    : "text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
                 }
                 onClick={() => {
                   setEntryType("expense");
@@ -637,7 +664,7 @@ export default function DashboardPage() {
                 className={
                   entryType === "income"
                     ? "bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600"
-                    : "text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100"
+                    : "text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
                 }
                 onClick={() => {
                   setEntryType("income");
@@ -651,20 +678,20 @@ export default function DashboardPage() {
 
           <div className="space-y-4">
             <div>
-              <Label>날짜</Label>
+              <Label className="text-gray-700 dark:text-gray-200">날짜</Label>
               <Input
                 type="date"
                 value={selectedDateInputValue}
                 onChange={(e) => handleExpenseDateChange(e.target.value)}
-                className="mt-1"
+                className="mt-1 dark:text-gray-100 dark:[color-scheme:dark]"
               />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
                 날짜를 직접 입력하거나 왼쪽 달력에서 선택할 수 있어요.
               </p>
             </div>
 
             <div>
-              <Label htmlFor="amount">금액 *</Label>
+              <Label htmlFor="amount" className="text-gray-700 dark:text-gray-200">금액 *</Label>
               <Input
                 id="amount"
                 type="number"
@@ -681,7 +708,7 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <Label htmlFor="category">카테고리 *</Label>
+              <Label htmlFor="category" className="text-gray-700 dark:text-gray-200">카테고리 *</Label>
               <Select
                 value={newExpense.category}
                 onValueChange={(value) => setNewExpense({ ...newExpense, category: value })}
@@ -700,7 +727,7 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <Label htmlFor="memo">{entryType === "income" ? "수입 내용" : "구매품목"}</Label>
+              <Label htmlFor="memo" className="text-gray-700 dark:text-gray-200">{entryType === "income" ? "수입 내용" : "구매품목"}</Label>
               <Input
                 id="memo"
                 type="text"
@@ -714,7 +741,7 @@ export default function DashboardPage() {
             {entryType === "expense" && (
               <>
                 <div>
-                  <Label htmlFor="receipt">영수증 인증</Label>
+                  <Label htmlFor="receipt" className="text-gray-700 dark:text-gray-200">영수증 인증</Label>
                   <div className="mt-2 flex items-center gap-3">
                     <Button
                       type="button"
@@ -788,7 +815,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="diary">한줄 소비 일기</Label>
+                  <Label htmlFor="diary" className="text-gray-700 dark:text-gray-200">한줄 소비 일기</Label>
                   <Textarea
                     id="diary"
                     placeholder="오늘 소비에 대한 생각을 기록해보세요"

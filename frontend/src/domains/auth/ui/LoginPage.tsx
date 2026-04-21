@@ -5,6 +5,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
 import { Sparkles, Sun, Moon } from "lucide-react";
+import { toast } from "sonner";
 import { login, signInWithGoogle, redirectToKakao } from "@/domains/auth/api/auth";
 import { validateEmail } from "@/domains/auth/lib/email";
 import PasswordInput from "@/domains/auth/ui/PasswordInput";
@@ -23,7 +24,7 @@ export default function Login() {
 
     const emailError = validateEmail(email);
     if (emailError) {
-      alert(emailError);
+      toast.error(emailError);
       return;
     }
 
@@ -37,7 +38,7 @@ export default function Login() {
       navigate("/", { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "알 수 없는 오류";
-      alert(`로그인 실패: ${message}`);
+      toast.error(`로그인 실패: ${message}`);
     }
   };
 
@@ -49,7 +50,7 @@ export default function Login() {
         redirectToKakao();
       }
     } catch (error: any) {
-      alert(error.message || "소셜 로그인 실패");
+      toast.error(error.message || "소셜 로그인 실패");
     }
   };
 

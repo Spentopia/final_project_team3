@@ -37,6 +37,7 @@ import { Card } from "@/shared/ui/card";
 import type { FormEvent } from "react";
 import { Sparkles, Dices } from "lucide-react";
 import { formatPhone } from "@/shared/lib/phone";
+import { toast } from "sonner";
 
 const NICKNAME_PREFIXES = [
   "플렉스", "제로", "갓생", "흑자", "스마트", "럭키", "코어", "알뜰", "골든", "메타",
@@ -192,23 +193,23 @@ export default function Signup() {
     if (step === 1) {
       const emailError = validateEmail(formData.email);
       if (emailError) {
-        alert(emailError);
+        toast.error(emailError);
         return;
       }
 
       const passwordError = validatePassword(formData.password);
       if (passwordError) {
-        alert(passwordError);
+        toast.error(passwordError);
         return;
       }
 
       if (formData.password !== formData.confirmPassword) {
-        alert("비밀번호가 일치하지 않습니다");
+        toast.error("비밀번호가 일치하지 않습니다");
         return;
       }
 
       if (!captchaToken) {
-        alert("사람 인증을 먼저 완료해주세요.");
+        toast.error("사람 인증을 먼저 완료해주세요.");
         return;
       }
 
@@ -225,7 +226,7 @@ export default function Signup() {
         // 이메일 인증이 필요한 경우
         // 아직 로그인 상태가 아니므로 Step2로 보내면 안 됨
         if (!result.accessToken) {
-          alert("회원가입 완료! 이메일 인증 후 로그인해주세요.");
+          toast.success("회원가입 완료! 이메일 인증 후 로그인해주세요.");
           navigate("/signup-pending", { state: { email: formData.email } });
           return;
         }
@@ -235,7 +236,7 @@ export default function Signup() {
 
         setStep(2);
       } catch (error: any) {
-        alert(error.message || "회원가입 실패");
+        toast.error(error.message || "회원가입 실패");
         resetCaptcha();
       } finally {
         setLoading(false);
@@ -253,7 +254,7 @@ export default function Signup() {
         });
         setStep(3);
       } catch (error: any) {
-        alert(error.message || "중복 확인에 실패했습니다");
+        toast.error(error.message || "중복 확인에 실패했습니다");
       } finally {
         setLoading(false);
       }
@@ -273,7 +274,7 @@ export default function Signup() {
 
       navigate("/");
     } catch (error: any) {
-      alert(error.message || "프로필 저장 실패");
+      toast.error(error.message || "프로필 저장 실패");
     } finally {
       setLoading(false);
     }

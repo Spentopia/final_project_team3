@@ -14,7 +14,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
       position="top-right"
       richColors
       closeButton
+      expand
+      visibleToasts={4}
       duration={4000}
+      gap={8}
+      offset={20}
       {...props}
     />
   );

@@ -27,7 +27,6 @@ pub async fn create_expense(
         amount = req.amount,
         category = %req.category,
         transaction_type = %req.transaction_type,
-        receipt_verified = req.receipt_verified,
         "소비 저장 요청 수신"
     );
 
@@ -70,7 +69,7 @@ pub async fn create_expense(
             memo: empty_to_none(req.memo),
             one_line_diary: empty_to_none(req.diary),
             transaction_type: req.transaction_type,
-            receipt_verified: req.receipt_verified,
+            receipt_verified: false, // 서버 제어 — 클라이언트에서 설정 불가
             source: "manual",
         })
         .send()
@@ -441,6 +440,46 @@ pub async fn check_receipt_limit(
                 return Err(ReceiptLimitError::Duplicate);
             }
         }
+    }
+
+    Ok(())
+}
+
+// ── OCR 인증 성공 시 receipt_verified 서버 업데이트 ────────────────
+//
+// handler의 verify_receipt_ocr에서 is_verified == true이고
+// expense_id가 제공된 경우에만 호출됨.
+// user_id 조건을 함께 걸어 다른 유저 expense 수정 방지.
+pub async fn update_receipt_verified(
+    state: &AppState,
+    user_id: Uuid,
+    expense_id: Uuid,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/expenses?id=eq.{}&user_id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        expense_id,
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .json(&serde_json::json!({ "receipt_verified": true }))
+        .send()
+        .await
+        .context("expenses receipt_verified UPDATE 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "expenses receipt_verified UPDATE 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
     }
 
     Ok(())

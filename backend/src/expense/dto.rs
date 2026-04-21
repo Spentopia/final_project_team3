@@ -16,7 +16,6 @@ pub struct CreateExpenseWebRequest {
     pub category: String,
     pub memo: Option<String>,
     pub transaction_type: String,
-    pub receipt_verified: bool,
     pub diary: Option<String>,
 }
 
