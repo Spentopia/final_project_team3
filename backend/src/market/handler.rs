@@ -43,9 +43,7 @@ use super::{
     responses((status = 200, description = "판매 목록 조회 성공")),
     security(("bearer_auth" = []))
 )]
-pub async fn get_listings(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn get_listings(State(state): State<AppState>) -> impl IntoResponse {
     match service::get_listings(&state).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),

@@ -43,7 +43,6 @@ pub struct NonceEntry {
 //   -> 검증이 끝난 뒤 DashMap에서 remove() 하면서 1회용 보장
 #[derive(Clone)]
 pub struct HandoffEntry {
-
     // 이 handoff가 어떤 유저를 위한 것인지
     pub user_id: Uuid,
 
@@ -54,7 +53,6 @@ pub struct HandoffEntry {
     // handoff token 만료 시각
     // 생성 후 30초만 유효
     pub expires_at: SystemTime,
-
 }
 
 #[derive(Clone)]

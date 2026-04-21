@@ -19,6 +19,8 @@ export interface UserItemResponse{
     rarity: "common" | "rare" | "epic";
 
     image_url: string;      // S3 또는 CDN URL
+    metadata_uri: string | null;   // NFT metadata JSON URI (Pinata/IPFS)
+    unity_asset_key: string | null;// Unity Addressable/Prefab key
 
     // null 허용: DB에서 아직 값이 없는 경우를 표현
     // boolean | null ≠ boolean - 반드시 null 체크 필요
@@ -35,6 +37,7 @@ export interface UserItemResponse{
 export interface MintNftRequest{
     user_item_id: string;       // 어떤 아이템을 민팅했는지 (user_items.id)
     nft_mint_address: string;   // Solana가 생성한 NFT mint 계정 주소 (32바이트 base58)
+    tx_signature?: string;      // 온체인 mint_avatar_nft 트랜잭션 서명
 }
 
 // POST /api/avatar/mint-nft 응답 타입
@@ -50,6 +53,7 @@ export interface MintNftResponse{
 export interface TransferNftRequest{
     avatar_id: string;          // avatars.id (전송할 아바타 레코드 UUID)
     nft_mint_address: string;   // 어떤 NFT를 전송했는지
+    tx_signature?: string;      // 온체인 transfer_avatar_nft 트랜잭션 서명
 }
 
 // POST /api/avatar/transfer-nft 응답 타입

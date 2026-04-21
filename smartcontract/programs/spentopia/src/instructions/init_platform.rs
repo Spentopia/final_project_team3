@@ -8,7 +8,11 @@ use crate::state::PlatformConfig;
 ///
 /// - Accounts 제약조건에서 계정 생성 + 공간 할당은 이미 완료된 상태다.
 /// - 여기선 필드 초기화 + 유효성 검사만 담당한다.
-pub fn init_platform_handler(ctx: Context<InitPlatform>, fee_rate: u16, max_supply: u64) -> Result<()> {
+pub fn init_platform_handler(
+    ctx: Context<InitPlatform>,
+    fee_rate: u16,
+    max_supply: u64,
+) -> Result<()> {
     // fee_rate 유효성 검사.
     // Accounts 제약조건에서는 숫자 범위 검사를 할 수 없으므로 handler에서 처리.
     require!(fee_rate <= MAX_FEE_RATE, SpentopiaError::InvalidFeeRate);
@@ -48,7 +52,7 @@ pub struct InitPlatform<'info> {
     /// - 계정 생성 비용(rent)을 지불한다.
     /// - 이 주소가 PlatformConfig.admin으로 저장되어 이후 권한 검증 기준이 된다.
     #[account(mut)]
-    pub admin: Signer<'info >,
+    pub admin: Signer<'info>,
     /// 플랫폼 전역 설정 계정.
     ///
     /// - PDA로 생성된다 (`init` 사용 -> 이미 존재하면 에러).

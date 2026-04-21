@@ -1,12 +1,13 @@
+use crate::constants::*;
+use crate::state::PlatformConfig;
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token_interface::{Mint, TokenInterface, TokenAccount};
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use mpl_token_metadata::{
     instructions::{CreateV1CpiBuilder, MintV1CpiBuilder},
     types::{PrintSupply, TokenStandard},
+    ID as TOKEN_METADATA_ID,
 };
-use crate::constants::*;
-use crate::state::PlatformConfig;
 
 /// 아바타 파츠 NFT를 민팅하는 handler
 ///
@@ -15,10 +16,10 @@ use crate::state::PlatformConfig;
 /// - admin 단독 서명, 유저 서명 불필요
 pub fn mint_avatar_nft_handler(
     ctx: Context<MintAvatarNft>,
-    item_id: String,    // 파츠 식별자 (백엔드 관리). PDA seed에도 사용됨
-    name: String,       // NFT 이름 (예: "Spentopida Cap #001")
-    symbol: String,     // NFT 심볼 (예: "SPT")
-    uri: String,        // Pinata에 올린 metadata JSON URI
+    item_id: String, // 파츠 식별자 (백엔드 관리). PDA seed에도 사용됨
+    name: String,    // NFT 이름 (예: "Spentopida Cap #001")
+    symbol: String,  // NFT 심볼 (예: "SPT")
+    uri: String,     // Pinata에 올린 metadata JSON URI
 ) -> Result<()> {
     let platform_config = &ctx.accounts.platform_config;
 
@@ -29,12 +30,7 @@ pub fn mint_avatar_nft_handler(
     let user_key_bytes = user_key.as_ref();
     let mint_bump = &[ctx.bumps.avatar_mint];
 
-    let mint_signer_seeds: &[&[u8]] = &[
-        AVATAR_MINT_SEED,
-        user_key_bytes,
-        item_id_bytes,
-        mint_bump,
-    ];
+    let mint_signer_seeds: &[&[u8]] = &[AVATAR_MINT_SEED, user_key_bytes, item_id_bytes, mint_bump];
     let signer_seeds = &[mint_signer_seeds];
 
     // Step 1: NFT 메타데이터 계정 생성 (CreateV1)
@@ -54,17 +50,14 @@ pub fn mint_avatar_nft_handler(
         .uri(uri)
         .seller_fee_basis_points(0) // 2차 판매 로열티 없음
         .token_standard(TokenStandard::NonFungible)
-        .print_supply(PrintSupply::Zero)    // 에디션 복제 불가
+        .print_supply(PrintSupply::Zero) // 에디션 복제 불가
         .invoke_signed(signer_seeds)?;
 
     // Step 2: 유저 ATA에 NFT 1개 민팅 (MintV1)
     // MintV1은 실제 토큰을 ATA에 전송한다.
     // authority = spt_token_authority PDA가 서명.
     let authority_bump = &[platform_config.spt_authority_bump];
-    let authority_signer_seeds: &[&[u8]] = &[
-        SPT_TOKEN_AUTHORITY_SEED,
-        authority_bump,
-    ];
+    let authority_signer_seeds: &[&[u8]] = &[SPT_TOKEN_AUTHORITY_SEED, authority_bump];
 
     MintV1CpiBuilder::new(&ctx.accounts.metadata_program.to_account_info())
         .token(&ctx.accounts.user_token_account.to_account_info())
@@ -154,18 +147,15 @@ pub struct MintAvatarNft<'info> {
 
     /// mpl-token-metadata 프로그램.
     /// CHECK: 고정된 프로그램 주소
+    #[account(address = TOKEN_METADATA_ID)]
     pub metadata_program: UncheckedAccount<'info>,
 
     /// CreateV1 / MintV1 CPI 내부에서 내부적으로 필요한 sysvar.
     /// CHECK: 고정 sysvar 주소
     #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
-    pub sysvar_instructions: UncheckedAccount<'info,>,
+    pub sysvar_instructions: UncheckedAccount<'info>,
 
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
-
-
-
-
 }

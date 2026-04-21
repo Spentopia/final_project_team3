@@ -3,7 +3,6 @@ use anchor_spl::token_interface::{Mint, TokenInterface};
 
 use crate::constants::*;
 
-
 /// SPT Token 민트를 초기화하는 실제 handler 함수.
 ///
 /// 실질적인 민트 생성 및 초기화는 Accounts 제약조건의 `#[account(init, mint::...)]` 부분에서 자동으로 처리된다.
@@ -59,5 +58,4 @@ pub struct InitSptToken<'info> {
     /// System Program
     /// 새 계정을 생성할 때 필요하다.
     pub system_program: Program<'info, System>,
-
 }

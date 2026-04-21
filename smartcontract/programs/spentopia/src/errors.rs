@@ -5,7 +5,7 @@ use anchor_lang::prelude::*;
 /// 현재 init_spt_token에서는 꼭 필요하지 않지만, 이후 관리자 검증이나 정책 검증 로직이 추가될 때 확장하기 쉽도록
 /// 미리 분리해 둔다.
 #[error_code]
-pub enum SpentopiaError{
+pub enum SpentopiaError {
     /// 권한이 없는 관리자가 호출했을 때 사용할 수 있는 에러.
     #[msg("권한이 없는 관리자입니다.")]
     UnauthorizedAdmin,

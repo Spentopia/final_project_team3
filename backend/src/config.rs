@@ -56,6 +56,16 @@ pub struct Config {
     // 서비스 시작일 — 반감기 계산 기준점
     // 환경변수: SERVICE_LAUNCH_DATE (형식: YYYY-MM-DD), 없으면 2025-01-01
     pub service_launch_date: NaiveDate,
+
+    // Solana RPC 엔드포인트 (예: https://api.devnet.solana.com)
+    pub solana_rpc_url: String,
+
+    // admin 키페어 (base58 인코딩된 64바이트 ed25519 키페어)
+    // `solana-keygen` 출력 JSON을 base58로 인코딩해서 저장
+    pub solana_admin_keypair: String,
+
+    // 배포된 Spentopia 프로그램 ID
+    pub solana_program_id: String,
 }
 
 impl Config {
@@ -88,8 +98,7 @@ impl Config {
             cors_origin: std::env::var("CORS_ORIGIN")
                 .unwrap_or_else(|_| "http://localhost:5173".to_string()),
 
-            environment: std::env::var("ENVIRONMENT")
-                .unwrap_or_else(|_| "local".to_string()),
+            environment: std::env::var("ENVIRONMENT").unwrap_or_else(|_| "local".to_string()),
 
             ai_server_url: std::env::var("AI_SERVER_URL")
                 .unwrap_or_else(|_| "http://localhost:8000".to_string()),
@@ -101,11 +110,18 @@ impl Config {
                 .expect("TURNSTILE_SECRET_KEY 환경변수 없음"),
 
             service_launch_date: NaiveDate::parse_from_str(
-                &std::env::var("SERVICE_LAUNCH_DATE")
-                    .unwrap_or_else(|_| "2025-01-01".to_string()),
+                &std::env::var("SERVICE_LAUNCH_DATE").unwrap_or_else(|_| "2025-01-01".to_string()),
                 "%Y-%m-%d",
             )
             .expect("SERVICE_LAUNCH_DATE 형식 오류. YYYY-MM-DD 형식으로 입력하세요."),
+
+            solana_rpc_url: std::env::var("SOLANA_RPC_URL")
+                .unwrap_or_else(|_| "https://api.devnet.solana.com".to_string()),
+
+            solana_admin_keypair: std::env::var("SOLANA_ADMIN_KEYPAIR").unwrap_or_default(),
+
+            solana_program_id: std::env::var("SOLANA_PROGRAM_ID")
+                .unwrap_or_else(|_| "9s5Z96GSLVgVsnj5NAZ1HoxPvaF8Re8B1LeSmcBKQv61".to_string()),
         })
     }
 }

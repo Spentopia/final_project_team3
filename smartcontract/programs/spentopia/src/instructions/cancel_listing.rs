@@ -12,7 +12,7 @@ use crate::state::ListingAccount;
 /// - escrow → 판매자 ATA로 NFT 반환
 /// - escrow ATA + ListingAccount 소멸 (rent 판매자 반환)
 /// - 판매자 본인만 호출 가능
-pub fn cancel_listing_handler(ctx: Context<CancelListing>)->Result<()>{
+pub fn cancel_listing_handler(ctx: Context<CancelListing>) -> Result<()> {
     let listing = &ctx.accounts.listing;
 
     // listing PDA 서명용 seeds
@@ -30,7 +30,7 @@ pub fn cancel_listing_handler(ctx: Context<CancelListing>)->Result<()>{
     transfer_checked(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
-            TransferChecked{
+            TransferChecked {
                 from: ctx.accounts.escrow_token_account.to_account_info(),
                 mint: ctx.accounts.nft_mint.to_account_info(),
                 to: ctx.accounts.seller_nft_account.to_account_info(),
@@ -38,14 +38,14 @@ pub fn cancel_listing_handler(ctx: Context<CancelListing>)->Result<()>{
             },
             &[listing_signer_seeds],
         ),
-        1,  // NFT 1개
+        1, // NFT 1개
         0, // decimals = 0
     )?;
 
     // Step 2: escrow ATA close → rent 판매자 반환
     close_account(CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
-        CloseAccount{
+        CloseAccount {
             account: ctx.accounts.escrow_token_account.to_account_info(),
             destination: ctx.accounts.seller.to_account_info(),
             authority: ctx.accounts.listing.to_account_info(),
@@ -64,7 +64,6 @@ pub fn cancel_listing_handler(ctx: Context<CancelListing>)->Result<()>{
 
 #[derive(Accounts)]
 pub struct CancelListing<'info> {
-
     /// 판매자. 본인만 취소 가능.
     #[account(mut)]
     pub seller: Signer<'info>,
@@ -109,7 +108,4 @@ pub struct CancelListing<'info> {
 
     pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
-
-
-
 }

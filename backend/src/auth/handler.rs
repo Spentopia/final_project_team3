@@ -31,20 +31,20 @@ use axum::{
     http::{HeaderMap, StatusCode, header::SET_COOKIE},
 };
 
-use crate::auth::turnstile::verify_turnstile;
 use crate::auth::handoff::{create_handoff_token, exchange_handoff_token};
-use uuid::Uuid;
+use crate::auth::turnstile::verify_turnstile;
 use cookie::{Cookie, SameSite};
 use serde_json::json;
+use uuid::Uuid;
 
 use crate::auth::dto::{
     AppLoginResponse, AppRefreshResponse, CheckEmailRequest, CheckEmailResponse,
-    CheckProfileAvailabilityRequest, CheckResetPasswordEmailRequest, CheckResetPasswordEmailResponse,
-    CompleteProfileRequest, CompleteProfileResponse, ExchangeTokenRequest, FindEmailRequest,
-    FindEmailResponse, KakaoLoginRequest, KakaoStartResponse, NonceRequest, NonceResponse,
-    ProfileImageUrlQuery, ProfileImageUrlResponse, RefreshRequest, WalletLoginRequest,
-    WebLoginResponse, WebRefreshResponse,  HandoffExchangeRequest, HandoffExchangeResponse,
-    HandoffRequest, HandoffResponse,
+    CheckProfileAvailabilityRequest, CheckResetPasswordEmailRequest,
+    CheckResetPasswordEmailResponse, CompleteProfileRequest, CompleteProfileResponse,
+    ExchangeTokenRequest, FindEmailRequest, FindEmailResponse, HandoffExchangeRequest,
+    HandoffExchangeResponse, HandoffRequest, HandoffResponse, KakaoLoginRequest,
+    KakaoStartResponse, NonceRequest, NonceResponse, ProfileImageUrlQuery, ProfileImageUrlResponse,
+    RefreshRequest, WalletLoginRequest, WebLoginResponse, WebRefreshResponse,
 };
 use crate::auth::service;
 use crate::state::AppState;
@@ -206,9 +206,10 @@ pub async fn request_nonce(
 
     // service에서 nonce 생성
     let nonce = service::generate_nonce(&state, &body.wallet_address);
+    let message = service::build_wallet_sign_message(&body.wallet_address, &nonce);
 
     // 200 OK + nonce 반환
-    Ok(Json(NonceResponse { nonce }))
+    Ok(Json(NonceResponse { nonce, message }))
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -520,15 +521,13 @@ pub async fn withdraw(
     State(state): State<AppState>,
     axum::Extension(user_id): axum::Extension<uuid::Uuid>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
-    service::withdraw_user(&state, user_id)
-        .await
-        .map_err(|e| {
-            tracing::error!("회원탈퇴 실패: user_id={}, error={}", user_id, e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "회원탈퇴 처리에 실패했습니다.".to_string(),
-            )
-        })?;
+    service::withdraw_user(&state, user_id).await.map_err(|e| {
+        tracing::error!("회원탈퇴 실패: user_id={}, error={}", user_id, e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "회원탈퇴 처리에 실패했습니다.".to_string(),
+        )
+    })?;
 
     // 탈퇴 성공 → refresh 쿠키 삭제 (브라우저에서 쿠키 만료 처리)
     // access token은 프론트에서 메모리 삭제 처리
@@ -680,13 +679,21 @@ pub async fn check_nickname(
         .as_str()
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| (StatusCode::BAD_REQUEST, "닉네임을 입력해 주세요.".to_string()))?;
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                "닉네임을 입력해 주세요.".to_string(),
+            )
+        })?;
 
     let available = crate::auth::service::check_nickname_available(&state, nickname)
         .await
         .map_err(|e| {
             tracing::error!("닉네임 중복 확인 실패: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "닉네임 중복 확인에 실패했습니다.".to_string())
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "닉네임 중복 확인에 실패했습니다.".to_string(),
+            )
         })?;
 
     Ok(Json(json!({ "available": available })))
@@ -990,11 +997,11 @@ pub async fn find_email(
         &state.config.turnstile_secret_key,
         &body.captcha_token,
     )
-        .await
-        .map_err(|e| {
-            tracing::warn!("Turnstile 검증 실패: {}", e);
-            (StatusCode::BAD_REQUEST, e.to_string())
-        })?;
+    .await
+    .map_err(|e| {
+        tracing::warn!("Turnstile 검증 실패: {}", e);
+        (StatusCode::BAD_REQUEST, e.to_string())
+    })?;
 
     // 3) 전화번호 값 검사
     if body.phone.trim().is_empty() {
@@ -1022,18 +1029,10 @@ pub async fn find_email(
         "email" if google_connected => {
             "이 계정은 이메일 로그인과 구글 로그인을 모두 사용할 수 있습니다."
         }
-        "email" => {
-            "이메일 로그인 계정입니다."
-        }
-        "google" => {
-            "구글 로그인으로 가입된 계정입니다."
-        }
-        "kakao" => {
-            "카카오 로그인으로 가입된 계정입니다. 카카오 로그인을 이용해주세요."
-        }
-        _ => {
-            "로그인 방식 정보를 확인할 수 없습니다."
-        }
+        "email" => "이메일 로그인 계정입니다.",
+        "google" => "구글 로그인으로 가입된 계정입니다.",
+        "kakao" => "카카오 로그인으로 가입된 계정입니다. 카카오 로그인을 이용해주세요.",
+        _ => "로그인 방식 정보를 확인할 수 없습니다.",
     };
 
     Ok(Json(FindEmailResponse {
@@ -1075,14 +1074,14 @@ pub async fn check_email(
         &state.config.turnstile_secret_key,
         &body.captcha_token,
     )
-        .await
-        .map_err(|e| {
-            tracing::warn!("Turnstile 검증 실패(check_email): {}", e);
-            (
-                StatusCode::BAD_REQUEST,
-                "사람 인증 검증에 실패했습니다.".to_string(),
-            )
-        })?;
+    .await
+    .map_err(|e| {
+        tracing::warn!("Turnstile 검증 실패(check_email): {}", e);
+        (
+            StatusCode::BAD_REQUEST,
+            "사람 인증 검증에 실패했습니다.".to_string(),
+        )
+    })?;
 
     // 3) 이메일 값 검사
     let email = body.email.trim().to_lowercase();
@@ -1137,10 +1136,7 @@ pub async fn check_email(
     if let Some(row) = rows.first() {
         if row["deleted_at"].is_string() {
             // 탈퇴한 유저 → 재가입 차단
-            return Err((
-                StatusCode::FORBIDDEN,
-                "이미 탈퇴한 회원입니다.".to_string(),
-            ));
+            return Err((StatusCode::FORBIDDEN, "이미 탈퇴한 회원입니다.".to_string()));
         }
         // 탈퇴 안 한 기존 유저 → 이미 가입된 이메일
         return Ok(Json(CheckEmailResponse { exists: true }));
@@ -1182,14 +1178,14 @@ pub async fn check_reset_password_email(
         &state.config.turnstile_secret_key,
         &body.captcha_token,
     )
-        .await
-        .map_err(|e| {
-            tracing::warn!("Turnstile 검증 실패(check_reset_password_email): {}", e);
-            (
-                StatusCode::BAD_REQUEST,
-                "사람 인증 검증에 실패했습니다.".to_string(),
-            )
-        })?;
+    .await
+    .map_err(|e| {
+        tracing::warn!("Turnstile 검증 실패(check_reset_password_email): {}", e);
+        (
+            StatusCode::BAD_REQUEST,
+            "사람 인증 검증에 실패했습니다.".to_string(),
+        )
+    })?;
 
     // 3) 이메일 값 검사
     let email = body.email.trim().to_lowercase();
@@ -1263,8 +1259,10 @@ pub async fn kakao_login(
         return Err((StatusCode::BAD_REQUEST, "state가 비어있음".to_string()));
     }
 
-    let cookie_state = extract_kakao_state_cookie(&headers)
-        .ok_or((StatusCode::UNAUTHORIZED, "OAuth state 쿠키가 없습니다.".to_string()))?;
+    let cookie_state = extract_kakao_state_cookie(&headers).ok_or((
+        StatusCode::UNAUTHORIZED,
+        "OAuth state 쿠키가 없습니다.".to_string(),
+    ))?;
 
     if cookie_state != body.state {
         tracing::warn!(
@@ -1272,7 +1270,10 @@ pub async fn kakao_login(
             cookie_state,
             body.state
         );
-        return Err((StatusCode::UNAUTHORIZED, "유효하지 않은 로그인 요청입니다.".to_string()));
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "유효하지 않은 로그인 요청입니다.".to_string(),
+        ));
     }
 
     let issued = service::kakao_login(&state, &body.code, "web")
@@ -1523,7 +1524,12 @@ fn extract_kakao_state_cookie(headers: &HeaderMap) -> Option<String> {
 }
 fn should_use_secure_cookies(state: &AppState) -> bool {
     matches!(
-        state.config.environment.trim().to_ascii_lowercase().as_str(),
+        state
+            .config
+            .environment
+            .trim()
+            .to_ascii_lowercase()
+            .as_str(),
         "prod" | "production"
     )
 }

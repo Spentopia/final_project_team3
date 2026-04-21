@@ -29,6 +29,7 @@ use super::{
     dto::{CreateListingRequest, ListingResponse, PurchaseRequest, TransactionResponse},
     model::MarketListing,
 };
+use crate::clients::solana_client;
 use crate::state::AppState;
 
 // fetch_listing_response / get_listings 공용 내부 역직렬화 구조체
@@ -63,6 +64,96 @@ struct ListingRaw {
     user_items: UserItemEmbed,
 }
 
+#[derive(Debug, Deserialize)]
+struct UserWalletRow {
+    wallet_address: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UserItemNftRow {
+    is_nft: Option<bool>,
+    nft_mint_address: Option<String>,
+}
+
+async fn get_user_wallet(state: &AppState, user_id: Uuid) -> Result<String> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=wallet_address",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("users wallet_address 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "users wallet_address 조회 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rows: Vec<UserWalletRow> = res
+        .json()
+        .await
+        .context("users wallet_address 역직렬화 실패")?;
+    rows.into_iter()
+        .next()
+        .and_then(|r| r.wallet_address)
+        .filter(|w| !w.trim().is_empty())
+        .ok_or_else(|| anyhow!("지갑이 연동된 유저만 마켓을 사용할 수 있습니다"))
+}
+
+async fn get_user_item_nft(state: &AppState, user_id: Uuid, user_item_id: Uuid) -> Result<String> {
+    let url = format!(
+        "{}/rest/v1/user_items?id=eq.{}&user_id=eq.{}&select=is_nft,nft_mint_address",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_item_id,
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("user_items NFT 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "user_items NFT 조회 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rows: Vec<UserItemNftRow> = res.json().await.context("user_items NFT 역직렬화 실패")?;
+    let item = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("본인 소유 아이템을 찾을 수 없습니다"))?;
+
+    if item.is_nft != Some(true) {
+        return Err(anyhow!("NFT로 발행된 아이템만 판매 등록할 수 있습니다"));
+    }
+
+    item.nft_mint_address
+        .filter(|v| !v.trim().is_empty())
+        .ok_or_else(|| anyhow!("NFT mint 주소가 없는 아이템입니다"))
+}
+
 // create_listing
 //
 /// public.market_listings에 판매 등록 row를 생성하고 ListingResponse를 반환한다.
@@ -78,6 +169,19 @@ pub async fn create_listing(
     user_id: Uuid,    // { item_id, price_spt }
     req: &CreateListingRequest,
 ) -> Result<ListingResponse> {
+    if req.price_spt <= 0 {
+        return Err(anyhow!("판매 가격은 0보다 커야 합니다"));
+    }
+
+    let seller_wallet = get_user_wallet(state, user_id).await?;
+    let nft_mint_address = get_user_item_nft(state, user_id, req.item_id).await?;
+    solana_client::derive_listing_address(
+        &seller_wallet,
+        &nft_mint_address,
+        &state.config.solana_program_id,
+    )
+    .context("판매 등록 PDA 계산 실패")?;
+
     // 1. market_listings INSERT
     let url = format!(
         "{}/rest/v1/market_listings",
@@ -260,6 +364,78 @@ pub async fn update_escrow(
     listing_id: Uuid,       // URL path에서 추출한 대상 listing UUID
     escrow_address: String, // 저장할 Solana 에스크로 PDA 주소
 ) -> Result<()> {
+    #[derive(Deserialize)]
+    struct EscrowListingRow {
+        seller_id: Uuid,
+        user_items: UserItemNftRow,
+        users: UserWalletRow,
+    }
+
+    let lookup_url = format!(
+        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}&select=seller_id,user_items!item_id(is_nft,nft_mint_address),users!seller_id(wallet_address)",
+        state.config.supabase_url.trim_end_matches('/'),
+        listing_id,
+        user_id,
+    );
+
+    let lookup_res = state
+        .http_client
+        .get(&lookup_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("market_listings escrow 검증 조회 요청 실패")?;
+
+    if !lookup_res.status().is_success() {
+        return Err(anyhow!(
+            "market_listings escrow 검증 조회 실패: {}",
+            lookup_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rows: Vec<EscrowListingRow> = lookup_res
+        .json()
+        .await
+        .context("market_listings escrow 검증 역직렬화 실패")?;
+    let row = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("본인 판매 등록을 찾을 수 없습니다"))?;
+    if row.seller_id != user_id {
+        return Err(anyhow!("본인 판매 등록만 수정할 수 있습니다"));
+    }
+    if row.user_items.is_nft != Some(true) {
+        return Err(anyhow!("NFT로 발행된 아이템만 escrow를 저장할 수 있습니다"));
+    }
+
+    let seller_wallet = row
+        .users
+        .wallet_address
+        .ok_or_else(|| anyhow!("판매자 지갑 주소가 없습니다"))?;
+    let nft_mint = row
+        .user_items
+        .nft_mint_address
+        .ok_or_else(|| anyhow!("NFT mint 주소가 없습니다"))?;
+    let listing_pda = solana_client::derive_listing_address(
+        &seller_wallet,
+        &nft_mint,
+        &state.config.solana_program_id,
+    )?;
+    let expected_escrow =
+        solana_client::derive_escrow_address(&listing_pda, &state.config.solana_program_id)?;
+
+    if escrow_address != expected_escrow {
+        return Err(anyhow!(
+            "escrow 주소가 PDA와 일치하지 않습니다. expected={}, got={}",
+            expected_escrow,
+            escrow_address
+        ));
+    }
+
     // 필터: id=eq.{listing_id} AND seller_id=eq.{user_id}
     //  → 본인이 등록한 listing만 수정 가능 (보안 필터)
     let url = format!(
@@ -332,7 +508,7 @@ pub async fn purchase(
     // price_spt (수수료 계산에 필요), status (active 여부 확인) 조회
     // select로 필요한 컬럼만 지정해 페이로드 최소화
     let listing_url = format!(
-        "{}/rest/v1/market_listings?id=eq.{}&select=price_spt,status",
+        "{}/rest/v1/market_listings?id=eq.{}&select=price_spt,status,escrow_address,seller_id,user_items!item_id(nft_mint_address),users!seller_id(wallet_address)",
         state.config.supabase_url.trim_end_matches('/'),
         req.listing_id,
     );
@@ -342,6 +518,10 @@ pub async fn purchase(
     struct ListingInfo {
         price_spt: i32,         // 판매 가격 (SPT)
         status: Option<String>, // 현재 상태("active" 여야 구매 가능)
+        escrow_address: Option<String>,
+        seller_id: Uuid,
+        user_items: UserItemNftRow,
+        users: UserWalletRow,
     }
 
     let listing_res = state
@@ -376,6 +556,61 @@ pub async fn purchase(
             listing.status
         ));
     }
+    if listing.seller_id == user_id {
+        return Err(anyhow!("본인 상품은 구매할 수 없습니다"));
+    }
+    let escrow_address = listing
+        .escrow_address
+        .as_deref()
+        .ok_or_else(|| anyhow!("온체인 escrow가 연결되지 않은 리스팅입니다"))?;
+    let seller_wallet = listing
+        .users
+        .wallet_address
+        .as_deref()
+        .ok_or_else(|| anyhow!("판매자 지갑 주소가 없습니다"))?;
+    let buyer_wallet = get_user_wallet(state, user_id).await?;
+    let nft_mint = listing
+        .user_items
+        .nft_mint_address
+        .as_deref()
+        .ok_or_else(|| anyhow!("NFT mint 주소가 없습니다"))?;
+
+    let listing_pda = solana_client::derive_listing_address(
+        seller_wallet,
+        nft_mint,
+        &state.config.solana_program_id,
+    )?;
+    let expected_escrow =
+        solana_client::derive_escrow_address(&listing_pda, &state.config.solana_program_id)?;
+    if escrow_address != expected_escrow {
+        return Err(anyhow!("DB escrow 주소가 온체인 PDA와 일치하지 않습니다"));
+    }
+
+    solana_client::verify_program_instruction_tx(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        &tx_signature,
+        &state.config.solana_program_id,
+        "buy_nft",
+        &[
+            buyer_wallet.as_str(),
+            seller_wallet,
+            nft_mint,
+            listing_pda.as_str(),
+            escrow_address,
+        ],
+        Some(buyer_wallet.as_str()),
+        Some(&[
+            (1, buyer_wallet.as_str()),
+            (2, seller_wallet),
+            (3, listing_pda.as_str()),
+            (4, nft_mint),
+            (8, escrow_address),
+        ]),
+    )
+    .await
+    .context("구매 트랜잭션 검증 실패")?;
+
     // 2. 수수료 계산
     // 수수료: price의 5% (정수 나눗셈 → 소수점 절사)
     // 예: price=1000 → fee = 50 / price=19 → fee=0
@@ -452,6 +687,33 @@ pub async fn purchase(
         .into_iter()
         .next()
         .ok_or_else(|| anyhow!("INSERT 결과가 비어있음"))?;
+
+    // token_burns INSERT — 온체인에서 소각된 수수료를 DB에 기록
+    // 실패해도 구매 자체는 성공으로 처리 (non-critical)
+    if tx.fee > 0 {
+        let burns_url = format!(
+            "{}/rest/v1/token_burns",
+            state.config.supabase_url.trim_end_matches('/')
+        );
+        if let Err(e) = state
+            .http_client
+            .post(&burns_url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", state.config.supabase_secret_key),
+            )
+            .header("apikey", &state.config.supabase_secret_key)
+            .header("Prefer", "return=minimal")
+            .json(&serde_json::json!({
+                "amount": tx.fee,
+                "reason": "marketplace_fee",
+            }))
+            .send()
+            .await
+        {
+            tracing::error!("token_burns INSERT 실패 (구매는 완료됨): {}", e);
+        }
+    }
 
     // INSERT된 row 데이터로 TransactionResponse 구성
     Ok(TransactionResponse {

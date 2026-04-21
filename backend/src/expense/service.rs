@@ -99,7 +99,9 @@ pub async fn create_expense(
         if let Err(e) = crate::reward::service::update_streak(&state_clone, uid, date).await {
             tracing::warn!("스트릭 업데이트 실패: {}", e);
         }
-        if let Err(e) = crate::reward::service::recalculate_weekly_score(&state_clone, uid, date).await {
+        if let Err(e) =
+            crate::reward::service::recalculate_weekly_score(&state_clone, uid, date).await
+        {
             tracing::warn!("성실도 점수 재계산 실패: {}", e);
         }
     });
@@ -122,9 +124,7 @@ pub async fn list_expenses(state: &AppState, user_id: Uuid) -> Result<Vec<Expens
     for select in select_candidates {
         let url = format!(
             "{}/rest/v1/expenses?user_id=eq.{}&select={}&order=expense_date.desc,created_at.desc",
-            base_url,
-            user_id,
-            select,
+            base_url, user_id, select,
         );
 
         let res = state
@@ -140,10 +140,8 @@ pub async fn list_expenses(state: &AppState, user_id: Uuid) -> Result<Vec<Expens
             .context("expenses SELECT 요청 실패")?;
 
         if res.status().is_success() {
-            let expenses: Vec<Expense> = res
-                .json()
-                .await
-                .context("expenses SELECT 응답 파싱 실패")?;
+            let expenses: Vec<Expense> =
+                res.json().await.context("expenses SELECT 응답 파싱 실패")?;
             return Ok(expenses.into_iter().map(to_web_response).collect());
         }
 
@@ -366,9 +364,9 @@ fn to_web_response(expense: Expense) -> ExpenseWebResponse {
 
 #[derive(Debug)]
 pub enum ReceiptLimitError {
-    TooMany,           // 429
-    Duplicate,         // 409
-    Internal(String),  // 500
+    TooMany,          // 429
+    Duplicate,        // 409
+    Internal(String), // 500
 }
 
 /// 영수증 OCR 전 호출. 하루 3건 초과 or expense_id 중복이면 에러 반환.

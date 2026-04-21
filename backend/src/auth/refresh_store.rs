@@ -228,10 +228,14 @@ pub async fn revoke_refresh_session(
         "updated_at": Utc::now().to_rfc3339()
     });
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .patch(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .json(&payload)
         .send()
@@ -250,10 +254,7 @@ pub async fn revoke_refresh_session(
 //
 // 사실 replaced_by_session_id가 이미 있으면 이미 죽은 세션으로 봐도 되지만,
 // 보안상 "재사용 시도된 세션"을 확실히 막고, updated_at도 갱신해두는 용도.
-pub async fn revoke_refresh_session_as_reused(
-    state: &AppState,
-    session_id: Uuid,
-) -> Result<()> {
+pub async fn revoke_refresh_session_as_reused(state: &AppState, session_id: Uuid) -> Result<()> {
     let url = format!(
         "{}/rest/v1/refresh_sessions?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
@@ -266,10 +267,14 @@ pub async fn revoke_refresh_session_as_reused(
         "updated_at": Utc::now().to_rfc3339()
     });
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .patch(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .json(&payload)
         .send()

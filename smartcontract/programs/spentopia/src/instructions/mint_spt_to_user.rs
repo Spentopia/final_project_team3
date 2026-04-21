@@ -20,16 +20,16 @@ pub fn mint_spt_to_user_handler(ctx: Context<MintSptToUser>, amount: u64) -> Res
             .total_minted
             .checked_add(amount)
             .ok_or(SpentopiaError::ArithmeticOverflow)?;
-        require!(new_total <= config.max_supply, SpentopiaError::MaxSupplyExceeded);
+        require!(
+            new_total <= config.max_supply,
+            SpentopiaError::MaxSupplyExceeded
+        );
         config.total_minted = new_total;
-        config.spt_authority_bump  // u8은 Copy → 블록 반환 후 config borrow 해소
+        config.spt_authority_bump // u8은 Copy → 블록 반환 후 config borrow 해소
     };
 
     // spt_token_authority PDA로 CPI 서명하기 위한 seeds.
-    let authority_seeds: &[&[u8]] = &[
-        SPT_TOKEN_AUTHORITY_SEED,
-        &[authority_bump],
-    ];
+    let authority_seeds: &[&[u8]] = &[SPT_TOKEN_AUTHORITY_SEED, &[authority_bump]];
     let signer_seeds = &[authority_seeds];
 
     // SPL Token mint_to CPI 호출.
@@ -117,5 +117,4 @@ pub struct MintSptToUser<'info> {
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
-
 }
