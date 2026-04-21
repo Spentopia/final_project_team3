@@ -16,6 +16,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { completeProfile, checkProfileAvailability, checkNicknameAvailable } from "@/domains/auth/api/auth";
 import { useProfileImage } from "@/domains/auth/hooks/useProfileImage";
 import ProfileImageUploader from "@/domains/auth/ui/ProfileImageUploader";
@@ -79,7 +80,7 @@ export default function CompleteProfilePage() {
         });
         setStep(2);
       } catch (error: any) {
-        alert(error.message || "중복 확인에 실패했습니다");
+        toast.error(error.message || "중복 확인에 실패했습니다");
       } finally {
         setLoading(false);
       }
@@ -103,7 +104,7 @@ export default function CompleteProfilePage() {
       // 프로필 완성 → 메인 페이지로
       navigate("/");
     } catch (error: any) {
-      alert(error.message || "프로필 저장 실패");
+      toast.error(error.message || "프로필 저장 실패");
     } finally {
       setLoading(false);
     }

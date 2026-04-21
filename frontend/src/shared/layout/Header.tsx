@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Bell, Gamepad2, Menu, Moon, Sun } from "lucide-react";
 import { ConnectWalletButton } from "@/domains/wallet/ui/ConnectWalletButton";
 import { Button } from "../ui/button";
@@ -34,7 +35,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
       await startUnityGame();
     } catch (error) {
       console.error("게임 시작 실패:", error);
-      alert("게임 시작에 실패했어요.");
+      toast.error("게임 시작에 실패했어요.");
     }
   };
 
