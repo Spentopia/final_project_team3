@@ -647,6 +647,26 @@ pub async fn complete_profile(
         (status = 400, description = "중복 또는 입력값 오류")
     )
 )]
+pub async fn check_nickname(
+    State(state): State<AppState>,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let nickname = body["nickname"]
+        .as_str()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, "닉네임을 입력해 주세요.".to_string()))?;
+
+    let available = crate::auth::service::check_nickname_available(&state, nickname)
+        .await
+        .map_err(|e| {
+            tracing::error!("닉네임 중복 확인 실패: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "닉네임 중복 확인에 실패했습니다.".to_string())
+        })?;
+
+    Ok(Json(json!({ "available": available })))
+}
+
 pub async fn check_profile_availability(
     State(state): State<AppState>,
     Json(body): Json<CheckProfileAvailabilityRequest>,
