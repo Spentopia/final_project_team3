@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { SubmitEvent as ReactSubmitEvent } from "react";
 import { useNavigate, Link } from "react-router";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -13,13 +14,23 @@ import { authStorage } from "@/shared/lib/auth";
 import { WalletLoginButton } from "@/domains/auth/ui/WalletLoginButton";
 import { useTheme } from "next-themes";
 
+type SocialLoginProvider = "google" | "kakao";
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { theme, setTheme } = useTheme();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: ReactSubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const emailError = validateEmail(email);
@@ -37,20 +48,20 @@ export default function Login() {
 
       navigate("/", { replace: true });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "알 수 없는 오류";
+      const message = getErrorMessage(error, "알 수 없는 오류");
       toast.error(`로그인 실패: ${message}`);
     }
   };
 
-  const handleSocialLogin = async (provider: string) => {
+  const handleSocialLogin = async (provider: SocialLoginProvider) => {
     try {
       if (provider === "google") {
         await signInWithGoogle();
       } else if (provider === "kakao") {
         await redirectToKakao();
       }
-    } catch (error: any) {
-      toast.error(error.message || "소셜 로그인 실패");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "소셜 로그인 실패"));
     }
   };
 
@@ -59,6 +70,8 @@ export default function Login() {
 
       {/* 테마 토글 — 우상단 고정 */}
       <button
+        type="button"
+        aria-label="테마 변경"
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition hover:bg-white/30"
       >
@@ -89,7 +102,7 @@ export default function Login() {
               <Input
                 id="email"
                 type="text"
-                placeholder="test@test.com"
+                placeholder="이메일을 입력해주세요"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -101,7 +114,7 @@ export default function Login() {
               <Label htmlFor="password" className="text-gray-700 dark:text-gray-300">비밀번호</Label>
               <PasswordInput
                 id="password"
-                placeholder="Test1234!"
+                placeholder="비밀번호를 입력해주세요"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
