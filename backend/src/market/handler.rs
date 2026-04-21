@@ -30,6 +30,27 @@ use super::{
     dto::{CreateListingRequest, PurchaseRequest},
     service,
 };
+
+// GET /api/market/listings
+//
+/// status=active인 판매 목록 전체를 최신순으로 반환한다.
+///
+/// # 응답
+/// 200 OK + Vec<ListingResponse>
+#[utoipa::path(
+    get, path = "/api/market/listings",
+    tag = "마켓",
+    responses((status = 200, description = "판매 목록 조회 성공")),
+    security(("bearer_auth" = []))
+)]
+pub async fn get_listings(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    match service::get_listings(&state).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
 use crate::state::AppState;
 
 // POST /market/listings

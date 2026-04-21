@@ -517,7 +517,7 @@ private fun CustomBudgetSettingCard(
             BudgetSliderItem(
                 title = "식비",
                 value = foodBudget,
-                valueRange = 0f..400000f,
+                valueRange = 0f..10000000f,
                 steps = 0,
                 icon = Icons.Default.Restaurant,
                 valueColor = Color(0xFF111827),
@@ -530,7 +530,7 @@ private fun CustomBudgetSettingCard(
             BudgetSliderItem(
                 title = "교통비",
                 value = transportBudget,
-                valueRange = 0f..300000f,
+                valueRange = 0f..10000000f,
                 steps = 0,
                 icon = Icons.Default.Subway,
                 valueColor = Color(0xFF111827),
@@ -543,7 +543,7 @@ private fun CustomBudgetSettingCard(
             BudgetSliderItem(
                 title = "생활비",
                 value = livingBudget,
-                valueRange = 0f..400000f,
+                valueRange = 0f..10000000f,
                 steps = 0,
                 icon = Icons.Default.Home,
                 valueColor = Color(0xFF111827),
@@ -556,7 +556,7 @@ private fun CustomBudgetSettingCard(
             BudgetSliderItem(
                 title = "여가/취미",
                 value = hobbyBudget,
-                valueRange = 0f..300000f,
+                valueRange = 0f..10000000f,
                 steps = 0,
                 icon = Icons.Default.FavoriteBorder,
                 valueColor = Color(0xFF111827),

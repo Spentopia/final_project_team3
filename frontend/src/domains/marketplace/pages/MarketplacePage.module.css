@@ -1,0 +1,543 @@
+/* ============================================================
+   MarketplacePage 전용 CSS Module
+   ============================================================ */
+
+.pageWrapper {
+    position: relative;
+    width: min(1180px, 100%);
+    margin: 0 auto;
+    padding: 32px 18px 56px;
+}
+
+.pageWrapper::before {
+    content: "";
+    position: absolute;
+    inset: 0 18px auto;
+    height: 190px;
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(6, 182, 212, 0.16), rgba(20, 241, 149, 0.09) 48%, rgba(153, 69, 255, 0.13)),
+        radial-gradient(circle at 76% 18%, rgba(255, 255, 255, 0.55), transparent 32%);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    pointer-events: none;
+    z-index: -1;
+}
+
+.pageHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 128px;
+    margin-bottom: 28px;
+    padding: 28px 28px 0;
+}
+
+.pageTitle {
+    margin: 0;
+    color: #0f172a;
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.1;
+}
+
+.pageTitle::after {
+    content: "NFT assets traded with SPT";
+    display: block;
+    margin-top: 8px;
+    color: #475569;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.createButton,
+.buyButton {
+    border: 0;
+    background: linear-gradient(135deg, #0f172a, #0891b2 52%, #14b8a6);
+    color: #ffffff;
+    box-shadow: 0 14px 28px rgba(8, 145, 178, 0.22);
+    transition:
+        transform 0.16s ease,
+        box-shadow 0.16s ease,
+        filter 0.16s ease;
+}
+
+.createButton {
+    min-width: 112px;
+    border-radius: 8px;
+}
+
+.createButton:hover,
+.buyButton:hover {
+    transform: translateY(-1px);
+    filter: saturate(1.08);
+    box-shadow: 0 18px 34px rgba(8, 145, 178, 0.28);
+}
+
+.marketSection {
+    padding: 0 4px;
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.sectionTitle {
+    margin: 0;
+    color: #111827;
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.sectionCount {
+    flex-shrink: 0;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.72);
+    padding: 5px 11px;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+@media (min-width: 720px) {
+    .grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1040px) {
+    .grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.emptyState {
+    display: grid;
+    place-items: center;
+    min-height: 260px;
+    border: 1px dashed rgba(15, 23, 42, 0.16);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 252, 0.72)),
+        repeating-linear-gradient(135deg, rgba(8, 145, 178, 0.05) 0 1px, transparent 1px 14px);
+    color: #475569;
+    text-align: center;
+}
+
+.emptyState p {
+    margin: 0;
+    font-weight: 800;
+}
+
+.emptyStateSub {
+    margin-top: 8px !important;
+    color: #64748b;
+    font-size: 0.875rem;
+    font-weight: 600 !important;
+}
+
+.listingCard {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94)),
+        #ffffff;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        border-color 0.18s ease;
+}
+
+.listingCard::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.1), transparent 38%, rgba(153, 69, 255, 0.08));
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+}
+
+.listingCard:hover {
+    transform: translateY(-4px);
+    border-color: rgba(8, 145, 178, 0.3);
+    box-shadow: 0 24px 54px rgba(15, 23, 42, 0.14);
+}
+
+.listingCard:hover::before {
+    opacity: 1;
+}
+
+.cardContent {
+    position: relative;
+    flex: 1;
+    padding: 12px;
+}
+
+.cardFooter {
+    position: relative;
+    padding: 0 12px 12px;
+}
+
+.imageWrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    margin-bottom: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, #e2e8f0, #f8fafc 50%, #ccfbf1);
+}
+
+.imageWrapper::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 55%, rgba(15, 23, 42, 0.2));
+    pointer-events: none;
+}
+
+.itemImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.28s ease;
+}
+
+.listingCard:hover .itemImage {
+    transform: scale(1.045);
+}
+
+.imagePlaceholder {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.itemName {
+    margin: 0 0 8px;
+    overflow: hidden;
+    color: #0f172a;
+    font-size: 0.96rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.badgeRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 24px;
+    margin-bottom: 10px;
+}
+
+.badgeRow :global(.border) {
+    border-color: rgba(15, 23, 42, 0.14);
+    background: rgba(255, 255, 255, 0.66);
+    color: #475569;
+    font-weight: 700;
+}
+
+.itemPrice {
+    margin: 0;
+    color: #0891b2;
+    font-size: 1.1rem;
+    font-weight: 900;
+    letter-spacing: 0;
+}
+
+.sellerName {
+    margin-top: 5px;
+    overflow: hidden;
+    color: #64748b;
+    font-size: 0.76rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.buyButton {
+    width: 100%;
+    border-radius: 8px;
+    font-weight: 800;
+}
+
+.rarityCommon,
+.rarityRare,
+.rarityEpic {
+    border: 0;
+    font-weight: 800;
+}
+
+.rarityCommon {
+    background-color: #e2e8f0;
+    color: #334155;
+}
+
+.rarityRare {
+    background-color: #cffafe;
+    color: #0e7490;
+}
+
+.rarityEpic {
+    background: linear-gradient(135deg, #f5d0fe, #ddd6fe);
+    color: #6d28d9;
+}
+
+.marketDialogContent {
+    border-radius: 8px;
+    border-color: rgba(15, 23, 42, 0.12);
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.22);
+}
+
+.dialogItemList {
+    display: flex;
+    max-height: 280px;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.dialogEmptyText {
+    margin: 0;
+    padding: 22px 0;
+    color: #64748b;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.selectableItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 8px;
+    background: rgba(248, 250, 252, 0.74);
+    cursor: pointer;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        transform 0.15s ease;
+}
+
+.selectableItem:hover {
+    transform: translateY(-1px);
+    border-color: rgba(8, 145, 178, 0.3);
+    background-color: #f0fdfa;
+}
+
+.selectableItemActive {
+    border-color: rgba(8, 145, 178, 0.55);
+    background: linear-gradient(135deg, #ecfeff, #f0fdfa);
+    box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.2);
+}
+
+.selectableItemThumb {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #e2e8f0, #ccfbf1);
+}
+
+.selectableItemThumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.selectableItemInfo {
+    min-width: 0;
+    flex: 1;
+}
+
+.selectableItemName {
+    margin: 0 0 4px;
+    overflow: hidden;
+    color: #0f172a;
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.priceLabel {
+    display: block;
+    margin-bottom: 6px;
+    color: #334155;
+    font-size: 0.88rem;
+    font-weight: 800;
+}
+
+.priceInput {
+    width: 100%;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 10px 12px;
+    color: #0f172a;
+    font-size: 0.95rem;
+    outline: none;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.priceInput:focus {
+    border-color: #0891b2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.16);
+}
+
+.dialogDivider {
+    margin: 14px 0;
+}
+
+.dialogFooter {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.purchaseItemName {
+    color: #0f172a;
+    font-weight: 900;
+}
+
+.purchaseFeeNote {
+    display: block;
+    margin-top: 8px;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+:global(.dark) .pageWrapper::before {
+    background:
+        linear-gradient(135deg, rgba(20, 184, 166, 0.16), rgba(6, 182, 212, 0.08) 48%, rgba(153, 69, 255, 0.14)),
+        radial-gradient(circle at 76% 18%, rgba(148, 163, 184, 0.2), transparent 32%);
+    border-color: rgba(148, 163, 184, 0.14);
+}
+
+:global(.dark) .pageTitle,
+:global(.dark) .sectionTitle,
+:global(.dark) .itemName,
+:global(.dark) .selectableItemName,
+:global(.dark) .purchaseItemName {
+    color: #f8fafc;
+}
+
+:global(.dark) .pageTitle::after,
+:global(.dark) .sectionCount,
+:global(.dark) .sellerName,
+:global(.dark) .emptyStateSub,
+:global(.dark) .purchaseFeeNote,
+:global(.dark) .dialogEmptyText {
+    color: #94a3b8;
+}
+
+:global(.dark) .sectionCount,
+:global(.dark) .listingCard,
+:global(.dark) .marketDialogContent {
+    border-color: rgba(148, 163, 184, 0.16);
+    background: rgba(15, 23, 42, 0.92);
+}
+
+:global(.dark) .listingCard {
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.28);
+}
+
+:global(.dark) .emptyState {
+    border-color: rgba(148, 163, 184, 0.18);
+    background:
+        linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(17, 24, 39, 0.74)),
+        repeating-linear-gradient(135deg, rgba(20, 184, 166, 0.06) 0 1px, transparent 1px 14px);
+    color: #cbd5e1;
+}
+
+:global(.dark) .imageWrapper,
+:global(.dark) .selectableItemThumb {
+    border-color: rgba(148, 163, 184, 0.14);
+    background: linear-gradient(135deg, #1e293b, #0f172a 52%, #134e4a);
+}
+
+:global(.dark) .selectableItem {
+    border-color: rgba(148, 163, 184, 0.14);
+    background: rgba(15, 23, 42, 0.82);
+}
+
+:global(.dark) .selectableItem:hover,
+:global(.dark) .selectableItemActive {
+    border-color: rgba(20, 184, 166, 0.5);
+    background: rgba(19, 78, 74, 0.38);
+}
+
+:global(.dark) .priceLabel {
+    color: #cbd5e1;
+}
+
+:global(.dark) .priceInput {
+    border-color: rgba(148, 163, 184, 0.18);
+    background: #0f172a;
+    color: #f8fafc;
+}
+
+@media (max-width: 640px) {
+    .pageWrapper {
+        padding: 22px 14px 42px;
+    }
+
+    .pageWrapper::before {
+        inset-inline: 14px;
+        height: 178px;
+    }
+
+    .pageHeader {
+        min-height: 118px;
+        padding: 22px 18px 0;
+    }
+
+    .grid {
+        gap: 14px;
+    }
+
+    .cardContent {
+        padding: 10px;
+    }
+
+    .cardFooter {
+        padding: 0 10px 10px;
+    }
+}

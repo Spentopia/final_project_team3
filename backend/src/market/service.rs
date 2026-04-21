@@ -31,6 +31,38 @@ use super::{
 };
 use crate::state::AppState;
 
+// fetch_listing_response / get_listings 공용 내부 역직렬화 구조체
+
+#[derive(Deserialize)]
+struct SellerEmbed {
+    nickname: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct AvatarItemEmbed {
+    name: String,
+    image_url: String,
+    category: String,
+    rarity: String,
+}
+
+#[derive(Deserialize)]
+struct UserItemEmbed {
+    avatar_items: AvatarItemEmbed,
+}
+
+#[derive(Deserialize)]
+struct ListingRaw {
+    id: Uuid,
+    seller_id: Uuid,
+    item_id: Uuid,
+    price_spt: i32,
+    status: Option<String>,
+    listed_at: Option<DateTime<Utc>>,
+    users: SellerEmbed,
+    user_items: UserItemEmbed,
+}
+
 // create_listing
 //
 /// public.market_listings에 판매 등록 row를 생성하고 ListingResponse를 반환한다.
@@ -114,53 +146,11 @@ pub async fn create_listing(
 ///     market_listings → users 관계에서 FK가 seller_id 하나뿐이어도 PostREST는 명시적으로 `users!seler_id`처럼 적어야
 ///     의도를 정확히 인식한다. 생략하면 ambigous 에러 가능.
 async fn fetch_listing_response(state: &AppState, listing_id: Uuid) -> Result<ListingResponse> {
-    // embedding URL:
-    //  users!seller_id(nickname)                   → seller 닉네임
-    //  user_items!item_id(avatar_items(...))       → 아이템 마스터 정보
     let url = format!(
-        "{}/rest/v1/market_listings?id=eq.{}&select=*.users!seller_id(nickname),user_items!item_id(avatar_items(name,image_url,category\
-        ,rarity))",
+        "{}/rest/v1/market_listings?id=eq.{}&select=*,users!seller_id(nickname),user_items!item_id(avatar_items(name,image_url,category,rarity))",
         state.config.supabase_url.trim_end_matches('/'),
         listing_id,
     );
-
-    // PostgREST 응답 역직렬화용 내부 고조체
-    // 중첩 구조(embedding)를 표현하기 위해 Raw 타입들을 정의한다.
-
-    /// users!seller_id 중첩 객체
-    #[derive(Deserialize)]
-    struct SellerEmbed {
-        nickname: Option<String>, // 닉네임 (프로필 미완성 유저는 null 가능)
-    }
-
-    /// avatar_items 중첩 객체 (user_items 안에 다시 중첩)
-    #[derive(Deserialize)]
-    struct AvatarItemEmbed {
-        name: String,      // 아이템 이름
-        image_url: String, // 아이템 이미지 URL
-        category: String,  // 카테고리 (background / frame / effect / motion)
-        rarity: String,    // 희귀도 (common / rare / epic)
-    }
-
-    /// user_items!item_id 중첩 객체
-    /// select에서 avatar_items만 지정했으므로 avatar_items 필드만 포함
-    #[derive(Deserialize)]
-    struct UserItemEmbed {
-        avatar_items: AvatarItemEmbed, // user_items.item_id → avatar_items
-    }
-
-    /// market_listings 최상위 응답 Row
-    #[derive(Deserialize)]
-    struct ListingRaw {
-        id: Uuid,
-        seller_id: Uuid,
-        item_id: Uuid, // user_items FK
-        price_spt: i32,
-        status: Option<String>, // "active" / "sold" / "calcelled"
-        listed_at: Option<DateTime<Utc>>,
-        users: SellerEmbed,        // embedding: seller 정보
-        user_items: UserItemEmbed, // embedding: 아이템 정보
-    }
 
     let res = state
         .http_client
@@ -200,6 +190,56 @@ async fn fetch_listing_response(state: &AppState, listing_id: Uuid) -> Result<Li
         status: r.status,
         listed_at: r.listed_at,
     })
+}
+
+// get_listings
+//
+/// status=active인 마켓 리스팅 전체를 최신순으로 조회한다.
+///
+/// 페이지네이션 없이 전체 반환 (아이템 수가 적은 MVP 단계 기준).
+pub async fn get_listings(state: &AppState) -> Result<Vec<ListingResponse>> {
+    let url = format!(
+        "{}/rest/v1/market_listings?status=eq.active&select=*,users!seller_id(nickname),user_items!item_id(avatar_items(name,image_url,category,rarity))&order=listed_at.desc",
+        state.config.supabase_url.trim_end_matches('/'),
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apiKey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("market_listings 전체 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("market_listings 전체 조회 실패: {}", body));
+    }
+
+    let raw: Vec<ListingRaw> = res.json().await.context("ListingRaw 역직렬화 실패")?;
+
+    let listings = raw
+        .into_iter()
+        .map(|r| ListingResponse {
+            id: r.id,
+            seller_id: r.seller_id,
+            seller_nickname: r.users.nickname,
+            item_id: r.item_id,
+            item_name: r.user_items.avatar_items.name,
+            item_image_url: r.user_items.avatar_items.image_url,
+            item_category: r.user_items.avatar_items.category,
+            item_rarity: r.user_items.avatar_items.rarity,
+            price_spt: r.price_spt,
+            status: r.status,
+            listed_at: r.listed_at,
+        })
+        .collect();
+
+    Ok(listings)
 }
 
 // update_escrow

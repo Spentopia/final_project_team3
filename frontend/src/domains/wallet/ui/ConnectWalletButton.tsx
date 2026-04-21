@@ -1,8 +1,7 @@
 import {useWalletConnection} from "@/domains/wallet/hooks/useWalletConnection";
 import {useEffect, useMemo, useRef, useState} from "react";
 import {shortenWalletAddress} from "@/domains/wallet/lib/solana";
-import {Button} from "@/shared/ui/button.tsx";
-import {Link as LinkIcon, Wallet} from "lucide-react";
+import {Link as LinkIcon, Wallet, Loader2} from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -21,13 +20,13 @@ interface ConnectWalletButtonProps{
 export function ConnectWalletButton({className}: ConnectWalletButtonProps){
   const {
       wallet,
+      wallets,
       connected,
       connecting,
       disconnecting,
       walletAddress,
       walletName,
       openWalletModal,
-      connectWallet,
       disconnectWallet,
       deselectWallet,
       linkWallet,
@@ -35,50 +34,45 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
       isProcessing,
   } = useWalletConnection();
 
+  // Wallet Standard 감지 완료 여부
+  // wallets.length > 0 또는 wallet이 이미 설정된 경우 준비 완료
+  const isWalletReady = wallets.length > 0 || !!wallet;
+
   // 최신 함수를 ref로 보관해 effect 의존성에서 제외한다.
   const linkWalletRef = useRef(linkWallet);
   useEffect(() => { linkWalletRef.current = linkWallet; }, [linkWallet]);
 
-  // 사용자가 직접 버튼을 눌렀을 때만 true.
-  // 모달에서 지갑 선택 → connect() → linkWallet() 흐름을 직접 제어하기 위한 플래그.
-  const pendingRef = useRef(false);
+  const [linkRequested, setLinkRequested] = useState(false);
+  const [openingWalletModal, setOpeningWalletModal] = useState(false);
+  const linkInFlightRef = useRef(false);
 
-  // 이전 wallet 어댑터 이름을 기억해 "새 지갑이 선택됐는지"를 판단한다.
-  const prevWalletNameRef = useRef<string | null>(wallet?.adapter.name ?? null);
-
-  // deselectWallet()이 disconnect를 유발하면 disconnecting=true가 되고
-  // wallet-adapter 내부에서 connect()가 즉시 return된다.
-  // 새 지갑이 선택됐는데 아직 disconnecting 중이면 이 플래그를 세우고,
-  // disconnecting이 끝난 뒤 effect가 재발화할 때 connect()를 호출한다.
-  const pendingConnectRef = useRef(false);
-
-  // autoConnect=false 이므로 모달에서 지갑이 선택(wallet 변경)되면 직접 connect()를 호출한다.
   useEffect(() => {
-    const currentName = wallet?.adapter.name ?? null;
-    const prevName = prevWalletNameRef.current;
-    prevWalletNameRef.current = currentName;
+    if (!openingWalletModal || wallet || disconnecting) return;
 
-    // 새 지갑이 선택되면 connect 대기 플래그를 세운다.
-    if (currentName && currentName !== prevName && pendingRef.current && !connected) {
-      pendingConnectRef.current = true;
-    }
-
-    // disconnecting이 끝나야 connect()가 실제로 실행된다.
-    if (pendingConnectRef.current && wallet && !connected && !connecting && !disconnecting) {
-      pendingConnectRef.current = false;
-      connectWallet().catch(() => {
-        pendingRef.current = false;
-      });
-    }
-  }, [wallet, connected, connecting, disconnecting, connectWallet]);
+    setOpeningWalletModal(false);
+    openWalletModal();
+  }, [openingWalletModal, wallet, disconnecting, openWalletModal]);
 
   // 지갑이 연결되면 연동(linkWallet) 시도.
   useEffect(() => {
-    if (connected && walletAddress && pendingRef.current) {
-      pendingRef.current = false;
-      void linkWalletRef.current();
-    }
-  }, [connected, walletAddress]);
+    if (!linkRequested || !connected || !walletAddress || connecting || disconnecting || linkInFlightRef.current) return;
+
+    linkInFlightRef.current = true;
+    setLinkRequested(false);
+    linkWalletRef.current().finally(() => {
+      linkInFlightRef.current = false;
+    });
+  }, [linkRequested, connected, walletAddress, connecting, disconnecting]);
+
+  useEffect(() => {
+    if (!linkRequested || wallet || openingWalletModal || connected) return;
+
+    const timer = window.setTimeout(() => {
+      setLinkRequested(false);
+    }, 120000);
+
+    return () => window.clearTimeout(timer);
+  }, [linkRequested, wallet, openingWalletModal, connected]);
 
   const [showUnlinkDialog, setShowUnlinkDialog] = useState(false);
 
@@ -97,13 +91,15 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
       setShowUnlinkDialog(true);
       return;
     }
-    pendingRef.current = true;
-    // 이전 선택 기록을 초기화해서 같은 지갑을 다시 선택해도 connect()가 호출되도록 한다.
-    prevWalletNameRef.current = null;
-    // wallet을 null로 초기화해야 같은 지갑을 다시 선택할 때 wallet 상태가 변해서 useEffect가 발화한다.
-    // (이미 Phantom이 선택된 상태에서 Phantom을 다시 선택하면 상태 변화가 없어 connect()가 불리지 않음)
-    deselectWallet();
-    openWalletModal();
+
+    setLinkRequested(true);
+
+    if (wallet) {
+      setOpeningWalletModal(true);
+      deselectWallet();               // 이전 선택 초기화 → 모달에서 동일 지갑 재선택 가능
+    } else {
+      openWalletModal();
+    }
   };
 
   const handleUnlinkConfirm = async () => {
@@ -111,31 +107,78 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
     await disconnectWallet();
   };
 
+  const isLoading = connecting || disconnecting || isProcessing || linkRequested || !isWalletReady;
+
   return (
     <>
-      <Button
-        type="button"
-        className={className}
-        onClick={handleClick}
-        disabled={connecting || disconnecting || isProcessing}
-        variant={connected ? "outline" : "default"}
-      >
-        {connected ? <Wallet className="h-4 w-4" /> : <LinkIcon className="h-4 w-4" />}
-        {label}
-      </Button>
+      {connected ? (
+        // ── 연결됨: 솔라나 그린 테두리 + 주소 표시 ──
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={isLoading}
+          className={[
+            "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all",
+            "border border-[#14F195]/50 bg-[#14F195]/10 text-[#14F195]",
+            "hover:bg-[#14F195]/20 hover:border-[#14F195]",
+            "disabled:opacity-50 disabled:cursor-not-allowed",
+            className ?? "",
+          ].join(" ")}
+        >
+          {/* 연결 상태 점 */}
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#14F195] opacity-60" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#14F195]" />
+          </span>
+          <Wallet className="h-4 w-4" />
+          <span>{label}</span>
+        </button>
+      ) : (
+        // ── 미연결: 솔라나 보라→초록 그라디언트 버튼 ──
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={isLoading}
+          className={[
+            "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-all",
+            "bg-gradient-to-r from-[#9945FF] to-[#14F195] text-white",
+            "hover:opacity-90 hover:shadow-lg hover:shadow-[#9945FF]/30 hover:-translate-y-0.5",
+            "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none",
+            className ?? "",
+          ].join(" ")}
+        >
+          {isLoading
+            ? <Loader2 className="h-4 w-4 animate-spin" />
+            : <LinkIcon className="h-4 w-4" />
+          }
+          <span>{label}</span>
+        </button>
+      )}
+
 
       <AlertDialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>지갑 연동을 해제하시겠습니까?</AlertDialogTitle>
-            <AlertDialogDescription>
-              지갑 연동을 해제하면 지갑 로그인을 사용할 수 없게 됩니다.
+            <AlertDialogTitle>지갑을 해제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">
+                현재 연결된 지갑:{" "}
+                <span className="font-mono font-semibold text-foreground">
+                  {walletAddress ? shortenWalletAddress(walletAddress) : ""}
+                </span>
+              </span>
+              <span className="block text-muted-foreground">
+                해제 후 기존 지갑 재등록 및 새로운 지갑 등록이 가능합니다.
+              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { void handleUnlinkConfirm(); }}>
-              해제
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { void handleUnlinkConfirm(); }}
+            >
+              지갑 해제
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

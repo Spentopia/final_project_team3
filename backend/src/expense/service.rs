@@ -86,7 +86,7 @@ pub async fn create_expense(
         .next()
         .ok_or_else(|| anyhow!("expenses INSERT 결과가 비어있음"))?;
 
-    Ok(ExpenseWebResponse {
+    let response = ExpenseWebResponse {
         id: expense.id,
         date: expense.expense_date,
         amount: expense.amount,
@@ -94,7 +94,23 @@ pub async fn create_expense(
         memo: expense.memo,
         receipt_verified: req.receipt_verified,
         diary: expense.one_line_diary,
-    })
+    };
+
+    // fire-and-forget: 스트릭 + 성실도 점수 재계산
+    // 실패해도 소비 저장 응답에 영향 없음
+    let state_clone = state.clone();
+    let uid = user_id;
+    let date = req.date;
+    tokio::spawn(async move {
+        if let Err(e) = crate::reward::service::update_streak(&state_clone, uid, date).await {
+            tracing::warn!("스트릭 업데이트 실패: {}", e);
+        }
+        if let Err(e) = crate::reward::service::recalculate_weekly_score(&state_clone, uid, date).await {
+            tracing::warn!("성실도 점수 재계산 실패: {}", e);
+        }
+    });
+
+    Ok(response)
 }
 
 pub async fn verify_receipt_ocr(
@@ -258,4 +274,85 @@ fn empty_to_none(value: Option<String>) -> Option<String> {
             Some(trimmed)
         }
     })
+}
+
+// ── 영수증 하루 3건 제한 ───────────────────────────────────────
+
+#[derive(Debug)]
+pub enum ReceiptLimitError {
+    TooMany,           // 429
+    Duplicate,         // 409
+    Internal(String),  // 500
+}
+
+/// 영수증 OCR 전 호출. 하루 3건 초과 or expense_id 중복이면 에러 반환.
+/// receipts 테이블에 user_id 컬럼이 있다고 가정.
+/// uploaded_at 범위 필터로 오늘 건수 조회 (receipt_date 컬럼 없음).
+pub async fn check_receipt_limit(
+    state: &AppState,
+    user_id: Uuid,
+    expense_id: Uuid,
+) -> Result<(), ReceiptLimitError> {
+    let base_url = state.config.supabase_url.trim_end_matches('/');
+    let key = &state.config.supabase_secret_key;
+
+    let today = chrono::Utc::now().date_naive();
+    let today_start = format!("{}T00:00:00Z", today);
+    let tomorrow_start = format!("{}T00:00:00Z", today.succ_opt().unwrap_or(today));
+
+    // ── 오늘 receipts 건수 조회 (uploaded_at 범위 필터) ──
+    let count_url = format!(
+        "{}/rest/v1/receipts?user_id=eq.{}&uploaded_at=gte.{}&uploaded_at=lt.{}&select=id",
+        base_url, user_id, today_start, tomorrow_start
+    );
+
+    let count_res = state
+        .http_client
+        .get(&count_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key.as_str())
+        .header("Prefer", "count=exact")
+        .send()
+        .await
+        .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
+
+    // Content-Range: 0-2/3 → '/' 뒤 숫자가 total count
+    let total_count = count_res
+        .headers()
+        .get("content-range")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.split('/').nth(1))
+        .and_then(|n| n.parse::<usize>().ok())
+        .unwrap_or(0);
+
+    if total_count >= 3 {
+        return Err(ReceiptLimitError::TooMany);
+    }
+
+    // ── expense_id 중복 체크 ──
+    let dup_url = format!(
+        "{}/rest/v1/receipts?expense_id=eq.{}&select=id&limit=1",
+        base_url, expense_id
+    );
+
+    let dup_res = state
+        .http_client
+        .get(&dup_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key.as_str())
+        .send()
+        .await
+        .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
+
+    if dup_res.status().is_success() {
+        let rows: Vec<serde_json::Value> = dup_res
+            .json()
+            .await
+            .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
+        if !rows.is_empty() {
+            return Err(ReceiptLimitError::Duplicate);
+        }
+    }
+
+    Ok(())
 }

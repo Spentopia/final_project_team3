@@ -34,10 +34,14 @@ pub fn create_router(state: AppState) -> Router {
     let public_routes = Router::new()
         .route("/health", get(|| async { "ok" }))
         .route("/auth/exchange", post(auth::handler::exchange_token))
+        .route("/auth/app/exchange", post(auth::handler::exchange_token_app))
         .route("/auth/wallet/nonce", post(auth::handler::request_nonce))
         .route("/auth/refresh", post(auth::handler::refresh_token))
+        .route("/auth/app/refresh", post(auth::handler::refresh_token_app))
         .route("/auth/logout", post(auth::handler::logout))
+        .route("/auth/app/logout", post(auth::handler::logout_app))
         .route("/auth/wallet/login", post(auth::handler::wallet_login))
+        .route("/auth/app/wallet/login", post(auth::handler::wallet_login_app))
         .route("/auth/kakao/start", post(auth::handler::kakao_start))
         .route("/auth/kakao/login", post(auth::handler::kakao_login))
         // ── handoff 교환 (공개) ─────────────────────────────
@@ -164,9 +168,19 @@ pub fn create_router(state: AppState) -> Router {
         // ── 보상 / 스트릭 ─────────────────────────────────
         .route("/api/rewards", get(reward::handler::list_rewards))
         .route("/api/rewards/streak", get(reward::handler::get_streak))
+        // current를 먼저 등록 (/weekly-score 패턴과 충돌 방지)
+        .route(
+            "/api/rewards/weekly-score/current",
+            get(reward::handler::get_current_weekly_score),
+        )
         .route(
             "/api/rewards/weekly-score",
             get(reward::handler::get_weekly_scores),
+        )
+        // 공모전 보상 지급 (관리자용, TODO: 관리자 미들웨어 추가 예정)
+        .route(
+            "/api/admin/contest/reward",
+            post(reward::handler::grant_contest_reward),
         )
         // ── 아바타 / 아이템 ───────────────────────────────
         .route("/api/avatar/mint-nft", post(avatar::handler::mint_nft))
@@ -178,7 +192,7 @@ pub fn create_router(state: AppState) -> Router {
         // ── 마켓 ──────────────────────────────────────────
         .route(
             "/api/market/listings",
-            post(market::handler::create_listing),
+            get(market::handler::get_listings).post(market::handler::create_listing),
         )
         .route(
             "/api/market/listings/:id/escrow",
