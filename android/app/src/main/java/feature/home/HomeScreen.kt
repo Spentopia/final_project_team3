@@ -383,26 +383,7 @@ private fun TopHeaderSection(
                 .padding(horizontal = 14.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFFB980FF),
-                                Color(0xFF8B5CF6),
-                                Color(0xFF5B4BFF)
-                            )
-                        ),
-                        shape = RoundedCornerShape(16.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "👻",
-                    fontSize = 24.sp
-                )
-            }
+
 
             Spacer(modifier = Modifier.width(12.dp))
 

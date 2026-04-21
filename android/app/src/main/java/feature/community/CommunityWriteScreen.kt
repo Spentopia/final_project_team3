@@ -99,7 +99,14 @@ fun CommunityWriteScreen(
             // 빈 제목/내용이면 등록되지 않도록 아주 기본 검사를 넣습니다.
             isEnabled = title.isNotBlank() && content.isNotBlank(),
             onSubmitClick = {
-                onSubmitClick(selectedCategory, title, content)
+                // 초보자용 설명:
+                // trim()은 앞뒤 공백을 정리해주는 함수입니다.
+                val trimmedTitle = title.trim()
+                val trimmedContent = content.trim()
+
+                if (trimmedTitle.isNotEmpty() && trimmedContent.isNotEmpty()) {
+                    onSubmitClick(selectedCategory, trimmedTitle, trimmedContent)
+                }
             }
         )
     }
