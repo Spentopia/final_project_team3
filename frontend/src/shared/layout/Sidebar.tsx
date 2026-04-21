@@ -28,7 +28,6 @@ const menuItems = [
   { path: "/", icon: Calendar, label: "가계부" },
   { path: "/budget", icon: Wallet, label: "예산 설정" },
   { path: "/analytics", icon: BarChart3, label: "소비 분석" },
-  { path: "/avatar", icon: Sparkles, label: "내 아바타" },
   { path: "/marketplace", icon: Store, label: "NFT 마켓" },
   { path: "/plaza", icon: Gamepad2, label: "광장" },
   { path: "/community", icon: Users, label: "커뮤니티" },

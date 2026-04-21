@@ -16,7 +16,6 @@ import {authStorage} from "@/shared/lib/auth";
 // 현재 프로젝트는 authStorage와 spentopia_auth 플래그를 함께 보고 있으므로 둘 다 맞춰준다.
 function persistWalletTokens(payload: WalletLoginResponse): void {
     authStorage.setToken(payload.access_token);
-    
 }
 
 // axios 에러 응답을 화면에 표시할 수 있는 문자열로 정규화한다.
@@ -294,7 +293,8 @@ export function useWalletConnection() {
         resetMessages();
 
         try{
-            const response = await unlinkWalletApi();
+            const payload = await createSignedNoncePayload();
+            const response = await unlinkWalletApi(payload);
 
             setSuccessMessage(response.message);
 
@@ -315,7 +315,7 @@ export function useWalletConnection() {
             setCurrentProcess(null);
             setIsProcessing(false);
         }
-    },[resetMessages]);
+    },[createSignedNoncePayload, resetMessages]);
 
     return{
         // wallet-adapter 상태

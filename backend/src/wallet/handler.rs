@@ -24,7 +24,7 @@ use crate::state::AppState;
 // LinkWalletRequest → POST /wallet/link 요청 body 구조체
 // LinkWalletResponse → POST /wallet/link 성공 응답 구조체
 // UnlinkWalletResponse → DELETE /wallet/unlink 성공 응답 구조체
-use super::dto::{LinkWalletRequest, LinkWalletResponse, UnlinkWalletResponse};
+use super::dto::{LinkWalletRequest, LinkWalletResponse, UnlinkWalletRequest, UnlinkWalletResponse};
 
 // 비즈니스 로직 (nonce 검증 → 서명 검증 → 중복 체크 → DB 업데이트)
 use super::service;
@@ -49,6 +49,8 @@ fn map_err_status(e: &anyhow::Error) -> StatusCode {
         StatusCode::UNAUTHORIZED
     } else if msg.contains("이미") {
         StatusCode::CONFLICT
+    } else if msg.contains("일치하지 않습니다") {
+        StatusCode::UNAUTHORIZED
     } else if msg.contains("연동된 지갑이 없습니다") {
         StatusCode::BAD_REQUEST
     } else {
@@ -140,20 +142,21 @@ pub async fn link_wallet(
 //  jwt_middleware → JWT 검증 → user_id를 Extension에 삽입
 //  → unlink_wallet 핸들러 실행 → service::unlink_wallet 호출
 //  (1) 연동 여부 확인 → wallet_address가 NULL인지 체크
-//  (2) DB 업데이트 → public.users.wallet_address = NULL
+//  (2) nonce/서명 검증 → 현재 연동된 지갑 소유자인지 확인
+//  (3) DB 업데이트 → public.users.wallet_address = NULL
 //  → 성공: 200 OK + UnlinkWalletResponse
 //  → 실패: map_err_status()로 적절한 상태코드 반환
 //
-// ■ 요청 body가 없는 이유
-//  해제 대상은 "현재 로그인된 유저의 지갑"이므로 user_id만 있으면 충분함. 추가 정보 불필요.
 #[utoipa::path(
     delete,
     path="/wallet/unlink",
     tag="지갑 연동",
     security(("bearer_auth"=[])),
+    request_body = UnlinkWalletRequest,
     responses(
         (status = 200, description = "지갑 해제 성공", body = UnlinkWalletResponse),
         (status = 400, description = "연동된 지갑이 없음"),
+        (status = 401, description = "nonce 불일치 또는 서명 검증 실패"),
         (status = 500, description = "서버 내부 오류 (DB, HTTP 등)"),
     )
 )]
@@ -162,8 +165,17 @@ pub async fn unlink_wallet(
     // link_wallet과 동일하게 jwt_middleware가 넣어준 user_id를 꺼냄
     // 이 user_id로 어떤 유저의 지갑을 해제할지 특정함
     Extension(user_id): Extension<Uuid>,
+    Json(req): Json<UnlinkWalletRequest>,
 ) -> impl IntoResponse {
-    match service::unlink_wallet(&state, user_id).await {
+    match service::unlink_wallet(
+        &state,
+        user_id,
+        &req.wallet_address,
+        &req.nonce,
+        &req.signature,
+    )
+    .await
+    {
         // 해제 성공 → 완료 메세지를 JSON으로 반환
         Ok(()) => (
             StatusCode::OK,
