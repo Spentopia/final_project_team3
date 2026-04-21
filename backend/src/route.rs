@@ -106,7 +106,11 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/user/settings", get(user::handler::get_settings))
         .route("/api/user/settings", patch(user::handler::update_settings))
         // ── 소비 내역 ──────────────────────────────────────
-        .route("/api/expenses", post(expense::handler::create_expense))
+        .route(
+            "/api/expenses",
+            get(expense::handler::list_expenses).post(expense::handler::create_expense),
+        )
+        .route("/api/expenses/:expense_id", delete(expense::handler::delete_expense))
         .route(
             "/api/receipt/ocr",
             post(expense::handler::verify_receipt_ocr),
@@ -206,6 +210,8 @@ pub fn create_router(state: AppState) -> Router {
             auth::middleware::jwt_middleware,
         ));
 
+// ── 어드민 전용 라우트 ───────────────────────────────────
+let admin_routes = Router::new();
     // ── 합치기 ──────────────────────────────────────────────
     Router::new()
         .merge(public_routes)

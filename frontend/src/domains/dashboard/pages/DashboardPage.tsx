@@ -8,7 +8,12 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Textarea } from "@/shared/ui/textarea";
 import { verifyReceiptOcr, ReceiptOcrResponse } from "@/shared/api/receiptOcr";
-import { createExpense, type CreateExpenseResponse } from "@/shared/api/expenseApi";
+import {
+  createExpense,
+  deleteExpense,
+  listExpenses,
+  type CreateExpenseResponse,
+} from "@/shared/api/expenseApi";
 import { Badge } from "@/shared/ui/badge";
 
 import {
@@ -48,9 +53,9 @@ const toDashboardExpense = (savedExpense: CreateExpenseResponse): Expense => ({
   amount: savedExpense.amount,
   category: savedExpense.category,
   memo: savedExpense.memo ?? "",
-  type: "expense",
-  receipt: savedExpense.receiptVerified,
-  diary: savedExpense.diary ?? "",
+  type: savedExpense.transactionType,
+  receipt: savedExpense.transactionType === "expense" ? savedExpense.receiptVerified : undefined,
+  diary: savedExpense.transactionType === "expense" ? (savedExpense.diary ?? "") : undefined,
 });
 
 const categories = [
@@ -74,7 +79,7 @@ const incomeCategories = [
 ];
 
 export default function DashboardPage() {
-  const { budget, transactions, addTransaction, removeTransaction } = useFinance();
+  const { budget, transactions, replaceTransactions, removeTransaction } = useFinance();
   const draftStorageKey = "dashboard-expense-draft";
   const selectedDateStorageKey = "dashboard-selected-date";
   const entryTypeStorageKey = "dashboard-entry-type";
@@ -152,9 +157,52 @@ export default function DashboardPage() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
   const [ocrResult, setOcrResult] = useState<ReceiptOcrResponse | null>(null);
   const [isReceiptVerified, setIsReceiptVerified] = useState(false);
   const [ocrError, setOcrError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadExpenses = async () => {
+      try {
+        setListLoading(true);
+        const items = await listExpenses();
+
+        if (cancelled) return;
+
+        replaceTransactions(
+          items.map((item) => ({
+            id: item.id,
+            date: item.date,
+            amount: item.amount,
+            category: item.category,
+            memo: item.memo ?? "",
+            type: item.transactionType,
+            receipt: item.receiptVerified,
+            diary: item.diary ?? "",
+          }))
+        );
+      } catch (error) {
+        if (!cancelled) {
+          const message =
+            error instanceof Error ? error.message : "소비 내역을 불러오지 못했습니다.";
+          toast.error(message);
+        }
+      } finally {
+        if (!cancelled) {
+          setListLoading(false);
+        }
+      }
+    };
+
+    void loadExpenses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleVerifyReceipt = async () => {
     if (!receiptFile) {
@@ -217,30 +265,6 @@ export default function DashboardPage() {
       return;
     }
 
-    if (entryType === "income") {
-      const income: Expense = {
-        id: `income-${Date.now()}`,
-        date: selectedDate,
-        amount: Number(newExpense.amount),
-        category: newExpense.category,
-        memo: newExpense.memo,
-        type: "income",
-      };
-
-      addTransaction({
-        id: income.id,
-        date: format(income.date, "yyyy-MM-dd"),
-        amount: income.amount,
-        category: income.category,
-        memo: income.memo,
-        type: income.type,
-      });
-      setSelectedDate(income.date);
-      toast.success("수입 입력 완료");
-      resetForm();
-      return;
-    }
-
     if (receiptFile && !isReceiptVerified) {
       toast.error("영수증을 업로드했다면 검증을 먼저 완료해주세요");
       return;
@@ -254,45 +278,65 @@ export default function DashboardPage() {
         amount: Number(newExpense.amount),
         category: newExpense.category,
         memo: newExpense.memo,
-        receiptVerified: isReceiptVerified,
-        diary: newExpense.diary,
+        transactionType: entryType,
+        receiptVerified: entryType === "expense" ? isReceiptVerified : false,
+        diary: entryType === "expense" ? newExpense.diary : "",
       };
 
       const savedExpense = await createExpense(payload);
 
       const expense = toDashboardExpense(savedExpense);
 
-      addTransaction({
-        id: String(expense.id),
-        date: format(expense.date, "yyyy-MM-dd"),
-        amount: expense.amount,
-        category: expense.category,
-        memo: expense.memo,
-        type: expense.type,
-        receipt: expense.receipt,
-        diary: expense.diary,
-      });
+      replaceTransactions([
+        {
+          id: String(expense.id),
+          date: format(expense.date, "yyyy-MM-dd"),
+          amount: expense.amount,
+          category: expense.category,
+          memo: expense.memo,
+          type: entryType,
+          receipt: entryType === "expense" ? expense.receipt : undefined,
+          diary: entryType === "expense" ? expense.diary : undefined,
+        },
+        ...transactions,
+      ]);
       setSelectedDate(expense.date);
+
+      if (savedExpense.transactionType !== entryType) {
+        toast.error(
+          `저장 응답 타입이 예상과 다릅니다. 서버 응답: ${savedExpense.transactionType}, 입력 타입: ${entryType}`
+        );
+      }
 
       let reward = 10;
       if (isReceiptVerified) reward += 20;
       if (newExpense.diary.trim()) reward += 15;
-
-      toast.success("소비 기록 완료! 🎉");
+      toast.success(entryType === "income" ? "수입 기록 완료!" : "소비 기록 완료! 🎉");
 
       resetForm();
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "소비 저장 중 오류가 발생했습니다.";
+        error instanceof Error
+          ? error.message
+          : entryType === "income"
+            ? "수입 저장 중 오류가 발생했습니다."
+            : "소비 저장 중 오류가 발생했습니다.";
       toast.error(message);
     } finally {
       setSaveLoading(false);
     }
   };
 
-  const handleDeleteExpense = (id: string | number) => {
-    removeTransaction(id);
-    toast.success("삭제되었습니다");
+  const handleDeleteExpense = async (id: string | number, type: "expense" | "income") => {
+    try {
+      await deleteExpense(String(id));
+      removeTransaction(id);
+      toast.success("삭제되었습니다");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "소비 삭제 중 오류가 발생했습니다.";
+      toast.error(message);
+    }
   };
 
   const handleExpenseDateChange = (value: string) => {
@@ -309,14 +353,14 @@ export default function DashboardPage() {
   };
 
   const expenses = transactions.map((transaction) => ({
-    id: transaction.id ?? `tx-${transaction.date ?? "unknown"}-${transaction.amount}`,
-    date: parse(transaction.date ?? format(new Date(), "yyyy-MM-dd"), "yyyy-MM-dd", new Date()),
+    id: transaction.id,
+    date: parse(transaction.date, "yyyy-MM-dd", new Date()),
     amount: transaction.amount,
-    category: transaction.category ?? "other",
+    category: transaction.category,
     memo: transaction.memo ?? "",
-    type: transaction.type ?? "expense",
-    receipt: transaction.receipt,
-    diary: transaction.diary,
+    type: transaction.type,
+    receipt: transaction.type === "expense" ? transaction.receipt : undefined,
+    diary: transaction.type === "expense" ? transaction.diary : undefined,
   }));
 
   const selectedDateExpenses = expenses.filter(
@@ -462,7 +506,9 @@ export default function DashboardPage() {
           <div className="space-y-3">
             {selectedDateExpenses.length === 0 ? (
               <div className="py-12 text-center">
-                <p className="text-gray-500">아직 기록된 내역이 없어요</p>
+                <p className="text-gray-500">
+                  {listLoading ? "소비 내역을 불러오는 중이에요" : "아직 기록된 내역이 없어요"}
+                </p>
                 <p className="mt-1 text-sm text-gray-400">오른쪽에서 소비나 수입을 기록해보세요!</p>
               </div>
             ) : (
@@ -522,7 +568,7 @@ export default function DashboardPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDeleteExpense(expense.id)}
+                        onClick={() => void handleDeleteExpense(expense.id, expense.type)}
                       >
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>

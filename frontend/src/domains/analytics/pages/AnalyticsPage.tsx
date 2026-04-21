@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { useFinance } from "@/shared/providers/FinanceProvider";
+import { listExpenses } from "@/shared/api/expenseApi";
 
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
@@ -89,10 +91,43 @@ const categoryData = [
 ];
 
 export default function Analytics() {
-  const { transactions } = useFinance(); // ✅ 여기 (제일 위)
+  const { transactions, replaceTransactions } = useFinance();
   const now = new Date();
 
-  // 👉 여기부터 계산 코드들
+  useEffect(() => {
+    if (transactions.length > 0) return;
+
+    let cancelled = false;
+
+    const loadExpenses = async () => {
+      try {
+        const items = await listExpenses();
+        if (cancelled) return;
+
+        replaceTransactions(
+          items.map((item) => ({
+            id: item.id,
+            date: item.date,
+            amount: item.amount,
+            category: item.category,
+            memo: item.memo ?? "",
+            type: item.transactionType,
+            receipt: item.transactionType === "expense" ? item.receiptVerified : undefined,
+            diary: item.transactionType === "expense" ? (item.diary ?? "") : undefined,
+          }))
+        );
+      } catch (error) {
+        console.error("소비 내역 조회 실패:", error);
+      }
+    };
+
+    void loadExpenses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [transactions.length]);
+
   const thisMonthTransactions = transactions.filter((t: any) => {
     const date = new Date(t.date);
     return (
