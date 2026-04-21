@@ -47,7 +47,7 @@ export default function Login() {
       if (provider === "google") {
         await signInWithGoogle();
       } else if (provider === "kakao") {
-        redirectToKakao();
+        await redirectToKakao();
       }
     } catch (error: any) {
       toast.error(error.message || "소셜 로그인 실패");

@@ -612,12 +612,15 @@ pub async fn exchange_supabase_token(
 
     // ── 탈퇴 유저 로그인 차단 ────────────────────────────────
     //
-    // auth.users는 삭제했지만 혹시 토큰이 살아있는 경우를 대비해
-    // public.users의 deleted_at을 한 번 더 확인함
+    // [Case 1] user_id 기반 체크
+    // - 이메일 로그인: 탈퇴 후 auth.users가 삭제됐으므로 보통 Supabase 레벨에서 차단됨.
+    //   그러나 만료되지 않은 토큰이 남아있는 경우를 대비해 이 체크를 유지.
     //
-    // 확인 방법:
-    // - public.users에서 해당 user_id의 deleted_at 조회
-    // - deleted_at이 NULL이 아니면 탈퇴한 유저 → 로그인 차단
+    // [Case 2] email 기반 체크
+    // - 구글 로그인: 탈퇴 후 auth.users가 삭제되면 재로그인 시 Supabase가
+    //   동일 이메일로 새 auth.users row를 생성 → 새 user_id 발급.
+    //   새 user_id로는 public.users에서 deleted_at을 찾을 수 없으므로
+    //   email 기반으로 추가 확인해야 함.
     let deleted_check_url = format!(
         "{}/rest/v1/users?id=eq.{}&select=deleted_at&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
@@ -636,9 +639,34 @@ pub async fn exchange_supabase_token(
     if deleted_resp.status().is_success() {
         let rows: Vec<serde_json::Value> = deleted_resp.json().await.unwrap_or_default();
         if let Some(row) = rows.first() {
-            // deleted_at이 string(타임스탬프 값)이면 탈퇴한 유저
             if row["deleted_at"].is_string() {
                 return Err(anyhow!("이미 탈퇴한 회원입니다."));
+            }
+        }
+    }
+
+    // [Case 2] email 기반 탈퇴 체크 (구글 재로그인 시 새 user_id 케이스 대응)
+    if let Some(mail) = email {
+        let email_check_url = format!(
+            "{}/rest/v1/users?email=eq.{}&select=deleted_at&limit=1",
+            state.config.supabase_url.trim_end_matches('/'),
+            urlencoding::encode(mail)
+        );
+        let email_check_resp = state
+            .http_client
+            .get(&email_check_url)
+            .header("apikey", &state.config.supabase_secret_key)
+            .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+            .send()
+            .await
+            .context("이메일 기반 탈퇴 여부 조회 실패")?;
+        if email_check_resp.status().is_success() {
+            let rows: Vec<serde_json::Value> = email_check_resp.json().await.unwrap_or_default();
+            if let Some(row) = rows.first() {
+                if row["deleted_at"].is_string() {
+                    tracing::warn!("탈퇴 유저 재로그인 시도 차단 (email 기반): email={}", mail);
+                    return Err(anyhow!("이미 탈퇴한 회원입니다."));
+                }
             }
         }
     }
@@ -1193,8 +1221,11 @@ async fn find_public_user_by_email(
 ) -> Result<Option<String>> {
     let email_encoded = urlencoding::encode(email);
 
+    // deleted_at=is.null 조건 추가:
+    // 탈퇴 유저(deleted_at NOT NULL)는 제외해서 ensure_public_user_exists에서
+    // 탈퇴 계정을 google_connected 복구 대상으로 인식하지 않도록 함.
     let url = format!(
-        "{}/rest/v1/users?email=eq.{}&select=id&limit=1",
+        "{}/rest/v1/users?email=eq.{}&deleted_at=is.null&select=id&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         email_encoded
     );
