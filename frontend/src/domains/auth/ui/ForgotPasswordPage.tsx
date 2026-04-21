@@ -20,6 +20,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
 import { Sparkles, MailCheck } from "lucide-react";
+import { toast } from "sonner";
 
 // 이메일 도메인 → 메일 서비스 매핑
 const MAIL_SERVICES: Record<string, { name: string; url: string }> = {
@@ -136,12 +137,12 @@ export default function ForgotPasswordPage() {
 
     const emailError = validateEmail(email);
     if (emailError) {
-      alert(emailError);
+      toast.error(emailError);
       return;
     }
 
     if (!captchaToken) {
-      alert("사람 인증을 먼저 완료해주세요.");
+      toast.error("사람 인증을 먼저 완료해주세요.");
       return;
     }
 
@@ -154,11 +155,11 @@ export default function ForgotPasswordPage() {
       setSent(true); // 발송 완료 → 안내 메시지로 전환
     } catch (error: any) {
       if (error.response?.status === 403) {
-        alert(
+        toast.error(
           "소셜 로그인 계정은 비밀번호 재설정을 할 수 없습니다. 해당 소셜 로그인으로 다시 로그인해주세요."
         );
       } else {
-        alert(error.message || "이메일 발송 실패");
+        toast.error(error.message || "이메일 발송 실패");
       }
 
       resetCaptcha();

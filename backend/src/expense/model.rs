@@ -17,6 +17,7 @@ pub struct Expense {
     pub category: String,
     pub memo: Option<String>,
     pub one_line_diary: Option<String>,
+    pub transaction_type: Option<String>,
     pub source: Option<String>, // manual / auto
     pub receipt_verified: Option<bool>,
     pub created_at: Option<DateTime<Utc>>,

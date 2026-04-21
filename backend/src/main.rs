@@ -139,7 +139,7 @@ async fn main() {
     // - 지금은 로컬 시연이니까 기본값(peer_addr)으로 충분
     // ─────────────────────────────────────────────────────────
     let governor_conf = GovernorConfigBuilder::default()
-        .per_second(50)  // 초당 50개 토큰 보충
+        .per_second(50) // 초당 50개 토큰 보충
         .burst_size(200) // 최대 200개까지 누적 (개발 환경 + React Strict Mode 대응)
         .finish()
         .unwrap();

@@ -4,6 +4,7 @@ export interface ReceiptOcrRequest {
   image: File;
   expectedDate: string;
   expectedAmount: number;
+  expenseId?: string; // 소비 저장 후 서버 DB 반영 시 전달
 }
 
 export interface ReceiptOcrResponse {
@@ -34,10 +35,29 @@ export async function verifyReceiptOcr(
   formData.append("expected_date", payload.expectedDate);
   formData.append("expected_amount", String(payload.expectedAmount));
 
-  const response = await apiClient.post<ReceiptOcrResponse>(
-    "/api/receipt/ocr",
-    formData
-  );
+  const url = payload.expenseId
+    ? `/api/receipt/ocr?expense_id=${payload.expenseId}`
+    : "/api/receipt/ocr";
 
-  return response.data;
+  try {
+    const response = await apiClient.post<ReceiptOcrResponse>(url, formData);
+    return response.data;
+  } catch (error: unknown) {
+    if (error && typeof error === "object" && "response" in error) {
+      const axiosError = error as { response?: { status?: number; data?: unknown } };
+      const status = axiosError.response?.status;
+
+      if (status === 429) {
+        throw new Error("영수증 인증은 하루 최대 3건까지 가능합니다.");
+      }
+      if (status === 409) {
+        throw new Error("이미 인증된 소비 내역입니다.");
+      }
+
+      const data = axiosError.response?.data;
+      const detail = typeof data === "string" ? data : "영수증 검증 중 오류가 발생했습니다.";
+      throw new Error(detail);
+    }
+    throw error;
+  }
 }

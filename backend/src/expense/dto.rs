@@ -15,7 +15,7 @@ pub struct CreateExpenseWebRequest {
     pub amount: i32,
     pub category: String,
     pub memo: Option<String>,
-    pub receipt_verified: bool,
+    pub transaction_type: String,
     pub diary: Option<String>,
 }
 
@@ -29,8 +29,15 @@ pub struct ExpenseWebResponse {
     pub amount: i32,
     pub category: String,
     pub memo: Option<String>,
+    pub transaction_type: String,
     pub receipt_verified: bool,
     pub diary: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpenseListWebResponse {
+    pub items: Vec<ExpenseWebResponse>,
 }
 
 // ── 소비 내역 생성 요청 ────────────────────────────────────────

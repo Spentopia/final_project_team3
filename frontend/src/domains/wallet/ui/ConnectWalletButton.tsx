@@ -2,6 +2,7 @@ import {useWalletConnection} from "@/domains/wallet/hooks/useWalletConnection";
 import {useEffect, useMemo, useRef, useState} from "react";
 import {shortenWalletAddress} from "@/domains/wallet/lib/solana";
 import {Link as LinkIcon, Wallet, Loader2} from "lucide-react";
+import {apiClient} from "@/shared/api/client";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -20,7 +21,6 @@ interface ConnectWalletButtonProps{
 export function ConnectWalletButton({className}: ConnectWalletButtonProps){
   const {
       wallet,
-      wallets,
       connected,
       connecting,
       disconnecting,
@@ -34,17 +34,42 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
       isProcessing,
   } = useWalletConnection();
 
-  // Wallet Standard 감지 완료 여부
-  // wallets.length > 0 또는 wallet이 이미 설정된 경우 준비 완료
-  const isWalletReady = wallets.length > 0 || !!wallet;
+  const [linkedWalletAddress, setLinkedWalletAddress] = useState<string | null>(null);
+  const displayedWalletAddress = connected && walletAddress ? walletAddress : linkedWalletAddress;
+  const isDbLinkedOnly = !connected && !!linkedWalletAddress;
 
   // 최신 함수를 ref로 보관해 effect 의존성에서 제외한다.
   const linkWalletRef = useRef(linkWallet);
   useEffect(() => { linkWalletRef.current = linkWallet; }, [linkWallet]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadLinkedWallet = async () => {
+      try {
+        const response = await apiClient.get<{wallet_address?: string | null}>("/me");
+        if (!cancelled) {
+          setLinkedWalletAddress(response.data.wallet_address ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setLinkedWalletAddress(null);
+        }
+      }
+    };
+
+    void loadLinkedWallet();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [linkRequested, setLinkRequested] = useState(false);
+  const [unlinkRequested, setUnlinkRequested] = useState(false);
   const [openingWalletModal, setOpeningWalletModal] = useState(false);
   const linkInFlightRef = useRef(false);
+  const unlinkInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!openingWalletModal || wallet || disconnecting) return;
@@ -59,10 +84,29 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
 
     linkInFlightRef.current = true;
     setLinkRequested(false);
-    linkWalletRef.current().finally(() => {
+    linkWalletRef.current().then((result) => {
+      if (result.success) {
+        setLinkedWalletAddress(walletAddress);
+      }
+    }).finally(() => {
       linkInFlightRef.current = false;
     });
   }, [linkRequested, connected, walletAddress, connecting, disconnecting]);
+
+  useEffect(() => {
+    if (!unlinkRequested || !connected || !walletAddress || connecting || disconnecting || unlinkInFlightRef.current) return;
+
+    unlinkInFlightRef.current = true;
+    setUnlinkRequested(false);
+    unlinkWallet().then(async (result) => {
+      if (result.success) {
+        setLinkedWalletAddress(null);
+        await disconnectWallet();
+      }
+    }).finally(() => {
+      unlinkInFlightRef.current = false;
+    });
+  }, [unlinkRequested, connected, walletAddress, connecting, disconnecting, unlinkWallet, disconnectWallet]);
 
   useEffect(() => {
     if (!linkRequested || wallet || openingWalletModal || connected) return;
@@ -74,20 +118,31 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
     return () => window.clearTimeout(timer);
   }, [linkRequested, wallet, openingWalletModal, connected]);
 
+  useEffect(() => {
+    if (!unlinkRequested || wallet || openingWalletModal || connected) return;
+
+    const timer = window.setTimeout(() => {
+      setUnlinkRequested(false);
+    }, 120000);
+
+    return () => window.clearTimeout(timer);
+  }, [unlinkRequested, wallet, openingWalletModal, connected]);
+
   const [showUnlinkDialog, setShowUnlinkDialog] = useState(false);
 
   const label = useMemo(() => {
     if (connecting)    return '지갑 연결 중...';
     if (disconnecting) return '지갑 연결 해제 중...';
     if (isProcessing)  return '처리 중...';
-    if (connected && walletAddress) {
-      return `${walletName ?? 'Wallet'} · ${shortenWalletAddress(walletAddress)}`;
+    if (unlinkRequested) return '지갑 서명 대기 중...';
+    if (displayedWalletAddress) {
+      return `${connected ? (walletName ?? 'Wallet') : '연동 지갑'} · ${shortenWalletAddress(displayedWalletAddress)}`;
     }
     return '지갑 연결';
-  }, [connected, connecting, disconnecting, walletAddress, walletName, isProcessing]);
+  }, [connected, connecting, disconnecting, displayedWalletAddress, walletName, isProcessing, unlinkRequested]);
 
   const handleClick = () => {
-    if (connected) {
+    if (connected || isDbLinkedOnly) {
       setShowUnlinkDialog(true);
       return;
     }
@@ -103,15 +158,30 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
   };
 
   const handleUnlinkConfirm = async () => {
-    await unlinkWallet();
-    await disconnectWallet();
+    if (connected) {
+      const result = await unlinkWallet();
+      if (result.success) {
+        setLinkedWalletAddress(null);
+        await disconnectWallet();
+      }
+      return;
+    }
+
+    setUnlinkRequested(true);
+
+    if (wallet) {
+      setOpeningWalletModal(true);
+      deselectWallet();
+    } else {
+      openWalletModal();
+    }
   };
 
-  const isLoading = connecting || disconnecting || isProcessing || linkRequested || !isWalletReady;
+  const isLoading = connecting || disconnecting || isProcessing || linkRequested || unlinkRequested;
 
   return (
     <>
-      {connected ? (
+      {displayedWalletAddress ? (
         // ── 연결됨: 솔라나 그린 테두리 + 주소 표시 ──
         <button
           type="button"
@@ -164,7 +234,7 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
               <span className="block">
                 현재 연결된 지갑:{" "}
                 <span className="font-mono font-semibold text-foreground">
-                  {walletAddress ? shortenWalletAddress(walletAddress) : ""}
+                  {displayedWalletAddress ? shortenWalletAddress(displayedWalletAddress) : ""}
                 </span>
               </span>
               <span className="block text-muted-foreground">

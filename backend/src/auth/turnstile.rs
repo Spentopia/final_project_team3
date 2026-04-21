@@ -11,9 +11,9 @@
 // - 프론트에 위젯만 띄우는 건 보안이 아님
 // - 실제로는 서버가 token을 검증해야 사람 인증이 완료된 것으로 본다
 
-use std::time::Duration;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
+use std::time::Duration;
 
 #[derive(Debug, Deserialize)]
 struct TurnstileVerifyResponse {

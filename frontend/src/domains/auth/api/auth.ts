@@ -141,6 +141,11 @@ export const signUp = async (payload: SignUpRequest, captchaToken: string): Prom
   await clearAllAuthState();
   const normalizedEmail = normalizeEmail(payload.email);
 
+  const domain = normalizedEmail.split("@")[1];
+  if (domain === "admin.com") {
+    throw new Error("해당 이메일 도메인으로는 가입할 수 없습니다.");
+  }
+
   // ── 1) 이메일 중복 확인 ────────────────────────────────────
   // 백엔드의 /auth/check-email은 public.users에서 이메일 존재 여부를 확인
   // 200 + { exists: true } → 이미 가입된 이메일
@@ -243,6 +248,11 @@ export const completeProfile = async (params: {
   }
 };
 
+export const checkNicknameAvailable = async (nickname: string): Promise<boolean> => {
+  const res = await apiClient.post("/profile/check-nickname", { nickname });
+  return res.data?.available === true;
+};
+
 export const checkProfileAvailability = async (params: {
   nickname: string;
   phone: string;
@@ -326,6 +336,20 @@ export const findEmailByPhone = async (
       extractApiErrorMessage(error, "입력한 정보와 일치하는 계정을 찾을 수 없습니다.")
     );
   }
+};
+
+// 회원탈퇴
+//
+// 처리 순서:
+// 1) 백엔드 /auth/withdraw 호출 → DB soft delete + auth.users 삭제 + 세션 revoke
+// 2) 로컬 access token 삭제 (메모리)
+// 3) Supabase 세션 삭제 (로컬 스토리지)
+//
+// withCredentials: true → refresh 쿠키도 같이 전송해서 백엔드에서 쿠키 삭제 처리
+export const withdrawAccount = async () => {
+  await apiClient.post("/auth/withdraw", {}, { withCredentials: true });
+  authStorage.clear();
+  await supabase.auth.signOut();
 };
 
 // 로그아웃

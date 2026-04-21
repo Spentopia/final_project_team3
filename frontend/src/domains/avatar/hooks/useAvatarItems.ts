@@ -28,8 +28,8 @@ interface UseAvatarItemsReturn {
     loading: boolean;
     error: string | null;
     refetch: () => void;  // 수동 재조회 트리거
-    mintNft: (userItemId: string, mintAddress: string) => Promise<void>;
-    transferNft: (avatarId: string, mintAddress: string) => Promise<void>;
+    mintNft: (userItemId: string, mintAddress: string, txSignature: string) => Promise<void>;
+    transferNft: (avatarId: string, mintAddress: string, txSignature: string) => Promise<void>;
     // 각 액션별 로딩 상태 (아이템 목록 로딩과 구분)
     minting: boolean;
     transferring: boolean;
@@ -82,10 +82,14 @@ export function useAvatarItems(): UseAvatarItemsReturn {
     //  3. 성공 → toast + 목록 갱신 (is_nft가 true로 바뀌었기 때문)
     //  4. 실패 → toast.error
     //  5. finally: minting = false
-    const mintNft = useCallback(async (userItemId: string, mintAddress: string) => {
+    const mintNft = useCallback(async (userItemId: string, mintAddress: string, txSignature: string) => {
         setMinting(true);
         try {
-            await mintNftApi({user_item_id: userItemId, nft_mint_address: mintAddress});
+            await mintNftApi({
+                user_item_id: userItemId,
+                nft_mint_address: mintAddress,
+                tx_signature: txSignature,
+            });
             toast.success("NFT 민팅이 완료되었습니다.");
             await fetchItems(); // 민팅 후 is_nft상태가 바뀌므로 목록 새로고침
         } catch (err) {
@@ -97,10 +101,14 @@ export function useAvatarItems(): UseAvatarItemsReturn {
 
     // transferNft: NFT 전송 기록 + 목록 갱신
     // mintNft와 구조 동일. 액션만 다름
-    const transferNft = useCallback(async (avatarId: string, mintAddress: string) => {
+    const transferNft = useCallback(async (avatarId: string, mintAddress: string, txSignature: string) => {
         setTransferring(true);
         try {
-            await transferNftApi({avatar_id: avatarId, nft_mint_address: mintAddress});
+            await transferNftApi({
+                avatar_id: avatarId,
+                nft_mint_address: mintAddress,
+                tx_signature: txSignature,
+            });
             toast.success("NFT 전송이 완료되었습니다.");
             await fetchItems(); // 전송 후 소유권 변경 반영
         } catch (err) {

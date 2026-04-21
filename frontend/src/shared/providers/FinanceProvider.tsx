@@ -1,61 +1,59 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
-type Transaction = {
+export type Transaction = {
+  id: string | number;
+  date: string;
   amount: number;
-  category?: string;
+  category: string;
+  memo?: string;
+  type: "expense" | "income";
+  receipt?: boolean;
+  diary?: string;
 };
 
 type FinanceContextType = {
   budget: number;
   setBudget: (b: number) => void;
   transactions: Transaction[];
+  replaceTransactions: (items: Transaction[]) => void;
   addTransaction: (t: Transaction) => void;
+  removeTransaction: (id: string | number) => void;
 };
 
 const FinanceContext = createContext<FinanceContextType | null>(null);
 
 export const FinanceProvider = ({ children }: { children: React.ReactNode }) => {
-  // ✅ budget
   const [budget, setBudgetState] = useState(500000);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  // ✅ transactions
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-  const saved = localStorage.getItem("transactions");
-  return saved ? JSON.parse(saved) : [];
-});
-
-  // 🔥 최초 로딩 시 localStorage에서 불러오기
   useEffect(() => {
     const savedBudget = localStorage.getItem("budget");
-    const savedTransactions = localStorage.getItem("transactions");
 
     if (savedBudget) {
       setBudgetState(Number(savedBudget));
     }
-
-    if (savedTransactions) {
-      setTransactions(JSON.parse(savedTransactions));
-    }
   }, []);
 
-  // 🔥 budget 저장
   const setBudget = (b: number) => {
     setBudgetState(b);
     localStorage.setItem("budget", String(b));
   };
 
-  // 🔥 transaction 저장
+  const replaceTransactions = (items: Transaction[]) => {
+    setTransactions(items);
+  };
+
   const addTransaction = (tx: Transaction) => {
-  setTransactions((prev) => {
-    const updated = [...prev, tx];
-    localStorage.setItem("transactions", JSON.stringify(updated));
-    return updated;
-  });
-};
+    setTransactions((prev) => [tx, ...prev]);
+  };
+
+  const removeTransaction = (id: string | number) => {
+    setTransactions((prev) => prev.filter((tx) => tx.id !== id));
+  };
 
   return (
     <FinanceContext.Provider
-      value={{ budget, setBudget, transactions, addTransaction }}
+      value={{ budget, setBudget, transactions, replaceTransactions, addTransaction, removeTransaction }}
     >
       {children}
     </FinanceContext.Provider>

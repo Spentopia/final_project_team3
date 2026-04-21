@@ -28,10 +28,11 @@ pub mod spentopia {
 
     /// 플랫폼 전역 설정을 초기화한다.
     ///
-    /// - `fee-rate`: 마켓 수수료율 (basis points, 500 = 5%)
+    /// - `fee_rate`: 마켓 거래 수수료 소각률 (basis points, 200 = 2%)
+    /// - `max_supply`: SPT 최대 발행량 (base units, 1억 SPT = 100_000_000_000_000)
     /// - 이후 모든 관리자 전용 instruction의 권한 기준이 되는 계정을 생성한다.
-    pub fn init_platform(ctx: Context<InitPlatform>, fee_rate: u16) -> Result<()> {
-        init_platform_handler(ctx, fee_rate)
+    pub fn init_platform(ctx: Context<InitPlatform>, fee_rate: u16, max_supply: u64) -> Result<()> {
+        init_platform_handler(ctx, fee_rate, max_supply)
     }
 
     /// 성실도 보상 SPI를 유저에게 민팅한다.
@@ -54,8 +55,8 @@ pub mod spentopia {
         name: String,
         symbol: String,
         uri: String,
-    )-> Result<()> {
-        mint_avatar_nft_handler(ctx,item_id, name, symbol, uri)
+    ) -> Result<()> {
+        mint_avatar_nft_handler(ctx, item_id, name, symbol, uri)
     }
 
     /// NFT를 마켓에 판매 등록한다.
@@ -63,7 +64,7 @@ pub mod spentopia {
     /// - `price`: 판매 가격 (SPT base units)
     /// - 유저가 프론트에서 지갑 서명으로 직접 호출
     pub fn list_nft(ctx: Context<ListNft>, price: u64) -> Result<()> {
-        list_nft_handler(ctx,price)
+        list_nft_handler(ctx, price)
     }
 
     /// NFT를 SPT로 구매한다.
@@ -71,16 +72,16 @@ pub mod spentopia {
     /// - SPT 결제 → 수수료 5% 플랫폼 수령 + 나머지 판매자 수령
     /// - escrow NFT → 구매자 ATA 전송
     /// - 거래 완료 후 ListingAccount + escrow ATA 소멸
-    pub fn buy_nft(ctx: Context<BuyNft>)->Result<()>{
+    pub fn buy_nft(ctx: Context<BuyNft>) -> Result<()> {
         buy_nft_handler(ctx)
     }
-    
+
     /// 판매 등록을 취소한다.
-    /// 
+    ///
     /// - escrow NFT → 판매자 ATA 반환
     /// - ListingAccount → escrow ATA 소멸
     /// - 판매자 본인만 호출 가능
-    pub fn cancel_listing(ctx: Context<CancelListing>)-> Result<()> {
+    pub fn cancel_listing(ctx: Context<CancelListing>) -> Result<()> {
         cancel_listing_handler(ctx)
     }
 
@@ -89,8 +90,7 @@ pub mod spentopia {
     /// 용도: 콘테스트 수상자, 이벤트 당첨자 특별 지급
     /// - admin 키페어로 백엔드에서 호출
     /// - mint_avatar_nft와 달리 이미 민팅된 NFT를 admin 보유분에서 전송
-    pub fn transfer_avatar_nft(ctx: Context<TransferAvatarNft>)->Result<()>{
+    pub fn transfer_avatar_nft(ctx: Context<TransferAvatarNft>) -> Result<()> {
         transfer_avatar_nft_handler(ctx)
     }
-
 }

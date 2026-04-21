@@ -2,19 +2,42 @@
 
 use axum::{
     Extension, Json,
-    extract::{Multipart, Query, State},
+    extract::{Multipart, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
 use serde::Deserialize;
 use uuid::Uuid;
 
-use super::{dto::CreateExpenseWebRequest, service};
+use super::{
+    dto::{CreateExpenseWebRequest, ExpenseListWebResponse},
+    service,
+};
 use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct ReceiptOcrQuery {
-    pub expense_id: Uuid,
+    pub expense_id: Option<Uuid>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/expenses",
+    tag = "소비",
+    responses(
+        (status = 200, description = "소비 목록 조회 성공", body = ExpenseListWebResponse),
+        (status = 500, description = "서버 내부 오류")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn list_expenses(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+) -> impl IntoResponse {
+    match service::list_expenses(&state, user_id).await {
+        Ok(items) => (StatusCode::OK, Json(ExpenseListWebResponse { items })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
 }
 
 #[utoipa::path(
@@ -46,8 +69,40 @@ pub async fn create_expense(
         return (StatusCode::BAD_REQUEST, "카테고리는 필수입니다".to_string()).into_response();
     }
 
+    if req.transaction_type != "expense" && req.transaction_type != "income" {
+        return (
+            StatusCode::BAD_REQUEST,
+            "transactionType은 expense 또는 income 이어야 합니다".to_string(),
+        )
+            .into_response();
+    }
+
     match service::create_expense(&state, user_id, req).await {
         Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/expenses/{expense_id}",
+    tag = "소비",
+    params(
+        ("expense_id" = Uuid, Path, description = "삭제할 소비 ID")
+    ),
+    responses(
+        (status = 204, description = "소비 삭제 성공"),
+        (status = 500, description = "서버 내부 오류")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn delete_expense(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(expense_id): Path<Uuid>,
+) -> impl IntoResponse {
+    match service::delete_expense(&state, user_id, expense_id).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
@@ -58,7 +113,7 @@ pub async fn verify_receipt_ocr(
     Query(query): Query<ReceiptOcrQuery>,
     multipart: Multipart,
 ) -> impl IntoResponse {
-    // 하루 3건 제한 + expense_id 중복 체크
+    // 하루 3건 제한은 항상 적용하고, expense_id가 있을 때만 중복 체크한다.
     match service::check_receipt_limit(&state, user_id, query.expense_id).await {
         Ok(()) => {}
         Err(service::ReceiptLimitError::TooMany) => {
@@ -81,7 +136,19 @@ pub async fn verify_receipt_ocr(
     }
 
     match service::verify_receipt_ocr(&state, multipart).await {
-        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Ok(res) => {
+            // OCR 인증 성공 + expense_id 있으면 서버에서 receipt_verified = true 업데이트
+            if res.verification.is_verified {
+                if let Some(expense_id) = query.expense_id {
+                    if let Err(e) =
+                        service::update_receipt_verified(&state, user_id, expense_id).await
+                    {
+                        tracing::warn!("receipt_verified UPDATE 실패: {}", e);
+                    }
+                }
+            }
+            (StatusCode::OK, Json(res)).into_response()
+        }
         Err(e) => {
             let message = e.to_string();
             if message.contains("필수") || message.contains("이미지") || message.contains("금액")

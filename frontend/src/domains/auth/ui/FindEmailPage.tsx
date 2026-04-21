@@ -28,6 +28,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
+import { toast } from "sonner";
 import {
   findEmailByPhone,
   redirectToKakao,
@@ -139,7 +140,7 @@ export default function FindEmailPage() {
     e.preventDefault();
 
     if (!captchaToken) {
-      alert("사람 인증을 먼저 완료해주세요.");
+      toast.error("사람 인증을 먼저 완료해주세요.");
       return;
     }
 
@@ -149,7 +150,7 @@ export default function FindEmailPage() {
       const apiResult = await findEmailByPhone(phone, captchaToken);
       setResult(apiResult);
     } catch (error: any) {
-      alert(error.message || "이메일 찾기 실패");
+      toast.error(error.message || "이메일 찾기 실패");
       resetCaptcha();
     } finally {
       setLoading(false);
@@ -160,7 +161,7 @@ export default function FindEmailPage() {
     try {
       await signInWithGoogle();
     } catch (error: any) {
-      alert(error.message || "구글 로그인 이동에 실패했습니다.");
+      toast.error(error.message || "구글 로그인 이동에 실패했습니다.");
     }
   };
 
@@ -168,7 +169,7 @@ export default function FindEmailPage() {
     try {
       await redirectToKakao();
     } catch (error: any) {
-      alert(error.message || "카카오 로그인 이동에 실패했습니다.");
+      toast.error(error.message || "카카오 로그인 이동에 실패했습니다.");
     }
   };
 

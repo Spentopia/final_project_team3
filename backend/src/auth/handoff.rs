@@ -35,13 +35,13 @@
 //   - 지금은 get()으로 먼저 확인하고
 //     검증이 모두 끝난 뒤 remove()로 1회용 처리함
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use rand::Rng;
 use sha2::{Digest, Sha256};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
-use crate::auth::service::{issue_login_tokens, LoginIssueResult};
+use crate::auth::service::{LoginIssueResult, issue_login_tokens};
 use crate::state::{AppState, HandoffEntry};
 
 // ─────────────────────────────────────────────────────────────
@@ -73,11 +73,7 @@ pub fn hash_handoff_token(token: &str) -> String {
 //
 // 반환: handoff token 원문 (1회만 볼 수 있음)
 // ─────────────────────────────────────────────────────────────
-pub fn create_handoff_token(
-    state: &AppState,
-    user_id: Uuid,
-    target_service: &str,
-) -> String {
+pub fn create_handoff_token(state: &AppState, user_id: Uuid, target_service: &str) -> String {
     // 64자리 랜덤 문자열 생성
     // nonce(32자리)보다 길게 잡은 이유:
     // handoff는 access+refresh 교환이 가능하므로 더 높은 엔트로피 필요
@@ -130,10 +126,7 @@ pub fn create_handoff_token(
 //
 // 반환: LoginIssueResult (access_token, refresh_token, is_new_user)
 // ─────────────────────────────────────────────────────────────
-pub async fn exchange_handoff_token(
-    state: &AppState,
-    token: &str,
-) -> Result<LoginIssueResult> {
+pub async fn exchange_handoff_token(state: &AppState, token: &str) -> Result<LoginIssueResult> {
     let token_hash = hash_handoff_token(token);
 
     // ── 1) handoff_store에서 조회 ────────────────────────────
@@ -142,13 +135,10 @@ pub async fn exchange_handoff_token(
     // 그러면 검증 실패 시에도 token이 날아가서 불필요한 소모가 생김.
     // 그래서 먼저 get()으로 확인하고,
     // 검증이 다 끝난 뒤 remove()로 1회용 처리함.
-    let entry_ref = state
-        .handoff_store
-        .get(&token_hash)
-        .ok_or_else(|| {
-            tracing::warn!("handoff token 없음 또는 이미 사용됨");
-            anyhow!("유효하지 않은 handoff token입니다.")
-        })?;
+    let entry_ref = state.handoff_store.get(&token_hash).ok_or_else(|| {
+        tracing::warn!("handoff token 없음 또는 이미 사용됨");
+        anyhow!("유효하지 않은 handoff token입니다.")
+    })?;
 
     let entry = entry_ref.clone();
     drop(entry_ref);
@@ -167,9 +157,7 @@ pub async fn exchange_handoff_token(
             "handoff target_service 불일치: stored={}",
             entry.target_service
         );
-        return Err(anyhow!(
-            "handoff token의 대상 서비스가 일치하지 않습니다."
-        ));
+        return Err(anyhow!("handoff token의 대상 서비스가 일치하지 않습니다."));
     }
 
     // ── 4) 검증 성공 후 즉시 삭제 (1회용 보장) ──────────────
@@ -194,10 +182,10 @@ pub async fn exchange_handoff_token(
     let result = issue_login_tokens(
         state,
         entry.user_id,
-        "app",  // 유니티 = 앱 방식 (body로 refresh 전달)
-        false,  // 이미 로그인된 유저
+        "app", // 유니티 = 앱 방식 (body로 refresh 전달)
+        false, // 이미 로그인된 유저
     )
-        .await?;
+    .await?;
 
     Ok(result)
 }

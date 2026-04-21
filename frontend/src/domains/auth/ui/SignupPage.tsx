@@ -23,6 +23,7 @@ import {
   signUp,
   completeProfile,
   checkProfileAvailability,
+  checkNicknameAvailable,
 } from "@/domains/auth/api/auth";
 import { validateEmail } from "@/domains/auth/lib/email";
 import { validatePassword } from "@/domains/auth/lib/password";
@@ -34,8 +35,25 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
 import type { FormEvent } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Dices } from "lucide-react";
 import { formatPhone } from "@/shared/lib/phone";
+import { toast } from "sonner";
+
+const NICKNAME_PREFIXES = [
+  "플렉스", "제로", "갓생", "흑자", "스마트", "럭키", "코어", "알뜰", "골든", "메타",
+  "네오", "다이아", "슈퍼", "픽", "데이터", "비트", "리얼", "어반", "부스트", "위너",
+];
+const NICKNAME_SUFFIXES = [
+  "천국", "로그", "라이프", "밸런스", "모드", "클럽", "포인트", "팩토리", "가든", "스테이지",
+  "존", "랩", "노트", "메이커", "뷰", "코드", "로프트", "라운지", "파크", "빌드",
+];
+
+function generateNickname(): string {
+  const prefix = NICKNAME_PREFIXES[Math.floor(Math.random() * NICKNAME_PREFIXES.length)];
+  const suffix = NICKNAME_SUFFIXES[Math.floor(Math.random() * NICKNAME_SUFFIXES.length)];
+  const num = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+  return `${prefix}${suffix}${num}`;
+}
 
 const avatarOptions = [
   { id: 1, name: "해피", emoji: "😊" },
@@ -137,6 +155,28 @@ export default function Signup() {
     };
   }, [step]);
 
+  const [nicknameChecking, setNicknameChecking] = useState(false);
+
+  const handleGenerateNickname = async () => {
+    setNicknameChecking(true);
+    try {
+      for (let i = 0; i < 5; i++) {
+        const candidate = generateNickname();
+        const available = await checkNicknameAvailable(candidate);
+        if (available) {
+          updateFormData("nickname", candidate);
+          return;
+        }
+      }
+      // 5회 모두 중복이면 마지막 생성값으로 설정 (제출 시 재확인됨)
+      updateFormData("nickname", generateNickname());
+    } catch {
+      updateFormData("nickname", generateNickname());
+    } finally {
+      setNicknameChecking(false);
+    }
+  };
+
   const resetCaptcha = () => {
     setCaptchaToken(null);
 
@@ -153,23 +193,23 @@ export default function Signup() {
     if (step === 1) {
       const emailError = validateEmail(formData.email);
       if (emailError) {
-        alert(emailError);
+        toast.error(emailError);
         return;
       }
 
       const passwordError = validatePassword(formData.password);
       if (passwordError) {
-        alert(passwordError);
+        toast.error(passwordError);
         return;
       }
 
       if (formData.password !== formData.confirmPassword) {
-        alert("비밀번호가 일치하지 않습니다");
+        toast.error("비밀번호가 일치하지 않습니다");
         return;
       }
 
       if (!captchaToken) {
-        alert("사람 인증을 먼저 완료해주세요.");
+        toast.error("사람 인증을 먼저 완료해주세요.");
         return;
       }
 
@@ -186,7 +226,7 @@ export default function Signup() {
         // 이메일 인증이 필요한 경우
         // 아직 로그인 상태가 아니므로 Step2로 보내면 안 됨
         if (!result.accessToken) {
-          alert("회원가입 완료! 이메일 인증 후 로그인해주세요.");
+          toast.success("회원가입 완료! 이메일 인증 후 로그인해주세요.");
           navigate("/signup-pending", { state: { email: formData.email } });
           return;
         }
@@ -196,7 +236,7 @@ export default function Signup() {
 
         setStep(2);
       } catch (error: any) {
-        alert(error.message || "회원가입 실패");
+        toast.error(error.message || "회원가입 실패");
         resetCaptcha();
       } finally {
         setLoading(false);
@@ -214,7 +254,7 @@ export default function Signup() {
         });
         setStep(3);
       } catch (error: any) {
-        alert(error.message || "중복 확인에 실패했습니다");
+        toast.error(error.message || "중복 확인에 실패했습니다");
       } finally {
         setLoading(false);
       }
@@ -234,7 +274,7 @@ export default function Signup() {
 
       navigate("/");
     } catch (error: any) {
-      alert(error.message || "프로필 저장 실패");
+      toast.error(error.message || "프로필 저장 실패");
     } finally {
       setLoading(false);
     }
@@ -348,17 +388,27 @@ export default function Signup() {
 
                 <div>
                   <Label htmlFor="nickname">닉네임</Label>
-                  <Input
-                    id="nickname"
-                    type="text"
-                    placeholder="멋진 닉네임을 입력해주세요"
-                    value={formData.nickname}
-                    onChange={(e) =>
-                      updateFormData("nickname", e.target.value)
-                    }
-                    required
-                    className="mt-1"
-                  />
+                  <div className="mt-1 flex gap-2">
+                    <Input
+                      id="nickname"
+                      type="text"
+                      placeholder="멋진 닉네임을 입력해주세요"
+                      value={formData.nickname}
+                      onChange={(e) =>
+                        updateFormData("nickname", e.target.value)
+                      }
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={handleGenerateNickname}
+                      disabled={nicknameChecking}
+                      title="랜덤 닉네임 생성"
+                      className="flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                    >
+                      <Dices className={`h-4 w-4 text-gray-500 dark:text-gray-400 ${nicknameChecking ? "animate-spin" : ""}`} />
+                    </button>
+                  </div>
                 </div>
 
                 <div>

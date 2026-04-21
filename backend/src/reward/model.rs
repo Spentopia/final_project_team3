@@ -51,17 +51,17 @@ pub struct Streak {
 pub struct WeeklyScore {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub week_start: NaiveDate,           // 해당 주 월요일
+    pub week_start: NaiveDate, // 해당 주 월요일
 
     // 각 항목별 점수 (Option: DB에 아직 없는 경우 null)
-    pub record_days_score: Option<i32>,  // 소비 기록 일수 (만점 30)
-    pub receipt_score: Option<i32>,      // 영수증 인증 건수 (만점 25)
-    pub diary_score: Option<i32>,        // 한줄 일기 작성 일수 (만점 20)
-    pub budget_score: Option<i32>,       // 예산 준수 여부 (만점 15) ← budget_check_score에서 변경
-    pub streak_score: Option<i32>,       // 연속 활동 보너스 (만점 10)
-    pub total_score: Option<i32>,        // 총점 (만점 100)
+    pub record_days_score: Option<i32>, // 소비 기록 일수 (만점 30)
+    pub receipt_score: Option<i32>,     // 영수증 인증 건수 (만점 25)
+    pub diary_score: Option<i32>,       // 한줄 일기 작성 일수 (만점 20)
+    pub budget_score: Option<i32>,      // 예산 준수 여부 (만점 15) ← budget_check_score에서 변경
+    pub streak_score: Option<i32>,      // 연속 활동 보너스 (만점 10)
+    pub total_score: Option<i32>,       // 총점 (만점 100)
 
-    pub reward_granted: Option<bool>,    // 이번 주 보상이 이미 지급됐는지
+    pub reward_granted: Option<bool>, // 이번 주 보상이 이미 지급됐는지
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -72,5 +72,5 @@ pub struct WeeklyScore {
 pub struct TokenBurn {
     pub amount: i32,
     pub reason: String, // "marketplace_fee"
-    // burned_at은 DB 기본값(now())으로 처리 → INSERT 시 생략 가능
+                        // burned_at은 DB 기본값(now())으로 처리 → INSERT 시 생략 가능
 }

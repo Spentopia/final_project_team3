@@ -9,11 +9,14 @@
 
 use anyhow::{Context, Result, anyhow};
 use chrono::{Datelike, Local, NaiveDate};
+use rand::seq::SliceRandom;
 use uuid::Uuid;
+
+use crate::clients::solana_client;
 
 use super::{
     dto::{ContestRewardRequest, RewardResponse, StreakResponse, WeeklyScoreResponse},
-    model::{Reward, Streak, TokenBurn, WeeklyScore},
+    model::{Reward, Streak, WeeklyScore},
 };
 use crate::state::AppState;
 
@@ -30,14 +33,20 @@ pub async fn list_rewards(state: &AppState, user_id: Uuid) -> Result<Vec<RewardR
     let res = state
         .http_client
         .get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .send()
         .await
         .context("rewards SELECT 요청 실패")?;
 
     if !res.status().is_success() {
-        return Err(anyhow!("rewards SELECT 실패: {}", res.text().await.unwrap_or_default()));
+        return Err(anyhow!(
+            "rewards SELECT 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
     }
 
     let rewards: Vec<Reward> = res.json().await.context("rewards 역직렬화 실패")?;
@@ -62,14 +71,20 @@ pub async fn get_streak(state: &AppState, user_id: Uuid) -> Result<StreakRespons
     let res = state
         .http_client
         .get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .send()
         .await
         .context("streaks SELECT 요청 실패")?;
 
     if !res.status().is_success() {
-        return Err(anyhow!("streaks SELECT 실패: {}", res.text().await.unwrap_or_default()));
+        return Err(anyhow!(
+            "streaks SELECT 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
     }
 
     let streaks: Vec<Streak> = res.json().await.context("streaks 역직렬화 실패")?;
@@ -91,7 +106,10 @@ pub async fn get_streak(state: &AppState, user_id: Uuid) -> Result<StreakRespons
     })
 }
 
-pub async fn get_weekly_scores(state: &AppState, user_id: Uuid) -> Result<Vec<WeeklyScoreResponse>> {
+pub async fn get_weekly_scores(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<Vec<WeeklyScoreResponse>> {
     let url = format!(
         "{}/rest/v1/weekly_scores?user_id=eq.{}&select=*&order=week_start.desc&limit=12",
         state.config.supabase_url.trim_end_matches('/'),
@@ -100,7 +118,10 @@ pub async fn get_weekly_scores(state: &AppState, user_id: Uuid) -> Result<Vec<We
     let res = state
         .http_client
         .get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .send()
         .await
@@ -224,6 +245,249 @@ fn base_spt_from_score(total_score: i32) -> i32 {
     }
 }
 
+async fn get_wallet_address(state: &AppState, user_id: Uuid) -> Result<Option<String>> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=wallet_address",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("users wallet_address 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "users wallet_address 조회 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rows: Vec<serde_json::Value> = res
+        .json()
+        .await
+        .context("users wallet_address 역직렬화 실패")?;
+    Ok(rows
+        .first()
+        .and_then(|r| r["wallet_address"].as_str())
+        .filter(|v| !v.trim().is_empty())
+        .map(str::to_string))
+}
+
+async fn grant_untradeable_avatar_item(
+    state: &AppState,
+    user_id: Uuid,
+    description: &str,
+) -> Result<()> {
+    #[derive(serde::Deserialize)]
+    struct AvatarItemRow {
+        id: Uuid,
+    }
+
+    let key = &state.config.supabase_secret_key;
+    let base_url = state.config.supabase_url.trim_end_matches('/');
+    let item_url = format!("{}/rest/v1/avatar_items?select=id", base_url);
+    let item_res = state
+        .http_client
+        .get(&item_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key)
+        .send()
+        .await
+        .context("avatar_items 보상 후보 조회 요청 실패")?;
+
+    if !item_res.status().is_success() {
+        return Err(anyhow!(
+            "avatar_items 보상 후보 조회 실패: {}",
+            item_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let items: Vec<AvatarItemRow> = item_res
+        .json()
+        .await
+        .context("avatar_items 보상 후보 역직렬화 실패")?;
+    let item_id = items
+        .choose(&mut rand::thread_rng())
+        .map(|item| item.id)
+        .ok_or_else(|| anyhow!("지급 가능한 avatar_items가 없습니다"))?;
+
+    let user_item_url = format!("{}/rest/v1/user_items", base_url);
+    let user_item_res = state
+        .http_client
+        .post(&user_item_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key)
+        .header("Prefer", "return=minimal")
+        .json(&serde_json::json!({
+            "user_id": user_id,
+            "item_id": item_id,
+            "is_equipped": false,
+            "is_nft": false,
+        }))
+        .send()
+        .await
+        .context("user_items 보상 INSERT 요청 실패")?;
+
+    if !user_item_res.status().is_success() {
+        return Err(anyhow!(
+            "user_items 보상 INSERT 실패: {}",
+            user_item_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let reward_url = format!("{}/rest/v1/rewards", base_url);
+    let reward_res = state
+        .http_client
+        .post(&reward_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key)
+        .header("Prefer", "return=minimal")
+        .json(&serde_json::json!({
+            "user_id": user_id,
+            "reward_type": "weekly_score_avatar_item",
+            "amount": 0,
+            "description": description,
+        }))
+        .send()
+        .await
+        .context("avatar item reward INSERT 요청 실패")?;
+
+    if !reward_res.status().is_success() {
+        return Err(anyhow!(
+            "avatar item reward INSERT 실패: {}",
+            reward_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    Ok(())
+}
+
+async fn grant_nft_avatar_item(
+    state: &AppState,
+    user_id: Uuid,
+    wallet_address: &str,
+    reward_key: Uuid,
+    description: &str,
+) -> Result<()> {
+    #[derive(serde::Deserialize)]
+    struct AvatarItemRow {
+        id: Uuid,
+        name: String,
+        image_url: String,
+        metadata_uri: Option<String>,
+    }
+
+    let key = &state.config.supabase_secret_key;
+    let base_url = state.config.supabase_url.trim_end_matches('/');
+    let item_url = format!(
+        "{}/rest/v1/avatar_items?select=id,name,image_url,metadata_uri",
+        base_url
+    );
+    let item_res = state
+        .http_client
+        .get(&item_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key)
+        .send()
+        .await
+        .context("NFT avatar_items 보상 후보 조회 요청 실패")?;
+
+    if !item_res.status().is_success() {
+        return Err(anyhow!(
+            "NFT avatar_items 보상 후보 조회 실패: {}",
+            item_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let items: Vec<AvatarItemRow> = item_res
+        .json()
+        .await
+        .context("NFT avatar_items 보상 후보 역직렬화 실패")?;
+    let item = items
+        .choose(&mut rand::thread_rng())
+        .ok_or_else(|| anyhow!("NFT로 지급 가능한 avatar_items가 없습니다"))?;
+
+    let item_seed = reward_key.simple().to_string();
+    let nft_uri = item
+        .metadata_uri
+        .as_deref()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or(&item.image_url);
+    let (tx_signature, nft_mint_address) = solana_client::mint_avatar_nft_to_user(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        &state.config.solana_admin_keypair,
+        wallet_address,
+        &state.config.solana_program_id,
+        &item_seed,
+        &item.name,
+        "SPTA",
+        nft_uri,
+    )
+    .await
+    .context("주간 보상 NFT 아바타 민팅 실패")?;
+
+    let user_item_url = format!("{}/rest/v1/user_items", base_url);
+    let user_item_res = state
+        .http_client
+        .post(&user_item_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key)
+        .header("Prefer", "return=minimal")
+        .json(&serde_json::json!({
+            "user_id": user_id,
+            "item_id": item.id,
+            "is_equipped": false,
+            "is_nft": true,
+            "nft_mint_address": nft_mint_address,
+            "nft_tx_signature": tx_signature,
+        }))
+        .send()
+        .await
+        .context("NFT user_items 보상 INSERT 요청 실패")?;
+
+    if !user_item_res.status().is_success() {
+        return Err(anyhow!(
+            "NFT user_items 보상 INSERT 실패: {}",
+            user_item_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let reward_url = format!("{}/rest/v1/rewards", base_url);
+    let reward_res = state
+        .http_client
+        .post(&reward_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key)
+        .header("Prefer", "return=minimal")
+        .json(&serde_json::json!({
+            "user_id": user_id,
+            "reward_type": "weekly_score_avatar_nft",
+            "amount": 0,
+            "description": description,
+        }))
+        .send()
+        .await
+        .context("NFT avatar reward INSERT 요청 실패")?;
+
+    if !reward_res.status().is_success() {
+        return Err(anyhow!(
+            "NFT avatar reward INSERT 실패: {}",
+            reward_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    Ok(())
+}
+
 // ────────────────────────────────────────────────────────────
 // 신규 함수 1: update_streak
 //
@@ -237,11 +501,7 @@ fn base_spt_from_score(total_score: i32) -> i32 {
 //   - longest_streak = max(longest, current)
 //   - UPSERT (user_id unique)
 // ────────────────────────────────────────────────────────────
-pub async fn update_streak(
-    state: &AppState,
-    user_id: Uuid,
-    record_date: NaiveDate,
-) -> Result<()> {
+pub async fn update_streak(state: &AppState, user_id: Uuid, record_date: NaiveDate) -> Result<()> {
     // ── 현재 streak 조회 ──
     let url = format!(
         "{}/rest/v1/streaks?user_id=eq.{}&select=*&limit=1",
@@ -251,14 +511,20 @@ pub async fn update_streak(
     let res = state
         .http_client
         .get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .send()
         .await
         .context("streaks SELECT 요청 실패")?;
 
     if !res.status().is_success() {
-        return Err(anyhow!("streaks SELECT 실패: {}", res.text().await.unwrap_or_default()));
+        return Err(anyhow!(
+            "streaks SELECT 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
     }
 
     let streaks: Vec<Streak> = res.json().await.context("streaks 역직렬화 실패")?;
@@ -313,9 +579,15 @@ pub async fn update_streak(
     let upsert_res = state
         .http_client
         .post(&upsert_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Prefer", "resolution=merge-duplicates,return=representation")
+        .header(
+            "Prefer",
+            "resolution=merge-duplicates,return=representation",
+        )
         .json(&payload)
         .send()
         .await
@@ -360,7 +632,7 @@ pub async fn recalculate_weekly_score(
     // expense_date: week_start ≤ date ≤ week_end
     // gte = greater than or equal, lte = less than or equal (Supabase 필터 연산자)
     let exp_url = format!(
-        "{}/rest/v1/expenses?user_id=eq.{}&expense_date=gte.{}&expense_date=lte.{}&select=expense_date,one_line_diary,receipt_verified,amount",
+        "{}/rest/v1/expenses?user_id=eq.{}&transaction_type=eq.expense&expense_date=gte.{}&expense_date=lte.{}&select=expense_date,one_line_diary,receipt_verified,amount",
         base_url, user_id, week_start, week_end
     );
     let exp_res = state
@@ -373,7 +645,10 @@ pub async fn recalculate_weekly_score(
         .context("expenses SELECT 요청 실패")?;
 
     if !exp_res.status().is_success() {
-        return Err(anyhow!("expenses SELECT 실패: {}", exp_res.text().await.unwrap_or_default()));
+        return Err(anyhow!(
+            "expenses SELECT 실패: {}",
+            exp_res.text().await.unwrap_or_default()
+        ));
     }
 
     // expenses 조회용 임시 구조체 (model.rs의 Expense 전체 대신 필요한 필드만)
@@ -461,9 +736,9 @@ pub async fn recalculate_weekly_score(
                             if ratio < 0.10 {
                                 10 // 10% 미만 초과
                             } else if ratio < 0.20 {
-                                5  // 20% 미만 초과
+                                5 // 20% 미만 초과
                             } else {
-                                0  // 20% 이상 초과
+                                0 // 20% 이상 초과
                             }
                         }
                     }
@@ -505,7 +780,10 @@ pub async fn recalculate_weekly_score(
         .post(&upsert_url)
         .header("Authorization", format!("Bearer {}", key))
         .header("apikey", key.as_str())
-        .header("Prefer", "resolution=merge-duplicates,return=representation")
+        .header(
+            "Prefer",
+            "resolution=merge-duplicates,return=representation",
+        )
         .json(&upsert_payload)
         .send()
         .await
@@ -518,8 +796,10 @@ pub async fn recalculate_weekly_score(
         ));
     }
 
-    let upserted: Vec<WeeklyScore> =
-        upsert_res.json().await.context("weekly_scores UPSERT 역직렬화 실패")?;
+    let upserted: Vec<WeeklyScore> = upsert_res
+        .json()
+        .await
+        .context("weekly_scores UPSERT 역직렬화 실패")?;
 
     let score_row = upserted
         .into_iter()
@@ -531,10 +811,93 @@ pub async fn recalculate_weekly_score(
     let already_granted = score_row.reward_granted.unwrap_or(false);
 
     if !already_granted && total_score >= 60 {
+        let wallet_address = get_wallet_address(state, user_id).await?;
+        if wallet_address.is_some() && state.config.solana_admin_keypair.is_empty() {
+            return Err(anyhow!(
+                "지갑 연동 유저에게 NFT/SPT를 지급하려면 SOLANA_ADMIN_KEYPAIR가 필요합니다"
+            ));
+        }
+
+        let claim_url = format!(
+            "{}/rest/v1/weekly_scores?id=eq.{}&or=(reward_granted.is.false,reward_granted.is.null)",
+            base_url, score_row.id
+        );
+        let claim_res = state
+            .http_client
+            .patch(&claim_url)
+            .header("Authorization", format!("Bearer {}", key))
+            .header("apikey", key.as_str())
+            .header("Prefer", "return=representation")
+            .json(&serde_json::json!({ "reward_granted": true }))
+            .send()
+            .await
+            .context("weekly_scores reward claim 업데이트 실패")?;
+
+        if !claim_res.status().is_success() {
+            return Err(anyhow!(
+                "weekly_scores reward claim 실패: {}",
+                claim_res.text().await.unwrap_or_default()
+            ));
+        }
+
+        let claimed_rows: Vec<WeeklyScore> = claim_res
+            .json()
+            .await
+            .context("weekly_scores reward claim 역직렬화 실패")?;
+        if claimed_rows.is_empty() {
+            return Ok(WeeklyScoreResponse {
+                id: score_row.id,
+                week_start: score_row.week_start,
+                record_days_score: score_row.record_days_score,
+                receipt_score: score_row.receipt_score,
+                diary_score: score_row.diary_score,
+                budget_score: score_row.budget_score,
+                streak_score: score_row.streak_score,
+                total_score: score_row.total_score,
+                reward_granted: Some(true),
+            });
+        }
+
+        if wallet_address.is_none() {
+            grant_untradeable_avatar_item(
+                state,
+                user_id,
+                &format!(
+                    "{}주차 성실도 점수 {}점 보상: 지갑 미연동으로 교환불가 아바타 지급",
+                    week_start, total_score
+                ),
+            )
+            .await?;
+            return Ok(WeeklyScoreResponse {
+                id: score_row.id,
+                week_start: score_row.week_start,
+                record_days_score: score_row.record_days_score,
+                receipt_score: score_row.receipt_score,
+                diary_score: score_row.diary_score,
+                budget_score: score_row.budget_score,
+                streak_score: score_row.streak_score,
+                total_score: score_row.total_score,
+                reward_granted: Some(true),
+            });
+        }
+
+        let wallet_address = wallet_address.expect("wallet_address is checked above");
         let base_spt = base_spt_from_score(total_score);
         // 반감기 적용
         let today = Local::now().date_naive();
         let actual_spt = calc_halving_reward(base_spt, state.config.service_launch_date, today);
+
+        grant_nft_avatar_item(
+            state,
+            user_id,
+            &wallet_address,
+            score_row.id,
+            &format!(
+                "{}주차 성실도 점수 {}점 보상: NFT 아바타 지급",
+                week_start, total_score
+            ),
+        )
+        .await?;
 
         // rewards INSERT
         let reward_url = format!("{}/rest/v1/rewards", base_url);
@@ -563,28 +926,49 @@ pub async fn recalculate_weekly_score(
             ));
         }
 
-        // weekly_scores.reward_granted = true 업데이트
-        // PATCH URL: id로 특정 행 지정
-        let patch_url = format!(
-            "{}/rest/v1/weekly_scores?id=eq.{}",
-            base_url, score_row.id
-        );
-        let patch_res = state
+        // users.spt_balance 증가
+        // PostgREST는 increment를 지원하지 않으므로 RPC 사용
+        // supabase function: increment_spt_balance(user_id, amount)
+        let rpc_url = format!("{}/rest/v1/rpc/increment_spt_balance", base_url);
+        let balance_res = state
             .http_client
-            .patch(&patch_url)
+            .post(&rpc_url)
             .header("Authorization", format!("Bearer {}", key))
             .header("apikey", key.as_str())
-            .header("Prefer", "return=representation")
-            .json(&serde_json::json!({ "reward_granted": true }))
+            .json(&serde_json::json!({
+                "p_user_id": user_id,
+                "p_amount": actual_spt,
+            }))
             .send()
             .await
-            .context("weekly_scores reward_granted 업데이트 실패")?;
+            .context("spt_balance 증가 RPC 요청 실패")?;
 
-        if !patch_res.status().is_success() {
+        if !balance_res.status().is_success() {
             return Err(anyhow!(
-                "weekly_scores PATCH 실패: {}",
-                patch_res.text().await.unwrap_or_default()
+                "spt_balance 증가 실패: {}",
+                balance_res.text().await.unwrap_or_default()
             ));
+        }
+
+        // 온체인 SPT 민팅 — 지갑 연동 유저만 SPT 보상을 받는다.
+        if !state.config.solana_admin_keypair.is_empty() {
+            let amount_base_units = actual_spt as u64 * solana_client::SPT_DECIMALS;
+            if let Err(e) = solana_client::mint_spt_to_user(
+                &state.config.solana_rpc_url,
+                &state.http_client,
+                &state.config.solana_admin_keypair,
+                &wallet_address,
+                &state.config.solana_program_id,
+                amount_base_units,
+            )
+            .await
+            {
+                tracing::error!(
+                    "온체인 SPT 민팅 실패 (DB 보상은 유지): user={} err={}",
+                    user_id,
+                    e
+                );
+            }
         }
     }
 
@@ -628,7 +1012,10 @@ pub async fn get_current_weekly_score(
     let res = state
         .http_client
         .get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .send()
         .await
@@ -687,7 +1074,12 @@ pub async fn grant_contest_reward(
         1 => (500, "contest_1st"),
         2 => (300, "contest_2nd"),
         3 => (150, "contest_3rd"),
-        _ => return Err(anyhow!("유효하지 않은 rank: {}. 1, 2, 3만 허용됩니다.", req.rank)),
+        _ => {
+            return Err(anyhow!(
+                "유효하지 않은 rank: {}. 1, 2, 3만 허용됩니다.",
+                req.rank
+            ));
+        }
     };
 
     let url = format!(
@@ -705,7 +1097,10 @@ pub async fn grant_contest_reward(
     let res = state
         .http_client
         .post(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=representation")
         .json(&payload)
@@ -718,6 +1113,76 @@ pub async fn grant_contest_reward(
             "rewards INSERT(contest) 실패: {}",
             res.text().await.unwrap_or_default()
         ));
+    }
+
+    // users.spt_balance 증가
+    let rpc_url = format!(
+        "{}/rest/v1/rpc/increment_spt_balance",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+    let balance_res = state
+        .http_client
+        .post(&rpc_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .json(&serde_json::json!({
+            "p_user_id": req.user_id,
+            "p_amount": amount,
+        }))
+        .send()
+        .await
+        .context("spt_balance 증가 RPC 요청 실패")?;
+
+    if !balance_res.status().is_success() {
+        return Err(anyhow!(
+            "spt_balance 증가 실패: {}",
+            balance_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    if !state.config.solana_admin_keypair.is_empty() {
+        let wallet_url = format!(
+            "{}/rest/v1/users?id=eq.{}&select=wallet_address",
+            state.config.supabase_url.trim_end_matches('/'),
+            req.user_id
+        );
+        let wallet_res = state
+            .http_client
+            .get(&wallet_url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", state.config.supabase_secret_key),
+            )
+            .header("apikey", &state.config.supabase_secret_key)
+            .send()
+            .await
+            .context("contest 보상 대상 지갑 조회 요청 실패")?;
+
+        if wallet_res.status().is_success() {
+            let rows: Vec<serde_json::Value> = wallet_res
+                .json()
+                .await
+                .context("contest 보상 대상 지갑 역직렬화 실패")?;
+            if let Some(wallet_addr) = rows
+                .first()
+                .and_then(|r| r["wallet_address"].as_str())
+                .filter(|v| !v.trim().is_empty())
+            {
+                solana_client::mint_spt_to_user(
+                    &state.config.solana_rpc_url,
+                    &state.http_client,
+                    &state.config.solana_admin_keypair,
+                    wallet_addr,
+                    &state.config.solana_program_id,
+                    amount as u64 * solana_client::SPT_DECIMALS,
+                )
+                .await
+                .context("contest 온체인 SPT 민팅 실패")?;
+            }
+        }
     }
 
     let rewards: Vec<Reward> = res.json().await.context("rewards 역직렬화 실패")?;

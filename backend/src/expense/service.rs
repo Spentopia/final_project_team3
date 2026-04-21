@@ -26,7 +26,7 @@ pub async fn create_expense(
         user_id = %user_id,
         amount = req.amount,
         category = %req.category,
-        receipt_verified = req.receipt_verified,
+        transaction_type = %req.transaction_type,
         "소비 저장 요청 수신"
     );
 
@@ -41,6 +41,7 @@ pub async fn create_expense(
         category: String,
         memo: Option<String>,
         one_line_diary: Option<String>,
+        transaction_type: String,
         receipt_verified: bool,
         source: &'static str,
     }
@@ -67,7 +68,8 @@ pub async fn create_expense(
             category: req.category,
             memo: empty_to_none(req.memo),
             one_line_diary: empty_to_none(req.diary),
-            receipt_verified: req.receipt_verified,
+            transaction_type: req.transaction_type,
+            receipt_verified: false, // 서버 제어 — 클라이언트에서 설정 불가
             source: "manual",
         })
         .send()
@@ -86,15 +88,7 @@ pub async fn create_expense(
         .next()
         .ok_or_else(|| anyhow!("expenses INSERT 결과가 비어있음"))?;
 
-    let response = ExpenseWebResponse {
-        id: expense.id,
-        date: expense.expense_date,
-        amount: expense.amount,
-        category: expense.category,
-        memo: expense.memo,
-        receipt_verified: req.receipt_verified,
-        diary: expense.one_line_diary,
-    };
+    let response = to_web_response(expense);
 
     // fire-and-forget: 스트릭 + 성실도 점수 재계산
     // 실패해도 소비 저장 응답에 영향 없음
@@ -105,12 +99,87 @@ pub async fn create_expense(
         if let Err(e) = crate::reward::service::update_streak(&state_clone, uid, date).await {
             tracing::warn!("스트릭 업데이트 실패: {}", e);
         }
-        if let Err(e) = crate::reward::service::recalculate_weekly_score(&state_clone, uid, date).await {
+        if let Err(e) =
+            crate::reward::service::recalculate_weekly_score(&state_clone, uid, date).await
+        {
             tracing::warn!("성실도 점수 재계산 실패: {}", e);
         }
     });
 
     Ok(response)
+}
+
+pub async fn list_expenses(state: &AppState, user_id: Uuid) -> Result<Vec<ExpenseWebResponse>> {
+    tracing::info!(user_id = %user_id, "소비 목록 조회 요청 수신");
+
+    let base_url = state.config.supabase_url.trim_end_matches('/');
+    let select_candidates = [
+        "id,ledger_id,user_id,expense_date,amount,category,memo,one_line_diary,transaction_type,source,receipt_verified,created_at",
+        "id,ledger_id,user_id,expense_date,amount,category,memo,one_line_diary,source,created_at",
+        "id,ledger_id,user_id,expense_date,amount,category,memo,source,created_at",
+    ];
+
+    let mut last_error = String::new();
+
+    for select in select_candidates {
+        let url = format!(
+            "{}/rest/v1/expenses?user_id=eq.{}&select={}&order=expense_date.desc,created_at.desc",
+            base_url, user_id, select,
+        );
+
+        let res = state
+            .http_client
+            .get(&url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", state.config.supabase_secret_key),
+            )
+            .header("apikey", &state.config.supabase_secret_key)
+            .send()
+            .await
+            .context("expenses SELECT 요청 실패")?;
+
+        if res.status().is_success() {
+            let expenses: Vec<Expense> =
+                res.json().await.context("expenses SELECT 응답 파싱 실패")?;
+            return Ok(expenses.into_iter().map(to_web_response).collect());
+        }
+
+        last_error = res.text().await.unwrap_or_default();
+        tracing::warn!("expenses SELECT fallback 시도: {}", last_error);
+    }
+
+    return Err(anyhow!("expenses SELECT 실패: {}", last_error));
+}
+
+pub async fn delete_expense(state: &AppState, user_id: Uuid, expense_id: Uuid) -> Result<()> {
+    tracing::info!(user_id = %user_id, expense_id = %expense_id, "소비 삭제 요청 수신");
+
+    let url = format!(
+        "{}/rest/v1/expenses?id=eq.{}&user_id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        expense_id,
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .delete(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("expenses DELETE 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("expenses DELETE 실패: {}", body));
+    }
+
+    Ok(())
 }
 
 pub async fn verify_receipt_ocr(
@@ -276,13 +345,28 @@ fn empty_to_none(value: Option<String>) -> Option<String> {
     })
 }
 
+fn to_web_response(expense: Expense) -> ExpenseWebResponse {
+    ExpenseWebResponse {
+        id: expense.id,
+        date: expense.expense_date,
+        amount: expense.amount,
+        category: expense.category,
+        memo: expense.memo,
+        transaction_type: expense
+            .transaction_type
+            .unwrap_or_else(|| "expense".to_string()),
+        receipt_verified: expense.receipt_verified.unwrap_or(false),
+        diary: expense.one_line_diary,
+    }
+}
+
 // ── 영수증 하루 3건 제한 ───────────────────────────────────────
 
 #[derive(Debug)]
 pub enum ReceiptLimitError {
-    TooMany,           // 429
-    Duplicate,         // 409
-    Internal(String),  // 500
+    TooMany,          // 429
+    Duplicate,        // 409
+    Internal(String), // 500
 }
 
 /// 영수증 OCR 전 호출. 하루 3건 초과 or expense_id 중복이면 에러 반환.
@@ -291,7 +375,7 @@ pub enum ReceiptLimitError {
 pub async fn check_receipt_limit(
     state: &AppState,
     user_id: Uuid,
-    expense_id: Uuid,
+    expense_id: Option<Uuid>,
 ) -> Result<(), ReceiptLimitError> {
     let base_url = state.config.supabase_url.trim_end_matches('/');
     let key = &state.config.supabase_secret_key;
@@ -330,28 +414,70 @@ pub async fn check_receipt_limit(
     }
 
     // ── expense_id 중복 체크 ──
-    let dup_url = format!(
-        "{}/rest/v1/receipts?expense_id=eq.{}&select=id&limit=1",
-        base_url, expense_id
-    );
+    if let Some(expense_id) = expense_id {
+        let dup_url = format!(
+            "{}/rest/v1/receipts?expense_id=eq.{}&select=id&limit=1",
+            base_url, expense_id
+        );
 
-    let dup_res = state
-        .http_client
-        .get(&dup_url)
-        .header("Authorization", format!("Bearer {}", key))
-        .header("apikey", key.as_str())
-        .send()
-        .await
-        .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
-
-    if dup_res.status().is_success() {
-        let rows: Vec<serde_json::Value> = dup_res
-            .json()
+        let dup_res = state
+            .http_client
+            .get(&dup_url)
+            .header("Authorization", format!("Bearer {}", key))
+            .header("apikey", key.as_str())
+            .send()
             .await
             .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
-        if !rows.is_empty() {
-            return Err(ReceiptLimitError::Duplicate);
+
+        if dup_res.status().is_success() {
+            let rows: Vec<serde_json::Value> = dup_res
+                .json()
+                .await
+                .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
+            if !rows.is_empty() {
+                return Err(ReceiptLimitError::Duplicate);
+            }
         }
+    }
+
+    Ok(())
+}
+
+// ── OCR 인증 성공 시 receipt_verified 서버 업데이트 ────────────────
+//
+// handler의 verify_receipt_ocr에서 is_verified == true이고
+// expense_id가 제공된 경우에만 호출됨.
+// user_id 조건을 함께 걸어 다른 유저 expense 수정 방지.
+pub async fn update_receipt_verified(
+    state: &AppState,
+    user_id: Uuid,
+    expense_id: Uuid,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/expenses?id=eq.{}&user_id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        expense_id,
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .json(&serde_json::json!({ "receipt_verified": true }))
+        .send()
+        .await
+        .context("expenses receipt_verified UPDATE 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "expenses receipt_verified UPDATE 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
     }
 
     Ok(())
