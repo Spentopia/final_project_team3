@@ -21,4 +21,12 @@ pub enum SpentopiaError{
     /// 산술 연산 오버플로우 발생 시
     #[msg("산술 연산 오버플로우가 발생했습니다.")]
     ArithmeticOverflow,
+
+    /// SPT 최대 발행량 초과 시
+    #[msg("SPT 최대 발행량을 초과했습니다.")]
+    MaxSupplyExceeded,
+
+    /// 본인 NFT 구매 시도 시
+    #[msg("본인의 NFT는 구매할 수 없습니다.")]
+    SelfPurchase,
 }

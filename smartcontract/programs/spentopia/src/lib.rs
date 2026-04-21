@@ -28,10 +28,11 @@ pub mod spentopia {
 
     /// 플랫폼 전역 설정을 초기화한다.
     ///
-    /// - `fee-rate`: 마켓 수수료율 (basis points, 500 = 5%)
+    /// - `fee_rate`: 마켓 거래 수수료 소각률 (basis points, 200 = 2%)
+    /// - `max_supply`: SPT 최대 발행량 (base units, 1억 SPT = 100_000_000_000_000)
     /// - 이후 모든 관리자 전용 instruction의 권한 기준이 되는 계정을 생성한다.
-    pub fn init_platform(ctx: Context<InitPlatform>, fee_rate: u16) -> Result<()> {
-        init_platform_handler(ctx, fee_rate)
+    pub fn init_platform(ctx: Context<InitPlatform>, fee_rate: u16, max_supply: u64) -> Result<()> {
+        init_platform_handler(ctx, fee_rate, max_supply)
     }
 
     /// 성실도 보상 SPI를 유저에게 민팅한다.

@@ -24,6 +24,14 @@ pub struct PlatformConfig{
     /// SPT authority PDA의 bump.
     /// mint_spt_to_user CPI 서명 시 find_program_address 재탐색 없이 바로 사용.
     pub spt_authority_bump: u8,
+
+    /// 지금까지 민팅된 SPT 총 누적량 (base units).
+    /// mint_spt_to_user 호출 시마다 증가. max_supply 초과 시 에러.
+    pub total_minted: u64,
+
+    /// SPT 최대 발행 가능량 (base units).
+    /// init_platform 시 설정. 1억 SPT = 100_000_000_000_000 (decimals=6 기준).
+    pub max_supply: u64,
 }
 
 impl PlatformConfig{
@@ -35,7 +43,9 @@ impl PlatformConfig{
     /// 1: bump (u8)
     /// 1: spt_mint_bump: u8
     /// 1: spt_authority_bump: u8
-    pub const LEN: usize= 8 + 32 + 2 + 1 + 1 + 1;
+    /// 8: total_minted (u64)
+    /// 8: max_supply (u64)
+    pub const LEN: usize = 8 + 32 + 2 + 1 + 1 + 1 + 8 + 8;
 }
 
 /// NFT 판매 등록 정보를 온체인에 저장하는 계정.

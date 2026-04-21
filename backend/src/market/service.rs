@@ -100,6 +100,7 @@ pub async fn create_listing(
             "Authorization",
             format!("Bearer {}", state.config.supabase_secret_key),
         )
+        .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=representation") // INSERT 후 생성된 row 반환
         .json(&InsertPayload {
             seller_id: user_id,

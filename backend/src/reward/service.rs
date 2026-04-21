@@ -563,6 +563,30 @@ pub async fn recalculate_weekly_score(
             ));
         }
 
+        // users.spt_balance 증가
+        // PostgREST는 increment를 지원하지 않으므로 RPC 사용
+        // supabase function: increment_spt_balance(user_id, amount)
+        let rpc_url = format!("{}/rest/v1/rpc/increment_spt_balance", base_url);
+        let balance_res = state
+            .http_client
+            .post(&rpc_url)
+            .header("Authorization", format!("Bearer {}", key))
+            .header("apikey", key.as_str())
+            .json(&serde_json::json!({
+                "p_user_id": user_id,
+                "p_amount": actual_spt,
+            }))
+            .send()
+            .await
+            .context("spt_balance 증가 RPC 요청 실패")?;
+
+        if !balance_res.status().is_success() {
+            return Err(anyhow!(
+                "spt_balance 증가 실패: {}",
+                balance_res.text().await.unwrap_or_default()
+            ));
+        }
+
         // weekly_scores.reward_granted = true 업데이트
         // PATCH URL: id로 특정 행 지정
         let patch_url = format!(
@@ -717,6 +741,31 @@ pub async fn grant_contest_reward(
         return Err(anyhow!(
             "rewards INSERT(contest) 실패: {}",
             res.text().await.unwrap_or_default()
+        ));
+    }
+
+    // users.spt_balance 증가
+    let rpc_url = format!(
+        "{}/rest/v1/rpc/increment_spt_balance",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+    let balance_res = state
+        .http_client
+        .post(&rpc_url)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("apikey", &state.config.supabase_secret_key)
+        .json(&serde_json::json!({
+            "p_user_id": req.user_id,
+            "p_amount": amount,
+        }))
+        .send()
+        .await
+        .context("spt_balance 증가 RPC 요청 실패")?;
+
+    if !balance_res.status().is_success() {
+        return Err(anyhow!(
+            "spt_balance 증가 실패: {}",
+            balance_res.text().await.unwrap_or_default()
         ));
     }
 
