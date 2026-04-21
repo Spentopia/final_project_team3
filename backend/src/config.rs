@@ -14,6 +14,7 @@
 //   → production 여부 판단해서 쿠키 Secure 옵션에 사용
 
 use anyhow::{Context, Result};
+use chrono::NaiveDate;
 
 #[derive(Clone)]
 pub struct Config {
@@ -51,6 +52,10 @@ pub struct Config {
     pub unity_server_url: String,
 
     pub turnstile_secret_key: String,
+
+    // 서비스 시작일 — 반감기 계산 기준점
+    // 환경변수: SERVICE_LAUNCH_DATE (형식: YYYY-MM-DD), 없으면 2025-01-01
+    pub service_launch_date: NaiveDate,
 }
 
 impl Config {
@@ -94,6 +99,13 @@ impl Config {
 
             turnstile_secret_key: std::env::var("TURNSTILE_SECRET_KEY")
                 .expect("TURNSTILE_SECRET_KEY 환경변수 없음"),
+
+            service_launch_date: NaiveDate::parse_from_str(
+                &std::env::var("SERVICE_LAUNCH_DATE")
+                    .unwrap_or_else(|_| "2025-01-01".to_string()),
+                "%Y-%m-%d",
+            )
+            .expect("SERVICE_LAUNCH_DATE 형식 오류. YYYY-MM-DD 형식으로 입력하세요."),
         })
     }
 }

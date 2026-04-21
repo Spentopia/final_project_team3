@@ -168,9 +168,19 @@ pub fn create_router(state: AppState) -> Router {
         // ── 보상 / 스트릭 ─────────────────────────────────
         .route("/api/rewards", get(reward::handler::list_rewards))
         .route("/api/rewards/streak", get(reward::handler::get_streak))
+        // current를 먼저 등록 (/weekly-score 패턴과 충돌 방지)
+        .route(
+            "/api/rewards/weekly-score/current",
+            get(reward::handler::get_current_weekly_score),
+        )
         .route(
             "/api/rewards/weekly-score",
             get(reward::handler::get_weekly_scores),
+        )
+        // 공모전 보상 지급 (관리자용, TODO: 관리자 미들웨어 추가 예정)
+        .route(
+            "/api/admin/contest/reward",
+            post(reward::handler::grant_contest_reward),
         )
         // ── 아바타 / 아이템 ───────────────────────────────
         .route("/api/avatar/mint-nft", post(avatar::handler::mint_nft))
