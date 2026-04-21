@@ -205,28 +205,11 @@ pub fn create_router(state: AppState) -> Router {
             auth::middleware::jwt_middleware,
         ));
 
-    // ── 어드민 전용 라우트 ───────────────────────────────────
-    // jwt_middleware → admin_middleware 순으로 실행됨
-    // route_layer는 나중에 선언한 것이 바깥쪽(먼저 실행)이므로
-    // jwt를 나중에 선언해야 jwt가 먼저 실행됨
-    let admin_routes = Router::new()
-        // 어드민 API는 여기에 추가
-        // 예시: .route("/api/admin/users", get(admin::handler::list_users))
-        .route_layer(middleware::from_fn_with_state(
-            state.clone(),
-            auth::middleware::admin_middleware,
-        ))
-        .route_layer(middleware::from_fn_with_state(
-            state.clone(),
-            auth::middleware::jwt_middleware,
-        ));
-
     // ── 합치기 ──────────────────────────────────────────────
     Router::new()
         .merge(public_routes)
         .merge(sensitive_routes)
         .merge(protected_routes)
-        .merge(admin_routes)
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state)
 }

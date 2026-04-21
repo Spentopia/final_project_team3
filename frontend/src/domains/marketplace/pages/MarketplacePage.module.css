@@ -4,33 +4,47 @@
 
 .pageWrapper {
     position: relative;
-    width: min(1180px, 100%);
-    margin: 0 auto;
-    padding: 32px 18px 56px;
-}
-
-.pageWrapper::before {
-    content: "";
-    position: absolute;
-    inset: 0 18px auto;
-    height: 190px;
-    border-radius: 8px;
-    background:
-        linear-gradient(135deg, rgba(6, 182, 212, 0.16), rgba(20, 241, 149, 0.09) 48%, rgba(153, 69, 255, 0.13)),
-        radial-gradient(circle at 76% 18%, rgba(255, 255, 255, 0.55), transparent 32%);
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    pointer-events: none;
-    z-index: -1;
+    width: 100%;
+    min-height: 100%;
+    padding: 8px 0 56px;
 }
 
 .pageHeader {
-    display: flex;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
     justify-content: space-between;
-    gap: 16px;
-    min-height: 128px;
+    gap: 24px;
     margin-bottom: 28px;
-    padding: 28px 28px 0;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(236, 254, 255, 0.78) 48%, rgba(240, 253, 250, 0.82)),
+        linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(20, 241, 149, 0.08) 52%, rgba(153, 69, 255, 0.1));
+    padding: 28px;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+}
+
+.headerCopy {
+    min-width: 0;
+}
+
+.pageEyebrow {
+    display: block;
+    margin-bottom: 10px;
+    color: #0891b2;
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+}
+
+.pageSubtitle {
+    max-width: 620px;
+    margin: 12px 0 0;
+    color: #475569;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.55;
 }
 
 .pageTitle {
@@ -42,13 +56,42 @@
     line-height: 1.1;
 }
 
-.pageTitle::after {
-    content: "NFT assets traded with SPT";
+.headerActions {
+    display: flex;
+    min-width: 330px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+}
+
+.summaryStrip {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(96px, 1fr));
+    gap: 8px;
+}
+
+.summaryItem {
+    min-width: 0;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.74);
+    padding: 10px 12px;
+}
+
+.summaryItem strong {
     display: block;
-    margin-top: 8px;
-    color: #475569;
-    font-size: 0.9rem;
-    font-weight: 600;
+    margin-top: 3px;
+    color: #0f172a;
+    font-size: 1.15rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.summaryLabel {
+    display: block;
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 800;
 }
 
 .createButton,
@@ -65,7 +108,9 @@
 
 .createButton {
     min-width: 112px;
+    height: 44px;
     border-radius: 8px;
+    white-space: nowrap;
 }
 
 .createButton:hover,
@@ -76,12 +121,12 @@
 }
 
 .marketSection {
-    padding: 0 4px;
+    padding: 0;
 }
 
 .sectionHeader {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 18px;
@@ -92,6 +137,13 @@
     color: #111827;
     font-size: 1.15rem;
     font-weight: 800;
+}
+
+.sectionSubtitle {
+    margin: 5px 0 0;
+    color: #64748b;
+    font-size: 0.86rem;
+    font-weight: 600;
 }
 
 .sectionCount {
@@ -107,20 +159,8 @@
 
 .grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 18px;
-}
-
-@media (min-width: 720px) {
-    .grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-}
-
-@media (min-width: 1040px) {
-    .grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
 }
 
 .emptyState {
@@ -444,23 +484,27 @@
     font-weight: 700;
 }
 
-:global(.dark) .pageWrapper::before {
+:global(.dark) .pageHeader {
     background:
-        linear-gradient(135deg, rgba(20, 184, 166, 0.16), rgba(6, 182, 212, 0.08) 48%, rgba(153, 69, 255, 0.14)),
-        radial-gradient(circle at 76% 18%, rgba(148, 163, 184, 0.2), transparent 32%);
+        linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(17, 24, 39, 0.9)),
+        linear-gradient(135deg, rgba(20, 184, 166, 0.16), rgba(6, 182, 212, 0.08) 48%, rgba(153, 69, 255, 0.14));
     border-color: rgba(148, 163, 184, 0.14);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
 }
 
 :global(.dark) .pageTitle,
 :global(.dark) .sectionTitle,
 :global(.dark) .itemName,
 :global(.dark) .selectableItemName,
-:global(.dark) .purchaseItemName {
+:global(.dark) .purchaseItemName,
+:global(.dark) .summaryItem strong {
     color: #f8fafc;
 }
 
-:global(.dark) .pageTitle::after,
+:global(.dark) .pageSubtitle,
 :global(.dark) .sectionCount,
+:global(.dark) .sectionSubtitle,
+:global(.dark) .summaryLabel,
 :global(.dark) .sellerName,
 :global(.dark) .emptyStateSub,
 :global(.dark) .purchaseFeeNote,
@@ -468,7 +512,12 @@
     color: #94a3b8;
 }
 
+:global(.dark) .pageEyebrow {
+    color: #22d3ee;
+}
+
 :global(.dark) .sectionCount,
+:global(.dark) .summaryItem,
 :global(.dark) .listingCard,
 :global(.dark) .marketDialogContent {
     border-color: rgba(148, 163, 184, 0.16);
@@ -516,20 +565,32 @@
 
 @media (max-width: 640px) {
     .pageWrapper {
-        padding: 22px 14px 42px;
-    }
-
-    .pageWrapper::before {
-        inset-inline: 14px;
-        height: 178px;
+        padding: 0 0 42px;
     }
 
     .pageHeader {
-        min-height: 118px;
-        padding: 22px 18px 0;
+        grid-template-columns: 1fr;
+        gap: 18px;
+        padding: 22px 18px;
+    }
+
+    .headerActions {
+        width: 100%;
+        min-width: 0;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .summaryStrip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .createButton {
+        width: 100%;
     }
 
     .grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 14px;
     }
 

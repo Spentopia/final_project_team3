@@ -352,17 +352,40 @@ export default function MarketplacePage() {
 
         {/* ── 페이지 헤더 ── */}
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>마켓플레이스</h1>
-          {/* 판매 등록 버튼 → Dialog 열기 */}
-          <Button className={styles.createButton} onClick={() => setIsCreateDialogOpen(true)}>
-            판매 등록
-          </Button>
+          <div className={styles.headerCopy}>
+            <span className={styles.pageEyebrow}>NFT MARKET</span>
+            <h1 className={styles.pageTitle}>마켓플레이스</h1>
+            <p className={styles.pageSubtitle}>
+              보유한 NFT 아이템을 SPT로 거래하고 새로운 아바타 파츠를 확인하세요.
+            </p>
+          </div>
+
+          <div className={styles.headerActions}>
+            <div className={styles.summaryStrip}>
+              <div className={styles.summaryItem}>
+                <span className={styles.summaryLabel}>판매중</span>
+                <strong>{listings.length.toLocaleString()}</strong>
+              </div>
+              <div className={styles.summaryItem}>
+                <span className={styles.summaryLabel}>등록 가능</span>
+                <strong>{nftItems.length.toLocaleString()}</strong>
+              </div>
+            </div>
+
+            {/* 판매 등록 버튼 → Dialog 열기 */}
+            <Button className={styles.createButton} onClick={() => setIsCreateDialogOpen(true)}>
+              판매 등록
+            </Button>
+          </div>
         </div>
 
         {/* ── 판매 목록 섹션 ── */}
         <section className={styles.marketSection}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>판매 중인 아이템</h2>
+            <div>
+              <h2 className={styles.sectionTitle}>판매 중인 아이템</h2>
+              <p className={styles.sectionSubtitle}>최근 등록된 아이템을 카드 단위로 확인할 수 있습니다.</p>
+            </div>
             <span className={styles.sectionCount}>{listings.length.toLocaleString()} listings</span>
           </div>
 
