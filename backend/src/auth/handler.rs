@@ -1048,7 +1048,16 @@ pub async fn check_email(
         ));
     }
 
-    // 4) 기존 이메일 존재 확인 로직 호출
+    // 4) 가입 차단 도메인 검사
+    let domain = email.split('@').nth(1).unwrap_or("");
+    if domain == "admin.com" {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "해당 이메일 도메인으로는 가입할 수 없습니다.".to_string(),
+        ));
+    }
+
+    // 5) 기존 이메일 존재 확인 로직 호출
     let exists = crate::auth::service::check_email_exists(&state, &email)
         .await
         .map_err(|e| {

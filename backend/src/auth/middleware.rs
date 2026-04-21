@@ -26,6 +26,7 @@ use axum::{
 use uuid::Uuid;
 
 use crate::auth::app_jwt::verify_app_access_token;
+use crate::auth::service::get_user_role;
 use crate::state::AppState;
 
 // jwt_middleware
@@ -95,5 +96,50 @@ pub async fn jwt_middleware(
     request.extensions_mut().insert(user_id);
 
     // 다음 핸들러로 진행
+    Ok(next.run(request).await)
+}
+
+// admin_middleware
+//
+// jwt_middleware 이후에 적용되는 관리자 전용 미들웨어.
+// extensions에서 user_id를 꺼내 DB의 role_type을 확인한다.
+// role_type = "admin"이 아니면 403 반환.
+//
+// 라우트에 적용할 때 순서:
+//   .route_layer(admin_middleware)  <- 먼저 선언
+//   .route_layer(jwt_middleware)    <- 나중에 선언 (실제로는 먼저 실행됨)
+pub async fn admin_middleware(
+    State(state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> Result<Response, (StatusCode, String)> {
+    let user_id = request
+        .extensions()
+        .get::<Uuid>()
+        .cloned()
+        .ok_or_else(|| {
+            (
+                StatusCode::UNAUTHORIZED,
+                "인증이 필요합니다.".to_string(),
+            )
+        })?;
+
+    let role = get_user_role(&state, user_id).await.map_err(|e| {
+        tracing::error!("role_type 조회 실패: user_id={}, error={}", user_id, e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "권한 확인에 실패했습니다.".to_string(),
+        )
+    })?;
+
+    if role.as_deref() != Some("admin") {
+        tracing::warn!("관리자 권한 없음: user_id={}, role={:?}", user_id, role);
+        return Err((
+            StatusCode::FORBIDDEN,
+            "관리자 권한이 필요합니다.".to_string(),
+        ));
+    }
+
+    tracing::debug!("관리자 인증 통과: user_id={}", user_id);
     Ok(next.run(request).await)
 }

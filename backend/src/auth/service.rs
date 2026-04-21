@@ -544,6 +544,17 @@ pub async fn exchange_supabase_token(
 
     let email = user_data["email"].as_str();
 
+    // 가입 차단 도메인 검사 (신규 유저만 차단, 기존 유저 로그인은 허용)
+    if let Some(mail) = email {
+        let domain = mail.split('@').nth(1).unwrap_or("").to_ascii_lowercase();
+        if domain == "admin.com" {
+            let existing = find_public_user_by_email(state, mail).await.unwrap_or(None);
+            if existing.is_none() {
+                return Err(anyhow!("해당 이메일 도메인으로는 가입할 수 없습니다."));
+            }
+        }
+    }
+
     // 기본 가입 방식(대표 provider)
     let provider = user_data["app_metadata"]["provider"]
         .as_str()
@@ -1250,6 +1261,43 @@ pub async fn find_email_by_phone(
 // ═══════════════════════════════════════════════════════════════
 // 이메일 존재 여부 확인
 // ═══════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────
+// user_id로 public.users.role_type 조회
+// ─────────────────────────────────────────────────────────────
+pub async fn get_user_role(state: &AppState, user_id: Uuid) -> Result<Option<String>> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=role_type&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let resp = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("role_type 조회 요청 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("role_type 조회 실패: {}", err));
+    }
+
+    #[derive(Deserialize)]
+    struct RoleRow {
+        role_type: Option<String>,
+    }
+
+    let rows: Vec<RoleRow> = resp.json().await.context("role_type 응답 파싱 실패")?;
+
+    Ok(rows.into_iter().next().and_then(|r| r.role_type))
+}
+
 pub async fn check_email_exists(state: &AppState, email: &str) -> Result<bool> {
     let normalized_email = email.trim().to_lowercase();
     let encoded_email = urlencoding::encode(&normalized_email);
