@@ -35,8 +35,19 @@ export async function verifyReceiptOcr(
   formData.append("expected_date", payload.expectedDate);
   formData.append("expected_amount", String(payload.expectedAmount));
 
-  const url = payload.expenseId
-    ? `/api/receipt/ocr?expense_id=${payload.expenseId}`
+  const trimmedExpenseId = payload.expenseId?.trim();
+  const isUuid =
+    trimmedExpenseId !== undefined &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      trimmedExpenseId
+    );
+
+  if (trimmedExpenseId && !isUuid) {
+    throw new Error("소비 저장 응답에 유효한 expense_id가 없습니다.");
+  }
+
+  const url = isUuid
+    ? `/api/receipt/ocr?expense_id=${encodeURIComponent(trimmedExpenseId)}`
     : "/api/receipt/ocr";
 
   try {
