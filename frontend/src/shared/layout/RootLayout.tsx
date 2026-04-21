@@ -102,7 +102,7 @@ export default function RootLayout() {
             </DialogHeader>
 
             <p className="mb-2 text-5xl font-extrabold">
-              {weeklyScore ? `${totalScore}점` : "--"}
+              {totalScore}점
             </p>
             <div className="mb-5 h-3 overflow-hidden rounded-full bg-muted">
               <div
@@ -137,7 +137,7 @@ export default function RootLayout() {
                 <span className="font-bold">
                   {streak?.current_streak != null
                     ? `${streak.current_streak}일`
-                    : "--"}
+                    : "0일"}
                 </span>
               </div>
             </div>
@@ -167,7 +167,7 @@ function ScoreRow({
     <div className="flex justify-between">
       <span>{label}</span>
       <span className="font-bold">
-        {score != null ? `${score}/${max}` : `--/${max}`}
+        {`${score ?? 0}/${max}`}
       </span>
     </div>
   );
