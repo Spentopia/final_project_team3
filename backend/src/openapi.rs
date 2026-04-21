@@ -44,7 +44,9 @@ use crate::wallet;
         crate::user::handler::update_settings,
 
         // ── 소비 ──────────────────────────────────────────────
+        crate::expense::handler::list_expenses,
         crate::expense::handler::create_expense,
+        crate::expense::handler::delete_expense,
 
         // ── 예산 ──────────────────────────────────────────────
         crate::budget::handler::get_budget,
@@ -126,6 +128,7 @@ use crate::wallet;
             // ── expense DTO ───────────────────────────────────
             expense::dto::CreateExpenseWebRequest,
             expense::dto::ExpenseWebResponse,
+            expense::dto::ExpenseListWebResponse,
 
             // ── budget DTO ────────────────────────────────────
             budget::dto::CreateBudgetRequest,

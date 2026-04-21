@@ -105,7 +105,11 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/user/settings", get(user::handler::get_settings))
         .route("/api/user/settings", patch(user::handler::update_settings))
         // ── 소비 내역 ──────────────────────────────────────
-        .route("/api/expenses", post(expense::handler::create_expense))
+        .route(
+            "/api/expenses",
+            get(expense::handler::list_expenses).post(expense::handler::create_expense),
+        )
+        .route("/api/expenses/:expense_id", delete(expense::handler::delete_expense))
         .route(
             "/api/receipt/ocr",
             post(expense::handler::verify_receipt_ocr),
@@ -209,17 +213,7 @@ pub fn create_router(state: AppState) -> Router {
     // jwt_middleware → admin_middleware 순으로 실행됨
     // route_layer는 나중에 선언한 것이 바깥쪽(먼저 실행)이므로
     // jwt를 나중에 선언해야 jwt가 먼저 실행됨
-    let admin_routes = Router::new()
-        // 어드민 API는 여기에 추가
-        // 예시: .route("/api/admin/users", get(admin::handler::list_users))
-        .route_layer(middleware::from_fn_with_state(
-            state.clone(),
-            auth::middleware::admin_middleware,
-        ))
-        .route_layer(middleware::from_fn_with_state(
-            state.clone(),
-            auth::middleware::jwt_middleware,
-        ));
+    let admin_routes = Router::new();
 
     // ── 합치기 ──────────────────────────────────────────────
     Router::new()

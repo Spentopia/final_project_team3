@@ -360,7 +360,7 @@ pub async fn recalculate_weekly_score(
     // expense_date: week_start ≤ date ≤ week_end
     // gte = greater than or equal, lte = less than or equal (Supabase 필터 연산자)
     let exp_url = format!(
-        "{}/rest/v1/expenses?user_id=eq.{}&expense_date=gte.{}&expense_date=lte.{}&select=expense_date,one_line_diary,receipt_verified,amount",
+        "{}/rest/v1/expenses?user_id=eq.{}&transaction_type=eq.expense&expense_date=gte.{}&expense_date=lte.{}&select=expense_date,one_line_diary,receipt_verified,amount",
         base_url, user_id, week_start, week_end
     );
     let exp_res = state

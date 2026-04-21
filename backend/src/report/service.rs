@@ -25,7 +25,7 @@ pub async fn generate_report(
 ) -> Result<ReportResponse> {
     // 1. 기간 내 expenses 조회
     let exp_url = format!(
-        "{}/rest/v1/expenses?user_id=eq.{}&expense_date=gte.{}&expense_date=lte.{}&select=amount,category,expense_date",
+        "{}/rest/v1/expenses?user_id=eq.{}&transaction_type=eq.expense&expense_date=gte.{}&expense_date=lte.{}&select=amount,category,expense_date",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
         req.start_date,

@@ -26,6 +26,7 @@ pub async fn create_expense(
         user_id = %user_id,
         amount = req.amount,
         category = %req.category,
+        transaction_type = %req.transaction_type,
         receipt_verified = req.receipt_verified,
         "소비 저장 요청 수신"
     );
@@ -41,6 +42,7 @@ pub async fn create_expense(
         category: String,
         memo: Option<String>,
         one_line_diary: Option<String>,
+        transaction_type: String,
         receipt_verified: bool,
         source: &'static str,
     }
@@ -67,6 +69,7 @@ pub async fn create_expense(
             category: req.category,
             memo: empty_to_none(req.memo),
             one_line_diary: empty_to_none(req.diary),
+            transaction_type: req.transaction_type,
             receipt_verified: req.receipt_verified,
             source: "manual",
         })
@@ -86,15 +89,7 @@ pub async fn create_expense(
         .next()
         .ok_or_else(|| anyhow!("expenses INSERT 결과가 비어있음"))?;
 
-    let response = ExpenseWebResponse {
-        id: expense.id,
-        date: expense.expense_date,
-        amount: expense.amount,
-        category: expense.category,
-        memo: expense.memo,
-        receipt_verified: req.receipt_verified,
-        diary: expense.one_line_diary,
-    };
+    let response = to_web_response(expense);
 
     // fire-and-forget: 스트릭 + 성실도 점수 재계산
     // 실패해도 소비 저장 응답에 영향 없음
@@ -111,6 +106,66 @@ pub async fn create_expense(
     });
 
     Ok(response)
+}
+
+pub async fn list_expenses(state: &AppState, user_id: Uuid) -> Result<Vec<ExpenseWebResponse>> {
+    tracing::info!(user_id = %user_id, "소비 목록 조회 요청 수신");
+
+    let url = format!(
+        "{}/rest/v1/expenses?user_id=eq.{}&select=id,ledger_id,user_id,expense_date,amount,category,memo,one_line_diary,transaction_type,source,receipt_verified,created_at&order=expense_date.desc,created_at.desc",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("expenses SELECT 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("expenses SELECT 실패: {}", body));
+    }
+
+    let expenses: Vec<Expense> = res.json().await.context("expenses SELECT 응답 파싱 실패")?;
+    Ok(expenses.into_iter().map(to_web_response).collect())
+}
+
+pub async fn delete_expense(state: &AppState, user_id: Uuid, expense_id: Uuid) -> Result<()> {
+    tracing::info!(user_id = %user_id, expense_id = %expense_id, "소비 삭제 요청 수신");
+
+    let url = format!(
+        "{}/rest/v1/expenses?id=eq.{}&user_id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        expense_id,
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .delete(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("expenses DELETE 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("expenses DELETE 실패: {}", body));
+    }
+
+    Ok(())
 }
 
 pub async fn verify_receipt_ocr(
@@ -274,6 +329,21 @@ fn empty_to_none(value: Option<String>) -> Option<String> {
             Some(trimmed)
         }
     })
+}
+
+fn to_web_response(expense: Expense) -> ExpenseWebResponse {
+    ExpenseWebResponse {
+        id: expense.id,
+        date: expense.expense_date,
+        amount: expense.amount,
+        category: expense.category,
+        memo: expense.memo,
+        transaction_type: expense
+            .transaction_type
+            .unwrap_or_else(|| "expense".to_string()),
+        receipt_verified: expense.receipt_verified.unwrap_or(false),
+        diary: expense.one_line_diary,
+    }
 }
 
 // ── 영수증 하루 3건 제한 ───────────────────────────────────────
