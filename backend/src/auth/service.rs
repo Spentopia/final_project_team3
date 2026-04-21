@@ -1062,6 +1062,34 @@ async fn find_or_create_social_user(
             provider_id,
             existing_user_id
         );
+
+        // ── 탈퇴 유저 로그인 차단 ───────────────────────────────
+        // exchange_supabase_token 경로(이메일/구글)와 달리
+        // 카카오는 이 경로를 타므로 별도로 deleted_at을 확인해야 함
+        let deleted_check_url = format!(
+            "{}/rest/v1/users?id=eq.{}&select=deleted_at&limit=1",
+            state.config.supabase_url.trim_end_matches('/'),
+            existing_user_id
+        );
+        let deleted_resp = state
+            .http_client
+            .get(&deleted_check_url)
+            .header("apikey", &state.config.supabase_secret_key)
+            .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+            .send()
+            .await
+            .context("탈퇴 여부 조회 실패")?;
+        if deleted_resp.status().is_success() {
+            let rows: Vec<serde_json::Value> = deleted_resp.json().await.unwrap_or_default();
+            if let Some(row) = rows.first() {
+                if row["deleted_at"].is_string() {
+                    tracing::warn!("탈퇴 유저 카카오 로그인 시도 차단: user_id={}", existing_user_id);
+                    return Err(anyhow!("이미 탈퇴한 회원입니다."));
+                }
+            }
+        }
+        // ────────────────────────────────────────────────────────
+
         return Ok((existing_user_id, false));
     }
 
