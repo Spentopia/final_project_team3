@@ -36,6 +36,18 @@ pub struct LinkWalletRequest {
     pub signature: String,
 }
 
+// UnlinkWalletRequest - 지갑 해제 요청 DTO
+//
+// DELETE /wallet/unlink의 요청 body 구조체
+// access token만 탈취된 상황에서 지갑 연동을 끊지 못하도록
+// 현재 DB에 연동된 지갑으로 nonce 재서명을 요구한다.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UnlinkWalletRequest {
+    pub wallet_address: String,
+    pub nonce: String,
+    pub signature: String,
+}
+
 // LinkWalletResponse - 지갑 연동 성공 응답 DTO
 //
 // POST /wallet/link 성공 시 반환하는 응답 구조체

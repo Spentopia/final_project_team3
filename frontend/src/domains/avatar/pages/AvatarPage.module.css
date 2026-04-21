@@ -3,24 +3,23 @@
    ============================================================ */
 
 .pageWrapper {
-    max-width: 960px;
+    max-width: 100%;
     margin: 0 auto;
-    padding: 32px 16px;
+    padding: 0;
+    color: #111827;
 }
 
 .pageTitle {
-    font-size: 1.75rem;
-    font-weight: 800;
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+    font-weight: 700;
     margin-bottom: 8px;
-    background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #111827;
 }
 
 .pageSubtitle {
-    font-size: 0.875rem;
-    color: #9ca3af;
+    font-size: 1rem;
+    color: #4b5563;
     margin-bottom: 28px;
 }
 
@@ -170,7 +169,7 @@
 /* ── 카드 텍스트 ── */
 .itemName {
     font-size: 0.875rem;
-    font-weight: 600;
+    font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -253,6 +252,7 @@
     flex-direction: column;
     gap: 10px;
     font-size: 0.875rem;
+    color: #111827;
 }
 
 .detailRow {
@@ -264,3 +264,71 @@
 .detailLabel { color: #6b7280; }
 
 .mintButton { width: 100%; margin-top: 8px; }
+
+.imagePlaceholder {
+    width: 100%;
+    height: 100%;
+    background: #f3f4f6;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+:global(.dark) .pageWrapper {
+    color: #f3f4f6;
+}
+
+:global(.dark) .pageTitle {
+    color: #f3f4f6;
+}
+
+:global(.dark) .pageSubtitle,
+:global(.dark) .emptyState {
+    color: #d1d5db;
+}
+
+:global(.dark) .itemCard {
+    border-color: rgba(55, 65, 81, 0.9);
+    background: rgba(31, 41, 55, 0.82);
+}
+
+:global(.dark) .itemCard:hover {
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+:global(.dark) .itemName {
+    color: #f9fafb;
+}
+
+:global(.dark) .detailTable {
+    color: #f3f4f6;
+}
+
+:global(.dark) .detailLabel {
+    color: #9ca3af;
+}
+
+:global(.dark) .imagePlaceholder {
+    background: #1f2937;
+    color: #d1d5db;
+}
+
+:global(.dark) .imagePlaceholderCommon {
+    background: linear-gradient(135deg, #374151, #1f2937);
+}
+
+:global(.dark) .imagePlaceholderRare {
+    background: linear-gradient(135deg, #1e3a8a, #1e40af);
+}
+
+:global(.dark) .imagePlaceholderEpic {
+    background: linear-gradient(135deg, #4c1d95, #5b21b6);
+}
+
+:global(.dark) .rarityCommon {
+    background: #374151;
+    color: #e5e7eb;
+}

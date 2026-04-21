@@ -7,6 +7,7 @@ import { Switch } from "@/shared/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Badge } from "@/shared/ui/badge";
 import { WalletSection } from "./WalletSection";
+import AvatarPage from "@/domains/avatar/pages/AvatarPage";
 import {
   User,
   Mail,
@@ -70,55 +71,62 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
-        <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
-          <div className="mb-6 text-center">
-            <div className="relative mx-auto mb-4 inline-block">
-              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/20 text-4xl backdrop-blur-sm">
-                😊
+      <Tabs defaultValue="mypage" className="space-y-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="mypage">마이페이지</TabsTrigger>
+          <TabsTrigger value="items">내 아이템</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="mypage" className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+            <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
+              <div className="mb-6 text-center">
+                <div className="relative mx-auto mb-4 inline-block">
+                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/20 text-4xl backdrop-blur-sm">
+                    😊
+                  </div>
+                  <button className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white text-cyan-600 shadow-lg">
+                    <Camera className="h-4 w-4" />
+                  </button>
+                </div>
+                <h2 className="mb-1 font-bold">{profile.nickname}</h2>
+                <div className="flex items-center justify-center gap-2 text-sm opacity-90">
+                  <span>{profile.email}</span>
+                  {isProfileComplete ? <BadgeCheck className="h-4 w-4" /> : null}
+                </div>
               </div>
-              <button className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white text-cyan-600 shadow-lg">
-                <Camera className="h-4 w-4" />
-              </button>
-            </div>
-            <h2 className="mb-1 font-bold">{profile.nickname}</h2>
-            <div className="flex items-center justify-center gap-2 text-sm opacity-90">
-              <span>{profile.email}</span>
-              {isProfileComplete ? <BadgeCheck className="h-4 w-4" /> : null}
-            </div>
-          </div>
 
-          <div className="space-y-3">
-            <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
-              <p className="mb-1 text-sm opacity-90">가입일</p>
-              <p className="font-bold">2026년 4월 1일</p>
-            </div>
-            <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
-              <p className="mb-1 text-sm opacity-90">연속 기록</p>
-              <p className="font-bold">7일 🔥</p>
-            </div>
-            <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
-              <p className="mb-1 text-sm opacity-90">보유 SPT</p>
-              <p className="font-bold">1,250 SPT</p>
-            </div>
-            <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
-              <p className="mb-1 text-sm opacity-90">보유 아바타</p>
-              <p className="font-bold">15개</p>
-            </div>
-            <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
-              <p className="mb-1 text-sm opacity-90">로그인 방식</p>
-              <p className="font-bold uppercase">{profile.loginProvider}</p>
-            </div>
-          </div>
-        </Card>
+              <div className="space-y-3">
+                <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
+                  <p className="mb-1 text-sm opacity-90">가입일</p>
+                  <p className="font-bold">2026년 4월 1일</p>
+                </div>
+                <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
+                  <p className="mb-1 text-sm opacity-90">연속 기록</p>
+                  <p className="font-bold">7일 🔥</p>
+                </div>
+                <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
+                  <p className="mb-1 text-sm opacity-90">보유 SPT</p>
+                  <p className="font-bold">1,250 SPT</p>
+                </div>
+                <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
+                  <p className="mb-1 text-sm opacity-90">보유 아바타</p>
+                  <p className="font-bold">15개</p>
+                </div>
+                <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
+                  <p className="mb-1 text-sm opacity-90">로그인 방식</p>
+                  <p className="font-bold uppercase">{profile.loginProvider}</p>
+                </div>
+              </div>
+            </Card>
 
-        <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="profile">프로필</TabsTrigger>
-            <TabsTrigger value="security">보안</TabsTrigger>
-            <TabsTrigger value="notifications">알림</TabsTrigger>
-            <TabsTrigger value="wallet">지갑</TabsTrigger>
-          </TabsList>
+            <Tabs defaultValue="profile" className="space-y-6">
+              <TabsList>
+                <TabsTrigger value="profile">프로필</TabsTrigger>
+                <TabsTrigger value="security">보안</TabsTrigger>
+                <TabsTrigger value="notifications">알림</TabsTrigger>
+                <TabsTrigger value="wallet">지갑</TabsTrigger>
+              </TabsList>
 
           <TabsContent value="profile">
             <Card className="border-none bg-white/80 dark:bg-gray-800/80 p-6 backdrop-blur-xl">
@@ -363,8 +371,14 @@ export default function ProfilePage() {
           <TabsContent value="wallet">
             <WalletSection isLoggedIn isProfileComplete={isProfileComplete} />
           </TabsContent>
-        </Tabs>
-      </div>
+            </Tabs>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="items" className="space-y-6">
+          <AvatarPage />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
