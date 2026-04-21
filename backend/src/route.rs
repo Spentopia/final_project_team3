@@ -64,6 +64,7 @@ pub fn create_router(state: AppState) -> Router {
     let sensitive_routes = Router::new()
         .route("/auth/find-email", post(auth::handler::find_email))
         .route("/auth/check-email", post(auth::handler::check_email))
+        .route("/profile/check-nickname", post(auth::handler::check_nickname))
         .route(
             "/auth/check-reset-password-email",
             post(auth::handler::check_reset_password_email),

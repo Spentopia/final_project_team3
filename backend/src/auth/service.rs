@@ -1298,6 +1298,37 @@ pub async fn get_user_role(state: &AppState, user_id: Uuid) -> Result<Option<Str
     Ok(rows.into_iter().next().and_then(|r| r.role_type))
 }
 
+pub async fn check_nickname_available(state: &AppState, nickname: &str) -> Result<bool> {
+    let encoded = urlencoding::encode(nickname.trim());
+
+    let url = format!(
+        "{}/rest/v1/users?select=id&nickname=eq.{}&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        encoded
+    );
+
+    let resp = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("닉네임 중복 확인 요청 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("닉네임 중복 확인 실패: {}", err));
+    }
+
+    let rows: Vec<Value> = resp.json().await.context("닉네임 중복 확인 응답 파싱 실패")?;
+
+    Ok(rows.is_empty())
+}
+
 pub async fn check_email_exists(state: &AppState, email: &str) -> Result<bool> {
     let normalized_email = email.trim().to_lowercase();
     let encoded_email = urlencoding::encode(&normalized_email);

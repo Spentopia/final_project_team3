@@ -248,6 +248,11 @@ export const completeProfile = async (params: {
   }
 };
 
+export const checkNicknameAvailable = async (nickname: string): Promise<boolean> => {
+  const res = await apiClient.post("/profile/check-nickname", { nickname });
+  return res.data?.available === true;
+};
+
 export const checkProfileAvailability = async (params: {
   nickname: string;
   phone: string;
