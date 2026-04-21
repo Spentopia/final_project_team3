@@ -17,6 +17,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { updatePassword } from "@/domains/auth/api/auth";
 import {
   PASSWORD_REQUIREMENTS_MESSAGE,
@@ -56,7 +57,7 @@ export default function ResetPasswordPage() {
       // Supabase updateUser()로 비밀번호 변경
       // 이미 임시 세션이 활성화되어 있어서 별도 인증 불필요
       await updatePassword(password);
-      alert("비밀번호 변경이 완료되었습니다.");
+      toast.success("비밀번호 변경이 완료되었습니다.");
       navigate("/login"); // 변경 완료 → 로그인 페이지로
     } catch (error: any) {
       setErrorMessage(error.message || "비밀번호 변경 실패");

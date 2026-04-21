@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { toast } from "sonner";
 import { loginWithKakaocode } from "@/domains/auth/api/auth";
 import { authStorage } from "@/shared/lib/auth";
 
@@ -17,13 +18,13 @@ export default function KakaoCallbackPage() {
     const state = searchParams.get("state");
 
     if (!code) {
-      alert("로그인 링크가 만료되었어요. 다시 로그인해 주세요.");
+      toast.error("로그인 링크가 만료되었어요. 다시 로그인해 주세요.");
       navigate("/login", { replace: true });
       return;
     }
 
     if (!state) {
-      alert("잘못된 로그인 요청입니다. 다시 로그인해 주세요.");
+      toast.error("잘못된 로그인 요청입니다. 다시 로그인해 주세요.");
       navigate("/login", { replace: true });
       return;
     }
@@ -44,7 +45,7 @@ export default function KakaoCallbackPage() {
       navigate("/", { replace: true });
     } catch (err: any) {
       console.error("카카오 로그인 실패:", err);
-      alert("로그인 링크가 만료되었거나 이미 사용되었어요. 다시 로그인해 주세요.");
+      toast.error("로그인 링크가 만료되었거나 이미 사용되었어요. 다시 로그인해 주세요.");
       navigate("/login", { replace: true });
     }
   };
