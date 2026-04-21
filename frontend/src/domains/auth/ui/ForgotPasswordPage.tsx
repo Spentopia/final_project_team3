@@ -154,14 +154,7 @@ export default function ForgotPasswordPage() {
       await resetPassword(email, captchaToken);
       setSent(true); // 발송 완료 → 안내 메시지로 전환
     } catch (error: any) {
-      if (error.response?.status === 403) {
-        toast.error(
-          "소셜 로그인 계정은 비밀번호 재설정을 할 수 없습니다. 해당 소셜 로그인으로 다시 로그인해주세요."
-        );
-      } else {
-        toast.error(error.message || "이메일 발송 실패");
-      }
-
+      toast.error(error.message || "이메일 발송 실패");
       resetCaptcha();
     } finally {
       setLoading(false);
@@ -170,7 +163,7 @@ export default function ForgotPasswordPage() {
 
   const openMailService = () => {
     if (mailService) {
-      window.open(mailService.url, "_blank");
+      window.location.href = mailService.url;
     }
   };
 
@@ -194,15 +187,7 @@ export default function ForgotPasswordPage() {
           {/* 발송 완료 시 안내 메시지 + 메일 서비스 열기 버튼 */}
           {sent ? (
             <div className="space-y-4">
-              <p className="text-center text-gray-600 dark:text-gray-400">
-                <span className="font-semibold text-cyan-600 dark:text-cyan-400">
-                  {email}
-                </span>
-                으로
-                <br />
-                비밀번호 재설정 링크를 보냈습니다.
-              </p>
-
+              
               <div className="rounded-lg border border-cyan-200 dark:border-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-purple-500" />
@@ -211,9 +196,9 @@ export default function ForgotPasswordPage() {
                   </p>
                 </div>
                 <p className="text-sm text-purple-700 dark:text-purple-300 leading-6">
-                  메일에서 재설정 링크를 클릭하면
+                  메일함과 스팸함을 확인해주세요.
                   <br />
-                  새 비밀번호를 설정할 수 있어요.
+                  받은 메일의 링크를 눌러 비밀번호를 재설정할 수 있어요.
                 </p>
               </div>
 
@@ -224,11 +209,11 @@ export default function ForgotPasswordPage() {
                     onClick={openMailService}
                     className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
                   >
-                    {mailService.name} 열기
+                    이메일 열기
                   </Button>
                 ) : (
                   <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-                    메일함에서 재설정 링크를 확인해주세요.
+                    메일함에서 인증 링크를 확인해주세요.
                   </p>
                 )}
 
