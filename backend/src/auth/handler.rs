@@ -590,6 +590,7 @@ pub async fn complete_profile(
     let mut payload = json!({
         "nickname": body.nickname,
         "phone": body.phone,
+        "profile_completed": true,
     });
 
     if let Some(ref img) = body.profile_image {

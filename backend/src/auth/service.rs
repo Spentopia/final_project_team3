@@ -550,7 +550,7 @@ pub async fn exchange_supabase_token(
         if domain == "admin.com" {
             let existing = find_public_user_by_email(state, mail).await.unwrap_or(None);
             if existing.is_none() {
-                return Err(anyhow!("해당 이메일 도메인으로는 가입할 수 없습니다."));
+                return Err(anyhow!("해당 이메일으로는 가입할 수 없습니다."));
             }
         }
     }

@@ -95,7 +95,11 @@ export const router = createBrowserRouter([
   },
   {
     path: "/complete-profile",
-    Component: CompleteProfilePage,
+    Component: () => (
+      <ProtectedRoute>
+        <CompleteProfilePage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/forgot-password",

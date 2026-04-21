@@ -95,13 +95,16 @@ export default function CompleteProfilePage() {
       // 이미지 업로드 (선택된 파일이 있을 때만)
       const imagePath = await profileImage.upload();
 
-      await completeProfile({
+      const result = await completeProfile({
         nickname: formData.nickname,
         phone: formData.phone,
         profileImage: imagePath || undefined,
       });
 
-      // 프로필 완성 → 메인 페이지로
+      if (!result?.profile_completed) {
+        throw new Error("프로필 저장에 실패했습니다. 다시 시도해주세요.");
+      }
+
       navigate("/");
     } catch (error: any) {
       toast.error(error.message || "프로필 저장 실패");

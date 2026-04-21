@@ -20,7 +20,6 @@ import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { updatePassword } from "@/domains/auth/api/auth";
 import {
-  PASSWORD_REQUIREMENTS_MESSAGE,
   validatePassword,
 } from "@/domains/auth/lib/password";
 import PasswordInput from "@/domains/auth/ui/PasswordInput";
@@ -96,9 +95,6 @@ export default function ResetPasswordPage() {
                 required
                 className="mt-1"
               />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {PASSWORD_REQUIREMENTS_MESSAGE}
-              </p>
             </div>
 
             <div>
