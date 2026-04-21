@@ -512,6 +512,31 @@ pub async fn get_me(
     Ok(Json(user))
 }
 
+// POST /auth/withdraw
+//
+// 보호 라우트 → JWT 필수
+// 탈퇴 처리 후 refresh 쿠키도 삭제해서 즉시 로그아웃 상태로 만듦
+pub async fn withdraw(
+    State(state): State<AppState>,
+    axum::Extension(user_id): axum::Extension<uuid::Uuid>,
+) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
+    service::withdraw_user(&state, user_id)
+        .await
+        .map_err(|e| {
+            tracing::error!("회원탈퇴 실패: user_id={}, error={}", user_id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "회원탈퇴 처리에 실패했습니다.".to_string(),
+            )
+        })?;
+
+    // 탈퇴 성공 → refresh 쿠키 삭제 (브라우저에서 쿠키 만료 처리)
+    // access token은 프론트에서 메모리 삭제 처리
+    let headers = build_clear_refresh_cookie(&state);
+
+    Ok((headers, Json(json!({ "withdrawn": true }))))
+}
+
 // ═══════════════════════════════════════════════════════════════
 // [프로필 완성] PATCH /profile/complete
 // ═══════════════════════════════════════════════════════════════
@@ -1077,28 +1102,55 @@ pub async fn check_email(
         ));
     }
 
-    // 5) 기존 이메일 존재 확인 로직 호출
-    let exists = crate::auth::service::check_email_exists(&state, &email)
+    // 5) 탈퇴 유저 재가입 차단 + 이메일 중복 확인 통합 처리
+    //
+    // 케이스별 처리:
+    // 1) 이메일 없음 (rows 비어있음)          → 404 (가입 가능)
+    // 2) 이메일 있고 deleted_at IS NULL       → 200 exists:true (이미 가입된 이메일)
+    // 3) 이메일 있고 deleted_at IS NOT NULL   → 403 (탈퇴한 회원, 재가입 불가)
+    let withdrawn_check_url = format!(
+        "{}/rest/v1/users?select=deleted_at&email=eq.{}&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        urlencoding::encode(&email)
+    );
+
+    let withdrawn_resp = state
+        .http_client
+        .get(&withdrawn_check_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
         .await
         .map_err(|e| {
-            tracing::warn!("이메일 중복 확인 실패: {}", e);
+            tracing::error!("이메일 조회 실패: {}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "이메일 중복 확인에 실패했습니다.".to_string(),
+                "이메일 확인에 실패했습니다.".to_string(),
             )
         })?;
 
-    // 프론트 기존 흐름 유지:
-    // - exists == true  -> 200 + { exists: true }
-    // - exists == false -> 404
-    if exists {
-        Ok(Json(CheckEmailResponse { exists: true }))
-    } else {
-        Err((
-            StatusCode::NOT_FOUND,
-            "가입 가능한 이메일입니다.".to_string(),
-        ))
+    let rows: Vec<serde_json::Value> = withdrawn_resp.json().await.unwrap_or_default();
+
+    if let Some(row) = rows.first() {
+        if row["deleted_at"].is_string() {
+            // 탈퇴한 유저 → 재가입 차단
+            return Err((
+                StatusCode::FORBIDDEN,
+                "이미 탈퇴한 회원입니다.".to_string(),
+            ));
+        }
+        // 탈퇴 안 한 기존 유저 → 이미 가입된 이메일
+        return Ok(Json(CheckEmailResponse { exists: true }));
     }
+
+    // 이메일 자체가 없음 → 가입 가능
+    Err((
+        StatusCode::NOT_FOUND,
+        "가입 가능한 이메일입니다.".to_string(),
+    ))
 }
 
 #[utoipa::path(

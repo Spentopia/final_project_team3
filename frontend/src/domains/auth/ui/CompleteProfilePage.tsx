@@ -16,7 +16,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { completeProfile, checkProfileAvailability, checkNicknameAvailable } from "@/domains/auth/api/auth";
+import { completeProfile, checkProfileAvailability, checkNicknameAvailable, signOut } from "@/domains/auth/api/auth";
 import { useProfileImage } from "@/domains/auth/hooks/useProfileImage";
 import ProfileImageUploader from "@/domains/auth/ui/ProfileImageUploader";
 import { Button } from "@/shared/ui/button";
@@ -111,6 +111,17 @@ export default function CompleteProfilePage() {
 
   const handleBack = () => {
     if (step > 1) setStep(step - 1);
+  };
+
+  // 다른 계정으로 로그인하기
+  // access token(메모리) + refresh 쿠키(백엔드) + Supabase 세션 모두 정리 후 로그인 페이지로 이동
+  const handleSwitchAccount = async () => {
+    try {
+      await signOut();
+    } catch {
+      // 정리 실패해도 로그인 페이지로 이동
+    }
+    navigate("/login");
   };
 
   const handleGenerateNickname = async () => {
@@ -270,6 +281,17 @@ export default function CompleteProfilePage() {
               </Button>
             </div>
           </form>
+
+          {/* 다른 계정으로 로그인하기 — 잘못된 소셜 계정으로 들어온 경우 탈출 */}
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={handleSwitchAccount}
+              className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline underline-offset-2 transition-colors"
+            >
+              다른 계정으로 로그인하기
+            </button>
+          </div>
         </div>
       </Card>
     </div>

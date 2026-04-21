@@ -338,6 +338,20 @@ export const findEmailByPhone = async (
   }
 };
 
+// 회원탈퇴
+//
+// 처리 순서:
+// 1) 백엔드 /auth/withdraw 호출 → DB soft delete + auth.users 삭제 + 세션 revoke
+// 2) 로컬 access token 삭제 (메모리)
+// 3) Supabase 세션 삭제 (로컬 스토리지)
+//
+// withCredentials: true → refresh 쿠키도 같이 전송해서 백엔드에서 쿠키 삭제 처리
+export const withdrawAccount = async () => {
+  await apiClient.post("/auth/withdraw", {}, { withCredentials: true });
+  authStorage.clear();
+  await supabase.auth.signOut();
+};
+
 // 로그아웃
 export const signOut = async () => {
   try {
