@@ -40,7 +40,7 @@ pub fn buy_nft_handler(ctx: Context<BuyNft>) -> Result<()> {
     transfer_checked(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            TransferChecked{
+            TransferChecked {
                 from: ctx.accounts.buyer_spt_account.to_account_info(),
                 mint: ctx.accounts.spt_token_mint.to_account_info(),
                 to: ctx.accounts.seller_spt_account.to_account_info(),
@@ -82,7 +82,7 @@ pub fn buy_nft_handler(ctx: Context<BuyNft>) -> Result<()> {
     transfer_checked(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
-            TransferChecked{
+            TransferChecked {
                 from: ctx.accounts.escrow_token_account.to_account_info(),
                 mint: ctx.accounts.nft_mint.to_account_info(),
                 to: ctx.accounts.buyer_nft_account.to_account_info(),
@@ -90,14 +90,14 @@ pub fn buy_nft_handler(ctx: Context<BuyNft>) -> Result<()> {
             },
             &[listing_signer_seeds],
         ),
-        1,  // NFT 1개
+        1, // NFT 1개
         0, // decimals = 0
     )?;
 
     // Step 4: escrow ATA close → rent를 판매자에게 반환
     close_account(CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
-        CloseAccount{
+        CloseAccount {
             account: ctx.accounts.escrow_token_account.to_account_info(),
             destination: ctx.accounts.seller.to_account_info(),
             authority: ctx.accounts.listing.to_account_info(),
@@ -113,13 +113,11 @@ pub fn buy_nft_handler(ctx: Context<BuyNft>) -> Result<()> {
         fee
     );
 
-
     Ok(())
 }
 
 #[derive(Accounts)]
 pub struct BuyNft<'info> {
-
     /// 플랫폼 설정 계정. fee_rate 읽기용.
     #[account(
         seeds = [PLATFORM_CONFIG_SEED],

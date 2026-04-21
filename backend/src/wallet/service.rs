@@ -41,11 +41,11 @@ pub async fn link_wallet(
     // nonce를 지갑으로 서명한 값
     signature: &str,
 ) -> Result<()> {
-    tracing::warn!(
-        "[지갑연동] link_wallet 시작: user_id={}, wallet={}, nonce={:?}",
+    tracing::info!(
+        "[지갑연동] link_wallet 시작: user_id={}, wallet={}, nonce_len={}",
         user_id,
         wallet_address,
-        nonce
+        nonce.len()
     );
 
     // 1) nonce 검증
@@ -56,10 +56,7 @@ pub async fn link_wallet(
         .nonce_store
         .get(wallet_address)
         .ok_or_else(|| anyhow!("nonce가 없거나 만료되었습니다. 다시 시도해 주세요."))?;
-    tracing::warn!(
-        "[지갑연동] nonce_store 에서 찾음: stored_nonce={:?}",
-        entry.nonce
-    );
+    tracing::debug!("[지갑연동] nonce_store 에서 nonce 확인");
 
     // TTL 체크: 발급 후 5분이 지났으면 만료 처리
     if SystemTime::now() > entry.expires_at {
@@ -70,15 +67,13 @@ pub async fn link_wallet(
 
     if entry.nonce != nonce {
         tracing::warn!(
-            "[지갑연동] nonce 불일치! 저장된={:?}({}bytes), 받은={:?}({}bytes)",
-            entry.nonce,
+            "[지갑연동] nonce 불일치: stored_len={}, received_len={}",
             entry.nonce.len(),
-            nonce,
             nonce.len()
         );
         return Err(anyhow!("nonce가 일치하지 않습니다."));
     }
-    tracing::warn!("[지갑연동] nonce 일치 확인, 서명 검증 시작");
+    tracing::debug!("[지갑연동] nonce 일치 확인, 서명 검증 시작");
 
     // nonce는 1회용 → 검증 즉시 삭제
     // drop() 먼저: DashMap 읽기 잠금 해제 후 remove() 해야 함
@@ -95,7 +90,7 @@ pub async fn link_wallet(
     // 이 지갑이 이미 다른 계정에 연동돼있는지 확인
     // find_user_by_wallet이 Ok → 이미 연동된 지갑 → 에러 반환
     // find_user_by_wallet이 Err → 아직 아무도 안 썼음 → 연동 진행
-    if let Ok(existing_user_id) = find_user_by_wallet(state, wallet_address).await {
+    if let Ok(_existing_user_id) = find_user_by_wallet(state, wallet_address).await {
         // 이미 연동됐는데 내 계정이라면 재연동이므로 에러 처리 방식은 기획에 따라 다름
         // 일단 "이미 연동된 지갑"으로 막음
         return Err(anyhow!("이미 다른 계정에 연동된 지갑 주소입니다."));
@@ -216,7 +211,9 @@ pub async fn unlink_wallet(
         .ok_or_else(|| anyhow!("연동된 지갑이 없습니다."))?;
 
     if linked_wallet_address != wallet_address {
-        return Err(anyhow!("연동된 지갑 주소와 서명 지갑 주소가 일치하지 않습니다."));
+        return Err(anyhow!(
+            "연동된 지갑 주소와 서명 지갑 주소가 일치하지 않습니다."
+        ));
     }
 
     verify_wallet_nonce_and_signature(state, wallet_address, nonce, signature)?;

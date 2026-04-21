@@ -1,0 +1,693 @@
+// clients/solana_client.rs
+//
+// solana-sdk 없이 reqwest + sha2 + ed25519-dalek + bs58 만으로
+// Solana 온체인 트랜잭션을 직접 구성·서명·전송하는 클라이언트.
+//
+// 지원 instruction:
+//   mint_spt_to_user — 성실도 보상 SPT 민팅 (admin 서명, 백엔드 전용)
+//
+// 트랜잭션 직렬화 포맷: Solana legacy transaction (v0 아님)
+// 인코딩: base64 (sendTransaction encoding: "base64")
+
+use anyhow::{Context, Result, anyhow};
+use ed25519_dalek::{Signer, SigningKey};
+use sha2::{Digest, Sha256};
+
+// ── 고정 주소 상수 ─────────────────────────────────────────────
+const TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const ASSOC_TOKEN_PROGRAM_ID: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bYh";
+const SYSTEM_PROGRAM_ID: &str = "11111111111111111111111111111111";
+const METADATA_PROGRAM_ID: &str = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
+const SYSVAR_INSTRUCTIONS_ID: &str = "Sysvar1nstructions1111111111111111111111111";
+
+// ── PDA seeds (스마트 컨트랙트 constants.rs와 동일) ───────────────
+const PLATFORM_CONFIG_SEED: &[u8] = b"platform_config";
+const SPT_TOKEN_MINT_SEED: &[u8] = b"spt_token_mint";
+const SPT_TOKEN_AUTHORITY_SEED: &[u8] = b"spt_token_authority";
+const LISTING_SEED: &[u8] = b"listing";
+const ESCROW_SEED: &[u8] = b"escrow";
+const AVATAR_MINT_SEED: &[u8] = b"avatar_mint";
+
+// SPT decimals: 1 SPT = 1_000_000 base units
+pub const SPT_DECIMALS: u64 = 1_000_000;
+
+// ── 유틸: base58 pubkey → [u8; 32] ───────────────────────────
+fn decode_pubkey(s: &str) -> Result<[u8; 32]> {
+    let bytes = bs58::decode(s).into_vec().context("base58 디코딩 실패")?;
+    bytes
+        .try_into()
+        .map_err(|_| anyhow!("pubkey 길이 오류: {}", s))
+}
+
+// ── 유틸: base64 인코딩 (외부 crate 없이 직접 구현) ──────────────
+fn base64_encode(bytes: &[u8]) -> String {
+    const TABLE: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    for chunk in bytes.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = if chunk.len() > 1 { chunk[1] as u32 } else { 0 };
+        let b2 = if chunk.len() > 2 { chunk[2] as u32 } else { 0 };
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        out.push(TABLE[((n >> 18) & 63) as usize] as char);
+        out.push(TABLE[((n >> 12) & 63) as usize] as char);
+        if chunk.len() > 1 {
+            out.push(TABLE[((n >> 6) & 63) as usize] as char);
+        } else {
+            out.push('=');
+        }
+        if chunk.len() > 2 {
+            out.push(TABLE[(n & 63) as usize] as char);
+        } else {
+            out.push('=');
+        }
+    }
+    out
+}
+
+// ── Compact-u16 인코딩 (Solana 트랜잭션 내부 길이 표현 방식) ───────
+fn compact_u16(n: usize) -> Vec<u8> {
+    let mut out = Vec::new();
+    let mut val = n as u16;
+    loop {
+        let mut b = (val & 0x7f) as u8;
+        val >>= 7;
+        if val != 0 {
+            b |= 0x80;
+        }
+        out.push(b);
+        if val == 0 {
+            break;
+        }
+    }
+    out
+}
+
+// ── PDA 계산 ──────────────────────────────────────────────────
+// SHA256(seed1 || ... || seedN || nonce || program_id || "ProgramDerivedAddress")
+// 결과가 ed25519 곡선 위에 없을 때 유효한 PDA
+fn find_program_address(seeds: &[&[u8]], program_id: &[u8; 32]) -> ([u8; 32], u8) {
+    for nonce in (0u8..=255).rev() {
+        let mut hasher = Sha256::new();
+        for seed in seeds {
+            hasher.update(seed);
+        }
+        hasher.update([nonce]);
+        hasher.update(program_id);
+        hasher.update(b"ProgramDerivedAddress");
+        let hash: [u8; 32] = hasher.finalize().into();
+        // ed25519 곡선 위의 점이면 유효하지 않은 PDA → 다음 nonce 시도
+        if ed25519_dalek::VerifyingKey::from_bytes(&hash).is_err() {
+            return (hash, nonce);
+        }
+    }
+    panic!("PDA를 찾을 수 없습니다. seeds가 올바른지 확인하세요.");
+}
+
+// ── ATA(Associated Token Account) 주소 계산 ──────────────────
+fn get_associated_token_address(wallet: &[u8; 32], mint: &[u8; 32]) -> Result<[u8; 32]> {
+    let token_program = decode_pubkey(TOKEN_PROGRAM_ID)?;
+    let assoc_program = decode_pubkey(ASSOC_TOKEN_PROGRAM_ID)?;
+    let (addr, _) = find_program_address(&[wallet, &token_program, mint], &assoc_program);
+    Ok(addr)
+}
+
+// ── Anchor instruction discriminator ──────────────────────────
+// SHA256("global:{name}")[..8]
+fn anchor_discriminator(name: &str) -> [u8; 8] {
+    let hash = Sha256::digest(format!("global:{}", name).as_bytes());
+    hash[..8].try_into().unwrap()
+}
+
+fn push_anchor_string(out: &mut Vec<u8>, value: &str) -> Result<()> {
+    let len: u32 = value
+        .len()
+        .try_into()
+        .map_err(|_| anyhow!("Anchor string too long"))?;
+    out.extend_from_slice(&len.to_le_bytes());
+    out.extend_from_slice(value.as_bytes());
+    Ok(())
+}
+
+pub fn derive_listing_address(
+    seller_wallet_b58: &str,
+    nft_mint_b58: &str,
+    program_id_str: &str,
+) -> Result<String> {
+    let seller = decode_pubkey(seller_wallet_b58)?;
+    let nft_mint = decode_pubkey(nft_mint_b58)?;
+    let program_id = decode_pubkey(program_id_str)?;
+    let (listing, _) = find_program_address(
+        &[LISTING_SEED, seller.as_ref(), nft_mint.as_ref()],
+        &program_id,
+    );
+    Ok(bs58::encode(listing).into_string())
+}
+
+pub fn derive_escrow_address(listing_b58: &str, program_id_str: &str) -> Result<String> {
+    let listing = decode_pubkey(listing_b58)?;
+    let program_id = decode_pubkey(program_id_str)?;
+    let (escrow, _) = find_program_address(&[ESCROW_SEED, listing.as_ref()], &program_id);
+    Ok(bs58::encode(escrow).into_string())
+}
+
+fn collect_pubkeys(value: &serde_json::Value, out: &mut Vec<String>) {
+    match value {
+        serde_json::Value::String(s) => out.push(s.clone()),
+        serde_json::Value::Array(items) => {
+            for item in items {
+                collect_pubkeys(item, out);
+            }
+        }
+        serde_json::Value::Object(map) => {
+            if let Some(pubkey) = map.get("pubkey").and_then(|v| v.as_str()) {
+                out.push(pubkey.to_string());
+            }
+            if let Some(account) = map.get("account").and_then(|v| v.as_str()) {
+                out.push(account.to_string());
+            }
+            if let Some(mint) = map.get("mint").and_then(|v| v.as_str()) {
+                out.push(mint.to_string());
+            }
+            if let Some(owner) = map.get("owner").and_then(|v| v.as_str()) {
+                out.push(owner.to_string());
+            }
+            for item in map.values() {
+                collect_pubkeys(item, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn instruction_matches(ix: &serde_json::Value, program_id: &str, name: &str) -> bool {
+    if ix.get("programId").and_then(|v| v.as_str()) != Some(program_id) {
+        return false;
+    }
+
+    let Some(data) = ix.get("data").and_then(|v| v.as_str()) else {
+        return false;
+    };
+
+    let Ok(decoded) = bs58::decode(data).into_vec() else {
+        return false;
+    };
+
+    decoded.len() >= 8 && decoded[..8] == anchor_discriminator(name)
+}
+
+fn instruction_matches_with_account_positions(
+    ix: &serde_json::Value,
+    program_id: &str,
+    name: &str,
+    expected_positions: &[(usize, &str)],
+) -> bool {
+    if !instruction_matches(ix, program_id, name) {
+        return false;
+    }
+
+    let Some(accounts) = ix.get("accounts").and_then(|v| v.as_array()) else {
+        return expected_positions.is_empty();
+    };
+
+    expected_positions.iter().all(|(index, expected)| {
+        accounts
+            .get(*index)
+            .and_then(|value| value.as_str())
+            .map(|actual| actual == *expected)
+            .unwrap_or(false)
+    })
+}
+
+fn tx_has_success(value: &serde_json::Value) -> bool {
+    value["result"]["meta"]["err"].is_null()
+}
+
+async fn get_confirmed_transaction(
+    rpc_url: &str,
+    client: &reqwest::Client,
+    signature: &str,
+) -> Result<serde_json::Value> {
+    let res: serde_json::Value = client
+        .post(rpc_url)
+        .json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getTransaction",
+            "params": [
+                signature,
+                {
+                    "encoding": "jsonParsed",
+                    "commitment": "confirmed",
+                    "maxSupportedTransactionVersion": 0
+                }
+            ]
+        }))
+        .send()
+        .await
+        .context("getTransaction 요청 실패")?
+        .json()
+        .await
+        .context("getTransaction 파싱 실패")?;
+
+    if let Some(err) = res.get("error") {
+        return Err(anyhow!("getTransaction 실패: {}", err));
+    }
+    if res.get("result").is_none() || res["result"].is_null() {
+        return Err(anyhow!(
+            "트랜잭션을 찾을 수 없거나 아직 confirmed 상태가 아닙니다"
+        ));
+    }
+    if !tx_has_success(&res) {
+        return Err(anyhow!(
+            "실패한 Solana 트랜잭션입니다: {}",
+            res["result"]["meta"]["err"]
+        ));
+    }
+    Ok(res)
+}
+
+pub async fn verify_program_instruction_tx(
+    rpc_url: &str,
+    client: &reqwest::Client,
+    signature: &str,
+    program_id: &str,
+    instruction_name: &str,
+    required_pubkeys: &[&str],
+    required_signer: Option<&str>,
+    expected_account_positions: Option<&[(usize, &str)]>,
+) -> Result<()> {
+    if signature.trim().is_empty() {
+        return Err(anyhow!("tx_signature 누락"));
+    }
+
+    let tx = get_confirmed_transaction(rpc_url, client, signature).await?;
+    let account_keys = tx["result"]["transaction"]["message"]["accountKeys"]
+        .as_array()
+        .ok_or_else(|| anyhow!("트랜잭션 accountKeys 없음"))?;
+
+    let mut all_pubkeys = Vec::new();
+    collect_pubkeys(&tx["result"]["transaction"]["message"], &mut all_pubkeys);
+
+    for required in required_pubkeys {
+        if !all_pubkeys.iter().any(|v| v == required) {
+            return Err(anyhow!("트랜잭션에 필수 계정이 없습니다: {}", required));
+        }
+    }
+
+    if let Some(signer) = required_signer {
+        let signed = account_keys.iter().any(|key| {
+            key.get("pubkey").and_then(|v| v.as_str()) == Some(signer)
+                && key.get("signer").and_then(|v| v.as_bool()).unwrap_or(false)
+        });
+        if !signed {
+            return Err(anyhow!("필수 서명자가 트랜잭션에 없습니다: {}", signer));
+        }
+    }
+
+    let instructions = tx["result"]["transaction"]["message"]["instructions"]
+        .as_array()
+        .ok_or_else(|| anyhow!("트랜잭션 instructions 없음"))?;
+
+    let instruction_found = instructions.iter().any(|ix| {
+        if let Some(expected_positions) = expected_account_positions {
+            instruction_matches_with_account_positions(
+                ix,
+                program_id,
+                instruction_name,
+                expected_positions,
+            )
+        } else {
+            instruction_matches(ix, program_id, instruction_name)
+        }
+    });
+
+    if !instruction_found {
+        return Err(anyhow!(
+            "Spentopia instruction 또는 계정 순서가 일치하지 않습니다: {}",
+            instruction_name
+        ));
+    }
+
+    Ok(())
+}
+
+// ── RPC: getLatestBlockhash ────────────────────────────────────
+async fn get_latest_blockhash(rpc_url: &str, client: &reqwest::Client) -> Result<[u8; 32]> {
+    let res: serde_json::Value = client
+        .post(rpc_url)
+        .json(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 1,
+            "method": "getLatestBlockhash",
+            "params": [{"commitment": "finalized"}]
+        }))
+        .send()
+        .await
+        .context("getLatestBlockhash 요청 실패")?
+        .json()
+        .await
+        .context("getLatestBlockhash 파싱 실패")?;
+
+    let hash_str = res["result"]["value"]["blockhash"]
+        .as_str()
+        .ok_or_else(|| anyhow!("blockhash 필드 없음"))?;
+
+    bs58::decode(hash_str)
+        .into_vec()
+        .context("blockhash base58 디코딩 실패")?
+        .try_into()
+        .map_err(|_| anyhow!("blockhash 길이 오류"))
+}
+
+// ── RPC: sendTransaction ───────────────────────────────────────
+async fn send_transaction(
+    rpc_url: &str,
+    client: &reqwest::Client,
+    tx_bytes: &[u8],
+) -> Result<String> {
+    let res: serde_json::Value = client
+        .post(rpc_url)
+        .json(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 1,
+            "method": "sendTransaction",
+            "params": [base64_encode(tx_bytes), {"encoding": "base64", "skipPreflight": false}]
+        }))
+        .send()
+        .await
+        .context("sendTransaction 요청 실패")?
+        .json()
+        .await
+        .context("sendTransaction 파싱 실패")?;
+
+    if let Some(err) = res.get("error") {
+        return Err(anyhow!("sendTransaction 실패: {}", err));
+    }
+
+    res["result"]
+        .as_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| anyhow!("tx signature 필드 없음"))
+}
+
+// ── Solana legacy 트랜잭션 직렬화 ─────────────────────────────
+// 계정 순서 (message 헤더 기준):
+//   0: admin (writable, signer)
+//   1: platform_config (writable)
+//   2: spt_token_mint (writable)
+//   3: user_token_account (writable)
+//   4: user_wallet (readonly)
+//   5: spt_token_authority (readonly)
+//   6: token_program (readonly)
+//   7: associated_token_program (readonly)
+//   8: system_program (readonly)
+//   9: spentopia_program (readonly, program)
+fn build_tx(
+    admin_pubkey: &[u8; 32],
+    platform_config: &[u8; 32],
+    spt_token_mint: &[u8; 32],
+    user_token_account: &[u8; 32],
+    user_wallet: &[u8; 32],
+    spt_token_authority: &[u8; 32],
+    program_id: &[u8; 32],
+    recent_blockhash: &[u8; 32],
+    ix_data: &[u8],
+    signing_key: &SigningKey,
+) -> Vec<u8> {
+    let token_program = decode_pubkey(TOKEN_PROGRAM_ID).unwrap();
+    let assoc_token_prog = decode_pubkey(ASSOC_TOKEN_PROGRAM_ID).unwrap();
+    let system_program = decode_pubkey(SYSTEM_PROGRAM_ID).unwrap();
+
+    // accounts 배열 (정렬 순서 엄격히 유지)
+    let accounts: &[[u8; 32]] = &[
+        *admin_pubkey,        // 0: writable signer
+        *platform_config,     // 1: writable
+        *spt_token_mint,      // 2: writable
+        *user_token_account,  // 3: writable
+        *user_wallet,         // 4: readonly
+        *spt_token_authority, // 5: readonly
+        token_program,        // 6: readonly
+        assoc_token_prog,     // 7: readonly
+        system_program,       // 8: readonly
+        *program_id,          // 9: readonly (program)
+    ];
+
+    // instruction account indexes (MintSptToUser Accounts 구조체 순서와 동일)
+    let ix_accounts: &[u8] = &[
+        1, // platform_config
+        0, // admin
+        4, // user
+        2, // spt_token_mint
+        5, // spt_token_authority
+        3, // user_token_account
+        6, // token_program
+        7, // associated_token_program
+        8, // system_program
+    ];
+
+    // Message 직렬화
+    let mut msg = Vec::new();
+    // Header: num_required_signatures=1, num_readonly_signed=0, num_readonly_unsigned=6
+    msg.extend_from_slice(&[1u8, 0u8, 6u8]);
+    // Accounts
+    msg.extend(compact_u16(accounts.len()));
+    for acc in accounts {
+        msg.extend_from_slice(acc);
+    }
+    // Recent blockhash
+    msg.extend_from_slice(recent_blockhash);
+    // Instructions (1개)
+    msg.extend(compact_u16(1));
+    msg.push(9u8); // program_id_index
+    msg.extend(compact_u16(ix_accounts.len()));
+    msg.extend_from_slice(ix_accounts);
+    msg.extend(compact_u16(ix_data.len()));
+    msg.extend_from_slice(ix_data);
+
+    // 서명
+    let sig = signing_key.sign(&msg);
+    let sig_bytes = sig.to_bytes();
+
+    // 트랜잭션: [compact_u16(1 sig), sig(64), message]
+    let mut tx = Vec::new();
+    tx.extend(compact_u16(1));
+    tx.extend_from_slice(&sig_bytes);
+    tx.extend_from_slice(&msg);
+    tx
+}
+
+fn build_mint_avatar_tx(
+    admin_pubkey: &[u8; 32],
+    platform_config: &[u8; 32],
+    user_wallet: &[u8; 32],
+    avatar_mint: &[u8; 32],
+    metadata: &[u8; 32],
+    spt_token_authority: &[u8; 32],
+    user_token_account: &[u8; 32],
+    program_id: &[u8; 32],
+    recent_blockhash: &[u8; 32],
+    ix_data: &[u8],
+    signing_key: &SigningKey,
+) -> Vec<u8> {
+    let metadata_program = decode_pubkey(METADATA_PROGRAM_ID).unwrap();
+    let sysvar_instructions = decode_pubkey(SYSVAR_INSTRUCTIONS_ID).unwrap();
+    let token_program = decode_pubkey(TOKEN_PROGRAM_ID).unwrap();
+    let assoc_token_prog = decode_pubkey(ASSOC_TOKEN_PROGRAM_ID).unwrap();
+    let system_program = decode_pubkey(SYSTEM_PROGRAM_ID).unwrap();
+
+    let accounts: &[[u8; 32]] = &[
+        *admin_pubkey,        // 0 writable signer
+        *avatar_mint,         // 1 writable
+        *metadata,            // 2 writable
+        *user_token_account,  // 3 writable
+        *platform_config,     // 4 readonly
+        *user_wallet,         // 5 readonly
+        *spt_token_authority, // 6 readonly
+        metadata_program,     // 7 readonly
+        sysvar_instructions,  // 8 readonly
+        token_program,        // 9 readonly
+        assoc_token_prog,     // 10 readonly
+        system_program,       // 11 readonly
+        *program_id,          // 12 readonly program
+    ];
+
+    let ix_accounts: &[u8] = &[
+        4,  // platform_config
+        0,  // admin
+        5,  // user
+        1,  // avatar_mint
+        2,  // metadata
+        6,  // spt_token_authority
+        3,  // user_token_account
+        7,  // metadata_program
+        8,  // sysvar_instructions
+        9,  // token_program
+        10, // associated_token_program
+        11, // system_program
+    ];
+
+    let mut msg = Vec::new();
+    msg.extend_from_slice(&[1u8, 0u8, 9u8]);
+    msg.extend(compact_u16(accounts.len()));
+    for acc in accounts {
+        msg.extend_from_slice(acc);
+    }
+    msg.extend_from_slice(recent_blockhash);
+    msg.extend(compact_u16(1));
+    msg.push(12u8);
+    msg.extend(compact_u16(ix_accounts.len()));
+    msg.extend_from_slice(ix_accounts);
+    msg.extend(compact_u16(ix_data.len()));
+    msg.extend_from_slice(ix_data);
+
+    let sig = signing_key.sign(&msg);
+    let mut tx = Vec::new();
+    tx.extend(compact_u16(1));
+    tx.extend_from_slice(&sig.to_bytes());
+    tx.extend_from_slice(&msg);
+    tx
+}
+
+// ── 공개 함수: mint_spt_to_user ────────────────────────────────
+//
+// 성실도 보상 및 출금 시 백엔드에서 호출.
+// admin 키페어로 서명하여 user_wallet에 SPT amount(base units) 민팅.
+//
+// keypair_b58: base58 인코딩된 64바이트 ed25519 키페어
+// amount: base units (1 SPT = SPT_DECIMALS = 1_000_000)
+pub async fn mint_spt_to_user(
+    rpc_url: &str,
+    client: &reqwest::Client,
+    keypair_b58: &str,
+    user_wallet_b58: &str,
+    program_id_str: &str,
+    amount: u64,
+) -> Result<String> {
+    // 키페어 파싱
+    let keypair_bytes = bs58::decode(keypair_b58)
+        .into_vec()
+        .context("admin 키페어 base58 디코딩 실패")?;
+    let keypair_arr: [u8; 64] = keypair_bytes
+        .try_into()
+        .map_err(|_| anyhow!("admin 키페어는 64바이트여야 합니다"))?;
+    let signing_key =
+        SigningKey::from_keypair_bytes(&keypair_arr).context("admin 키페어 파싱 실패")?;
+    let admin_pubkey: [u8; 32] = signing_key.verifying_key().to_bytes();
+
+    // 주소 파싱
+    let user_wallet = decode_pubkey(user_wallet_b58)?;
+    let program_id = decode_pubkey(program_id_str)?;
+
+    // PDAs
+    let (platform_config, _) = find_program_address(&[PLATFORM_CONFIG_SEED], &program_id);
+    let (spt_token_mint, _) = find_program_address(&[SPT_TOKEN_MINT_SEED], &program_id);
+    let (spt_token_authority, _) = find_program_address(&[SPT_TOKEN_AUTHORITY_SEED], &program_id);
+
+    // ATA
+    let user_token_account = get_associated_token_address(&user_wallet, &spt_token_mint)?;
+
+    // Instruction data: discriminator(8) + amount(u64 LE)
+    let mut ix_data = Vec::with_capacity(16);
+    ix_data.extend_from_slice(&anchor_discriminator("mint_spt_to_user"));
+    ix_data.extend_from_slice(&amount.to_le_bytes());
+
+    // Blockhash 조회
+    let blockhash = get_latest_blockhash(rpc_url, client).await?;
+
+    // 트랜잭션 빌드 & 서명
+    let tx = build_tx(
+        &admin_pubkey,
+        &platform_config,
+        &spt_token_mint,
+        &user_token_account,
+        &user_wallet,
+        &spt_token_authority,
+        &program_id,
+        &blockhash,
+        &ix_data,
+        &signing_key,
+    );
+
+    // 전송
+    let signature = send_transaction(rpc_url, client, &tx).await?;
+    tracing::info!(
+        "mint_spt_to_user 성공 | user: {} | amount: {} | tx: {}",
+        user_wallet_b58,
+        amount,
+        signature
+    );
+    Ok(signature)
+}
+
+pub async fn mint_avatar_nft_to_user(
+    rpc_url: &str,
+    client: &reqwest::Client,
+    keypair_b58: &str,
+    user_wallet_b58: &str,
+    program_id_str: &str,
+    item_id: &str,
+    name: &str,
+    symbol: &str,
+    uri: &str,
+) -> Result<(String, String)> {
+    if item_id.as_bytes().len() > 32 {
+        return Err(anyhow!("avatar item_id seed는 32바이트 이하여야 합니다"));
+    }
+
+    let keypair_bytes = bs58::decode(keypair_b58)
+        .into_vec()
+        .context("admin 키페어 base58 디코딩 실패")?;
+    let keypair_arr: [u8; 64] = keypair_bytes
+        .try_into()
+        .map_err(|_| anyhow!("admin 키페어는 64바이트여야 합니다"))?;
+    let signing_key =
+        SigningKey::from_keypair_bytes(&keypair_arr).context("admin 키페어 파싱 실패")?;
+    let admin_pubkey: [u8; 32] = signing_key.verifying_key().to_bytes();
+
+    let user_wallet = decode_pubkey(user_wallet_b58)?;
+    let program_id = decode_pubkey(program_id_str)?;
+    let metadata_program = decode_pubkey(METADATA_PROGRAM_ID)?;
+
+    let (platform_config, _) = find_program_address(&[PLATFORM_CONFIG_SEED], &program_id);
+    let (spt_token_authority, _) = find_program_address(&[SPT_TOKEN_AUTHORITY_SEED], &program_id);
+    let (avatar_mint, _) = find_program_address(
+        &[AVATAR_MINT_SEED, user_wallet.as_ref(), item_id.as_bytes()],
+        &program_id,
+    );
+    let (metadata, _) = find_program_address(
+        &[b"metadata", metadata_program.as_ref(), avatar_mint.as_ref()],
+        &metadata_program,
+    );
+    let user_token_account = get_associated_token_address(&user_wallet, &avatar_mint)?;
+
+    let mut ix_data = Vec::new();
+    ix_data.extend_from_slice(&anchor_discriminator("mint_avatar_nft"));
+    push_anchor_string(&mut ix_data, item_id)?;
+    push_anchor_string(&mut ix_data, name)?;
+    push_anchor_string(&mut ix_data, symbol)?;
+    push_anchor_string(&mut ix_data, uri)?;
+
+    let blockhash = get_latest_blockhash(rpc_url, client).await?;
+    let tx = build_mint_avatar_tx(
+        &admin_pubkey,
+        &platform_config,
+        &user_wallet,
+        &avatar_mint,
+        &metadata,
+        &spt_token_authority,
+        &user_token_account,
+        &program_id,
+        &blockhash,
+        &ix_data,
+        &signing_key,
+    );
+
+    let signature = send_transaction(rpc_url, client, &tx).await?;
+    let mint_address = bs58::encode(avatar_mint).into_string();
+    tracing::info!(
+        "mint_avatar_nft 성공 | user: {} | item_id: {} | mint: {} | tx: {}",
+        user_wallet_b58,
+        item_id,
+        mint_address,
+        signature
+    );
+    Ok((signature, mint_address))
+}

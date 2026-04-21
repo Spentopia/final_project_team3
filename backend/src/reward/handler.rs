@@ -9,12 +9,7 @@
 // 비즈니스 로직은 service.rs에 위임 — 핸들러는 얇게 유지
 // ============================================================
 
-use axum::{
-    Extension, Json,
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-};
+use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use uuid::Uuid;
 
 use super::{dto::ContestRewardRequest, service};

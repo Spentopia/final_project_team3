@@ -5,7 +5,7 @@ use anchor_lang::prelude::*;
 /// - PDA로 생성되어 프로그램 전체에서 단 1개만 존재한다.
 /// - 이후 instruction들이 `has_one = admin`으로 관리자 권한을 검증한다.
 #[account]
-pub struct PlatformConfig{
+pub struct PlatformConfig {
     /// 플랫폼 관리자 주소.
     /// `mint_spt_to_user` 등 백엔드 전용 instruction에서 `has_one = admin`으로 검증된다.
     pub admin: Pubkey,
@@ -34,7 +34,7 @@ pub struct PlatformConfig{
     pub max_supply: u64,
 }
 
-impl PlatformConfig{
+impl PlatformConfig {
     /// 계정이 온체인에서 차지하는 공간 (bytes).
     ///
     /// 8: Anchor discriminator (모든 #[account]에 자동 추가됨)
@@ -53,7 +53,7 @@ impl PlatformConfig{
 /// - 판매 등록 시 생성, 구매 or 취소 시 소멸(close)
 /// - escrow PDA가 NFT를 보관하는 동안 이 계정이 판매 조건을 기록
 #[account]
-pub struct ListingAccount{
+pub struct ListingAccount {
     /// 판매자 주소. cancel_listring / buy_nft에서 검증 기준.
     pub seller: Pubkey,
 
@@ -70,9 +70,7 @@ pub struct ListingAccount{
     pub escrow_bump: u8,
 }
 
-impl ListingAccount{
+impl ListingAccount {
     /// 8 + 32 + 32 + 8 + 1 + 1
     pub const LEN: usize = 8 + 32 + 32 + 8 + 1 + 1;
 }
-
-

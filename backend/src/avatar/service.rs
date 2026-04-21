@@ -22,7 +22,95 @@ use uuid::Uuid;
 use super::dto::{
     MintNftRequest, MintNftResponse, TransferNftRequest, TransferNftResponse, UserItemResponse,
 };
+use crate::clients::solana_client;
 use crate::state::AppState;
+
+async fn ensure_nft_record_not_reused(
+    state: &AppState,
+    table: &str,
+    nft_mint_address: &str,
+    tx_signature: &str,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/{}?or=(nft_mint_address.eq.{},nft_tx_signature.eq.{})&select=id&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        table,
+        urlencoding::encode(nft_mint_address),
+        urlencoding::encode(tx_signature)
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .with_context(|| format!("{} NFT 재사용 여부 조회 요청 실패", table))?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "{} NFT 재사용 여부 조회 실패: {}",
+            table,
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rows: Vec<serde_json::Value> = res
+        .json()
+        .await
+        .with_context(|| format!("{} NFT 재사용 여부 역직렬화 실패", table))?;
+    if !rows.is_empty() {
+        return Err(anyhow!("이미 기록된 NFT mint 또는 트랜잭션 서명입니다"));
+    }
+
+    Ok(())
+}
+
+async fn get_user_wallet(state: &AppState, user_id: Uuid) -> Result<String> {
+    #[derive(Deserialize)]
+    struct WalletRow {
+        wallet_address: Option<String>,
+    }
+
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=wallet_address",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("users wallet_address 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "users wallet_address 조회 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rows: Vec<WalletRow> = res
+        .json()
+        .await
+        .context("users wallet_address 역직렬화 실패")?;
+    rows.into_iter()
+        .next()
+        .and_then(|r| r.wallet_address)
+        .filter(|w| !w.trim().is_empty())
+        .ok_or_else(|| anyhow!("지갑이 연동된 유저만 NFT 상태를 기록할 수 있습니다"))
+}
 
 // mint_nft
 //
@@ -39,6 +127,25 @@ pub async fn mint_nft(
     user_id: Uuid,       // JWT에서 추출한 현재 로그인 유저 UUID
     req: MintNftRequest, // { user_item_id, nft_mint_address }
 ) -> Result<MintNftResponse> {
+    let tx_signature = req
+        .tx_signature
+        .as_deref()
+        .ok_or_else(|| anyhow!("tx_signature는 필수입니다"))?;
+    let user_wallet = get_user_wallet(state, user_id).await?;
+    solana_client::verify_program_instruction_tx(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        tx_signature,
+        &state.config.solana_program_id,
+        "mint_avatar_nft",
+        &[user_wallet.as_str(), req.nft_mint_address.as_str()],
+        None,
+        None,
+    )
+    .await
+    .context("NFT 민팅 트랜잭션 검증 실패")?;
+    ensure_nft_record_not_reused(state, "user_items", &req.nft_mint_address, tx_signature).await?;
+
     // Supabase PostgREST URL 구성
     // 필터: id=eq.{user_item_id} AND user_id=eq.{user_id} → 본인 소유 아이템만 수정 가능 (보안 필터)
     let url = format!(
@@ -54,6 +161,7 @@ pub async fn mint_nft(
     struct PatchPayload {
         nft_mint_address: String, // 온체인 민팅 주소
         is_nft: bool,             // NFT 발행 완료 플래그 → true로 고정
+        nft_tx_signature: String,
     }
 
     let res = state
@@ -68,6 +176,7 @@ pub async fn mint_nft(
         .json(&PatchPayload {
             nft_mint_address: req.nft_mint_address.clone(),
             is_nft: true,
+            nft_tx_signature: tx_signature.to_string(),
         })
         .send()
         .await
@@ -99,6 +208,25 @@ pub async fn transfer_nft(
     user_id: Uuid,           // JWT에서 추출한 현재 로그인 유저 UUID
     req: TransferNftRequest, // { avatar_id, nft_mint_address }
 ) -> Result<TransferNftResponse> {
+    let tx_signature = req
+        .tx_signature
+        .as_deref()
+        .ok_or_else(|| anyhow!("tx_signature는 필수입니다"))?;
+    let user_wallet = get_user_wallet(state, user_id).await?;
+    solana_client::verify_program_instruction_tx(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        tx_signature,
+        &state.config.solana_program_id,
+        "transfer_avatar_nft",
+        &[user_wallet.as_str(), req.nft_mint_address.as_str()],
+        None,
+        None,
+    )
+    .await
+    .context("NFT 전송 트랜잭션 검증 실패")?;
+    ensure_nft_record_not_reused(state, "avatars", &req.nft_mint_address, tx_signature).await?;
+
     // Supabase PostgREST URL 구성
     // 필터: id=eq.{avatar_id} AND user_id=eq.{user_id}
     //  → 본인 소유 아바타만 수정 가능 (보안 필터)
@@ -114,6 +242,7 @@ pub async fn transfer_nft(
     struct PatchPayload {
         nft_mint_address: String, // 온체인 NFT mint 주소
         is_nft: bool,             // NFT 발행 완료 플래그 → true로 고정
+        nft_tx_signature: String,
     }
 
     let res = state
@@ -128,6 +257,7 @@ pub async fn transfer_nft(
         .json(&PatchPayload {
             nft_mint_address: req.nft_mint_address.clone(),
             is_nft: true,
+            nft_tx_signature: tx_signature.to_string(),
         })
         .send()
         .await
@@ -177,7 +307,7 @@ pub async fn get_user_items(
     //  user_items?user_id=eq.{user_id} → 본인 아이템만 필터
     //  &select=*.avatar_items(...) → avatar_items 테이블 JOIN
     let url = format!(
-        "{}/rest/v1/user_items?user_id=eq.{}&select=*,avatar_items(name,image_url,category,rarity)",
+        "{}/rest/v1/user_items?user_id=eq.{}&select=*,avatar_items(name,image_url,metadata_uri,unity_asset_key,category,rarity)",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
@@ -188,10 +318,12 @@ pub async fn get_user_items(
     /// PostgREST embedding으로 함께 오는 avatar_items 중첩 객체
     #[derive(Deserialize)]
     struct AvatarItemEmbed {
-        name: String,      // 아이템 이름 (예: "골든 프레임")
-        image_url: String, // 아이템 이미지 URL
-        category: String,  // 카테고리 (background / frame / effect / motion)
-        rarity: String,    // 희귀도
+        name: String,                    // 아이템 이름 (예: "골든 프레임")
+        image_url: String,               // 아이템 이미지 URL
+        metadata_uri: Option<String>,    // NFT metadata JSON URI
+        unity_asset_key: Option<String>, // Unity Addressable/Prefab key
+        category: String,                // 카테고리 (background / frame / effect / motion)
+        rarity: String,                  // 희귀도
     }
 
     /// PostgREST 응답 원형: user_items 컬럼 + avatar_items 중첩 객체
@@ -240,6 +372,8 @@ pub async fn get_user_items(
             // avatar_items 중첩 객체에서 flat하게 꺼냄
             name: r.avatar_items.name,
             image_url: r.avatar_items.image_url,
+            metadata_uri: r.avatar_items.metadata_uri,
+            unity_asset_key: r.avatar_items.unity_asset_key,
             category: r.avatar_items.category,
             rarity: r.avatar_items.rarity,
         })

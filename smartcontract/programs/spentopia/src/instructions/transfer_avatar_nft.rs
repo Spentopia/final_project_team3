@@ -41,7 +41,6 @@ pub fn transfer_avatar_nft_handler(ctx: Context<TransferAvatarNft>) -> Result<()
 
 #[derive(Accounts)]
 pub struct TransferAvatarNft<'info> {
-
     /// 플랫폼 설정 계정.
     /// has_one = admin으로 관리자 검증.
     #[account(
@@ -88,5 +87,4 @@ pub struct TransferAvatarNft<'info> {
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
-
 }

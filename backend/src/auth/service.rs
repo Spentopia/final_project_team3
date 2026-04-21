@@ -80,9 +80,7 @@ use uuid::Uuid;
 
 use crate::auth::app_jwt::{generate_token_pair, verify_app_refresh_token};
 use crate::auth::refresh_store::{
-    create_refresh_session,
-    revoke_refresh_session,
-    revoke_refresh_session_as_reused,
+    create_refresh_session, revoke_refresh_session, revoke_refresh_session_as_reused,
     verify_refresh_session,
 };
 
@@ -169,16 +167,11 @@ pub async fn rotate_refresh_token(
     client_type: &str,
 ) -> Result<RefreshIssueResult> {
     // 1) refresh JWT 자체 검증
-    let claims = verify_app_refresh_token(
-        &state.config.app_jwt_secret,
-        refresh_token,
-    )?;
+    let claims = verify_app_refresh_token(&state.config.app_jwt_secret, refresh_token)?;
 
-    let session_id = Uuid::parse_str(&claims.sid)
-        .context("refresh sid UUID 파싱 실패")?;
+    let session_id = Uuid::parse_str(&claims.sid).context("refresh sid UUID 파싱 실패")?;
 
-    let user_id = Uuid::parse_str(&claims.sub)
-        .context("refresh sub UUID 파싱 실패")?;
+    let user_id = Uuid::parse_str(&claims.sub).context("refresh sub UUID 파싱 실패")?;
 
     // 2) DB refresh session 검증
     //
@@ -212,11 +205,7 @@ pub async fn rotate_refresh_token(
     let new_session_id = Uuid::new_v4();
 
     // 5) 새 access / refresh JWT 발급
-    let pair = generate_token_pair(
-        &state.config.app_jwt_secret,
-        &user_id,
-        &new_session_id,
-    )?;
+    let pair = generate_token_pair(&state.config.app_jwt_secret, &user_id, &new_session_id)?;
 
     // 6) 새 refresh session 저장
     create_refresh_session(
@@ -226,7 +215,7 @@ pub async fn rotate_refresh_token(
         client_type,
         &pair.refresh_token,
     )
-        .await?;
+    .await?;
 
     // 7) 기존 refresh session revoke
     //
@@ -276,6 +265,13 @@ pub fn generate_nonce(state: &AppState, wallet_address: &str) -> String {
     tracing::info!("nonce 발급 완료: wallet={}", wallet_address);
 
     nonce
+}
+
+pub fn build_wallet_sign_message(wallet_address: &str, nonce: &str) -> String {
+    format!(
+        "Spentopia 지갑 인증\n\n이 서명은 Spentopia 로그인 또는 지갑 연동을 위한 요청입니다.\n블록체인 트랜잭션이 아니며, 가스비가 발생하지 않습니다.\n\n지갑 주소: {}\n인증 코드: {}\n유효 시간: 5분\n\n본인이 요청한 경우에만 서명하세요.",
+        wallet_address, nonce
+    )
 }
 
 // verify_and_login - 서명 검증 + 로그인 처리 (로그인 2단계)
@@ -346,10 +342,10 @@ pub async fn verify_and_login(
 //
 // ■ 배경 지식
 //  Solana 지갑 주소 = ed25519 공개키를 Base58로 인코딩한 문자열
-//  서명 = 개인키로 nonce를 암호화한 64바이트 → Base58 인코딩
+//  서명 = 개인키로 인증 메시지를 서명한 64바이트 → Base58 인코딩
 //
 // ■ 검증 원리
-//  공개키(지갑 주소)로 서명을 "열어봤을 떄" nonce 원문이 나오면 → 검증 성공
+//  공개키(지갑 주소)로 인증 메시지 서명을 검증할 수 있으면 → 검증 성공
 //  즉, 이 서명을 만들 수 있는 건 이 지갑의 개인키 소유자뿐임을 수학적으로 증명
 //
 // ■ Base58이란?
@@ -359,16 +355,18 @@ pub async fn verify_and_login(
 fn verify_solana_signature(
     // "7xKXtg2CW87d..." 형태의 Solana 지갑 주소 (Base58 인코딩된 공개키)
     wallet_address: &str,
-    // 서버가 1단계에서 발급한 nonce 원문
+    // 서버가 1단계에서 발급한 nonce. 실제 서명 대상은 nonce를 포함한 인증 메시지다.
     nonce: &str,
     // 앱이 지갑으로 서명한 값 (Base58 인코딩된 64바이트)
     signature: &str,
 ) -> Result<()> {
-    tracing::warn!(
-        "[서명검증] 시작: wallet={}, nonce={:?}({}bytes), sig_chars={}",
+    let message = build_wallet_sign_message(wallet_address, nonce);
+
+    tracing::debug!(
+        "[서명검증] 시작: wallet={}, nonce_len={}, message_len={}, sig_chars={}",
         wallet_address,
-        nonce,
         nonce.len(),
+        message.len(),
         signature.len()
     );
 
@@ -377,7 +375,7 @@ fn verify_solana_signature(
         .into_vec()
         .context("지갑 주소 Base58 디코딩 실패. 유효한 Solana 주소인지 확인 필요.")?;
 
-    tracing::warn!("[서명검증] 공개키 바이트 수: {}", pubkey_bytes.len());
+    tracing::debug!("[서명검증] 공개키 바이트 수: {}", pubkey_bytes.len());
 
     // ed25519 공개키는 정확히 32바이트여야 함
     // try_into(): Vec<u8> → [u8; 32] 고정 배열로 변환 시도
@@ -395,7 +393,7 @@ fn verify_solana_signature(
         .into_vec()
         .context("서명 Base58 디코딩 실패")?;
 
-    tracing::warn!("[서명검증] 서명 바이트 수: {}", sig_bytes.len());
+    tracing::debug!("[서명검증] 서명 바이트 수: {}", sig_bytes.len());
 
     // ed25519 서명은 정확히 64바이트여야 함
     let sig_array: [u8; 64] = sig_bytes
@@ -404,19 +402,18 @@ fn verify_solana_signature(
 
     let sig = Signature::from_bytes(&sig_array);
 
-    // 핵심: 공개키(verifying_key)로 서명(sig)을 검증
-    // nonce.as_bytes(): nonce 원문을 바이트로 변환해서 검증 대상으로 사용
+    // 한국어 안내 문구가 포함된 인증 메시지를 검증 대상으로 사용
     // 성공 → 이 서명은 이 공개키에 대응하는 개인키로 만든 것이 맞음
     // 실패 → 서명이 위조됐거나 다른 지갑으로 서명한 것
-    let result = verifying_key.verify(nonce.as_bytes(), &sig);
+    let result = verifying_key.verify(message.as_bytes(), &sig);
     if let Err(ref e) = result {
         tracing::warn!(
-            "[서명검증] 실패! nonce_bytes={:?}, 에러={:?}",
-            nonce.as_bytes(),
+            "[서명검증] 실패! message_len={}, 에러={:?}",
+            message.len(),
             e
         );
     } else {
-        tracing::warn!("[서명검증] 성공");
+        tracing::debug!("[서명검증] 성공");
     }
     result.context("서명 검증 실패. 지갑 주인이 아니거나 nonce가 변조됨.")?;
     Ok(())
@@ -533,10 +530,7 @@ pub async fn exchange_supabase_token(
         return Err(anyhow!("유효하지 않은 Supabase 토큰: {}", err));
     }
 
-    let user_data: Value = resp
-        .json()
-        .await
-        .context("Supabase 유저 응답 파싱 실패")?;
+    let user_data: Value = resp.json().await.context("Supabase 유저 응답 파싱 실패")?;
 
     let user_id = user_data["id"]
         .as_str()
@@ -631,7 +625,10 @@ pub async fn exchange_supabase_token(
         .http_client
         .get(&deleted_check_url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .send()
         .await
         .context("탈퇴 여부 조회 실패")?;
@@ -679,7 +676,7 @@ pub async fn exchange_supabase_token(
         provider_id,
         google_connected,
     )
-        .await?;
+    .await?;
 
     let user_uuid = Uuid::parse_str(user_id).context("Supabase user_id UUID 파싱 실패")?;
 
@@ -802,10 +799,7 @@ async fn ensure_public_user_exists(
     Ok(())
 }
 
-async fn ensure_settings_and_streaks_exist(
-    state: &AppState,
-    user_id: &str,
-) -> Result<()> {
+async fn ensure_settings_and_streaks_exist(state: &AppState, user_id: &str) -> Result<()> {
     let settings_url = format!(
         "{}/rest/v1/user_settings?on_conflict=user_id",
         state.config.supabase_url.trim_end_matches('/')
@@ -998,13 +992,16 @@ pub async fn withdraw_user(state: &AppState, user_id: Uuid) -> Result<()> {
         .http_client
         .patch(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .header("Prefer", "return=minimal")
         .json(&json!({
-              "deleted_at": chrono::Utc::now(), // 탈퇴 시각 기록 (3년 보관 기준점)
-              "is_active": false                // 비활성 처리
-          }))
+            "deleted_at": chrono::Utc::now(), // 탈퇴 시각 기록 (3년 보관 기준점)
+            "is_active": false                // 비활성 처리
+        }))
         .send()
         .await
         .context("public.users 탈퇴 처리 요청 실패")?;
@@ -1027,7 +1024,10 @@ pub async fn withdraw_user(state: &AppState, user_id: Uuid) -> Result<()> {
         .http_client
         .delete(&auth_url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .send()
         .await
         .context("auth.users 삭제 요청 실패")?;
@@ -1051,13 +1051,16 @@ pub async fn withdraw_user(state: &AppState, user_id: Uuid) -> Result<()> {
         .http_client
         .patch(&sessions_url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .header("Prefer", "return=minimal")
         .json(&json!({
-              "revoked": true,
-              "revoked_at": chrono::Utc::now()
-          }))
+            "revoked": true,
+            "revoked_at": chrono::Utc::now()
+        }))
         .send()
         .await;
     // 세션 revoke 실패는 로그만 남기고 넘어감
@@ -1065,9 +1068,7 @@ pub async fn withdraw_user(state: &AppState, user_id: Uuid) -> Result<()> {
 
     tracing::info!("회원탈퇴 완료: user_id={}", user_id);
     Ok(())
-
 }
-
 
 // ═══════════════════════════════════════════════════════════════
 // provider + provider_id 기준으로 기존 유저 찾거나 생성
@@ -1079,7 +1080,6 @@ async fn find_or_create_social_user(
     email: Option<&str>,
     nickname: Option<&str>,
 ) -> Result<(String, bool)> {
-
     // 1️⃣ 기존 소셜 계정 찾기 (provider + provider_id)
     if let Some(existing_user_id) =
         find_public_user_by_provider(state, provider, provider_id).await?
@@ -1124,10 +1124,7 @@ async fn find_or_create_social_user(
     // ⭐⭐⭐ 핵심 추가 로직 (구글만) ⭐⭐⭐
     if provider == "google" {
         if let Some(real_email) = email {
-
-            if let Some(existing_user_id) =
-                find_public_user_by_email(state, real_email).await?
-            {
+            if let Some(existing_user_id) = find_public_user_by_email(state, real_email).await? {
                 tracing::info!(
                     "기존 이메일 계정 발견 → 구글 연결: email={}, user_id={}",
                     real_email,
@@ -1135,11 +1132,7 @@ async fn find_or_create_social_user(
                 );
 
                 // 기존 계정에 google provider 연결
-                link_google_to_existing_user(
-                    state,
-                    &existing_user_id,
-
-                ).await?;
+                link_google_to_existing_user(state, &existing_user_id).await?;
 
                 return Ok((existing_user_id, false));
             }
@@ -1215,10 +1208,7 @@ async fn find_or_create_social_user(
     Ok((user_id, true))
 }
 
-async fn find_public_user_by_email(
-    state: &AppState,
-    email: &str,
-) -> Result<Option<String>> {
+async fn find_public_user_by_email(state: &AppState, email: &str) -> Result<Option<String>> {
     let email_encoded = urlencoding::encode(email);
 
     // deleted_at=is.null 조건 추가:
@@ -1246,10 +1236,7 @@ async fn find_public_user_by_email(
     Ok(rows.into_iter().next().map(|row| row.id.to_string()))
 }
 
-async fn link_google_to_existing_user(
-    state: &AppState,
-    user_id: &str,
-) -> Result<()> {
+async fn link_google_to_existing_user(state: &AppState, user_id: &str) -> Result<()> {
     let url = format!(
         "{}/rest/v1/users?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
@@ -1406,10 +1393,7 @@ pub async fn find_email_by_phone(
         return Err(anyhow!("전화번호로 이메일 조회 실패: {}", err));
     }
 
-    let rows: Vec<Value> = resp
-        .json()
-        .await
-        .context("이메일 조회 응답 파싱 실패")?;
+    let rows: Vec<Value> = resp.json().await.context("이메일 조회 응답 파싱 실패")?;
 
     let row = rows
         .first()
@@ -1426,9 +1410,7 @@ pub async fn find_email_by_phone(
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
-    let email = row
-        .get("email")
-        .and_then(|v| v.as_str());
+    let email = row.get("email").and_then(|v| v.as_str());
 
     match provider.as_str() {
         "email" => {
@@ -1439,12 +1421,8 @@ pub async fn find_email_by_phone(
             let masked = email.map(mask_email);
             Ok((masked, provider, google_connected))
         }
-        "kakao" => {
-            Ok((None, provider, google_connected))
-        }
-        _ => {
-            Ok((None, provider, google_connected))
-        }
+        "kakao" => Ok((None, provider, google_connected)),
+        _ => Ok((None, provider, google_connected)),
     }
 }
 // ═══════════════════════════════════════════════════════════════
@@ -1513,7 +1491,10 @@ pub async fn check_nickname_available(state: &AppState, nickname: &str) -> Resul
         return Err(anyhow!("닉네임 중복 확인 실패: {}", err));
     }
 
-    let rows: Vec<Value> = resp.json().await.context("닉네임 중복 확인 응답 파싱 실패")?;
+    let rows: Vec<Value> = resp
+        .json()
+        .await
+        .context("닉네임 중복 확인 응답 파싱 실패")?;
 
     Ok(rows.is_empty())
 }
@@ -1550,10 +1531,7 @@ pub async fn check_email_exists(state: &AppState, email: &str) -> Result<bool> {
     Ok(!rows.is_empty())
 }
 
-pub async fn check_reset_password_email(
-    state: &AppState,
-    email: &str,
-) -> Result<bool> {
+pub async fn check_reset_password_email(state: &AppState, email: &str) -> Result<bool> {
     let normalized_email = email.trim().to_lowercase();
     let encoded_email = urlencoding::encode(&normalized_email);
 

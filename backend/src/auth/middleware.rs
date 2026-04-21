@@ -117,12 +117,7 @@ pub async fn admin_middleware(
         .extensions()
         .get::<Uuid>()
         .cloned()
-        .ok_or_else(|| {
-            (
-                StatusCode::UNAUTHORIZED,
-                "인증이 필요합니다.".to_string(),
-            )
-        })?;
+        .ok_or_else(|| (StatusCode::UNAUTHORIZED, "인증이 필요합니다.".to_string()))?;
 
     let role = get_user_role(&state, user_id).await.map_err(|e| {
         tracing::error!("role_type 조회 실패: user_id={}, error={}", user_id, e);

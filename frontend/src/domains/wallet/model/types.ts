@@ -9,9 +9,10 @@ export interface WalletNonceRequest {
 }
 
 // nonce 발급 응답 DTO
-// POST /auth/wallet/nonce → { nonce: string }
+// POST /auth/wallet/nonce → { nonce: string, message: string }
 export interface WalletNonceResponse{
     nonce: string;
+    message: string;
 }
 
 // 지갑 로그인 요청 DTO
@@ -23,7 +24,7 @@ export interface WalletLoginRequest {
     // 서버가 발급한 1회용 nonce
     nonce: string;
 
-    // nonce를 signMessage 한 결과를 Base58 문자열로 인코딩한 값
+    // 서버가 내려준 한국어 인증 메시지를 signMessage 한 결과를 Base58 문자열로 인코딩한 값
     signature: string;
 }
 

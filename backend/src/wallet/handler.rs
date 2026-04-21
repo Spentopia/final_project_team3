@@ -24,7 +24,9 @@ use crate::state::AppState;
 // LinkWalletRequest → POST /wallet/link 요청 body 구조체
 // LinkWalletResponse → POST /wallet/link 성공 응답 구조체
 // UnlinkWalletResponse → DELETE /wallet/unlink 성공 응답 구조체
-use super::dto::{LinkWalletRequest, LinkWalletResponse, UnlinkWalletRequest, UnlinkWalletResponse};
+use super::dto::{
+    LinkWalletRequest, LinkWalletResponse, UnlinkWalletRequest, UnlinkWalletResponse,
+};
 
 // 비즈니스 로직 (nonce 검증 → 서명 검증 → 중복 체크 → DB 업데이트)
 use super::service;

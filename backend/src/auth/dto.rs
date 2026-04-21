@@ -52,6 +52,7 @@ pub struct NonceRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct NonceResponse {
     pub nonce: String,
+    pub message: String,
 }
 
 // 지갑 로그인 2단계: 서명 검증 요청 DTO
@@ -147,7 +148,6 @@ pub struct CheckProfileAvailabilityRequest {
 pub struct KakaoLoginRequest {
     pub code: String,
     pub state: String,
-    
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

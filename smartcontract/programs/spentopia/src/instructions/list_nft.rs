@@ -52,7 +52,6 @@ pub fn list_nft_handler(ctx: Context<ListNft>, price: u64) -> Result<()> {
 
 #[derive(Accounts)]
 pub struct ListNft<'info> {
-
     /// 판매자. 유저가 직접 서명.
     #[account(mut)]
     pub seller: Signer<'info>,
@@ -97,7 +96,7 @@ pub struct ListNft<'info> {
         token::token_program = token_program,
     )]
     pub escrow_token_account: InterfaceAccount<'info, TokenAccount>,
-    
+
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,

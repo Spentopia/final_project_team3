@@ -8,7 +8,7 @@ import {AxiosError} from "axios";
 import {useConnection, useWallet} from "@solana/wallet-adapter-react";
 import {useWalletModal} from "@solana/wallet-adapter-react-ui";
 import {useCallback, useMemo, useState} from "react";
-import {assertSolanaWalletReady, signNonceToBase58} from "@/domains/wallet/lib/solana";
+import {assertSolanaWalletReady, signMessageToBase58} from "@/domains/wallet/lib/solana";
 import {loginWithWalletApi, linkWalletApi, requestWalletNonce, unlinkWalletApi} from "@/domains/wallet/api/wallet";
 import {authStorage} from "@/shared/lib/auth";
 
@@ -62,7 +62,7 @@ function getErrorMessage(error: unknown): string {
 // 1) 브라우저 지갑 연결
 // 2) 현재 publicKey 확보
 // 3) 백엔드에서 nonce 발급받기
-// 4) nonce 원문을 signMessage로 서명
+// 4) 서버가 내려준 한국어 인증 메시지를 signMessage로 서명
 // 5) wallet_address / nonce / signature를 백엔드로 전달
 //
 // 백엔드 역할:
@@ -166,7 +166,7 @@ export function useWalletConnection() {
     // 순서:
     // 1) 현재 연결된 지갑 주소 확인
     // 2) 백엔드에서 nonce 발급
-    // 3) 그 nonce 원문 자체를 signMessage
+    // 3) 그 인증 메시지 원문 자체를 signMessage
     // 4) 백엔드가 이해하는 DTO 형태로 반환
     //
     // 이 단계까지는 아직 "로그인"도 "연동"도 완료되지 않는다.
@@ -185,9 +185,9 @@ export function useWalletConnection() {
             wallet_address: currentWalletAddress,
         });
 
-        // 2. 서버가 내려준 nonce 원문을 그대로 서명
-        //    문자열을 가공하면 서버 검증이 실패하므로 문구를 붙이지 않는다.
-        const signature = await signNonceToBase58(nonceResponse.nonce, signMessage);
+        // 2. 서버가 내려준 한국어 인증 메시지 원문을 그대로 서명
+        //    문자열을 가공하면 서버 검증이 실패한다.
+        const signature = await signMessageToBase58(nonceResponse.message, signMessage);
 
         return {
             wallet_address: currentWalletAddress,
