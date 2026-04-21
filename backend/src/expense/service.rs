@@ -111,31 +111,48 @@ pub async fn create_expense(
 pub async fn list_expenses(state: &AppState, user_id: Uuid) -> Result<Vec<ExpenseWebResponse>> {
     tracing::info!(user_id = %user_id, "소비 목록 조회 요청 수신");
 
-    let url = format!(
-        "{}/rest/v1/expenses?user_id=eq.{}&select=id,ledger_id,user_id,expense_date,amount,category,memo,one_line_diary,transaction_type,source,receipt_verified,created_at&order=expense_date.desc,created_at.desc",
-        state.config.supabase_url.trim_end_matches('/'),
-        user_id,
-    );
+    let base_url = state.config.supabase_url.trim_end_matches('/');
+    let select_candidates = [
+        "id,ledger_id,user_id,expense_date,amount,category,memo,one_line_diary,transaction_type,source,receipt_verified,created_at",
+        "id,ledger_id,user_id,expense_date,amount,category,memo,one_line_diary,source,created_at",
+        "id,ledger_id,user_id,expense_date,amount,category,memo,source,created_at",
+    ];
 
-    let res = state
-        .http_client
-        .get(&url)
-        .header(
-            "Authorization",
-            format!("Bearer {}", state.config.supabase_secret_key),
-        )
-        .header("apikey", &state.config.supabase_secret_key)
-        .send()
-        .await
-        .context("expenses SELECT 요청 실패")?;
+    let mut last_error = String::new();
 
-    if !res.status().is_success() {
-        let body = res.text().await.unwrap_or_default();
-        return Err(anyhow!("expenses SELECT 실패: {}", body));
+    for select in select_candidates {
+        let url = format!(
+            "{}/rest/v1/expenses?user_id=eq.{}&select={}&order=expense_date.desc,created_at.desc",
+            base_url,
+            user_id,
+            select,
+        );
+
+        let res = state
+            .http_client
+            .get(&url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", state.config.supabase_secret_key),
+            )
+            .header("apikey", &state.config.supabase_secret_key)
+            .send()
+            .await
+            .context("expenses SELECT 요청 실패")?;
+
+        if res.status().is_success() {
+            let expenses: Vec<Expense> = res
+                .json()
+                .await
+                .context("expenses SELECT 응답 파싱 실패")?;
+            return Ok(expenses.into_iter().map(to_web_response).collect());
+        }
+
+        last_error = res.text().await.unwrap_or_default();
+        tracing::warn!("expenses SELECT fallback 시도: {}", last_error);
     }
 
-    let expenses: Vec<Expense> = res.json().await.context("expenses SELECT 응답 파싱 실패")?;
-    Ok(expenses.into_iter().map(to_web_response).collect())
+    return Err(anyhow!("expenses SELECT 실패: {}", last_error));
 }
 
 pub async fn delete_expense(state: &AppState, user_id: Uuid, expense_id: Uuid) -> Result<()> {

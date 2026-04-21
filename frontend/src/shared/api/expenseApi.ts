@@ -28,7 +28,7 @@ export interface ListExpensesResponse {
 export async function listExpenses(): Promise<CreateExpenseResponse[]> {
   try {
     const response = await apiClient.get<ListExpensesResponse>("/api/expenses");
-    return response.data.items;
+    return Array.isArray(response.data?.items) ? response.data.items : [];
   } catch (error: unknown) {
     if (error && typeof error === "object" && "response" in error) {
       const axiosError = error as {
