@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 export type Transaction = {
   id: string | number;
@@ -12,8 +12,9 @@ export type Transaction = {
 };
 
 type FinanceContextType = {
-  budget: number;
-  setBudget: (b: number) => void;
+  budgets: Record<string, number>;
+  setBudget: (monthKey: string, value: number) => void;
+  setMonthlyBudget: (monthKey: string, amount: number) => void;
   transactions: Transaction[];
   replaceTransactions: (items: Transaction[]) => void;
   addTransaction: (t: Transaction) => void;
@@ -22,21 +23,53 @@ type FinanceContextType = {
 
 const FinanceContext = createContext<FinanceContextType | null>(null);
 
-export const FinanceProvider = ({ children }: { children: React.ReactNode }) => {
-  const [budget, setBudgetState] = useState(500000);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+export const FinanceProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    const saved = localStorage.getItem("transactions");
+    if (!saved) return [];
+
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return [];
+    }
+  });
+
+  const [budgets, setBudgets] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem("budgets");
+    if (!saved) return {};
+
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return {};
+    }
+  });
 
   useEffect(() => {
-    const savedBudget = localStorage.getItem("budget");
+    localStorage.setItem("transactions", JSON.stringify(transactions));
+  }, [transactions]);
 
-    if (savedBudget) {
-      setBudgetState(Number(savedBudget));
-    }
-  }, []);
+  useEffect(() => {
+    localStorage.setItem("budgets", JSON.stringify(budgets));
+  }, [budgets]);
 
-  const setBudget = (b: number) => {
-    setBudgetState(b);
-    localStorage.setItem("budget", String(b));
+  const setBudget = (monthKey: string, value: number) => {
+    setBudgets((prev) => ({
+      ...prev,
+      [monthKey]: value,
+    }));
+  };
+
+  const setMonthlyBudget = (monthKey: string, amount: number) => {
+    setBudgets((prev) => ({
+      ...prev,
+      [monthKey]: amount,
+    }));
   };
 
   const replaceTransactions = (items: Transaction[]) => {
@@ -53,7 +86,15 @@ export const FinanceProvider = ({ children }: { children: React.ReactNode }) => 
 
   return (
     <FinanceContext.Provider
-      value={{ budget, setBudget, transactions, replaceTransactions, addTransaction, removeTransaction }}
+      value={{
+        budgets,
+        setBudget,
+        setMonthlyBudget,
+        transactions,
+        replaceTransactions,
+        addTransaction,
+        removeTransaction,
+      }}
     >
       {children}
     </FinanceContext.Provider>
@@ -62,6 +103,8 @@ export const FinanceProvider = ({ children }: { children: React.ReactNode }) => 
 
 export const useFinance = () => {
   const context = useContext(FinanceContext);
-  if (!context) throw new Error("FinanceProvider 안에서 사용해야 함");
+  if (!context) {
+    throw new Error("FinanceProvider 안에서 사용해야 함");
+  }
   return context;
 };
