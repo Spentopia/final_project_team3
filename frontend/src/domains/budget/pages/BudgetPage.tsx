@@ -67,7 +67,7 @@ const aiPlans = [
 const STORAGE_KEY = "customBudget";
 
 export default function Budget() {
-  const { setMonthlyBudget } = useFinance();
+  const { setBudget } = useFinance();
 
   // ✅ localStorage에서 불러오기
   const [customBudget, setCustomBudget] = useState(() => {
@@ -89,10 +89,6 @@ export default function Budget() {
   return saved ? Number(saved) : null;
 });
 
-// 🔥 추가 (이게 핵심)
-const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-
   // ✅ ⭐⭐⭐ 여기 추가 (중요 포인트)
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(customBudget));
@@ -106,8 +102,7 @@ const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     if (plan) {
       setSelectedPlan(planId);
 
-      const monthKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
-setMonthlyBudget(monthKey, plan.budget);
+      setBudget(plan.budget);
 
       toast.success(
         <div>
@@ -119,8 +114,7 @@ setMonthlyBudget(monthKey, plan.budget);
   };
 
   const handleSaveCustomBudget = () => {
-  const monthKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
-  setMonthlyBudget(monthKey, customBudget.monthly);
+    setBudget(customBudget.monthly);
 
     toast.success("맞춤 예산이 저장되었습니다!");
   };
@@ -133,29 +127,8 @@ setMonthlyBudget(monthKey, plan.budget);
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-<<<<<<< HEAD
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">예산 설정</h1>
-          <p className="text-gray-600">AI가 추천하는 플랜으로 시작하거나 직접 설정해보세요</p>
-          {/* 🔥 여기 추가 */}
-<div className="flex gap-2 mt-4 mb-2 flex-wrap">
-  {Array.from({ length: 12 }, (_, i) => (
-    <button
-      key={i}
-      onClick={() => setSelectedMonth(i)}
-      className={`px-3 py-1 rounded-lg text-sm ${
-        selectedMonth === i
-          ? "bg-cyan-500 text-white"
-          : "bg-gray-200 text-gray-700"
-      }`}
-    >
-      {i + 1}월
-    </button>
-  ))}
-</div>
-=======
           <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">예산 설정</h1>
           <p className="text-gray-600 dark:text-gray-300">AI가 추천하는 플랜으로 시작하거나 직접 설정해보세요</p>
->>>>>>> develop
         </div>
         <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
           <Sparkles className="mr-2 h-4 w-4" />
