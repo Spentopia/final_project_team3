@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.api.v1.endpoints import analyze, history, chat, receipt
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.budget_router import router as budget_router
 
 # FastAPI 앱 생성.
 # 이 파일은 AI 서버의 진입점이라서
@@ -32,3 +33,4 @@ app.include_router(analyze.router, prefix="/api/v1/analyze")
 app.include_router(history.router, prefix="/api/v1/history")
 app.include_router(chat.router, prefix="/api/v1/chat")
 app.include_router(receipt.router, prefix="/api/v1/receipt")
+app.include_router(budget_router, prefix="/api/budget")

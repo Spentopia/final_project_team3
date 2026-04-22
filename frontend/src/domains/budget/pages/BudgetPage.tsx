@@ -20,56 +20,23 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const aiPlans = [
-  {
-    id: 1,
-    name: "월 50만원 생활 플랜",
-    budget: 500000,
-    savings: 50000,
-    description: "합리적인 소비와 저축을 위한 균형잡힌 플랜",
-    categories: [
-      { name: "식비", amount: 150000, icon: Coffee },
-      { name: "교통비", amount: 80000, icon: Car },
-      { name: "생활비", amount: 120000, icon: Home },
-      { name: "여가/취미", amount: 100000, icon: Heart },
-      { name: "저축", amount: 50000, icon: PiggyBank },
-    ],
-  },
-  {
-    id: 2,
-    name: "7년 1억 만들기",
-    budget: 400000,
-    savings: 150000,
-    description: "목표 지향적인 저축 중심 플랜",
-    categories: [
-      { name: "식비", amount: 100000, icon: Coffee },
-      { name: "교통비", amount: 60000, icon: Car },
-      { name: "생활비", amount: 90000, icon: Home },
-      { name: "여가/취미", amount: 50000, icon: Heart },
-      { name: "저축", amount: 150000, icon: PiggyBank },
-    ],
-  },
-  {
-    id: 3,
-    name: "자유로운 소비 플랜",
-    budget: 700000,
-    savings: 30000,
-    description: "현재의 삶을 즐기면서도 미래를 준비하는 플랜",
-    categories: [
-      { name: "식비", amount: 200000, icon: Coffee },
-      { name: "교통비", amount: 100000, icon: Car },
-      { name: "생활비", amount: 200000, icon: Home },
-      { name: "여가/취미", amount: 170000, icon: Heart },
-      { name: "저축", amount: 30000, icon: PiggyBank },
-    ],
-  },
-];
-
 const STORAGE_KEY = "customBudget";
 const SELECTED_PLAN_KEY = "selectedPlan";
 
+const getIcon = (name: string) => {
+  if (name.includes("식")) return Coffee;
+  if (name.includes("교통")) return Car;
+  if (name.includes("생활")) return Home;
+  if (name.includes("여가")) return Heart;
+  if (name.includes("저축")) return PiggyBank;
+  return Coffee;
+};
+
 export default function BudgetPage() {
   const { budgets, setMonthlyBudget } = useFinance();
+
+  const [aiPlans, setAiPlans] = useState<any[]>([]);
+const [loading, setLoading] = useState(false);
 
   const [customBudget, setCustomBudget] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -130,27 +97,61 @@ export default function BudgetPage() {
     }
   }, [currentBudget]);
 
-  const handleApplyPlan = (planId: number) => {
-    const plan = aiPlans.find((p) => p.id === planId);
-    if (!plan) return;
+  const handleGenerateAI = async () => {
+  setLoading(true);
 
-    setSelectedPlan(planId);
-    setMonthlyBudget(monthKey, plan.budget);
+  // 로딩 UI
+  setAiPlans([
+    { id: "loading1" },
+    { id: "loading2" },
+    { id: "loading3" },
+  ]);
 
-    toast.success(
-      <div>
-        <p className="font-bold">{plan.name} 적용 완료! 🎉</p>
-        <p className="text-sm">
-          {selectedMonth + 1}월 예산으로 {plan.budget.toLocaleString()}원이 저장됐어요
-        </p>
-      </div>
-    );
-  };
+  try {
+    const res = await fetch("http://localhost:8000/api/v1/chat/ai-plan", {
+      method: "POST",
+    });
 
-  const handleSaveCustomBudget = () => {
-    setMonthlyBudget(monthKey, Number(customBudget.monthly) || 0);
-    toast.success(`${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`);
-  };
+    const data = await res.json();
+
+    console.log("AI 응답:", data);
+
+    const parsedPlans = data.map((plan: any, idx: number) => ({
+  id: idx + 1,
+  name: plan.name,
+  budget: plan.budget,
+  savings: plan.savings,
+  description: plan.description,
+  categories: plan.categories.map((c: any) => ({
+    name: c.name,
+    amount: c.amount,
+    icon: getIcon(c.name),
+  })),
+}));
+
+    setAiPlans(parsedPlans);
+  } catch (e) {
+    console.error("AI 생성 실패:", e);
+    setAiPlans([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleSaveCustomBudget = () => {
+  setMonthlyBudget(monthKey, Number(customBudget.monthly) || 0);
+  toast.success(`${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`);
+};
+
+const handleApplyPlan = (planId: number) => {
+  const plan = aiPlans.find((p) => p.id === planId);
+  if (!plan) return;
+
+  setSelectedPlan(planId);
+  setMonthlyBudget(monthKey, plan.budget);
+
+  toast.success(`${selectedMonth + 1}월 예산 적용 완료!`);
+};
 
   const totalBudget =
     Number(customBudget.food) +
@@ -195,10 +196,14 @@ export default function BudgetPage() {
           </p>
         </div>
 
-        <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
-          <Sparkles className="mr-2 h-4 w-4" />
-          AI 플랜 생성
-        </Button>
+        <Button
+  onClick={handleGenerateAI}
+  disabled={loading}
+  className="bg-gradient-to-r from-cyan-500 to-blue-500"
+>
+  <Sparkles className="mr-2 h-4 w-4" />
+  {loading ? "생성 중..." : "AI 플랜 생성"}
+</Button>
       </div>
 
       <div>
@@ -208,79 +213,96 @@ export default function BudgetPage() {
         </h2>
 
         <div className="grid gap-6 md:grid-cols-3">
-          {aiPlans.map((plan) => (
-            <Card
-              key={plan.id}
-              className={`border-2 bg-white/80 p-6 backdrop-blur-xl transition-all dark:bg-gray-800/80 ${
-                selectedPlan === plan.id
-                  ? "border-cyan-500 shadow-xl"
-                  : "border-transparent hover:border-cyan-300"
-              }`}
+          {aiPlans.map((plan) => {
+  // ✅ 로딩 상태
+  if (!plan.name) {
+    return (
+      <Card
+        key={plan.id}
+        className="p-6 animate-pulse bg-gray-100 dark:bg-gray-700"
+      >
+        <div className="h-6 w-1/2 bg-gray-300 mb-4 rounded"></div>
+        <div className="h-4 w-full bg-gray-300 mb-2 rounded"></div>
+        <div className="h-4 w-2/3 bg-gray-300 rounded"></div>
+      </Card>
+    );
+  }
+
+  // ✅ 실제 카드
+  return (
+    <Card
+      key={plan.id}
+      className={`border-2 bg-white/80 p-6 backdrop-blur-xl transition-all dark:bg-gray-800/80 ${
+        selectedPlan === plan.id
+          ? "border-cyan-500 shadow-xl"
+          : "border-transparent hover:border-cyan-300"
+      }`}
+    >
+      <div className="mb-4">
+        <div className="mb-2 flex items-start justify-between">
+          <h3 className="font-bold text-gray-900 dark:text-gray-100">
+            {plan.name}
+          </h3>
+          {selectedPlan === plan.id && (
+            <Badge className="bg-cyan-500">적용중</Badge>
+          )}
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          {plan.description}
+        </p>
+      </div>
+
+      <div className="mb-4 space-y-3">
+        <div className="flex items-center justify-between rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 p-3">
+          <span className="text-sm font-medium text-gray-700">월 예산</span>
+          <span className="font-bold text-gray-900">
+            {plan.budget?.toLocaleString()}원
+          </span>
+        </div>
+        <div className="flex items-center justify-between rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 p-3">
+          <span className="text-sm font-medium text-gray-700">목표 저축</span>
+          <span className="font-bold text-green-700">
+            {plan.savings?.toLocaleString()}원
+          </span>
+        </div>
+      </div>
+
+      <div className="mb-4 space-y-2">
+        {plan.categories?.map((cat: any) => {
+          const Icon = cat.icon || Coffee;
+          return (
+            <div
+              key={cat.name}
+              className="flex items-center justify-between text-sm"
             >
-              <div className="mb-4">
-                <div className="mb-2 flex items-start justify-between">
-                  <h3 className="font-bold text-gray-900 dark:text-gray-100">
-                    {plan.name}
-                  </h3>
-                  {selectedPlan === plan.id && (
-                    <Badge className="bg-cyan-500">적용중</Badge>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {plan.description}
-                </p>
+              <div className="flex items-center gap-2">
+                <Icon className="h-4 w-4 text-gray-500" />
+                <span className="text-gray-700 dark:text-gray-300">
+                  {cat.name}
+                </span>
               </div>
+              <span className="font-medium text-gray-900 dark:text-gray-100">
+                {cat.amount.toLocaleString()}원
+              </span>
+            </div>
+          );
+        })}
+      </div>
 
-              <div className="mb-4 space-y-3">
-                <div className="flex items-center justify-between rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 p-3">
-                  <span className="text-sm font-medium text-gray-700">월 예산</span>
-                  <span className="font-bold text-gray-900">
-                    {plan.budget.toLocaleString()}원
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 p-3">
-                  <span className="text-sm font-medium text-gray-700">목표 저축</span>
-                  <span className="font-bold text-green-700">
-                    {plan.savings.toLocaleString()}원
-                  </span>
-                </div>
-              </div>
-
-              <div className="mb-4 space-y-2">
-                {plan.categories.map((cat) => {
-                  const Icon = cat.icon;
-                  return (
-                    <div
-                      key={cat.name}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-700 dark:text-gray-300">
-                          {cat.name}
-                        </span>
-                      </div>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {cat.amount.toLocaleString()}원
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <Button
-                onClick={() => handleApplyPlan(plan.id)}
-                variant={selectedPlan === plan.id ? "default" : "outline"}
-                className={`w-full ${
-                  selectedPlan === plan.id
-                    ? "bg-gradient-to-r from-cyan-500 to-blue-500"
-                    : ""
-                }`}
-              >
-                {selectedPlan === plan.id ? "적용됨" : "이 플랜 적용하기"}
-              </Button>
-            </Card>
-          ))}
+      <Button
+        onClick={() => handleApplyPlan(plan.id)}
+        variant={selectedPlan === plan.id ? "default" : "outline"}
+        className={`w-full ${
+          selectedPlan === plan.id
+            ? "bg-gradient-to-r from-cyan-500 to-blue-500"
+            : ""
+        }`}
+      >
+        {selectedPlan === plan.id ? "적용됨" : "이 플랜 적용하기"}
+      </Button>
+    </Card>
+  );
+})}
         </div>
       </div>
 
@@ -489,7 +511,7 @@ export default function BudgetPage() {
                 <span className="font-semibold">
                   {currentBudget.toLocaleString()}원
                 </span>
-                이야.  
+                이야.
                 AI 플랜을 먼저 적용한 뒤, 맞춤 예산에서 세부 카테고리를 다듬으면 훨씬 편하게
                 관리할 수 있어!
               </p>
