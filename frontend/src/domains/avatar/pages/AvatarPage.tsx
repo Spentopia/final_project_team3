@@ -228,9 +228,8 @@ export default function AvatarPage() {
     // ──────────────────────────────────────────────────────────
     const handleMintNft = async () => {
         if (!selectedItem) return;
-        // TODO: 실제 Solana 온체인 민팅 후 생성된 mint address로 교체
-        await mintNft(selectedItem.id, "11111111111111111111111111111111");
-        setSelectedItem(null); // 성공 시 Dialog 닫기
+        await mintNft(selectedItem.id);
+        setSelectedItem(null);
     };
 
     return (

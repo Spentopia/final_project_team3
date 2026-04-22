@@ -11,8 +11,6 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct MintNftRequest {
     pub user_item_id: Uuid,
-    pub nft_mint_address: String,
-    pub tx_signature: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -64,6 +62,7 @@ pub struct UserItemResponse {
     pub unity_asset_key: Option<String>,
     pub is_equipped: Option<bool>,
     pub is_nft: Option<bool>,
+    pub nft_mint_address: Option<String>,
     pub acquired_at: Option<DateTime<Utc>>,
 }
 

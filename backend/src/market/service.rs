@@ -588,6 +588,7 @@ pub async fn purchase(
 
     solana_client::verify_program_instruction_tx(
         &state.config.solana_rpc_url,
+        &state.config.helius_api_key,
         &state.http_client,
         &tx_signature,
         &state.config.solana_program_id,
