@@ -84,9 +84,7 @@ export default function Login() {
 
           {/* Logo */}
           <div className="mb-8 flex flex-col items-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg">
-              <Sparkles className="h-8 w-8 text-white" />
-            </div>
+            <img src="/favicon.svg" alt="Spentopia" className="mb-4 h-16 w-16" />
             <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">
               Spentopia
             </h1>
