@@ -2,7 +2,7 @@ import {useWalletConnection} from "@/domains/wallet/hooks/useWalletConnection";
 import {useEffect, useMemo, useRef, useState} from "react";
 import {shortenWalletAddress} from "@/domains/wallet/lib/solana";
 import {Link as LinkIcon, Wallet, Loader2} from "lucide-react";
-import {apiClient} from "@/shared/api/client";
+import {getMe} from "@/shared/api/meApi";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -13,6 +13,20 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
+
+let linkedWalletRequestInFlight: Promise<string | null> | null = null;
+
+async function fetchLinkedWalletAddress() {
+  if (!linkedWalletRequestInFlight) {
+    linkedWalletRequestInFlight = getMe()
+      .then((response) => response.wallet_address ?? null)
+      .finally(() => {
+        linkedWalletRequestInFlight = null;
+      });
+  }
+
+  return linkedWalletRequestInFlight;
+}
 
 interface ConnectWalletButtonProps{
   className?: string;
@@ -47,9 +61,9 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
 
     const loadLinkedWallet = async () => {
       try {
-        const response = await apiClient.get<{wallet_address?: string | null}>("/me");
+        const walletAddressFromProfile = await fetchLinkedWalletAddress();
         if (!cancelled) {
-          setLinkedWalletAddress(response.data.wallet_address ?? null);
+          setLinkedWalletAddress(walletAddressFromProfile);
         }
       } catch {
         if (!cancelled) {

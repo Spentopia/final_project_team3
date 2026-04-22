@@ -18,14 +18,31 @@ export interface StreakResponse {
   last_record_date: string | null;
 }
 
+let currentWeeklyScoreInFlight: Promise<WeeklyScoreResponse> | null = null;
+let streakInFlight: Promise<StreakResponse> | null = null;
+
 export async function getCurrentWeeklyScore(): Promise<WeeklyScoreResponse> {
-  const res = await apiClient.get<WeeklyScoreResponse>(
-    "/api/rewards/weekly-score/current"
-  );
-  return res.data;
+  if (!currentWeeklyScoreInFlight) {
+    currentWeeklyScoreInFlight = apiClient
+      .get<WeeklyScoreResponse>("/api/rewards/weekly-score/current")
+      .then((res) => res.data)
+      .finally(() => {
+        currentWeeklyScoreInFlight = null;
+      });
+  }
+
+  return currentWeeklyScoreInFlight;
 }
 
 export async function getStreak(): Promise<StreakResponse> {
-  const res = await apiClient.get<StreakResponse>("/api/rewards/streak");
-  return res.data;
+  if (!streakInFlight) {
+    streakInFlight = apiClient
+      .get<StreakResponse>("/api/rewards/streak")
+      .then((res) => res.data)
+      .finally(() => {
+        streakInFlight = null;
+      });
+  }
+
+  return streakInFlight;
 }

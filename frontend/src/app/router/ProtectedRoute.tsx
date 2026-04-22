@@ -20,6 +20,7 @@ import { supabase } from "@/shared/lib/supabase";
 import { authStorage } from "@/shared/lib/auth";
 import { apiClient } from "@/shared/api/client";
 import { initAuth } from "@/shared/lib/initAuth";
+import { getMe } from "@/shared/api/meApi";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -107,9 +108,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
 
     // 5) /me 호출해서 실제 로그인 유저 정보 확인
-    const res = await apiClient.get("/me");
-
-    const me = res.data;
+    const me = await getMe();
 
     // 6) 프로필 완성 여부에 따라 라우팅 분기
     if (!me.profile_completed) {
