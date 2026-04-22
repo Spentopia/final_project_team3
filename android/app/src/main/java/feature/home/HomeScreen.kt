@@ -1,95 +1,95 @@
-package com.ict.spentopia.feature.home
+package com.ict.spentopia.feature.home // 이 파일이 속한 패키지 위치를 적음
 
 // 날짜 선택 다이얼로그를 위한 import입니다.
-import android.app.DatePickerDialog
-import android.net.Uri
+import android.app.DatePickerDialog // 날짜 선택창 기능을 가져옴
+import android.net.Uri // 이미지 주소 같은 Uri 타입을 가져옴
 
 // Activity Result 관련 import입니다.
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult // 외부 앱 결과를 받는 도구를 가져옴
+import androidx.activity.result.contract.ActivityResultContracts // 갤러리 열기 같은 실행 규칙을 가져옴
 
 // Compose foundation 관련 import입니다.
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke // 테두리 선 스타일을 가져옴
+import androidx.compose.foundation.Image // 이미지 표시 컴포넌트를 가져옴
+import androidx.compose.foundation.background // 배경을 꾸미는 기능을 가져옴
+import androidx.compose.foundation.border // 테두리를 그리는 기능을 가져옴
+import androidx.compose.foundation.clickable // 클릭 가능하게 만드는 기능을 가져옴
+import androidx.compose.foundation.layout.Arrangement // 가로세로 배치 간격 설정 기능을 가져옴
+import androidx.compose.foundation.layout.Box // Box 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
+import androidx.compose.foundation.layout.PaddingValues // 패딩 값을 묶는 타입을 가져옴
+import androidx.compose.foundation.layout.Row // 가로 배치 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Spacer // 빈 공간을 넣는 컴포넌트를 가져옴
+import androidx.compose.foundation.layout.fillMaxSize // 부모 크기를 꽉 채우는 기능을 가져옴
+import androidx.compose.foundation.layout.fillMaxWidth // 가로를 꽉 채우는 기능을 가져옴
+import androidx.compose.foundation.layout.height // 높이 지정 기능을 가져옴
+import androidx.compose.foundation.layout.padding // 여백 주는 기능을 가져옴
+import androidx.compose.foundation.layout.size // 크기 지정 기능을 가져옴
+import androidx.compose.foundation.layout.width // 너비 지정 기능을 가져옴
+import androidx.compose.foundation.lazy.LazyColumn // 세로 스크롤 리스트를 가져옴
+import androidx.compose.foundation.shape.CircleShape // 원 모양을 가져옴
+import androidx.compose.foundation.shape.RoundedCornerShape // 둥근 모서리 모양을 가져옴
 
 // 아이콘 관련 import입니다.
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.Icons // 아이콘 묶음을 가져옴
+import androidx.compose.material.icons.filled.CalendarMonth // 달력 아이콘을 가져옴
 
 // Material3 관련 import입니다.
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.Button // 버튼 컴포넌트를 가져옴
+import androidx.compose.material3.ButtonDefaults // 버튼 기본 스타일 도구를 가져옴
+import androidx.compose.material3.Card // 카드 UI를 가져옴
+import androidx.compose.material3.CardDefaults // 카드 기본 스타일 도구를 가져옴
+import androidx.compose.material3.DropdownMenu // 드롭다운 메뉴를 가져옴
+import androidx.compose.material3.DropdownMenuItem // 드롭다운 메뉴 한 줄을 가져옴
+import androidx.compose.material3.ExperimentalMaterial3Api // 실험용 Material3 기능 표시를 가져옴
+import androidx.compose.material3.ExposedDropdownMenuBox // 펼침형 드롭다운 박스를 가져옴
+import androidx.compose.material3.ExposedDropdownMenuDefaults // 드롭다운 기본 아이콘을 가져옴
+import androidx.compose.material3.Icon // 아이콘 표시 컴포넌트를 가져옴
+import androidx.compose.material3.OutlinedButton // 외곽선 버튼을 가져옴
+import androidx.compose.material3.OutlinedTextField // 외곽선 입력칸을 가져옴
+import androidx.compose.material3.OutlinedTextFieldDefaults // 입력칸 기본 스타일 도구를 가져옴
+import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
+import androidx.compose.material3.TextButton // 글자형 버튼을 가져옴
 
 // Compose runtime 관련 import입니다.
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Composable // Compose 함수 표시용 어노테이션을 가져옴
+import androidx.compose.runtime.LaunchedEffect // 상태가 바뀔 때 실행할 효과를 가져옴
+import androidx.compose.runtime.getValue // by 문법으로 상태를 읽게 해줌
+import androidx.compose.runtime.mutableStateOf // 화면 상태를 만드는 도구를 가져옴
+import androidx.compose.runtime.remember // 재구성돼도 값을 기억하게 해줌
+import androidx.compose.runtime.setValue // by 문법으로 상태를 바꾸게 해줌
 
 // UI 관련 import입니다.
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.Alignment // 정렬 기준을 가져옴
+import androidx.compose.ui.Modifier // UI 크기·색·여백 설정 도구를 가져옴
+import androidx.compose.ui.graphics.Brush // 그라데이션 같은 색칠 도구를 가져옴
+import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
+import androidx.compose.ui.layout.ContentScale // 이미지 채우는 방식을 가져옴
+import androidx.compose.ui.platform.LocalContext // 현재 화면 Context를 가져오는 도구를 가져옴
+import androidx.compose.ui.text.font.FontWeight // 글자 두께 설정을 가져옴
+import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
+import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
+import androidx.compose.ui.window.Dialog // 팝업 창 컴포넌트를 가져옴
 
 // Coil 이미지 로딩 관련 import입니다.
-import coil.compose.rememberAsyncImagePainter
+import coil.compose.rememberAsyncImagePainter // Uri 이미지를 그리는 도구를 가져옴
 
 // ViewModel을 Compose에서 사용하기 위한 import입니다.
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.compose.viewModel // Compose에서 ViewModel을 연결하는 도구를 가져옴
 
 // Flow를 Compose 상태로 안전하게 수집하기 위한 import입니다.
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle // Flow 값을 안전하게 화면 상태로 받는 도구를 가져옴
 
 // BudgetViewModel import입니다.
-import com.ict.spentopia.feature.budget.BudgetViewModel
+import com.ict.spentopia.feature.budget.BudgetViewModel // 예산 화면용 ViewModel을 가져옴
 
 // Room Entity import입니다.
-import com.ict.spentopia.data.local.ExpenseEntity
+import com.ict.spentopia.data.local.ExpenseEntity // DB에 저장되는 소비 데이터 타입을 가져옴
 
 // 숫자 포맷 및 날짜 계산 관련 import입니다.
-import java.text.DecimalFormat
-import java.util.Calendar
-import kotlin.math.abs
+import java.text.DecimalFormat // 숫자를 쉼표 형식으로 바꾸는 도구를 가져옴
+import java.util.Calendar // 날짜 계산용 객체를 가져옴
+import kotlin.math.abs // 절댓값 함수 가져옴
 
 // --------------------------------------------------
 // UI에서 사용할 소비 항목 데이터 클래스입니다.
@@ -97,2004 +97,2004 @@ import kotlin.math.abs
 // 즉, DB의 ExpenseEntity를 바로 화면에 쓰지 않고,
 // 화면에서 쓰기 좋은 ExpenseItemData로 변환해서 사용합니다.
 // --------------------------------------------------
-data class ExpenseItemData(
-    val id: Long, // 항목 고유 ID
-    val date: String, // 소비 날짜
-    val title: String, // 소비 제목
-    val category: String, // 소비 카테고리
-    val amount: Int, // 소비 금액
-    val memo: String, // 구매 메모
-    val receiptImageName: String, // 영수증 이미지 Uri 문자열
-    val diary: String // 한줄 소비 일기
+data class ExpenseItemData( // ExpenseItemData 데이터를 묶어둘 클래스 시작
+    val id: Long, // 이 데이터에 저장할 id 값을 받음
+    val date: String, // 이 데이터에 저장할 date 값을 받음
+    val title: String, // 이 데이터에 저장할 title 값을 받음
+    val category: String, // 이 데이터에 저장할 category 값을 받음
+    val amount: Int, // 이 데이터에 저장할 amount 값을 받음
+    val memo: String, // 이 데이터에 저장할 memo 값을 받음
+    val receiptImageName: String, // 이 데이터에 저장할 receiptImageName 값을 받음
+    val diary: String // 이 데이터에 저장할 diary 값을 받음
 )
 
 // 달력에서 사용할 날짜 데이터 클래스입니다.
-data class CalendarDateData(
-    val fullDate: String, // 실제 날짜 값 yyyy-MM-dd
-    val dayText: String, // 화면에 보여줄 날짜 텍스트
-    val isCurrentMonth: Boolean // 현재 달 포함 여부
+data class CalendarDateData( // CalendarDateData 데이터를 묶어둘 클래스 시작
+    val fullDate: String, // 이 데이터에 저장할 fullDate 값을 받음
+    val dayText: String, // 이 데이터에 저장할 dayText 값을 받음
+    val isCurrentMonth: Boolean // 이 데이터에 저장할 isCurrentMonth 값을 받음
 )
 
 // 이번 주 성실도 계산에 사용할 데이터 클래스입니다.
-data class WeeklyRecordData(
-    val fullDate: String, // 실제 날짜 값 yyyy-MM-dd
-    val dayLabel: String // 화면에 보여줄 요일 텍스트
+data class WeeklyRecordData( // WeeklyRecordData 데이터를 묶어둘 클래스 시작
+    val fullDate: String, // 이 데이터에 저장할 fullDate 값을 받음
+    val dayLabel: String // 이 데이터에 저장할 dayLabel 값을 받음
 )
 
-@Composable
-fun HomeScreen(
-    onLedgerClick: () -> Unit = {},
-    onMyPageClick: () -> Unit = {},
-    onBudgetClick: () -> Unit = {},
-    onAnalysisClick: () -> Unit = {},
-    onAvatarClick: () -> Unit = {},
-    onMarketClick: () -> Unit = {},
-    onPlazaClick: () -> Unit = {},
-    onCommunityClick: () -> Unit = {}
-) {
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun HomeScreen( // HomeScreen 함수 선언 시작
+    onLedgerClick: () -> Unit = {}, // Unit 값을 이 함수로 넘김
+    onMyPageClick: () -> Unit = {}, // Unit 값을 이 함수로 넘김
+    onBudgetClick: () -> Unit = {}, // Unit 값을 이 함수로 넘김
+    onAnalysisClick: () -> Unit = {}, // Unit 값을 이 함수로 넘김
+    onAvatarClick: () -> Unit = {}, // Unit 값을 이 함수로 넘김
+    onMarketClick: () -> Unit = {}, // Unit 값을 이 함수로 넘김
+    onPlazaClick: () -> Unit = {}, // Unit 값을 이 함수로 넘김
+    onCommunityClick: () -> Unit = {} // 버튼을 눌렀을 때 실행할 함수를 받음
+) { // 이 블록 안의 내용이 시작됨
     // 예산 설정 화면에서 저장한 값을 읽어오기 위한 ViewModel입니다.
-    val budgetViewModel: BudgetViewModel = viewModel()
+    val budgetViewModel: BudgetViewModel = viewModel() // 예산 화면의 ViewModel을 연결함
 
     // 홈 화면에서 Room 소비 데이터를 가져오기 위한 ViewModel입니다.
-    val context = LocalContext.current
+    val context = LocalContext.current // 현재 화면의 Context를 가져옴
 
-    val homeViewModel: HomeViewModel = viewModel(
-        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                val database = com.ict.spentopia.data.local.ExpenseDatabase.getDatabase(context)
-                val repository = com.ict.spentopia.data.repository.ExpenseRepository(
-                    database.expenseDao()
+    val homeViewModel: HomeViewModel = viewModel( // 이 데이터에 저장할 homeViewModel 값을 받음
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory { // ViewModel을 직접 만드는 규칙을 여기서 정의함
+            @Suppress("UNCHECKED_CAST") // 경고 메시지를 잠시 숨김
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T { // ViewModel을 실제로 만드는 함수를 새로 정의함
+                val database = com.ict.spentopia.data.local.ExpenseDatabase.getDatabase(context) // 앱의 Room 데이터베이스를 가져옴
+                val repository = com.ict.spentopia.data.repository.ExpenseRepository( // DB 접근을 맡길 Repository를 만듦
+                    database.expenseDao() // Unit 값을 이 함수로 넘김
                 )
-                return HomeViewModel(repository) as T
-            }
-        }
+                return HomeViewModel(repository) as T // 계산한 결과를 바깥으로 돌려줌
+            } // 블록 끝
+        } // 블록 끝
     )
 
     // 저장된 예산 상태를 lifecycle-aware 방식으로 구독합니다.
-    val budgetState by budgetViewModel.budgetState.collectAsStateWithLifecycle()
+    val budgetState by budgetViewModel.budgetState.collectAsStateWithLifecycle() // Flow 값을 화면에서 바로 쓸 수 있는 상태로 받음
 
     // HomeViewModel의 전체 UI용 소비 목록을 구독합니다.
     // DailyExpenseCard는 "선택한 날짜" 기준으로 여기서 다시 필터링합니다.
-    val expenseList by homeViewModel.expenseUiList.collectAsStateWithLifecycle()
+    val expenseList by homeViewModel.expenseUiList.collectAsStateWithLifecycle() // Flow 값을 화면에서 바로 쓸 수 있는 상태로 받음
 
     // HomeViewModel에서 현재 선택한 연-월을 구독합니다.
     // 예: "2026-04"
-    val selectedYearMonth by homeViewModel.selectedYearMonth.collectAsStateWithLifecycle()
+    val selectedYearMonth by homeViewModel.selectedYearMonth.collectAsStateWithLifecycle() // Flow 값을 화면에서 바로 쓸 수 있는 상태로 받음
 
     // HomeViewModel에서 현재 선택한 날짜를 구독합니다.
     // 예: "2026-04-15"
-    val selectedDate by homeViewModel.selectedDate.collectAsStateWithLifecycle()
+    val selectedDate by homeViewModel.selectedDate.collectAsStateWithLifecycle() // Flow 값을 화면에서 바로 쓸 수 있는 상태로 받음
 
     // HomeViewModel에서 현재 선택한 월의 총 소비 금액을 구독합니다.
-    val currentMonthTotalExpense by homeViewModel.monthlyTotalAmount.collectAsStateWithLifecycle()
+    val currentMonthTotalExpense by homeViewModel.monthlyTotalAmount.collectAsStateWithLifecycle() // Flow 값을 화면에서 바로 쓸 수 있는 상태로 받음
 
     // HomeViewModel에서 현재 선택한 월의 소비 건수를 구독합니다.
-    val currentMonthExpenseCount by homeViewModel.monthlyExpenseCount.collectAsStateWithLifecycle()
+    val currentMonthExpenseCount by homeViewModel.monthlyExpenseCount.collectAsStateWithLifecycle() // Flow 값을 화면에서 바로 쓸 수 있는 상태로 받음
 
     // HomeViewModel에서 이전 달 총 소비 금액을 구독합니다.
-    val previousMonthTotalExpense by homeViewModel.previousMonthTotalAmount.collectAsStateWithLifecycle()
+    val previousMonthTotalExpense by homeViewModel.previousMonthTotalAmount.collectAsStateWithLifecycle() // Flow 값을 화면에서 바로 쓸 수 있는 상태로 받음
 
     // 소비 기록이 존재하는 날짜 목록을 Set으로 관리합니다.
-    val expenseDateSet by homeViewModel.expenseDateSet.collectAsStateWithLifecycle()
+    val expenseDateSet by homeViewModel.expenseDateSet.collectAsStateWithLifecycle() // Flow 값을 화면에서 바로 쓸 수 있는 상태로 받음
 
     // 현재 선택된 연-월 문자열에서 연도와 월을 분리합니다.
     // selectedYearMonth는 "yyyy-MM" 형식이므로 substring으로 안전하게 꺼냅니다.
-    val currentYear = selectedYearMonth.substring(0, 4).toIntOrNull()
-        ?: Calendar.getInstance().get(Calendar.YEAR)
-    val currentMonth = selectedYearMonth.substring(5, 7).toIntOrNull()
-        ?: (Calendar.getInstance().get(Calendar.MONTH) + 1)
+    val currentYear = selectedYearMonth.substring(0, 4).toIntOrNull() // 문자열의 일부만 잘라냄
+        ?: Calendar.getInstance().get(Calendar.YEAR) // 현재 날짜/시간 정보를 가진 Calendar 객체를 만듦
+    val currentMonth = selectedYearMonth.substring(5, 7).toIntOrNull() // 문자열의 일부만 잘라냄
+        ?: (Calendar.getInstance().get(Calendar.MONTH) + 1) // 현재 날짜/시간 정보를 가진 Calendar 객체를 만듦
 
     // 수정 중인 소비 항목 상태입니다.
-    var editingExpense by remember { mutableStateOf<ExpenseItemData?>(null) }
+    var editingExpense by remember { mutableStateOf<ExpenseItemData?>(null) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
 
     // 월 달력 팝업 표시 여부 상태입니다.
-    var showCalendarDialog by remember { mutableStateOf(false) }
+    var showCalendarDialog by remember { mutableStateOf(false) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
 
     // 예산 설정 화면에서 저장한 값으로 월 예산을 계산합니다.
     // 현재 프로젝트 구조에서는
     // "월 수입 - 저축 목표"를 실제 사용 가능한 한 달 예산으로 사용하고 있습니다.
-    val monthlyBudget = remember(budgetState) {
-        budgetState.monthlyIncome - budgetState.savingGoal
-    }
+    val monthlyBudget = remember(budgetState) { // 이 블록의 내용이 여기서 시작됨
+        budgetState.monthlyIncome - budgetState.savingGoal // 바로 앞 설정을 이어서 적음
+    } // 블록 끝
 
     // 오늘 날짜를 yyyy-MM-dd 형식으로 생성합니다.
-    val today = remember {
-        val cal = Calendar.getInstance()
-        formatDate(
-            cal.get(Calendar.YEAR),
-            cal.get(Calendar.MONTH) + 1,
-            cal.get(Calendar.DAY_OF_MONTH)
+    val today = remember { // 처음 계산한 값을 기억해둠
+        val cal = Calendar.getInstance() // 현재 날짜/시간 정보를 가진 Calendar 객체를 만듦
+        formatDate( // monthlyBudget 값을 이 함수로 넘김
+            cal.get(Calendar.YEAR), // monthlyBudget 값을 이 함수로 넘김
+            cal.get(Calendar.MONTH) + 1, // 바로 앞 설정을 이어서 적음
+            cal.get(Calendar.DAY_OF_MONTH) // 바로 앞 설정을 이어서 적음
         )
-    }
+    } // 블록 끝
 
     // 현재 달의 남은 예산 계산입니다.
     // 예산보다 소비가 많으면 음수가 될 수 있습니다.
-    val remainingBudget = monthlyBudget - currentMonthTotalExpense
+    val remainingBudget = monthlyBudget - currentMonthTotalExpense // remainingBudget 값을 계산해서 저장함
 
     // 사용률 텍스트 계산입니다.
     // 기존에는 Int로 바로 잘라서 0.2% 같은 값이 0%가 되는 문제가 있었기 때문에
     // 이제는 문자열로 만들어서 0.3% 같은 값도 보이게 처리합니다.
-    val usageRateText = remember(currentMonthTotalExpense, monthlyBudget) {
-        createUsageRateText(
-            currentAmount = currentMonthTotalExpense,
-            monthlyBudget = monthlyBudget
+    val usageRateText = remember(currentMonthTotalExpense, monthlyBudget) { // 이 블록의 내용이 여기서 시작됨
+        createUsageRateText( // 글자를 화면에 보여주기 시작함
+            currentAmount = currentMonthTotalExpense, // currentAmount 값을 이 함수로 넘김
+            monthlyBudget = monthlyBudget // monthlyBudget 값을 이 함수로 넘김
         )
-    }
+    } // 블록 끝
 
     // 지난달 대비 증감 문구 계산입니다.
-    val changeRateText = remember(currentMonthTotalExpense, previousMonthTotalExpense) {
-        createChangeRateText(
-            currentAmount = currentMonthTotalExpense,
-            previousAmount = previousMonthTotalExpense
+    val changeRateText = remember(currentMonthTotalExpense, previousMonthTotalExpense) { // 이 블록의 내용이 여기서 시작됨
+        createChangeRateText( // 글자를 화면에 보여주기 시작함
+            currentAmount = currentMonthTotalExpense, // currentAmount 값을 이 함수로 넘김
+            previousAmount = previousMonthTotalExpense // previousAmount 값을 이 함수로 넘김
         )
-    }
+    } // 블록 끝
 
     // 드로어는 AppNavGraph에서 처리하므로 HomeScreen에서는 본문만 그립니다.
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF3F6FA))
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item { Spacer(modifier = Modifier.height(12.dp)) }
+    LazyColumn( // 세로로 스크롤되는 목록 UI를 시작함
+        modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+            .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
+            .background(Color(0xFFF3F6FA)) // 배경색이나 그라데이션을 넣음
+            .padding(horizontal = 16.dp), // 안쪽이나 바깥 여백을 줌
+        verticalArrangement = Arrangement.spacedBy(16.dp) // 바로 앞 설정을 이어서 적음
+    ) { // 이 블록 안의 내용이 시작됨
+        item { Spacer(modifier = Modifier.height(12.dp)) } // 리스트 안에 들어갈 한 칸을 시작함
 
-        item {
-            TopHeaderSection(
-                onWalletConnectClick = {
+        item { // 리스트 안에 들어갈 한 칸을 시작함
+            TopHeaderSection( // 바로 앞 설정을 이어서 적음
+                onWalletConnectClick = { // verticalArrangement 값을 이 함수로 넘김
                     // 팬텀 지갑 연결 기능은 추후 여기에 연결하면 됩니다.
-                }
+                } // 블록 끝
             )
-        }
+        } // 블록 끝
 
-        item {
-            MonthlySummaryCard(
-                currentYear = currentYear,
-                currentMonth = currentMonth,
-                currentMonthTotalExpense = currentMonthTotalExpense,
-                currentMonthExpenseCount = currentMonthExpenseCount,
-                monthlyBudget = monthlyBudget,
-                remainingBudget = remainingBudget,
-                usageRateText = usageRateText,
-                changeRateText = changeRateText,
-                onPrevMonth = {
+        item { // 리스트 안에 들어갈 한 칸을 시작함
+            MonthlySummaryCard( // 카드 모양 UI를 시작함
+                currentYear = currentYear, // verticalArrangement 값을 이 함수로 넘김
+                currentMonth = currentMonth, // currentMonth 값을 이 함수로 넘김
+                currentMonthTotalExpense = currentMonthTotalExpense, // currentMonthTotalExpense 값을 이 함수로 넘김
+                currentMonthExpenseCount = currentMonthExpenseCount, // currentMonthExpenseCount 값을 이 함수로 넘김
+                monthlyBudget = monthlyBudget, // monthlyBudget 값을 이 함수로 넘김
+                remainingBudget = remainingBudget, // remainingBudget 값을 이 함수로 넘김
+                usageRateText = usageRateText, // usageRateText 값을 이 함수로 넘김
+                changeRateText = changeRateText, // changeRateText 값을 이 함수로 넘김
+                onPrevMonth = { // 이 이벤트가 일어났을 때 실행할 코드를 시작함
                     // 이전 달로 이동합니다.
                     // 선택 날짜도 자동으로 해당 월 1일로 맞춰집니다.
-                    homeViewModel.moveToPreviousMonth()
+                    homeViewModel.moveToPreviousMonth() // onPrevMonth 값을 이 함수로 넘김
                 },
-                onNextMonth = {
+                onNextMonth = { // 이 이벤트가 일어났을 때 실행할 코드를 시작함
                     // 다음 달로 이동합니다.
                     // 선택 날짜도 자동으로 해당 월 1일로 맞춰집니다.
-                    homeViewModel.moveToNextMonth()
+                    homeViewModel.moveToNextMonth() // onNextMonth 값을 이 함수로 넘김
                 },
-                onCalendarClick = {
+                onCalendarClick = { // 이 이벤트가 일어났을 때 실행할 코드를 시작함
                     // 월 표시 영역의 달력 버튼을 누르면 팝업 달력을 엽니다.
-                    showCalendarDialog = true
-                }
+                    showCalendarDialog = true // onCalendarClick 값을 이 함수로 넘김
+                } // 블록 끝
             )
-        }
+        } // 블록 끝
 
-        item {
-            DailyExpenseCard(
-                expenseList = expenseList,
-                selectedDate = selectedDate,
-                onEditExpense = { expense ->
+        item { // 리스트 안에 들어갈 한 칸을 시작함
+            DailyExpenseCard( // 카드 모양 UI를 시작함
+                expenseList = expenseList, // onCalendarClick 값을 이 함수로 넘김
+                selectedDate = selectedDate, // selectedDate 값을 이 함수로 넘김
+                onEditExpense = { expense -> // onEditExpense 값을 이 함수로 넘김
                     // 수정 버튼을 누르면 수정 모드로 바꾸고,
                     // 선택 날짜도 해당 항목 날짜로 맞춰줍니다.
-                    editingExpense = expense
-                    homeViewModel.selectDate(expense.date)
+                    editingExpense = expense // 바로 앞 설정을 이어서 적음
+                    homeViewModel.selectDate(expense.date) // editingExpense 값을 이 함수로 넘김
                 },
-                onDeleteExpense = { expenseId ->
+                onDeleteExpense = { expenseId -> // 바로 앞 설정을 이어서 적음
                     // 실제 Room DB에서 삭제합니다.
-                    homeViewModel.deleteExpenseById(expenseId)
+                    homeViewModel.deleteExpenseById(expenseId) // 바로 앞 설정을 이어서 적음
 
                     // 삭제한 항목이 수정 중이던 항목이면 수정 상태도 비웁니다.
-                    if (editingExpense?.id == expenseId) {
-                        editingExpense = null
-                    }
-                }
+                    if (editingExpense?.id == expenseId) { // 조건이 참일 때만 아래 코드를 실행함
+                        editingExpense = null // 바로 앞 설정을 이어서 적음
+                    } // 블록 끝
+                } // 블록 끝
             )
-        }
+        } // 블록 끝
 
-        item {
-            WeeklyScoreCard(
-                expenseDateSet = expenseDateSet
+        item { // 리스트 안에 들어갈 한 칸을 시작함
+            WeeklyScoreCard( // 카드 모양 UI를 시작함
+                expenseDateSet = expenseDateSet // onDeleteExpense 값을 이 함수로 넘김
             )
-        }
+        } // 블록 끝
 
-        item {
-            ExpenseWriteCard(
-                selectedDate = selectedDate,
-                editingExpense = editingExpense,
-                onSaveExpense = { savedExpense ->
+        item { // 리스트 안에 들어갈 한 칸을 시작함
+            ExpenseWriteCard( // 카드 모양 UI를 시작함
+                selectedDate = selectedDate, // onDeleteExpense 값을 이 함수로 넘김
+                editingExpense = editingExpense, // editingExpense 값을 이 함수로 넘김
+                onSaveExpense = { savedExpense -> // onSaveExpense 값을 이 함수로 넘김
                     // 화면용 모델을 DB용 Entity로 변환합니다.
-                    val entity = savedExpense.toEntity()
+                    val entity = savedExpense.toEntity() // entity 값을 계산해서 저장함
 
                     // 수정 중이 아니면 insert, 수정 중이면 update를 호출합니다.
-                    if (editingExpense == null) {
-                        homeViewModel.insertExpense(entity)
-                    } else {
-                        homeViewModel.updateExpense(entity)
-                    }
+                    if (editingExpense == null) { // 조건이 참일 때만 아래 코드를 실행함
+                        homeViewModel.insertExpense(entity) // 바로 앞 설정을 이어서 적음
+                    } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
+                        homeViewModel.updateExpense(entity) // 바로 앞 설정을 이어서 적음
+                    } // 블록 끝
 
                     // 저장 후 수정 상태를 초기화합니다.
-                    editingExpense = null
+                    editingExpense = null // editingExpense 값을 이 함수로 넘김
                 },
-                onCancelEdit = {
-                    editingExpense = null
-                }
+                onCancelEdit = { // 이 이벤트가 일어났을 때 실행할 코드를 시작함
+                    editingExpense = null // 바로 앞 설정을 이어서 적음
+                } // 블록 끝
             )
-        }
+        } // 블록 끝
 
-        item {
-            RewardGuideCard()
-        }
+        item { // 리스트 안에 들어갈 한 칸을 시작함
+            RewardGuideCard() // 카드 모양 UI를 시작함
+        } // 블록 끝
 
-        item { Spacer(modifier = Modifier.height(24.dp)) }
-    }
+        item { Spacer(modifier = Modifier.height(24.dp)) } // 리스트 안에 들어갈 한 칸을 시작함
+    } // 블록 끝
 
     // 월 상단에서 날짜를 빠르게 바꾸기 위한 팝업 달력입니다.
-    if (showCalendarDialog) {
-        Dialog(
-            onDismissRequest = {
-                showCalendarDialog = false
-            }
-        ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
-            ) {
-                CalendarCard(
-                    currentYear = currentYear,
-                    currentMonth = currentMonth,
-                    selectedDate = selectedDate,
-                    expenseDateSet = expenseDateSet,
-                    today = today,
-                    onPrevMonth = {
-                        homeViewModel.moveToPreviousMonth()
+    if (showCalendarDialog) { // 조건이 참일 때만 아래 코드를 실행함
+        Dialog( // 팝업 창을 띄우는 영역을 시작함
+            onDismissRequest = { // 팝업이 닫힐 때 실행할 코드를 시작함
+                showCalendarDialog = false // onCancelEdit 값을 이 함수로 넘김
+            } // 블록 끝
+        ) { // 이 블록 안의 내용이 시작됨
+            Card( // 카드 모양 UI를 시작함
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
+                colors = CardDefaults.cardColors(containerColor = Color.White) // 색상 스타일을 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                CalendarCard( // 카드 모양 UI를 시작함
+                    currentYear = currentYear, // colors 값을 이 함수로 넘김
+                    currentMonth = currentMonth, // currentMonth 값을 이 함수로 넘김
+                    selectedDate = selectedDate, // selectedDate 값을 이 함수로 넘김
+                    expenseDateSet = expenseDateSet, // expenseDateSet 값을 이 함수로 넘김
+                    today = today, // today 값을 이 함수로 넘김
+                    onPrevMonth = { // 이 이벤트가 일어났을 때 실행할 코드를 시작함
+                        homeViewModel.moveToPreviousMonth() // onPrevMonth 값을 이 함수로 넘김
                     },
-                    onNextMonth = {
-                        homeViewModel.moveToNextMonth()
+                    onNextMonth = { // 이 이벤트가 일어났을 때 실행할 코드를 시작함
+                        homeViewModel.moveToNextMonth() // onNextMonth 값을 이 함수로 넘김
                     },
-                    onDateSelected = { clickedDate ->
-                        homeViewModel.selectDate(clickedDate)
-                        showCalendarDialog = false
-                    }
+                    onDateSelected = { clickedDate -> // 바로 앞 설정을 이어서 적음
+                        homeViewModel.selectDate(clickedDate) // 바로 앞 설정을 이어서 적음
+                        showCalendarDialog = false // onDateSelected 값을 이 함수로 넘김
+                    } // 블록 끝
                 )
-            }
-        }
-    }
-}
+            } // 블록 끝
+        } // 블록 끝
+    } // 블록 끝
+} // 블록 끝
 
-@Composable
-private fun TopHeaderSection(
-    onWalletConnectClick: () -> Unit = {}
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
+    onWalletConnectClick: () -> Unit = {} // 버튼을 눌렀을 때 실행할 함수를 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 카드 모양 UI를 시작함
+        modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+        shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
+        colors = CardDefaults.cardColors(containerColor = Color.White) // 색상 스타일을 정함
+    ) { // 이 블록 안의 내용이 시작됨
+        Row( // 가로로 배치하는 영역을 시작함
+            modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                .fillMaxWidth() // 가로 너비를 꽉 채움
+                .padding(horizontal = 14.dp, vertical = 14.dp), // 안쪽이나 바깥 여백을 줌
+            verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
+        ) { // 이 블록 안의 내용이 시작됨
 
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(12.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "NFT 거래 및 토큰 교환 지갑",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1F2A37)
+            Column( // 세로로 배치하는 영역을 시작함
+                modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
+            ) { // 이 블록 안의 내용이 시작됨
+                Text( // 글자를 화면에 보여주기 시작함
+                    text = "NFT 거래 및 토큰 교환 지갑", // 화면에 보여줄 글자를 정함
+                    fontSize = 16.sp, // 글자 크기를 정함
+                    fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                    color = Color(0xFF1F2A37) // 색상을 정함
                 )
-                Text(
-                    text = "팬텀 지갑 연결이 필요합니다",
-                    fontSize = 13.sp,
-                    color = Color(0xFF6B7280)
+                Text( // 글자를 화면에 보여주기 시작함
+                    text = "팬텀 지갑 연결이 필요합니다", // 화면에 보여줄 글자를 정함
+                    fontSize = 13.sp, // 글자 크기를 정함
+                    color = Color(0xFF6B7280) // 색상을 정함
                 )
-            }
+            } // 블록 끝
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Button(
-                onClick = onWalletConnectClick,
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent
+            Button( // 눌렀을 때 동작하는 버튼을 만듦
+                onClick = onWalletConnectClick, // color 값을 이 함수로 넘김
+                shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
+                colors = ButtonDefaults.buttonColors( // 색상 스타일을 정함
+                    containerColor = Color.Transparent // 배경색을 정함
                 ),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color(0xFFB980FF),
-                                    Color(0xFF8B5CF6),
-                                    Color(0xFF5B4BFF)
+                contentPadding = PaddingValues(0.dp) // 버튼 안쪽 여백을 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                        .background( // 배경색이나 그라데이션을 넣음
+                            brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
+                                colors = listOf( // 값 여러 개를 묶은 목록을 만듦
+                                    Color(0xFFB980FF), // contentPadding 값을 이 함수로 넘김
+                                    Color(0xFF8B5CF6), // 바로 앞 설정을 이어서 적음
+                                    Color(0xFF5B4BFF) // 사용할 색상 값을 넣음
                                 )
                             ),
-                            shape = RoundedCornerShape(14.dp)
+                            shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                         )
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "지갑 연결",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        .padding(horizontal = 14.dp, vertical = 10.dp), // 안쪽이나 바깥 여백을 줌
+                    contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "지갑 연결", // 화면에 보여줄 글자를 정함
+                        fontSize = 13.sp, // 글자 크기를 정함
+                        fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                        color = Color.White // 색상을 정함
                     )
-                }
-            }
-        }
-    }
-}
+                } // 블록 끝
+            } // 블록 끝
+        } // 블록 끝
+    } // 블록 끝
+} // 블록 끝
 
-@Composable
-private fun MonthlySummaryCard(
-    currentYear: Int,
-    currentMonth: Int,
-    currentMonthTotalExpense: Int,
-    currentMonthExpenseCount: Int,
-    monthlyBudget: Int,
-    remainingBudget: Int,
-    usageRateText: String,
-    changeRateText: String,
-    onPrevMonth: () -> Unit,
-    onNextMonth: () -> Unit,
-    onCalendarClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F6FA))
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CalendarArrowButton(
-                            text = "‹",
-                            onClick = onPrevMonth
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
+    currentYear: Int, // currentYear 값을 함수 밖에서 받아옴
+    currentMonth: Int, // currentMonth 값을 함수 밖에서 받아옴
+    currentMonthTotalExpense: Int, // currentMonthTotalExpense 값을 함수 밖에서 받아옴
+    currentMonthExpenseCount: Int, // currentMonthExpenseCount 값을 함수 밖에서 받아옴
+    monthlyBudget: Int, // monthlyBudget 값을 함수 밖에서 받아옴
+    remainingBudget: Int, // remainingBudget 값을 함수 밖에서 받아옴
+    usageRateText: String, // usageRateText 값을 함수 밖에서 받아옴
+    changeRateText: String, // changeRateText 값을 함수 밖에서 받아옴
+    onPrevMonth: () -> Unit, // onPrevMonth 는 눌렀을 때 실행할 동작을 받음
+    onNextMonth: () -> Unit, // onNextMonth 는 눌렀을 때 실행할 동작을 받음
+    onCalendarClick: () -> Unit // onCalendarClick 는 눌렀을 때 실행할 동작을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 카드 모양 UI를 시작함
+        modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+        shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F6FA)) // 색상 스타일을 정함
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 세로로 배치하는 영역을 시작함
+            modifier = Modifier.padding(20.dp) // 안쪽이나 바깥 여백을 줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Row( // 가로로 배치하는 영역을 시작함
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                horizontalArrangement = Arrangement.SpaceBetween, // 가로 방향 간격과 정렬을 정함
+                verticalAlignment = Alignment.Top // 세로 방향 정렬을 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                Column { // verticalAlignment 값을 이 함수로 넘김
+                    Row( // 가로로 배치하는 영역을 시작함
+                        verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
+                    ) { // 이 블록 안의 내용이 시작됨
+                        CalendarArrowButton( // 눌렀을 때 동작하는 버튼을 만듦
+                            text = "‹", // 화면에 보여줄 글자를 정함
+                            onClick = onPrevMonth // onClick 값을 이 함수로 넘김
                         )
 
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(10.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                        Text(
-                            text = "${currentYear}년 ${currentMonth}월",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F2A37)
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = "${currentYear}년 ${currentMonth}월", // 화면에 보여줄 글자를 정함
+                            fontSize = 16.sp, // 글자 크기를 정함
+                            fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                            color = Color(0xFF1F2A37) // 색상을 정함
                         )
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                        Box(
-                            modifier = Modifier
-                                .size(30.dp)
-                                .background(
-                                    color = Color.White,
-                                    shape = RoundedCornerShape(10.dp)
+                        Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                            modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                                .size(30.dp) // 가로세로 크기를 한 번에 정함
+                                .background( // 배경색이나 그라데이션을 넣음
+                                    color = Color.White, // 색상을 정함
+                                    shape = RoundedCornerShape(10.dp) // 모서리 모양을 정함
                                 )
-                                .clickable { onCalendarClick() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.CalendarMonth,
-                                contentDescription = "calendar",
-                                tint = Color(0xFF5B4BFF),
-                                modifier = Modifier.size(18.dp)
+                                .clickable { onCalendarClick() }, // 눌렀을 때 반응하도록 만듦
+                            contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                        ) { // 이 블록 안의 내용이 시작됨
+                            Icon( // 아이콘을 화면에 보여줌
+                                imageVector = Icons.Filled.CalendarMonth, // 어떤 아이콘을 쓸지 정함
+                                contentDescription = "calendar", // 접근성용 설명 글을 넣음
+                                tint = Color(0xFF5B4BFF), // tint 값을 이 함수로 넘김
+                                modifier = Modifier.size(18.dp) // 가로세로 크기를 한 번에 정함
                             )
-                        }
+                        } // 블록 끝
 
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(10.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                        CalendarArrowButton(
-                            text = "›",
-                            onClick = onNextMonth
+                        CalendarArrowButton( // 눌렀을 때 동작하는 버튼을 만듦
+                            text = "›", // 화면에 보여줄 글자를 정함
+                            onClick = onNextMonth // onClick 값을 이 함수로 넘김
                         )
-                    }
+                    } // 블록 끝
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(6.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                    Text(
-                        text = "이번 달 소비 내역 · ${currentMonthExpenseCount}건",
-                        fontSize = 13.sp,
-                        color = Color(0xFF6B7280)
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "이번 달 소비 내역 · ${currentMonthExpenseCount}건", // 화면에 보여줄 글자를 정함
+                        fontSize = 13.sp, // 글자 크기를 정함
+                        color = Color(0xFF6B7280) // 색상을 정함
                     )
-                }
+                } // 블록 끝
 
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "${formatAmount(currentMonthTotalExpense)}원",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1F2A37)
+                Column(horizontalAlignment = Alignment.End) { // 이 블록의 내용이 여기서 시작됨
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "${formatAmount(currentMonthTotalExpense)}원", // 화면에 보여줄 글자를 정함
+                        fontSize = 28.sp, // 글자 크기를 정함
+                        fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                        color = Color(0xFF1F2A37) // 색상을 정함
                     )
-                    Text(
-                        text = changeRateText,
-                        fontSize = 13.sp,
-                        color = getChangeRateColor(changeRateText)
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = changeRateText, // 화면에 보여줄 글자를 정함
+                        fontSize = 13.sp, // 글자 크기를 정함
+                        color = getChangeRateColor(changeRateText) // 색상을 정함
                     )
-                }
-            }
+                } // 블록 끝
+            } // 블록 끝
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                SummaryMiniCard(
-                    title = "예산",
-                    value = "${formatAmount(monthlyBudget)}원",
-                    bgColor = Color(0xFFDDF3F7),
-                    modifier = Modifier.weight(1f)
+            Row( // 가로로 배치하는 영역을 시작함
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                horizontalArrangement = Arrangement.spacedBy(12.dp) // 가로 방향 간격과 정렬을 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                SummaryMiniCard( // 카드 모양 UI를 시작함
+                    title = "예산", // horizontalArrangement 값을 이 함수로 넘김
+                    value = "${formatAmount(monthlyBudget)}원", // value 값을 이 함수로 넘김
+                    bgColor = Color(0xFFDDF3F7), // 배경색 값을 넘김
+                    modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
                 )
 
-                SummaryMiniCard(
-                    title = if (remainingBudget >= 0) "남은 예산" else "초과 예산",
-                    value = "${formatAmount(abs(remainingBudget))}원",
-                    bgColor = if (remainingBudget >= 0) Color(0xFFE1EAFF) else Color(0xFFFFE3E3),
-                    modifier = Modifier.weight(1f)
+                SummaryMiniCard( // 카드 모양 UI를 시작함
+                    title = if (remainingBudget >= 0) "남은 예산" else "초과 예산", // modifier 값을 이 함수로 넘김
+                    value = "${formatAmount(abs(remainingBudget))}원", // 음수를 양수로 바꿔 절댓값으로 만듦
+                    bgColor = if (remainingBudget >= 0) Color(0xFFE1EAFF) else Color(0xFFFFE3E3), // 배경색 값을 넘김
+                    modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
                 )
 
-                SummaryMiniCard(
-                    title = "사용률",
-                    value = usageRateText,
-                    bgColor = Color(0xFFDFF2EC),
-                    modifier = Modifier.weight(1f)
+                SummaryMiniCard( // 카드 모양 UI를 시작함
+                    title = "사용률", // modifier 값을 이 함수로 넘김
+                    value = usageRateText, // value 값을 이 함수로 넘김
+                    bgColor = Color(0xFFDFF2EC), // 배경색 값을 넘김
+                    modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
                 )
-            }
-        }
-    }
-}
+            } // 블록 끝
+        } // 블록 끝
+    } // 블록 끝
+} // 블록 끝
 
-@Composable
-private fun SummaryMiniCard(
-    title: String,
-    value: String,
-    bgColor: Color,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor)
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp)
-        ) {
-            Text(
-                text = title,
-                fontSize = 12.sp,
-                color = Color(0xFF315072)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun SummaryMiniCard( // SummaryMiniCard 함수 선언 시작
+    title: String, // title 값을 함수 밖에서 받아옴
+    value: String, // value 값을 함수 밖에서 받아옴
+    bgColor: Color, // bgColor 값을 함수 밖에서 받아옴
+    modifier: Modifier = Modifier // Modifier 값을 이 함수로 넘김
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 카드 모양 UI를 시작함
+        modifier = modifier, // 이 UI의 크기·여백·배경 설정을 시작함
+        shape = RoundedCornerShape(16.dp), // 모서리 모양을 정함
+        colors = CardDefaults.cardColors(containerColor = bgColor) // 색상 스타일을 정함
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 세로로 배치하는 영역을 시작함
+            modifier = Modifier.padding(14.dp) // 안쪽이나 바깥 여백을 줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 글자를 화면에 보여주기 시작함
+                text = title, // 화면에 보여줄 글자를 정함
+                fontSize = 12.sp, // 글자 크기를 정함
+                color = Color(0xFF315072) // 색상을 정함
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = value,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF22406A)
+            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+            Text( // 글자를 화면에 보여주기 시작함
+                text = value, // 화면에 보여줄 글자를 정함
+                fontSize = 20.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                color = Color(0xFF22406A) // 색상을 정함
             )
-        }
-    }
-}
+        } // 블록 끝
+    } // 블록 끝
+} // 블록 끝
 
-@Composable
-private fun CalendarCard(
-    currentYear: Int,
-    currentMonth: Int,
-    selectedDate: String,
-    expenseDateSet: Set<String>,
-    today: String,
-    onPrevMonth: () -> Unit,
-    onNextMonth: () -> Unit,
-    onDateSelected: (String) -> Unit
-) {
-    val daysOfWeek = listOf("일", "월", "화", "수", "목", "금", "토")
-    val calendarDates = generateCalendarDates(currentYear, currentMonth)
-    val rows = calendarDates.chunked(7)
-    val cellWidth = 40.dp
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun CalendarCard( // CalendarCard 함수 선언 시작
+    currentYear: Int, // currentYear 값을 함수 밖에서 받아옴
+    currentMonth: Int, // currentMonth 값을 함수 밖에서 받아옴
+    selectedDate: String, // selectedDate 값을 함수 밖에서 받아옴
+    expenseDateSet: Set<String>, // expenseDateSet 값을 함수 밖에서 받아옴
+    today: String, // today 값을 함수 밖에서 받아옴
+    onPrevMonth: () -> Unit, // onPrevMonth 는 눌렀을 때 실행할 동작을 받음
+    onNextMonth: () -> Unit, // onNextMonth 는 눌렀을 때 실행할 동작을 받음
+    onDateSelected: (String) -> Unit // onDateSelected 는 눌렀을 때 실행할 동작을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val daysOfWeek = listOf("일", "월", "화", "수", "목", "금", "토") // 값 여러 개를 묶은 목록을 만듦
+    val calendarDates = generateCalendarDates(currentYear, currentMonth) // calendarDates 값을 계산해서 저장함
+    val rows = calendarDates.chunked(7) // 7개씩 끊어서 한 주 단위로 나눔
+    val cellWidth = 40.dp // cellWidth 값을 계산해서 저장함
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CalendarArrowButton(
-                    text = "‹",
-                    onClick = onPrevMonth
+    Card( // 카드 모양 UI를 시작함
+        modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+        shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
+        colors = CardDefaults.cardColors(containerColor = Color.White) // 색상 스타일을 정함
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 세로로 배치하는 영역을 시작함
+            modifier = Modifier.padding(20.dp) // 안쪽이나 바깥 여백을 줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Row( // 가로로 배치하는 영역을 시작함
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                horizontalArrangement = Arrangement.SpaceBetween, // 가로 방향 간격과 정렬을 정함
+                verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                CalendarArrowButton( // 눌렀을 때 동작하는 버튼을 만듦
+                    text = "‹", // 화면에 보여줄 글자를 정함
+                    onClick = onPrevMonth // onClick 값을 이 함수로 넘김
                 )
 
-                Text(
-                    text = "${currentMonth}월 ${currentYear}",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF1F2A37)
+                Text( // 글자를 화면에 보여주기 시작함
+                    text = "${currentMonth}월 ${currentYear}", // 화면에 보여줄 글자를 정함
+                    fontSize = 18.sp, // 글자 크기를 정함
+                    fontWeight = FontWeight.Medium, // 글자 두께를 정함
+                    color = Color(0xFF1F2A37) // 색상을 정함
                 )
 
-                CalendarArrowButton(
-                    text = "›",
-                    onClick = onNextMonth
+                CalendarArrowButton( // 눌렀을 때 동작하는 버튼을 만듦
+                    text = "›", // 화면에 보여줄 글자를 정함
+                    onClick = onNextMonth // onClick 값을 이 함수로 넘김
                 )
-            }
+            } // 블록 끝
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                daysOfWeek.forEach { day ->
-                    Box(
-                        modifier = Modifier.width(cellWidth),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = day,
-                            fontSize = 13.sp,
-                            color = Color(0xFF9AA4B2)
+            Row( // 가로로 배치하는 영역을 시작함
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                horizontalArrangement = Arrangement.Start // 가로 방향 간격과 정렬을 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                daysOfWeek.forEach { day -> // 목록이나 범위를 하나씩 돌면서 처리함
+                    Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                        modifier = Modifier.width(cellWidth), // 가로 길이를 정함
+                        contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                    ) { // 이 블록 안의 내용이 시작됨
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = day, // 화면에 보여줄 글자를 정함
+                            fontSize = 13.sp, // 글자 크기를 정함
+                            color = Color(0xFF9AA4B2) // 색상을 정함
                         )
-                    }
-                }
-            }
+                    } // 블록 끝
+                } // 블록 끝
+            } // 블록 끝
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(14.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            rows.forEach { week ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    horizontalArrangement = Arrangement.Start
-                ) {
-                    week.forEach { dateItem ->
-                        val isSelected = dateItem.fullDate == selectedDate
-                        val hasExpense = expenseDateSet.contains(dateItem.fullDate)
-                        val isToday = dateItem.fullDate == today
+            rows.forEach { week -> // 목록이나 범위를 하나씩 돌면서 처리함
+                Row( // 가로로 배치하는 영역을 시작함
+                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                        .fillMaxWidth() // 가로 너비를 꽉 채움
+                        .padding(vertical = 6.dp), // 안쪽이나 바깥 여백을 줌
+                    horizontalArrangement = Arrangement.Start // 가로 방향 간격과 정렬을 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    week.forEach { dateItem -> // 목록이나 범위를 하나씩 돌면서 처리함
+                        val isSelected = dateItem.fullDate == selectedDate // isSelected 값을 계산해서 저장함
+                        val hasExpense = expenseDateSet.contains(dateItem.fullDate) // 그 값이 들어있는지 확인함
+                        val isToday = dateItem.fullDate == today // isToday 값을 계산해서 저장함
 
-                        Box(
-                            modifier = Modifier
-                                .width(cellWidth)
-                                .height(42.dp)
-                                .clickable {
-                                    onDateSelected(dateItem.fullDate)
+                        Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                            modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                                .width(cellWidth) // 가로 길이를 정함
+                                .height(42.dp) // 세로 길이를 정함
+                                .clickable { // 눌렀을 때 반응하도록 만듦
+                                    onDateSelected(dateItem.fullDate) // 함수를 호출해 값을 넣음
                                 },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                if (isSelected) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(30.dp)
-                                            .background(
-                                                color = Color(0xFF0F172A),
-                                                shape = RoundedCornerShape(8.dp)
+                            contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                        ) { // 이 블록 안의 내용이 시작됨
+                            Column( // 세로로 배치하는 영역을 시작함
+                                horizontalAlignment = Alignment.CenterHorizontally, // contentAlignment 값을 이 함수로 넘김
+                                verticalArrangement = Arrangement.Center // verticalArrangement 값을 이 함수로 넘김
+                            ) { // 이 블록 안의 내용이 시작됨
+                                if (isSelected) { // 조건이 참일 때만 아래 코드를 실행함
+                                    Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                                        modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                                            .size(30.dp) // 가로세로 크기를 한 번에 정함
+                                            .background( // 배경색이나 그라데이션을 넣음
+                                                color = Color(0xFF0F172A), // 색상을 정함
+                                                shape = RoundedCornerShape(8.dp) // 모서리 모양을 정함
                                             ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = dateItem.dayText,
-                                            color = Color.White,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium
+                                        contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                                    ) { // 이 블록 안의 내용이 시작됨
+                                        Text( // 글자를 화면에 보여주기 시작함
+                                            text = dateItem.dayText, // 화면에 보여줄 글자를 정함
+                                            color = Color.White, // 색상을 정함
+                                            fontSize = 13.sp, // 글자 크기를 정함
+                                            fontWeight = FontWeight.Medium // 글자 두께를 정함
                                         )
-                                    }
-                                } else {
-                                    Text(
-                                        text = dateItem.dayText,
-                                        color = when {
-                                            !dateItem.isCurrentMonth -> Color(0xFF9AA4B2)
-                                            isToday -> Color(0xFF2F7DF6)
-                                            else -> Color(0xFF1F2A37)
+                                    } // 블록 끝
+                                } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
+                                    Text( // 글자를 화면에 보여주기 시작함
+                                        text = dateItem.dayText, // 화면에 보여줄 글자를 정함
+                                        color = when { // 색상을 정함
+                                            !dateItem.isCurrentMonth -> Color(0xFF9AA4B2) // 바로 앞 설정을 이어서 적음
+                                            isToday -> Color(0xFF2F7DF6) // 바로 앞 설정을 이어서 적음
+                                            else -> Color(0xFF1F2A37) // color 값을 이 함수로 넘김
                                         },
-                                        fontSize = 14.sp,
-                                        fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
+                                        fontSize = 14.sp, // 글자 크기를 정함
+                                        fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal // 글자 두께를 정함
                                     )
-                                }
+                                } // 블록 끝
 
-                                Spacer(modifier = Modifier.height(3.dp))
+                                Spacer(modifier = Modifier.height(3.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                                if (hasExpense) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(4.dp)
-                                            .background(
-                                                color = if (isSelected) Color.White else Color(0xFF2F7DF6),
-                                                shape = CircleShape
+                                if (hasExpense) { // 조건이 참일 때만 아래 코드를 실행함
+                                    Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                                        modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                                            .size(4.dp) // 가로세로 크기를 한 번에 정함
+                                            .background( // 배경색이나 그라데이션을 넣음
+                                                color = if (isSelected) Color.White else Color(0xFF2F7DF6), // 색상을 정함
+                                                shape = CircleShape // 모서리 모양을 정함
                                             )
                                     )
-                                } else {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+                                } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
+                                    Spacer(modifier = Modifier.height(4.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+                                } // 블록 끝
+                            } // 블록 끝
+                        } // 블록 끝
+                    } // 블록 끝
+                } // 블록 끝
+            } // 블록 끝
+        } // 블록 끝
+    } // 블록 끝
+} // 블록 끝
 
-@Composable
-private fun CalendarArrowButton(
-    text: String,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .size(28.dp)
-            .background(
-                color = Color(0xFFF3F4F6),
-                shape = RoundedCornerShape(8.dp)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun CalendarArrowButton( // CalendarArrowButton 함수 선언 시작
+    text: String, // text 값을 함수 밖에서 받아옴
+    onClick: () -> Unit // onClick 는 눌렀을 때 실행할 동작을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+        modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+            .size(28.dp) // 가로세로 크기를 한 번에 정함
+            .background( // 배경색이나 그라데이션을 넣음
+                color = Color(0xFFF3F4F6), // 색상을 정함
+                shape = RoundedCornerShape(8.dp) // 모서리 모양을 정함
             )
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            color = Color(0xFF6B7280),
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium
+            .clickable { onClick() }, // 눌렀을 때 반응하도록 만듦
+        contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+    ) { // 이 블록 안의 내용이 시작됨
+        Text( // 글자를 화면에 보여주기 시작함
+            text = text, // 화면에 보여줄 글자를 정함
+            color = Color(0xFF6B7280), // 색상을 정함
+            fontSize = 16.sp, // 글자 크기를 정함
+            fontWeight = FontWeight.Medium // 글자 두께를 정함
         )
-    }
-}
+    } // 블록 끝
+} // 블록 끝
 
-@Composable
-private fun DailyExpenseCard(
-    expenseList: List<ExpenseItemData>,
-    selectedDate: String,
-    onEditExpense: (ExpenseItemData) -> Unit,
-    onDeleteExpense: (Long) -> Unit
-) {
-    val filteredList = expenseList.filter { it.date == selectedDate }
-    val totalAmount = filteredList.sumOf { it.amount }
-    val diaryText = filteredList.firstOrNull { it.diary.isNotBlank() }?.diary ?: ""
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
+    expenseList: List<ExpenseItemData>, // expenseList 값을 함수 밖에서 받아옴
+    selectedDate: String, // selectedDate 값을 함수 밖에서 받아옴
+    onEditExpense: (ExpenseItemData) -> Unit, // onEditExpense 는 눌렀을 때 실행할 동작을 받음
+    onDeleteExpense: (Long) -> Unit // onDeleteExpense 는 눌렀을 때 실행할 동작을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val filteredList = expenseList.filter { it.date == selectedDate } // 조건에 맞는 항목만 남김
+    val totalAmount = filteredList.sumOf { it.amount } // 각 항목 값을 더해서 합계를 구함
+    val diaryText = filteredList.firstOrNull { it.diary.isNotBlank() }?.diary ?: "" // 조건에 맞는 첫 항목을 찾되 없으면 null을 줌
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Text(
-                text = formatDisplayDate(selectedDate),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1F2A37)
+    Card( // 카드 모양 UI를 시작함
+        modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+        shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
+        colors = CardDefaults.cardColors(containerColor = Color.White) // 색상 스타일을 정함
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 세로로 배치하는 영역을 시작함
+            modifier = Modifier.padding(20.dp) // 안쪽이나 바깥 여백을 줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 글자를 화면에 보여주기 시작함
+                text = formatDisplayDate(selectedDate), // 화면에 보여줄 글자를 정함
+                fontSize = 22.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                color = Color(0xFF1F2A37) // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(6.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Text(
-                text = "총 ${formatAmount(totalAmount)}원 · ${filteredList.size}건",
-                fontSize = 14.sp,
-                color = Color(0xFF6B7280)
+            Text( // 글자를 화면에 보여주기 시작함
+                text = "총 ${formatAmount(totalAmount)}원 · ${filteredList.size}건", // 화면에 보여줄 글자를 정함
+                fontSize = 14.sp, // 글자 크기를 정함
+                color = Color(0xFF6B7280) // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            if (filteredList.isEmpty()) {
-                Text(
-                    text = "이 날짜에는 아직 저장된 소비 내역이 없어요",
-                    fontSize = 14.sp,
-                    color = Color(0xFF6B7280)
+            if (filteredList.isEmpty()) { // 조건이 참일 때만 아래 코드를 실행함
+                Text( // 글자를 화면에 보여주기 시작함
+                    text = "이 날짜에는 아직 저장된 소비 내역이 없어요", // 화면에 보여줄 글자를 정함
+                    fontSize = 14.sp, // 글자 크기를 정함
+                    color = Color(0xFF6B7280) // 색상을 정함
                 )
-            } else {
-                filteredList.forEachIndexed { index, item ->
-                    ExpenseItemCard(
-                        emoji = getCategoryEmoji(item.category),
-                        title = item.title,
-                        category = item.category,
-                        amount = "${formatAmount(item.amount)}원",
-                        tag = when {
-                            item.receiptImageName.isNotBlank() -> "영수증"
-                            item.memo.isNotBlank() -> "메모"
-                            else -> null
+            } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
+                filteredList.forEachIndexed { index, item -> // 목록이나 범위를 하나씩 돌면서 처리함
+                    ExpenseItemCard( // 카드 모양 UI를 시작함
+                        emoji = getCategoryEmoji(item.category), // emoji 값을 이 함수로 넘김
+                        title = item.title, // title 값을 이 함수로 넘김
+                        category = item.category, // category 값을 이 함수로 넘김
+                        amount = "${formatAmount(item.amount)}원", // amount 값을 이 함수로 넘김
+                        tag = when { // 바로 앞 설정을 이어서 적음
+                            item.receiptImageName.isNotBlank() -> "영수증" // 이 조건이면 오른쪽 값을 선택함
+                            item.memo.isNotBlank() -> "메모" // 이 조건이면 오른쪽 값을 선택함
+                            else -> null // tag 값을 이 함수로 넘김
                         },
-                        iconColors = getCategoryColors(item.category),
-                        onEditClick = {
-                            onEditExpense(item)
+                        iconColors = getCategoryColors(item.category), // iconColors 값을 이 함수로 넘김
+                        onEditClick = { // onEditClick 값을 이 함수로 넘김
+                            onEditExpense(item) // 함수를 호출해 값을 넣음
                         },
-                        onDeleteClick = {
-                            onDeleteExpense(item.id)
-                        }
+                        onDeleteClick = { // onDeleteClick 값을 이 함수로 넘김
+                            onDeleteExpense(item.id) // 함수를 호출해 값을 넣음
+                        } // 블록 끝
                     )
 
-                    if (index != filteredList.lastIndex) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-                }
+                    if (index != filteredList.lastIndex) { // 조건이 참일 때만 아래 코드를 실행함
+                        Spacer(modifier = Modifier.height(12.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+                    } // 블록 끝
+                } // 블록 끝
 
-                if (diaryText.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(20.dp))
+                if (diaryText.isNotBlank()) { // 조건이 참일 때만 아래 코드를 실행함
+                    Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFF7FBFE)
+                    Card( // 카드 모양 UI를 시작함
+                        modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                        shape = RoundedCornerShape(16.dp), // 모서리 모양을 정함
+                        colors = CardDefaults.cardColors( // 색상 스타일을 정함
+                            containerColor = Color(0xFFF7FBFE) // 배경색을 정함
                         ),
-                        border = BorderStroke(
-                            1.dp,
-                            Color(0xFF86D4FF)
+                        border = BorderStroke( // border 값을 이 함수로 넘김
+                            1.dp, // border 값을 이 함수로 넘김
+                            Color(0xFF86D4FF) // 사용할 색상 값을 넣음
                         )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                text = "오늘의 소비 일기",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF22406A)
+                    ) { // 이 블록 안의 내용이 시작됨
+                        Column( // 세로로 배치하는 영역을 시작함
+                            modifier = Modifier.padding(16.dp) // 안쪽이나 바깥 여백을 줌
+                        ) { // 이 블록 안의 내용이 시작됨
+                            Text( // 글자를 화면에 보여주기 시작함
+                                text = "오늘의 소비 일기", // 화면에 보여줄 글자를 정함
+                                fontSize = 15.sp, // 글자 크기를 정함
+                                fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                                color = Color(0xFF22406A) // 색상을 정함
                             )
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                            Text(
-                                text = diaryText,
-                                fontSize = 14.sp,
-                                color = Color(0xFF475569)
+                            Text( // 글자를 화면에 보여주기 시작함
+                                text = diaryText, // 화면에 보여줄 글자를 정함
+                                fontSize = 14.sp, // 글자 크기를 정함
+                                color = Color(0xFF475569) // 색상을 정함
                             )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+                        } // 블록 끝
+                    } // 블록 끝
+                } // 블록 끝
+            } // 블록 끝
+        } // 블록 끝
+    } // 블록 끝
+} // 블록 끝
 
-@Composable
-private fun ExpenseItemCard(
-    emoji: String,
-    title: String,
-    category: String,
-    amount: String,
-    tag: String?,
-    iconColors: List<Color>,
-    onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFCFCFD)),
-        border = BorderStroke(
-            1.dp,
-            Color(0xFFE5E7EB)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
+    emoji: String, // emoji 값을 함수 밖에서 받아옴
+    title: String, // title 값을 함수 밖에서 받아옴
+    category: String, // category 값을 함수 밖에서 받아옴
+    amount: String, // amount 값을 함수 밖에서 받아옴
+    tag: String?, // tag 값을 함수 밖에서 받아옴
+    iconColors: List<Color>, // iconColors 값을 함수 밖에서 받아옴
+    onEditClick: () -> Unit, // onEditClick 는 눌렀을 때 실행할 동작을 받음
+    onDeleteClick: () -> Unit // onDeleteClick 는 눌렀을 때 실행할 동작을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 카드 모양 UI를 시작함
+        modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+        shape = RoundedCornerShape(18.dp), // 모서리 모양을 정함
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFCFCFD)), // 색상 스타일을 정함
+        border = BorderStroke( // border 값을 이 함수로 넘김
+            1.dp, // border 값을 이 함수로 넘김
+            Color(0xFFE5E7EB) // 사용할 색상 값을 넣음
         )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            brush = Brush.horizontalGradient(iconColors),
-                            shape = RoundedCornerShape(12.dp)
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 세로로 배치하는 영역을 시작함
+            modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                .fillMaxWidth() // 가로 너비를 꽉 채움
+                .padding(horizontal = 14.dp, vertical = 14.dp) // 안쪽이나 바깥 여백을 줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Row( // 가로로 배치하는 영역을 시작함
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                        .size(40.dp) // 가로세로 크기를 한 번에 정함
+                        .background( // 배경색이나 그라데이션을 넣음
+                            brush = Brush.horizontalGradient(iconColors), // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
+                            shape = RoundedCornerShape(12.dp) // 모서리 모양을 정함
                         ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = emoji,
-                        fontSize = 18.sp
+                    contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = emoji, // 화면에 보여줄 글자를 정함
+                        fontSize = 18.sp // 글자 크기를 정함
                     )
-                }
+                } // 블록 끝
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(12.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = title,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1F2A37)
+                Column( // 세로로 배치하는 영역을 시작함
+                    modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = title, // 화면에 보여줄 글자를 정함
+                        fontSize = 16.sp, // 글자 크기를 정함
+                        fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                        color = Color(0xFF1F2A37) // 색상을 정함
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(4.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = category,
-                            fontSize = 13.sp,
-                            color = Color(0xFF6B7280)
+                    Row(verticalAlignment = Alignment.CenterVertically) { // 이 블록의 내용이 여기서 시작됨
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = category, // 화면에 보여줄 글자를 정함
+                            fontSize = 13.sp, // 글자 크기를 정함
+                            color = Color(0xFF6B7280) // 색상을 정함
                         )
 
-                        if (tag != null) {
-                            Spacer(modifier = Modifier.width(8.dp))
+                        if (tag != null) { // 조건이 참일 때만 아래 코드를 실행함
+                            Spacer(modifier = Modifier.width(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        color = Color(0xFFEFFCF3),
-                                        shape = RoundedCornerShape(20.dp)
+                            Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                                modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                                    .background( // 배경색이나 그라데이션을 넣음
+                                        color = Color(0xFFEFFCF3), // 색상을 정함
+                                        shape = RoundedCornerShape(20.dp) // 모서리 모양을 정함
                                     )
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = tag,
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF16A34A),
-                                    fontWeight = FontWeight.Medium
+                                    .padding(horizontal = 8.dp, vertical = 4.dp), // 안쪽이나 바깥 여백을 줌
+                                contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                            ) { // 이 블록 안의 내용이 시작됨
+                                Text( // 글자를 화면에 보여주기 시작함
+                                    text = tag, // 화면에 보여줄 글자를 정함
+                                    fontSize = 11.sp, // 글자 크기를 정함
+                                    color = Color(0xFF16A34A), // 색상을 정함
+                                    fontWeight = FontWeight.Medium // 글자 두께를 정함
                                 )
-                            }
-                        }
-                    }
-                }
+                            } // 블록 끝
+                        } // 블록 끝
+                    } // 블록 끝
+                } // 블록 끝
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(12.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                Text(
-                    text = amount,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1F2A37)
+                Text( // 글자를 화면에 보여주기 시작함
+                    text = amount, // 화면에 보여줄 글자를 정함
+                    fontSize = 16.sp, // 글자 크기를 정함
+                    fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                    color = Color(0xFF1F2A37) // 색상을 정함
                 )
-            }
+            } // 블록 끝
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(10.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(
-                    onClick = onEditClick
-                ) {
-                    Text(
-                        text = "수정",
-                        color = Color(0xFF2F7DF6),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
+            Row( // 가로로 배치하는 영역을 시작함
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                horizontalArrangement = Arrangement.End // 가로 방향 간격과 정렬을 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                TextButton( // 눌렀을 때 동작하는 버튼을 만듦
+                    onClick = onEditClick // horizontalArrangement 값을 이 함수로 넘김
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "수정", // 화면에 보여줄 글자를 정함
+                        color = Color(0xFF2F7DF6), // 색상을 정함
+                        fontSize = 13.sp, // 글자 크기를 정함
+                        fontWeight = FontWeight.SemiBold // 글자 두께를 정함
                     )
-                }
+                } // 블록 끝
 
-                TextButton(
-                    onClick = onDeleteClick
-                ) {
-                    Text(
-                        text = "삭제",
-                        color = Color(0xFFE53935),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
+                TextButton( // 눌렀을 때 동작하는 버튼을 만듦
+                    onClick = onDeleteClick // fontWeight 값을 이 함수로 넘김
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "삭제", // 화면에 보여줄 글자를 정함
+                        color = Color(0xFFE53935), // 색상을 정함
+                        fontSize = 13.sp, // 글자 크기를 정함
+                        fontWeight = FontWeight.SemiBold // 글자 두께를 정함
                     )
-                }
-            }
-        }
-    }
-}
+                } // 블록 끝
+            } // 블록 끝
+        } // 블록 끝
+    } // 블록 끝
+} // 블록 끝
 
-@Composable
-private fun WeeklyScoreCard(
-    expenseDateSet: Set<String>
-) {
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
+    expenseDateSet: Set<String> // fontWeight 값을 이 함수로 넘김
+) { // 이 블록 안의 내용이 시작됨
     // 이번 주 월~일 날짜 목록을 만듭니다.
-    val weeklyRecordList = remember(expenseDateSet) {
-        generateCurrentWeekDates()
-    }
+    val weeklyRecordList = remember(expenseDateSet) { // 이 블록의 내용이 여기서 시작됨
+        generateCurrentWeekDates() // 함수를 호출해 값을 넣음
+    } // 블록 끝
 
     // 이번 주에 기록한 날짜 수를 계산합니다.
-    val recordedDaysCount = weeklyRecordList.count { weekItem ->
-        expenseDateSet.contains(weekItem.fullDate)
-    }
+    val recordedDaysCount = weeklyRecordList.count { weekItem -> // recordedDaysCount 개수를 셈
+        expenseDateSet.contains(weekItem.fullDate) // 그 값이 들어있는지 확인함
+    } // 블록 끝
 
     // 주간 성실도를 퍼센트로 계산합니다.
-    val weeklyScore = ((recordedDaysCount / 7f) * 100f).toInt()
+    val weeklyScore = ((recordedDaysCount / 7f) * 100f).toInt() // weeklyScore 숫자 값으로 계산함
 
     // 오늘 기준 연속 기록 일수를 계산합니다.
-    val streakDays = remember(expenseDateSet) {
-        calculateConsecutiveRecordDays(expenseDateSet)
-    }
+    val streakDays = remember(expenseDateSet) { // 이 블록의 내용이 여기서 시작됨
+        calculateConsecutiveRecordDays(expenseDateSet) // 함수를 호출해 값을 넣음
+    } // 블록 끝
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF8FBFF)
+    Card( // 카드 모양 UI를 시작함
+        modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+        shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
+        colors = CardDefaults.cardColors( // 색상 스타일을 정함
+            containerColor = Color(0xFFF8FBFF) // 배경색을 정함
         ),
-        border = BorderStroke(
-            1.dp,
-            Color(0xFFDCEBFF)
+        border = BorderStroke( // border 값을 이 함수로 넘김
+            1.dp, // border 값을 이 함수로 넘김
+            Color(0xFFDCEBFF) // 사용할 색상 값을 넣음
         )
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Text(
-                text = "이번 주 성실도",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1F2A37)
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 세로로 배치하는 영역을 시작함
+            modifier = Modifier.padding(20.dp) // 안쪽이나 바깥 여백을 줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 글자를 화면에 보여주기 시작함
+                text = "이번 주 성실도", // 화면에 보여줄 글자를 정함
+                fontSize = 20.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                color = Color(0xFF1F2A37) // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Text(
-                text = "소비 기록을 꾸준히 남긴 정도를 보여줘요",
-                fontSize = 14.sp,
-                color = Color(0xFF6B7280)
+            Text( // 글자를 화면에 보여주기 시작함
+                text = "소비 기록을 꾸준히 남긴 정도를 보여줘요", // 화면에 보여줄 글자를 정함
+                fontSize = 14.sp, // 글자 크기를 정함
+                color = Color(0xFF6B7280) // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "${weeklyScore}%",
-                        fontSize = 34.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF2F7DF6)
+            Row( // 가로로 배치하는 영역을 시작함
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                horizontalArrangement = Arrangement.SpaceBetween, // 가로 방향 간격과 정렬을 정함
+                verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                Column { // verticalAlignment 값을 이 함수로 넘김
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "${weeklyScore}%", // 화면에 보여줄 글자를 정함
+                        fontSize = 34.sp, // 글자 크기를 정함
+                        fontWeight = FontWeight.ExtraBold, // 글자 두께를 정함
+                        color = Color(0xFF2F7DF6) // 색상을 정함
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(4.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                    Text(
-                        text = getWeeklyScoreMessage(weeklyScore),
-                        fontSize = 14.sp,
-                        color = Color(0xFF16A34A),
-                        fontWeight = FontWeight.SemiBold
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = getWeeklyScoreMessage(weeklyScore), // 화면에 보여줄 글자를 정함
+                        fontSize = 14.sp, // 글자 크기를 정함
+                        color = Color(0xFF16A34A), // 색상을 정함
+                        fontWeight = FontWeight.SemiBold // 글자 두께를 정함
                     )
-                }
+                } // 블록 끝
 
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    Color(0xFFBFE0FF),
-                                    Color(0xFF2F7DF6)
+                Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                        .size(72.dp) // 가로세로 크기를 한 번에 정함
+                        .background( // 배경색이나 그라데이션을 넣음
+                            brush = Brush.radialGradient( // 가운데서 퍼지는 그라데이션을 만듦
+                                colors = listOf( // 값 여러 개를 묶은 목록을 만듦
+                                    Color(0xFFBFE0FF), // fontWeight 값을 이 함수로 넘김
+                                    Color(0xFF2F7DF6) // 사용할 색상 값을 넣음
                                 )
                             ),
-                            shape = RoundedCornerShape(100.dp)
+                            shape = RoundedCornerShape(100.dp) // 모서리 모양을 정함
                         ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "🌟",
-                        fontSize = 28.sp
+                    contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "🌟", // 화면에 보여줄 글자를 정함
+                        fontSize = 28.sp // 글자 크기를 정함
                     )
-                }
-            }
+                } // 블록 끝
+            } // 블록 끝
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Text(
-                text = "주간 기록",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF22406A)
+            Text( // 글자를 화면에 보여주기 시작함
+                text = "주간 기록", // 화면에 보여줄 글자를 정함
+                fontSize = 15.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                color = Color(0xFF22406A) // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(14.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                weeklyRecordList.forEach { weekItem ->
-                    WeekDayItem(
-                        day = weekItem.dayLabel,
-                        checked = expenseDateSet.contains(weekItem.fullDate)
+            Row( // 가로로 배치하는 영역을 시작함
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                horizontalArrangement = Arrangement.SpaceBetween // 가로 방향 간격과 정렬을 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                weeklyRecordList.forEach { weekItem -> // 목록이나 범위를 하나씩 돌면서 처리함
+                    WeekDayItem( // horizontalArrangement 값을 이 함수로 넘김
+                        day = weekItem.dayLabel, // horizontalArrangement 값을 이 함수로 넘김
+                        checked = expenseDateSet.contains(weekItem.fullDate) // 그 값이 들어있는지 확인함
                     )
-                }
-            }
+                } // 블록 끝
+            } // 블록 끝
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
+            Card( // 카드 모양 UI를 시작함
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                shape = RoundedCornerShape(16.dp), // 모서리 모양을 정함
+                colors = CardDefaults.cardColors( // 색상 스타일을 정함
+                    containerColor = Color.White // 배경색을 정함
                 )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "🔥",
-                        fontSize = 22.sp
+            ) { // 이 블록 안의 내용이 시작됨
+                Row( // 가로로 배치하는 영역을 시작함
+                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                        .fillMaxWidth() // 가로 너비를 꽉 채움
+                        .padding(horizontal = 16.dp, vertical = 14.dp), // 안쪽이나 바깥 여백을 줌
+                    verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "🔥", // 화면에 보여줄 글자를 정함
+                        fontSize = 22.sp // 글자 크기를 정함
                     )
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(10.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                    Column {
-                        Text(
-                            text = "${streakDays}일 연속 기록 중",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F2A37)
+                    Column { // fontSize 값을 이 함수로 넘김
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = "${streakDays}일 연속 기록 중", // 화면에 보여줄 글자를 정함
+                            fontSize = 15.sp, // 글자 크기를 정함
+                            fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                            color = Color(0xFF1F2A37) // 색상을 정함
                         )
 
-                        Text(
-                            text = "오늘도 기록하면 성실도가 올라가요",
-                            fontSize = 13.sp,
-                            color = Color(0xFF6B7280)
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = "오늘도 기록하면 성실도가 올라가요", // 화면에 보여줄 글자를 정함
+                            fontSize = 13.sp, // 글자 크기를 정함
+                            color = Color(0xFF6B7280) // 색상을 정함
                         )
-                    }
-                }
-            }
-        }
-    }
-}
+                    } // 블록 끝
+                } // 블록 끝
+            } // 블록 끝
+        } // 블록 끝
+    } // 블록 끝
+} // 블록 끝
 
-@Composable
-private fun WeekDayItem(
-    day: String,
-    checked: Boolean
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .background(
-                    color = if (checked) Color(0xFF2F7DF6) else Color(0xFFE5EAF2),
-                    shape = RoundedCornerShape(100.dp)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun WeekDayItem( // WeekDayItem 함수 선언 시작
+    day: String, // day 값을 함수 밖에서 받아옴
+    checked: Boolean // 바로 앞 설정을 이어서 적음
+) { // 이 블록 안의 내용이 시작됨
+    Column( // 세로로 배치하는 영역을 시작함
+        horizontalAlignment = Alignment.CenterHorizontally // horizontalAlignment 값을 이 함수로 넘김
+    ) { // 이 블록 안의 내용이 시작됨
+        Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+            modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                .size(36.dp) // 가로세로 크기를 한 번에 정함
+                .background( // 배경색이나 그라데이션을 넣음
+                    color = if (checked) Color(0xFF2F7DF6) else Color(0xFFE5EAF2), // 색상을 정함
+                    shape = RoundedCornerShape(100.dp) // 모서리 모양을 정함
                 ),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = if (checked) "✓" else "",
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
+            contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 글자를 화면에 보여주기 시작함
+                text = if (checked) "✓" else "", // 화면에 보여줄 글자를 정함
+                color = Color.White, // 색상을 정함
+                fontSize = 16.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.Bold // 글자 두께를 정함
             )
-        }
+        } // 블록 끝
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-        Text(
-            text = day,
-            fontSize = 13.sp,
-            color = Color(0xFF5B6573)
+        Text( // 글자를 화면에 보여주기 시작함
+            text = day, // 화면에 보여줄 글자를 정함
+            fontSize = 13.sp, // 글자 크기를 정함
+            color = Color(0xFF5B6573) // 색상을 정함
         )
-    }
-}
+    } // 블록 끝
+} // 블록 끝
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ExpenseWriteCard(
-    selectedDate: String,
-    editingExpense: ExpenseItemData?,
-    onSaveExpense: (ExpenseItemData) -> Unit,
-    onCancelEdit: () -> Unit
-) {
-    val context = LocalContext.current
-    val calendar = Calendar.getInstance()
+@OptIn(ExperimentalMaterial3Api::class) // 실험 기능을 쓰겠다고 표시
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
+    selectedDate: String, // selectedDate 값을 함수 밖에서 받아옴
+    editingExpense: ExpenseItemData?, // editingExpense 값을 함수 밖에서 받아옴
+    onSaveExpense: (ExpenseItemData) -> Unit, // onSaveExpense 는 눌렀을 때 실행할 동작을 받음
+    onCancelEdit: () -> Unit // onCancelEdit 는 눌렀을 때 실행할 동작을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val context = LocalContext.current // 현재 화면의 Context를 가져옴
+    val calendar = Calendar.getInstance() // 현재 날짜/시간 정보를 가진 Calendar 객체를 만듦
 
-    var formDate by remember { mutableStateOf(selectedDate) }
-    var selectedCategory by remember { mutableStateOf("식비") }
-    var amount by remember { mutableStateOf("") }
-    var memo by remember { mutableStateOf("") }
-    var receiptImageName by remember { mutableStateOf("") }
-    var diary by remember { mutableStateOf("") }
-    var expanded by remember { mutableStateOf(false) }
-    val categoryList = listOf("식비", "교통", "쇼핑", "카페", "기타")
+    var formDate by remember { mutableStateOf(selectedDate) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
+    var selectedCategory by remember { mutableStateOf("식비") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
+    var amount by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
+    var memo by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
+    var receiptImageName by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
+    var diary by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
+    var expanded by remember { mutableStateOf(false) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
+    val categoryList = listOf("식비", "교통", "쇼핑", "카페", "기타") // 값 여러 개를 묶은 목록을 만듦
 
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            receiptImageName = uri.toString()
-        }
-    }
+    val galleryLauncher = rememberLauncherForActivityResult( // 갤러리 같은 외부 화면 결과를 받을 준비를 함
+        contract = ActivityResultContracts.GetContent() // 파일이나 이미지를 하나 고르는 규칙을 씀
+    ) { uri: Uri? -> // 바로 앞 설정을 이어서 적음
+        if (uri != null) { // 조건이 참일 때만 아래 코드를 실행함
+            receiptImageName = uri.toString() // galleryLauncher 값을 이 함수로 넘김
+        } // 블록 끝
+    } // 블록 끝
 
-    LaunchedEffect(editingExpense?.id, selectedDate) {
-        if (editingExpense != null) {
-            formDate = editingExpense.date
-            selectedCategory = editingExpense.category
-            amount = editingExpense.amount.toString()
-            memo = editingExpense.memo
-            receiptImageName = editingExpense.receiptImageName
-            diary = editingExpense.diary
-        } else {
-            formDate = selectedDate
-            selectedCategory = "식비"
-            amount = ""
-            memo = ""
-            receiptImageName = ""
-            diary = ""
-        }
-    }
+    LaunchedEffect(editingExpense?.id, selectedDate) { // 이 블록의 내용이 여기서 시작됨
+        if (editingExpense != null) { // 조건이 참일 때만 아래 코드를 실행함
+            formDate = editingExpense.date // 바로 앞 설정을 이어서 적음
+            selectedCategory = editingExpense.category // 바로 앞 설정을 이어서 적음
+            amount = editingExpense.amount.toString() // 바로 앞 설정을 이어서 적음
+            memo = editingExpense.memo // 바로 앞 설정을 이어서 적음
+            receiptImageName = editingExpense.receiptImageName // 바로 앞 설정을 이어서 적음
+            diary = editingExpense.diary // 바로 앞 설정을 이어서 적음
+        } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
+            formDate = selectedDate // 바로 앞 설정을 이어서 적음
+            selectedCategory = "식비" // 바로 앞 설정을 이어서 적음
+            amount = "" // 바로 앞 설정을 이어서 적음
+            memo = "" // 바로 앞 설정을 이어서 적음
+            receiptImageName = "" // 바로 앞 설정을 이어서 적음
+            diary = "" // formDate 값을 이 함수로 넘김
+        } // 블록 끝
+    } // 블록 끝
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
+    Card( // 카드 모양 UI를 시작함
+        modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+        shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
+        colors = CardDefaults.cardColors( // 색상 스타일을 정함
+            containerColor = Color.White // 배경색을 정함
         )
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Text(
-                text = if (editingExpense == null) "소비 기록하기" else "소비 기록 수정",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1F2A37)
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 세로로 배치하는 영역을 시작함
+            modifier = Modifier.padding(20.dp) // 안쪽이나 바깥 여백을 줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 글자를 화면에 보여주기 시작함
+                text = if (editingExpense == null) "소비 기록하기" else "소비 기록 수정", // 화면에 보여줄 글자를 정함
+                fontSize = 20.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                color = Color(0xFF1F2A37) // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Text(
-                text = if (editingExpense == null)
-                    "날짜와 카테고리를 선택해서 소비를 기록해보세요"
-                else
-                    "선택한 소비 내역을 수정할 수 있어요",
-                fontSize = 14.sp,
-                color = Color(0xFF6B7280)
+            Text( // 글자를 화면에 보여주기 시작함
+                text = if (editingExpense == null) // 화면에 보여줄 글자를 정함
+                    "날짜와 카테고리를 선택해서 소비를 기록해보세요" // 바로 앞 설정을 이어서 적음
+                else // color 값을 이 함수로 넘김
+                    "선택한 소비 내역을 수정할 수 있어요", // color 값을 이 함수로 넘김
+                fontSize = 14.sp, // 글자 크기를 정함
+                color = Color(0xFF6B7280) // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Text(
-                text = "날짜",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF163D8F)
+            Text( // 글자를 화면에 보여주기 시작함
+                text = "날짜", // 화면에 보여줄 글자를 정함
+                fontSize = 15.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
+                color = Color(0xFF163D8F) // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            OutlinedTextField(
-                value = formDate,
-                onValueChange = { },
-                readOnly = true,
-                modifier = Modifier.fillMaxWidth(),
-                trailingIcon = {
-                    Text(
-                        text = "📅",
-                        fontSize = 18.sp
+            OutlinedTextField( // 테두리 있는 입력칸을 만듦
+                value = formDate, // color 값을 이 함수로 넘김
+                onValueChange = { }, // 입력값이 바뀔 때 처리할 코드를 적음
+                readOnly = true, // 직접 타이핑은 막고 보기만 하게 함
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                trailingIcon = { // 입력칸 오른쪽에 붙을 아이콘 영역을 만듦
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "📅", // 화면에 보여줄 글자를 정함
+                        fontSize = 18.sp // 글자 크기를 정함
                     )
                 },
-                placeholder = {
-                    Text(
-                        text = "날짜를 선택하세요",
-                        color = Color(0xFF9AA4B2)
+                placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "날짜를 선택하세요", // 화면에 보여줄 글자를 정함
+                        color = Color(0xFF9AA4B2) // 색상을 정함
                     )
                 },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFFF7FAFC),
-                    unfocusedContainerColor = Color(0xFFF7FAFC),
-                    focusedBorderColor = Color(0xFFDCE7F3),
-                    unfocusedBorderColor = Color(0xFFDCE7F3),
-                    cursorColor = Color(0xFF2F7DF6)
+                singleLine = true, // 한 줄만 입력되게 함
+                shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
+                colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
+                    focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
+                    unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
+                    focusedBorderColor = Color(0xFFDCE7F3), // 선택됐을 때 테두리 색을 정함
+                    unfocusedBorderColor = Color(0xFFDCE7F3), // 선택 안 됐을 때 테두리 색을 정함
+                    cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
                 )
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            TextButton(
-                onClick = {
-                    val dateParts = formDate.split("-")
-                    val initYear = dateParts.getOrNull(0)?.toIntOrNull()
-                        ?: calendar.get(Calendar.YEAR)
-                    val initMonth = (dateParts.getOrNull(1)?.toIntOrNull()
-                        ?: (calendar.get(Calendar.MONTH) + 1)) - 1
-                    val initDay = dateParts.getOrNull(2)?.toIntOrNull()
-                        ?: calendar.get(Calendar.DAY_OF_MONTH)
+            TextButton( // 눌렀을 때 동작하는 버튼을 만듦
+                onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
+                    val dateParts = formDate.split("-") // dateParts 값을 계산해서 저장함
+                    val initYear = dateParts.getOrNull(0)?.toIntOrNull() // 숫자로 바꾸되 실패하면 null을 줌
+                        ?: calendar.get(Calendar.YEAR) // 바로 앞 설정을 이어서 적음
+                    val initMonth = (dateParts.getOrNull(1)?.toIntOrNull() // 숫자로 바꾸되 실패하면 null을 줌
+                        ?: (calendar.get(Calendar.MONTH) + 1)) - 1 // 바로 앞 설정을 이어서 적음
+                    val initDay = dateParts.getOrNull(2)?.toIntOrNull() // 숫자로 바꾸되 실패하면 null을 줌
+                        ?: calendar.get(Calendar.DAY_OF_MONTH) // cursorColor 값을 이 함수로 넘김
 
-                    DatePickerDialog(
-                        context,
-                        { _, year, month, dayOfMonth ->
-                            val formattedMonth = String.format("%02d", month + 1)
-                            val formattedDay = String.format("%02d", dayOfMonth)
-                            formDate = "$year-$formattedMonth-$formattedDay"
+                    DatePickerDialog( // 날짜 고르는 팝업 창을 만듦
+                        context, // cursorColor 값을 이 함수로 넘김
+                        { _, year, month, dayOfMonth -> // 바로 앞 설정을 이어서 적음
+                            val formattedMonth = String.format("%02d", month + 1) // 자릿수를 맞춘 문자열을 만듦
+                            val formattedDay = String.format("%02d", dayOfMonth) // 자릿수를 맞춘 문자열을 만듦
+                            formDate = "$year-$formattedMonth-$formattedDay" // formDate 값을 이 함수로 넘김
                         },
-                        initYear,
-                        initMonth,
-                        initDay
+                        initYear, // 바로 앞 설정을 이어서 적음
+                        initMonth, // 바로 앞 설정을 이어서 적음
+                        initDay // 바로 앞 설정을 이어서 적음
                     ).show()
                 },
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Text(
-                    text = "날짜 선택하기",
-                    color = Color(0xFF2F7DF6),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                contentPadding = PaddingValues(0.dp) // 버튼 안쪽 여백을 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                Text( // 글자를 화면에 보여주기 시작함
+                    text = "날짜 선택하기", // 화면에 보여줄 글자를 정함
+                    color = Color(0xFF2F7DF6), // 색상을 정함
+                    fontSize = 14.sp, // 글자 크기를 정함
+                    fontWeight = FontWeight.Medium // 글자 두께를 정함
                 )
-            }
+            } // 블록 끝
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Text(
-                text = "금액",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF163D8F)
+            Text( // 글자를 화면에 보여주기 시작함
+                text = "금액", // 화면에 보여줄 글자를 정함
+                fontSize = 15.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
+                color = Color(0xFF163D8F) // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            OutlinedTextField(
-                value = amount,
-                onValueChange = { amount = it.filter { char -> char.isDigit() } },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = {
-                    Text(
-                        text = "예: 12000",
-                        color = Color(0xFF9AA4B2)
+            OutlinedTextField( // 테두리 있는 입력칸을 만듦
+                value = amount, // color 값을 이 함수로 넘김
+                onValueChange = { amount = it.filter { char -> char.isDigit() } }, // 조건에 맞는 항목만 남김
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "예: 12000", // 화면에 보여줄 글자를 정함
+                        color = Color(0xFF9AA4B2) // 색상을 정함
                     )
                 },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFFF7FAFC),
-                    unfocusedContainerColor = Color(0xFFF7FAFC),
-                    focusedBorderColor = Color(0xFFDCE7F3),
-                    unfocusedBorderColor = Color(0xFFDCE7F3),
-                    cursorColor = Color(0xFF2F7DF6)
+                singleLine = true, // 한 줄만 입력되게 함
+                shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
+                colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
+                    focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
+                    unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
+                    focusedBorderColor = Color(0xFFDCE7F3), // 선택됐을 때 테두리 색을 정함
+                    unfocusedBorderColor = Color(0xFFDCE7F3), // 선택 안 됐을 때 테두리 색을 정함
+                    cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
                 )
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Text(
-                text = "카테고리",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF163D8F)
+            Text( // 글자를 화면에 보여주기 시작함
+                text = "카테고리", // 화면에 보여줄 글자를 정함
+                fontSize = 15.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
+                color = Color(0xFF163D8F) // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
-            ) {
-                OutlinedTextField(
-                    value = selectedCategory,
-                    onValueChange = { },
-                    readOnly = true,
-                    modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth(),
-                    placeholder = {
-                        Text(
-                            text = "카테고리를 선택하세요",
-                            color = Color(0xFF9AA4B2)
+            ExposedDropdownMenuBox( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                expanded = expanded, // 드롭다운이 펼쳐졌는지 상태를 넘김
+                onExpandedChange = { expanded = !expanded } // onExpandedChange 값을 이 함수로 넘김
+            ) { // 이 블록 안의 내용이 시작됨
+                OutlinedTextField( // 테두리 있는 입력칸을 만듦
+                    value = selectedCategory, // onExpandedChange 값을 이 함수로 넘김
+                    onValueChange = { }, // 입력값이 바뀔 때 처리할 코드를 적음
+                    readOnly = true, // 직접 타이핑은 막고 보기만 하게 함
+                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                        .menuAnchor() // 드롭다운이 붙을 기준 위치로 설정함
+                        .fillMaxWidth(), // 가로 너비를 꽉 채움
+                    placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = "카테고리를 선택하세요", // 화면에 보여줄 글자를 정함
+                            color = Color(0xFF9AA4B2) // 색상을 정함
                         )
                     },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    trailingIcon = { // 입력칸 오른쪽에 붙을 아이콘 영역을 만듦
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) // 아이콘을 화면에 보여줌
                     },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFFF7FAFC),
-                        unfocusedContainerColor = Color(0xFFF7FAFC),
-                        focusedBorderColor = Color(0xFFDCE7F3),
-                        unfocusedBorderColor = Color(0xFFDCE7F3),
-                        cursorColor = Color(0xFF2F7DF6)
+                    singleLine = true, // 한 줄만 입력되게 함
+                    shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
+                    colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
+                        focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
+                        unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
+                        focusedBorderColor = Color(0xFFDCE7F3), // 선택됐을 때 테두리 색을 정함
+                        unfocusedBorderColor = Color(0xFFDCE7F3), // 선택 안 됐을 때 테두리 색을 정함
+                        cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
                     )
                 )
 
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    categoryList.forEach { category ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(text = category)
+                DropdownMenu( // 펼쳐지는 메뉴를 만듦
+                    expanded = expanded, // 드롭다운이 펼쳐졌는지 상태를 넘김
+                    onDismissRequest = { expanded = false } // 팝업이 닫힐 때 실행할 코드를 시작함
+                ) { // 이 블록 안의 내용이 시작됨
+                    categoryList.forEach { category -> // 목록이나 범위를 하나씩 돌면서 처리함
+                        DropdownMenuItem( // 드롭다운 메뉴 항목 하나를 만듦
+                            text = { // 화면에 보여줄 글자를 정함
+                                Text(text = category) // 글자를 화면에 보여주기 시작함
                             },
-                            onClick = {
-                                selectedCategory = category
-                                expanded = false
-                            }
+                            onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
+                                selectedCategory = category // onClick 값을 이 함수로 넘김
+                                expanded = false // 드롭다운이 펼쳐졌는지 상태를 넘김
+                            } // 블록 끝
                         )
-                    }
-                }
-            }
+                    } // 블록 끝
+                } // 블록 끝
+            } // 블록 끝
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Text(
-                text = "메모",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF163D8F)
+            Text( // 글자를 화면에 보여주기 시작함
+                text = "메모", // 화면에 보여줄 글자를 정함
+                fontSize = 15.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
+                color = Color(0xFF163D8F) // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            OutlinedTextField(
-                value = memo,
-                onValueChange = { memo = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = {
-                    Text(
-                        text = "무엇을 구매했나요?",
-                        color = Color(0xFF9AA4B2)
+            OutlinedTextField( // 테두리 있는 입력칸을 만듦
+                value = memo, // color 값을 이 함수로 넘김
+                onValueChange = { memo = it }, // 입력값이 바뀔 때 처리할 코드를 적음
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "무엇을 구매했나요?", // 화면에 보여줄 글자를 정함
+                        color = Color(0xFF9AA4B2) // 색상을 정함
                     )
                 },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFFF7FAFC),
-                    unfocusedContainerColor = Color(0xFFF7FAFC),
-                    focusedBorderColor = Color(0xFFDCE7F3),
-                    unfocusedBorderColor = Color(0xFFDCE7F3),
-                    cursorColor = Color(0xFF2F7DF6)
+                singleLine = true, // 한 줄만 입력되게 함
+                shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
+                colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
+                    focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
+                    unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
+                    focusedBorderColor = Color(0xFFDCE7F3), // 선택됐을 때 테두리 색을 정함
+                    unfocusedBorderColor = Color(0xFFDCE7F3), // 선택 안 됐을 때 테두리 색을 정함
+                    cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
                 )
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Text(
-                text = "영수증 인증 ",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF163D8F)
+            Text( // 글자를 화면에 보여주기 시작함
+                text = "영수증 인증 ", // 화면에 보여줄 글자를 정함
+                fontSize = 15.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
+                color = Color(0xFF163D8F) // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            OutlinedButton(
-                onClick = {
-                    galleryLauncher.launch("image/*")
+            OutlinedButton( // 눌렀을 때 동작하는 버튼을 만듦
+                onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
+                    galleryLauncher.launch("image/*") // 갤러리에서 이미지만 고르게 엶
                 },
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color(0xFFDCE7F3)),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.White
+                shape = RoundedCornerShape(12.dp), // 모서리 모양을 정함
+                border = BorderStroke(1.dp, Color(0xFFDCE7F3)), // 바로 앞 설정을 이어서 적음
+                colors = ButtonDefaults.outlinedButtonColors( // 색상 스타일을 정함
+                    containerColor = Color.White // 배경색을 정함
                 )
-            ) {
-                Text(
-                    text = if (receiptImageName.isBlank()) "사진 앨범에서 업로드" else "사진 변경하기",
-                    color = Color(0xFF1F2A37),
-                    fontSize = 14.sp
+            ) { // 이 블록 안의 내용이 시작됨
+                Text( // 글자를 화면에 보여주기 시작함
+                    text = if (receiptImageName.isBlank()) "사진 앨범에서 업로드" else "사진 변경하기", // 화면에 보여줄 글자를 정함
+                    color = Color(0xFF1F2A37), // 색상을 정함
+                    fontSize = 14.sp // 글자 크기를 정함
                 )
-            }
+            } // 블록 끝
 
-            if (receiptImageName.isNotBlank()) {
-                Spacer(modifier = Modifier.height(12.dp))
+            if (receiptImageName.isNotBlank()) { // 조건이 참일 때만 아래 코드를 실행함
+                Spacer(modifier = Modifier.height(12.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                Image(
-                    painter = rememberAsyncImagePainter(receiptImageName),
-                    contentDescription = "영수증 이미지",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp),
-                    contentScale = ContentScale.Crop
+                Image( // 이미지를 화면에 보여줌
+                    painter = rememberAsyncImagePainter(receiptImageName), // 어떤 이미지를 그릴지 정함
+                    contentDescription = "영수증 이미지", // 접근성용 설명 글을 넣음
+                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                        .fillMaxWidth() // 가로 너비를 꽉 채움
+                        .height(180.dp), // 세로 길이를 정함
+                    contentScale = ContentScale.Crop // 이미지를 어떤 비율로 채울지 정함
                 )
-            }
+            } // 블록 끝
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Text(
-                text = "한줄 소비 일기 ",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF163D8F)
+            Text( // 글자를 화면에 보여주기 시작함
+                text = "한줄 소비 일기 ", // 화면에 보여줄 글자를 정함
+                fontSize = 15.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
+                color = Color(0xFF163D8F) // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            OutlinedTextField(
-                value = diary,
-                onValueChange = { diary = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(96.dp),
-                placeholder = {
-                    Text(
-                        text = "오늘 소비에 대한 생각을 기록해보세요",
-                        color = Color(0xFF9AA4B2)
+            OutlinedTextField( // 테두리 있는 입력칸을 만듦
+                value = diary, // color 값을 이 함수로 넘김
+                onValueChange = { diary = it }, // 입력값이 바뀔 때 처리할 코드를 적음
+                modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                    .fillMaxWidth() // 가로 너비를 꽉 채움
+                    .height(96.dp), // 세로 길이를 정함
+                placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "오늘 소비에 대한 생각을 기록해보세요", // 화면에 보여줄 글자를 정함
+                        color = Color(0xFF9AA4B2) // 색상을 정함
                     )
                 },
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFFF7FAFC),
-                    unfocusedContainerColor = Color(0xFFF7FAFC),
-                    focusedBorderColor = Color(0xFFDCE7F3),
-                    unfocusedBorderColor = Color(0xFFDCE7F3),
-                    cursorColor = Color(0xFF2F7DF6)
+                shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
+                colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
+                    focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
+                    unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
+                    focusedBorderColor = Color(0xFFDCE7F3), // 선택됐을 때 테두리 색을 정함
+                    unfocusedBorderColor = Color(0xFFDCE7F3), // 선택 안 됐을 때 테두리 색을 정함
+                    cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
                 )
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            if (editingExpense != null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { onCancelEdit() },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(54.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, Color(0xFFDCE7F3)),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White
+            if (editingExpense != null) { // 조건이 참일 때만 아래 코드를 실행함
+                Row( // 가로로 배치하는 영역을 시작함
+                    modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                    horizontalArrangement = Arrangement.spacedBy(10.dp) // 가로 방향 간격과 정렬을 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    OutlinedButton( // 눌렀을 때 동작하는 버튼을 만듦
+                        onClick = { onCancelEdit() }, // 버튼을 눌렀을 때 실행할 코드를 시작함
+                        modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                            .weight(1f) // 남는 공간을 비율대로 차지하게 함
+                            .height(54.dp), // 세로 길이를 정함
+                        shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
+                        border = BorderStroke(1.dp, Color(0xFFDCE7F3)), // 바로 앞 설정을 이어서 적음
+                        colors = ButtonDefaults.outlinedButtonColors( // 색상 스타일을 정함
+                            containerColor = Color.White // 배경색을 정함
                         )
-                    ) {
-                        Text(
-                            text = "취소",
-                            color = Color(0xFF5B6573),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold
+                    ) { // 이 블록 안의 내용이 시작됨
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = "취소", // 화면에 보여줄 글자를 정함
+                            color = Color(0xFF5B6573), // 색상을 정함
+                            fontSize = 16.sp, // 글자 크기를 정함
+                            fontWeight = FontWeight.SemiBold // 글자 두께를 정함
                         )
-                    }
+                    } // 블록 끝
 
-                    Button(
-                        onClick = {
-                            val amountInt = amount.toIntOrNull() ?: 0
+                    Button( // 눌렀을 때 동작하는 버튼을 만듦
+                        onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
+                            val amountInt = amount.toIntOrNull() ?: 0 // 숫자로 바꾸되 실패하면 null을 줌
 
-                            if (amountInt > 0) {
-                                val updatedExpense = ExpenseItemData(
-                                    id = editingExpense.id,
-                                    date = formDate,
-                                    title = createExpenseTitle(selectedCategory, memo),
-                                    category = selectedCategory,
-                                    amount = amountInt,
-                                    memo = memo,
-                                    receiptImageName = receiptImageName,
-                                    diary = diary
+                            if (amountInt > 0) { // 조건이 참일 때만 아래 코드를 실행함
+                                val updatedExpense = ExpenseItemData( // updatedExpense 값을 계산해서 저장함
+                                    id = editingExpense.id, // fontWeight 값을 이 함수로 넘김
+                                    date = formDate, // date 값을 이 함수로 넘김
+                                    title = createExpenseTitle(selectedCategory, memo), // 바로 앞 설정을 이어서 적음
+                                    category = selectedCategory, // category 값을 이 함수로 넘김
+                                    amount = amountInt, // amount 값을 이 함수로 넘김
+                                    memo = memo, // memo 값을 이 함수로 넘김
+                                    receiptImageName = receiptImageName, // receiptImageName 값을 이 함수로 넘김
+                                    diary = diary // diary 값을 이 함수로 넘김
                                 )
 
-                                onSaveExpense(updatedExpense)
-                            }
+                                onSaveExpense(updatedExpense) // 함수를 호출해 값을 넣음
+                            } // 블록 끝
                         },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(54.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent
+                        modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                            .weight(1f) // 남는 공간을 비율대로 차지하게 함
+                            .height(54.dp), // 세로 길이를 정함
+                        shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
+                        colors = ButtonDefaults.buttonColors( // 색상 스타일을 정함
+                            containerColor = Color.Transparent // 배경색을 정함
                         ),
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(
-                                            Color(0xFF16B8D9),
-                                            Color(0xFF2F7DF6)
+                        contentPadding = PaddingValues(0.dp) // 버튼 안쪽 여백을 정함
+                    ) { // 이 블록 안의 내용이 시작됨
+                        Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                            modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                                .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
+                                .background( // 배경색이나 그라데이션을 넣음
+                                    brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
+                                        colors = listOf( // 값 여러 개를 묶은 목록을 만듦
+                                            Color(0xFF16B8D9), // contentPadding 값을 이 함수로 넘김
+                                            Color(0xFF2F7DF6) // 사용할 색상 값을 넣음
                                         )
                                     ),
-                                    shape = RoundedCornerShape(14.dp)
+                                    shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                                 ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "수정 완료",
-                                color = Color.White,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold
+                            contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                        ) { // 이 블록 안의 내용이 시작됨
+                            Text( // 글자를 화면에 보여주기 시작함
+                                text = "수정 완료", // 화면에 보여줄 글자를 정함
+                                color = Color.White, // 색상을 정함
+                                fontSize = 17.sp, // 글자 크기를 정함
+                                fontWeight = FontWeight.Bold // 글자 두께를 정함
                             )
-                        }
-                    }
-                }
-            } else {
-                Button(
-                    onClick = {
-                        val amountInt = amount.toIntOrNull() ?: 0
+                        } // 블록 끝
+                    } // 블록 끝
+                } // 블록 끝
+            } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
+                Button( // 눌렀을 때 동작하는 버튼을 만듦
+                    onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
+                        val amountInt = amount.toIntOrNull() ?: 0 // 숫자로 바꾸되 실패하면 null을 줌
 
-                        if (amountInt > 0) {
-                            val newExpense = ExpenseItemData(
-                                id = 0L,
-                                date = formDate,
-                                title = createExpenseTitle(selectedCategory, memo),
-                                category = selectedCategory,
-                                amount = amountInt,
-                                memo = memo,
-                                receiptImageName = receiptImageName,
-                                diary = diary
+                        if (amountInt > 0) { // 조건이 참일 때만 아래 코드를 실행함
+                            val newExpense = ExpenseItemData( // newExpense 값을 계산해서 저장함
+                                id = 0L, // fontWeight 값을 이 함수로 넘김
+                                date = formDate, // date 값을 이 함수로 넘김
+                                title = createExpenseTitle(selectedCategory, memo), // 바로 앞 설정을 이어서 적음
+                                category = selectedCategory, // category 값을 이 함수로 넘김
+                                amount = amountInt, // amount 값을 이 함수로 넘김
+                                memo = memo, // memo 값을 이 함수로 넘김
+                                receiptImageName = receiptImageName, // receiptImageName 값을 이 함수로 넘김
+                                diary = diary // diary 값을 이 함수로 넘김
                             )
 
-                            onSaveExpense(newExpense)
-                        }
+                            onSaveExpense(newExpense) // 함수를 호출해 값을 넣음
+                        } // 블록 끝
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent
+                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                        .fillMaxWidth() // 가로 너비를 꽉 채움
+                        .height(54.dp), // 세로 길이를 정함
+                    shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
+                    colors = ButtonDefaults.buttonColors( // 색상 스타일을 정함
+                        containerColor = Color.Transparent // 배경색을 정함
                     ),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.horizontalGradient(
-                                    colors = listOf(
-                                        Color(0xFF16B8D9),
-                                        Color(0xFF2F7DF6)
+                    contentPadding = PaddingValues(0.dp) // 버튼 안쪽 여백을 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                        modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                            .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
+                            .background( // 배경색이나 그라데이션을 넣음
+                                brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
+                                    colors = listOf( // 값 여러 개를 묶은 목록을 만듦
+                                        Color(0xFF16B8D9), // contentPadding 값을 이 함수로 넘김
+                                        Color(0xFF2F7DF6) // 사용할 색상 값을 넣음
                                     )
                                 ),
-                                shape = RoundedCornerShape(14.dp)
+                                shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                             ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "기록 완료",
-                            color = Color.White,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold
+                        contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                    ) { // 이 블록 안의 내용이 시작됨
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = "기록 완료", // 화면에 보여줄 글자를 정함
+                            color = Color.White, // 색상을 정함
+                            fontSize = 17.sp, // 글자 크기를 정함
+                            fontWeight = FontWeight.Bold // 글자 두께를 정함
                         )
-                    }
-                }
-            }
-        }
-    }
-}
+                    } // 블록 끝
+                } // 블록 끝
+            } // 블록 끝
+        } // 블록 끝
+    } // 블록 끝
+} // 블록 끝
 
-@Composable
-private fun RewardGuideCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF4EEDB)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun RewardGuideCard() { // RewardGuideCard 함수 시작
+    Card( // 카드 모양 UI를 시작함
+        modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+        shape = RoundedCornerShape(20.dp), // 모서리 모양을 정함
+        colors = CardDefaults.cardColors( // 색상 스타일을 정함
+            containerColor = Color(0xFFF4EEDB) // 배경색을 정함
         )
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 18.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "🎁",
-                            fontSize = 14.sp
+    ) { // 이 블록 안의 내용이 시작됨
+        Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+            modifier = Modifier.fillMaxWidth() // 가로 너비를 꽉 채움
+        ) { // 이 블록 안의 내용이 시작됨
+            Column( // 세로로 배치하는 영역을 시작함
+                modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                    .fillMaxWidth() // 가로 너비를 꽉 채움
+                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 18.dp) // 안쪽이나 바깥 여백을 줌
+            ) { // 이 블록 안의 내용이 시작됨
+                Row( // 가로로 배치하는 영역을 시작함
+                    modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+                    horizontalArrangement = Arrangement.SpaceBetween, // 가로 방향 간격과 정렬을 정함
+                    verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    Row( // 가로로 배치하는 영역을 시작함
+                        verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
+                    ) { // 이 블록 안의 내용이 시작됨
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = "🎁", // 화면에 보여줄 글자를 정함
+                            fontSize = 14.sp // 글자 크기를 정함
                         )
 
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(6.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                        Text(
-                            text = "보상 안내",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF222222)
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = "보상 안내", // 화면에 보여줄 글자를 정함
+                            fontSize = 15.sp, // 글자 크기를 정함
+                            fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                            color = Color(0xFF222222) // 색상을 정함
                         )
-                    }
-                }
+                    } // 블록 끝
+                } // 블록 끝
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(14.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                RewardPointRow(
-                    title = "기본 기록",
-                    point = "+10 SPT"
+                RewardPointRow( // 가로로 배치하는 영역을 시작함
+                    title = "기본 기록", // color 값을 이 함수로 넘김
+                    point = "+10 SPT" // point 값을 이 함수로 넘김
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                RewardPointRow(
-                    title = "영수증 인증",
-                    point = "+20 SPT"
+                RewardPointRow( // 가로로 배치하는 영역을 시작함
+                    title = "영수증 인증", // point 값을 이 함수로 넘김
+                    point = "+20 SPT" // point 값을 이 함수로 넘김
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                RewardPointRow(
-                    title = "일기 작성",
-                    point = "+15 SPT"
+                RewardPointRow( // 가로로 배치하는 영역을 시작함
+                    title = "일기 작성", // point 값을 이 함수로 넘김
+                    point = "+15 SPT" // point 값을 이 함수로 넘김
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(14.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(
-                            width = 1.5.dp,
-                            color = Color(0xFFF0C244),
-                            shape = RoundedCornerShape(10.dp)
+                Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                        .fillMaxWidth() // 가로 너비를 꽉 채움
+                        .border( // 테두리를 그림
+                            width = 1.5.dp, // point 값을 이 함수로 넘김
+                            color = Color(0xFFF0C244), // 색상을 정함
+                            shape = RoundedCornerShape(10.dp) // 모서리 모양을 정함
                         )
-                        .padding(vertical = 8.dp, horizontal = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "주간 성실도 90점 이상 시",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF8A4B00)
+                        .padding(vertical = 8.dp, horizontal = 10.dp), // 안쪽이나 바깥 여백을 줌
+                    contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    Column( // 세로로 배치하는 영역을 시작함
+                        horizontalAlignment = Alignment.CenterHorizontally // contentAlignment 값을 이 함수로 넘김
+                    ) { // 이 블록 안의 내용이 시작됨
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = "주간 성실도 90점 이상 시", // 화면에 보여줄 글자를 정함
+                            fontSize = 12.sp, // 글자 크기를 정함
+                            fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                            color = Color(0xFF8A4B00) // 색상을 정함
                         )
 
-                        Text(
-                            text = "랜덤 아바타 + 보너스 SPT!",
-                            fontSize = 11.sp,
-                            color = Color(0xFFB06A00)
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = "랜덤 아바타 + 보너스 SPT!", // 화면에 보여줄 글자를 정함
+                            fontSize = 11.sp, // 글자 크기를 정함
+                            color = Color(0xFFB06A00) // 색상을 정함
                         )
-                    }
-                }
-            }
+                    } // 블록 끝
+                } // 블록 끝
+            } // 블록 끝
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 10.dp, bottom = 10.dp)
-                    .size(52.dp)
-                    .background(
-                        color = Color(0xFF2196F3),
-                        shape = CircleShape
+            Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                    .align(Alignment.BottomEnd) // 부모 안에서 위치를 맞춤
+                    .padding(end = 10.dp, bottom = 10.dp) // 안쪽이나 바깥 여백을 줌
+                    .size(52.dp) // 가로세로 크기를 한 번에 정함
+                    .background( // 배경색이나 그라데이션을 넣음
+                        color = Color(0xFF2196F3), // 색상을 정함
+                        shape = CircleShape // 모서리 모양을 정함
                     ),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Q",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                Column( // 세로로 배치하는 영역을 시작함
+                    horizontalAlignment = Alignment.CenterHorizontally // contentAlignment 값을 이 함수로 넘김
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "Q", // 화면에 보여줄 글자를 정함
+                        fontSize = 13.sp, // 글자 크기를 정함
+                        fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                        color = Color.White // 색상을 정함
                     )
-                    Text(
-                        text = "소비백과",
-                        fontSize = 8.sp,
-                        color = Color.White
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "소비백과", // 화면에 보여줄 글자를 정함
+                        fontSize = 8.sp, // 글자 크기를 정함
+                        color = Color.White // 색상을 정함
                     )
-                }
-            }
-        }
-    }
-}
+                } // 블록 끝
+            } // 블록 끝
+        } // 블록 끝
+    } // 블록 끝
+} // 블록 끝
 
-@Composable
-private fun RewardPointRow(
-    title: String,
-    point: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            fontSize = 13.sp,
-            color = Color(0xFF444444)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun RewardPointRow( // RewardPointRow 함수 선언 시작
+    title: String, // title 값을 함수 밖에서 받아옴
+    point: String // 바로 앞 설정을 이어서 적음
+) { // 이 블록 안의 내용이 시작됨
+    Row( // 가로로 배치하는 영역을 시작함
+        modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+        horizontalArrangement = Arrangement.SpaceBetween, // 가로 방향 간격과 정렬을 정함
+        verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
+    ) { // 이 블록 안의 내용이 시작됨
+        Text( // 글자를 화면에 보여주기 시작함
+            text = title, // 화면에 보여줄 글자를 정함
+            fontSize = 13.sp, // 글자 크기를 정함
+            color = Color(0xFF444444) // 색상을 정함
         )
 
-        Text(
-            text = point,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFFE67E22)
+        Text( // 글자를 화면에 보여주기 시작함
+            text = point, // 화면에 보여줄 글자를 정함
+            fontSize = 13.sp, // 글자 크기를 정함
+            fontWeight = FontWeight.Bold, // 글자 두께를 정함
+            color = Color(0xFFE67E22) // 색상을 정함
         )
-    }
-}
+    } // 블록 끝
+} // 블록 끝
 
 // --------------------------------------------------
 // 아래 2개 변환 함수가 이번 Room 연결의 핵심입니다.
 // --------------------------------------------------
 
 // DB용 Entity를 화면용 UI 모델로 변환합니다.
-private fun ExpenseEntity.toUiModel(): ExpenseItemData {
-    return ExpenseItemData(
-        id = id,
-        date = date,
-        title = title,
-        category = category,
-        amount = amount,
-        memo = memo,
-        receiptImageName = receiptImageUri,
-        diary = diary
+private fun ExpenseEntity.toUiModel(): ExpenseItemData { // color 값을 이 함수로 넘김
+    return ExpenseItemData( // 계산한 결과를 바깥으로 돌려줌
+        id = id, // color 값을 이 함수로 넘김
+        date = date, // date 값을 이 함수로 넘김
+        title = title, // title 값을 이 함수로 넘김
+        category = category, // category 값을 이 함수로 넘김
+        amount = amount, // amount 값을 이 함수로 넘김
+        memo = memo, // memo 값을 이 함수로 넘김
+        receiptImageName = receiptImageUri, // receiptImageName 값을 이 함수로 넘김
+        diary = diary // 바로 앞 설정을 이어서 적음
     )
-}
+} // 블록 끝
 
-private fun ExpenseItemData.toEntity(): ExpenseEntity {
-    return ExpenseEntity(
-        id = id,
-        date = date,
-        title = title,
-        category = category,
-        amount = amount,
-        memo = memo,
-        diary = diary,
-        receiptImageUri = receiptImageName
+private fun ExpenseItemData.toEntity(): ExpenseEntity { // diary 값을 이 함수로 넘김
+    return ExpenseEntity( // 계산한 결과를 바깥으로 돌려줌
+        id = id, // diary 값을 이 함수로 넘김
+        date = date, // date 값을 이 함수로 넘김
+        title = title, // title 값을 이 함수로 넘김
+        category = category, // category 값을 이 함수로 넘김
+        amount = amount, // amount 값을 이 함수로 넘김
+        memo = memo, // memo 값을 이 함수로 넘김
+        diary = diary, // diary 값을 이 함수로 넘김
+        receiptImageUri = receiptImageName // receiptImageUri 값을 이 함수로 넘김
     )
-}
+} // 블록 끝
 
-private fun getCategoryEmoji(category: String): String {
-    return when (category) {
-        "식비" -> "🍔"
-        "교통" -> "🚕"
-        "쇼핑" -> "🛍️"
-        "카페" -> "☕"
-        else -> "💸"
-    }
-}
+private fun getCategoryEmoji(category: String): String { // getCategoryEmoji 함수 시작
+    return when (category) { // 이 블록의 내용이 여기서 시작됨
+        "식비" -> "🍔" // 이 조건이면 오른쪽 값을 선택함
+        "교통" -> "🚕" // 이 조건이면 오른쪽 값을 선택함
+        "쇼핑" -> "🛍️" // 이 조건이면 오른쪽 값을 선택함
+        "카페" -> "☕" // 이 조건이면 오른쪽 값을 선택함
+        else -> "💸" // 이 조건이면 오른쪽 값을 선택함
+    } // 블록 끝
+} // 블록 끝
 
-private fun getCategoryColors(category: String): List<Color> {
-    return when (category) {
-        "식비" -> listOf(Color(0xFFFF8A00), Color(0xFFFF5C00))
-        "교통" -> listOf(Color(0xFF4C8DFF), Color(0xFF2F6BFF))
-        "쇼핑" -> listOf(Color(0xFFFF6BAA), Color(0xFFFF4D8D))
-        "카페" -> listOf(Color(0xFF9C6BFF), Color(0xFF7A4DFF))
-        else -> listOf(Color(0xFF22C55E), Color(0xFF16A34A))
-    }
-}
+private fun getCategoryColors(category: String): List<Color> { // getCategoryColors 함수 시작
+    return when (category) { // 이 블록의 내용이 여기서 시작됨
+        "식비" -> listOf(Color(0xFFFF8A00), Color(0xFFFF5C00)) // 값 여러 개를 묶은 목록을 만듦
+        "교통" -> listOf(Color(0xFF4C8DFF), Color(0xFF2F6BFF)) // 값 여러 개를 묶은 목록을 만듦
+        "쇼핑" -> listOf(Color(0xFFFF6BAA), Color(0xFFFF4D8D)) // 값 여러 개를 묶은 목록을 만듦
+        "카페" -> listOf(Color(0xFF9C6BFF), Color(0xFF7A4DFF)) // 값 여러 개를 묶은 목록을 만듦
+        else -> listOf(Color(0xFF22C55E), Color(0xFF16A34A)) // 값 여러 개를 묶은 목록을 만듦
+    } // 블록 끝
+} // 블록 끝
 
-private fun createExpenseTitle(category: String, memo: String): String {
-    return if (memo.isNotBlank()) {
-        memo
-    } else {
-        when (category) {
-            "식비" -> "식사"
-            "교통" -> "이동"
-            "쇼핑" -> "쇼핑"
-            "카페" -> "카페"
-            else -> "기타 지출"
-        }
-    }
-}
+private fun createExpenseTitle(category: String, memo: String): String { // createExpenseTitle 함수 시작
+    return if (memo.isNotBlank()) { // 이 블록의 내용이 여기서 시작됨
+        memo // 바로 앞 설정을 이어서 적음
+    } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
+        when (category) { // 값에 따라 경우를 나눔
+            "식비" -> "식사" // 이 조건이면 오른쪽 값을 선택함
+            "교통" -> "이동" // 이 조건이면 오른쪽 값을 선택함
+            "쇼핑" -> "쇼핑" // 이 조건이면 오른쪽 값을 선택함
+            "카페" -> "카페" // 이 조건이면 오른쪽 값을 선택함
+            else -> "기타 지출" // 이 조건이면 오른쪽 값을 선택함
+        } // 블록 끝
+    } // 블록 끝
+} // 블록 끝
 
-private fun formatAmount(amount: Int): String {
-    val formatter = DecimalFormat("#,###")
-    return formatter.format(amount)
-}
+private fun formatAmount(amount: Int): String { // formatAmount 함수 시작
+    val formatter = DecimalFormat("#,###") // 숫자에 쉼표 형식을 적용할 준비를 함
+    return formatter.format(amount) // 계산한 결과를 바깥으로 돌려줌
+} // 블록 끝
 
-private fun formatDisplayDate(date: String): String {
-    return try {
-        val yearMonthDay = date.split("-")
-        val month = yearMonthDay[1].toInt()
-        val day = yearMonthDay[2].toInt()
-        "${month}월 ${day}일 소비 내역"
-    } catch (e: Exception) {
-        "소비 내역"
-    }
-}
+private fun formatDisplayDate(date: String): String { // formatDisplayDate 함수 시작
+    return try { // 계산한 결과를 바깥으로 돌려줌
+        val yearMonthDay = date.split("-") // yearMonthDay 값을 계산해서 저장함
+        val month = yearMonthDay[1].toInt() // month 숫자 값으로 계산함
+        val day = yearMonthDay[2].toInt() // day 숫자 값으로 계산함
+        "${month}월 ${day}일 소비 내역" // 바로 앞 설정을 이어서 적음
+    } catch (e: Exception) { // 이 블록의 내용이 여기서 시작됨
+        "소비 내역" // yearMonthDay 값을 이 함수로 넘김
+    } // 블록 끝
+} // 블록 끝
 
-private fun moveMonth(year: Int, month: Int, delta: Int): Pair<Int, Int> {
-    var newYear = year
-    var newMonth = month + delta
+private fun moveMonth(year: Int, month: Int, delta: Int): Pair<Int, Int> { // moveMonth 함수 시작
+    var newYear = year // newYear 값을 계산해서 저장함
+    var newMonth = month + delta // newMonth 값을 계산해서 저장함
 
-    while (newMonth < 1) {
-        newMonth += 12
-        newYear -= 1
-    }
+    while (newMonth < 1) { // 이 블록의 내용이 여기서 시작됨
+        newMonth += 12 // 바로 앞 설정을 이어서 적음
+        newYear -= 1 // 바로 앞 설정을 이어서 적음
+    } // 블록 끝
 
-    while (newMonth > 12) {
-        newMonth -= 12
-        newYear += 1
-    }
+    while (newMonth > 12) { // 이 블록의 내용이 여기서 시작됨
+        newMonth -= 12 // 바로 앞 설정을 이어서 적음
+        newYear += 1 // newYear 값을 이 함수로 넘김
+    } // 블록 끝
 
-    return Pair(newYear, newMonth)
-}
+    return Pair(newYear, newMonth) // 계산한 결과를 바깥으로 돌려줌
+} // 블록 끝
 
-private fun generateCalendarDates(year: Int, month: Int): List<CalendarDateData> {
-    val result = mutableListOf<CalendarDateData>()
+private fun generateCalendarDates(year: Int, month: Int): List<CalendarDateData> { // generateCalendarDates 함수 시작
+    val result = mutableListOf<CalendarDateData>() // 추가·삭제 가능한 목록을 만듦
 
-    val currentCalendar = Calendar.getInstance().apply {
-        set(Calendar.YEAR, year)
-        set(Calendar.MONTH, month - 1)
-        set(Calendar.DAY_OF_MONTH, 1)
-    }
+    val currentCalendar = Calendar.getInstance().apply { // 현재 날짜/시간 정보를 가진 Calendar 객체를 만듦
+        set(Calendar.YEAR, year) // 함수를 호출해 값을 넣음
+        set(Calendar.MONTH, month - 1) // 함수를 호출해 값을 넣음
+        set(Calendar.DAY_OF_MONTH, 1) // 함수를 호출해 값을 넣음
+    } // 블록 끝
 
-    val firstDayOfWeek = currentCalendar.get(Calendar.DAY_OF_WEEK)
-    val daysInCurrentMonth = currentCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-    val leadingDays = firstDayOfWeek - 1
+    val firstDayOfWeek = currentCalendar.get(Calendar.DAY_OF_WEEK) // firstDayOfWeek 값을 계산해서 저장함
+    val daysInCurrentMonth = currentCalendar.getActualMaximum(Calendar.DAY_OF_MONTH) // daysInCurrentMonth 값을 계산해서 저장함
+    val leadingDays = firstDayOfWeek - 1 // leadingDays 값을 계산해서 저장함
 
-    val previousCalendar = currentCalendar.clone() as Calendar
-    previousCalendar.add(Calendar.MONTH, -1)
-    val previousYear = previousCalendar.get(Calendar.YEAR)
-    val previousMonth = previousCalendar.get(Calendar.MONTH) + 1
-    val daysInPreviousMonth = previousCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val previousCalendar = currentCalendar.clone() as Calendar // previousCalendar 값을 계산해서 저장함
+    previousCalendar.add(Calendar.MONTH, -1) // 바로 앞 설정을 이어서 적음
+    val previousYear = previousCalendar.get(Calendar.YEAR) // previousYear 값을 계산해서 저장함
+    val previousMonth = previousCalendar.get(Calendar.MONTH) + 1 // previousMonth 값을 계산해서 저장함
+    val daysInPreviousMonth = previousCalendar.getActualMaximum(Calendar.DAY_OF_MONTH) // daysInPreviousMonth 값을 계산해서 저장함
 
-    for (day in (daysInPreviousMonth - leadingDays + 1)..daysInPreviousMonth) {
-        result.add(
-            CalendarDateData(
-                fullDate = formatDate(previousYear, previousMonth, day),
-                dayText = day.toString(),
-                isCurrentMonth = false
+    for (day in (daysInPreviousMonth - leadingDays + 1)..daysInPreviousMonth) { // 이 블록의 내용이 여기서 시작됨
+        result.add( // 바로 앞 설정을 이어서 적음
+            CalendarDateData( // previousYear 값을 이 함수로 넘김
+                fullDate = formatDate(previousYear, previousMonth, day), // 바로 앞 설정을 이어서 적음
+                dayText = day.toString(), // dayText 값을 이 함수로 넘김
+                isCurrentMonth = false // 바로 앞 설정을 이어서 적음
             )
         )
-    }
+    } // 블록 끝
 
-    for (day in 1..daysInCurrentMonth) {
-        result.add(
-            CalendarDateData(
-                fullDate = formatDate(year, month, day),
-                dayText = day.toString(),
-                isCurrentMonth = true
+    for (day in 1..daysInCurrentMonth) { // 이 블록의 내용이 여기서 시작됨
+        result.add( // 바로 앞 설정을 이어서 적음
+            CalendarDateData( // isCurrentMonth 값을 이 함수로 넘김
+                fullDate = formatDate(year, month, day), // 바로 앞 설정을 이어서 적음
+                dayText = day.toString(), // dayText 값을 이 함수로 넘김
+                isCurrentMonth = true // isCurrentMonth 값을 이 함수로 넘김
             )
         )
-    }
+    } // 블록 끝
 
-    val remain = result.size % 7
-    val trailingDays = if (remain == 0) 0 else 7 - remain
+    val remain = result.size % 7 // remain 값을 계산해서 저장함
+    val trailingDays = if (remain == 0) 0 else 7 - remain // trailingDays 값을 계산해서 저장함
 
-    val nextCalendar = currentCalendar.clone() as Calendar
-    nextCalendar.add(Calendar.MONTH, 1)
-    val nextYear = nextCalendar.get(Calendar.YEAR)
-    val nextMonth = nextCalendar.get(Calendar.MONTH) + 1
+    val nextCalendar = currentCalendar.clone() as Calendar // nextCalendar 값을 계산해서 저장함
+    nextCalendar.add(Calendar.MONTH, 1) // 바로 앞 설정을 이어서 적음
+    val nextYear = nextCalendar.get(Calendar.YEAR) // nextYear 값을 계산해서 저장함
+    val nextMonth = nextCalendar.get(Calendar.MONTH) + 1 // nextMonth 값을 계산해서 저장함
 
-    for (day in 1..trailingDays) {
-        result.add(
-            CalendarDateData(
-                fullDate = formatDate(nextYear, nextMonth, day),
-                dayText = day.toString(),
-                isCurrentMonth = false
+    for (day in 1..trailingDays) { // 이 블록의 내용이 여기서 시작됨
+        result.add( // 바로 앞 설정을 이어서 적음
+            CalendarDateData( // nextYear 값을 이 함수로 넘김
+                fullDate = formatDate(nextYear, nextMonth, day), // 바로 앞 설정을 이어서 적음
+                dayText = day.toString(), // dayText 값을 이 함수로 넘김
+                isCurrentMonth = false // isCurrentMonth 값을 이 함수로 넘김
             )
         )
-    }
+    } // 블록 끝
 
-    return result
-}
+    return result // 계산한 결과를 바깥으로 돌려줌
+} // 블록 끝
 
-private fun formatDate(year: Int, month: Int, day: Int): String {
-    return String.format("%04d-%02d-%02d", year, month, day)
-}
+private fun formatDate(year: Int, month: Int, day: Int): String { // formatDate 함수 시작
+    return String.format("%04d-%02d-%02d", year, month, day) // 계산한 결과를 바깥으로 돌려줌
+} // 블록 끝
 
-private fun createChangeRateText(currentAmount: Int, previousAmount: Int): String {
-    return if (previousAmount == 0) {
-        when {
-            currentAmount == 0 -> "지난달과 동일 0%"
-            else -> "↗ 지난달 대비 신규 소비"
-        }
-    } else {
-        val rate = (((currentAmount - previousAmount).toFloat() / previousAmount.toFloat()) * 100).toInt()
-        when {
-            rate > 0 -> "↗ 지난달 대비 +${rate}%"
-            rate < 0 -> "↘ 지난달 대비 -${abs(rate)}%"
-            else -> "→ 지난달 대비 0%"
-        }
-    }
-}
+private fun createChangeRateText(currentAmount: Int, previousAmount: Int): String { // createChangeRateText 함수 시작
+    return if (previousAmount == 0) { // 이 블록의 내용이 여기서 시작됨
+        when { // 바로 앞 설정을 이어서 적음
+            currentAmount == 0 -> "지난달과 동일 0%" // 이 조건이면 오른쪽 값을 선택함
+            else -> "↗ 지난달 대비 신규 소비" // 이 조건이면 오른쪽 값을 선택함
+        } // 블록 끝
+    } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
+        val rate = (((currentAmount - previousAmount).toFloat() / previousAmount.toFloat()) * 100).toInt() // rate 숫자 값으로 계산함
+        when { // 바로 앞 설정을 이어서 적음
+            rate > 0 -> "↗ 지난달 대비 +${rate}%" // 이 조건이면 오른쪽 값을 선택함
+            rate < 0 -> "↘ 지난달 대비 -${abs(rate)}%" // 음수를 양수로 바꿔 절댓값으로 만듦
+            else -> "→ 지난달 대비 0%" // 이 조건이면 오른쪽 값을 선택함
+        } // 블록 끝
+    } // 블록 끝
+} // 블록 끝
 
-private fun getChangeRateColor(changeRateText: String): Color {
-    return when {
-        changeRateText.contains("↗") -> Color(0xFFE53935)
-        changeRateText.contains("↘") -> Color(0xFF16A34A)
-        else -> Color(0xFF6B7280)
-    }
-}
+private fun getChangeRateColor(changeRateText: String): Color { // getChangeRateColor 함수 시작
+    return when { // 계산한 결과를 바깥으로 돌려줌
+        changeRateText.contains("↗") -> Color(0xFFE53935) // 그 값이 들어있는지 확인함
+        changeRateText.contains("↘") -> Color(0xFF16A34A) // 그 값이 들어있는지 확인함
+        else -> Color(0xFF6B7280) // currentAmount 값을 이 함수로 넘김
+    } // 블록 끝
+} // 블록 끝
 
 // 사용률 텍스트를 만드는 함수입니다.
 // 기존에는 Int로 바로 잘라서 0.2% 같은 값이 0%가 되었기 때문에
 // 이제는 소수 1자리까지 보여주도록 문자열로 만듭니다.
-private fun createUsageRateText(currentAmount: Int, monthlyBudget: Int): String {
+private fun createUsageRateText(currentAmount: Int, monthlyBudget: Int): String { // createUsageRateText 함수 시작
     // 예산이 0 이하이면 나눗셈이 불가능하므로 0%로 처리합니다.
-    if (monthlyBudget <= 0) {
-        return "0%"
-    }
+    if (monthlyBudget <= 0) { // 조건이 참일 때만 아래 코드를 실행함
+        return "0%" // 계산한 결과를 바깥으로 돌려줌
+    } // 블록 끝
 
     // 사용률을 Double로 계산합니다.
-    val rate = (currentAmount.toDouble() / monthlyBudget.toDouble()) * 100.0
+    val rate = (currentAmount.toDouble() / monthlyBudget.toDouble()) * 100.0 // rate 값을 계산해서 저장함
 
     // 정수로 딱 떨어지면 소수점 없이 보여줍니다.
-    return if (rate % 1.0 == 0.0) {
-        "${rate.toInt()}%"
-    } else {
-        String.format("%.1f%%", rate)
-    }
-}
+    return if (rate % 1.0 == 0.0) { // 이 블록의 내용이 여기서 시작됨
+        "${rate.toInt()}%" // rate 값을 이 함수로 넘김
+    } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
+        String.format("%.1f%%", rate) // 자릿수를 맞춘 문자열을 만듦
+    } // 블록 끝
+} // 블록 끝
 
 // 이번 주 월요일부터 일요일까지의 날짜 목록을 생성합니다.
-private fun generateCurrentWeekDates(): List<WeeklyRecordData> {
-    val calendar = Calendar.getInstance()
+private fun generateCurrentWeekDates(): List<WeeklyRecordData> { // generateCurrentWeekDates 함수 시작
+    val calendar = Calendar.getInstance() // 현재 날짜/시간 정보를 가진 Calendar 객체를 만듦
 
-    while (calendar.get(Calendar.DAY_OF_WEEK) != Calendar.MONDAY) {
-        calendar.add(Calendar.DAY_OF_MONTH, -1)
-    }
+    while (calendar.get(Calendar.DAY_OF_WEEK) != Calendar.MONDAY) { // 이 블록의 내용이 여기서 시작됨
+        calendar.add(Calendar.DAY_OF_MONTH, -1) // 바로 앞 설정을 이어서 적음
+    } // 블록 끝
 
-    val dayLabels = listOf("월", "화", "수", "목", "금", "토", "일")
-    val result = mutableListOf<WeeklyRecordData>()
+    val dayLabels = listOf("월", "화", "수", "목", "금", "토", "일") // 값 여러 개를 묶은 목록을 만듦
+    val result = mutableListOf<WeeklyRecordData>() // 추가·삭제 가능한 목록을 만듦
 
-    dayLabels.forEach { label ->
-        result.add(
-            WeeklyRecordData(
-                fullDate = formatDate(
-                    calendar.get(Calendar.YEAR),
-                    calendar.get(Calendar.MONTH) + 1,
-                    calendar.get(Calendar.DAY_OF_MONTH)
+    dayLabels.forEach { label -> // 목록이나 범위를 하나씩 돌면서 처리함
+        result.add( // 바로 앞 설정을 이어서 적음
+            WeeklyRecordData( // 바로 앞 설정을 이어서 적음
+                fullDate = formatDate( // result 값을 이 함수로 넘김
+                    calendar.get(Calendar.YEAR), // result 값을 이 함수로 넘김
+                    calendar.get(Calendar.MONTH) + 1, // 바로 앞 설정을 이어서 적음
+                    calendar.get(Calendar.DAY_OF_MONTH) // 바로 앞 설정을 이어서 적음
                 ),
-                dayLabel = label
+                dayLabel = label // dayLabel 값을 이 함수로 넘김
             )
         )
-        calendar.add(Calendar.DAY_OF_MONTH, 1)
-    }
+        calendar.add(Calendar.DAY_OF_MONTH, 1) // 바로 앞 설정을 이어서 적음
+    } // 블록 끝
 
-    return result
-}
+    return result // 계산한 결과를 바깥으로 돌려줌
+} // 블록 끝
 
 // 오늘 기준으로 연속 기록 일수를 계산합니다.
-private fun calculateConsecutiveRecordDays(expenseDateSet: Set<String>): Int {
-    val calendar = Calendar.getInstance()
-    var streak = 0
+private fun calculateConsecutiveRecordDays(expenseDateSet: Set<String>): Int { // calculateConsecutiveRecordDays 함수 시작
+    val calendar = Calendar.getInstance() // 현재 날짜/시간 정보를 가진 Calendar 객체를 만듦
+    var streak = 0 // streak 값을 계산해서 저장함
 
-    while (true) {
-        val currentDate = formatDate(
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH) + 1,
-            calendar.get(Calendar.DAY_OF_MONTH)
+    while (true) { // 이 블록의 내용이 여기서 시작됨
+        val currentDate = formatDate( // currentDate 날짜 문자열을 만듦
+            calendar.get(Calendar.YEAR), // calendar 값을 이 함수로 넘김
+            calendar.get(Calendar.MONTH) + 1, // 바로 앞 설정을 이어서 적음
+            calendar.get(Calendar.DAY_OF_MONTH) // 바로 앞 설정을 이어서 적음
         )
 
-        if (expenseDateSet.contains(currentDate)) {
-            streak++
-            calendar.add(Calendar.DAY_OF_MONTH, -1)
-        } else {
-            break
-        }
-    }
+        if (expenseDateSet.contains(currentDate)) { // 조건이 참일 때만 아래 코드를 실행함
+            streak++ // 바로 앞 설정을 이어서 적음
+            calendar.add(Calendar.DAY_OF_MONTH, -1) // 바로 앞 설정을 이어서 적음
+        } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
+            break // 바로 앞 설정을 이어서 적음
+        } // 블록 끝
+    } // 블록 끝
 
-    return streak
-}
+    return streak // 계산한 결과를 바깥으로 돌려줌
+} // 블록 끝
 
 // 주간 성실도 점수에 따라 문구를 계산합니다.
-private fun getWeeklyScoreMessage(score: Int): String {
-    return when {
-        score >= 90 -> "아주 잘하고 있어요!"
-        score >= 70 -> "좋은 흐름이에요!"
-        score >= 40 -> "조금만 더 기록해봐요!"
-        else -> "오늘부터 다시 시작해봐요!"
-    }
-}
+private fun getWeeklyScoreMessage(score: Int): String { // getWeeklyScoreMessage 함수 시작
+    return when { // 계산한 결과를 바깥으로 돌려줌
+        score >= 90 -> "아주 잘하고 있어요!" // 이 조건이면 오른쪽 값을 선택함
+        score >= 70 -> "좋은 흐름이에요!" // 이 조건이면 오른쪽 값을 선택함
+        score >= 40 -> "조금만 더 기록해봐요!" // 이 조건이면 오른쪽 값을 선택함
+        else -> "오늘부터 다시 시작해봐요!" // 위 점수 구간이 아니면 마지막 기본 문구를 선택함
+    } // 블록 끝
+} // 블록 끝
