@@ -92,7 +92,6 @@ export default function ResetPasswordPage() {
                 placeholder="영문 대소문자, 숫자, 특수문자를 포함해 주세요"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
                 className="mt-1"
               />
             </div>
@@ -104,7 +103,6 @@ export default function ResetPasswordPage() {
                 placeholder="비밀번호를 다시 입력해주세요"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                required
                 className="mt-1"
               />
             </div>

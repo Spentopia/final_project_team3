@@ -127,6 +127,7 @@ dependencies = [
 name = "backend"
 version = "0.1.0"
 dependencies = [
+ "aho-corasick",
  "anyhow",
  "axum",
  "bs58",
@@ -137,6 +138,7 @@ dependencies = [
  "ed25519-dalek",
  "hex",
  "jsonwebtoken",
+ "once_cell",
  "rand",
  "reqwest",
  "serde",

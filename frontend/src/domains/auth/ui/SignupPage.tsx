@@ -246,6 +246,15 @@ export default function Signup() {
 
     // ── Step 2 -> Step 3 ────────────────────────────────────
     if (step === 2) {
+      if (!formData.nickname.trim()) {
+        toast.error("닉네임을 입력해주세요.");
+        return;
+      }
+      if (!formData.phone.trim()) {
+        toast.error("전화번호를 입력해주세요.");
+        return;
+      }
+
       setLoading(true);
       try {
         await checkProfileAvailability({
@@ -330,7 +339,6 @@ export default function Signup() {
                     placeholder="your@email.com"
                     value={formData.email}
                     onChange={(e) => updateFormData("email", e.target.value)}
-                    required
                     className="mt-1"
                   />
                 </div>
@@ -342,7 +350,6 @@ export default function Signup() {
                     placeholder="영문 대소문자, 숫자, 특수문자를 포함해 주세요"
                     value={formData.password}
                     onChange={(e) => updateFormData("password", e.target.value)}
-                    required
                     className="mt-1"
                   />
                 </div>
@@ -356,7 +363,6 @@ export default function Signup() {
                     onChange={(e) =>
                       updateFormData("confirmPassword", e.target.value)
                     }
-                    required
                     className="mt-1"
                   />
                 </div>
@@ -380,7 +386,6 @@ export default function Signup() {
                     onChange={(e) =>
                       updateFormData("phone", formatPhone(e.target.value))
                     }
-                    required
                     maxLength={13}
                     className="mt-1"
                   />
@@ -397,7 +402,6 @@ export default function Signup() {
                       onChange={(e) =>
                         updateFormData("nickname", e.target.value)
                       }
-                      required
                     />
                     <button
                       type="button"

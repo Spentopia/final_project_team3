@@ -1,5 +1,8 @@
 // user/service.rs
 // 유저 프로필, 설정 비즈니스 로직
+// 변경사항:
+// - update_profile: nickname 변경 시 validate_nickname() 으로
+//   길이(2~8자) + 금칙어 한번에 검증
 
 use anyhow::{Context, Result, anyhow};
 use serde::Serialize;
@@ -10,6 +13,7 @@ use super::{
     model::{User, UserSettings},
 };
 use crate::state::AppState;
+use crate::filter;
 
 // ── 프로필 조회 ───────────────────────────────────────────────
 
@@ -47,12 +51,22 @@ pub async fn get_profile(state: &AppState, user_id: Uuid) -> Result<UserResponse
 }
 
 // ── 프로필 수정 ───────────────────────────────────────────────
+// nickname이 포함된 요청이면 validate_nickname() 먼저 통과해야 함
+// 검증 실패 시 Err 반환 → handler에서 400으로 응답
 
 pub async fn update_profile(
     state: &AppState,
     user_id: Uuid,
     req: UpdateProfileRequest,
 ) -> Result<UserResponse> {
+
+    // 닉네임 검증 (Some일 때만 — 변경 요청이 있을 때만 검사)
+    // validate_nickname: 앞뒤공백 → 길이(2~8자) → 금칙어 순서로 검사
+    if let Some(ref nickname) = req.nickname {
+        filter::validate_nickname(nickname)
+            .map_err(|msg| anyhow!(msg))?;
+    }
+
     let url = format!(
         "{}/rest/v1/users?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
