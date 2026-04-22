@@ -25,7 +25,8 @@ export interface UserItemResponse{
     // null 허용: DB에서 아직 값이 없는 경우를 표현
     // boolean | null ≠ boolean - 반드시 null 체크 필요
     is_equipped: boolean | null;
-    is_nft: boolean | null;     // NFT로 민팅되었는지 여부
+    is_nft: boolean | null;
+    nft_mint_address: string | null;  // 온체인 mint 주소 (list_nft 등에 필요)
 
     acquired_at: string | null; // ISO 8601 형식 (예: "2024-01-15T09:30:00Z")
                                 // Date 객체가 아닌 string - 필요할 때 new Date() 변환
@@ -35,9 +36,7 @@ export interface UserItemResponse{
 // 흐름: Solana 민팅 완료 → 생성된 mint address를 백엔드 DB에 기록
 //
 export interface MintNftRequest{
-    user_item_id: string;       // 어떤 아이템을 민팅했는지 (user_items.id)
-    nft_mint_address: string;   // Solana가 생성한 NFT mint 계정 주소 (32바이트 base58)
-    tx_signature?: string;      // 온체인 mint_avatar_nft 트랜잭션 서명
+    user_item_id: string;       // 민팅할 아이템 (user_items.id) — 백엔드가 직접 온체인 민팅 후 mint_address 반환
 }
 
 // POST /api/avatar/mint-nft 응답 타입

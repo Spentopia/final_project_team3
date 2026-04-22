@@ -57,8 +57,11 @@ pub struct Config {
     // 환경변수: SERVICE_LAUNCH_DATE (형식: YYYY-MM-DD), 없으면 2025-01-01
     pub service_launch_date: NaiveDate,
 
-    // Solana RPC 엔드포인트 (예: https://api.devnet.solana.com)
+    // Solana RPC 엔드포인트 (Helius RPC URL 권장: https://devnet.helius-rpc.com/?api-key=xxx)
     pub solana_rpc_url: String,
+
+    // Helius API 키 — Enhanced Transaction API 트랜잭션 검증에 사용
+    pub helius_api_key: String,
 
     // admin 키페어 (base58 인코딩된 64바이트 ed25519 키페어)
     // `solana-keygen` 출력 JSON을 base58로 인코딩해서 저장
@@ -116,7 +119,10 @@ impl Config {
             .expect("SERVICE_LAUNCH_DATE 형식 오류. YYYY-MM-DD 형식으로 입력하세요."),
 
             solana_rpc_url: std::env::var("SOLANA_RPC_URL")
-                .unwrap_or_else(|_| "https://api.devnet.solana.com".to_string()),
+                .unwrap_or_else(|_| "https://devnet.helius-rpc.com".to_string()),
+
+            helius_api_key: std::env::var("HELIUS_API_KEY")
+                .context("HELIUS_API_KEY 환경변수 없음")?,
 
             solana_admin_keypair: std::env::var("SOLANA_ADMIN_KEYPAIR").unwrap_or_default(),
 

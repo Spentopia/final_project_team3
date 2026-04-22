@@ -38,11 +38,13 @@ mod route;
 mod state;
 pub mod user;
 pub mod wallet;
+mod filter;
 
 use axum::http::{HeaderValue, Method, header};
 use std::net::SocketAddr;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
 // ─────────────────────────────────────────────────────────────
 // Rate Limiting 관련 import
@@ -60,11 +62,42 @@ use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 async fn main() {
     dotenv::dotenv().ok();
 
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .with_target(true)
-        .with_file(true)
-        .with_line_number(true)
+    // ─────────────────────────────────────────────────────────
+    // 로그 설정
+    //
+    // 두 레이어를 동시에 사용:
+    // 1) stdout: RUST_LOG 환경변수 기반 필터 (개발 중 전체 로그)
+    // 2) 파일(logs/spentopia.YYYY-MM-DD): error 레벨 이상만 기록
+    //
+    // 파일 로그가 필요한 이유:
+    // - 온체인 민팅 성공 + DB 저장 실패 시 tracing::error! 로 남기는
+    //   nft_mint_address, tx_signature 정보는 수동 복구에 반드시 필요
+    // - stdout 로그는 서버 재시작 시 사라지므로 파일에 따로 보존
+    //
+    // _guard는 main() 끝까지 살아있어야 버퍼가 플러시됨 — drop 금지
+    // ─────────────────────────────────────────────────────────
+    let file_appender = tracing_appender::rolling::daily("logs", "spentopia.log");
+    let (non_blocking_file, _guard) = tracing_appender::non_blocking(file_appender);
+
+    tracing_subscriber::registry()
+        .with(
+            // stdout: RUST_LOG 기반 (기본값: info)
+            tracing_subscriber::fmt::layer()
+                .with_target(true)
+                .with_file(true)
+                .with_line_number(true)
+                .with_filter(tracing_subscriber::EnvFilter::from_default_env()),
+        )
+        .with(
+            // 파일: error 이상만, ANSI 색상 코드 제거
+            tracing_subscriber::fmt::layer()
+                .with_target(true)
+                .with_file(true)
+                .with_line_number(true)
+                .with_ansi(false)
+                .with_writer(non_blocking_file)
+                .with_filter(tracing_subscriber::EnvFilter::new("error")),
+        )
         .init();
 
     let config = config::Config::from_env().expect("설정 로드 실패");

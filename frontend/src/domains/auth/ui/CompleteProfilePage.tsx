@@ -72,6 +72,15 @@ export default function CompleteProfilePage() {
 
     // Step 1 → 2: 중복 체크 후 이동
     if (step === 1) {
+      if (!formData.nickname.trim()) {
+        toast.error("닉네임을 입력해주세요.");
+        return;
+      }
+      if (!formData.phone.trim()) {
+        toast.error("전화번호를 입력해주세요.");
+        return;
+      }
+
       setLoading(true);
       try {
         await checkProfileAvailability({
@@ -95,13 +104,16 @@ export default function CompleteProfilePage() {
       // 이미지 업로드 (선택된 파일이 있을 때만)
       const imagePath = await profileImage.upload();
 
-      await completeProfile({
+      const result = await completeProfile({
         nickname: formData.nickname,
         phone: formData.phone,
         profileImage: imagePath || undefined,
       });
 
-      // 프로필 완성 → 메인 페이지로
+      if (!result?.profile_completed) {
+        throw new Error("프로필 저장에 실패했습니다. 다시 시도해주세요.");
+      }
+
       navigate("/");
     } catch (error: any) {
       toast.error(error.message || "프로필 저장 실패");
@@ -185,7 +197,7 @@ export default function CompleteProfilePage() {
                       placeholder="닉네임을 입력해주세요"
                       value={formData.nickname}
                       onChange={(e) => updateFormData("nickname", e.target.value)}
-                      required
+                     
                     />
                     <button
                       type="button"
@@ -207,7 +219,7 @@ export default function CompleteProfilePage() {
                     placeholder="010-1234-5678"
                     value={formData.phone}
                     onChange={(e) => updateFormData("phone", formatPhone(e.target.value))}
-                    required
+                    
                     maxLength={13}
                     className="mt-1"
                   />

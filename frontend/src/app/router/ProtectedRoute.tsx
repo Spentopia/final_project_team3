@@ -15,7 +15,7 @@
 // - refresh token은 HttpOnly 쿠키라 프론트 JS가 직접 만지지 않음
 
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router";
+import { Navigate, useLocation } from "react-router";
 import { supabase } from "@/shared/lib/supabase";
 import { authStorage } from "@/shared/lib/auth";
 import { apiClient } from "@/shared/api/client";
@@ -42,6 +42,7 @@ function recoverAccessTokenOnce() {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [status, setStatus] = useState<AuthStatus>("loading");
+  const location = useLocation();
 
   // Supabase session의 access_token을 백엔드 앱 JWT로 교환
   const exchangeSupabaseToken = async (accessToken: string) => {
@@ -159,6 +160,9 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (status === "need_profile") {
+    if (location.pathname === "/complete-profile") {
+      return <>{children}</>;
+    }
     return <Navigate to="/complete-profile" replace />;
   }
 

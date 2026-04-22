@@ -39,6 +39,8 @@ Thumbs.db
 
 # Logs
 *.log
+*.logs
+logs
 
 # Generated / temporary
 captures/

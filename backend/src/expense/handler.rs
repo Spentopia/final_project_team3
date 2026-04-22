@@ -6,6 +6,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use chrono::Local;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -17,7 +18,7 @@ use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct ReceiptOcrQuery {
-    pub expense_id: Option<Uuid>,
+    pub expense_id: Option<String>,
 }
 
 #[utoipa::path(
@@ -113,8 +114,22 @@ pub async fn verify_receipt_ocr(
     Query(query): Query<ReceiptOcrQuery>,
     multipart: Multipart,
 ) -> impl IntoResponse {
+    let expense_id = match query.expense_id {
+        Some(raw) => match Uuid::parse_str(&raw) {
+            Ok(id) => Some(id),
+            Err(_) => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    "expense_id 형식이 올바르지 않습니다".to_string(),
+                )
+                    .into_response();
+            }
+        },
+        None => None,
+    };
+
     // 하루 3건 제한은 항상 적용하고, expense_id가 있을 때만 중복 체크한다.
-    match service::check_receipt_limit(&state, user_id, query.expense_id).await {
+    match service::check_receipt_limit(&state, user_id, expense_id).await {
         Ok(()) => {}
         Err(service::ReceiptLimitError::TooMany) => {
             return (
@@ -139,11 +154,25 @@ pub async fn verify_receipt_ocr(
         Ok(res) => {
             // OCR 인증 성공 + expense_id 있으면 서버에서 receipt_verified = true 업데이트
             if res.verification.is_verified {
-                if let Some(expense_id) = query.expense_id {
+                if let Some(expense_id) = expense_id {
                     if let Err(e) =
                         service::update_receipt_verified(&state, user_id, expense_id).await
                     {
                         tracing::warn!("receipt_verified UPDATE 실패: {}", e);
+                    } else {
+                        let state_clone = state.clone();
+                        let today = Local::now().date_naive();
+                        tokio::spawn(async move {
+                            if let Err(e) = crate::reward::service::recalculate_weekly_score(
+                                &state_clone,
+                                user_id,
+                                today,
+                            )
+                            .await
+                            {
+                                tracing::warn!("영수증 인증 후 성실도 재계산 실패: {}", e);
+                            }
+                        });
                     }
                 }
             }

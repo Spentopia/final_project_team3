@@ -150,124 +150,159 @@ pub fn derive_escrow_address(listing_b58: &str, program_id_str: &str) -> Result<
     Ok(bs58::encode(escrow).into_string())
 }
 
-fn collect_pubkeys(value: &serde_json::Value, out: &mut Vec<String>) {
-    match value {
-        serde_json::Value::String(s) => out.push(s.clone()),
-        serde_json::Value::Array(items) => {
-            for item in items {
-                collect_pubkeys(item, out);
-            }
-        }
-        serde_json::Value::Object(map) => {
-            if let Some(pubkey) = map.get("pubkey").and_then(|v| v.as_str()) {
-                out.push(pubkey.to_string());
-            }
-            if let Some(account) = map.get("account").and_then(|v| v.as_str()) {
-                out.push(account.to_string());
-            }
-            if let Some(mint) = map.get("mint").and_then(|v| v.as_str()) {
-                out.push(mint.to_string());
-            }
-            if let Some(owner) = map.get("owner").and_then(|v| v.as_str()) {
-                out.push(owner.to_string());
-            }
-            for item in map.values() {
-                collect_pubkeys(item, out);
-            }
-        }
-        _ => {}
-    }
-}
-
-fn instruction_matches(ix: &serde_json::Value, program_id: &str, name: &str) -> bool {
-    if ix.get("programId").and_then(|v| v.as_str()) != Some(program_id) {
-        return false;
-    }
-
-    let Some(data) = ix.get("data").and_then(|v| v.as_str()) else {
-        return false;
-    };
-
-    let Ok(decoded) = bs58::decode(data).into_vec() else {
-        return false;
-    };
-
-    decoded.len() >= 8 && decoded[..8] == anchor_discriminator(name)
-}
-
-fn instruction_matches_with_account_positions(
-    ix: &serde_json::Value,
-    program_id: &str,
-    name: &str,
-    expected_positions: &[(usize, &str)],
-) -> bool {
-    if !instruction_matches(ix, program_id, name) {
-        return false;
-    }
-
-    let Some(accounts) = ix.get("accounts").and_then(|v| v.as_array()) else {
-        return expected_positions.is_empty();
-    };
-
-    expected_positions.iter().all(|(index, expected)| {
-        accounts
-            .get(*index)
-            .and_then(|value| value.as_str())
-            .map(|actual| actual == *expected)
-            .unwrap_or(false)
-    })
-}
-
-fn tx_has_success(value: &serde_json::Value) -> bool {
-    value["result"]["meta"]["err"].is_null()
-}
-
-async fn get_confirmed_transaction(
+// ── RPC: getSignatureStatuses ─────────────────────────────────
+//
+// required_status: "confirmed" 또는 "finalized"
+//   - confirmed: 슈퍼마조리티 투표 66% 이상, ~2-4초 (admin 민팅 후 DB 기록 용)
+//   - finalized: 슈퍼마조리티 투표 완료 + 불가역, ~20-30초 (유저 제출 tx 검증 용)
+async fn check_signature_status(
     rpc_url: &str,
     client: &reqwest::Client,
     signature: &str,
-) -> Result<serde_json::Value> {
-    let res: serde_json::Value = client
+    required_status: &str,
+) -> Result<()> {
+    let response = client
         .post(rpc_url)
         .json(&serde_json::json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "getTransaction",
-            "params": [
-                signature,
-                {
-                    "encoding": "jsonParsed",
-                    "commitment": "confirmed",
-                    "maxSupportedTransactionVersion": 0
-                }
-            ]
+            "method": "getSignatureStatuses",
+            "params": [[signature], {"searchTransactionHistory": true}]
         }))
         .send()
         .await
-        .context("getTransaction 요청 실패")?
+        .context("getSignatureStatuses 요청 실패")?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(anyhow!("getSignatureStatuses 오류 (HTTP {}): {}", status, body));
+    }
+
+    let res: serde_json::Value = response
         .json()
         .await
-        .context("getTransaction 파싱 실패")?;
+        .context("getSignatureStatuses 파싱 실패")?;
 
-    if let Some(err) = res.get("error") {
-        return Err(anyhow!("getTransaction 실패: {}", err));
+    let status = res["result"]["value"]
+        .as_array()
+        .and_then(|arr| arr.first())
+        .ok_or_else(|| anyhow!("트랜잭션 상태를 찾을 수 없습니다: {}", signature))?;
+
+    if status.is_null() {
+        return Err(anyhow!("트랜잭션이 아직 처리되지 않았습니다: {}", signature));
     }
-    if res.get("result").is_none() || res["result"].is_null() {
+    if !status["err"].is_null() {
+        return Err(anyhow!("트랜잭션 실패 확인됨: {}", status["err"]));
+    }
+
+    let confirmation = status["confirmationStatus"].as_str().unwrap_or("");
+    let is_sufficient = match required_status {
+        "confirmed" => matches!(confirmation, "confirmed" | "finalized"),
+        "finalized" => confirmation == "finalized",
+        other => return Err(anyhow!("알 수 없는 required_status: {}", other)),
+    };
+
+    if !is_sufficient {
         return Err(anyhow!(
-            "트랜잭션을 찾을 수 없거나 아직 confirmed 상태가 아닙니다"
+            "트랜잭션이 아직 {} 상태가 아닙니다 (현재: {})",
+            required_status,
+            confirmation
         ));
     }
-    if !tx_has_success(&res) {
-        return Err(anyhow!(
-            "실패한 Solana 트랜잭션입니다: {}",
-            res["result"]["meta"]["err"]
-        ));
-    }
-    Ok(res)
+
+    Ok(())
 }
 
+// admin이 직접 서명·전송한 트랜잭션 확인용 (confirmed 이상이면 충분)
+pub async fn check_signature_confirmed(
+    rpc_url: &str,
+    client: &reqwest::Client,
+    signature: &str,
+) -> Result<()> {
+    check_signature_status(rpc_url, client, signature, "confirmed").await
+}
+
+// 유저 제출 트랜잭션 최종 확인용 (불가역 보장)
+async fn check_signature_finalized(
+    rpc_url: &str,
+    client: &reqwest::Client,
+    signature: &str,
+) -> Result<()> {
+    check_signature_status(rpc_url, client, signature, "finalized").await
+}
+
+// ── Helius Enhanced Transaction API ───────────────────────────
+//
+// Helius가 파싱한 트랜잭션을 가져온다.
+// 기존 raw JSON-RPC getTransaction 대비 장점:
+//   - transactionError 필드로 성공/실패 즉시 판별
+//   - instructions[].accounts 가 flat pubkey 문자열 배열 → 별도 파싱 불필요
+//   - 커스텀 Anchor 프로그램도 discriminator 기반으로 정확하게 검증 가능
+// rpc_url에 "devnet"이 포함되면 devnet Enhanced API, 아니면 mainnet 사용
+fn helius_enhanced_base(rpc_url: &str) -> &'static str {
+    if rpc_url.contains("devnet") {
+        "https://api-devnet.helius-rpc.com"
+    } else {
+        "https://api-mainnet.helius-rpc.com"
+    }
+}
+
+async fn get_helius_transaction(
+    rpc_url: &str,
+    helius_api_key: &str,
+    client: &reqwest::Client,
+    signature: &str,
+) -> Result<serde_json::Value> {
+    let url = format!(
+        "{}/v0/transactions?api-key={}",
+        helius_enhanced_base(rpc_url),
+        helius_api_key
+    );
+    let response = client
+        .post(&url)
+        .json(&serde_json::json!({ "transactions": [signature] }))
+        .send()
+        .await
+        .context("Helius API 요청 실패")?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(anyhow!("Helius API 오류 (HTTP {}): {}", status, body));
+    }
+
+    let res: Vec<serde_json::Value> = response
+        .json()
+        .await
+        .context("Helius API 응답 파싱 실패")?;
+
+    let tx = res
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("트랜잭션을 찾을 수 없습니다: {}", signature))?;
+
+    if !tx["transactionError"].is_null() {
+        return Err(anyhow!("실패한 트랜잭션입니다: {}", tx["transactionError"]));
+    }
+
+    Ok(tx)
+}
+
+// ── 트랜잭션 검증 (Helius Enhanced API 사용) ─────────────────
+//
+// 온체인 트랜잭션이 실제로 Spentopia 프로그램의 특정 instruction을
+// 포함하는지, 그리고 필수 계정이 모두 존재하는지 검증한다.
+//
+// rpc_url: Helius RPC URL — finalized 상태 최종 확인에 사용 (config.solana_rpc_url)
+// helius_api_key: Helius API 키 — Enhanced API 트랜잭션 파싱에 사용 (config.helius_api_key)
+// instruction_name: Anchor instruction 이름 (discriminator 계산에 사용)
+// required_pubkeys: 트랜잭션에 반드시 포함돼야 할 pubkey 목록
+// required_signer: feePayer로 검증할 서명자 pubkey (None이면 생략)
+// expected_account_positions: instruction accounts 배열에서 특정 위치의 pubkey 검증
 pub async fn verify_program_instruction_tx(
     rpc_url: &str,
+    helius_api_key: &str,
     client: &reqwest::Client,
     signature: &str,
     program_id: &str,
@@ -280,53 +315,81 @@ pub async fn verify_program_instruction_tx(
         return Err(anyhow!("tx_signature 누락"));
     }
 
-    let tx = get_confirmed_transaction(rpc_url, client, signature).await?;
-    let account_keys = tx["result"]["transaction"]["message"]["accountKeys"]
-        .as_array()
-        .ok_or_else(|| anyhow!("트랜잭션 accountKeys 없음"))?;
+    let tx = get_helius_transaction(rpc_url, helius_api_key, client, signature).await?;
 
-    let mut all_pubkeys = Vec::new();
-    collect_pubkeys(&tx["result"]["transaction"]["message"], &mut all_pubkeys);
-
-    for required in required_pubkeys {
-        if !all_pubkeys.iter().any(|v| v == required) {
-            return Err(anyhow!("트랜잭션에 필수 계정이 없습니다: {}", required));
-        }
-    }
-
+    // feePayer 기반 서명자 확인
     if let Some(signer) = required_signer {
-        let signed = account_keys.iter().any(|key| {
-            key.get("pubkey").and_then(|v| v.as_str()) == Some(signer)
-                && key.get("signer").and_then(|v| v.as_bool()).unwrap_or(false)
-        });
-        if !signed {
-            return Err(anyhow!("필수 서명자가 트랜잭션에 없습니다: {}", signer));
+        let fee_payer = tx["feePayer"].as_str().unwrap_or("");
+        if fee_payer != signer {
+            return Err(anyhow!(
+                "필수 서명자(feePayer) 불일치: expected={}, got={}",
+                signer,
+                fee_payer
+            ));
         }
     }
 
-    let instructions = tx["result"]["transaction"]["message"]["instructions"]
+    let instructions = tx["instructions"]
         .as_array()
-        .ok_or_else(|| anyhow!("트랜잭션 instructions 없음"))?;
+        .ok_or_else(|| anyhow!("instructions 필드 없음"))?;
 
-    let instruction_found = instructions.iter().any(|ix| {
-        if let Some(expected_positions) = expected_account_positions {
-            instruction_matches_with_account_positions(
-                ix,
-                program_id,
-                instruction_name,
-                expected_positions,
+    let discriminator = anchor_discriminator(instruction_name);
+
+    // Spentopia instruction 탐색
+    let instruction = instructions
+        .iter()
+        .find(|ix| {
+            if ix["programId"].as_str() != Some(program_id) {
+                return false;
+            }
+            let data_bytes = ix["data"]
+                .as_str()
+                .and_then(|s| bs58::decode(s).into_vec().ok())
+                .unwrap_or_default();
+            data_bytes.len() >= 8 && data_bytes[..8] == discriminator
+        })
+        .ok_or_else(|| {
+            anyhow!(
+                "Spentopia instruction을 찾을 수 없습니다: {}",
+                instruction_name
             )
-        } else {
-            instruction_matches(ix, program_id, instruction_name)
-        }
-    });
+        })?;
 
-    if !instruction_found {
-        return Err(anyhow!(
-            "Spentopia instruction 또는 계정 순서가 일치하지 않습니다: {}",
-            instruction_name
-        ));
+    // Helius에서 accounts는 flat pubkey 문자열 배열
+    let accounts: Vec<&str> = instruction["accounts"]
+        .as_array()
+        .ok_or_else(|| anyhow!("accounts 필드 없음"))?
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+
+    // 필수 pubkey 존재 확인
+    for required in required_pubkeys {
+        if !accounts.contains(required) {
+            return Err(anyhow!("필수 계정이 트랜잭션에 없습니다: {}", required));
+        }
     }
+
+    // 특정 위치의 계정 일치 확인
+    if let Some(positions) = expected_account_positions {
+        for (index, expected) in positions {
+            let actual = accounts
+                .get(*index)
+                .ok_or_else(|| anyhow!("accounts[{}] 없음 (총 {}개)", index, accounts.len()))?;
+            if *actual != *expected {
+                return Err(anyhow!(
+                    "accounts[{}] 불일치: expected={}, got={}",
+                    index,
+                    expected,
+                    actual
+                ));
+            }
+        }
+    }
+
+    // 최종 finalized 확인 — Helius Enhanced는 confirmed 기준이므로
+    // RPC로 불가역 확정 여부를 한 번 더 체크한다.
+    check_signature_finalized(rpc_url, client, signature).await?;
 
     Ok(())
 }

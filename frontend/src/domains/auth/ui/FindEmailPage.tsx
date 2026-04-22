@@ -128,6 +128,26 @@ export default function FindEmailPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (result !== null) return;
+    if (!window.turnstile || !containerRef.current || widgetIdRef.current) {
+      return;
+    }
+
+    widgetIdRef.current = window.turnstile.render(containerRef.current, {
+      sitekey: TURNSTILE_SITE_KEY,
+      callback: (token: string) => {
+        setCaptchaToken(token);
+      },
+      "expired-callback": () => {
+        setCaptchaToken(null);
+      },
+      "error-callback": () => {
+        setCaptchaToken(null);
+      },
+    });
+  }, [result]);
+
   const resetCaptcha = () => {
     setCaptchaToken(null);
 
@@ -176,7 +196,8 @@ export default function FindEmailPage() {
   const resetResult = () => {
     setResult(null);
     setPhone("");
-    resetCaptcha();
+    setCaptchaToken(null);
+    widgetIdRef.current = null;
   };
 
   const isEmailOnly =
@@ -346,7 +367,6 @@ export default function FindEmailPage() {
                   placeholder="010-1234-5678"
                   value={phone}
                   onChange={(e) => setPhone(formatPhone(e.target.value))}
-                  required
                   maxLength={13}
                   className="mt-1"
                 />

@@ -24,11 +24,16 @@
 // 로컬 시연 기준:
 // - production 분기 없음
 // - refresh 쿠키는 항상 secure(false)
+//
+// complete_profile 핸들러에 닉네임 검증 추가
+// - filter::validate_nickname() 으로 길이 + 금칙어 한번에 검사
+// - 실패 시 400 + 구체적인 에러 메시지 반환
 
 use axum::{
-    Json,
+    Json, Extension,
     extract::{Multipart, Query, State},
     http::{HeaderMap, StatusCode, header::SET_COOKIE},
+    response::IntoResponse,
 };
 
 use crate::auth::handoff::{create_handoff_token, exchange_handoff_token};
@@ -49,6 +54,7 @@ use crate::auth::dto::{
 use crate::auth::service;
 use crate::state::AppState;
 use utoipa;
+use crate::filter;
 
 fn ensure_app_request(headers: &HeaderMap) -> Result<(), (StatusCode, String)> {
     if headers.contains_key("origin") {
@@ -539,6 +545,11 @@ pub async fn withdraw(
 // ═══════════════════════════════════════════════════════════════
 // [프로필 완성] PATCH /profile/complete
 // ═══════════════════════════════════════════════════════════════
+//
+// 변경사항:
+// - filter::validate_nickname() 으로 닉네임 검증 추가
+//   검사 순서: 앞뒤공백 → 길이(2~8자) → 금칙어
+// - 기존 nickname.trim().is_empty() 체크는 validate_nickname이 커버하므로 제거
 #[utoipa::path(
     patch,
     path = "/profile/complete",
@@ -556,7 +567,7 @@ pub async fn withdraw(
 )]
 pub async fn complete_profile(
     State(state): State<AppState>,
-    axum::Extension(user_id): axum::Extension<uuid::Uuid>,
+    Extension(user_id): Extension<Uuid>,
     Json(body): Json<CompleteProfileRequest>,
 ) -> Result<Json<CompleteProfileResponse>, (StatusCode, String)> {
     if body.nickname.trim().is_empty() {
@@ -565,6 +576,11 @@ pub async fn complete_profile(
             "닉네임을 입력해 주세요.".to_string(),
         ));
     }
+
+    // 닉네임 검증: 앞뒤공백 → 길이(2~8자) → 금칙어
+    // 실패 시 구체적인 에러 메시지를 그대로 400으로 반환
+    filter::validate_nickname(&body.nickname)
+        .map_err(|msg| (StatusCode::BAD_REQUEST, msg.to_string()))?;
 
     if body.phone.trim().is_empty() {
         return Err((
@@ -589,6 +605,7 @@ pub async fn complete_profile(
     let mut payload = json!({
         "nickname": body.nickname,
         "phone": body.phone,
+        "profile_completed": true,
     });
 
     if let Some(ref img) = body.profile_image {
@@ -724,6 +741,8 @@ pub async fn check_profile_availability(
 
             if msg.contains("이미 사용 중인 닉네임입니다")
                 || msg.contains("이미 사용 중인 전화번호입니다")
+                || msg.contains("닉네임은")
+                || msg.contains("사용할 수 없는 닉네임입니다")
             {
                 return (StatusCode::BAD_REQUEST, msg);
             }

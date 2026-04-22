@@ -20,7 +20,6 @@ import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { updatePassword } from "@/domains/auth/api/auth";
 import {
-  PASSWORD_REQUIREMENTS_MESSAGE,
   validatePassword,
 } from "@/domains/auth/lib/password";
 import PasswordInput from "@/domains/auth/ui/PasswordInput";
@@ -93,12 +92,8 @@ export default function ResetPasswordPage() {
                 placeholder="영문 대소문자, 숫자, 특수문자를 포함해 주세요"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
                 className="mt-1"
               />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {PASSWORD_REQUIREMENTS_MESSAGE}
-              </p>
             </div>
 
             <div>
@@ -108,7 +103,6 @@ export default function ResetPasswordPage() {
                 placeholder="비밀번호를 다시 입력해주세요"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                required
                 className="mt-1"
               />
             </div>

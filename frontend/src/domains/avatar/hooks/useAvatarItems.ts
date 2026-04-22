@@ -28,7 +28,7 @@ interface UseAvatarItemsReturn {
     loading: boolean;
     error: string | null;
     refetch: () => void;  // 수동 재조회 트리거
-    mintNft: (userItemId: string, mintAddress: string, txSignature: string) => Promise<void>;
+    mintNft: (userItemId: string) => Promise<void>;
     transferNft: (avatarId: string, mintAddress: string, txSignature: string) => Promise<void>;
     // 각 액션별 로딩 상태 (아이템 목록 로딩과 구분)
     minting: boolean;
@@ -82,13 +82,11 @@ export function useAvatarItems(): UseAvatarItemsReturn {
     //  3. 성공 → toast + 목록 갱신 (is_nft가 true로 바뀌었기 때문)
     //  4. 실패 → toast.error
     //  5. finally: minting = false
-    const mintNft = useCallback(async (userItemId: string, mintAddress: string, txSignature: string) => {
+    const mintNft = useCallback(async (userItemId: string) => {
         setMinting(true);
         try {
             await mintNftApi({
                 user_item_id: userItemId,
-                nft_mint_address: mintAddress,
-                tx_signature: txSignature,
             });
             toast.success("NFT 민팅이 완료되었습니다.");
             await fetchItems(); // 민팅 후 is_nft상태가 바뀌므로 목록 새로고침
