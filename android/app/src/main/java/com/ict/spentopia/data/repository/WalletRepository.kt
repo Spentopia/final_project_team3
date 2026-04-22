@@ -26,4 +26,20 @@ interface WalletRepository {
 
     // 저장된 지갑 정보를 삭제합니다.
     suspend fun clearWallet()
+
+    suspend fun issueWalletNonce(): String
+
+    suspend fun linkWallet(
+        token: String,
+        walletAddress: String,
+        nonce: String,
+        signature: String
+    )
+
+    suspend fun unlinkWallet(
+        token: String,
+        walletAddress: String,
+        nonce: String,
+        signature: String
+    )
 }

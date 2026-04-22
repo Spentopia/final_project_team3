@@ -56,6 +56,7 @@ import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import com.solana.mobilewalletadapter.clientlib.ConnectionIdentity
 import com.solana.mobilewalletadapter.clientlib.MobileWalletAdapter
 import kotlinx.coroutines.launch
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun LoginScreen(
@@ -80,6 +81,13 @@ fun LoginScreen(
 
     // 컨텍스트
     val context = LocalContext.current
+
+    val loginViewModel: LoginViewModel = viewModel() // 지갑
+
+    var currentNonce by remember { mutableStateOf<String?>(null) } //   지갑 인증 변수 추가
+
+    var currentWalletAddress by remember { mutableStateOf<String?>(null) }
+    var currentSignature by remember { mutableStateOf<String?>(null) }
 
     // 지갑 어댑터
     // 나중 연결 로직 붙일 때 사용
@@ -169,7 +177,7 @@ fun LoginScreen(
                             .height(56.dp),
                         placeholder = {
                             Text(
-                                text = "test@test.com",
+                                text = "아이디를 입력해 주세요.",
                                 color = Color(0xFF9CA3AF)
                             )
                         },
@@ -205,7 +213,7 @@ fun LoginScreen(
                             .height(56.dp),
                         placeholder = {
                             Text(
-                                text = "Test1234!",
+                                text = "비밀번호를 입력해 주세요",
                                 color = Color(0xFF9CA3AF)
                             )
                         },
@@ -280,87 +288,111 @@ fun LoginScreen(
             onDismiss = {
                 showWalletDialog = false
             },
-            onWalletSelected = { selectedWalletName ->
+            onWalletSelected = { selectedWallet ->
                 // 다이얼로그 닫기
                 showWalletDialog = false
 
                 // 선택 로그
-                Log.d("Spentopia", "선택한 지갑: $selectedWalletName")
+                Log.d("Spentopia", "선택한 지갑: ${selectedWallet.name}")
 
                 scope.launch {
                     try {
+                        val nonce = loginViewModel.getWalletNonceOnce()
+                        Log.d("Spentopia", "nonce: $nonce")
+                        currentNonce = nonce
+
+                        loginViewModel.signNonceWithWallet(
+                            nonce = nonce,
+                            onSuccess = { signResult ->
+                                currentWalletAddress = signResult.walletAddress
+                                currentSignature = signResult.signature
+
+                                Log.d("Spentopia", "address: ${signResult.walletAddress}")
+                                Log.d("Spentopia", "signature: ${signResult.signature}")
+
+                                loginViewModel.linkWalletToServer(
+                                    token = "여기에_임시토큰",
+                                    walletAddress = signResult.walletAddress,
+                                    nonce = nonce,
+                                    signature = signResult.signature,
+                                    provider = selectedWallet.name,
+                                    onSuccess = {
+                                        Log.d("Spentopia", "wallet link success")
+                                    },
+                                    onError = { message ->
+                                        Log.e("Spentopia", "wallet link error: $message")
+                                    }
+                                )
+                            },
+                            onError = { message ->
+                                Log.e("Spentopia", "sign error: $message")
+                            }
+                        )
+
                         // 지갑 앱 인텐트 생성
-                        val intent = when (selectedWalletName) {
-                            // 팬텀 실행
-                            "Phantom" -> context.packageManager
+                        val intent = when (selectedWallet)  {
+                            WalletProvider.PHANTOM -> context.packageManager
                                 .getLaunchIntentForPackage("app.phantom")
 
-                            // 솔플레어 실행
-                            "Solflare" -> context.packageManager
+                            WalletProvider.SOLFLARE -> context.packageManager
                                 .getLaunchIntentForPackage("com.solflare.mobile")
 
-                            // 백팩 실행
-                            // 백팩 실행
-                            "Backpack" -> {
-                                // 백팩 딥링크
+                            WalletProvider.BACKPACK -> {
                                 Intent(
                                     Intent.ACTION_VIEW,
                                     Uri.parse("https://backpack.app/ul/v1/connect")
                                 )
                             }
-
-                            // 예외 처리
-                            else -> null
                         }
 
-                        // 앱 없으면 종료
+// 앱 없으면 종료
                         if (intent == null) {
                             Toast.makeText(
                                 context,
-                                "$selectedWalletName 설치 안됨",
+                                "${selectedWallet.name} 설치 안됨",
                                 Toast.LENGTH_SHORT
                             ).show()
 
-                            Log.e("Spentopia", "$selectedWalletName 인텐트 없음")
+                            Log.e("Spentopia", "${selectedWallet.name} 인텐트 없음")
                             return@launch
                         }
 
-                        // 앱 실행 플래그
+// 앱 실행 플래그
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-                        // 앱 실행
+// 앱 실행
                         context.startActivity(intent)
 
-                        // 실행 성공 토스트
+// 실행 성공 토스트
                         Toast.makeText(
                             context,
-                            "$selectedWalletName 실행 성공",
+                            "${selectedWallet.name} 실행 성공",
                             Toast.LENGTH_SHORT
                         ).show()
 
-                        // 실행 성공 로그
-                        Log.d("Spentopia", "$selectedWalletName 실행 성공")
+// 실행 성공 로그
+                        Log.d("Spentopia", "${selectedWallet.name} 실행 성공")
 
                     } catch (e: ActivityNotFoundException) {
                         // 실행 실패 토스트
                         Toast.makeText(
                             context,
-                            "$selectedWalletName 실행 실패",
+                            "${selectedWallet.name} 실행 실패",
                             Toast.LENGTH_SHORT
                         ).show()
 
                         // 실행 실패 로그
-                        Log.e("Spentopia", "$selectedWalletName 실행 실패", e)
+                        Log.e("Spentopia", "${selectedWallet.name} 실행 실패", e)
                     } catch (e: Exception) {
                         // 예외 토스트
                         Toast.makeText(
                             context,
-                            "$selectedWalletName 실행 중 오류",
+                            "${selectedWallet.name} 실행 중 오류",
                             Toast.LENGTH_SHORT
                         ).show()
 
                         // 예외 로그
-                        Log.e("Spentopia", "$selectedWalletName 실행 중 예외", e)
+                        Log.e("Spentopia", "${selectedWallet.name} 실행 중 예외", e)
                     }
                 }
             }
@@ -478,10 +510,14 @@ private fun OrDivider() {
 @Composable
 private fun SolanaWalletDialog(
     onDismiss: () -> Unit,
-    onWalletSelected: (String) -> Unit
+    onWalletSelected: (WalletProvider) -> Unit
 ) {
     // 지갑 목록
-    val wallets = listOf("Phantom", "Solflare", "Backpack")
+    val wallets = listOf(
+        WalletProvider.PHANTOM,
+        WalletProvider.SOLFLARE,
+        WalletProvider.BACKPACK
+    )
 
     Dialog(onDismissRequest = onDismiss) {
         // 다이얼로그 표면
@@ -503,7 +539,7 @@ private fun SolanaWalletDialog(
                 // 지갑 목록 출력
                 wallets.forEach { wallet ->
                     WalletOptionCard(
-                        walletName = wallet,
+                        walletName = wallet.name,
                         description = "연결하려면 클릭",
                         onClick = {
                             onWalletSelected(wallet)

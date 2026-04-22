@@ -255,6 +255,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                 currentMonthTotalExpense = currentMonthTotalExpense, // currentMonthTotalExpense 값을 이 함수로 넘김
                 currentMonthExpenseCount = currentMonthExpenseCount, // currentMonthExpenseCount 값을 이 함수로 넘김
                 monthlyBudget = monthlyBudget, // monthlyBudget 값을 이 함수로 넘김
+                monthlyIncome = budgetState.monthlyIncome, // monthlyIncome 값을 이 함수로 넘김
                 remainingBudget = remainingBudget, // remainingBudget 값을 이 함수로 넘김
                 usageRateText = usageRateText, // usageRateText 값을 이 함수로 넘김
                 changeRateText = changeRateText, // changeRateText 값을 이 함수로 넘김
@@ -273,7 +274,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                     showCalendarDialog = true // onCalendarClick 값을 이 함수로 넘김
                 } // 블록 끝
             )
-        } // 블록 끝
+        }
 
         item { // 리스트 안에 들어갈 한 칸을 시작함
             DailyExpenseCard( // 카드 모양 UI를 시작함
@@ -447,6 +448,7 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
     currentMonthTotalExpense: Int, // currentMonthTotalExpense 값을 함수 밖에서 받아옴
     currentMonthExpenseCount: Int, // currentMonthExpenseCount 값을 함수 밖에서 받아옴
     monthlyBudget: Int, // monthlyBudget 값을 함수 밖에서 받아옴
+    monthlyIncome: Int, // monthlyIncome 값을 함수 밖에서 받아옴
     remainingBudget: Int, // remainingBudget 값을 함수 밖에서 받아옴
     usageRateText: String, // usageRateText 값을 함수 밖에서 받아옴
     changeRateText: String, // changeRateText 값을 함수 밖에서 받아옴
@@ -551,6 +553,13 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
                 )
 
                 SummaryMiniCard( // 카드 모양 UI를 시작함
+                    title = "수입", // 수입 제목
+                    value = "${formatAmount(monthlyIncome)}원", // 수입 값
+                    bgColor = Color(0xFFE8F7E8), // 배경색 값을 넘김
+                    modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
+                )
+
+                SummaryMiniCard( // 카드 모양 UI를 시작함
                     title = if (remainingBudget >= 0) "남은 예산" else "초과 예산", // modifier 값을 이 함수로 넘김
                     value = "${formatAmount(abs(remainingBudget))}원", // 음수를 양수로 바꿔 절댓값으로 만듦
                     bgColor = if (remainingBudget >= 0) Color(0xFFE1EAFF) else Color(0xFFFFE3E3), // 배경색 값을 넘김
@@ -581,19 +590,21 @@ private fun SummaryMiniCard( // SummaryMiniCard 함수 선언 시작
         colors = CardDefaults.cardColors(containerColor = bgColor) // 색상 스타일을 정함
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 세로로 배치하는 영역을 시작함
-            modifier = Modifier.padding(14.dp) // 안쪽이나 바깥 여백을 줌
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp) // 안쪽 여백 줄임
         ) { // 이 블록 안의 내용이 시작됨
             Text( // 글자를 화면에 보여주기 시작함
                 text = title, // 화면에 보여줄 글자를 정함
-                fontSize = 12.sp, // 글자 크기를 정함
-                color = Color(0xFF315072) // 색상을 정함
+                fontSize = 11.sp, // 글자 크기를 줄임
+                color = Color(0xFF315072), // 색상을 정함
+                maxLines = 1 // 한 줄만 표시
             )
-            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+            Spacer(modifier = Modifier.height(6.dp)) // 컴포넌트 사이에 빈 공간을 넣음
             Text( // 글자를 화면에 보여주기 시작함
                 text = value, // 화면에 보여줄 글자를 정함
-                fontSize = 20.sp, // 글자 크기를 정함
+                fontSize = 14.sp, // 글자 크기를 줄임
                 fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                color = Color(0xFF22406A) // 색상을 정함
+                color = Color(0xFF22406A), // 색상을 정함
+                lineHeight = 18.sp // 줄 높이 줄임
             )
         } // 블록 끝
     } // 블록 끝
@@ -1204,6 +1215,7 @@ private fun WeekDayItem( // WeekDayItem 함수 선언 시작
     } // 블록 끝
 } // 블록 끝
 
+
 @OptIn(ExperimentalMaterial3Api::class) // 실험 기능을 쓰겠다고 표시
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
@@ -1216,13 +1228,16 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     val calendar = Calendar.getInstance() // 현재 날짜/시간 정보를 가진 Calendar 객체를 만듦
 
     var formDate by remember { mutableStateOf(selectedDate) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
-    var selectedCategory by remember { mutableStateOf("식비") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
+    var isExpenseTab by remember { mutableStateOf(true) } // 입력 탭 상태를 보관함
+    var selectedExpenseCategory by remember { mutableStateOf("식비") } // 소비 카테고리 상태를 보관함
+    var selectedIncomeCategory by remember { mutableStateOf("월급") } // 수입 카테고리 상태를 보관함
     var amount by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var memo by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var receiptImageName by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var diary by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var expanded by remember { mutableStateOf(false) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
-    val categoryList = listOf("식비", "교통", "쇼핑", "카페", "기타") // 값 여러 개를 묶은 목록을 만듦
+    val expenseCategoryList = listOf("식비", "교통", "쇼핑", "카페", "기타") // 소비 카테고리 목록을 만듦
+    val incomeCategoryList = listOf("월급", "용돈", "부수입", "환급", "기타") // 수입 카테고리 목록을 만듦
 
     val galleryLauncher = rememberLauncherForActivityResult( // 갤러리 같은 외부 화면 결과를 받을 준비를 함
         contract = ActivityResultContracts.GetContent() // 파일이나 이미지를 하나 고르는 규칙을 씀
@@ -1235,19 +1250,32 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     LaunchedEffect(editingExpense?.id, selectedDate) { // 이 블록의 내용이 여기서 시작됨
         if (editingExpense != null) { // 조건이 참일 때만 아래 코드를 실행함
             formDate = editingExpense.date // 바로 앞 설정을 이어서 적음
-            selectedCategory = editingExpense.category // 바로 앞 설정을 이어서 적음
             amount = editingExpense.amount.toString() // 바로 앞 설정을 이어서 적음
             memo = editingExpense.memo // 바로 앞 설정을 이어서 적음
             receiptImageName = editingExpense.receiptImageName // 바로 앞 설정을 이어서 적음
             diary = editingExpense.diary // 바로 앞 설정을 이어서 적음
+
+            if (incomeCategoryList.contains(editingExpense.category)) { // 조건이 참일 때만 아래 코드를 실행함
+                isExpenseTab = false // 수입 탭으로 맞춤
+                selectedIncomeCategory = editingExpense.category // 수입 카테고리를 채움
+                selectedExpenseCategory = "식비" // 소비 카테고리를 기본값으로 맞춤
+            } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
+                isExpenseTab = true // 소비 탭으로 맞춤
+                selectedExpenseCategory = editingExpense.category // 소비 카테고리를 채움
+                selectedIncomeCategory = "월급" // 수입 카테고리를 기본값으로 맞춤
+            } // 블록 끝
         } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
             formDate = selectedDate // 바로 앞 설정을 이어서 적음
-            selectedCategory = "식비" // 바로 앞 설정을 이어서 적음
+            isExpenseTab = true // 기본 탭을 소비로 맞춤
+            selectedExpenseCategory = "식비" // 바로 앞 설정을 이어서 적음
+            selectedIncomeCategory = "월급" // 바로 앞 설정을 이어서 적음
             amount = "" // 바로 앞 설정을 이어서 적음
             memo = "" // 바로 앞 설정을 이어서 적음
             receiptImageName = "" // 바로 앞 설정을 이어서 적음
             diary = "" // formDate 값을 이 함수로 넘김
         } // 블록 끝
+
+        expanded = false // 드롭다운 상태를 닫음
     } // 블록 끝
 
     Card( // 카드 모양 UI를 시작함
@@ -1261,7 +1289,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
             modifier = Modifier.padding(20.dp) // 안쪽이나 바깥 여백을 줌
         ) { // 이 블록 안의 내용이 시작됨
             Text( // 글자를 화면에 보여주기 시작함
-                text = if (editingExpense == null) "소비 기록하기" else "소비 기록 수정", // 화면에 보여줄 글자를 정함
+                text = if (editingExpense == null) "기록 입력하기" else "기록 수정하기", // 화면에 보여줄 글자를 정함
                 fontSize = 20.sp, // 글자 크기를 정함
                 fontWeight = FontWeight.Bold, // 글자 두께를 정함
                 color = Color(0xFF1F2A37) // 색상을 정함
@@ -1271,12 +1299,70 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
 
             Text( // 글자를 화면에 보여주기 시작함
                 text = if (editingExpense == null) // 화면에 보여줄 글자를 정함
-                    "날짜와 카테고리를 선택해서 소비를 기록해보세요" // 바로 앞 설정을 이어서 적음
+                    "소비 또는 수입을 선택해서 기록해보세요" // 바로 앞 설정을 이어서 적음
                 else // color 값을 이 함수로 넘김
-                    "선택한 소비 내역을 수정할 수 있어요", // color 값을 이 함수로 넘김
+                    "선택한 기록을 수정할 수 있어요", // color 값을 이 함수로 넘김
                 fontSize = 14.sp, // 글자 크기를 정함
                 color = Color(0xFF6B7280) // 색상을 정함
             )
+
+            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+
+            // 입력 탭
+            Row( // 가로로 배치하는 영역을 시작함
+                modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                    .fillMaxWidth() // 가로 너비를 꽉 채움
+                    .background( // 배경색이나 그라데이션을 넣음
+                        color = Color(0xFFF1F5F9), // 색상을 정함
+                        shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
+                    )
+                    .padding(4.dp), // 안쪽이나 바깥 여백을 줌
+                horizontalArrangement = Arrangement.spacedBy(8.dp) // 가로 방향 간격과 정렬을 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                        .weight(1f) // 남는 공간을 비율대로 차지하게 함
+                        .background( // 배경색이나 그라데이션을 넣음
+                            color = if (isExpenseTab) Color(0xFF2F7DF6) else Color.Transparent, // 색상을 정함
+                            shape = RoundedCornerShape(12.dp) // 모서리 모양을 정함
+                        )
+                        .clickable { // 눌렀을 때 반응하도록 만듦
+                            isExpenseTab = true // 소비 탭으로 바꿈
+                            expanded = false // 드롭다운을 닫음
+                        }
+                        .padding(vertical = 12.dp), // 안쪽이나 바깥 여백을 줌
+                    contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "소비 입력", // 화면에 보여줄 글자를 정함
+                        color = if (isExpenseTab) Color.White else Color(0xFF64748B), // 색상을 정함
+                        fontSize = 14.sp, // 글자 크기를 정함
+                        fontWeight = FontWeight.SemiBold // 글자 두께를 정함
+                    )
+                } // 블록 끝
+
+                Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                        .weight(1f) // 남는 공간을 비율대로 차지하게 함
+                        .background( // 배경색이나 그라데이션을 넣음
+                            color = if (!isExpenseTab) Color(0xFF16A34A) else Color.Transparent, // 색상을 정함
+                            shape = RoundedCornerShape(12.dp) // 모서리 모양을 정함
+                        )
+                        .clickable { // 눌렀을 때 반응하도록 만듦
+                            isExpenseTab = false // 수입 탭으로 바꿈
+                            expanded = false // 드롭다운을 닫음
+                        }
+                        .padding(vertical = 12.dp), // 안쪽이나 바깥 여백을 줌
+                    contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "수입 입력", // 화면에 보여줄 글자를 정함
+                        color = if (!isExpenseTab) Color.White else Color(0xFF64748B), // 색상을 정함
+                        fontSize = 14.sp, // 글자 크기를 정함
+                        fontWeight = FontWeight.SemiBold // 글자 두께를 정함
+                    )
+                } // 블록 끝
+            } // 블록 끝
 
             Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
@@ -1399,7 +1485,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 onExpandedChange = { expanded = !expanded } // onExpandedChange 값을 이 함수로 넘김
             ) { // 이 블록 안의 내용이 시작됨
                 OutlinedTextField( // 테두리 있는 입력칸을 만듦
-                    value = selectedCategory, // onExpandedChange 값을 이 함수로 넘김
+                    value = if (isExpenseTab) selectedExpenseCategory else selectedIncomeCategory, // 표시할 카테고리를 정함
                     onValueChange = { }, // 입력값이 바뀔 때 처리할 코드를 적음
                     readOnly = true, // 직접 타이핑은 막고 보기만 하게 함
                     modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
@@ -1429,16 +1515,30 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     expanded = expanded, // 드롭다운이 펼쳐졌는지 상태를 넘김
                     onDismissRequest = { expanded = false } // 팝업이 닫힐 때 실행할 코드를 시작함
                 ) { // 이 블록 안의 내용이 시작됨
-                    categoryList.forEach { category -> // 목록이나 범위를 하나씩 돌면서 처리함
-                        DropdownMenuItem( // 드롭다운 메뉴 항목 하나를 만듦
-                            text = { // 화면에 보여줄 글자를 정함
-                                Text(text = category) // 글자를 화면에 보여주기 시작함
-                            },
-                            onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
-                                selectedCategory = category // onClick 값을 이 함수로 넘김
-                                expanded = false // 드롭다운이 펼쳐졌는지 상태를 넘김
-                            } // 블록 끝
-                        )
+                    if (isExpenseTab) { // 조건이 참일 때만 아래 코드를 실행함
+                        expenseCategoryList.forEach { category -> // 목록이나 범위를 하나씩 돌면서 처리함
+                            DropdownMenuItem( // 드롭다운 메뉴 항목 하나를 만듦
+                                text = { // 화면에 보여줄 글자를 정함
+                                    Text(text = category) // 글자를 화면에 보여주기 시작함
+                                },
+                                onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
+                                    selectedExpenseCategory = category // 카테고리를 바꿈
+                                    expanded = false // 드롭다운이 펼쳐졌는지 상태를 넘김
+                                } // 블록 끝
+                            )
+                        } // 블록 끝
+                    } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
+                        incomeCategoryList.forEach { category -> // 목록이나 범위를 하나씩 돌면서 처리함
+                            DropdownMenuItem( // 드롭다운 메뉴 항목 하나를 만듦
+                                text = { // 화면에 보여줄 글자를 정함
+                                    Text(text = category) // 글자를 화면에 보여주기 시작함
+                                },
+                                onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
+                                    selectedIncomeCategory = category // 카테고리를 바꿈
+                                    expanded = false // 드롭다운이 펼쳐졌는지 상태를 넘김
+                                } // 블록 끝
+                            )
+                        } // 블록 끝
                     } // 블록 끝
                 } // 블록 끝
             } // 블록 끝
@@ -1460,7 +1560,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
                 placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
                     Text( // 글자를 화면에 보여주기 시작함
-                        text = "무엇을 구매했나요?", // 화면에 보여줄 글자를 정함
+                        text = if (isExpenseTab) "무엇을 구매했나요?" else "수입 내용을 입력하세요", // 화면에 보여줄 글자를 정함
                         color = Color(0xFF9AA4B2) // 색상을 정함
                     )
                 },
@@ -1475,79 +1575,82 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 )
             )
 
-            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+            // 소비 탭일 때만 추가 입력을 보여줌
+            if (isExpenseTab) { // 조건이 참일 때만 아래 코드를 실행함
+                Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Text( // 글자를 화면에 보여주기 시작함
-                text = "영수증 인증 ", // 화면에 보여줄 글자를 정함
-                fontSize = 15.sp, // 글자 크기를 정함
-                fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
-                color = Color(0xFF163D8F) // 색상을 정함
-            )
-
-            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
-
-            OutlinedButton( // 눌렀을 때 동작하는 버튼을 만듦
-                onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
-                    galleryLauncher.launch("image/*") // 갤러리에서 이미지만 고르게 엶
-                },
-                shape = RoundedCornerShape(12.dp), // 모서리 모양을 정함
-                border = BorderStroke(1.dp, Color(0xFFDCE7F3)), // 바로 앞 설정을 이어서 적음
-                colors = ButtonDefaults.outlinedButtonColors( // 색상 스타일을 정함
-                    containerColor = Color.White // 배경색을 정함
-                )
-            ) { // 이 블록 안의 내용이 시작됨
                 Text( // 글자를 화면에 보여주기 시작함
-                    text = if (receiptImageName.isBlank()) "사진 앨범에서 업로드" else "사진 변경하기", // 화면에 보여줄 글자를 정함
-                    color = Color(0xFF1F2A37), // 색상을 정함
-                    fontSize = 14.sp // 글자 크기를 정함
+                    text = "영수증 인증 ", // 화면에 보여줄 글자를 정함
+                    fontSize = 15.sp, // 글자 크기를 정함
+                    fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
+                    color = Color(0xFF163D8F) // 색상을 정함
                 )
-            } // 블록 끝
 
-            if (receiptImageName.isNotBlank()) { // 조건이 참일 때만 아래 코드를 실행함
-                Spacer(modifier = Modifier.height(12.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+                Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                Image( // 이미지를 화면에 보여줌
-                    painter = rememberAsyncImagePainter(receiptImageName), // 어떤 이미지를 그릴지 정함
-                    contentDescription = "영수증 이미지", // 접근성용 설명 글을 넣음
+                OutlinedButton( // 눌렀을 때 동작하는 버튼을 만듦
+                    onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
+                        galleryLauncher.launch("image/*") // 갤러리에서 이미지만 고르게 엶
+                    },
+                    shape = RoundedCornerShape(12.dp), // 모서리 모양을 정함
+                    border = BorderStroke(1.dp, Color(0xFFDCE7F3)), // 바로 앞 설정을 이어서 적음
+                    colors = ButtonDefaults.outlinedButtonColors( // 색상 스타일을 정함
+                        containerColor = Color.White // 배경색을 정함
+                    )
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = if (receiptImageName.isBlank()) "사진 앨범에서 업로드" else "사진 변경하기", // 화면에 보여줄 글자를 정함
+                        color = Color(0xFF1F2A37), // 색상을 정함
+                        fontSize = 14.sp // 글자 크기를 정함
+                    )
+                } // 블록 끝
+
+                if (receiptImageName.isNotBlank()) { // 조건이 참일 때만 아래 코드를 실행함
+                    Spacer(modifier = Modifier.height(12.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+
+                    Image( // 이미지를 화면에 보여줌
+                        painter = rememberAsyncImagePainter(receiptImageName), // 어떤 이미지를 그릴지 정함
+                        contentDescription = "영수증 이미지", // 접근성용 설명 글을 넣음
+                        modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                            .fillMaxWidth() // 가로 너비를 꽉 채움
+                            .height(180.dp), // 세로 길이를 정함
+                        contentScale = ContentScale.Crop // 이미지를 어떤 비율로 채울지 정함
+                    )
+                } // 블록 끝
+
+                Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+
+                Text( // 글자를 화면에 보여주기 시작함
+                    text = "한줄 소비 일기 ", // 화면에 보여줄 글자를 정함
+                    fontSize = 15.sp, // 글자 크기를 정함
+                    fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
+                    color = Color(0xFF163D8F) // 색상을 정함
+                )
+
+                Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+
+                OutlinedTextField( // 테두리 있는 입력칸을 만듦
+                    value = diary, // color 값을 이 함수로 넘김
+                    onValueChange = { diary = it }, // 입력값이 바뀔 때 처리할 코드를 적음
                     modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                         .fillMaxWidth() // 가로 너비를 꽉 채움
-                        .height(180.dp), // 세로 길이를 정함
-                    contentScale = ContentScale.Crop // 이미지를 어떤 비율로 채울지 정함
+                        .height(96.dp), // 세로 길이를 정함
+                    placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = "오늘 소비에 대한 생각을 기록해보세요", // 화면에 보여줄 글자를 정함
+                            color = Color(0xFF9AA4B2) // 색상을 정함
+                        )
+                    },
+                    shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
+                    colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
+                        focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
+                        unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
+                        focusedBorderColor = Color(0xFFDCE7F3), // 선택됐을 때 테두리 색을 정함
+                        unfocusedBorderColor = Color(0xFFDCE7F3), // 선택 안 됐을 때 테두리 색을 정함
+                        cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
+                    )
                 )
             } // 블록 끝
-
-            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
-
-            Text( // 글자를 화면에 보여주기 시작함
-                text = "한줄 소비 일기 ", // 화면에 보여줄 글자를 정함
-                fontSize = 15.sp, // 글자 크기를 정함
-                fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
-                color = Color(0xFF163D8F) // 색상을 정함
-            )
-
-            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
-
-            OutlinedTextField( // 테두리 있는 입력칸을 만듦
-                value = diary, // color 값을 이 함수로 넘김
-                onValueChange = { diary = it }, // 입력값이 바뀔 때 처리할 코드를 적음
-                modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
-                    .fillMaxWidth() // 가로 너비를 꽉 채움
-                    .height(96.dp), // 세로 길이를 정함
-                placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = "오늘 소비에 대한 생각을 기록해보세요", // 화면에 보여줄 글자를 정함
-                        color = Color(0xFF9AA4B2) // 색상을 정함
-                    )
-                },
-                shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
-                colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
-                    focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
-                    unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
-                    focusedBorderColor = Color(0xFFDCE7F3), // 선택됐을 때 테두리 색을 정함
-                    unfocusedBorderColor = Color(0xFFDCE7F3), // 선택 안 됐을 때 테두리 색을 정함
-                    cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
-                )
-            )
 
             Spacer(modifier = Modifier.height(24.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
@@ -1578,17 +1681,18 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     Button( // 눌렀을 때 동작하는 버튼을 만듦
                         onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
                             val amountInt = amount.toIntOrNull() ?: 0 // 숫자로 바꾸되 실패하면 null을 줌
+                            val currentCategory = if (isExpenseTab) selectedExpenseCategory else selectedIncomeCategory // 현재 카테고리를 계산함
 
                             if (amountInt > 0) { // 조건이 참일 때만 아래 코드를 실행함
                                 val updatedExpense = ExpenseItemData( // updatedExpense 값을 계산해서 저장함
                                     id = editingExpense.id, // fontWeight 값을 이 함수로 넘김
                                     date = formDate, // date 값을 이 함수로 넘김
-                                    title = createExpenseTitle(selectedCategory, memo), // 바로 앞 설정을 이어서 적음
-                                    category = selectedCategory, // category 값을 이 함수로 넘김
+                                    title = createExpenseTitle(currentCategory, memo), // 바로 앞 설정을 이어서 적음
+                                    category = currentCategory, // category 값을 이 함수로 넘김
                                     amount = amountInt, // amount 값을 이 함수로 넘김
                                     memo = memo, // memo 값을 이 함수로 넘김
-                                    receiptImageName = receiptImageName, // receiptImageName 값을 이 함수로 넘김
-                                    diary = diary // diary 값을 이 함수로 넘김
+                                    receiptImageName = if (isExpenseTab) receiptImageName else "", // receiptImageName 값을 이 함수로 넘김
+                                    diary = if (isExpenseTab) diary else "" // diary 값을 이 함수로 넘김
                                 )
 
                                 onSaveExpense(updatedExpense) // 함수를 호출해 값을 넣음
@@ -1609,8 +1713,8 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                 .background( // 배경색이나 그라데이션을 넣음
                                     brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
                                         colors = listOf( // 값 여러 개를 묶은 목록을 만듦
-                                            Color(0xFF16B8D9), // contentPadding 값을 이 함수로 넘김
-                                            Color(0xFF2F7DF6) // 사용할 색상 값을 넣음
+                                            if (isExpenseTab) Color(0xFF16B8D9) else Color(0xFF22C55E), // 시작 색상을 정함
+                                            if (isExpenseTab) Color(0xFF2F7DF6) else Color(0xFF16A34A) // 끝 색상을 정함
                                         )
                                     ),
                                     shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
@@ -1618,7 +1722,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                             contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
                         ) { // 이 블록 안의 내용이 시작됨
                             Text( // 글자를 화면에 보여주기 시작함
-                                text = "수정 완료", // 화면에 보여줄 글자를 정함
+                                text = if (isExpenseTab) "소비 수정 완료" else "수입 수정 완료", // 화면에 보여줄 글자를 정함
                                 color = Color.White, // 색상을 정함
                                 fontSize = 17.sp, // 글자 크기를 정함
                                 fontWeight = FontWeight.Bold // 글자 두께를 정함
@@ -1630,17 +1734,18 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 Button( // 눌렀을 때 동작하는 버튼을 만듦
                     onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
                         val amountInt = amount.toIntOrNull() ?: 0 // 숫자로 바꾸되 실패하면 null을 줌
+                        val currentCategory = if (isExpenseTab) selectedExpenseCategory else selectedIncomeCategory // 현재 카테고리를 계산함
 
                         if (amountInt > 0) { // 조건이 참일 때만 아래 코드를 실행함
                             val newExpense = ExpenseItemData( // newExpense 값을 계산해서 저장함
                                 id = 0L, // fontWeight 값을 이 함수로 넘김
                                 date = formDate, // date 값을 이 함수로 넘김
-                                title = createExpenseTitle(selectedCategory, memo), // 바로 앞 설정을 이어서 적음
-                                category = selectedCategory, // category 값을 이 함수로 넘김
+                                title = createExpenseTitle(currentCategory, memo), // 바로 앞 설정을 이어서 적음
+                                category = currentCategory, // category 값을 이 함수로 넘김
                                 amount = amountInt, // amount 값을 이 함수로 넘김
                                 memo = memo, // memo 값을 이 함수로 넘김
-                                receiptImageName = receiptImageName, // receiptImageName 값을 이 함수로 넘김
-                                diary = diary // diary 값을 이 함수로 넘김
+                                receiptImageName = if (isExpenseTab) receiptImageName else "", // receiptImageName 값을 이 함수로 넘김
+                                diary = if (isExpenseTab) diary else "" // diary 값을 이 함수로 넘김
                             )
 
                             onSaveExpense(newExpense) // 함수를 호출해 값을 넣음
@@ -1661,8 +1766,8 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                             .background( // 배경색이나 그라데이션을 넣음
                                 brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
                                     colors = listOf( // 값 여러 개를 묶은 목록을 만듦
-                                        Color(0xFF16B8D9), // contentPadding 값을 이 함수로 넘김
-                                        Color(0xFF2F7DF6) // 사용할 색상 값을 넣음
+                                        if (isExpenseTab) Color(0xFF16B8D9) else Color(0xFF22C55E), // 시작 색상을 정함
+                                        if (isExpenseTab) Color(0xFF2F7DF6) else Color(0xFF16A34A) // 끝 색상을 정함
                                     )
                                 ),
                                 shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
@@ -1670,7 +1775,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
                     ) { // 이 블록 안의 내용이 시작됨
                         Text( // 글자를 화면에 보여주기 시작함
-                            text = "기록 완료", // 화면에 보여줄 글자를 정함
+                            text = if (isExpenseTab) "소비 입력 완료" else "수입 입력 완료", // 화면에 보여줄 글자를 정함
                             color = Color.White, // 색상을 정함
                             fontSize = 17.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.Bold // 글자 두께를 정함
