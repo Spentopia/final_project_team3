@@ -413,11 +413,11 @@ pub async fn check_receipt_limit(
         return Err(ReceiptLimitError::TooMany);
     }
 
-    // ── expense_id 중복 체크 ──
+    // ── expense_id 중복 체크 (expenses.receipt_verified 기준) ──
     if let Some(expense_id) = expense_id {
         let dup_url = format!(
-            "{}/rest/v1/receipts?expense_id=eq.{}&select=id&limit=1",
-            base_url, expense_id
+            "{}/rest/v1/expenses?id=eq.{}&user_id=eq.{}&receipt_verified=eq.true&select=id&limit=1",
+            base_url, expense_id, user_id
         );
 
         let dup_res = state
