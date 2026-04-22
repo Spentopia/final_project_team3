@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useFinance } from "@/shared/providers/FinanceProvider";
 
 import { Card } from "@/shared/ui/card";
@@ -30,54 +31,166 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-const weeklyData = [
-  { day: "월", amount: 15000 },
-  { day: "화", amount: 8000 },
-  { day: "수", amount: 22000 },
-  { day: "목", amount: 12000 },
-  { day: "금", amount: 35000 },
-  { day: "토", amount: 45000 },
-  { day: "일", amount: 28000 },
-];
+const categoryColorMap: Record<string, string> = {
+  food: "#f97316",
+  transport: "#3b82f6",
+  shopping: "#ec4899",
+  entertainment: "#a855f7",
+  health: "#22c55e",
+  education: "#6366f1",
+  utility: "#eab308",
+  other: "#6b7280",
+};
 
-const monthlyData = [
-  { month: "1월", amount: 320000 },
-  { month: "2월", amount: 280000 },
-  { month: "3월", amount: 350000 },
-  { month: "4월", amount: 310000 },
-  { month: "5월", amount: 290000 },
-  { month: "6월", amount: 265000 },
-];
-
-const categoryData = [
-  { name: "식비", value: 45, amount: 135000, color: "#f97316" },
-  { name: "교통", value: 20, amount: 60000, color: "#3b82f6" },
-  { name: "쇼핑", value: 15, amount: 45000, color: "#ec4899" },
-  { name: "여가", value: 12, amount: 36000, color: "#a855f7" },
-  { name: "기타", value: 8, amount: 24000, color: "#6b7280" },
-];
+const categoryLabelMap: Record<string, string> = {
+  food: "식비",
+  transport: "교통",
+  shopping: "쇼핑",
+  entertainment: "여가",
+  health: "의료",
+  education: "교육",
+  utility: "공과금",
+  other: "기타",
+};
 
 export default function Analytics() {
-  const { transactions } = useFinance(); // ✅ 여기 (제일 위)
+
+  const { transactions, budgets } = useFinance(); // ✅ 여기 (제일 위)
+  const [expenses, setExpenses] = useState<any[]>([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("expenses");
+    if (stored) {
+      const parsed = JSON.parse(stored).map((e: any) => ({
+        ...e,
+        date: new Date(e.date),
+      }));
+      setExpenses(parsed);
+    }
+  }, []);
+
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+
   const now = new Date();
 
+const currentMonthKey = `${selectedMonth.getFullYear()}-${String(
+  selectedMonth.getMonth() + 1
+).padStart(2, "0")}`;
+
+const currentBudget = budgets[currentMonthKey] || 0;
+
   // 👉 여기부터 계산 코드들
-  const thisMonthTransactions = transactions.filter((t: any) => {
-    const date = new Date(t.date);
-    return (
-      date.getFullYear() === now.getFullYear() &&
-      date.getMonth() === now.getMonth()
-    );
-  });
+  const thisMonthTransactions = expenses.filter((t: any) => {
+  const date = new Date(t.date);
+
+  return (
+    date.getFullYear() === selectedMonth.getFullYear() &&
+    date.getMonth() === selectedMonth.getMonth()
+  );
+});
 
   const totalExpense = thisMonthTransactions.reduce(
     (sum: number, t: any) => sum + t.amount,
     0
   );
+
+  const daysInMonth = new Date(
+  selectedMonth.getFullYear(),
+  selectedMonth.getMonth() + 1,
+  0
+).getDate();
+
+const averageDailyExpense =
+  thisMonthTransactions.length > 0
+    ? Math.round(totalExpense / daysInMonth)
+    : 0;
+    const weekDays = ["일", "월", "화", "수", "목", "금", "토"];
+
+const weeklyData = weekDays.map((day, index) => {
+  const total = thisMonthTransactions
+    .filter((t: any) => new Date(t.date).getDay() === index)
+    .reduce((sum: number, t: any) => sum + t.amount, 0);
+
+  return {
+    day,
+    amount: total,
+  };
+});
+// 🔥 월별 데이터 (여기에 추가)
+const monthlyData = Array.from({ length: 12 }, (_, i) => {
+  const total = expenses
+    .filter((t: any) => {
+      const date = new Date(t.date);
+      return date.getMonth() === i;
+    })
+    .reduce((sum: number, t: any) => sum + t.amount, 0);
+
+  return {
+    month: `${i + 1}월`,
+    amount: total,
+  };
+});
+    // 🔥 예산 사용률
+const usageRate =
+  currentBudget > 0 ? Math.round((totalExpense / currentBudget) * 100) : 0;
+
+// 🔥 카테고리 계산
+const categoryMap: Record<string, number> = {};
+
+thisMonthTransactions.forEach((t: any) => {
+  const key = t.category || "기타";
+  categoryMap[key] = (categoryMap[key] || 0) + t.amount;
+});
+
+const total = Object.values(categoryMap).reduce((a, b) => a + b, 0);
+
+const categoryData = Object.entries(categoryMap).map(([key, value]) => ({
+  name: categoryLabelMap[key] || "기타", // ✅ 한글 변환
+  value: Math.round((value / total) * 100),
+  amount: value,
+  color: categoryColorMap[key] || "#6b7280", // ✅ 색상
+}));
+
+// 🔥 최다 카테고리
+const topCategory = Object.entries(categoryMap).sort(
+  (a, b) => b[1] - a[1]
+)[0];
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
+        <div className="flex gap-2 mb-4 items-center">
+  <Button
+    onClick={() =>
+      setSelectedMonth(
+        new Date(
+          selectedMonth.getFullYear(),
+          selectedMonth.getMonth() - 1
+        )
+      )
+    }
+  >
+    ◀ 이전달
+  </Button>
+
+  <span className="font-bold text-lg">
+    {selectedMonth.getFullYear()}년 {selectedMonth.getMonth() + 1}월
+  </span>
+
+  <Button
+    onClick={() =>
+      setSelectedMonth(
+        new Date(
+          selectedMonth.getFullYear(),
+          selectedMonth.getMonth() + 1
+        )
+      )
+    }
+  >
+    다음달 ▶
+  </Button>
+</div>
         <div>
           <h1 className="mb-2 text-3xl font-bold text-gray-900">소비 패턴 분석</h1>
           <p className="text-gray-600">AI가 분석한 당신의 소비 습관을 확인해보세요</p>
@@ -108,26 +221,42 @@ export default function Analytics() {
         </Card>
 
         <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
-          <p className="mb-1 text-sm text-gray-600">일 평균 지출</p>
-          <p className="mb-2 text-3xl font-bold text-gray-900">23,571원</p>
-          <div className="flex items-center gap-1 text-sm text-green-600">
-            <TrendingDown className="h-4 w-4" />
-            <span>-5% 절약중</span>
-          </div>
-        </Card>
+  <p className="mb-1 text-sm text-gray-600">일 평균 지출</p>
+
+  <p className="mb-2 text-3xl font-bold text-gray-900">
+    {averageDailyExpense.toLocaleString()}원
+  </p>
+
+  <div className="flex items-center gap-1 text-sm text-green-600">
+    <TrendingDown className="h-4 w-4" />
+    <span>평균 소비</span>
+  </div>
+</Card>
 
         <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
           <p className="mb-1 text-sm text-gray-600">예산 사용률</p>
-          <p className="mb-2 text-3xl font-bold text-gray-900">60%</p>
+          <p className="mb-2 text-3xl font-bold text-gray-900">
+  {usageRate}%
+</p>
           <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-            <div className="h-full w-[60%] bg-gradient-to-r from-cyan-500 to-blue-500"></div>
-          </div>
+    <div
+      className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
+      style={{ width: `${usageRate}%` }}  // ✅ 여기 있어야 정상
+    ></div>
+  </div>
         </Card>
 
         <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
           <p className="mb-1 text-sm text-gray-600">최다 소비 카테고리</p>
-          <p className="mb-2 text-3xl font-bold text-gray-900">🍔 식비</p>
-          <p className="text-sm text-gray-600">전체의 45%</p>
+          <p className="mb-2 text-3xl font-bold text-gray-900">
+  {topCategory ? categoryLabelMap[topCategory[0]] : "없음"}
+</p>
+
+<p className="text-sm text-gray-600">
+  {topCategory
+    ? `${Math.round((topCategory[1] / totalExpense) * 100)}%`
+    : ""}
+</p>
         </Card>
       </div>
 

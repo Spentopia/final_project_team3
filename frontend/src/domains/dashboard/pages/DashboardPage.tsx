@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFinance } from "@/shared/providers/FinanceProvider";
 
 import { Calendar } from "@/shared/ui/calendar";
@@ -62,9 +62,13 @@ const categories = [
 ];
 
 export default function DashboardPage() {
-  const { budget } = useFinance();
+  const { transactions, addTransaction, budgets, removeTransaction } = useFinance();
+
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
   const [newExpense, setNewExpense] = useState({
@@ -73,6 +77,17 @@ export default function DashboardPage() {
     memo: "",
     diary: "",
   });
+  useEffect(() => {
+    const stored = localStorage.getItem("expenses");
+    if (stored) {
+      const parsed = JSON.parse(stored).map((e: any) => ({
+        ...e,
+        date: new Date(e.date),
+      }));
+      setExpenses(parsed);
+    }
+  }, []);
+
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -161,9 +176,31 @@ export default function DashboardPage() {
 
       const savedExpense = await createExpense(payload);
 
-      const expense = toDashboardExpense(savedExpense);
+      const expense: Expense = {
+  id: Date.now(), // 서버 id 말고 로컬 id
+  date: selectedDate,
+  amount: Number(newExpense.amount),
+  category: newExpense.category,
+  memo: newExpense.memo,
+  receipt: isReceiptVerified,
+  diary: newExpense.diary,
+};
 
-      setExpenses((prev) => [expense, ...prev]);
+      setExpenses((prev) => {
+  const updated = [expense, ...prev];
+
+  // 🔥 여기서 직접 저장 (이게 핵심)
+  localStorage.setItem("expenses", JSON.stringify(updated));
+
+  return updated;
+});
+
+addTransaction({
+  id: expense.id, // 🔥 이거 반드시 추가
+  amount: expense.amount,
+  category: expense.category,
+  date: format(selectedDate, "yyyy-MM-dd"),
+});
       setSelectedDate(expense.date);
 
       let reward = 10;
@@ -197,9 +234,19 @@ export default function DashboardPage() {
   };
 
   const handleDeleteExpense = (id: string | number) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
-    toast.success("삭제되었습니다");
-  };
+  setExpenses((prev) => {
+    const updated = prev.filter((e) => e.id !== id);
+
+    localStorage.setItem("expenses", JSON.stringify(updated));
+
+    return updated;
+  });
+
+  // 🔥 핵심
+  removeTransaction(id);
+
+  toast.success("삭제되었습니다");
+};
 
   const handleExpenseDateChange = (value: string) => {
     if (!value) {
@@ -220,13 +267,27 @@ export default function DashboardPage() {
 
   const dailyTotal = selectedDateExpenses.reduce((sum, e) => sum + e.amount, 0);
 
-  const monthlyTotal = expenses
-    .filter(
-      (e) =>
-        e.date.getFullYear() === (selectedDate || new Date()).getFullYear() &&
-        e.date.getMonth() === (selectedDate || new Date()).getMonth()
-    )
-    .reduce((sum, e) => sum + e.amount, 0);
+  const now = new Date();
+
+const currentMonthKey = `${selectedYear}-${String(
+  selectedMonth + 1
+).padStart(2, "0")}`;
+
+const currentBudget = budgets[currentMonthKey] || 0;
+
+const filteredTransactions = transactions.filter((t: any) => {
+  const date = new Date(t.date);
+
+  return (
+    date.getFullYear() === selectedYear &&
+    date.getMonth() === selectedMonth
+  );
+});
+
+const monthlyTotal = filteredTransactions.reduce(
+  (sum: number, t: any) => sum + t.amount,
+  0
+);
 
   const recordedDates = expenses.map((expense) => expense.date);
   const selectedDateInputValue = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
@@ -234,6 +295,70 @@ export default function DashboardPage() {
   const getCategoryInfo = (categoryValue: string) => {
     return categories.find((c) => c.value === categoryValue) || categories[categories.length - 1];
   };
+
+
+// ✅ 여기부터 추가 (이 위치가 정답)
+const weekStart = new Date();
+weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+
+const weekExpenses = expenses.filter((e) => e.date >= weekStart);
+
+const totalCount = weekExpenses.length;
+const receiptCount = weekExpenses.filter((e) => e.receipt).length;
+const diaryCount = weekExpenses.filter((e) => e.diary && e.diary.trim() !== "").length;
+
+// =========================
+// ✅ 점수 계산 (이걸로 교체)
+// =========================
+
+// 소비 기록 (최대 40)
+const recordScore = Math.min(totalCount, 40);
+
+// 영수증 인증 (최대 30)
+const receiptScore = Math.min(receiptCount, 30);
+
+// 일기 작성 (최대 15)
+const diaryScore = Math.min(diaryCount, 15);
+
+// 예산 체크 (최대 15)
+const budgetScore =
+  currentBudget > 0
+    ? Math.min(Math.round((monthlyTotal / currentBudget) * 15), 15)
+    : 0;
+
+// 최종 점수
+const score =
+  recordScore +
+  receiptScore +
+  diaryScore +
+  budgetScore;
+
+const finalScore = Math.min(score, 100);
+
+// 👇👇👇 바로 여기다 넣어야 함 (return 바로 위)
+
+// =========================
+// 🔥 연속 출석 계산
+// =========================
+const formatDate = (date: Date) => format(date, "yyyy-MM-dd");
+
+const recordedDateSet = new Set(
+  expenses.map((e) => formatDate(new Date(e.date)))
+);
+
+let streak = 0;
+let current = new Date();
+
+while (true) {
+  const key = formatDate(current);
+
+  if (recordedDateSet.has(key)) {
+    streak++;
+    current.setDate(current.getDate() - 1);
+  } else {
+    break;
+  }
+}
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
@@ -243,8 +368,23 @@ export default function DashboardPage() {
         <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
           <div className="mb-4 flex items-center justify-between">
             <div>
+              <div className="flex gap-2 mb-3 flex-wrap">
+  {Array.from({ length: 12 }, (_, i) => (
+    <button
+      key={i}
+      onClick={() => setSelectedMonth(i)}
+      className={`px-3 py-1 rounded-lg text-sm ${
+        selectedMonth === i
+          ? "bg-cyan-500 text-white"
+          : "bg-gray-200 text-gray-700"
+      }`}
+    >
+      {i + 1}월
+    </button>
+  ))}
+</div>
               <h3 className="text-2xl font-bold">
-                {format(selectedDate || new Date(), "yyyy년 M월", { locale: ko })}
+                {selectedYear}년 {selectedMonth + 1}월
               </h3>
               <p className="text-sm text-gray-600">이번 달 소비 내역</p>
             </div>
@@ -259,22 +399,22 @@ export default function DashboardPage() {
             <div className="p-4 bg-cyan-100 rounded-lg">
               <p>예산</p>
               <p className="font-bold">
-                {budget.toLocaleString()}원
+                {currentBudget.toLocaleString()}원
               </p>
             </div>
 
             <div className="p-4 bg-blue-100 rounded-lg">
               <p>남은 예산</p>
               <p className="font-bold">
-                {(budget - monthlyTotal).toLocaleString()}원
+                {(currentBudget - monthlyTotal).toLocaleString()}원
               </p>
             </div>
 
             <div className="p-4 bg-teal-100 rounded-lg">
               <p>사용률</p>
               <p className="font-bold">
-                {budget > 0
-                  ? Math.round((monthlyTotal / budget) * 100)
+                {currentBudget > 0
+                  ? Math.round((monthlyTotal / currentBudget) * 100)
                   : 0}
                 %
               </p>
@@ -401,30 +541,36 @@ export default function DashboardPage() {
             <h3 className="font-bold">이번 주 성실도</h3>
             <Zap className="h-5 w-5" />
           </div>
-          <p className="mb-2 text-3xl font-bold">85점</p>
-          <div className="mb-4 h-2 overflow-hidden rounded-full bg-white/30">
-            <div className="h-full w-[85%] bg-white"></div>
-          </div>
+          <p className="mb-2 text-3xl font-bold">{finalScore}점</p>
+
+<div className="mb-4 h-2 overflow-hidden rounded-full bg-white/30">
+  <div
+    className="h-full bg-white"
+    style={{ width: `${finalScore}%` }}
+  ></div>
+</div>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>소비 기록</span>
-              <span className="font-bold">35/40</span>
-            </div>
-            <div className="flex justify-between">
-              <span>영수증 인증</span>
-              <span className="font-bold">18/20</span>
-            </div>
-            <div className="flex justify-between">
-              <span>일기 작성</span>
-              <span className="font-bold">12/15</span>
-            </div>
+  <div className="flex justify-between">
+    <span>소비 기록</span>
+    <span className="font-bold">{recordScore}/40</span>
+  </div>
+
+  <div className="flex justify-between">
+    <span>영수증 인증</span>
+    <span className="font-bold">{receiptScore}/30</span>
+  </div>
+
+  <div className="flex justify-between">
+    <span>일기 작성</span>
+    <span className="font-bold">{diaryScore}/15</span>
+  </div>
             <div className="flex justify-between">
               <span>예산 체크</span>
-              <span className="font-bold">15/15</span>
+              <span className="font-bold">{budgetScore}/15</span>
             </div>
             <div className="flex justify-between">
               <span>연속 활동</span>
-              <span className="font-bold">7일 🔥</span>
+              <span className="font-bold">🔥{streak}일</span>
             </div>
           </div>
         </Card>
