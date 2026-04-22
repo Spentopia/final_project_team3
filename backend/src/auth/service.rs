@@ -1592,6 +1592,12 @@ pub async fn check_profile_availability(
     nickname: &str,
     phone: &str,
 ) -> Result<()> {
+
+    // 닉네임 유효성 검사 (길이 2~8자 + 금칙어)
+    // 실패 시 에러 메시지가 프론트 toast로 그대로 올라감
+    crate::filter::validate_nickname(nickname)
+        .map_err(|msg| anyhow!(msg))?;
+
     let normalized_nickname = nickname.trim();
     let formatted_phone = format_phone(phone);
 

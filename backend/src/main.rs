@@ -38,6 +38,7 @@ mod route;
 mod state;
 pub mod user;
 pub mod wallet;
+mod filter;
 
 use axum::http::{HeaderValue, Method, header};
 use std::net::SocketAddr;
