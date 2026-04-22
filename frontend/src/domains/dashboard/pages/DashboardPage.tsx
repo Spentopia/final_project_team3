@@ -54,8 +54,14 @@ const toDashboardExpense = (savedExpense: CreateExpenseResponse): Expense => ({
   category: savedExpense.category,
   memo: savedExpense.memo ?? "",
   type: savedExpense.transactionType,
-  receipt: savedExpense.transactionType === "expense" ? savedExpense.receiptVerified : undefined,
-  diary: savedExpense.transactionType === "expense" ? (savedExpense.diary ?? "") : undefined,
+  receipt:
+    savedExpense.transactionType === "expense"
+      ? savedExpense.receiptVerified
+      : undefined,
+  diary:
+    savedExpense.transactionType === "expense"
+      ? (savedExpense.diary ?? "")
+      : undefined,
 });
 
 const categories = [
@@ -79,7 +85,9 @@ const incomeCategories = [
 ];
 
 export default function DashboardPage() {
-  const { budget, transactions, replaceTransactions, removeTransaction } = useFinance();
+  const { budgets, transactions, replaceTransactions, removeTransaction } =
+    useFinance();
+
   const draftStorageKey = "dashboard-expense-draft";
   const selectedDateStorageKey = "dashboard-selected-date";
   const entryTypeStorageKey = "dashboard-entry-type";
@@ -91,10 +99,12 @@ export default function DashboardPage() {
     const parsed = parse(saved, "yyyy-MM-dd", new Date());
     return isValid(parsed) ? parsed : new Date();
   });
+
   const [entryType, setEntryType] = useState<"expense" | "income">(() => {
     const saved = localStorage.getItem(entryTypeStorageKey);
     return saved === "income" ? "income" : "expense";
   });
+
   const [newExpense, setNewExpense] = useState(() => {
     const saved = localStorage.getItem(draftStorageKey);
     if (!saved) {
@@ -124,6 +134,14 @@ export default function DashboardPage() {
     }
   });
 
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
+  const [ocrResult, setOcrResult] = useState<ReceiptOcrResponse | null>(null);
+  const [isReceiptVerified, setIsReceiptVerified] = useState(false);
+  const [ocrError, setOcrError] = useState("");
+
   const resetForm = () => {
     setNewExpense({
       amount: "",
@@ -147,20 +165,15 @@ export default function DashboardPage() {
       return;
     }
 
-    localStorage.setItem(selectedDateStorageKey, format(selectedDate, "yyyy-MM-dd"));
+    localStorage.setItem(
+      selectedDateStorageKey,
+      format(selectedDate, "yyyy-MM-dd")
+    );
   }, [selectedDate]);
 
   useEffect(() => {
     localStorage.setItem(entryTypeStorageKey, entryType);
   }, [entryType]);
-
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [ocrLoading, setOcrLoading] = useState(false);
-  const [saveLoading, setSaveLoading] = useState(false);
-  const [listLoading, setListLoading] = useState(false);
-  const [ocrResult, setOcrResult] = useState<ReceiptOcrResponse | null>(null);
-  const [isReceiptVerified, setIsReceiptVerified] = useState(false);
-  const [ocrError, setOcrError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -187,7 +200,9 @@ export default function DashboardPage() {
       } catch (error) {
         if (!cancelled) {
           const message =
-            error instanceof Error ? error.message : "소비 내역을 불러오지 못했습니다.";
+            error instanceof Error
+              ? error.message
+              : "소비 내역을 불러오지 못했습니다.";
           toast.error(message);
         }
       } finally {
@@ -202,7 +217,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [replaceTransactions]);
 
   const handleVerifyReceipt = async () => {
     if (!receiptFile) {
@@ -245,7 +260,9 @@ export default function DashboardPage() {
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "영수증 검증 중 오류가 발생했습니다.";
+        error instanceof Error
+          ? error.message
+          : "영수증 검증 중 오류가 발생했습니다.";
       setOcrError(message);
       setIsReceiptVerified(false);
       toast.error(message);
@@ -284,29 +301,29 @@ export default function DashboardPage() {
 
       const savedExpense = await createExpense(payload);
 
-      // 영수증 인증 서버 반영 (receipt_verified 서버 제어)
-      // 프리뷰 인증 성공 → expense_id 포함해서 OCR 재호출 → 서버가 DB 업데이트
-      // 재호출 실패 시 저장된 소비를 롤백(DELETE)해서 불일치 방지
       let serverReceiptVerified = false;
       if (entryType === "expense" && receiptFile && isReceiptVerified) {
         try {
-          const ocrResult = await verifyReceiptOcr({
+          const verifiedResult = await verifyReceiptOcr({
             image: receiptFile,
             expectedDate: format(selectedDate, "yyyy-MM-dd"),
             expectedAmount: Number(newExpense.amount),
             expenseId: String(savedExpense.id),
           });
-          serverReceiptVerified = ocrResult.verification.is_verified;
+          serverReceiptVerified = verifiedResult.verification.is_verified;
         } catch (ocrError) {
-          // OCR 재호출 실패 → 저장된 소비 롤백
           try {
             await deleteExpense(String(savedExpense.id));
           } catch {
-            // 롤백도 실패한 경우 사용자에게 알림
-            toast.error("오류가 발생했습니다. 가계부에서 해당 내역을 직접 삭제해주세요.");
+            toast.error(
+              "오류가 발생했습니다. 가계부에서 해당 내역을 직접 삭제해주세요."
+            );
           }
+
           const message =
-            ocrError instanceof Error ? ocrError.message : "영수증 인증 중 오류가 발생했습니다.";
+            ocrError instanceof Error
+              ? ocrError.message
+              : "영수증 인증 중 오류가 발생했습니다.";
           toast.error(`저장 취소: ${message}`);
           return;
         }
@@ -322,11 +339,13 @@ export default function DashboardPage() {
           category: expense.category,
           memo: expense.memo,
           type: entryType,
-          receipt: entryType === "expense" ? serverReceiptVerified : undefined,
+          receipt:
+            entryType === "expense" ? serverReceiptVerified : undefined,
           diary: entryType === "expense" ? expense.diary : undefined,
         },
         ...transactions,
       ]);
+
       setSelectedDate(expense.date);
 
       if (savedExpense.transactionType !== entryType) {
@@ -335,10 +354,9 @@ export default function DashboardPage() {
         );
       }
 
-      if (newExpense.diary.trim()) {
-        // diary 점수 안내 (필요 시 확장)
-      }
-      toast.success(entryType === "income" ? "수입 기록 완료!" : "소비 기록 완료! 🎉");
+      toast.success(
+        entryType === "income" ? "수입 기록 완료!" : "소비 기록 완료! 🎉"
+      );
 
       resetForm();
     } catch (error) {
@@ -354,14 +372,16 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDeleteExpense = async (id: string | number, type: "expense" | "income") => {
+  const handleDeleteExpense = async (id: string | number) => {
     try {
       await deleteExpense(String(id));
       removeTransaction(id);
       toast.success("삭제되었습니다");
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "소비 삭제 중 오류가 발생했습니다.";
+        error instanceof Error
+          ? error.message
+          : "소비 삭제 중 오류가 발생했습니다.";
       toast.error(message);
     }
   };
@@ -390,13 +410,22 @@ export default function DashboardPage() {
     diary: transaction.type === "expense" ? transaction.diary : undefined,
   }));
 
+  const baseDate = selectedDate || new Date();
+
+  const monthKey = `${baseDate.getFullYear()}-${String(
+    baseDate.getMonth() + 1
+  ).padStart(2, "0")}`;
+
+  const currentBudget = budgets[monthKey] || 0;
+
   const selectedDateExpenses = expenses.filter(
-    (e) => format(e.date, "yyyy-MM-dd") === format(selectedDate || new Date(), "yyyy-MM-dd")
+    (e) => format(e.date, "yyyy-MM-dd") === format(baseDate, "yyyy-MM-dd")
   );
 
   const dailyExpenseTotal = selectedDateExpenses
     .filter((e) => e.type === "expense")
     .reduce((sum, e) => sum + e.amount, 0);
+
   const dailyIncomeTotal = selectedDateExpenses
     .filter((e) => e.type === "income")
     .reduce((sum, e) => sum + e.amount, 0);
@@ -405,8 +434,8 @@ export default function DashboardPage() {
     .filter(
       (e) =>
         e.type === "expense" &&
-        e.date.getFullYear() === (selectedDate || new Date()).getFullYear() &&
-        e.date.getMonth() === (selectedDate || new Date()).getMonth()
+        e.date.getFullYear() === baseDate.getFullYear() &&
+        e.date.getMonth() === baseDate.getMonth()
     )
     .reduce((sum, e) => sum + e.amount, 0);
 
@@ -414,60 +443,62 @@ export default function DashboardPage() {
     .filter(
       (e) =>
         e.type === "income" &&
-        e.date.getFullYear() === (selectedDate || new Date()).getFullYear() &&
-        e.date.getMonth() === (selectedDate || new Date()).getMonth()
+        e.date.getFullYear() === baseDate.getFullYear() &&
+        e.date.getMonth() === baseDate.getMonth()
     )
     .reduce((sum, e) => sum + e.amount, 0);
 
   const recordedDates = expenses.map((expense) => expense.date);
-  const selectedDateInputValue = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
-  const activeCategories = entryType === "income" ? incomeCategories : categories;
+  const selectedDateInputValue = selectedDate
+    ? format(selectedDate, "yyyy-MM-dd")
+    : "";
+  const activeCategories =
+    entryType === "income" ? incomeCategories : categories;
 
-  const getCategoryInfo = (categoryValue: string, type: "expense" | "income") => {
+  const getCategoryInfo = (
+    categoryValue: string,
+    type: "expense" | "income"
+  ) => {
     const source = type === "income" ? incomeCategories : categories;
     return source.find((c) => c.value === categoryValue) || source[source.length - 1];
   };
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
-      {/* Left Column - Calendar & Expenses */}
       <div className="space-y-6">
-        {/* Monthly Summary */}
         <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {format(selectedDate || new Date(), "yyyy년 M월", { locale: ko })}
+                {format(baseDate, "yyyy년 M월", { locale: ko })}
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">이번 달 소비 내역</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                이번 달 소비 내역
+              </p>
             </div>
             <div className="text-right text-gray-900 dark:text-gray-100">
-              <p className="text-3xl font-bold">
-                {monthlyTotal.toLocaleString()}원
-              </p>
+              <p className="text-3xl font-bold">{monthlyTotal.toLocaleString()}원</p>
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-lg bg-cyan-100 p-4 text-gray-900 dark:bg-cyan-100 dark:text-gray-900">
               <p className="text-sm font-medium">예산</p>
-              <p className="font-bold">
-                {budget.toLocaleString()}원
-              </p>
+              <p className="font-bold">{currentBudget.toLocaleString()}원</p>
             </div>
 
             <div className="rounded-lg bg-blue-100 p-4 text-gray-900 dark:bg-blue-100 dark:text-gray-900">
               <p className="text-sm font-medium">남은 예산</p>
               <p className="font-bold">
-                {(budget - monthlyTotal).toLocaleString()}원
+                {(currentBudget - monthlyTotal).toLocaleString()}원
               </p>
             </div>
 
             <div className="rounded-lg bg-teal-100 p-4 text-gray-900 dark:bg-teal-100 dark:text-gray-900">
               <p className="text-sm font-medium">사용률</p>
               <p className="font-bold">
-                {budget > 0
-                  ? Math.round((monthlyTotal / budget) * 100)
+                {currentBudget > 0
+                  ? Math.round((monthlyTotal / currentBudget) * 100)
                   : 0}
                 %
               </p>
@@ -482,7 +513,6 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Calendar */}
         <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
           <Calendar
             mode="single"
@@ -493,7 +523,8 @@ export default function DashboardPage() {
               months: "w-full",
               month: "flex w-full flex-col gap-4",
               caption: "relative flex w-full items-center justify-center pt-1",
-              caption_label: "text-xl font-bold text-gray-900 dark:text-gray-100 sm:text-2xl",
+              caption_label:
+                "text-xl font-bold text-gray-900 dark:text-gray-100 sm:text-2xl",
               table: "w-full border-collapse",
               head_row: "grid grid-cols-7",
               head_cell:
@@ -511,15 +542,15 @@ export default function DashboardPage() {
           />
         </Card>
 
-        {/* Daily Expenses List */}
         <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="font-bold text-gray-900 dark:text-gray-100">
-                {format(selectedDate || new Date(), "M월 d일", { locale: ko })} 소비 내역
+                {format(baseDate, "M월 d일", { locale: ko })} 소비 내역
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                소비 {dailyExpenseTotal.toLocaleString()}원 · 수입 {dailyIncomeTotal.toLocaleString()}원 · {selectedDateExpenses.length}건
+                소비 {dailyExpenseTotal.toLocaleString()}원 · 수입{" "}
+                {dailyIncomeTotal.toLocaleString()}원 · {selectedDateExpenses.length}건
               </p>
             </div>
             {selectedDateExpenses.some((e) => e.diary) && (
@@ -534,9 +565,13 @@ export default function DashboardPage() {
             {selectedDateExpenses.length === 0 ? (
               <div className="py-12 text-center">
                 <p className="text-gray-500">
-                  {listLoading ? "소비 내역을 불러오는 중이에요" : "아직 기록된 내역이 없어요"}
+                  {listLoading
+                    ? "소비 내역을 불러오는 중이에요"
+                    : "아직 기록된 내역이 없어요"}
                 </p>
-                <p className="mt-1 text-sm text-gray-400">오른쪽에서 소비나 수입을 기록해보세요!</p>
+                <p className="mt-1 text-sm text-gray-400">
+                  오른쪽에서 소비나 수입을 기록해보세요!
+                </p>
               </div>
             ) : (
               selectedDateExpenses.map((expense) => {
@@ -595,7 +630,7 @@ export default function DashboardPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => void handleDeleteExpense(expense.id, expense.type)}
+                        onClick={() => void handleDeleteExpense(expense.id)}
                       >
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
@@ -606,10 +641,11 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Daily Diary */}
           {selectedDateExpenses.length > 0 && (
             <div className="mt-6 rounded-lg border-2 border-dashed border-cyan-300 bg-cyan-50/50 p-4 dark:border-cyan-600 dark:bg-cyan-900/20">
-              <p className="mb-2 font-bold text-cyan-900 dark:text-cyan-100">오늘의 소비 일기</p>
+              <p className="mb-2 font-bold text-cyan-900 dark:text-cyan-100">
+                오늘의 소비 일기
+              </p>
               {selectedDateExpenses.find((e) => e.diary) ? (
                 <p className="text-sm text-gray-700 dark:text-gray-300">
                   {selectedDateExpenses.find((e) => e.diary)?.diary}
@@ -624,9 +660,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Right Column - Add Expense Form */}
       <div className="space-y-6">
-        {/* Add Expense Form */}
         <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -691,7 +725,9 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <Label htmlFor="amount" className="text-gray-700 dark:text-gray-200">금액 *</Label>
+              <Label htmlFor="amount" className="text-gray-700 dark:text-gray-200">
+                금액 *
+              </Label>
               <Input
                 id="amount"
                 type="number"
@@ -708,10 +744,14 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <Label htmlFor="category" className="text-gray-700 dark:text-gray-200">카테고리 *</Label>
+              <Label htmlFor="category" className="text-gray-700 dark:text-gray-200">
+                카테고리 *
+              </Label>
               <Select
                 value={newExpense.category}
-                onValueChange={(value) => setNewExpense({ ...newExpense, category: value })}
+                onValueChange={(value) =>
+                  setNewExpense({ ...newExpense, category: value })
+                }
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="카테고리 선택" />
@@ -727,13 +767,21 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <Label htmlFor="memo" className="text-gray-700 dark:text-gray-200">{entryType === "income" ? "수입 내용" : "구매품목"}</Label>
+              <Label htmlFor="memo" className="text-gray-700 dark:text-gray-200">
+                {entryType === "income" ? "수입 내용" : "구매품목"}
+              </Label>
               <Input
                 id="memo"
                 type="text"
-                placeholder={entryType === "income" ? "어떤 수입인가요?" : "무엇을 구매했나요?"}
+                placeholder={
+                  entryType === "income"
+                    ? "어떤 수입인가요?"
+                    : "무엇을 구매했나요?"
+                }
                 value={newExpense.memo}
-                onChange={(e) => setNewExpense({ ...newExpense, memo: e.target.value })}
+                onChange={(e) =>
+                  setNewExpense({ ...newExpense, memo: e.target.value })
+                }
                 className="mt-1"
               />
             </div>
@@ -741,7 +789,9 @@ export default function DashboardPage() {
             {entryType === "expense" && (
               <>
                 <div>
-                  <Label htmlFor="receipt" className="text-gray-700 dark:text-gray-200">영수증 인증</Label>
+                  <Label htmlFor="receipt" className="text-gray-700 dark:text-gray-200">
+                    영수증 인증
+                  </Label>
                   <div className="mt-2 flex items-center gap-3">
                     <Button
                       type="button"
@@ -815,12 +865,16 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="diary" className="text-gray-700 dark:text-gray-200">한줄 소비 일기</Label>
+                  <Label htmlFor="diary" className="text-gray-700 dark:text-gray-200">
+                    한줄 소비 일기
+                  </Label>
                   <Textarea
                     id="diary"
                     placeholder="오늘 소비에 대한 생각을 기록해보세요"
                     value={newExpense.diary}
-                    onChange={(e) => setNewExpense({ ...newExpense, diary: e.target.value })}
+                    onChange={(e) =>
+                      setNewExpense({ ...newExpense, diary: e.target.value })
+                    }
                     className="mt-1"
                     rows={3}
                   />
@@ -838,12 +892,15 @@ export default function DashboardPage() {
               }`}
             >
               <Plus className="mr-2 h-4 w-4" />
-              {saveLoading ? "저장 중..." : entryType === "income" ? "수입 입력 완료" : "소비 입력 완료"}
+              {saveLoading
+                ? "저장 중..."
+                : entryType === "income"
+                  ? "수입 입력 완료"
+                  : "소비 입력 완료"}
             </Button>
           </div>
         </Card>
 
-        {/* Rewards Info */}
         <Card className="border-none bg-gradient-to-br from-amber-50 to-yellow-50 p-6 text-gray-900 backdrop-blur-xl dark:from-amber-50 dark:to-yellow-50 dark:text-gray-900">
           <h4 className="mb-3 font-bold text-gray-900">💰 보상 안내</h4>
           <div className="space-y-2 text-sm text-gray-700">
