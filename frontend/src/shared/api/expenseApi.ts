@@ -24,24 +24,10 @@ export interface ListExpensesResponse {
   items: CreateExpenseResponse[];
 }
 
-let listExpensesInFlight: Promise<CreateExpenseResponse[]> | null = null;
-
 export async function listExpenses(): Promise<CreateExpenseResponse[]> {
-  if (listExpensesInFlight) {
-    return listExpensesInFlight;
-  }
-
   try {
-    listExpensesInFlight = apiClient
-      .get<ListExpensesResponse>("/api/expenses")
-      .then((response) =>
-        Array.isArray(response.data?.items) ? response.data.items : []
-      )
-      .finally(() => {
-        listExpensesInFlight = null;
-      });
-
-    return await listExpensesInFlight;
+    const response = await apiClient.get<ListExpensesResponse>("/api/expenses");
+    return Array.isArray(response.data?.items) ? response.data.items : [];
   } catch (error: unknown) {
     if (error && typeof error === "object" && "response" in error) {
       const axiosError = error as {
