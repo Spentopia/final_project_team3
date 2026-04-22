@@ -82,7 +82,7 @@ export function WalletSection({
 
     return (
         <>
-            <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+            <Card className="h-full border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
                 <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">지갑 관리</h3>
 
                 {connected ? (
