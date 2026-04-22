@@ -380,14 +380,12 @@ pub async fn check_receipt_limit(
     let base_url = state.config.supabase_url.trim_end_matches('/');
     let key = &state.config.supabase_secret_key;
 
-    let today = chrono::Utc::now().date_naive();
-    let today_start = format!("{}T00:00:00Z", today);
-    let tomorrow_start = format!("{}T00:00:00Z", today.succ_opt().unwrap_or(today));
+    let today = chrono::Local::now().date_naive();
 
-    // ── 오늘 receipts 건수 조회 (uploaded_at 범위 필터) ──
+    // ── 오늘 날짜 소비 중 receipt_verified = true 건수 조회 ──
     let count_url = format!(
-        "{}/rest/v1/receipts?user_id=eq.{}&uploaded_at=gte.{}&uploaded_at=lt.{}&select=id",
-        base_url, user_id, today_start, tomorrow_start
+        "{}/rest/v1/expenses?user_id=eq.{}&expense_date=eq.{}&receipt_verified=eq.true&transaction_type=eq.expense&select=id",
+        base_url, user_id, today
     );
 
     let count_res = state
@@ -400,7 +398,6 @@ pub async fn check_receipt_limit(
         .await
         .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
 
-    // Content-Range: 0-2/3 → '/' 뒤 숫자가 total count
     let total_count = count_res
         .headers()
         .get("content-range")
