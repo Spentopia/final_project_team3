@@ -349,11 +349,7 @@ export const findEmailByPhone = async (
 export const withdrawAccount = async () => {
   await apiClient.post("/auth/withdraw", {}, { withCredentials: true });
   authStorage.clear();
-  try {
-    await supabase.auth.signOut();
-  } catch (e) {
-    console.warn("Supabase signOut 실패:", e);
-  }
+  await supabase.auth.signOut();
 };
 
 // 로그아웃
@@ -361,11 +357,7 @@ export const signOut = async () => {
   try {
     await apiClient.post("/auth/logout", {});
   } finally {
+    await supabase.auth.signOut();  // ✅ 여기서만
     authStorage.clear();
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      console.warn("Supabase signOut 실패:", e);
-    }
   }
 };
