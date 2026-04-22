@@ -10,7 +10,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use super::{
-    dto::{ChatRequest, CreatePostRequest},
+    dto:: CreatePostRequest,
     service,
 };
 use crate::state::AppState;
@@ -124,39 +124,4 @@ pub async fn vote_post(
     }
 }
 
-#[utoipa::path(
-    post, path = "/api/chat",
-    tag = "챗봇",
-    request_body = ChatRequest,
-    responses((status = 200, description = "챗봇 응답 성공"), (status = 400, description = "메시지 없음")),
-    security(("bearer_auth" = []))
-)]
-pub async fn chat(
-    State(state): State<AppState>,
-    Extension(user_id): Extension<Uuid>,
-    Json(req): Json<ChatRequest>,
-) -> impl IntoResponse {
-    if req.message.trim().is_empty() {
-        return (StatusCode::BAD_REQUEST, "message는 필수입니다.".to_string()).into_response();
-    }
-    match service::chat(&state, user_id, req).await {
-        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-    }
-}
 
-#[utoipa::path(
-    get, path = "/api/chat/logs",
-    tag = "챗봇",
-    responses((status = 200, description = "챗봇 대화 이력 조회 성공")),
-    security(("bearer_auth" = []))
-)]
-pub async fn list_chat_logs(
-    State(state): State<AppState>,
-    Extension(user_id): Extension<Uuid>,
-) -> impl IntoResponse {
-    match service::list_chat_logs(&state, user_id).await {
-        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-    }
-}

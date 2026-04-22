@@ -68,8 +68,6 @@ use crate::wallet;
         crate::community::handler::create_post,
         crate::community::handler::delete_post,
         crate::community::handler::vote_post,
-        crate::community::handler::chat,
-        crate::community::handler::list_chat_logs,
 
         // ── 알림 ──────────────────────────────────────────────
         crate::notification::handler::list_notifications,
@@ -151,9 +149,7 @@ use crate::wallet;
             community::dto::CreatePostRequest,
             community::dto::UpdatePostRequest,
             community::dto::PostResponse,
-            community::dto::ChatRequest,
-            community::dto::ChatResponse,
-            community::dto::ChatbotLogResponse,
+
 
             // ── notification DTO ──────────────────────────────
             notification::dto::NotificationResponse,
