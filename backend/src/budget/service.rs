@@ -353,8 +353,8 @@ pub async fn generate_ai_plan(
         vec![]
     };
 
-    // 3. AI 서버에 예산 플랜 요청 (ai_client 모듈로 중앙화)
-    let ai_plan = crate::clients::ai_client::budget_plan(
+    // 3. AI 서버에 예산 플랜 요청
+    let ai_plans = crate::clients::ai_client::budget_plan(
         state,
         crate::clients::ai_client::BudgetPlanPayload {
             user_id: user_id.to_string(),
@@ -365,9 +365,20 @@ pub async fn generate_ai_plan(
             fixed_expenses: serde_json::to_value(&fixed_expenses).unwrap_or_default(),
         },
     )
-    .await?;
+        .await?;
 
-    // 4. budgets.ai_plan 업데이트
+    // 🔥 여러 개 플랜 처리
+    let plans: Vec<serde_json::Value> =
+        serde_json::from_str(&ai_plans.plan).unwrap_or_default();
+
+    // 첫 번째 플랜만 DB 저장
+    let first_plan_text = plans
+        .get(0)
+        .and_then(|p| p.get("description"))
+        .and_then(|d| d.as_str())
+        .unwrap_or("AI 플랜");
+
+    // DB 저장
     #[derive(Serialize)]
     struct PatchAiPlan {
         ai_plan: String,
@@ -378,6 +389,7 @@ pub async fn generate_ai_plan(
         state.config.supabase_url.trim_end_matches('/'),
         req.budget_id,
     );
+
     let _ = state
         .http_client
         .patch(&patch_url)
@@ -388,18 +400,15 @@ pub async fn generate_ai_plan(
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=minimal")
         .json(&PatchAiPlan {
-            ai_plan: ai_plan.plan.clone(),
+            ai_plan: first_plan_text.to_string(),
         })
         .send()
-        .await
-        .context("budgets ai_plan 업데이트 실패")?;
+        .await;
 
-    let categories: Vec<BudgetCategoryItem> =
-        serde_json::from_value(ai_plan.categories).unwrap_or_default();
-
+    // 🔥 프론트로 3개 플랜 그대로 전달
     Ok(AiPlanResponse {
-        ai_plan: ai_plan.plan,
-        categories,
+        ai_plan: ai_plans.plan, // JSON 배열 문자열
+        categories: vec![],
     })
 }
 
