@@ -3,20 +3,33 @@ use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{mint_to, Mint, MintTo, TokenAccount, TokenInterface};
 
 use crate::constants::*;
+use crate::errors::SpentopiaError;
 use crate::state::PlatformConfig;
 
 /// 성실도 보상 SPT를 유저에게 민팅하는 handler.
 ///
 /// - amount 계산은 백엔드(Axum)가 담당하고, 이 instruction은 검증 + 실행만 한다.
 /// - admin 권한 검증은 `has_one = admin`으로 Anchor가 자동 처리한다.
+/// - max_supply 초과 시 MaxSupplyExceeded 에러 반환.
 pub fn mint_spt_to_user_handler(ctx: Context<MintSptToUser>, amount: u64) -> Result<()> {
+    // max_supply 초과 검사 + total_minted 업데이트
+    // 블록 스코프로 mutable borrow를 먼저 해소한 뒤 CPI 호출
+    let authority_bump = {
+        let config = &mut ctx.accounts.platform_config;
+        let new_total = config
+            .total_minted
+            .checked_add(amount)
+            .ok_or(SpentopiaError::ArithmeticOverflow)?;
+        require!(
+            new_total <= config.max_supply,
+            SpentopiaError::MaxSupplyExceeded
+        );
+        config.total_minted = new_total;
+        config.spt_authority_bump // u8은 Copy → 블록 반환 후 config borrow 해소
+    };
+
     // spt_token_authority PDA로 CPI 서명하기 위한 seeds.
-    // mint_to는 mint_authority 서명이 필요한데, authority가 PDA이므로 invoke_signed 방식으로 처리.
-    // ctx.bumps 대신 저장된 bump 직접 사용
-    let authority_seeds: &[&[u8]] = &[
-        SPT_TOKEN_AUTHORITY_SEED,
-        &[ctx.accounts.platform_config.spt_authority_bump],
-    ];
+    let authority_seeds: &[&[u8]] = &[SPT_TOKEN_AUTHORITY_SEED, &[authority_bump]];
     let signer_seeds = &[authority_seeds];
 
     // SPL Token mint_to CPI 호출.
@@ -50,6 +63,7 @@ pub struct MintSptToUser<'info> {
     /// - `has_one = admin`: platform_config.admin == admin.key() 자동 검증.
     /// 일치하지 않으면 Anchor가 에러를 낸다. require! 직접 안 써도 됨.
     #[account(
+        mut,
         seeds = [PLATFORM_CONFIG_SEED],
         bump = platform_config.bump,
         has_one = admin,
@@ -103,5 +117,4 @@ pub struct MintSptToUser<'info> {
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
-
 }

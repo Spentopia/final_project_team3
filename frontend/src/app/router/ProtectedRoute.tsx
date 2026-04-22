@@ -15,7 +15,7 @@
 // - refresh token은 HttpOnly 쿠키라 프론트 JS가 직접 만지지 않음
 
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router";
+import { Navigate, useLocation } from "react-router";
 import { supabase } from "@/shared/lib/supabase";
 import { authStorage } from "@/shared/lib/auth";
 import { apiClient } from "@/shared/api/client";
@@ -42,20 +42,13 @@ function recoverAccessTokenOnce() {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [status, setStatus] = useState<AuthStatus>("loading");
+  const location = useLocation();
 
   // Supabase session의 access_token을 백엔드 앱 JWT로 교환
   const exchangeSupabaseToken = async (accessToken: string) => {
-    const res = await apiClient.post(
-      "/auth/exchange",
-      {
-        access_token: accessToken,
-      },
-      {
-        headers: {
-          "X-Client-Type": "web",
-        },
-      }
-    );
+    const res = await apiClient.post("/auth/exchange", {
+      access_token: accessToken,
+    });
 
     return res.data;
   };
@@ -64,17 +57,21 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     // 1) 현재 메모리에 저장된 앱 access token 확인
     let token = authStorage.getToken();
 
+    const justLoggedIn = sessionStorage.getItem("just_logged_in") === "true";
+      if (justLoggedIn) {
+        sessionStorage.removeItem("just_logged_in");
+      }
+
     // 2) access token이 없으면 refresh 쿠키로 앱 토큰 복구 시도
     //
     // 이 단계는 보호 라우트에서만 실행한다.
     // 그래서 공개 페이지(/login 등)에서는 불필요한 /auth/refresh가 발생하지 않는다.
-    if (!token) {
-      const recovered = await recoverAccessTokenOnce();
-
-      if (recovered) {
-        token = authStorage.getToken();
-      }
+    if (!token && !justLoggedIn) {
+    const recovered = await recoverAccessTokenOnce();
+    if (recovered) {
+      token = authStorage.getToken();
     }
+  }
 
     // 3) 그래도 access token이 없으면 Supabase session 확인
     //
@@ -163,6 +160,9 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (status === "need_profile") {
+    if (location.pathname === "/complete-profile") {
+      return <>{children}</>;
+    }
     return <Navigate to="/complete-profile" replace />;
   }
 

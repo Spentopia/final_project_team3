@@ -1,16 +1,19 @@
 // community/handler.rs
 
 use axum::{
+    Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Extension, Json,
 };
 use serde::Deserialize;
 use uuid::Uuid;
 
+use super::{
+    dto::{ChatRequest, CreatePostRequest},
+    service,
+};
 use crate::state::AppState;
-use super::{dto::{ChatRequest, CreatePostRequest}, service};
 
 #[derive(Deserialize)]
 pub struct PostQuery {
@@ -64,7 +67,11 @@ pub async fn create_post(
     Json(req): Json<CreatePostRequest>,
 ) -> impl IntoResponse {
     if req.image_url.trim().is_empty() {
-        return (StatusCode::BAD_REQUEST, "image_url은 필수입니다.".to_string()).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            "image_url은 필수입니다.".to_string(),
+        )
+            .into_response();
     }
     match service::create_post(&state, user_id, req).await {
         Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
@@ -106,7 +113,11 @@ pub async fn vote_post(
         Ok(_) => StatusCode::OK.into_response(),
         Err(e) => {
             if e.to_string().contains("duplicate") || e.to_string().contains("unique") {
-                return (StatusCode::CONFLICT, "이미 투표한 게시물입니다.".to_string()).into_response();
+                return (
+                    StatusCode::CONFLICT,
+                    "이미 투표한 게시물입니다.".to_string(),
+                )
+                    .into_response();
             }
             (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
         }

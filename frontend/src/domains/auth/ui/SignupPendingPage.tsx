@@ -39,7 +39,7 @@ export default function SignupPendingPage() {
 
   const openMailService = () => {
     if (mailService) {
-      window.open(mailService.url, "_blank");
+      window.location.href = mailService.url;
     }
   };
 
@@ -51,21 +51,10 @@ export default function SignupPendingPage() {
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg">
               <MailCheck className="h-8 w-8 text-white" />
             </div>
-            <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
               이메일 인증이 필요해요
             </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400 leading-6">
-              회원가입은 완료됐어요.
-              <br />
-              {email ? (
-                <>
-                  <span className="font-semibold text-cyan-600 dark:text-cyan-400">{email}</span>
-                  에서 인증 링크를 눌러주세요.
-                </>
-              ) : (
-                "메일함에서 인증 링크를 눌러주세요."
-              )}
-            </p>
+            
           </div>
 
           <div className="mb-6 rounded-lg border border-cyan-200 dark:border-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 p-4">
@@ -89,7 +78,7 @@ export default function SignupPendingPage() {
                 onClick={openMailService}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
               >
-                {mailService.name} 열기
+                이메일 열기
               </Button>
             ) : (
               <p className="text-center text-sm text-gray-500 dark:text-gray-400">
@@ -97,14 +86,15 @@ export default function SignupPendingPage() {
               </p>
             )}
 
-            <Button
+            
+            <button
               type="button"
-              variant="outline"
               onClick={() => navigate("/login")}
-              className="w-full"
+              className="block mx-auto text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline underline-offset-2 transition-colors"
             >
-              로그인하러 가기
-            </Button>
+             다른 계정으로 로그인하기
+            </button>
+          
           </div>
         </div>
       </Card>

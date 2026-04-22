@@ -12,11 +12,11 @@ use uuid::Uuid;
 pub struct Report {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub report_type: String,          // weekly / monthly
+    pub report_type: String, // weekly / monthly
     pub start_date: NaiveDate,
     pub end_date: NaiveDate,
-    pub category_summary: Option<Value>,  // 카테고리별 지출 요약 JSON
-    pub daily_summary: Option<Value>,     // 날짜별 지출 요약 JSON
+    pub category_summary: Option<Value>, // 카테고리별 지출 요약 JSON
+    pub daily_summary: Option<Value>,    // 날짜별 지출 요약 JSON
     pub ai_analysis: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
 }

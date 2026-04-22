@@ -1,0 +1,334 @@
+/* ============================================================
+   AvatarPage — 프리미엄 NFT 스타일
+   ============================================================ */
+
+.pageWrapper {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0;
+    color: #111827;
+}
+
+.pageTitle {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #111827;
+}
+
+.pageSubtitle {
+    font-size: 1rem;
+    color: #4b5563;
+    margin-bottom: 28px;
+}
+
+/* ── 탭 ── */
+.tabsWrapper {
+    margin-bottom: 28px;
+}
+
+/* ── 그리드 ── */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+@media (min-width: 640px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (min-width: 768px) {
+    .grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ── 상태 ── */
+.emptyState {
+    text-align: center;
+    padding: 64px 0;
+    color: #9ca3af;
+}
+
+.errorState {
+    text-align: center;
+    padding: 48px 0;
+}
+
+.errorMessage {
+    color: #ef4444;
+    margin-bottom: 12px;
+}
+
+/* ── 아이템 카드 베이스 ── */
+.itemCard {
+    cursor: pointer;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    background: #ffffff;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.itemCard:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* 레어리티별 카드 강조 */
+.itemCardRare {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 1px #bfdbfe;
+}
+
+.itemCardRare:hover {
+    box-shadow: 0 12px 32px rgba(59, 130, 246, 0.2);
+}
+
+.itemCardEpic {
+    border-color: #c4b5fd;
+    box-shadow: 0 0 0 1px #ddd6fe;
+}
+
+.itemCardEpic:hover {
+    box-shadow: 0 12px 32px rgba(139, 92, 246, 0.25);
+}
+
+/* 장착 중: 골드 글로우 */
+.itemCardEquipped {
+    border-color: #fbbf24;
+    box-shadow: 0 0 0 2px #fde68a, 0 4px 16px rgba(251, 191, 36, 0.3);
+}
+
+/* NFT 아이템: 오렌지 펄스 애니메이션 */
+.itemCardNft {
+    animation: nftPulse 3s ease-in-out infinite;
+}
+
+@keyframes nftPulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(249, 115, 22, 0.3); }
+    50%       { box-shadow: 0 0 18px rgba(249, 115, 22, 0.6); }
+}
+
+.cardContent {
+    padding: 12px;
+}
+
+/* ── 이미지 영역 ── */
+.imageWrapper {
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    position: relative;
+}
+
+/* 레어리티별 placeholder 그라디언트 */
+.imagePlaceholderCommon {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem;
+}
+
+.imagePlaceholderRare {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem;
+}
+
+.imagePlaceholderEpic {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem;
+}
+
+.itemImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* NFT 아이템 이미지 위 오버레이 */
+.nftOverlay {
+    position: absolute;
+    top: 6px; right: 6px;
+    background: linear-gradient(135deg, #f97316, #ef4444);
+    color: white;
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 999px;
+    letter-spacing: 0.05em;
+}
+
+/* ── 카드 텍스트 ── */
+.itemName {
+    font-size: 0.875rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 6px;
+    color: #111827;
+}
+
+.badgeRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* ── 레어리티 배지 ── */
+.rarityCommon {
+    background: #f3f4f6;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+.rarityRare {
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    color: #1d4ed8;
+    font-weight: 700;
+}
+
+.rarityEpic {
+    background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+    color: #7c3aed;
+    font-weight: 700;
+}
+
+.badgeNft {
+    background: linear-gradient(135deg, #fed7aa, #fca5a5);
+    color: #c2410c;
+    font-weight: 700;
+}
+
+.badgeEquipped {
+    background: linear-gradient(135deg, #fef9c3, #fde68a);
+    color: #92400e;
+    font-weight: 700;
+}
+
+/* ── 스켈레톤 ── */
+.skeletonContent { padding: 12px; }
+
+.skeletonImage {
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    border-radius: 10px;
+    margin-bottom: 8px;
+}
+
+.skeletonText {
+    height: 14px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+}
+
+.skeletonTextShort { width: 50%; }
+
+/* ── 다이얼로그 ── */
+.dialogImageWrapper {
+    aspect-ratio: 1 / 1;
+    width: 180px;
+    margin: 0 auto;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.dialogImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.detailTable {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 0.875rem;
+    color: #111827;
+}
+
+.detailRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.detailLabel { color: #6b7280; }
+
+.mintButton { width: 100%; margin-top: 8px; }
+
+.imagePlaceholder {
+    width: 100%;
+    height: 100%;
+    background: #f3f4f6;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+:global(.dark) .pageWrapper {
+    color: #f3f4f6;
+}
+
+:global(.dark) .pageTitle {
+    color: #f3f4f6;
+}
+
+:global(.dark) .pageSubtitle,
+:global(.dark) .emptyState {
+    color: #d1d5db;
+}
+
+:global(.dark) .itemCard {
+    border-color: rgba(55, 65, 81, 0.9);
+    background: rgba(31, 41, 55, 0.82);
+}
+
+:global(.dark) .itemCard:hover {
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+:global(.dark) .itemName {
+    color: #f9fafb;
+}
+
+:global(.dark) .detailTable {
+    color: #f3f4f6;
+}
+
+:global(.dark) .detailLabel {
+    color: #9ca3af;
+}
+
+:global(.dark) .imagePlaceholder {
+    background: #1f2937;
+    color: #d1d5db;
+}
+
+:global(.dark) .imagePlaceholderCommon {
+    background: linear-gradient(135deg, #374151, #1f2937);
+}
+
+:global(.dark) .imagePlaceholderRare {
+    background: linear-gradient(135deg, #1e3a8a, #1e40af);
+}
+
+:global(.dark) .imagePlaceholderEpic {
+    background: linear-gradient(135deg, #4c1d95, #5b21b6);
+}
+
+:global(.dark) .rarityCommon {
+    background: #374151;
+    color: #e5e7eb;
+}

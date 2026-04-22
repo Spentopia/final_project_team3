@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{
-    close_account, transfer_checked, CloseAccount, Mint, TokenAccount, TokenInterface,
+    burn, close_account, transfer_checked, Burn, CloseAccount, Mint, TokenAccount, TokenInterface,
     TransferChecked,
 };
 
@@ -11,16 +11,22 @@ use crate::state::{ListingAccount, PlatformConfig};
 
 /// NFT를 SPT로 구매하는 handler
 ///
-/// 1. 구매자 SPT → 수수료(플랫폼) + 나머지(판매자) 분배
+/// 1. 구매자 SPT → 수수료(fee_rate%) 소각 + 나머지(판매자) 지급
 /// 2. escrow NFT → 구매자 ATA 전송
 /// 3. ListingAccount + escrow ATA close (rent 반환)
 pub fn buy_nft_handler(ctx: Context<BuyNft>) -> Result<()> {
+    // 본인 NFT 구매 방지
+    require!(
+        ctx.accounts.buyer.key() != ctx.accounts.seller.key(),
+        SpentopiaError::SelfPurchase
+    );
+
     let listing = &ctx.accounts.listing;
     let fee_rate = ctx.accounts.platform_config.fee_rate as u64;
     let price = listing.price;
 
     // 수수료 계산 (basis points)
-    // 예: price = 1_000_000, fee_rate=500 → fee=50_000, seller_amount=950_000
+    // 예: price = 1_000_000, fee_rate=200 → fee=20_000(소각), seller_amount=980_000
     let fee = price
         .checked_mul(fee_rate)
         .ok_or(SpentopiaError::ArithmeticOverflow)?
@@ -34,7 +40,7 @@ pub fn buy_nft_handler(ctx: Context<BuyNft>) -> Result<()> {
     transfer_checked(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            TransferChecked{
+            TransferChecked {
                 from: ctx.accounts.buyer_spt_account.to_account_info(),
                 mint: ctx.accounts.spt_token_mint.to_account_info(),
                 to: ctx.accounts.seller_spt_account.to_account_info(),
@@ -45,21 +51,19 @@ pub fn buy_nft_handler(ctx: Context<BuyNft>) -> Result<()> {
         SPT_TOKEN_DECIMALS,
     )?;
 
-    // Step 2: 구매자 → 플랫폼 수수료 SPT 전송
-    // 수수료가 0이면 전송 생략 (fee_rate=0 케이스 대비)
-    if fee > 0{
-        transfer_checked(
+    // Step 2: 수수료 SPT 소각 (디플레이션 메커니즘)
+    // fee_rate=0 이면 소각 생략
+    if fee > 0 {
+        burn(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
-                TransferChecked{
-                    from: ctx.accounts.buyer_spt_account.to_account_info(),
+                Burn {
                     mint: ctx.accounts.spt_token_mint.to_account_info(),
-                    to: ctx.accounts.platform_spt_account.to_account_info(),
+                    from: ctx.accounts.buyer_spt_account.to_account_info(),
                     authority: ctx.accounts.buyer.to_account_info(),
                 },
             ),
             fee,
-            SPT_TOKEN_DECIMALS,
         )?;
     }
 
@@ -78,7 +82,7 @@ pub fn buy_nft_handler(ctx: Context<BuyNft>) -> Result<()> {
     transfer_checked(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
-            TransferChecked{
+            TransferChecked {
                 from: ctx.accounts.escrow_token_account.to_account_info(),
                 mint: ctx.accounts.nft_mint.to_account_info(),
                 to: ctx.accounts.buyer_nft_account.to_account_info(),
@@ -86,14 +90,14 @@ pub fn buy_nft_handler(ctx: Context<BuyNft>) -> Result<()> {
             },
             &[listing_signer_seeds],
         ),
-        1,  // NFT 1개
+        1, // NFT 1개
         0, // decimals = 0
     )?;
 
     // Step 4: escrow ATA close → rent를 판매자에게 반환
     close_account(CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
-        CloseAccount{
+        CloseAccount {
             account: ctx.accounts.escrow_token_account.to_account_info(),
             destination: ctx.accounts.seller.to_account_info(),
             authority: ctx.accounts.listing.to_account_info(),
@@ -102,20 +106,18 @@ pub fn buy_nft_handler(ctx: Context<BuyNft>) -> Result<()> {
     ))?;
 
     msg!(
-        "NFT 구매 완료 | buyer: {} | seller: {} | price: {} SPT | fee: {} SPT",
+        "NFT 구매 완료 | buyer: {} | seller: {} | price: {} SPT | burned: {} SPT",
         ctx.accounts.buyer.key(),
         ctx.accounts.seller.key(),
         price,
         fee
     );
 
-
     Ok(())
 }
 
 #[derive(Accounts)]
 pub struct BuyNft<'info> {
-
     /// 플랫폼 설정 계정. fee_rate 읽기용.
     #[account(
         seeds = [PLATFORM_CONFIG_SEED],
@@ -151,14 +153,15 @@ pub struct BuyNft<'info> {
     /// 판매 중인 NFT 민트.
     pub nft_mint: Box<InterfaceAccount<'info, Mint>>,
 
-    /// SPT 민트 계정. transfer_checked에서 decimals 검증용.
+    /// SPT 민트 계정. transfer_checked 및 burn에서 decimals 검증 / supply 감소용.
     #[account(
+        mut,
         seeds = [SPT_TOKEN_MINT_SEED],
         bump = platform_config.spt_mint_bump,
     )]
     pub spt_token_mint: Box<InterfaceAccount<'info, Mint>>,
 
-    /// 구매자 SPT ATA. 결제 출처.
+    /// 구매자 SPT ATA. 결제 + 소각 출처.
     #[account(
         mut,
         associated_token::mint = spt_token_mint,
@@ -175,24 +178,6 @@ pub struct BuyNft<'info> {
         associated_token::token_program = token_program,
     )]
     pub seller_spt_account: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    /// 플랫폼 수수료 수령 SPT ATA.
-    /// authority = spt_token_authority PDA (플랫폼 금고)
-    #[account(
-        mut,
-        associated_token::mint = spt_token_mint,
-        associated_token::authority = spt_token_authority,
-        associated_token::token_program = token_program,
-    )]
-    pub platform_spt_account: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    /// SPT authority PDA. 플랫폼 수수료 ATA의 authority.
-    /// CHECK: seeds + bump 검증
-    #[account(
-        seeds = [SPT_TOKEN_AUTHORITY_SEED],
-        bump = platform_config.spt_authority_bump,
-    )]
-    pub spt_token_authority: UncheckedAccount<'info>,
 
     /// escrow NFT 보관 ATA.
     /// 거래 완료 후 close.

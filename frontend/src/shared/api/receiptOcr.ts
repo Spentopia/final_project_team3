@@ -1,7 +1,10 @@
+import { apiClient } from "@/shared/api/client";
+
 export interface ReceiptOcrRequest {
   image: File;
   expectedDate: string;
   expectedAmount: number;
+  expenseId?: string; // 소비 저장 후 서버 DB 반영 시 전달
 }
 
 export interface ReceiptOcrResponse {
@@ -27,26 +30,45 @@ export interface ReceiptOcrResponse {
 export async function verifyReceiptOcr(
   payload: ReceiptOcrRequest
 ): Promise<ReceiptOcrResponse> {
-  const baseUrl = import.meta.env.VITE_AI_SERVER_URL;
-
-  if (!baseUrl) {
-    throw new Error("VITE_AI_SERVER_URL이 설정되지 않았습니다.");
-  }
-
   const formData = new FormData();
   formData.append("image", payload.image);
   formData.append("expected_date", payload.expectedDate);
   formData.append("expected_amount", String(payload.expectedAmount));
 
-  const response = await fetch(`${baseUrl}/api/v1/receipt/ocr`, {
-    method: "POST",
-    body: formData,
-  });
+  const trimmedExpenseId = payload.expenseId?.trim();
+  const isUuid =
+    trimmedExpenseId !== undefined &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      trimmedExpenseId
+    );
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`OCR 요청 실패: ${response.status} ${text}`);
+  if (trimmedExpenseId && !isUuid) {
+    throw new Error("소비 저장 응답에 유효한 expense_id가 없습니다.");
   }
 
-  return response.json();
+  const url = isUuid
+    ? `/api/receipt/ocr?expense_id=${encodeURIComponent(trimmedExpenseId)}`
+    : "/api/receipt/ocr";
+
+  try {
+    const response = await apiClient.post<ReceiptOcrResponse>(url, formData);
+    return response.data;
+  } catch (error: unknown) {
+    if (error && typeof error === "object" && "response" in error) {
+      const axiosError = error as { response?: { status?: number; data?: unknown } };
+      const status = axiosError.response?.status;
+
+      if (status === 429) {
+        throw new Error("영수증 인증은 하루 최대 3건까지 가능합니다.");
+      }
+      if (status === 409) {
+        throw new Error("이미 인증된 소비 내역입니다.");
+      }
+
+      const data = axiosError.response?.data;
+      const detail = typeof data === "string" ? data : "영수증 검증 중 오류가 발생했습니다.";
+      throw new Error(detail);
+    }
+    throw error;
+  }
 }

@@ -13,13 +13,7 @@
 // @RestController + @RequestMapping과 동일한 역할.
 // @PreAuthorize는 jwt_middleware가 대신함.
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-    Extension,
-};
+use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 
 // Uuid: 유저 고유 식별자 타입
 // jwt_middleware가 Extension에 넣어준 user_id르 꺼낼 때 사용
@@ -30,7 +24,9 @@ use crate::state::AppState;
 // LinkWalletRequest → POST /wallet/link 요청 body 구조체
 // LinkWalletResponse → POST /wallet/link 성공 응답 구조체
 // UnlinkWalletResponse → DELETE /wallet/unlink 성공 응답 구조체
-use super::dto::{LinkWalletRequest, LinkWalletResponse, UnlinkWalletResponse};
+use super::dto::{
+    LinkWalletRequest, LinkWalletResponse, UnlinkWalletRequest, UnlinkWalletResponse,
+};
 
 // 비즈니스 로직 (nonce 검증 → 서명 검증 → 중복 체크 → DB 업데이트)
 use super::service;
@@ -49,15 +45,17 @@ use super::service;
 //  → unlink 시 지갑이 없는 경우
 //  나머지 → 500 Internal Server Error
 //  → DB 오류, HTTP 요청 실패 등 서버 내부 문제
-fn map_err_status(e: &anyhow::Error)->StatusCode{
+fn map_err_status(e: &anyhow::Error) -> StatusCode {
     let msg = e.to_string();
-    if msg.contains("nonce") || msg.contains("서명"){
+    if msg.contains("nonce") || msg.contains("서명") {
         StatusCode::UNAUTHORIZED
-    } else if msg.contains("이미"){
+    } else if msg.contains("이미") {
         StatusCode::CONFLICT
-    } else if msg.contains("연동된 지갑이 없습니다"){
+    } else if msg.contains("일치하지 않습니다") {
+        StatusCode::UNAUTHORIZED
+    } else if msg.contains("연동된 지갑이 없습니다") {
         StatusCode::BAD_REQUEST
-    } else{
+    } else {
         StatusCode::INTERNAL_SERVER_ERROR
     }
 }
@@ -110,7 +108,7 @@ pub async fn link_wallet(
     // wallet_address, nonce, signature 세 필드가 모두 있어야 함
     // 없으면 Axum이 자동으로 422 Unprocessable Entity 반환
     Json(req): Json<LinkWalletRequest>,
-)->impl IntoResponse{
+) -> impl IntoResponse {
     match service::link_wallet(
         &state,
         user_id,
@@ -118,22 +116,22 @@ pub async fn link_wallet(
         &req.nonce,
         &req.signature,
     )
-        .await
+    .await
     {
         // 연동 성공 → 연동된 지갑 주소와 완료 메세지를 JSON으로 반환
-        Ok(())=>(
+        Ok(()) => (
             StatusCode::OK,
-            Json(LinkWalletResponse{
+            Json(LinkWalletResponse {
                 // 요청에서 받은 지갑 주소를 그대로 돌려줌
                 // 클라이언트가 "어떤 지갑이 연동됐는지" 확인할 수 있게 포함
                 wallet_address: req.wallet_address,
                 message: "지갑이 연동되었습니다.".to_string(),
             }),
-            )
+        )
             .into_response(),
         // 연동 실패 → 에러 메세지로 적절한 StatusCode 선택 후 반환
         // map_err_status()가 에러 내용을 보고 401/409/500 중 하나를 고름
-        Err(e)=>(map_err_status(&e), e.to_string()).into_response(),
+        Err(e) => (map_err_status(&e), e.to_string()).into_response(),
     }
 }
 
@@ -146,20 +144,21 @@ pub async fn link_wallet(
 //  jwt_middleware → JWT 검증 → user_id를 Extension에 삽입
 //  → unlink_wallet 핸들러 실행 → service::unlink_wallet 호출
 //  (1) 연동 여부 확인 → wallet_address가 NULL인지 체크
-//  (2) DB 업데이트 → public.users.wallet_address = NULL
+//  (2) nonce/서명 검증 → 현재 연동된 지갑 소유자인지 확인
+//  (3) DB 업데이트 → public.users.wallet_address = NULL
 //  → 성공: 200 OK + UnlinkWalletResponse
 //  → 실패: map_err_status()로 적절한 상태코드 반환
 //
-// ■ 요청 body가 없는 이유
-//  해제 대상은 "현재 로그인된 유저의 지갑"이므로 user_id만 있으면 충분함. 추가 정보 불필요.
 #[utoipa::path(
     delete,
     path="/wallet/unlink",
     tag="지갑 연동",
     security(("bearer_auth"=[])),
+    request_body = UnlinkWalletRequest,
     responses(
         (status = 200, description = "지갑 해제 성공", body = UnlinkWalletResponse),
         (status = 400, description = "연동된 지갑이 없음"),
+        (status = 401, description = "nonce 불일치 또는 서명 검증 실패"),
         (status = 500, description = "서버 내부 오류 (DB, HTTP 등)"),
     )
 )]
@@ -168,20 +167,28 @@ pub async fn unlink_wallet(
     // link_wallet과 동일하게 jwt_middleware가 넣어준 user_id를 꺼냄
     // 이 user_id로 어떤 유저의 지갑을 해제할지 특정함
     Extension(user_id): Extension<Uuid>,
-)->impl IntoResponse{
-    match service::unlink_wallet(&state, user_id).await{
+    Json(req): Json<UnlinkWalletRequest>,
+) -> impl IntoResponse {
+    match service::unlink_wallet(
+        &state,
+        user_id,
+        &req.wallet_address,
+        &req.nonce,
+        &req.signature,
+    )
+    .await
+    {
         // 해제 성공 → 완료 메세지를 JSON으로 반환
-        Ok(())=>(
+        Ok(()) => (
             StatusCode::OK,
-            Json(UnlinkWalletResponse{
+            Json(UnlinkWalletResponse {
                 message: "지갑 연동이 해제되었습니다.".to_string(),
             }),
-            )
+        )
             .into_response(),
 
         // 해제 실패 -> 에러 메세지로 적절한 StatusCode 선택 후 반환
         // "연동된 지갑이 없습니다" → 400, 나머지 → 500
-        Err(e)=>(map_err_status(&e), e.to_string()).into_response(),
-
+        Err(e) => (map_err_status(&e), e.to_string()).into_response(),
     }
 }

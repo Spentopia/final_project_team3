@@ -14,19 +14,15 @@
 //
 // JWT 미들웨어가 토큰을 검증한 뒤 Extension<Uuid>에 user_id를 삽입하므로
 // 핸들러 파라미터에서 Extension(user_id): Extension<Uuid>로 꺼내 쓴다.
-use axum::{
-    extract::State,
-    response::IntoResponse,
-    Extension, Json,
-};
 use axum::http::StatusCode;
+use axum::{Extension, Json, extract::State, response::IntoResponse};
 use uuid::Uuid;
 
-use crate::state::AppState;
 use super::{
     dto::{MintNftRequest, MintNftResponse, TransferNftRequest, TransferNftResponse},
     service,
 };
+use crate::state::AppState;
 
 // POST /avatar/mint-nft
 //
@@ -46,11 +42,11 @@ use super::{
     security(("bearer_auth" = []))
 )]
 pub async fn mint_nft(
-    State(state): State<AppState>,  // 공유 앱 상태(http_client, config 등)
+    State(state): State<AppState>, // 공유 앱 상태(http_client, config 등)
     Extension(user_id): Extension<Uuid>, // JWT 미들웨어가 삽입한 인증된 유저 UUID
-    Json(req): Json<MintNftRequest>,// 요청 바디: { user_item_id, nft_mint_address }
-)->impl IntoResponse{
-    match service::mint_nft(&state, user_id, req).await{
+    Json(req): Json<MintNftRequest>, // 요청 바디: { user_item_id, nft_mint_address }
+) -> impl IntoResponse {
+    match service::mint_nft(&state, user_id, req).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
@@ -74,11 +70,11 @@ pub async fn mint_nft(
     security(("bearer_auth" = []))
 )]
 pub async fn transfer_nft(
-    State(state): State<AppState>,          // 공유 앱 상태
-    Extension(user_id): Extension<Uuid>,    // JWT 인증된 유저 UUID
-    Json(req): Json<TransferNftRequest>,    // 요청 바디: { avatar_id, nft_mint,address }
-)->impl IntoResponse{
-    match service::transfer_nft(&state, user_id, req).await{
+    State(state): State<AppState>,       // 공유 앱 상태
+    Extension(user_id): Extension<Uuid>, // JWT 인증된 유저 UUID
+    Json(req): Json<TransferNftRequest>, // 요청 바디: { avatar_id, nft_mint,address }
+) -> impl IntoResponse {
+    match service::transfer_nft(&state, user_id, req).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
@@ -103,14 +99,11 @@ pub async fn transfer_nft(
     security(("bearer_auth" = []))
 )]
 pub async fn get_user_items(
-    State(state): State<AppState>,      // 공유 앱 상태
-    Extension(user_id): Extension<Uuid>,// JWT 인증된 유저 UUID
-)->impl IntoResponse{
-    match service::get_user_items(&state, user_id).await{
+    State(state): State<AppState>,       // 공유 앱 상태
+    Extension(user_id): Extension<Uuid>, // JWT 인증된 유저 UUID
+) -> impl IntoResponse {
+    match service::get_user_items(&state, user_id).await {
         Ok(items) => (StatusCode::OK, Json(items)).into_response(),
-        Err(e) =>(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
-
-
-

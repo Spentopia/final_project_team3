@@ -1,10 +1,22 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
+<<<<<<< HEAD
 type Transaction = {
   id: number | string; // 🔥 추가
   amount: number;
   category?: string;
   date: string;
+=======
+export type Transaction = {
+  id: string | number;
+  date: string;
+  amount: number;
+  category: string;
+  memo?: string;
+  type: "expense" | "income";
+  receipt?: boolean;
+  diary?: string;
+>>>>>>> develop
 };
 
 type FinanceContextType = {
@@ -12,13 +24,19 @@ type FinanceContextType = {
   setBudget: (monthKey: string, value: number) => void;
   setMonthlyBudget: (monthKey: string, amount: number) => void;
   transactions: Transaction[];
+  replaceTransactions: (items: Transaction[]) => void;
   addTransaction: (t: Transaction) => void;
+<<<<<<< HEAD
   removeTransaction: (id: number | string) => void;
+=======
+  removeTransaction: (id: string | number) => void;
+>>>>>>> develop
 };
 
 const FinanceContext = createContext<FinanceContextType | null>(null);
 
 export const FinanceProvider = ({ children }: { children: React.ReactNode }) => {
+<<<<<<< HEAD
 
   // ✅ transactions
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
@@ -69,9 +87,30 @@ const setMonthlyBudget = (monthKey: string, amount: number) => {
     return updated;
   });
 };
+=======
+  const [budget, setBudgetState] = useState(500000);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  // 🔥 transaction 저장
+  useEffect(() => {
+    const savedBudget = localStorage.getItem("budget");
+
+    if (savedBudget) {
+      setBudgetState(Number(savedBudget));
+    }
+  }, []);
+
+  const setBudget = (b: number) => {
+    setBudgetState(b);
+    localStorage.setItem("budget", String(b));
+  };
+>>>>>>> develop
+
+  const replaceTransactions = (items: Transaction[]) => {
+    setTransactions(items);
+  };
+
   const addTransaction = (tx: Transaction) => {
+<<<<<<< HEAD
   setTransactions((prev) => {
     const updated = [...prev, tx];
     localStorage.setItem("transactions", JSON.stringify(updated));
@@ -99,6 +138,19 @@ const removeTransaction = (id: number | string) => {
   setMonthlyBudget
 }}
 >
+=======
+    setTransactions((prev) => [tx, ...prev]);
+  };
+
+  const removeTransaction = (id: string | number) => {
+    setTransactions((prev) => prev.filter((tx) => tx.id !== id));
+  };
+
+  return (
+    <FinanceContext.Provider
+      value={{ budget, setBudget, transactions, replaceTransactions, addTransaction, removeTransaction }}
+    >
+>>>>>>> develop
       {children}
     </FinanceContext.Provider>
   );

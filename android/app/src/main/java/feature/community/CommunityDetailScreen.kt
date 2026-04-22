@@ -6,15 +6,16 @@ package com.ict.spentopia.feature.community
 // 이 파일은 게시글 상세 화면을 담당합니다.
 //
 // 이번 버전에서 바뀐 점:
-// 1. 좋아요 버튼은 현재 글에만 적용되도록 유지합니다.
-// 2. 댓글 추가 / 댓글 수정 / 댓글 삭제 기능을 유지합니다.
-// 3. 내 댓글(authorId == currentUserId)일 때만
+//  좋아요 버튼은 현재 글에만 적용되도록 유지합니다.
+//  댓글 추가 / 댓글 수정 / 댓글 삭제 기능을 유지합니다.
+// 3내 댓글(authorId == currentUserId)일 때만
 //    수정 / 삭제 버튼이 보이게 만들었습니다.
-//
+
 // 중요:
 // - 실제 현재 사용자 id는 아직 로그인 연동 전이므로
 //   임시 문자열 "current_user"를 사용합니다.
 // - 나중에 로그인 기능이 붙으면 이 값을 실제 사용자 id로 바꾸면 됩니다.
+// - 실제 게시글/댓글 데이터 변경은 이 화면 바깥(AppNavGraph, ViewModel)에서 합니다.
 // ------------------------------------------------------------
 
 import androidx.compose.foundation.background
@@ -193,6 +194,9 @@ fun CommunityDetailScreen(
             isEditMode = isEditMode,
             isSaveEnabled = editTitle.isNotBlank() && editFullContent.isNotBlank(),
             onToggleLikeClick = {
+                // 초보자용 설명:
+                // 여기서는 "클릭했다"는 사실만 바깥으로 보냅니다.
+                // 실제 likeCount / isLiked 변경은 AppNavGraph에서 처리합니다.
                 onToggleLikeClick(post.id)
             },
             onSaveClick = {
@@ -949,37 +953,41 @@ private fun CommunityCommentItem(
                 }
             } else {
                 // ------------------------------------------------
-                // 수정 모드 역시 내 댓글일 때만 들어올 수 있어야 합니다.
+                // 수정 모드는 내 댓글일 때만 의미가 있습니다.
+                // 혹시라도 잘못 들어왔을 경우를 막기 위해
+                // 내 댓글인지 한 번 더 검사합니다.
                 // ------------------------------------------------
-                OutlinedTextField(
-                    value = editingCommentText,
-                    onValueChange = onEditingCommentTextChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFE24BB4),
-                        unfocusedBorderColor = Color(0xFFD7DCE5),
-                        focusedTextColor = Color(0xFF1E2430),
-                        unfocusedTextColor = Color(0xFF1E2430),
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White
+                if (isMyComment) {
+                    OutlinedTextField(
+                        value = editingCommentText,
+                        onValueChange = onEditingCommentTextChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFE24BB4),
+                            unfocusedBorderColor = Color(0xFFD7DCE5),
+                            focusedTextColor = Color(0xFF1E2430),
+                            unfocusedTextColor = Color(0xFF1E2430),
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White
+                        )
                     )
-                )
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    TextButton(
-                        onClick = onSaveEdit,
-                        enabled = editingCommentText.isNotBlank()
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(text = "수정 저장")
-                    }
+                        TextButton(
+                            onClick = onSaveEdit,
+                            enabled = editingCommentText.isNotBlank()
+                        ) {
+                            Text(text = "수정 저장")
+                        }
 
-                    TextButton(
-                        onClick = onCancelEdit
-                    ) {
-                        Text(text = "수정 취소")
+                        TextButton(
+                            onClick = onCancelEdit
+                        ) {
+                            Text(text = "수정 취소")
+                        }
                     }
                 }
             }

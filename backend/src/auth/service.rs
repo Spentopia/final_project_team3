@@ -17,7 +17,6 @@
 //  흐름: 일반 회원가입 → 상세정보 입력 → 지갑 연동(wallet/service.rs)
 //  이 파일은 "이미 지갑 연동을 마친 유저"의 로그인만 처리함.
 
-
 // 현재 최종 구조:
 // - 이메일 로그인 / 구글 로그인:
 //   프론트가 Supabase로 1차 인증 -> access_token 획득
@@ -76,17 +75,12 @@ use serde::Deserialize;
 // 서버 전체 공유 상태 (Supabase URL, secret key, nonce_store 등)
 use crate::state::{AppState, NonceEntry};
 
-
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::auth::app_jwt::{
-    generate_token_pair, verify_app_refresh_token,
-};
+use crate::auth::app_jwt::{generate_token_pair, verify_app_refresh_token};
 use crate::auth::refresh_store::{
-    create_refresh_session,
-    revoke_refresh_session,
-    revoke_refresh_session_as_reused,
+    create_refresh_session, revoke_refresh_session, revoke_refresh_session_as_reused,
     verify_refresh_session,
 };
 
@@ -120,7 +114,7 @@ pub struct RefreshIssueResult {
 #[derive(Debug, Deserialize)]
 struct UserRow {
     // uuid::Uuid 타입으로 받으면 String → UUID 변환을 자동으로 해줌
-    id: uuid::Uuid,
+    id: Uuid,
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -140,22 +134,11 @@ pub async fn issue_login_tokens(
     let session_id = Uuid::new_v4();
 
     // access / refresh JWT 생성
-    let pair = generate_token_pair(
-        &state.config.app_jwt_secret,
-        &user_id,
-        &session_id,
-    )?;
+    let pair = generate_token_pair(&state.config.app_jwt_secret, &user_id, &session_id)?;
 
     // refresh 세션을 DB에 저장
     // 이 row가 있어야 나중에 revoke / rotation / 로그아웃이 가능하다.
-    create_refresh_session(
-        state,
-        session_id,
-        user_id,
-        client_type,
-        &pair.refresh_token,
-    )
-        .await?;
+    create_refresh_session(state, session_id, user_id, client_type, &pair.refresh_token).await?;
 
     Ok(LoginIssueResult {
         access_token: pair.access_token,
@@ -170,55 +153,42 @@ pub async fn issue_login_tokens(
 /// 1) refresh JWT 자체 검증
 /// 2) sid로 DB refresh_sessions 조회
 /// 3) DB 세션 검증
-///    - revoked 아님
+///    - revoked = false
+///    - revoked_at is null
 ///    - expires_at 안 지남
 ///    - replaced_by_session_id 없음
-///    - hash 일치
+///    - token_hash 일치
 /// 4) 새 access / refresh 발급
 /// 5) 새 refresh session 저장
-/// 6) 기존 refresh session revoke + replaced_by_session_id 기록
-///
-/// 보안 포인트:
-/// - 이미 rotation된 refresh token이 다시 들어오면
-///   verify_refresh_session() 단계에서 reuse 감지로 차단됨
+/// 6) 기존 refresh session revoke
 pub async fn rotate_refresh_token(
     state: &AppState,
     refresh_token: &str,
     client_type: &str,
 ) -> Result<RefreshIssueResult> {
     // 1) refresh JWT 자체 검증
+    let claims = verify_app_refresh_token(&state.config.app_jwt_secret, refresh_token)?;
+
+    let session_id = Uuid::parse_str(&claims.sid).context("refresh sid UUID 파싱 실패")?;
+
+    let user_id = Uuid::parse_str(&claims.sub).context("refresh sub UUID 파싱 실패")?;
+
+    // 2) DB refresh session 검증
     //
-    // 여기서 JWT 서명 위조 여부와 JWT exp를 1차로 체크한다.
-    let claims = verify_app_refresh_token(
-        &state.config.app_jwt_secret,
-        refresh_token,
-    )?;
-
-    let session_id = Uuid::parse_str(&claims.sid)
-        .context("refresh sid UUID 파싱 실패")?;
-
-    let user_id = Uuid::parse_str(&claims.sub)
-        .context("refresh sub UUID 파싱 실패")?;
-
-    // 2) DB에 저장된 refresh session 검증
-    //
-    // 여기서 추가로:
+    // 여기서:
     // - revoked
+    // - revoked_at
     // - expires_at
-    // - replaced_by_session_id (reuse 감지)
+    // - replaced_by_session_id
     // - token_hash
-    // 를 체크한다.
-    //
-    // 즉 JWT만 믿지 않고 DB 상태까지 본다.
+    // 를 모두 확인한다.
     let session = match verify_refresh_session(state, session_id, refresh_token).await {
         Ok(session) => session,
         Err(e) => {
             let msg = e.to_string();
 
-            // reuse 감지 시에는 해당 세션을 한 번 더 명시적으로 revoke 해둔다.
-            // (이미 replaced된 세션이라면 사실상 죽어있지만,
-            //  보안상 "재사용 시도된 세션"임을 명확히 남기는 용도)
-            if msg.contains("reuse") {
+            // reuse 감지 시엔 보수적으로 한 번 더 revoke 처리
+            if msg.contains("reuse") || msg.contains("이미 교체된 refresh token") {
                 let _ = revoke_refresh_session_as_reused(state, session_id).await;
             }
 
@@ -226,10 +196,7 @@ pub async fn rotate_refresh_token(
         }
     };
 
-    // 3) client_type 일치 여부 확인
-    //
-    // 웹에서 발급된 refresh token을 앱이 쓰거나,
-    // 앱에서 발급된 refresh token을 웹이 쓰는 걸 막는다.
+    // 3) web/app 클라이언트 타입 불일치 방지
     if session.client_type != client_type {
         return Err(anyhow!("refresh client_type 불일치"));
     }
@@ -238,11 +205,7 @@ pub async fn rotate_refresh_token(
     let new_session_id = Uuid::new_v4();
 
     // 5) 새 access / refresh JWT 발급
-    let pair = generate_token_pair(
-        &state.config.app_jwt_secret,
-        &user_id,
-        &new_session_id,
-    )?;
+    let pair = generate_token_pair(&state.config.app_jwt_secret, &user_id, &new_session_id)?;
 
     // 6) 새 refresh session 저장
     create_refresh_session(
@@ -252,13 +215,11 @@ pub async fn rotate_refresh_token(
         client_type,
         &pair.refresh_token,
     )
-        .await?;
+    .await?;
 
     // 7) 기존 refresh session revoke
     //
-    // replaced_by_session_id에 새 session_id를 기록해 둔다.
-    // 그러면 나중에 옛 refresh token이 다시 들어왔을 때
-    // "이미 교체된 토큰"으로 판단 가능하다.
+    // rotation이므로 replaced_by_session_id에 새 세션 ID 기록
     revoke_refresh_session(state, session_id, Some(new_session_id)).await?;
 
     Ok(RefreshIssueResult {
@@ -266,7 +227,6 @@ pub async fn rotate_refresh_token(
         refresh_token: pair.refresh_token,
     })
 }
-
 
 // generate_nonce - nonce 발급 (로그인 1단계)
 //
@@ -307,6 +267,13 @@ pub fn generate_nonce(state: &AppState, wallet_address: &str) -> String {
     nonce
 }
 
+pub fn build_wallet_sign_message(wallet_address: &str, nonce: &str) -> String {
+    format!(
+        "Spentopia 지갑 인증\n\n이 서명은 Spentopia 로그인 또는 지갑 연동을 위한 요청입니다.\n블록체인 트랜잭션이 아니며, 가스비가 발생하지 않습니다.\n\n지갑 주소: {}\n인증 코드: {}\n유효 시간: 5분\n\n본인이 요청한 경우에만 서명하세요.",
+        wallet_address, nonce
+    )
+}
+
 // verify_and_login - 서명 검증 + 로그인 처리 (로그인 2단계)
 //
 // 역할: 앱에서 보낸 {지갑주소, nonce, 서명}을 검증하고 JWT를 발급.
@@ -337,7 +304,9 @@ pub async fn verify_and_login(
     if SystemTime::now() > entry.expires_at {
         drop(entry);
         state.nonce_store.remove(wallet_address);
-        return Err(anyhow!("nonce가 만료됨. /auth/wallet/nonce를 다시 호출하세요."));
+        return Err(anyhow!(
+            "nonce가 만료됨. /auth/wallet/nonce를 다시 호출하세요."
+        ));
     }
 
     // 저장된 nonce와 앱이 보낸 nonce가 다르면 위조된 요청
@@ -373,10 +342,10 @@ pub async fn verify_and_login(
 //
 // ■ 배경 지식
 //  Solana 지갑 주소 = ed25519 공개키를 Base58로 인코딩한 문자열
-//  서명 = 개인키로 nonce를 암호화한 64바이트 → Base58 인코딩
+//  서명 = 개인키로 인증 메시지를 서명한 64바이트 → Base58 인코딩
 //
 // ■ 검증 원리
-//  공개키(지갑 주소)로 서명을 "열어봤을 떄" nonce 원문이 나오면 → 검증 성공
+//  공개키(지갑 주소)로 인증 메시지 서명을 검증할 수 있으면 → 검증 성공
 //  즉, 이 서명을 만들 수 있는 건 이 지갑의 개인키 소유자뿐임을 수학적으로 증명
 //
 // ■ Base58이란?
@@ -386,14 +355,19 @@ pub async fn verify_and_login(
 fn verify_solana_signature(
     // "7xKXtg2CW87d..." 형태의 Solana 지갑 주소 (Base58 인코딩된 공개키)
     wallet_address: &str,
-    // 서버가 1단계에서 발급한 nonce 원문
+    // 서버가 1단계에서 발급한 nonce. 실제 서명 대상은 nonce를 포함한 인증 메시지다.
     nonce: &str,
     // 앱이 지갑으로 서명한 값 (Base58 인코딩된 64바이트)
     signature: &str,
 ) -> Result<()> {
-    tracing::warn!(
-        "[서명검증] 시작: wallet={}, nonce={:?}({}bytes), sig_chars={}",
-        wallet_address, nonce, nonce.len(), signature.len()
+    let message = build_wallet_sign_message(wallet_address, nonce);
+
+    tracing::debug!(
+        "[서명검증] 시작: wallet={}, nonce_len={}, message_len={}, sig_chars={}",
+        wallet_address,
+        nonce.len(),
+        message.len(),
+        signature.len()
     );
 
     // Base58 문자열("7xKXtg2...") → 바이트 배열([0x7a, 0x2b, ...])로 변환
@@ -401,7 +375,7 @@ fn verify_solana_signature(
         .into_vec()
         .context("지갑 주소 Base58 디코딩 실패. 유효한 Solana 주소인지 확인 필요.")?;
 
-    tracing::warn!("[서명검증] 공개키 바이트 수: {}", pubkey_bytes.len());
+    tracing::debug!("[서명검증] 공개키 바이트 수: {}", pubkey_bytes.len());
 
     // ed25519 공개키는 정확히 32바이트여야 함
     // try_into(): Vec<u8> → [u8; 32] 고정 배열로 변환 시도
@@ -419,7 +393,7 @@ fn verify_solana_signature(
         .into_vec()
         .context("서명 Base58 디코딩 실패")?;
 
-    tracing::warn!("[서명검증] 서명 바이트 수: {}", sig_bytes.len());
+    tracing::debug!("[서명검증] 서명 바이트 수: {}", sig_bytes.len());
 
     // ed25519 서명은 정확히 64바이트여야 함
     let sig_array: [u8; 64] = sig_bytes
@@ -428,18 +402,18 @@ fn verify_solana_signature(
 
     let sig = Signature::from_bytes(&sig_array);
 
-    // 핵심: 공개키(verifying_key)로 서명(sig)을 검증
-    // nonce.as_bytes(): nonce 원문을 바이트로 변환해서 검증 대상으로 사용
+    // 한국어 안내 문구가 포함된 인증 메시지를 검증 대상으로 사용
     // 성공 → 이 서명은 이 공개키에 대응하는 개인키로 만든 것이 맞음
     // 실패 → 서명이 위조됐거나 다른 지갑으로 서명한 것
-    let result = verifying_key.verify(nonce.as_bytes(), &sig);
+    let result = verifying_key.verify(message.as_bytes(), &sig);
     if let Err(ref e) = result {
         tracing::warn!(
-            "[서명검증] 실패! nonce_bytes={:?}, 에러={:?}",
-            nonce.as_bytes(), e
+            "[서명검증] 실패! message_len={}, 에러={:?}",
+            message.len(),
+            e
         );
     } else {
-        tracing::warn!("[서명검증] 성공");
+        tracing::debug!("[서명검증] 성공");
     }
     result.context("서명 검증 실패. 지갑 주인이 아니거나 nonce가 변조됨.")?;
     Ok(())
@@ -456,7 +430,6 @@ pub fn verify_solana_signature_pub(
     verify_solana_signature(wallet_address, nonce, signature)
 }
 
-
 // find_user_by_wallet - DB에서 지갑 주소로 유저 조회
 //
 // Supabase PostgREST API로 public.users를 조회
@@ -467,7 +440,7 @@ pub fn verify_solana_signature_pub(
 //   예: ?wallet_address=eq.7xKXt... → WHERE wallet_address = '7xKXt...'
 //
 // wallet/service.rs에서도 중복 연동 체크 시 재사용하므로 pub으로 선언
-pub async fn find_user_by_wallet(state: &AppState, wallet_address: &str) -> Result<uuid::Uuid> {
+pub async fn find_user_by_wallet(state: &AppState, wallet_address: &str) -> Result<Uuid> {
     // wallet_address=eq.{주소} → WHERE wallet_address = '{주소}'
     // select=id → id 컬럼만 가져옴 (불필요한 컬럼 제외)
     // trim_end_matches('/'): URL 끝 슬래시 제거 (중복 방지)
@@ -543,7 +516,8 @@ pub async fn exchange_supabase_token(
         state.config.supabase_url.trim_end_matches('/')
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .get(&user_url)
         .header("apikey", &state.config.supabase_publishable_key)
         .header("Authorization", format!("Bearer {}", supabase_access_token))
@@ -556,8 +530,7 @@ pub async fn exchange_supabase_token(
         return Err(anyhow!("유효하지 않은 Supabase 토큰: {}", err));
     }
 
-    let user_data: Value = resp.json().await
-        .context("Supabase 유저 응답 파싱 실패")?;
+    let user_data: Value = resp.json().await.context("Supabase 유저 응답 파싱 실패")?;
 
     let user_id = user_data["id"]
         .as_str()
@@ -565,31 +538,147 @@ pub async fn exchange_supabase_token(
 
     let email = user_data["email"].as_str();
 
+    // 가입 차단 도메인 검사 (신규 유저만 차단, 기존 유저 로그인은 허용)
+    if let Some(mail) = email {
+        let domain = mail.split('@').nth(1).unwrap_or("").to_ascii_lowercase();
+        if domain == "admin.com" {
+            let existing = find_public_user_by_email(state, mail).await.unwrap_or(None);
+            if existing.is_none() {
+                return Err(anyhow!("해당 이메일으로는 가입할 수 없습니다."));
+            }
+        }
+    }
+
+    // 기본 가입 방식(대표 provider)
     let provider = user_data["app_metadata"]["provider"]
         .as_str()
         .unwrap_or("email");
 
+    // Email + Google 같이 연결된 계정까지 감지해야 하므로
+    // provider 하나만 믿지 말고 providers / identities를 같이 본다.
+    let google_connected = user_data["app_metadata"]["providers"]
+        .as_array()
+        .map(|providers| {
+            providers.iter().any(|p| {
+                p.as_str()
+                    .map(|x| x.eq_ignore_ascii_case("google"))
+                    .unwrap_or(false)
+            })
+        })
+        .or_else(|| {
+            user_data["identities"].as_array().map(|arr| {
+                arr.iter().any(|identity| {
+                    identity["provider"]
+                        .as_str()
+                        .map(|p| p.eq_ignore_ascii_case("google"))
+                        .unwrap_or(false)
+                })
+            })
+        })
+        .unwrap_or(false);
+
     let provider_id = user_data["user_metadata"]["provider_id"]
         .as_str()
+        .or_else(|| user_data["user_metadata"]["sub"].as_str())
+        .or_else(|| user_data["app_metadata"]["provider_id"].as_str())
         .or_else(|| {
             user_data["identities"]
                 .as_array()
-                .and_then(|arr| arr.first())
-                .and_then(|x| x["id"].as_str())
+                .and_then(|arr| {
+                    arr.iter().find(|identity| {
+                        identity["provider"]
+                            .as_str()
+                            .map(|p| p.eq_ignore_ascii_case(provider))
+                            .unwrap_or(false)
+                    })
+                })
+                .and_then(|identity| identity["id"].as_str())
         });
 
-    // auth.users는 있어도 public.users / user_settings / streaks가 비어 있을 수 있어
+    tracing::info!(
+        "Supabase exchange: user_id={}, email={:?}, provider={}, provider_id={:?}, google_connected={}",
+        user_id,
+        email,
+        provider,
+        provider_id,
+        google_connected
+    );
+
+    // ── 탈퇴 유저 로그인 차단 ────────────────────────────────
+    //
+    // [Case 1] user_id 기반 체크
+    // - 이메일 로그인: 탈퇴 후 auth.users가 삭제됐으므로 보통 Supabase 레벨에서 차단됨.
+    //   그러나 만료되지 않은 토큰이 남아있는 경우를 대비해 이 체크를 유지.
+    //
+    // [Case 2] email 기반 체크
+    // - 구글 로그인: 탈퇴 후 auth.users가 삭제되면 재로그인 시 Supabase가
+    //   동일 이메일로 새 auth.users row를 생성 → 새 user_id 발급.
+    //   새 user_id로는 public.users에서 deleted_at을 찾을 수 없으므로
+    //   email 기반으로 추가 확인해야 함.
+    let deleted_check_url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=deleted_at&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let deleted_resp = state
+        .http_client
+        .get(&deleted_check_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("탈퇴 여부 조회 실패")?;
+
+    if deleted_resp.status().is_success() {
+        let rows: Vec<serde_json::Value> = deleted_resp.json().await.unwrap_or_default();
+        if let Some(row) = rows.first() {
+            if row["deleted_at"].is_string() {
+                return Err(anyhow!("이미 탈퇴한 회원입니다."));
+            }
+        }
+    }
+
+    // [Case 2] email 기반 탈퇴 체크 (구글 재로그인 시 새 user_id 케이스 대응)
+    if let Some(mail) = email {
+        let email_check_url = format!(
+            "{}/rest/v1/users?email=eq.{}&select=deleted_at&limit=1",
+            state.config.supabase_url.trim_end_matches('/'),
+            urlencoding::encode(mail)
+        );
+        let email_check_resp = state
+            .http_client
+            .get(&email_check_url)
+            .header("apikey", &state.config.supabase_secret_key)
+            .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+            .send()
+            .await
+            .context("이메일 기반 탈퇴 여부 조회 실패")?;
+        if email_check_resp.status().is_success() {
+            let rows: Vec<serde_json::Value> = email_check_resp.json().await.unwrap_or_default();
+            if let Some(row) = rows.first() {
+                if row["deleted_at"].is_string() {
+                    tracing::warn!("탈퇴 유저 재로그인 시도 차단 (email 기반): email={}", mail);
+                    return Err(anyhow!("이미 탈퇴한 회원입니다."));
+                }
+            }
+        }
+    }
+
     ensure_public_user_exists(
         state,
         user_id,
         email,
         provider,
         provider_id,
+        google_connected,
     )
-        .await?;
+    .await?;
 
-    let user_uuid = Uuid::parse_str(user_id)
-        .context("Supabase user_id UUID 파싱 실패")?;
+    let user_uuid = Uuid::parse_str(user_id).context("Supabase user_id UUID 파싱 실패")?;
 
     issue_login_tokens(state, user_uuid, client_type, false).await
 }
@@ -606,43 +695,61 @@ async fn ensure_public_user_exists(
     email: Option<&str>,
     provider: &str,
     provider_id: Option<&str>,
+    google_connected: bool,
 ) -> Result<()> {
+    // ─────────────────────────────────────────────────────────
+    // 0) 구글 연결 특수 처리
+    //
+    // 이미 같은 이메일의 기존 email 계정이 있고,
+    // 이번 Supabase 유저가 google도 연결된 상태라면
+    // public.users는 기존 계정을 유지하고 google_connected만 true로 바꾼다.
+    // ─────────────────────────────────────────────────────────
+    if google_connected {
+        if let Some(real_email) = email {
+            if let Some(existing_user_id) = find_public_user_by_email(state, real_email).await? {
+                // 현재 auth.users의 id와 public.users 기존 id가 다를 때만 연결 처리
+                if existing_user_id != user_id {
+                    tracing::info!(
+                        "기존 이메일 계정 발견 → google_connected 연결: email={}, existing_user_id={}, supabase_user_id={}",
+                        real_email,
+                        existing_user_id,
+                        user_id
+                    );
+
+                    link_google_to_existing_user(state, &existing_user_id).await?;
+                    ensure_settings_and_streaks_exist(state, &existing_user_id).await?;
+                    return Ok(());
+                }
+            }
+        }
+    }
+
     let users_url = format!(
         "{}/rest/v1/users",
         state.config.supabase_url.trim_end_matches('/')
     );
 
-    // ── 1단계: 신규 유저 INSERT (이미 존재하면 무시) ──────────────
-    //
-    // resolution=ignore-duplicates:
-    //   id 충돌(= 이미 가입된 유저)이면 아무것도 하지 않음.
-    //   신규 유저면 전체 행을 새로 삽입함.
-    //
-    // profile_image를 여기서만 "defaults/avatar.png"로 세팅하는 이유:
-    //   - merge-duplicates를 쓰면 기존 유저가 업로드한 프로필 이미지를
-    //     로그인할 때마다 기본값으로 덮어쓰는 문제가 생김.
-    //   - ignore-duplicates는 INSERT에만 적용되므로,
-    //     신규 유저는 기본 이미지를 받고, 기존 유저는 영향받지 않음.
-    //
-    // created_at도 여기서만 세팅:
-    //   - merge-duplicates였을 때는 매 로그인마다 created_at이 갱신되는
-    //     버그가 있었음. ignore-duplicates로 바꾸면서 함께 해결됨.
-    // ────────────────────────────────────────────────────────────
+    // 1) 신규 유저 INSERT (이미 존재하면 무시)
     let insert_payload = json!([{
         "id": user_id,
         "email": email,
         "login_provider": provider,
         "provider_id": provider_id,
+        "google_connected": google_connected,
         "profile_image": "defaults/avatar.png",
         "created_at": chrono::Utc::now(),
         "updated_at": chrono::Utc::now(),
         "is_active": true
     }]);
 
-    let insert_resp = state.http_client
+    let insert_resp = state
+        .http_client
         .post(&users_url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .header("Prefer", "resolution=ignore-duplicates")
         .json(&insert_payload)
@@ -655,28 +762,27 @@ async fn ensure_public_user_exists(
         return Err(anyhow!("public.users INSERT 실패: {}", err));
     }
 
-    // ── 2단계: 기존/신규 모두 활성 상태 갱신 ─────────────────────
-    //
-    // INSERT에서 ignore-duplicates를 쓰면 기존 유저의 is_active / updated_at이
-    // 갱신되지 않으므로, PATCH로 별도 업데이트.
-    //
-    // profile_image / created_at / email 등 초기값 필드는 건드리지 않음.
-    // ────────────────────────────────────────────────────────────
+    // 2) 기존/신규 모두 활성 상태 갱신
     let patch_url = format!(
         "{}/rest/v1/users?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
         urlencoding::encode(user_id)
     );
 
-    let patch_resp = state.http_client
+    let patch_resp = state
+        .http_client
         .patch(&patch_url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
         .header("Prefer", "return=minimal")
         .json(&json!({
             "is_active": true,
-            "updated_at": chrono::Utc::now()
+            "updated_at": chrono::Utc::now(),
+            "google_connected": google_connected
         }))
         .send()
         .await
@@ -687,41 +793,68 @@ async fn ensure_public_user_exists(
         return Err(anyhow!("public.users 활성 상태 갱신 실패: {}", err));
     }
 
+    // 3) user_settings / streaks 보장
+    ensure_settings_and_streaks_exist(state, user_id).await?;
+
+    Ok(())
+}
+
+async fn ensure_settings_and_streaks_exist(state: &AppState, user_id: &str) -> Result<()> {
     let settings_url = format!(
-        "{}/rest/v1/user_settings",
+        "{}/rest/v1/user_settings?on_conflict=user_id",
         state.config.supabase_url.trim_end_matches('/')
     );
 
-    let _ = state.http_client
+    let settings_resp = state
+        .http_client
         .post(&settings_url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
-        .header("Prefer", "resolution=merge-duplicates")
+        .header("Prefer", "resolution=merge-duplicates,return=minimal")
         .json(&json!([{
             "user_id": user_id
         }]))
         .send()
-        .await;
+        .await
+        .context("user_settings 보장 실패")?;
+
+    if !settings_resp.status().is_success() {
+        let err = settings_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("user_settings 보장 실패: {}", err));
+    }
 
     let streaks_url = format!(
-        "{}/rest/v1/streaks",
+        "{}/rest/v1/streaks?on_conflict=user_id",
         state.config.supabase_url.trim_end_matches('/')
     );
 
-    let _ = state.http_client
+    let streaks_resp = state
+        .http_client
         .post(&streaks_url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Content-Type", "application/json")
-        .header("Prefer", "resolution=merge-duplicates")
+        .header("Prefer", "resolution=merge-duplicates,return=minimal")
         .json(&json!([{
             "user_id": user_id,
             "current_streak": 0,
             "longest_streak": 0
         }]))
         .send()
-        .await;
+        .await
+        .context("streaks 보장 실패")?;
+
+    if !streaks_resp.status().is_success() {
+        let err = streaks_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("streaks 보장 실패: {}", err));
+    }
 
     Ok(())
 }
@@ -745,14 +878,15 @@ pub async fn kakao_login(
 
     let token_url = "https://kauth.kakao.com/oauth/token";
 
-    let kakao_client_id = std::env::var("KAKAO_REST_API_KEY")
-        .context("KAKAO_REST_API_KEY 환경변수 없음")?;
-    let kakao_client_secret = std::env::var("KAKAO_CLIENT_SECRET")
-        .context("KAKAO_CLIENT_SECRET 환경변수 없음")?;
-    let redirect_uri = std::env::var("KAKAO_REDIRECT_URI")
-        .context("KAKAO_REDIRECT_URI 환경변수 없음")?;
+    let kakao_client_id =
+        std::env::var("KAKAO_REST_API_KEY").context("KAKAO_REST_API_KEY 환경변수 없음")?;
+    let kakao_client_secret =
+        std::env::var("KAKAO_CLIENT_SECRET").context("KAKAO_CLIENT_SECRET 환경변수 없음")?;
+    let redirect_uri =
+        std::env::var("KAKAO_REDIRECT_URI").context("KAKAO_REDIRECT_URI 환경변수 없음")?;
 
-    let token_resp = state.http_client
+    let token_resp = state
+        .http_client
         .post(token_url)
         .form(&[
             ("grant_type", "authorization_code"),
@@ -771,13 +905,17 @@ pub async fn kakao_login(
         return Err(anyhow!("카카오 토큰 교환 실패: {}", err));
     }
 
-    let token_data: Value = token_resp.json().await
+    let token_data: Value = token_resp
+        .json()
+        .await
         .context("카카오 토큰 응답 파싱 실패")?;
 
-    let kakao_access_token = token_data["access_token"].as_str()
+    let kakao_access_token = token_data["access_token"]
+        .as_str()
         .ok_or_else(|| anyhow!("카카오 access_token 없음"))?;
 
-    let user_resp = state.http_client
+    let user_resp = state
+        .http_client
         .get("https://kapi.kakao.com/v2/user/me")
         .header("Authorization", format!("Bearer {}", kakao_access_token))
         .send()
@@ -790,10 +928,13 @@ pub async fn kakao_login(
         return Err(anyhow!("카카오 유저 정보 조회 실패: {}", err));
     }
 
-    let user_data: Value = user_resp.json().await
+    let user_data: Value = user_resp
+        .json()
+        .await
         .context("카카오 유저 정보 파싱 실패")?;
 
-    let kakao_id = user_data["id"].as_i64()
+    let kakao_id = user_data["id"]
+        .as_i64()
         .ok_or_else(|| anyhow!("카카오 유저 ID 없음"))?;
 
     let provider = "kakao";
@@ -817,18 +958,116 @@ pub async fn kakao_login(
         email
     );
 
-    let (user_id, is_new_user) = find_or_create_social_user(
-        state,
-        provider,
-        &provider_id,
-        email,
-        nickname,
-    ).await?;
+    let (user_id, is_new_user) =
+        find_or_create_social_user(state, provider, &provider_id, email, nickname).await?;
 
-    let user_uuid = Uuid::parse_str(&user_id)
-        .context("카카오 user_id UUID 파싱 실패")?;
+    let user_uuid = Uuid::parse_str(&user_id).context("카카오 user_id UUID 파싱 실패")?;
 
     issue_login_tokens(state, user_uuid, client_type, is_new_user).await
+}
+
+// withdraw_user - 회원탈퇴 처리
+//
+// 처리 순서:
+// 1) public.users → deleted_at(탈퇴 시각), is_active(비활성) 세팅
+// 2) Supabase auth.users → 삭제 (더 이상 로그인 시도 자체를 못하게)
+// 3) refresh_sessions → 전체 revoke (현재 로그인된 모든 기기 세션 만료)
+//
+// 왜 public.users를 바로 DELETE 안 하냐:
+// - 법적으로 3년 보관 의무가 있을 수 있음
+// - deleted_at으로 soft delete 처리해서 데이터는 남기고 접근만 차단
+//
+// 왜 auth.users는 DELETE 하냐:
+// - auth.users가 남아있으면 Supabase 레벨에서 로그인이 가능해짐
+// - public.users에서 막더라도 auth.users가 살아있으면 토큰 자체가 발급됨
+// - 완전한 로그인 차단을 위해 auth.users는 삭제
+pub async fn withdraw_user(state: &AppState, user_id: Uuid) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}",
+        state.config.supabase_url.trim_end_matches("/"),
+        user_id
+    );
+
+    let resp = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=minimal")
+        .json(&json!({
+            "deleted_at": chrono::Utc::now(), // 탈퇴 시각 기록 (3년 보관 기준점)
+            "is_active": false                // 비활성 처리
+        }))
+        .send()
+        .await
+        .context("public.users 탈퇴 처리 요청 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("public.users 탈퇴 처리 실패: {}", err));
+    }
+
+    // ── 2) auth.users 삭제 ──────────────────────────────────
+    // Supabase Admin API: DELETE /auth/v1/admin/users/{id}
+    // service role key로만 호출 가능 (일반 anon key 불가)
+    let auth_url = format!(
+        "{}/auth/v1/admin/users/{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let auth_resp = state
+        .http_client
+        .delete(&auth_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("auth.users 삭제 요청 실패")?;
+
+    if !auth_resp.status().is_success() {
+        let err = auth_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("auth.users 삭제 실패: {}", err));
+    }
+
+    // ── 3) refresh_sessions 전체 revoke ────────────────────
+    // 탈퇴 유저가 현재 여러 기기에 로그인되어 있을 수 있음
+    // revoked=false인 세션만 골라서 전부 만료시킴
+    // 실패해도 탈퇴 자체는 성공으로 처리 (치명적 오류 아님)
+    let sessions_url = format!(
+        "{}/rest/v1/refresh_sessions?user_id=eq.{}&revoked=eq.false",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let _ = state
+        .http_client
+        .patch(&sessions_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=minimal")
+        .json(&json!({
+            "revoked": true,
+            "revoked_at": chrono::Utc::now()
+        }))
+        .send()
+        .await;
+    // 세션 revoke 실패는 로그만 남기고 넘어감
+    // 어차피 auth.users가 삭제됐으므로 토큰 갱신 자체가 불가능해짐
+
+    tracing::info!("회원탈퇴 완료: user_id={}", user_id);
+    Ok(())
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -841,6 +1080,7 @@ async fn find_or_create_social_user(
     email: Option<&str>,
     nickname: Option<&str>,
 ) -> Result<(String, bool)> {
+    // 1️⃣ 기존 소셜 계정 찾기 (provider + provider_id)
     if let Some(existing_user_id) =
         find_public_user_by_provider(state, provider, provider_id).await?
     {
@@ -850,9 +1090,56 @@ async fn find_or_create_social_user(
             provider_id,
             existing_user_id
         );
+
+        // ── 탈퇴 유저 로그인 차단 ───────────────────────────────
+        // exchange_supabase_token 경로(이메일/구글)와 달리
+        // 카카오는 이 경로를 타므로 별도로 deleted_at을 확인해야 함
+        let deleted_check_url = format!(
+            "{}/rest/v1/users?id=eq.{}&select=deleted_at&limit=1",
+            state.config.supabase_url.trim_end_matches('/'),
+            existing_user_id
+        );
+        let deleted_resp = state
+            .http_client
+            .get(&deleted_check_url)
+            .header("apikey", &state.config.supabase_secret_key)
+            .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+            .send()
+            .await
+            .context("탈퇴 여부 조회 실패")?;
+        if deleted_resp.status().is_success() {
+            let rows: Vec<serde_json::Value> = deleted_resp.json().await.unwrap_or_default();
+            if let Some(row) = rows.first() {
+                if row["deleted_at"].is_string() {
+                    tracing::warn!("탈퇴 유저 카카오 로그인 시도 차단: user_id={}", existing_user_id);
+                    return Err(anyhow!("이미 탈퇴한 회원입니다."));
+                }
+            }
+        }
+        // ────────────────────────────────────────────────────────
+
         return Ok((existing_user_id, false));
     }
 
+    // ⭐⭐⭐ 핵심 추가 로직 (구글만) ⭐⭐⭐
+    if provider == "google" {
+        if let Some(real_email) = email {
+            if let Some(existing_user_id) = find_public_user_by_email(state, real_email).await? {
+                tracing::info!(
+                    "기존 이메일 계정 발견 → 구글 연결: email={}, user_id={}",
+                    real_email,
+                    existing_user_id
+                );
+
+                // 기존 계정에 google provider 연결
+                link_google_to_existing_user(state, &existing_user_id).await?;
+
+                return Ok((existing_user_id, false));
+            }
+        }
+    }
+
+    // 2️⃣ 신규 유저 생성
     let final_email = match email {
         Some(real_email) => real_email.to_string(),
         None => format!("{}@{}.local", provider_id, provider),
@@ -880,9 +1167,13 @@ async fn find_or_create_social_user(
         "user_metadata": Value::Object(user_metadata),
     });
 
-    let create_resp = state.http_client
+    let create_resp = state
+        .http_client
         .post(&create_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .json(&create_body)
         .send()
@@ -912,15 +1203,71 @@ async fn find_or_create_social_user(
         final_email
     );
 
-    upsert_public_user_social_fields(
-        state,
-        &user_id,
-        &final_email,
-        provider,
-        provider_id,
-    ).await?;
+    upsert_public_user_social_fields(state, &user_id, &final_email, provider, provider_id).await?;
 
     Ok((user_id, true))
+}
+
+async fn find_public_user_by_email(state: &AppState, email: &str) -> Result<Option<String>> {
+    let email_encoded = urlencoding::encode(email);
+
+    // deleted_at=is.null 조건 추가:
+    // 탈퇴 유저(deleted_at NOT NULL)는 제외해서 ensure_public_user_exists에서
+    // 탈퇴 계정을 google_connected 복구 대상으로 인식하지 않도록 함.
+    let url = format!(
+        "{}/rest/v1/users?email=eq.{}&deleted_at=is.null&select=id&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        email_encoded
+    );
+
+    let resp = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await?;
+
+    let rows: Vec<UserRow> = resp.json().await?;
+
+    Ok(rows.into_iter().next().map(|row| row.id.to_string()))
+}
+
+async fn link_google_to_existing_user(state: &AppState, user_id: &str) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        urlencoding::encode(user_id)
+    );
+
+    let resp = state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=minimal")
+        .json(&json!({
+            "google_connected": true,
+            "updated_at": chrono::Utc::now(),
+            "is_active": true
+        }))
+        .send()
+        .await
+        .context("기존 유저에 google 연결 실패")?;
+
+    if !resp.status().is_success() {
+        let err_text = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("기존 유저에 google 연결 실패: {}", err_text));
+    }
+
+    Ok(())
 }
 
 // public.users에서 provider + provider_id로 기존 계정 조회
@@ -939,9 +1286,13 @@ async fn find_public_user_by_provider(
         provider_id_encoded
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .send()
         .await
@@ -979,9 +1330,13 @@ async fn upsert_public_user_social_fields(
     // 카카오 신규 유저에게만 호출되는 함수이므로 (find_or_create_social_user 참고)
     // profile_image 기본값을 안전하게 세팅할 수 있음.
     // 기존 유저의 이미지를 덮어쓸 위험이 없음.
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .patch(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Content-Type", "application/json")
         .header("Prefer", "return=minimal")
@@ -997,7 +1352,10 @@ async fn upsert_public_user_social_fields(
 
     if !resp.status().is_success() {
         let err_text = resp.text().await.unwrap_or_default();
-        return Err(anyhow!("public.users social 필드 업데이트 실패: {}", err_text));
+        return Err(anyhow!(
+            "public.users social 필드 업데이트 실패: {}",
+            err_text
+        ));
     }
 
     Ok(())
@@ -1009,16 +1367,11 @@ async fn upsert_public_user_social_fields(
 pub async fn find_email_by_phone(
     state: &AppState,
     phone: &str,
-) -> Result<String> {
-    // 프론트에서 "01012345678" 또는 "010-1234-5678" 어떤 형식으로 와도
-    // DB 저장 형식인 "010-1234-5678"로 맞춰서 조회
+) -> Result<(Option<String>, String, bool)> {
     let formatted_phone = format_phone(phone);
 
-    tracing::info!("이메일 찾기 요청 phone(raw) = {}", phone);
-    tracing::info!("이메일 찾기 요청 phone(formatted) = {}", formatted_phone);
-
     let url = format!(
-        "{}/rest/v1/users?select=email&phone=eq.{}",
+        "{}/rest/v1/users?select=email,login_provider,google_connected&phone=eq.{}&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         formatted_phone
     );
@@ -1040,27 +1393,113 @@ pub async fn find_email_by_phone(
         return Err(anyhow!("전화번호로 이메일 조회 실패: {}", err));
     }
 
-    let rows: Vec<Value> = resp
-        .json()
-        .await
-        .context("이메일 조회 응답 파싱 실패")?;
+    let rows: Vec<Value> = resp.json().await.context("이메일 조회 응답 파싱 실패")?;
 
-    let email = rows
+    let row = rows
         .first()
-        .and_then(|row| row.get("email"))
+        .ok_or_else(|| anyhow!("입력한 정보와 일치하는 계정을 찾을 수 없습니다"))?;
+
+    let provider = row
+        .get("login_provider")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow!("해당 전화번호로 가입된 계정이 없음"))?;
+        .unwrap_or("unknown")
+        .to_string();
 
-    Ok(mask_email(email))
+    let google_connected = row
+        .get("google_connected")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let email = row.get("email").and_then(|v| v.as_str());
+
+    match provider.as_str() {
+        "email" => {
+            let masked = email.map(mask_email);
+            Ok((masked, provider, google_connected))
+        }
+        "google" => {
+            let masked = email.map(mask_email);
+            Ok((masked, provider, google_connected))
+        }
+        "kakao" => Ok((None, provider, google_connected)),
+        _ => Ok((None, provider, google_connected)),
+    }
 }
-
 // ═══════════════════════════════════════════════════════════════
 // 이메일 존재 여부 확인
 // ═══════════════════════════════════════════════════════════════
-pub async fn check_email_exists(
-    state: &AppState,
-    email: &str,
-) -> Result<bool> {
+// ─────────────────────────────────────────────────────────────
+// user_id로 public.users.role_type 조회
+// ─────────────────────────────────────────────────────────────
+pub async fn get_user_role(state: &AppState, user_id: Uuid) -> Result<Option<String>> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=role_type&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let resp = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("role_type 조회 요청 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("role_type 조회 실패: {}", err));
+    }
+
+    #[derive(Deserialize)]
+    struct RoleRow {
+        role_type: Option<String>,
+    }
+
+    let rows: Vec<RoleRow> = resp.json().await.context("role_type 응답 파싱 실패")?;
+
+    Ok(rows.into_iter().next().and_then(|r| r.role_type))
+}
+
+pub async fn check_nickname_available(state: &AppState, nickname: &str) -> Result<bool> {
+    let encoded = urlencoding::encode(nickname.trim());
+
+    let url = format!(
+        "{}/rest/v1/users?select=id&nickname=eq.{}&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        encoded
+    );
+
+    let resp = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("닉네임 중복 확인 요청 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("닉네임 중복 확인 실패: {}", err));
+    }
+
+    let rows: Vec<Value> = resp
+        .json()
+        .await
+        .context("닉네임 중복 확인 응답 파싱 실패")?;
+
+    Ok(rows.is_empty())
+}
+
+pub async fn check_email_exists(state: &AppState, email: &str) -> Result<bool> {
     let normalized_email = email.trim().to_lowercase();
     let encoded_email = urlencoding::encode(&normalized_email);
 
@@ -1070,10 +1509,14 @@ pub async fn check_email_exists(
         encoded_email
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .get(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .send()
         .await
         .context("이메일 존재 확인 실패")?;
@@ -1083,16 +1526,12 @@ pub async fn check_email_exists(
         return Err(anyhow!("이메일 존재 확인 실패: {}", err));
     }
 
-    let rows: Vec<Value> = resp.json().await
-        .context("이메일 존재 응답 파싱 실패")?;
+    let rows: Vec<Value> = resp.json().await.context("이메일 존재 응답 파싱 실패")?;
 
     Ok(!rows.is_empty())
 }
 
-pub async fn can_reset_password(
-    state: &AppState,
-    email: &str,
-) -> Result<bool> {
+pub async fn check_reset_password_email(state: &AppState, email: &str) -> Result<bool> {
     let normalized_email = email.trim().to_lowercase();
     let encoded_email = urlencoding::encode(&normalized_email);
 
@@ -1102,10 +1541,14 @@ pub async fn can_reset_password(
         encoded_email
     );
 
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .get(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .send()
         .await
         .context("비밀번호 재설정 가능 여부 확인 실패")?;
@@ -1115,16 +1558,108 @@ pub async fn can_reset_password(
         return Err(anyhow!("비밀번호 재설정 가능 여부 확인 실패: {}", err));
     }
 
-    let rows: Vec<Value> = resp.json().await
+    let rows: Vec<Value> = resp
+        .json()
+        .await
         .context("비밀번호 재설정 가능 여부 응답 파싱 실패")?;
 
-    let provider = rows
-        .first()
-        .and_then(|row| row.get("login_provider"))
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow!("해당 이메일로 가입된 계정이 없습니다"))?;
+    // 계정 없음
+    let row = match rows.first() {
+        Some(row) => row,
+        None => return Ok(false),
+    };
 
-    Ok(provider == "email")
+    let provider = row
+        .get("login_provider")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_lowercase();
+
+    // 이메일 로그인 계정 → OK
+    if provider == "email" {
+        return Ok(true);
+    }
+
+    // 소셜 로그인 계정 → 에러로 보내서 handler에서 403 처리
+    Err(anyhow!(
+        "소셜 로그인 계정은 비밀번호 재설정을 할 수 없습니다"
+    ))
+}
+
+pub async fn check_profile_availability(
+    state: &AppState,
+    nickname: &str,
+    phone: &str,
+) -> Result<()> {
+    let normalized_nickname = nickname.trim();
+    let formatted_phone = format_phone(phone);
+
+    let nickname_url = format!(
+        "{}/rest/v1/users?select=id&nickname=eq.{}&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        urlencoding::encode(normalized_nickname)
+    );
+
+    let nickname_resp = state
+        .http_client
+        .get(&nickname_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("닉네임 중복 확인 실패")?;
+
+    if !nickname_resp.status().is_success() {
+        let err = nickname_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("닉네임 중복 확인 실패: {}", err));
+    }
+
+    let nickname_rows: Vec<Value> = nickname_resp
+        .json()
+        .await
+        .context("닉네임 중복 확인 응답 파싱 실패")?;
+
+    if !nickname_rows.is_empty() {
+        return Err(anyhow!("이미 사용 중인 닉네임입니다"));
+    }
+
+    let phone_url = format!(
+        "{}/rest/v1/users?select=id&phone=eq.{}&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        urlencoding::encode(&formatted_phone)
+    );
+
+    let phone_resp = state
+        .http_client
+        .get(&phone_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("전화번호 중복 확인 실패")?;
+
+    if !phone_resp.status().is_success() {
+        let err = phone_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("전화번호 중복 확인 실패: {}", err));
+    }
+
+    let phone_rows: Vec<Value> = phone_resp
+        .json()
+        .await
+        .context("전화번호 중복 확인 응답 파싱 실패")?;
+
+    if !phone_rows.is_empty() {
+        return Err(anyhow!("이미 사용 중인 전화번호입니다"));
+    }
+
+    Ok(())
 }
 
 // 이메일 마스킹

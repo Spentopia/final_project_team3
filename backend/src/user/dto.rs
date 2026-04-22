@@ -1,10 +1,10 @@
 // user/dto.rs
 // 클라이언트와 주고받는 유저 관련 요청/응답 구조체
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 // ── 프로필 조회 응답 ───────────────────────────────────────────
 

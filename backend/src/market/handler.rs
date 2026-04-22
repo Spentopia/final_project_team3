@@ -17,20 +17,39 @@
 //  Path(listing_id): Path<Uuid> → /market/listings/:listing_id/escrow에서 UUID 추출
 
 use axum::{
+    Extension, Json,
     extract::{Path, State},
     response::IntoResponse,
-    Extension, Json,
 };
 
 use axum::http::StatusCode;
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::state::AppState;
 use super::{
     dto::{CreateListingRequest, PurchaseRequest},
     service,
 };
+
+// GET /api/market/listings
+//
+/// status=active인 판매 목록 전체를 최신순으로 반환한다.
+///
+/// # 응답
+/// 200 OK + Vec<ListingResponse>
+#[utoipa::path(
+    get, path = "/api/market/listings",
+    tag = "마켓",
+    responses((status = 200, description = "판매 목록 조회 성공")),
+    security(("bearer_auth" = []))
+)]
+pub async fn get_listings(State(state): State<AppState>) -> impl IntoResponse {
+    match service::get_listings(&state).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+use crate::state::AppState;
 
 // POST /market/listings
 //
@@ -54,11 +73,11 @@ use super::{
     security(("bearer_auth" = []))
 )]
 pub async fn create_listing(
-    State(state): State<AppState>,          // 공유 앱 상태
-    Extension(user_id): Extension<Uuid>,    // JWT 인증된 유저 UUID (=seller_id)
-    Json(req): Json<CreateListingRequest>,  // 요청 바디: {item_id, price_spt}
-)->impl IntoResponse{
-    match service::create_listing(&state, user_id, &req).await{
+    State(state): State<AppState>,         // 공유 앱 상태
+    Extension(user_id): Extension<Uuid>,   // JWT 인증된 유저 UUID (=seller_id)
+    Json(req): Json<CreateListingRequest>, // 요청 바디: {item_id, price_spt}
+) -> impl IntoResponse {
+    match service::create_listing(&state, user_id, &req).await {
         Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
@@ -88,17 +107,17 @@ pub async fn create_listing(
     security(("bearer_auth" = []))
 )]
 pub async fn update_escrow(
-    State(state): State<AppState>,                  // 공유 앱 상태
-    Extension(user_id): Extension<Uuid>,            // JWT 인증된 유저 UUID (= seller_id)
-    Path(listing_id): Path<Uuid>,                   // URL 경로에서 추출한 listing_UUID
-    Json(req): Json<UpdateEscrowRequest>,           // 요청 바디: { escrow+address }
-)->impl IntoResponse{
-    match service::update_escrow(&state, user_id, listing_id, req.escrow_address).await{
-        Ok(_)=>(
+    State(state): State<AppState>,        // 공유 앱 상태
+    Extension(user_id): Extension<Uuid>,  // JWT 인증된 유저 UUID (= seller_id)
+    Path(listing_id): Path<Uuid>,         // URL 경로에서 추출한 listing_UUID
+    Json(req): Json<UpdateEscrowRequest>, // 요청 바디: { escrow+address }
+) -> impl IntoResponse {
+    match service::update_escrow(&state, user_id, listing_id, req.escrow_address).await {
+        Ok(_) => (
             StatusCode::OK,
             // 단순 메세지 응답 → serde_json::json! 매크로의 인라인 생성
             Json(serde_json::json!({"message": "escrow 주소가 저장되었습니다."})),
-            )
+        )
             .into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
@@ -135,20 +154,20 @@ pub async fn update_escrow(
     security(("bearer_auth" = []))
 )]
 pub async fn purchase(
-    State(state): State<AppState>,          // 공유 앱 상태
-    Extension(user_id): Extension<Uuid>,    // JWT 인증된 유저 UUID (=buyer_id)
-    Json(req): Json<PurchaseRequest>,       // 요청 바디: { listing_id, tx_signature }
-)->impl IntoResponse{
+    State(state): State<AppState>,       // 공유 앱 상태
+    Extension(user_id): Extension<Uuid>, // JWT 인증된 유저 UUID (=buyer_id)
+    Json(req): Json<PurchaseRequest>,    // 요청 바디: { listing_id, tx_signature }
+) -> impl IntoResponse {
     // tx_signature 필수 검증: None이면 온체인 트랜잭션 미완료 상태
     // service로 넘기기 전에 핸들러 레벨에서 차단해 명확한 400 응답 보장
-    if req.tx_signature.is_none(){
+    if req.tx_signature.is_none() {
         return (
             StatusCode::BAD_REQUEST,
             "tx_signature는 필수입니다. 온체인 트랜잭션 완료 후 요청해 주세요.".to_string(),
-            )
+        )
             .into_response();
     }
-    match service::purchase(&state, user_id, req).await{
+    match service::purchase(&state, user_id, req).await {
         Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
@@ -160,7 +179,7 @@ pub async fn purchase(
 // 단일 엔드포인트에서만 쓰이므로 dto.rs 분리 없이 handler 내부에 정의한다.
 /// PATCH /market/listings/:listing_id/escrow 요청 바디
 #[derive(Deserialize)]
-pub struct UpdateEscrowRequest{
+pub struct UpdateEscrowRequest {
     /// Solana 에스크로 PDA 주소
     /// Anchor 프로그램의 seeds: ["escrow"m seller_pubkey, nft_mint_pubkey ]
     pub escrow_address: String,

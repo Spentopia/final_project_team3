@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { useState, useEffect } from "react";
+=======
+import { useEffect } from "react";
+>>>>>>> develop
 import { useFinance } from "@/shared/providers/FinanceProvider";
+import { listExpenses } from "@/shared/api/expenseApi";
 
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
@@ -30,6 +35,7 @@ import {
   AlertTriangle,
   CheckCircle,
 } from "lucide-react";
+import styles from "./AnalyticsPage.module.css";
 
 const categoryColorMap: Record<string, string> = {
   food: "#f97316",
@@ -42,6 +48,7 @@ const categoryColorMap: Record<string, string> = {
   other: "#6b7280",
 };
 
+<<<<<<< HEAD
 const categoryLabelMap: Record<string, string> = {
   food: "식비",
   transport: "교통",
@@ -88,6 +95,101 @@ const currentBudget = budgets[currentMonthKey] || 0;
     date.getMonth() === selectedMonth.getMonth()
   );
 });
+=======
+const monthlyData = [
+  { month: "1월", amount: 320000 },
+  { month: "2월", amount: 280000 },
+  { month: "3월", amount: 350000 },
+  { month: "4월", amount: 310000 },
+  { month: "5월", amount: 290000 },
+  { month: "6월", amount: 265000 },
+];
+
+const categoryData = [
+  {
+    name: "식비",
+    value: 45,
+    amount: 135000,
+    color: "#f97316",
+    meterClassName: styles.categoryMeterFood,
+  },
+  {
+    name: "교통",
+    value: 20,
+    amount: 60000,
+    color: "#3b82f6",
+    meterClassName: styles.categoryMeterTransport,
+  },
+  {
+    name: "쇼핑",
+    value: 15,
+    amount: 45000,
+    color: "#ec4899",
+    meterClassName: styles.categoryMeterShopping,
+  },
+  {
+    name: "여가",
+    value: 12,
+    amount: 36000,
+    color: "#a855f7",
+    meterClassName: styles.categoryMeterLeisure,
+  },
+  {
+    name: "기타",
+    value: 8,
+    amount: 24000,
+    color: "#6b7280",
+    meterClassName: styles.categoryMeterEtc,
+  },
+];
+
+export default function Analytics() {
+  const { transactions, replaceTransactions } = useFinance();
+  const now = new Date();
+
+  useEffect(() => {
+    if (transactions.length > 0) return;
+
+    let cancelled = false;
+
+    const loadExpenses = async () => {
+      try {
+        const items = await listExpenses();
+        if (cancelled) return;
+
+        replaceTransactions(
+          items.map((item) => ({
+            id: item.id,
+            date: item.date,
+            amount: item.amount,
+            category: item.category,
+            memo: item.memo ?? "",
+            type: item.transactionType,
+            receipt: item.transactionType === "expense" ? item.receiptVerified : undefined,
+            diary: item.transactionType === "expense" ? (item.diary ?? "") : undefined,
+          }))
+        );
+      } catch (error) {
+        console.error("소비 내역 조회 실패:", error);
+      }
+    };
+
+    void loadExpenses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [transactions.length]);
+
+  const thisMonthTransactions = transactions.filter((t: any) => {
+    const date = new Date(t.date);
+    return (
+      (t.type ?? "expense") === "expense" &&
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth()
+    );
+  });
+>>>>>>> develop
 
   const totalExpense = thisMonthTransactions.reduce(
     (sum: number, t: any) => sum + t.amount,
@@ -192,8 +294,8 @@ const topCategory = Object.entries(categoryMap).sort(
   </Button>
 </div>
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">소비 패턴 분석</h1>
-          <p className="text-gray-600">AI가 분석한 당신의 소비 습관을 확인해보세요</p>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">소비 패턴 분석</h1>
+          <p className="text-gray-600 dark:text-gray-300">AI가 분석한 당신의 소비 습관을 확인해보세요</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline">
@@ -359,8 +461,7 @@ const topCategory = Object.entries(categoryMap).sort(
                 <div className="flex items-center gap-2">
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
                     <div
-                      className="h-full rounded-full"
-                      style={{ width: `${cat.value}%`, backgroundColor: cat.color }}
+                      className={`${styles.categoryMeter} ${cat.meterClassName}`}
                     ></div>
                   </div>
                   <span className="text-sm font-medium text-gray-600">{cat.value}%</span>

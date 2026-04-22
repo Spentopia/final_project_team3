@@ -2,9 +2,15 @@ package com.ict.spentopia.feature.home
 
 // 날짜 선택 다이얼로그를 위한 import입니다.
 import android.app.DatePickerDialog
+import android.net.Uri
+
+// Activity Result 관련 import입니다.
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 // Compose foundation 관련 import입니다.
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,7 +26,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,12 +39,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.ui.window.Dialog
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -60,11 +64,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+
+// Coil 이미지 로딩 관련 import입니다.
+import coil.compose.rememberAsyncImagePainter
 
 // ViewModel을 Compose에서 사용하기 위한 import입니다.
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -82,14 +90,6 @@ import com.ict.spentopia.data.local.ExpenseEntity
 import java.text.DecimalFormat
 import java.util.Calendar
 import kotlin.math.abs
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import coil.compose.rememberAsyncImagePainter
 
 // --------------------------------------------------
 // UI에서 사용할 소비 항목 데이터 클래스입니다.
@@ -104,7 +104,7 @@ data class ExpenseItemData(
     val category: String, // 소비 카테고리
     val amount: Int, // 소비 금액
     val memo: String, // 구매 메모
-    val receiptImageName: String, // 영수증 이미지 이름
+    val receiptImageName: String, // 영수증 이미지 Uri 문자열
     val diary: String // 한줄 소비 일기
 )
 
@@ -166,9 +166,6 @@ fun HomeScreen(
     // 예: "2026-04-15"
     val selectedDate by homeViewModel.selectedDate.collectAsStateWithLifecycle()
 
-    // HomeViewModel에서 현재 선택한 월의 소비 목록(UI용)을 구독합니다.
-    val monthlyExpenseList by homeViewModel.monthlyExpenseUiList.collectAsStateWithLifecycle()
-
     // HomeViewModel에서 현재 선택한 월의 총 소비 금액을 구독합니다.
     val currentMonthTotalExpense by homeViewModel.monthlyTotalAmount.collectAsStateWithLifecycle()
 
@@ -183,8 +180,10 @@ fun HomeScreen(
 
     // 현재 선택된 연-월 문자열에서 연도와 월을 분리합니다.
     // selectedYearMonth는 "yyyy-MM" 형식이므로 substring으로 안전하게 꺼냅니다.
-    val currentYear = selectedYearMonth.substring(0, 4).toIntOrNull() ?: Calendar.getInstance().get(Calendar.YEAR)
-    val currentMonth = selectedYearMonth.substring(5, 7).toIntOrNull() ?: (Calendar.getInstance().get(Calendar.MONTH) + 1)
+    val currentYear = selectedYearMonth.substring(0, 4).toIntOrNull()
+        ?: Calendar.getInstance().get(Calendar.YEAR)
+    val currentMonth = selectedYearMonth.substring(5, 7).toIntOrNull()
+        ?: (Calendar.getInstance().get(Calendar.MONTH) + 1)
 
     // 수정 중인 소비 항목 상태입니다.
     var editingExpense by remember { mutableStateOf<ExpenseItemData?>(null) }
@@ -309,7 +308,6 @@ fun HomeScreen(
                 selectedDate = selectedDate,
                 editingExpense = editingExpense,
                 onSaveExpense = { savedExpense ->
-
                     // 화면용 모델을 DB용 Entity로 변환합니다.
                     val entity = savedExpense.toEntity()
 
@@ -385,6 +383,10 @@ private fun TopHeaderSection(
                 .padding(horizontal = 14.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+
+
+            Spacer(modifier = Modifier.width(12.dp))
+
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -392,13 +394,10 @@ private fun TopHeaderSection(
                     text = "NFT 거래 및 토큰 교환 지갑",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1F2A37),
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis
+                    color = Color(0xFF1F2A37)
                 )
                 Text(
-                    text = "지갑 연결이 필요합니다.",
+                    text = "팬텀 지갑 연결이 필요합니다",
                     fontSize = 13.sp,
                     color = Color(0xFF6B7280)
                 )
@@ -408,14 +407,13 @@ private fun TopHeaderSection(
 
             Button(
                 onClick = onWalletConnectClick,
-                modifier = Modifier.widthIn(min = 110.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent
                 ),
                 contentPadding = PaddingValues(0.dp)
             ) {
-                Row(
+                Box(
                     modifier = Modifier
                         .background(
                             brush = Brush.horizontalGradient(
@@ -427,25 +425,14 @@ private fun TopHeaderSection(
                             ),
                             shape = RoundedCornerShape(14.dp)
                         )
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "👻",
-                        fontSize = 12.sp
-                    )
-
-                    Spacer(modifier = Modifier.width(6.dp))
-
                     Text(
                         text = "지갑 연결",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        maxLines =1,
-                        softWrap = false,
-                        overflow = TextOverflow.Clip
+                        color = Color.White
                     )
                 }
             }
@@ -1228,7 +1215,6 @@ private fun ExpenseWriteCard(
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
 
-
     var formDate by remember { mutableStateOf(selectedDate) }
     var selectedCategory by remember { mutableStateOf("식비") }
     var amount by remember { mutableStateOf("") }
@@ -1336,9 +1322,12 @@ private fun ExpenseWriteCard(
             TextButton(
                 onClick = {
                     val dateParts = formDate.split("-")
-                    val initYear = dateParts.getOrNull(0)?.toIntOrNull() ?: calendar.get(Calendar.YEAR)
-                    val initMonth = (dateParts.getOrNull(1)?.toIntOrNull() ?: (calendar.get(Calendar.MONTH) + 1)) - 1
-                    val initDay = dateParts.getOrNull(2)?.toIntOrNull() ?: calendar.get(Calendar.DAY_OF_MONTH)
+                    val initYear = dateParts.getOrNull(0)?.toIntOrNull()
+                        ?: calendar.get(Calendar.YEAR)
+                    val initMonth = (dateParts.getOrNull(1)?.toIntOrNull()
+                        ?: (calendar.get(Calendar.MONTH) + 1)) - 1
+                    val initDay = dateParts.getOrNull(2)?.toIntOrNull()
+                        ?: calendar.get(Calendar.DAY_OF_MONTH)
 
                     DatePickerDialog(
                         context,
@@ -1513,6 +1502,7 @@ private fun ExpenseWriteCard(
                     fontSize = 14.sp
                 )
             }
+
             if (receiptImageName.isNotBlank()) {
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -1643,7 +1633,7 @@ private fun ExpenseWriteCard(
 
                         if (amountInt > 0) {
                             val newExpense = ExpenseItemData(
-                                id = System.currentTimeMillis(),
+                                id = 0L,
                                 date = formDate,
                                 title = createExpenseTitle(selectedCategory, memo),
                                 category = selectedCategory,

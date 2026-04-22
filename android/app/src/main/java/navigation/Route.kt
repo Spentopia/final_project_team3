@@ -21,14 +21,6 @@ sealed class Route(val route: String) {
     // 로그인 화면 route입니다.
     data object Login : Route("login")
 
-    // 회원가입 1단계 화면 route입니다.
-    data object SignUpStep1 : Route("signup_step1")
-
-    // 회원가입 2단계 화면 route입니다.
-    data object SignUpStep2 : Route("signup_step2")
-
-    // 회원가입 3단계 화면 route입니다.
-    data object SignUpStep3 : Route("signup_step3")
 
     // 홈 화면 route입니다.
     data object Home : Route("home")
@@ -38,6 +30,9 @@ sealed class Route(val route: String) {
 
     // 마이페이지 화면 route입니다.
     data object MyPage : Route("mypage")
+
+    // 수정  : 마이 페이지 + 내 아바타 통합 화면 route 추가
+    data object ProfileAvatar : Route("profile_avatar")
 
     // 예산 설정 화면 route입니다.
     data object Budget : Route("budget")
@@ -59,6 +54,8 @@ sealed class Route(val route: String) {
 
     // 커뮤니티 글쓰기 화면 route입니다.
     data object CommunityWrite : Route("community_write")
+
+
 
     // ------------------------------------------------------------
     // 커뮤니티 상세 화면 route입니다.

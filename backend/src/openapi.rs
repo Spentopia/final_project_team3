@@ -5,11 +5,10 @@ use utoipa::OpenApi;
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 
 use crate::auth;
-use crate::expense;
-use crate::wallet;
 use crate::avatar;
 use crate::budget;
 use crate::community;
+use crate::expense;
 use crate::ledger;
 use crate::market;
 use crate::notification;
@@ -17,6 +16,7 @@ use crate::payment;
 use crate::report;
 use crate::reward;
 use crate::user;
+use crate::wallet;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -44,7 +44,9 @@ use crate::user;
         crate::user::handler::update_settings,
 
         // ── 소비 ──────────────────────────────────────────────
+        crate::expense::handler::list_expenses,
         crate::expense::handler::create_expense,
+        crate::expense::handler::delete_expense,
 
         // ── 예산 ──────────────────────────────────────────────
         crate::budget::handler::get_budget,
@@ -80,11 +82,6 @@ use crate::user;
         // ── 리포트 ────────────────────────────────────────────
         crate::report::handler::generate_report,
         crate::report::handler::list_reports,
-
-        // ── 보상 ──────────────────────────────────────────────
-        crate::reward::handler::list_rewards,
-        crate::reward::handler::get_streak,
-        crate::reward::handler::get_weekly_scores,
 
         // ── 아바타 ────────────────────────────────────────────
         crate::avatar::handler::mint_nft,
@@ -131,6 +128,7 @@ use crate::user;
             // ── expense DTO ───────────────────────────────────
             expense::dto::CreateExpenseWebRequest,
             expense::dto::ExpenseWebResponse,
+            expense::dto::ExpenseListWebResponse,
 
             // ── budget DTO ────────────────────────────────────
             budget::dto::CreateBudgetRequest,
@@ -226,7 +224,7 @@ impl utoipa::Modify for SecurityAddon {
                 HttpBuilder::new()
                     .scheme(HttpAuthScheme::Bearer)
                     .bearer_format("JWT")
-                    .build()
+                    .build(),
             ),
         );
     }

@@ -10,11 +10,10 @@
 //  백엔드가 클라이언트 역할로 AI 서버(FastAPI)를 호출한다.
 //  고정 지출 조회 → AI 서버 요청 → 응답을 budgets.ai_plan에 저장
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::state::AppState;
 use super::{
     dto::{
         AiPlanResponse, BudgetCategoryItem, BudgetResponse, CreateBudgetRequest,
@@ -22,6 +21,7 @@ use super::{
     },
     model::{Budget, BudgetCategory},
 };
+use crate::state::AppState;
 
 // ── 예산 조회 ─────────────────────────────────────────────────
 
@@ -34,13 +34,22 @@ pub async fn get_budget(
     let url = format!(
         "{}/rest/v1/budgets?user_id=eq.{}&year=eq.{}&month=eq.{}&select=*",
         state.config.supabase_url.trim_end_matches('/'),
-        user_id, year, month,
+        user_id,
+        year,
+        month,
     );
 
-    let res = state.http_client.get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
-        .send().await.context("budgets SELECT 요청 실패")?;
+        .send()
+        .await
+        .context("budgets SELECT 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
@@ -88,8 +97,13 @@ pub async fn create_budget(
         savings_goal: Option<i32>,
     }
 
-    let res = state.http_client.post(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let res = state
+        .http_client
+        .post(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=representation")
         .json(&InsertPayload {
@@ -99,7 +113,9 @@ pub async fn create_budget(
             total_budget: req.total_budget,
             savings_goal: req.savings_goal,
         })
-        .send().await.context("budgets INSERT 요청 실패")?;
+        .send()
+        .await
+        .context("budgets INSERT 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
@@ -107,7 +123,9 @@ pub async fn create_budget(
     }
 
     let inserted: Vec<Budget> = res.json().await.context("budgets INSERT 역직렬화 실패")?;
-    let budget = inserted.into_iter().next()
+    let budget = inserted
+        .into_iter()
+        .next()
         .ok_or_else(|| anyhow!("budgets INSERT 결과가 비어있음"))?;
 
     Ok(BudgetResponse {
@@ -133,15 +151,23 @@ pub async fn update_budget(
     let url = format!(
         "{}/rest/v1/budgets?id=eq.{}&user_id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
-        budget_id, user_id,
+        budget_id,
+        user_id,
     );
 
-    let res = state.http_client.patch(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let res = state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=representation")
         .json(&req)
-        .send().await.context("budgets PATCH 요청 실패")?;
+        .send()
+        .await
+        .context("budgets PATCH 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
@@ -149,7 +175,9 @@ pub async fn update_budget(
     }
 
     let updated: Vec<Budget> = res.json().await.context("budgets PATCH 역직렬화 실패")?;
-    let budget = updated.into_iter().next()
+    let budget = updated
+        .into_iter()
+        .next()
         .ok_or_else(|| anyhow!("수정된 예산을 찾을 수 없음"))?;
 
     let categories = fetch_categories(state, budget.id).await?;
@@ -180,10 +208,17 @@ pub async fn update_categories(
         state.config.supabase_url.trim_end_matches('/'),
         budget_id,
     );
-    let del_res = state.http_client.delete(&del_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let del_res = state
+        .http_client
+        .delete(&del_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
-        .send().await.context("budget_categories DELETE 요청 실패")?;
+        .send()
+        .await
+        .context("budget_categories DELETE 요청 실패")?;
 
     if !del_res.status().is_success() {
         let body = del_res.text().await.unwrap_or_default();
@@ -202,35 +237,51 @@ pub async fn update_categories(
         allocated_amount: i32,
     }
 
-    let payload: Vec<InsertItem> = req.categories.iter().map(|c| InsertItem {
-        budget_id,
-        category: c.category.clone(),
-        allocated_amount: c.allocated_amount,
-    }).collect();
+    let payload: Vec<InsertItem> = req
+        .categories
+        .iter()
+        .map(|c| InsertItem {
+            budget_id,
+            category: c.category.clone(),
+            allocated_amount: c.allocated_amount,
+        })
+        .collect();
 
     let ins_url = format!(
         "{}/rest/v1/budget_categories",
         state.config.supabase_url.trim_end_matches('/'),
     );
-    let ins_res = state.http_client.post(&ins_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let ins_res = state
+        .http_client
+        .post(&ins_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=representation")
         .json(&payload)
-        .send().await.context("budget_categories INSERT 요청 실패")?;
+        .send()
+        .await
+        .context("budget_categories INSERT 요청 실패")?;
 
     if !ins_res.status().is_success() {
         let body = ins_res.text().await.unwrap_or_default();
         return Err(anyhow!("budget_categories INSERT 실패: {}", body));
     }
 
-    let inserted: Vec<BudgetCategory> = ins_res.json().await
+    let inserted: Vec<BudgetCategory> = ins_res
+        .json()
+        .await
         .context("budget_categories INSERT 역직렬화 실패")?;
 
-    Ok(inserted.into_iter().map(|c| BudgetCategoryItem {
-        category: c.category,
-        allocated_amount: c.allocated_amount,
-    }).collect())
+    Ok(inserted
+        .into_iter()
+        .map(|c| BudgetCategoryItem {
+            category: c.category,
+            allocated_amount: c.allocated_amount,
+        })
+        .collect())
 }
 
 // ── AI 예산 플랜 생성 ──────────────────────────────────────────
@@ -245,19 +296,29 @@ pub async fn generate_ai_plan(
     let budget_url = format!(
         "{}/rest/v1/budgets?id=eq.{}&user_id=eq.{}&select=*",
         state.config.supabase_url.trim_end_matches('/'),
-        req.budget_id, user_id,
+        req.budget_id,
+        user_id,
     );
-    let b_res = state.http_client.get(&budget_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let b_res = state
+        .http_client
+        .get(&budget_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
-        .send().await.context("budgets 조회 요청 실패")?;
+        .send()
+        .await
+        .context("budgets 조회 요청 실패")?;
 
     if !b_res.status().is_success() {
         let body = b_res.text().await.unwrap_or_default();
         return Err(anyhow!("budgets 조회 실패: {}", body));
     }
     let budgets: Vec<Budget> = b_res.json().await.context("budgets 역직렬화 실패")?;
-    let budget = budgets.into_iter().next()
+    let budget = budgets
+        .into_iter()
+        .next()
         .ok_or_else(|| anyhow!("예산을 찾을 수 없음"))?;
 
     // 2. 고정 지출 조회
@@ -274,10 +335,17 @@ pub async fn generate_ai_plan(
         category: String,
     }
 
-    let fe_res = state.http_client.get(&fe_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let fe_res = state
+        .http_client
+        .get(&fe_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
-        .send().await.context("fixed_expenses 조회 요청 실패")?;
+        .send()
+        .await
+        .context("fixed_expenses 조회 요청 실패")?;
 
     let fixed_expenses: Vec<FixedExpenseInfo> = if fe_res.status().is_success() {
         fe_res.json().await.unwrap_or_default()
@@ -296,26 +364,38 @@ pub async fn generate_ai_plan(
             month: budget.month,
             fixed_expenses: serde_json::to_value(&fixed_expenses).unwrap_or_default(),
         },
-    ).await?;
+    )
+    .await?;
 
     // 4. budgets.ai_plan 업데이트
     #[derive(Serialize)]
-    struct PatchAiPlan { ai_plan: String }
+    struct PatchAiPlan {
+        ai_plan: String,
+    }
 
     let patch_url = format!(
         "{}/rest/v1/budgets?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
         req.budget_id,
     );
-    let _ = state.http_client.patch(&patch_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let _ = state
+        .http_client
+        .patch(&patch_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=minimal")
-        .json(&PatchAiPlan { ai_plan: ai_plan.plan.clone() })
-        .send().await.context("budgets ai_plan 업데이트 실패")?;
+        .json(&PatchAiPlan {
+            ai_plan: ai_plan.plan.clone(),
+        })
+        .send()
+        .await
+        .context("budgets ai_plan 업데이트 실패")?;
 
-    let categories: Vec<BudgetCategoryItem> = serde_json::from_value(ai_plan.categories)
-        .unwrap_or_default();
+    let categories: Vec<BudgetCategoryItem> =
+        serde_json::from_value(ai_plan.categories).unwrap_or_default();
 
     Ok(AiPlanResponse {
         ai_plan: ai_plan.plan,
@@ -332,18 +412,28 @@ async fn fetch_categories(state: &AppState, budget_id: Uuid) -> Result<Vec<Budge
         budget_id,
     );
 
-    let res = state.http_client.get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
-        .send().await.context("budget_categories SELECT 요청 실패")?;
+        .send()
+        .await
+        .context("budget_categories SELECT 요청 실패")?;
 
     if !res.status().is_success() {
         return Ok(vec![]);
     }
 
     let rows: Vec<BudgetCategory> = res.json().await.unwrap_or_default();
-    Ok(rows.into_iter().map(|c| BudgetCategoryItem {
-        category: c.category,
-        allocated_amount: c.allocated_amount,
-    }).collect())
+    Ok(rows
+        .into_iter()
+        .map(|c| BudgetCategoryItem {
+            category: c.category,
+            allocated_amount: c.allocated_amount,
+        })
+        .collect())
 }

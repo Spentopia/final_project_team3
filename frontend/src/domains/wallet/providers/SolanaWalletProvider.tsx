@@ -9,21 +9,29 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 export function SolanaWalletProvider({children}: PropsWithChildren) {
     const endpoint = useMemo(() => getSolanaEndpoint(), []);
+    const walletStorageKey = "spentopiaWalletName";
 
     // Phantom, Solflare, Backpack은 모두 Wallet Standard를 지원하므로
     // WalletProvider가 자동으로 감지한다. 여기서 명시적으로 추가하면
     // 어댑터가 중복 등록되어 "Connection rejected" 충돌이 발생한다.
     const wallets = useMemo(() => [], []);
 
+    if (typeof window !== "undefined") {
+        // WalletProvider는 localStorageKey 값을 초기 상태로 읽는다.
+        // 렌더 전에 지워야 이전 세션의 Phantom 같은 선택값이 자동 복원되지 않는다.
+        window.localStorage.removeItem(walletStorageKey);
+        window.localStorage.removeItem("walletName");
+    }
+
     return (
         <ConnectionProvider endpoint={endpoint}>
-            {/* autoConnect=false:
-                true로 두면 취소 후에도 wallet adapter가 선택된 지갑을 계속 재시도한다.
-                connect()는 각 버튼(ConnectWalletButton, WalletLoginButton)에서
-                모달 wallet 선택 감지 후 직접 호출한다. */}
+            {/* autoConnect=true:
+                저장된 이전 지갑 선택은 위에서 비우고, 사용자가 모달에서 방금 고른 지갑만
+                wallet-adapter의 공식 선택 직후 연결 흐름으로 연결한다. */}
             <WalletProvider
                 wallets={wallets}
-                autoConnect={false}
+                autoConnect={true}
+                localStorageKey={walletStorageKey}
                 onError={(error) => {
                     // 사용자 취소(rejected)나 팝업 닫기(closed/Plugin Closed)는 정상 흐름이므로 무시한다.
                     const msg = (error.message ?? '').toLowerCase();

@@ -2,7 +2,7 @@
 // 프론트는 Solana 지갑에서 nonce를 서명만 하고,
 // 최종 검증과 사용자-지갑 매핑 저장은 모두 백엔드가 담당한다.
 import {
-  LinkWalletRequest, LinkWalletResponse, UnlinkWalletResponse,
+  LinkWalletRequest, LinkWalletResponse, UnlinkWalletRequest, UnlinkWalletResponse,
   WalletLoginRequest,
   WalletLoginResponse,
   WalletNonceRequest,
@@ -46,7 +46,9 @@ export async function linkWalletApi(
 // DELETE /wallet/unlink
 // 브라우저 wallet adapter 연결을 끊는 것이 아니라,
 // 서버에 저장된 "내 계정과 지갑 주소의 연동 정보"를 제거하는 요청이다.
-export async function unlinkWalletApi(): Promise<UnlinkWalletResponse>{
-  const response = await apiClient.delete<UnlinkWalletResponse>('/wallet/unlink');
+export async function unlinkWalletApi(payload: UnlinkWalletRequest): Promise<UnlinkWalletResponse>{
+  const response = await apiClient.delete<UnlinkWalletResponse>('/wallet/unlink', {
+    data: payload,
+  });
   return response.data;
 }

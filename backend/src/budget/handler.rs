@@ -1,15 +1,14 @@
 // budget/handler.rs
 
 use axum::{
+    Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Extension, Json,
 };
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::state::AppState;
 use super::{
     dto::{
         CreateBudgetRequest, GenerateAiPlanRequest, UpdateBudgetCategoriesRequest,
@@ -17,6 +16,7 @@ use super::{
     },
     service,
 };
+use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct BudgetQuery {
@@ -56,10 +56,18 @@ pub async fn create_budget(
     Json(req): Json<CreateBudgetRequest>,
 ) -> impl IntoResponse {
     if req.month < 1 || req.month > 12 {
-        return (StatusCode::BAD_REQUEST, "month는 1~12 사이여야 합니다.".to_string()).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            "month는 1~12 사이여야 합니다.".to_string(),
+        )
+            .into_response();
     }
     if req.total_budget <= 0 {
-        return (StatusCode::BAD_REQUEST, "total_budget은 0보다 커야 합니다.".to_string()).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            "total_budget은 0보다 커야 합니다.".to_string(),
+        )
+            .into_response();
     }
     match service::create_budget(&state, user_id, req).await {
         Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),

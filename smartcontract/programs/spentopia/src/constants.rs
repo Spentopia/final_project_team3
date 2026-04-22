@@ -17,7 +17,6 @@ pub const PLATFORM_CONFIG_SEED: &[u8] = b"platform_config";
 /// 수수료가 100^를 초과하는 건 의미 없으므로 상한을 상수로 고정.
 pub const MAX_FEE_RATE: u16 = 10_000;
 
-
 /// 아바타 NFT 민트 PDA seed.
 /// 유저별 + 아이템별로 고유한 민트를 만들기 위해 user_pubkey + item_id를 함께 사용.
 pub const AVATAR_MINT_SEED: &[u8] = b"avatar_mint";

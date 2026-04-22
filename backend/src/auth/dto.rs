@@ -52,6 +52,7 @@ pub struct NonceRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct NonceResponse {
     pub nonce: String,
+    pub message: String,
 }
 
 // 지갑 로그인 2단계: 서명 검증 요청 DTO
@@ -95,11 +96,15 @@ pub struct AppRefreshResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct FindEmailRequest {
     pub phone: String,
+    pub captcha_token: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct FindEmailResponse {
-    pub masked_email: String,
+    pub masked_email: Option<String>,
+    pub login_provider: String,
+    pub google_connected: bool,
+    pub message: String,
 }
 
 // ── 이메일 존재 확인 ─────────────────────────────────────────
@@ -109,6 +114,31 @@ pub struct FindEmailResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CheckEmailRequest {
     pub email: String,
+    pub captcha_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CheckEmailResponse {
+    pub exists: bool,
+}
+
+// ── 비밀번호 재설정 이메일 확인 ──────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CheckResetPasswordEmailRequest {
+    pub email: String,
+    pub captcha_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CheckResetPasswordEmailResponse {
+    pub exists: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CheckProfileAvailabilityRequest {
+    pub nickname: String,
+    pub phone: String,
 }
 
 // ── 카카오 로그인 ─────────────────────────────────────────────
@@ -117,6 +147,12 @@ pub struct CheckEmailRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct KakaoLoginRequest {
     pub code: String,
+    pub state: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct KakaoStartResponse {
+    pub auth_url: String,
 }
 
 // ── 프로필 완성 ───────────────────────────────────────────────
@@ -155,4 +191,52 @@ pub struct ProfileImageUrlQuery {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ProfileImageUrlResponse {
     pub signed_url: String,
+}
+
+// ─────────────────────────────────────────────────────────────
+// handoff token 발급 요청
+//
+// POST /auth/handoff
+// Authorization: Bearer <access_token>
+//
+// 웹에서 "게임 시작" 버튼 클릭 시 호출.
+// JWT 미들웨어가 user_id를 확인한 뒤,
+// 유니티 진입용 1회용 handoff token을 발급한다.
+// ─────────────────────────────────────────────────────────────
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct HandoffRequest {
+    // 현재는 "unity"만 허용
+    pub target_service: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct HandoffResponse {
+    // 부모 탭이 유니티 탭으로 postMessage 할 1회용 token 원문
+    pub handoff_token: String,
+
+    // 프론트 디버깅/UX용
+    pub expires_in: i32,
+}
+
+// ─────────────────────────────────────────────────────────────
+// handoff token 교환 요청
+//
+// POST /auth/handoff/exchange
+//
+// 유니티가 부모 탭에서 postMessage로 받은 handoff token을
+// 자기 서비스용 access/refresh로 교환할 때 사용.
+//
+// 중요:
+// - target_service는 클라이언트가 보내지 않음
+// - 서버 메모리에 저장된 target_service를 기준으로만 검증
+// ─────────────────────────────────────────────────────────────
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct HandoffExchangeRequest {
+    pub handoff_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct HandoffExchangeResponse {
+    pub access_token: String,
+    pub refresh_token: String,
 }

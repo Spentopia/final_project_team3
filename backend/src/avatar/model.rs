@@ -12,7 +12,7 @@ use uuid::Uuid;
 pub struct Avatar {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub grade: Option<String>,           // common / rare / epic / legendary
+    pub grade: Option<String>, // common / rare / epic / legendary
     pub image_url: String,
     pub is_nft: Option<bool>,
     pub nft_mint_address: Option<String>,
@@ -27,8 +27,8 @@ pub struct Avatar {
 pub struct AvatarItem {
     pub id: Uuid,
     pub name: String,
-    pub category: String,    // background / frame / effect / motion
-    pub rarity: String,      // common / rare / epic
+    pub category: String, // background / frame / effect / motion
+    pub rarity: String,   // common / rare / epic
     pub image_url: String,
     pub created_at: Option<DateTime<Utc>>,
 }

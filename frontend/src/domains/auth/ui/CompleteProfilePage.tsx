@@ -16,15 +16,32 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { completeProfile } from "@/domains/auth/api/auth";
+import { toast } from "sonner";
+import { completeProfile, checkProfileAvailability, checkNicknameAvailable, signOut } from "@/domains/auth/api/auth";
 import { useProfileImage } from "@/domains/auth/hooks/useProfileImage";
 import ProfileImageUploader from "@/domains/auth/ui/ProfileImageUploader";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Dices } from "lucide-react";
 import { formatPhone } from "@/shared/lib/phone";
+
+const NICKNAME_PREFIXES = [
+  "플렉스", "제로", "갓생", "흑자", "스마트", "럭키", "코어", "알뜰", "골든", "메타",
+  "네오", "다이아", "슈퍼", "픽", "데이터", "비트", "리얼", "어반", "부스트", "위너",
+];
+const NICKNAME_SUFFIXES = [
+  "천국", "로그", "라이프", "밸런스", "모드", "클럽", "포인트", "팩토리", "가든", "스테이지",
+  "존", "랩", "노트", "메이커", "뷰", "코드", "로프트", "라운지", "파크", "빌드",
+];
+
+function generateNickname(): string {
+  const prefix = NICKNAME_PREFIXES[Math.floor(Math.random() * NICKNAME_PREFIXES.length)];
+  const suffix = NICKNAME_SUFFIXES[Math.floor(Math.random() * NICKNAME_SUFFIXES.length)];
+  const num = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+  return `${prefix}${suffix}${num}`;
+}
 
 const avatarOptions = [
   { id: 1, name: "해피", emoji: "😊" },
@@ -39,6 +56,7 @@ export default function CompleteProfilePage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [nicknameChecking, setNicknameChecking] = useState(false);
 
   // 프로필 이미지 훅
   const profileImage = useProfileImage();
@@ -52,9 +70,20 @@ export default function CompleteProfilePage() {
   const handleNext = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Step 1 → 2
+    // Step 1 → 2: 중복 체크 후 이동
     if (step === 1) {
-      setStep(2);
+      setLoading(true);
+      try {
+        await checkProfileAvailability({
+          nickname: formData.nickname,
+          phone: formData.phone,
+        });
+        setStep(2);
+      } catch (error: any) {
+        toast.error(error.message || "중복 확인에 실패했습니다");
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
@@ -66,16 +95,19 @@ export default function CompleteProfilePage() {
       // 이미지 업로드 (선택된 파일이 있을 때만)
       const imagePath = await profileImage.upload();
 
-      await completeProfile({
+      const result = await completeProfile({
         nickname: formData.nickname,
         phone: formData.phone,
         profileImage: imagePath || undefined,
       });
 
-      // 프로필 완성 → 메인 페이지로
+      if (!result?.profile_completed) {
+        throw new Error("프로필 저장에 실패했습니다. 다시 시도해주세요.");
+      }
+
       navigate("/");
     } catch (error: any) {
-      alert(error.message || "프로필 저장 실패");
+      toast.error(error.message || "프로필 저장 실패");
     } finally {
       setLoading(false);
     }
@@ -83,6 +115,36 @@ export default function CompleteProfilePage() {
 
   const handleBack = () => {
     if (step > 1) setStep(step - 1);
+  };
+
+  // 다른 계정으로 로그인하기
+  // access token(메모리) + refresh 쿠키(백엔드) + Supabase 세션 모두 정리 후 로그인 페이지로 이동
+  const handleSwitchAccount = async () => {
+    try {
+      await signOut();
+    } catch {
+      // 정리 실패해도 로그인 페이지로 이동
+    }
+    navigate("/login");
+  };
+
+  const handleGenerateNickname = async () => {
+    setNicknameChecking(true);
+    try {
+      for (let i = 0; i < 5; i++) {
+        const candidate = generateNickname();
+        const available = await checkNicknameAvailable(candidate);
+        if (available) {
+          updateFormData("nickname", candidate);
+          return;
+        }
+      }
+      updateFormData("nickname", generateNickname());
+    } catch {
+      updateFormData("nickname", generateNickname());
+    } finally {
+      setNicknameChecking(false);
+    }
   };
 
   const updateFormData = (field: string, value: string | number) => {
@@ -119,15 +181,25 @@ export default function CompleteProfilePage() {
               <>
                 <div>
                   <Label htmlFor="nickname">닉네임</Label>
-                  <Input
-                    id="nickname"
-                    type="text"
-                    placeholder="닉네임을 입력해주세요"
-                    value={formData.nickname}
-                    onChange={(e) => updateFormData("nickname", e.target.value)}
-                    required
-                    className="mt-1"
-                  />
+                  <div className="mt-1 flex gap-2">
+                    <Input
+                      id="nickname"
+                      type="text"
+                      placeholder="닉네임을 입력해주세요"
+                      value={formData.nickname}
+                      onChange={(e) => updateFormData("nickname", e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={handleGenerateNickname}
+                      disabled={nicknameChecking}
+                      title="랜덤 닉네임 생성"
+                      className="flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                    >
+                      <Dices className={`h-4 w-4 text-gray-500 dark:text-gray-400 ${nicknameChecking ? "animate-spin" : ""}`} />
+                    </button>
+                  </div>
                 </div>
 
                 <div>
@@ -213,6 +285,17 @@ export default function CompleteProfilePage() {
               </Button>
             </div>
           </form>
+
+          {/* 다른 계정으로 로그인하기 — 잘못된 소셜 계정으로 들어온 경우 탈출 */}
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={handleSwitchAccount}
+              className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline underline-offset-2 transition-colors"
+            >
+              다른 계정으로 로그인하기
+            </button>
+          </div>
         </div>
       </Card>
     </div>
