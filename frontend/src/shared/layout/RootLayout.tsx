@@ -2,7 +2,7 @@ import { Outlet } from "react-router";
 import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
-import { MessageCircle, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { Button } from "../ui/button";
 import AiChatbotDialog from "@/components/chat/AiChatbotDialog";
 import {
@@ -82,12 +82,14 @@ export default function RootLayout() {
         </main>
       </div>
 
-      <Button
+      <button
+        type="button"
         onClick={() => setIsChatbotOpen(true)}
-        className="fixed bottom-8 right-8 z-30 h-14 w-14 rounded-2xl border border-border bg-card text-luxury-emerald shadow-soft transition-all hover:-translate-y-0.5 hover:border-luxury-emerald/40 hover:bg-card"
+        className="fixed bottom-8 right-8 z-30 flex flex-col items-center gap-0 transition-all hover:-translate-y-0.5"
       >
-        <MessageCircle className="h-6 w-6" />
-      </Button>
+        <img src="/aichatbot.png" alt="AI 챗봇" className="h-20 w-20 object-contain" />
+        <span className="-mt-2 text-[11px] font-bold tracking-tight text-luxury-gold drop-shadow">챗봇 상담</span>
+      </button>
 
       <AiChatbotDialog open={isChatbotOpen} onOpenChange={setIsChatbotOpen} />
 
