@@ -161,8 +161,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/posts", post(community::handler::create_post))
         .route("/api/posts/:id", delete(community::handler::delete_post))
         .route("/api/posts/:id/vote", post(community::handler::vote_post))
-        .route("/api/chat", post(community::handler::chat))
-        .route("/api/chat/logs", get(community::handler::list_chat_logs))
+
         // ── 알림 ──────────────────────────────────────────
         .route(
             "/api/notifications",
