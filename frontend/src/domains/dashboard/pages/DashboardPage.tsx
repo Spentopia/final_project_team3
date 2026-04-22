@@ -10,7 +10,6 @@ import { Textarea } from "@/shared/ui/textarea";
 import { verifyReceiptOcr, ReceiptOcrResponse } from "@/shared/api/receiptOcr";
 import {
   createExpense,
-  deleteExpense,
   listExpenses,
   type CreateExpenseResponse,
 } from "@/shared/api/expenseApi";
@@ -26,7 +25,6 @@ import {
 import {
   Plus,
   Upload,
-  Trash2,
   CheckCircle,
   TrendingDown,
   TrendingUp,
@@ -79,7 +77,7 @@ const incomeCategories = [
 ];
 
 export default function DashboardPage() {
-  const { budget, transactions, replaceTransactions, removeTransaction } = useFinance();
+  const { budget, transactions, replaceTransactions } = useFinance();
   const draftStorageKey = "dashboard-expense-draft";
   const selectedDateStorageKey = "dashboard-selected-date";
   const entryTypeStorageKey = "dashboard-entry-type";
@@ -297,18 +295,15 @@ export default function DashboardPage() {
             expenseId: String(savedExpense.id),
           });
           serverReceiptVerified = ocrResult.verification.is_verified;
-        } catch (ocrError) {
-          // OCR 재호출 실패 → 저장된 소비 롤백
-          try {
-            await deleteExpense(String(savedExpense.id));
-          } catch {
-            // 롤백도 실패한 경우 사용자에게 알림
-            toast.error("오류가 발생했습니다. 가계부에서 해당 내역을 직접 삭제해주세요.");
+          if (serverReceiptVerified) {
+            window.dispatchEvent(new CustomEvent("spentopia:score-refresh"));
           }
+        } catch (ocrError) {
+          // OCR 재호출 실패 → 소비는 유지, 영수증 인증만 미반영
           const message =
             ocrError instanceof Error ? ocrError.message : "영수증 인증 중 오류가 발생했습니다.";
-          toast.error(`저장 취소: ${message}`);
-          return;
+          toast.error(`영수증 인증 실패: ${message}`);
+          serverReceiptVerified = false;
         }
       }
 
@@ -351,18 +346,6 @@ export default function DashboardPage() {
       toast.error(message);
     } finally {
       setSaveLoading(false);
-    }
-  };
-
-  const handleDeleteExpense = async (id: string | number, type: "expense" | "income") => {
-    try {
-      await deleteExpense(String(id));
-      removeTransaction(id);
-      toast.success("삭제되었습니다");
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "소비 삭제 중 오류가 발생했습니다.";
-      toast.error(message);
     }
   };
 
@@ -592,13 +575,6 @@ export default function DashboardPage() {
                         {isIncome ? "+" : "-"}
                         {expense.amount.toLocaleString()}원
                       </p>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => void handleDeleteExpense(expense.id, expense.type)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
                     </div>
                   </div>
                 );

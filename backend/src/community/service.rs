@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use super::{
     dto::{
-        ChatRequest, ChatResponse, ChatbotLogResponse, ContestEventResponse, CreatePostRequest,
+        ContestEventResponse, CreatePostRequest,
         PostResponse,
     },
     model::{ChatbotLog, ContestEvent, Post},
@@ -233,89 +233,4 @@ pub async fn vote_post(state: &AppState, user_id: Uuid, post_id: Uuid) -> Result
     Ok(())
 }
 
-// ── 챗봇 대화 ─────────────────────────────────────────────────
-// 백엔드 → AI 서버 클라이언트 호출 후 chatbot_logs에 저장
 
-pub async fn chat(state: &AppState, user_id: Uuid, req: ChatRequest) -> Result<ChatResponse> {
-    // 1. AI 서버 호출 (ai_client 모듈로 중앙화)
-    let ai_response = crate::clients::ai_client::chat(
-        state,
-        crate::clients::ai_client::ChatPayload {
-            user_id: user_id.to_string(),
-            message: req.message.clone(),
-        },
-    )
-    .await?;
-
-    // 2. chatbot_logs에 대화 기록 저장
-    let log_url = format!(
-        "{}/rest/v1/chatbot_logs",
-        state.config.supabase_url.trim_end_matches('/'),
-    );
-
-    #[derive(Serialize)]
-    struct LogPayload {
-        user_id: Uuid,
-        user_message: String,
-        bot_response: String,
-    }
-
-    let _ = state
-        .http_client
-        .post(&log_url)
-        .header(
-            "Authorization",
-            format!("Bearer {}", state.config.supabase_secret_key),
-        )
-        .header("apikey", &state.config.supabase_secret_key)
-        .header("Prefer", "return=minimal")
-        .json(&LogPayload {
-            user_id,
-            user_message: req.message,
-            bot_response: ai_response.response.clone(),
-        })
-        .send()
-        .await;
-
-    Ok(ChatResponse {
-        response: ai_response.response,
-    })
-}
-
-// ── 챗봇 대화 이력 조회 ────────────────────────────────────────
-
-pub async fn list_chat_logs(state: &AppState, user_id: Uuid) -> Result<Vec<ChatbotLogResponse>> {
-    let url = format!(
-        "{}/rest/v1/chatbot_logs?user_id=eq.{}&select=*&order=created_at.desc",
-        state.config.supabase_url.trim_end_matches('/'),
-        user_id,
-    );
-
-    let res = state
-        .http_client
-        .get(&url)
-        .header(
-            "Authorization",
-            format!("Bearer {}", state.config.supabase_secret_key),
-        )
-        .header("apikey", &state.config.supabase_secret_key)
-        .send()
-        .await
-        .context("chatbot_logs SELECT 요청 실패")?;
-
-    if !res.status().is_success() {
-        let body = res.text().await.unwrap_or_default();
-        return Err(anyhow!("chatbot_logs SELECT 실패: {}", body));
-    }
-
-    let logs: Vec<ChatbotLog> = res.json().await.context("chatbot_logs 역직렬화 실패")?;
-    Ok(logs
-        .into_iter()
-        .map(|l| ChatbotLogResponse {
-            id: l.id,
-            user_message: l.user_message,
-            bot_response: l.bot_response,
-            created_at: l.created_at,
-        })
-        .collect())
-}

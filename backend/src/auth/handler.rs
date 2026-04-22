@@ -57,7 +57,11 @@ use utoipa;
 use crate::filter;
 
 fn ensure_app_request(headers: &HeaderMap) -> Result<(), (StatusCode, String)> {
-    if headers.contains_key("origin") {
+    // origin: 브라우저 cross-origin 요청 시 자동 포함
+    // sec-fetch-site: 브라우저 same-origin 포함 모든 fetch/XHR에 자동 포함, JS 위조 불가
+    // 둘 중 하나라도 있으면 브라우저 요청으로 간주하여 차단
+    // /auth/handoff/exchange는 ensure_app_request를 사용하지 않으므로 이 차단 대상 외
+    if headers.contains_key("origin") || headers.contains_key("sec-fetch-site") {
         return Err((
             StatusCode::FORBIDDEN,
             "브라우저에서는 사용할 수 없는 앱 전용 인증 엔드포인트입니다.".to_string(),

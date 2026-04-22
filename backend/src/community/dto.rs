@@ -50,26 +50,3 @@ pub struct PostResponse {
     pub created_at: Option<DateTime<Utc>>,
 }
 
-// ── 챗봇 메시지 요청 ───────────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ChatRequest {
-    pub message: String,
-}
-
-// ── 챗봇 응답 ─────────────────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ChatResponse {
-    pub response: String,
-}
-
-// ── 챗봇 대화 이력 응답 ────────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ChatbotLogResponse {
-    pub id: Uuid,
-    pub user_message: String,
-    pub bot_response: String,
-    pub created_at: Option<DateTime<Utc>>,
-}
