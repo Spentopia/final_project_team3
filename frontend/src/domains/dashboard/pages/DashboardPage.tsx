@@ -297,6 +297,9 @@ export default function DashboardPage() {
             expenseId: String(savedExpense.id),
           });
           serverReceiptVerified = ocrResult.verification.is_verified;
+          if (serverReceiptVerified) {
+            window.dispatchEvent(new CustomEvent("spentopia:score-refresh"));
+          }
         } catch (ocrError) {
           // OCR 재호출 실패 → 저장된 소비 롤백
           try {
