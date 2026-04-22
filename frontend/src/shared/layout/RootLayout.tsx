@@ -45,6 +45,16 @@ export default function RootLayout() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const handler = () => {
+      setTimeout(() => {
+        void getCurrentWeeklyScore().then(setWeeklyScore).catch(() => {});
+      }, 800);
+    };
+    window.addEventListener("spentopia:score-refresh", handler);
+    return () => window.removeEventListener("spentopia:score-refresh", handler);
+  }, []);
+
   const totalScore = weeklyScore?.total_score ?? 0;
   const progressPct = Math.min(totalScore, 100);
 
