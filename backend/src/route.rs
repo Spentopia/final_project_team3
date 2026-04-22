@@ -6,6 +6,7 @@
 
 use axum::{
     Router, middleware,
+    extract::DefaultBodyLimit,
     routing::{delete, get, patch, post},
 };
 use std::sync::Arc;
@@ -124,15 +125,18 @@ pub fn create_router(state: AppState) -> Router {
         )
         .route(
             "/api/receipt/ocr",
-            post(expense::handler::verify_receipt_ocr),
+            post(expense::handler::verify_receipt_ocr)
+                .layer(DefaultBodyLimit::max(10 * 1024 * 1024)),
         )
         .route(
             "/api/receipt/ocr/",
-            post(expense::handler::verify_receipt_ocr),
+            post(expense::handler::verify_receipt_ocr)
+                .layer(DefaultBodyLimit::max(10 * 1024 * 1024)),
         )
         .route(
             "/api/v1/receipt/ocr",
-            post(expense::handler::verify_receipt_ocr),
+            post(expense::handler::verify_receipt_ocr)
+                .layer(DefaultBodyLimit::max(10 * 1024 * 1024)),
         )
         // ── 예산 ──────────────────────────────────────────
         .route("/api/budget", get(budget::handler::get_budget))
