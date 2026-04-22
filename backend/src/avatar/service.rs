@@ -124,43 +124,129 @@ async fn get_user_wallet(state: &AppState, user_id: Uuid) -> Result<String> {
 ///       다른 유저의 user_item_id를 넘겨도 조건 불일치로 PATCH되지 않는다.
 pub async fn mint_nft(
     state: &AppState,
-    user_id: Uuid,       // JWT에서 추출한 현재 로그인 유저 UUID
-    req: MintNftRequest, // { user_item_id, nft_mint_address }
+    user_id: Uuid,
+    req: MintNftRequest, // { user_item_id }
 ) -> Result<MintNftResponse> {
-    let tx_signature = req
-        .tx_signature
-        .as_deref()
-        .ok_or_else(|| anyhow!("tx_signature는 필수입니다"))?;
-    let user_wallet = get_user_wallet(state, user_id).await?;
-    solana_client::verify_program_instruction_tx(
-        &state.config.solana_rpc_url,
-        &state.http_client,
-        tx_signature,
-        &state.config.solana_program_id,
-        "mint_avatar_nft",
-        &[user_wallet.as_str(), req.nft_mint_address.as_str()],
-        None,
-        None,
-    )
-    .await
-    .context("NFT 민팅 트랜잭션 검증 실패")?;
-    ensure_nft_record_not_reused(state, "user_items", &req.nft_mint_address, tx_signature).await?;
+    if state.config.solana_admin_keypair.is_empty() {
+        return Err(anyhow!(
+            "온체인 민팅이 설정되지 않았습니다 (SOLANA_ADMIN_KEYPAIR 누락)"
+        ));
+    }
 
-    // Supabase PostgREST URL 구성
-    // 필터: id=eq.{user_item_id} AND user_id=eq.{user_id} → 본인 소유 아이템만 수정 가능 (보안 필터)
-    let url = format!(
-        "{}/rest/v1/user_items?id=eq.{}&user_id=eq.{}",
-        state.config.supabase_url.trim_end_matches('/'), // 끝 슬래시 중복 방지
+    // 1. user_item 조회 — 본인 소유 확인 + avatar_items JOIN (이름, URI)
+    #[derive(Deserialize)]
+    struct AvatarItemEmbed {
+        name: String,
+        metadata_uri: Option<String>,
+        image_url: String,
+    }
+
+    #[derive(Deserialize)]
+    struct UserItemRaw {
+        is_nft: Option<bool>,
+        avatar_items: AvatarItemEmbed,
+    }
+
+    let item_url = format!(
+        "{}/rest/v1/user_items?id=eq.{}&user_id=eq.{}&select=is_nft,avatar_items(name,metadata_uri,image_url)",
+        state.config.supabase_url.trim_end_matches('/'),
         req.user_item_id,
         user_id,
     );
 
-    // PATCH 요청 바디: 변경할 컬럼만 포함
-    // Serialize만 필요하므로 함수 내부에 로컬 구조체로 정의
+    let item_res = state
+        .http_client
+        .get(&item_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("user_items 조회 요청 실패")?;
+
+    if !item_res.status().is_success() {
+        return Err(anyhow!(
+            "user_items 조회 실패: {}",
+            item_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let item = item_res
+        .json::<Vec<UserItemRaw>>()
+        .await
+        .context("user_items 역직렬화 실패")?
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("아이템을 찾을 수 없거나 본인 소유가 아닙니다"))?;
+
+    if item.is_nft.unwrap_or(false) {
+        return Err(anyhow!("이미 NFT로 민팅된 아이템입니다"));
+    }
+
+    // 2. 유저 지갑 조회
+    let wallet_address = get_user_wallet(state, user_id).await?;
+
+    // 3. 온체인 NFT 민팅
+    // item_seed: user_item_id(UUID)를 하이픈 없는 형태로 사용 → 32바이트 이하 보장
+    let item_seed = req.user_item_id.simple().to_string();
+    let nft_uri = item
+        .avatar_items
+        .metadata_uri
+        .as_deref()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or(&item.avatar_items.image_url);
+
+    let (tx_signature, nft_mint_address) = solana_client::mint_avatar_nft_to_user(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        &state.config.solana_admin_keypair,
+        &wallet_address,
+        &state.config.solana_program_id,
+        &item_seed,
+        &item.avatar_items.name,
+        "SPTA",
+        nft_uri,
+    )
+    .await
+    .context("NFT 온체인 민팅 실패")?;
+
+    // 4. confirmed 상태 확인 — sendTransaction은 즉시 반환이므로 DB 기록 전에 확인
+    // admin이 서명한 tx이므로 confirmed 이상이면 충분 (finalized는 ~30초로 UX 저하)
+    if let Err(e) = solana_client::check_signature_confirmed(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        &tx_signature,
+    )
+    .await
+    {
+        // 온체인은 성공했지만 확인에 실패한 경우 — 복구 정보를 로그로 남김
+        tracing::error!(
+            "[NFT 민팅 확인 실패] 온체인 민팅은 성공했으나 confirmed 확인 불가. \
+             수동 DB 동기화 필요. \
+             user_id={} user_item_id={} nft_mint_address={} tx_signature={} err={}",
+            user_id,
+            req.user_item_id,
+            nft_mint_address,
+            tx_signature,
+            e
+        );
+        return Err(anyhow!("NFT 민팅 트랜잭션 확인 실패: {}", e));
+    }
+
+    // 5. DB 업데이트 — is_nft=true, mint 주소, tx 서명 기록
+    let url = format!(
+        "{}/rest/v1/user_items?id=eq.{}&user_id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        req.user_item_id,
+        user_id,
+    );
+
     #[derive(Serialize)]
     struct PatchPayload {
-        nft_mint_address: String, // 온체인 민팅 주소
-        is_nft: bool,             // NFT 발행 완료 플래그 → true로 고정
+        nft_mint_address: String,
+        is_nft: bool,
         nft_tx_signature: String,
     }
 
@@ -172,25 +258,36 @@ pub async fn mint_nft(
             format!("Bearer {}", state.config.supabase_secret_key),
         )
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Prefer", "return=representation") // PATCH 후 변경된 row 반환 요청
+        .header("Prefer", "return=minimal")
         .json(&PatchPayload {
-            nft_mint_address: req.nft_mint_address.clone(),
+            nft_mint_address: nft_mint_address.clone(),
             is_nft: true,
-            nft_tx_signature: tx_signature.to_string(),
+            nft_tx_signature: tx_signature.clone(),
         })
         .send()
         .await
-        .context("user_items PATCH 요청 실패")?; // reqwest 네트워크 에러
+        .context("user_items PATCH 요청 실패")?;
 
-    // HTTP 상태코드가 2xx가 아니면 Supbase 에러 메세지를 포함해 반환
     if !res.status().is_success() {
-        let body = res.text().await.unwrap_or_default();
-        return Err(anyhow!("user_items PATCH 실패: {}", body));
+        // 온체인 민팅 성공 + DB 실패 — 재시도 시 동일 PDA init 충돌 가능
+        tracing::error!(
+            "[NFT DB 동기화 실패] 온체인 민팅은 성공했으나 DB 업데이트 실패. \
+             수동 동기화 필요. \
+             user_id={} user_item_id={} nft_mint_address={} tx_signature={}",
+            user_id,
+            req.user_item_id,
+            nft_mint_address,
+            tx_signature
+        );
+        return Err(anyhow!(
+            "user_items PATCH 실패 (온체인은 성공): {}",
+            res.text().await.unwrap_or_default()
+        ));
     }
 
     Ok(MintNftResponse {
         message: "NFT 민팅 완료".to_string(),
-        nft_mint_address: req.nft_mint_address, // 요청에서 받은 값을 그대로 응답
+        nft_mint_address,
     })
 }
 
@@ -215,6 +312,7 @@ pub async fn transfer_nft(
     let user_wallet = get_user_wallet(state, user_id).await?;
     solana_client::verify_program_instruction_tx(
         &state.config.solana_rpc_url,
+        &state.config.helius_api_key,
         &state.http_client,
         tx_signature,
         &state.config.solana_program_id,
@@ -368,6 +466,7 @@ pub async fn get_user_items(
             item_id: r.item_id,
             is_equipped: r.is_equipped,
             is_nft: r.is_nft,
+            nft_mint_address: r.nft_mint_address,
             acquired_at: r.acquired_at,
             // avatar_items 중첩 객체에서 flat하게 꺼냄
             name: r.avatar_items.name,

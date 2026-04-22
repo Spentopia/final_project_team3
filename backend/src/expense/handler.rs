@@ -6,6 +6,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use chrono::Local;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -158,6 +159,20 @@ pub async fn verify_receipt_ocr(
                         service::update_receipt_verified(&state, user_id, expense_id).await
                     {
                         tracing::warn!("receipt_verified UPDATE 실패: {}", e);
+                    } else {
+                        let state_clone = state.clone();
+                        let today = Local::now().date_naive();
+                        tokio::spawn(async move {
+                            if let Err(e) = crate::reward::service::recalculate_weekly_score(
+                                &state_clone,
+                                user_id,
+                                today,
+                            )
+                            .await
+                            {
+                                tracing::warn!("영수증 인증 후 성실도 재계산 실패: {}", e);
+                            }
+                        });
                     }
                 }
             }
