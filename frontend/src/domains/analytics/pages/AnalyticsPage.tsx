@@ -530,6 +530,7 @@ export default function AnalyticsPage() {
               <CheckCircle className="h-4 w-4 text-green-600" />
               <p className="font-semibold text-gray-900">잘하고 있는 점</p>
             </div>
+
             <p className="text-sm text-gray-700">
               {usageRate <= 100
                 ? `이번 달 예산 사용률이 ${usageRate}%로 관리되고 있어요. 지금 흐름이면 예산 안에서 충분히 운영 가능해요.`
