@@ -105,7 +105,6 @@ export default function Login() {
                 placeholder="이메일을 입력해주세요"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
                 className="mt-1 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
               />
             </div>
@@ -117,7 +116,6 @@ export default function Login() {
                 placeholder="비밀번호를 입력해주세요"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
                 className="mt-1 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
               />
             </div>

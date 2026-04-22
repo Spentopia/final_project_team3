@@ -72,6 +72,15 @@ export default function CompleteProfilePage() {
 
     // Step 1 → 2: 중복 체크 후 이동
     if (step === 1) {
+      if (!formData.nickname.trim()) {
+        toast.error("닉네임을 입력해주세요.");
+        return;
+      }
+      if (!formData.phone.trim()) {
+        toast.error("전화번호를 입력해주세요.");
+        return;
+      }
+
       setLoading(true);
       try {
         await checkProfileAvailability({
@@ -188,7 +197,7 @@ export default function CompleteProfilePage() {
                       placeholder="닉네임을 입력해주세요"
                       value={formData.nickname}
                       onChange={(e) => updateFormData("nickname", e.target.value)}
-                      required
+                     
                     />
                     <button
                       type="button"
@@ -210,7 +219,7 @@ export default function CompleteProfilePage() {
                     placeholder="010-1234-5678"
                     value={formData.phone}
                     onChange={(e) => updateFormData("phone", formatPhone(e.target.value))}
-                    required
+                    
                     maxLength={13}
                     className="mt-1"
                   />

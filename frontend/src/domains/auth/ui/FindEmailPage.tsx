@@ -367,7 +367,6 @@ export default function FindEmailPage() {
                   placeholder="010-1234-5678"
                   value={phone}
                   onChange={(e) => setPhone(formatPhone(e.target.value))}
-                  required
                   maxLength={13}
                   className="mt-1"
                 />
