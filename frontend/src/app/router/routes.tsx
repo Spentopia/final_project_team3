@@ -64,6 +64,7 @@ export const router = createBrowserRouter([
       { path: "avatar", Component: AvatarPage },
       { path: "marketplace", Component: MarketplacePage },
       { path: "profile", Component: ProfilePage },
+      { path: "profile/items", Component: AvatarPage },
       { path: "community", Component: CommunityPage },
       { path: "plaza", Component: PlazaPage },
       { path: "*", Component: NotFoundPage },
