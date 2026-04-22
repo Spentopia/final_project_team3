@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -6,6 +6,8 @@ import { Label } from "@/shared/ui/label";
 import { Switch } from "@/shared/ui/switch";
 import { Badge } from "@/shared/ui/badge";
 import { WalletSection } from "./WalletSection";
+import { useProfileImage } from "@/domains/auth/hooks/useProfileImage";
+import { getUserProfile, updateUserProfile } from "@/domains/profile/api/profile";
 import {
   User,
   Mail,
@@ -28,11 +30,21 @@ type NotificationSettings = {
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [profile, setProfile] = useState({
-    nickname: "길동이",
-    email: "hong@example.com",
-    phone: "010-1234-5678",
-    loginProvider: "kakao",
+    nickname: "",
+    email: "",
+    phone: "",
+    bio: "",
+    loginProvider: "",
+    createdAt: "",
+    sptBalance: 0,
+    imagePath: "",
+  });
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const profileImage = useProfileImage({
+    initialPath: profile.imagePath || undefined,
   });
 
   const [notifications, setNotifications] = useState<NotificationSettings>({
@@ -42,15 +54,72 @@ export default function ProfilePage() {
     notificationListener: false,
   });
 
-  const [connectedAccounts] = useState({
-    kakao: true,
-    naver: false,
-    google: true,
-  });
+  useEffect(() => {
+    let cancelled = false;
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast.success("프로필이 저장되었습니다");
+    const loadProfile = async () => {
+      try {
+        setIsProfileLoading(true);
+        const data = await getUserProfile();
+        if (cancelled) {
+          return;
+        }
+
+        setProfile((prev) => ({
+          ...prev,
+          nickname: data.nickname ?? "",
+          email: data.email ?? "",
+          phone: data.phone ?? "",
+          loginProvider: data.login_provider ?? "",
+          createdAt: data.created_at,
+          sptBalance: data.spt_balance ?? 0,
+          imagePath: data.profile_image ?? "",
+        }));
+      } catch (error) {
+        if (!cancelled) {
+          toast.error("프로필 정보를 불러오지 못했습니다");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsProfileLoading(false);
+        }
+      }
+    };
+
+    void loadProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      const uploadedImagePath = await profileImage.upload();
+      const updated = await updateUserProfile({
+        nickname: profile.nickname || undefined,
+        phone: profile.phone || undefined,
+        profile_image: uploadedImagePath || profile.imagePath || undefined,
+      });
+
+      setProfile((prev) => ({
+        ...prev,
+        nickname: updated.nickname ?? "",
+        email: updated.email ?? prev.email,
+        phone: updated.phone ?? "",
+        loginProvider: updated.login_provider ?? "",
+        createdAt: updated.created_at,
+        sptBalance: updated.spt_balance ?? 0,
+        imagePath: updated.profile_image ?? "",
+      }));
+      setIsEditing(false);
+      toast.success("프로필이 저장되었습니다");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "프로필 저장에 실패했습니다");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleNotificationToggle = (key: keyof typeof notifications) => {
@@ -59,6 +128,10 @@ export default function ProfilePage() {
   };
 
   const isProfileComplete = Boolean(profile.nickname && profile.phone);
+  const joinedDateLabel = profile.createdAt
+    ? new Date(profile.createdAt).toLocaleDateString("ko-KR")
+    : "-";
+  const profileImageSrc = profileImage.previewUrl;
 
   return (
     <div className="space-y-6">
@@ -71,18 +144,37 @@ export default function ProfilePage() {
 
       <div className="grid gap-6 lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]">
         <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            className="hidden"
+            onChange={profileImage.handleFileSelect}
+          />
           <div className="mb-6 text-center">
             <div className="relative mx-auto mb-4 inline-block">
-              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/20 text-4xl backdrop-blur-sm">
-                😊
+              <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-white/20 text-4xl backdrop-blur-sm">
+                {profileImageSrc ? (
+                  <img
+                    src={profileImageSrc}
+                    alt={profile.nickname || "프로필 이미지"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  "😊"
+                )}
               </div>
-              <button className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white text-cyan-600 shadow-lg">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white text-cyan-600 shadow-lg"
+              >
                 <Camera className="h-4 w-4" />
               </button>
             </div>
-            <h2 className="mb-1 font-bold">{profile.nickname}</h2>
+            <h2 className="mb-1 font-bold">{profile.nickname || "닉네임 미설정"}</h2>
             <div className="flex items-center justify-center gap-2 text-sm opacity-90">
-              <span>{profile.email}</span>
+              <span>{profile.email || "이메일 정보 없음"}</span>
               {isProfileComplete ? <BadgeCheck className="h-4 w-4" /> : null}
             </div>
           </div>
@@ -90,7 +182,7 @@ export default function ProfilePage() {
           <div className="space-y-5">
             <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
               <p className="mb-1 text-sm opacity-90">가입일</p>
-              <p className="font-bold">2026년 4월 1일</p>
+              <p className="font-bold">{joinedDateLabel}</p>
             </div>
             <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
               <p className="mb-1 text-sm opacity-90">연속 기록</p>
@@ -98,7 +190,7 @@ export default function ProfilePage() {
             </div>
             <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
               <p className="mb-1 text-sm opacity-90">보유 SPT</p>
-              <p className="font-bold">1,250 SPT</p>
+              <p className="font-bold">{profile.sptBalance.toLocaleString("ko-KR")} SPT</p>
             </div>
             <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
               <p className="mb-1 text-sm opacity-90">보유 아바타</p>
@@ -106,13 +198,13 @@ export default function ProfilePage() {
             </div>
             <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
               <p className="mb-1 text-sm opacity-90">로그인 방식</p>
-              <p className="font-bold uppercase">{profile.loginProvider}</p>
+              <p className="font-bold uppercase">{profile.loginProvider || "-"}</p>
             </div>
           </div>
         </Card>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <Card className="h-full border-none min-h-[500px] bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+          <Card className="h-full min-h-[500px] border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 dark:text-gray-100">회원 정보</h3>
               {!isEditing ? (
@@ -123,11 +215,12 @@ export default function ProfilePage() {
               ) : (
                 <Button
                   onClick={handleSave}
+                  disabled={isSaving}
                   className="bg-gradient-to-r from-cyan-500 to-blue-500"
                   size="sm"
                 >
                   <Save className="mr-2 h-4 w-4" />
-                  저장
+                  {isSaving ? "저장 중..." : "저장"}
                 </Button>
               )}
             </div>
@@ -141,7 +234,7 @@ export default function ProfilePage() {
                     id="nickname"
                     value={profile.nickname}
                     onChange={(e) => setProfile({ ...profile, nickname: e.target.value })}
-                    disabled={!isEditing}
+                    disabled={!isEditing || isProfileLoading}
                     className="pl-10"
                   />
                 </div>
@@ -155,8 +248,7 @@ export default function ProfilePage() {
                     id="email"
                     type="email"
                     value={profile.email}
-                    onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                    disabled={!isEditing}
+                    disabled
                     className="pl-10"
                   />
                 </div>
@@ -170,22 +262,22 @@ export default function ProfilePage() {
                     id="phone"
                     value={profile.phone}
                     onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                    disabled={!isEditing}
+                    disabled={!isEditing || isProfileLoading}
                     className="pl-10"
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="nickname">한 줄 소개</Label>
+                <Label htmlFor="bio">한 줄 소개</Label>
                 <div className="relative mt-2">
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <Input
-                      id="nickname"
-                      value={profile.nickname}
-                      onChange={(e) => setProfile({ ...profile, nickname: e.target.value })}
-                      disabled={!isEditing}
-                      className="pl-10"
+                    id="bio"
+                    value={profile.bio}
+                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                    disabled={!isEditing}
+                    className="pl-10"
                   />
                 </div>
               </div>
