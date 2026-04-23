@@ -153,7 +153,7 @@ export default function BudgetPage() {
       <div>
         <p className="font-bold">{plan.name} 적용 완료! 🎉</p>
         <p className="text-sm">
-          {selectedMonth + 1}월 예산으로 {plan.budget.toLocaleString()}원이 저장됐어요
+          {selectedMonth + 1}월 예산으로 {plan.budget.toLocaleString()}원이 저장되었습니다
         </p>
       </div>
     );
@@ -485,7 +485,7 @@ export default function BudgetPage() {
                 </div>
 
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  카테고리 예산 + 저축액이 월 전체 예산 안에 들어오도록 맞추면 좋아요.
+                  카테고리 예산과 저축액이 월 전체 예산 안에 들어오도록 맞추는 것을 권장합니다.
                 </p>
               </div>
             </Card>
@@ -493,7 +493,7 @@ export default function BudgetPage() {
             <Card className="border-none bg-gradient-to-br from-amber-50 to-yellow-50 p-6 text-gray-900">
               <div className="mb-3 flex items-center gap-2">
                 <PiggyBank className="h-5 w-5 text-amber-600" />
-                <h3 className="font-bold">테오의 한마디</h3>
+                <h3 className="font-bold">예산 설정 한마디</h3>
               </div>
 
               <p className="text-sm leading-6 text-gray-700">
@@ -501,9 +501,9 @@ export default function BudgetPage() {
                 <span className="font-semibold">
                   {currentBudget.toLocaleString()}원
                 </span>
-                이야.
-                AI 플랜을 먼저 적용한 뒤, 맞춤 예산에서 세부 카테고리를 다듬으면 훨씬 편하게
-                관리할 수 있어!
+                입니다.
+                AI 플랜을 먼저 적용한 뒤, 맞춤 예산에서 세부 카테고리를 다듬으면 더 편리하게
+                관리할 수 있습니다.
               </p>
             </Card>
           </div>
