@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import { withdrawAccount } from "@/domains/auth/api/auth";
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -43,6 +44,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [profile, setProfile] = useState({
     nickname: "",
     email: "",
@@ -266,6 +268,26 @@ export default function ProfilePage() {
     }
   };
 
+  const handleWithdraw = async () => {
+    const confirmed = window.confirm(
+      "정말 회원탈퇴하시겠습니까? 탈퇴 후에는 계정을 복구할 수 없습니다."
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsWithdrawing(true);
+      await withdrawAccount();
+      toast.success("회원탈퇴가 완료되었습니다");
+      navigate("/login", { replace: true });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "회원탈퇴 처리에 실패했습니다"
+      );
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
   const handleNotificationToggle = async (key: keyof typeof notifications) => {
     const nextValue = !notifications[key];
     const nextNotifications = { ...notifications, [key]: nextValue };
@@ -398,22 +420,33 @@ export default function ProfilePage() {
                 <h3 className="font-bold text-gray-900 dark:text-gray-100">
                   회원 정보
                 </h3>
-                {!isEditing ? (
-                    <Button onClick={handleEditStart} variant="outline" size="sm">
-                      <Edit className="mr-2 h-4 w-4" />
-                      수정
-                    </Button>
-                ) : (
-                    <Button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="bg-gradient-to-r from-cyan-500 to-blue-500"
-                        size="sm"
-                    >
-                      <Save className="mr-2 h-4 w-4" />
-                      {isSaving ? "저장 중..." : "저장"}
-                    </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  <Button
+                      onClick={handleWithdraw}
+                      variant="outline"
+                      size="sm"
+                      disabled={isWithdrawing}
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-950/30"
+                  >
+                    {isWithdrawing ? "탈퇴 처리 중..." : "회원탈퇴"}
+                  </Button>
+                  {!isEditing ? (
+                      <Button onClick={handleEditStart} variant="outline" size="sm">
+                        <Edit className="mr-2 h-4 w-4" />
+                        수정
+                      </Button>
+                  ) : (
+                      <Button
+                          onClick={handleSave}
+                          disabled={isSaving}
+                          className="bg-gradient-to-r from-cyan-500 to-blue-500"
+                          size="sm"
+                      >
+                        <Save className="mr-2 h-4 w-4" />
+                        {isSaving ? "저장 중..." : "저장"}
+                      </Button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-8">
