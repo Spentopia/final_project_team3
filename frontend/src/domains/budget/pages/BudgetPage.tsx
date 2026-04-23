@@ -77,6 +77,10 @@ type CustomBudget = {
   leisure: number;
 };
 
+type BudgetCategoryKey = "food" | "transport" | "living" | "leisure";
+
+const BUDGET_CATEGORY_KEYS: BudgetCategoryKey[] = ["food", "transport", "living", "leisure"];
+
 const createEmptyBudget = (): CustomBudget => ({
   monthly: 0,
   savings: 0,
@@ -164,6 +168,40 @@ export default function BudgetPage() {
     toast.success(`${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`);
   };
 
+  const fitCategoryBudgetsToMonthly = (budget: CustomBudget): CustomBudget => {
+    const monthlyLimit = Math.max(0, Number(budget.monthly) || 0);
+    let remaining = monthlyLimit;
+    const next = { ...budget };
+
+    BUDGET_CATEGORY_KEYS.forEach((key) => {
+      const amount = Math.max(0, Number(next[key]) || 0);
+      const fittedAmount = Math.min(amount, remaining);
+      next[key] = fittedAmount;
+      remaining -= fittedAmount;
+    });
+
+    return next;
+  };
+
+  const updateMonthlyBudget = (monthly: number) => {
+    setCustomBudget((prev) => fitCategoryBudgetsToMonthly({ ...prev, monthly }));
+  };
+
+  const updateCategoryBudget = (key: BudgetCategoryKey, amount: number) => {
+    setCustomBudget((prev) => {
+      const monthlyLimit = Math.max(0, Number(prev.monthly) || 0);
+      const otherTotal = BUDGET_CATEGORY_KEYS
+        .filter((categoryKey) => categoryKey !== key)
+        .reduce((sum, categoryKey) => sum + Number(prev[categoryKey]), 0);
+      const maxAmount = Math.max(0, monthlyLimit - otherTotal);
+
+      return {
+        ...prev,
+        [key]: Math.min(Math.max(0, amount), maxAmount),
+      };
+    });
+  };
+
   const totalBudget =
     Number(customBudget.food) +
     Number(customBudget.transport) +
@@ -171,6 +209,14 @@ export default function BudgetPage() {
     Number(customBudget.leisure);
 
   const withSavings = totalBudget + Number(customBudget.savings);
+  const remainingCategoryBudget = Math.max(0, Number(customBudget.monthly) - totalBudget);
+  const getCategorySliderMax = (key: BudgetCategoryKey) => {
+    const otherTotal = BUDGET_CATEGORY_KEYS
+      .filter((categoryKey) => categoryKey !== key)
+      .reduce((sum, categoryKey) => sum + Number(customBudget[categoryKey]), 0);
+
+    return Math.max(Number(customBudget[key]), Number(customBudget.monthly) - otherTotal, 0);
+  };
 
   return (
     <div className="space-y-6">
@@ -309,12 +355,7 @@ export default function BudgetPage() {
               <Input
                 type="number"
                 value={customBudget.monthly}
-                onChange={(e) =>
-                  setCustomBudget({
-                    ...customBudget,
-                    monthly: Number(e.target.value) || 0,
-                  })
-                }
+                onChange={(e) => updateMonthlyBudget(Number(e.target.value) || 0)}
                 className="mt-2"
                 placeholder="예: 500000"
               />
@@ -349,10 +390,8 @@ export default function BudgetPage() {
                 </div>
                 <Slider
                   value={[Number(customBudget.food)]}
-                  onValueChange={(value) =>
-                    setCustomBudget({ ...customBudget, food: value[0] })
-                  }
-                  max={1000000}
+                  onValueChange={(value) => updateCategoryBudget("food", value[0])}
+                  max={getCategorySliderMax("food")}
                   step={10000}
                 />
               </div>
@@ -369,10 +408,8 @@ export default function BudgetPage() {
                 </div>
                 <Slider
                   value={[Number(customBudget.transport)]}
-                  onValueChange={(value) =>
-                    setCustomBudget({ ...customBudget, transport: value[0] })
-                  }
-                  max={1000000}
+                  onValueChange={(value) => updateCategoryBudget("transport", value[0])}
+                  max={getCategorySliderMax("transport")}
                   step={10000}
                 />
               </div>
@@ -389,10 +426,8 @@ export default function BudgetPage() {
                 </div>
                 <Slider
                   value={[Number(customBudget.living)]}
-                  onValueChange={(value) =>
-                    setCustomBudget({ ...customBudget, living: value[0] })
-                  }
-                  max={1000000}
+                  onValueChange={(value) => updateCategoryBudget("living", value[0])}
+                  max={getCategorySliderMax("living")}
                   step={10000}
                 />
               </div>
@@ -409,14 +444,20 @@ export default function BudgetPage() {
                 </div>
                 <Slider
                   value={[Number(customBudget.leisure)]}
-                  onValueChange={(value) =>
-                    setCustomBudget({ ...customBudget, leisure: value[0] })
-                  }
-                  max={1000000}
+                  onValueChange={(value) => updateCategoryBudget("leisure", value[0])}
+                  max={getCategorySliderMax("leisure")}
                   step={10000}
                 />
               </div>
             </div>
+
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              카테고리에 배분 가능한 남은 예산은{" "}
+              <span className="font-semibold text-cyan-600 dark:text-cyan-400">
+                {remainingCategoryBudget.toLocaleString()}원
+              </span>
+              입니다.
+            </p>
 
             <Button
               onClick={handleSaveCustomBudget}
@@ -485,7 +526,7 @@ export default function BudgetPage() {
                 </div>
 
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  카테고리 예산과 저축액이 월 전체 예산 안에 들어오도록 맞추는 것을 권장합니다.
+                  카테고리 예산은 월 전체 예산 안에서만 배분되며, 목표 저축액은 별도로 관리됩니다.
                 </p>
               </div>
             </Card>
