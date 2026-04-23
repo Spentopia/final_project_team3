@@ -1,25 +1,22 @@
 package com.ict.spentopia.feature.auth
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -29,10 +26,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,70 +46,101 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ict.spentopia.R
+import com.ict.spentopia.feature.auth.connector.PhantomDeepLinkConnector
 import com.ict.spentopia.feature.social.SocialLoginButton
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
-import com.solana.mobilewalletadapter.clientlib.ConnectionIdentity
-import com.solana.mobilewalletadapter.clientlib.MobileWalletAdapter
 import kotlinx.coroutines.launch
-import androidx.lifecycle.viewmodel.compose.viewModel
+
+enum class SolanaWalletType(
+    val title: String,
+    val description: String
+) {
+    PHANTOM("PHANTOM", "연결하려면 클릭"),
+    SOLFLARE("SOLFLARE", "연결하려면 클릭"),
+    BACKPACK("BACKPACK", "연결하려면 클릭")
+}
 
 @Composable
 fun LoginScreen(
     onLoginClick: () -> Unit,
     walletActivityResultSender: ActivityResultSender,
+    walletCallbackUri: Uri?,
+    onWalletCallbackConsumed: () -> Unit,
     onKakaoClick: () -> Unit = {},
     onNaverClick: () -> Unit = {},
     onGoogleClick: () -> Unit = {},
-    onWalletConnected: (String, String) -> Unit = { _, _ -> }
+    onWalletConnected: (String, String, String, String) -> Unit = { _, _, _, _ -> } // 콜백 시그니처 (토큰2, 주소, 제공자)
 ) {
-    // 이메일 상태
     var email by remember { mutableStateOf("") }
-
-    // 비밀번호 상태
     var password by remember { mutableStateOf("") }
 
-    // 지갑 다이얼로그 상태
-    var showWalletDialog by remember { mutableStateOf(false) }
-
-    // 코루틴 스코프
     val scope = rememberCoroutineScope()
-
-    // 컨텍스트
     val context = LocalContext.current
+    val phantomConnector = remember { PhantomDeepLinkConnector(context) }
+    val loginViewModel: LoginViewModel = viewModel()
 
-    val loginViewModel: LoginViewModel = viewModel() // 지갑
+    var showWalletDialog by remember { mutableStateOf(false) }
+    var selectedWallet by remember { mutableStateOf<SolanaWalletType?>(null) }
+    var isWalletLoading by remember { mutableStateOf(false) }
 
-    var currentNonce by remember { mutableStateOf<String?>(null) } //   지갑 인증 변수 추가
+    var pendingWalletAddress by remember { mutableStateOf<String?>(null) }
+    var pendingNonce by remember { mutableStateOf<String?>(null) }
 
-    var currentWalletAddress by remember { mutableStateOf<String?>(null) }
-    var currentSignature by remember { mutableStateOf<String?>(null) }
-
-    // 지갑 어댑터
-    // 나중 연결 로직 붙일 때 사용
-    val walletAdapter = remember {
-        MobileWalletAdapter(
-            connectionIdentity = ConnectionIdentity(
-                identityUri = Uri.parse("https://spentopia.com"),
-                iconUri = Uri.parse("icon.png"),
-                identityName = "Spentopia"
-            )
-        )
+    val walletLoginCoordinator = remember(loginViewModel) {
+        WalletLoginCoordinator(loginViewModel)
     }
 
-    // 사용 안 해도 구조 유지용
-    walletAdapter
-    walletActivityResultSender
-    onWalletConnected
+    fun startWalletLogin(walletType: SolanaWalletType) {
+        selectedWallet = walletType
+        showWalletDialog = false
 
-    // 전체 배경
+        when (walletType) {
+            SolanaWalletType.PHANTOM -> {
+                isWalletLoading = true
+                pendingWalletAddress = null
+                pendingNonce = null
+                phantomConnector.connect()
+            }
+
+            else -> {
+                scope.launch {
+                    isWalletLoading = true
+
+                    walletLoginCoordinator.loginWithWallet(
+                        walletType = walletType,
+                        walletActivityResultSender = walletActivityResultSender,
+                        onSuccess = { accessToken, refreshToken ->
+                            isWalletLoading = false
+
+                            // 수정 포인트 1: 지갑 정보 추출 및 4개의 인자 전달 (오타 수정됨)
+                            val walletAddress = walletLoginCoordinator.getLastWalletAddress().orEmpty()
+                            val walletProvider = walletType.name
+
+                            onWalletConnected(
+                                accessToken,
+                                refreshToken,
+                                walletAddress,
+                                walletProvider
+                            )
+                        },
+                        onError = { message ->
+                            isWalletLoading = false
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF3F6FA)),
         contentAlignment = Alignment.Center
     ) {
-        // 로그인 카드
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -127,7 +154,6 @@ fun LoginScreen(
                     .padding(horizontal = 24.dp, vertical = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 로고
                 Image(
                     painter = painterResource(id = R.drawable.ic_spentopia_logo),
                     contentDescription = "Spentopia Logo",
@@ -136,7 +162,6 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 앱 이름
                 Text(
                     text = "Spentopia",
                     fontSize = 24.sp,
@@ -144,7 +169,6 @@ fun LoginScreen(
                     color = Color(0xFF111827)
                 )
 
-                // 설명
                 Text(
                     text = "내가 기록한 소비가 나를 만든다",
                     fontSize = 14.sp,
@@ -153,12 +177,10 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // 입력 영역
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.Start
                 ) {
-                    // 이메일 라벨
                     Text(
                         text = "이메일",
                         fontSize = 15.sp,
@@ -168,7 +190,6 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // 이메일 입력
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
@@ -194,7 +215,6 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 비밀번호 라벨
                     Text(
                         text = "비밀번호",
                         fontSize = 15.sp,
@@ -204,7 +224,6 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // 비밀번호 입력
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
@@ -219,7 +238,7 @@ fun LoginScreen(
                         },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        keyboardOptions = KeyboardOptions(keyboardType = PasswordVisualTransformation() as? KeyboardType ?: KeyboardType.Password),
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = Color(0xFFF1F5F9),
@@ -232,7 +251,6 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // 로그인 버튼
                 GradientLoginButton(
                     text = "로그인",
                     onClick = onLoginClick
@@ -240,8 +258,8 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // 지갑 연결 버튼
                 SolanaWalletConnectButton(
+                    enabled = !isWalletLoading,
                     onClick = {
                         showWalletDialog = true
                     }
@@ -249,12 +267,10 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 구분선
                 OrDivider()
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 카카오 로그인
                 SocialLoginButton(
                     text = "카카오로 로그인",
                     iconRes = R.drawable.ic_kakao,
@@ -263,7 +279,6 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 구글 로그인
                 SocialLoginButton(
                     text = "구글로 로그인",
                     iconRes = R.drawable.ic_google,
@@ -272,7 +287,6 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 네이버 로그인
                 SocialLoginButton(
                     text = "네이버로 로그인",
                     iconRes = R.drawable.ic_naver,
@@ -280,123 +294,109 @@ fun LoginScreen(
                 )
             }
         }
-    }
 
-    // 지갑 선택 다이얼로그
-    if (showWalletDialog) {
-        SolanaWalletDialog(
-            onDismiss = {
-                showWalletDialog = false
-            },
-            onWalletSelected = { selectedWallet ->
-                // 다이얼로그 닫기
-                showWalletDialog = false
+        LaunchedEffect(walletCallbackUri) {
+            walletCallbackUri?.let { uri ->
+                if (uri.scheme == "spentopia" && uri.host == "wallet-callback") {
 
-                // 선택 로그
-                Log.d("Spentopia", "선택한 지갑: ${selectedWallet.name}")
+                    when {
+                        phantomConnector.isConnectCallback(uri) -> {
+                            val walletAddress = phantomConnector.parseConnectCallback(uri)
 
-                scope.launch {
-                    try {
-                        val nonce = loginViewModel.getWalletNonceOnce()
-                        Log.d("Spentopia", "nonce: $nonce")
-                        currentNonce = nonce
-
-                        loginViewModel.signNonceWithWallet(
-                            nonce = nonce,
-                            onSuccess = { signResult ->
-                                currentWalletAddress = signResult.walletAddress
-                                currentSignature = signResult.signature
-
-                                Log.d("Spentopia", "address: ${signResult.walletAddress}")
-                                Log.d("Spentopia", "signature: ${signResult.signature}")
-
-                                loginViewModel.linkWalletToServer(
-                                    token = "여기에_임시토큰",
-                                    walletAddress = signResult.walletAddress,
-                                    nonce = nonce,
-                                    signature = signResult.signature,
-                                    provider = selectedWallet.name,
-                                    onSuccess = {
-                                        Log.d("Spentopia", "wallet link success")
-                                    },
-                                    onError = { message ->
-                                        Log.e("Spentopia", "wallet link error: $message")
-                                    }
-                                )
-                            },
-                            onError = { message ->
-                                Log.e("Spentopia", "sign error: $message")
+                            if (walletAddress.isNullOrBlank()) {
+                                isWalletLoading = false
+                                Toast.makeText(context, "지갑 주소를 가져오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                                onWalletCallbackConsumed()
+                                return@let
                             }
-                        )
 
-                        // 지갑 앱 인텐트 생성
-                        val intent = when (selectedWallet)  {
-                            WalletProvider.PHANTOM -> context.packageManager
-                                .getLaunchIntentForPackage("app.phantom")
+                            pendingWalletAddress = walletAddress
 
-                            WalletProvider.SOLFLARE -> context.packageManager
-                                .getLaunchIntentForPackage("com.solflare.mobile")
+                            scope.launch {
+                                try {
+                                    val nonceResponse = loginViewModel.getWalletNonceOnce(walletAddress)
+                                    pendingNonce = nonceResponse.nonce
 
-                            WalletProvider.BACKPACK -> {
-                                Intent(
-                                    Intent.ACTION_VIEW,
-                                    Uri.parse("https://backpack.app/ul/v1/connect")
-                                )
+                                    phantomConnector.signMessage(nonceResponse.message)
+                                } catch (e: Exception) {
+                                    isWalletLoading = false
+                                    Toast.makeText(
+                                        context,
+                                        e.message ?: "nonce 요청 실패",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             }
                         }
 
-// 앱 없으면 종료
-                        if (intent == null) {
+                        phantomConnector.isSignCallback(uri) -> {
+                            val signature = phantomConnector.parseSignCallback(uri)
+                            val walletAddress = pendingWalletAddress
+                            val nonce = pendingNonce
+
+                            if (signature.isNullOrBlank()) {
+                                isWalletLoading = false
+                                Toast.makeText(context, "서명값을 가져오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                                onWalletCallbackConsumed()
+                                return@let
+                            }
+
+                            if (walletAddress.isNullOrBlank() || nonce.isNullOrBlank()) {
+                                isWalletLoading = false
+                                Toast.makeText(context, "로그인 중간 상태가 유실되었습니다.", Toast.LENGTH_SHORT).show()
+                                onWalletCallbackConsumed()
+                                return@let
+                            }
+
+                            loginViewModel.walletLoginApp(
+                                walletAddress = walletAddress,
+                                nonce = nonce,
+                                signature = signature,
+                                onSuccess = { response ->
+                                    isWalletLoading = false
+                                    pendingWalletAddress = null
+                                    pendingNonce = null
+
+                                    // 수정 포인트 2: Phantom 로그인 시에도 인자 4개를 전달하도록 보강
+                                    onWalletConnected(
+                                        response.access_token,
+                                        response.refresh_token,
+                                        walletAddress,
+                                        "PHANTOM"
+                                    )
+                                },
+                                onError = { message ->
+                                    isWalletLoading = false
+                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+
+                        else -> {
+                            isWalletLoading = false
                             Toast.makeText(
                                 context,
-                                "${selectedWallet.name} 설치 안됨",
-                                Toast.LENGTH_SHORT
+                                "콜백: ${uri.toString().take(180)}",
+                                Toast.LENGTH_LONG
                             ).show()
-
-                            Log.e("Spentopia", "${selectedWallet.name} 인텐트 없음")
-                            return@launch
                         }
-
-// 앱 실행 플래그
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-
-// 앱 실행
-                        context.startActivity(intent)
-
-// 실행 성공 토스트
-                        Toast.makeText(
-                            context,
-                            "${selectedWallet.name} 실행 성공",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-// 실행 성공 로그
-                        Log.d("Spentopia", "${selectedWallet.name} 실행 성공")
-
-                    } catch (e: ActivityNotFoundException) {
-                        // 실행 실패 토스트
-                        Toast.makeText(
-                            context,
-                            "${selectedWallet.name} 실행 실패",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                        // 실행 실패 로그
-                        Log.e("Spentopia", "${selectedWallet.name} 실행 실패", e)
-                    } catch (e: Exception) {
-                        // 예외 토스트
-                        Toast.makeText(
-                            context,
-                            "${selectedWallet.name} 실행 중 오류",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                        // 예외 로그
-                        Log.e("Spentopia", "${selectedWallet.name} 실행 중 예외", e)
                     }
+
+                    onWalletCallbackConsumed()
                 }
             }
-        )
+        }
+
+        if (showWalletDialog) {
+            SolanaWalletDialog(
+                onDismiss = {
+                    showWalletDialog = false
+                },
+                onSelectWallet = { walletType ->
+                    startWalletLogin(walletType)
+                }
+            )
+        }
     }
 }
 
@@ -405,7 +405,6 @@ private fun GradientLoginButton(
     text: String,
     onClick: () -> Unit
 ) {
-    // 로그인 버튼
     Button(
         onClick = onClick,
         modifier = Modifier
@@ -415,7 +414,6 @@ private fun GradientLoginButton(
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         contentPadding = PaddingValues(0.dp)
     ) {
-        // 버튼 배경
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -427,7 +425,6 @@ private fun GradientLoginButton(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            // 버튼 글자
             Text(
                 text = text,
                 color = Color.White,
@@ -439,10 +436,13 @@ private fun GradientLoginButton(
 }
 
 @Composable
-private fun SolanaWalletConnectButton(onClick: () -> Unit) {
-    // 지갑 버튼
+private fun SolanaWalletConnectButton(
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp),
@@ -450,7 +450,6 @@ private fun SolanaWalletConnectButton(onClick: () -> Unit) {
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         contentPadding = PaddingValues(0.dp)
     ) {
-        // 버튼 배경
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -462,12 +461,10 @@ private fun SolanaWalletConnectButton(onClick: () -> Unit) {
                 ),
             contentAlignment = Alignment.Center
         ) {
-            // 버튼 내용
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                // 버튼 글자
                 Text(
                     text = "👻 Solana 지갑 연결",
                     color = Color.White,
@@ -480,82 +477,73 @@ private fun SolanaWalletConnectButton(onClick: () -> Unit) {
 }
 
 @Composable
-private fun OrDivider() {
-    // 구분선 행
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // 왼쪽 선
-        HorizontalDivider(
-            modifier = Modifier.weight(1f),
-            color = Color(0xFFD6D6D6)
-        )
-
-        // 가운데 글자
-        Text(
-            text = "  또는  ",
-            color = Color(0xFF8A8A8A),
-            fontSize = 14.sp
-        )
-
-        // 오른쪽 선
-        HorizontalDivider(
-            modifier = Modifier.weight(1f),
-            color = Color(0xFFD6D6D6)
-        )
-    }
-}
-
-@Composable
 private fun SolanaWalletDialog(
     onDismiss: () -> Unit,
-    onWalletSelected: (WalletProvider) -> Unit
+    onSelectWallet: (SolanaWalletType) -> Unit
 ) {
-    // 지갑 목록
-    val wallets = listOf(
-        WalletProvider.PHANTOM,
-        WalletProvider.SOLFLARE,
-        WalletProvider.BACKPACK
-    )
-
     Dialog(onDismissRequest = onDismiss) {
-        // 다이얼로그 표면
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = Color.White,
-            tonalElevation = 8.dp
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                // 제목
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 24.dp)
+            ) {
                 Text(
                     text = "Solana 지갑 연결",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF222222)
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
-                // 지갑 목록 출력
-                wallets.forEach { wallet ->
-                    WalletOptionCard(
-                        walletName = wallet.name,
-                        description = "연결하려면 클릭",
-                        onClick = {
-                            onWalletSelected(wallet)
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
+                WalletOptionItem(
+                    title = SolanaWalletType.PHANTOM.title,
+                    description = SolanaWalletType.PHANTOM.description,
+                    onClick = { onSelectWallet(SolanaWalletType.PHANTOM) }
+                )
 
-                // 닫기 버튼
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                WalletOptionItem(
+                    title = SolanaWalletType.SOLFLARE.title,
+                    description = SolanaWalletType.SOLFLARE.description,
+                    onClick = { onSelectWallet(SolanaWalletType.SOLFLARE) }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                WalletOptionItem(
+                    title = SolanaWalletType.BACKPACK.title,
+                    description = SolanaWalletType.BACKPACK.description,
+                    onClick = { onSelectWallet(SolanaWalletType.BACKPACK) }
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = "선택한 지갑과 실제로 열리는 지갑 앱은 현재 다를 수 있습니다.",
+                    fontSize = 12.sp,
+                    color = Color(0xFF6B7280),
+                    lineHeight = 18.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
                 ) {
                     Text(
                         text = "닫기",
-                        color = Color(0xFF2F7DF6)
+                        color = Color(0xFF2563EB),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable { onDismiss() }
                     )
                 }
             }
@@ -564,47 +552,74 @@ private fun SolanaWalletDialog(
 }
 
 @Composable
-private fun WalletOptionCard(
-    walletName: String,
+private fun WalletOptionItem(
+    title: String,
     description: String,
     onClick: () -> Unit
 ) {
-    // 지갑 카드
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = Color(0xFFE5E7EB),
-                shape = RoundedCornerShape(14.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        // 텍스트 영역
-        Column(modifier = Modifier.weight(1f)) {
-            // 지갑 이름
-            Text(
-                text = walletName,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF2B2B2B)
+                )
 
-            // 설명
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = description,
+                    fontSize = 13.sp,
+                    color = Color(0xFF8A8A8A)
+                )
+            }
+
             Text(
-                text = description,
-                fontSize = 13.sp,
-                color = Color(0xFF6B7280)
+                text = "연결",
+                color = Color(0xFF2563EB),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable { onClick() }
             )
         }
+    }
+}
 
-        // 연결 글자
+@Composable
+private fun OrDivider() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            color = Color(0xFFD6D6D6)
+        )
+
         Text(
-            text = "연결",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF2F7DF6)
+            text = "  또는  ",
+            color = Color(0xFF8A8A8A),
+            fontSize = 14.sp
+        )
+
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            color = Color(0xFFD6D6D6)
         )
     }
 }

@@ -4,9 +4,15 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.ict.spentopia.data.local.walletDataStore
+import com.ict.spentopia.data.remote.NonceRequest
+import com.ict.spentopia.data.remote.NonceResponse
 import com.ict.spentopia.data.remote.RetrofitClient
 import com.ict.spentopia.data.remote.WalletLinkRequest
+import com.ict.spentopia.data.remote.WalletLinkResponse
+import com.ict.spentopia.data.remote.WalletLoginRequest
+import com.ict.spentopia.data.remote.WalletLoginResponse
 import com.ict.spentopia.data.remote.WalletUnlinkRequest
+import com.ict.spentopia.data.remote.WalletUnlinkResponse
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -20,6 +26,7 @@ class WalletRepositoryImpl(
     // 지갑 종류 key입니다.
     private val walletProviderKey = stringPreferencesKey("wallet_provider")
 
+    // Retrofit 지갑 API 객체입니다.
     private val walletApi = RetrofitClient.walletApi
 
     override suspend fun saveWallet(address: String, provider: String) {
@@ -48,8 +55,12 @@ class WalletRepositoryImpl(
         }
     }
 
-    override suspend fun issueWalletNonce(): String {
-        return walletApi.issueWalletNonce().nonce
+    override suspend fun issueWalletNonce(walletAddress: String): NonceResponse {
+        return walletApi.issueWalletNonce(
+            request = NonceRequest(
+                wallet_address = walletAddress
+            )
+        )
     }
 
     override suspend fun linkWallet(
@@ -57,10 +68,24 @@ class WalletRepositoryImpl(
         walletAddress: String,
         nonce: String,
         signature: String
-    ) {
-        walletApi.linkWallet(
+    ): WalletLinkResponse {
+        return walletApi.linkWallet(
             authorization = "Bearer $token",
             request = WalletLinkRequest(
+                wallet_address = walletAddress,
+                nonce = nonce,
+                signature = signature
+            )
+        )
+    }
+
+    override suspend fun walletLoginApp(
+        walletAddress: String,
+        nonce: String,
+        signature: String
+    ): WalletLoginResponse {
+        return walletApi.walletLoginApp(
+            request = WalletLoginRequest(
                 wallet_address = walletAddress,
                 nonce = nonce,
                 signature = signature
@@ -73,8 +98,8 @@ class WalletRepositoryImpl(
         walletAddress: String,
         nonce: String,
         signature: String
-    ) {
-        walletApi.unlinkWallet(
+    ): WalletUnlinkResponse {
+        return walletApi.unlinkWallet(
             authorization = "Bearer $token",
             request = WalletUnlinkRequest(
                 wallet_address = walletAddress,

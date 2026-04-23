@@ -36,6 +36,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel // 수정: MarketViewModel
 @OptIn(ExperimentalLayoutApi::class) // 수정: FlowRow 사용을 위해 OptIn을 적용
 @Composable
 fun MarketScreen(
+    // 바꿀 것 1: MarketScreen() 파라미터 추가
+    isWalletConnected: Boolean = false,
+    walletAddress: String = "",
+    walletProvider: String = "",
     marketViewModel: MarketViewModel = viewModel() // 수정: 화면에서 사용할 MarketViewModel을 주입
 ) {
     val uiState = marketViewModel.uiState // 수정: ViewModel의 현재 UI 상태를 읽어옴
@@ -76,12 +80,13 @@ fun MarketScreen(
                 onClick = { }, // 수정: 현재는 더미 버튼 동작으로 비워
                 shape = RoundedCornerShape(12.dp), // 수정: 둥근 버튼 모양을 적용
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFA855F7), // 수정: 보라색 계열 버튼 배경을 적용
+                    containerColor = if (isWalletConnected) Color(0xFF16A34A) else Color(0xFFA855F7), // 수정: 연결 시 초록색, 미연결 시 보라색 적용
                     contentColor = Color.White // 수정: 흰색 버튼 텍스트를 적용
                 )
             ) {
+                // 바꿀 것 3: 상단 버튼 텍스트 분기
                 Text(
-                    text = "👛 지갑 연결하기", // 수정: 지갑 연결 버튼 텍스트를 표시
+                    text = if (isWalletConnected) "✅ ${walletProvider} 연결됨" else "👛 지갑 연결하기", // 수정: 연결 상태에 따른 텍스트 표시
                     fontSize = 13.sp, // 수정: 버튼 텍스트 크기를 지정
                     fontWeight = FontWeight.Bold // 수정: 버튼 텍스트를 강조
                 )
@@ -90,31 +95,58 @@ fun MarketScreen(
 
         Spacer(modifier = Modifier.height(18.dp)) // 수정: 상단 영역과 경고 배너 사이 여백을 추가
 
-        Card(
-            modifier = Modifier.fillMaxWidth(), // 수정: 경고 배너가 가로 전체를 사용하도록 설정
-            shape = RoundedCornerShape(16.dp), // 수정: 둥근 카드 모양을 적용
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED)) // 수정: 연한 주황 배경을 적용
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp), // 수정: 카드 내부 여백을 적용
-                verticalArrangement = Arrangement.spacedBy(6.dp) // 수정: 내부 항목 간격을 지정
+        // 바꿀 것 4: 경고 배너를 연결 상태에 따라 교체
+        if (!isWalletConnected) {
+            Card(
+                modifier = Modifier.fillMaxWidth(), // 수정: 경고 배너가 가로 전체를 사용하도록 설정
+                shape = RoundedCornerShape(16.dp), // 수정: 둥근 카드 모양을 적용
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED)) // 수정: 연한 주황 배경을 적용
             ) {
-                Text(
-                    text = "⚠️ 지갑 연결이 필요해요", // 수정: 배너 제목을 표시
-                    fontSize = 18.sp, // 수정: 제목 크기를 지정
-                    fontWeight = FontWeight.Bold, // 수정: 제목을 강조
-                    color = Color(0xFFEA580C) // 수정: 주황색 강조 텍스트를 적용
-                )
+                Column(
+                    modifier = Modifier.padding(16.dp), // 수정: 카드 내부 여백을 적용
+                    verticalArrangement = Arrangement.spacedBy(6.dp) // 수정: 내부 항목 간격을 지정
+                ) {
+                    Text(
+                        text = "⚠️ 지갑 연결이 필요해요", // 수정: 배너 제목을 표시
+                        fontSize = 18.sp, // 수정: 제목 크기를 지정
+                        fontWeight = FontWeight.Bold, // 수정: 제목을 강조
+                        color = Color(0xFFEA580C) // 수정: 주황색 강조 텍스트를 적용
+                    )
 
-                Text(
-                    text = "지갑을 연결하면 아이템을 NFT로 발행하고 거래할 수 있어요. 지갑이 없어도 개인 소장은 가능합니다.", // 수정: 안내 문구를 표시
-                    fontSize = 14.sp, // 수정: 설명 텍스트 크기를 지정
-                    color = Color(0xFF9A3412) // 수정: 설명 텍스트 색상을 지정
-                )
+                    Text(
+                        text = "지갑을 연결하면 아이템을 NFT로 발행하고 거래할 수 있어요. 지갑이 없어도 개인 소장은 가능합니다.", // 수정: 안내 문구를 표시
+                        fontSize = 14.sp, // 수정: 설명 텍스트 크기를 지정
+                        color = Color(0xFF9A3412) // 수정: 설명 텍스트 색상을 지정
+                    )
+                }
             }
-        }
+            Spacer(modifier = Modifier.height(18.dp)) // 수정: 배너 하단 여백 추가
+        } else {
+            Card(
+                modifier = Modifier.fillMaxWidth(), // 수정: 연결 완료 배너가 가로 전체를 사용하도록 설정
+                shape = RoundedCornerShape(16.dp), // 수정: 둥근 카드 모양을 적용
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)) // 수정: 연한 초록 배경을 적용
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp), // 수정: 카드 내부 여백을 적용
+                    verticalArrangement = Arrangement.spacedBy(6.dp) // 수정: 내부 항목 간격을 지정
+                ) {
+                    Text(
+                        text = "✅ 지갑이 연결되어 있어요", // 수정: 연결 완료 제목을 표시
+                        fontSize = 18.sp, // 수정: 제목 크기를 지정
+                        fontWeight = FontWeight.Bold, // 수정: 제목을 강조
+                        color = Color(0xFF15803D) // 수정: 초록색 강조 텍스트를 적용
+                    )
 
-        Spacer(modifier = Modifier.height(18.dp)) // 수정: 배너와 통계 카드 사이 여백을 추가
+                    Text(
+                        text = "${walletProvider} · ${formatWalletAddress(walletAddress)}", // 수정: 연결된 지갑 정보와 포맷팅된 주소 표시
+                        fontSize = 14.sp, // 수정: 설명 텍스트 크기를 지정
+                        color = Color(0xFF166534) // 수정: 설명 텍스트 색상을 지정
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(18.dp)) // 수정: 배너 하단 여백 추가
+        }
 
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp), // 수정: 카드 사이 가로 간격을 지정
@@ -220,6 +252,12 @@ fun MarketScreen(
 
         Spacer(modifier = Modifier.height(24.dp)) // 수정: 화면 하단 여백을 추가
     }
+}
+
+// 바꿀 것 2: 주소 포맷 함수 추가
+private fun formatWalletAddress(address: String): String {
+    return if (address.length <= 10) address
+    else "${address.take(4)}...${address.takeLast(4)}"
 }
 
 // 수정: 상단 탭 버튼 UI를 구성

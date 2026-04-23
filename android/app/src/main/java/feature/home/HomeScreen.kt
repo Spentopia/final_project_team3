@@ -123,6 +123,9 @@ data class WeeklyRecordData( // WeeklyRecordData 데이터를 묶어둘 클래�
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 fun HomeScreen( // HomeScreen 함수 선언 시작
+    isWalletConnected: Boolean = false, // 지갑 연결 여부를 받음
+    walletAddress: String = "", // 연결된 지갑 주소를 받음
+    walletProvider: String = "", // 연결된 지갑 제공자 이름을 받음
     onLedgerClick: () -> Unit = {}, // Unit 값을 이 함수로 넘김
     onMyPageClick: () -> Unit = {}, // Unit 값을 이 함수로 넘김
     onBudgetClick: () -> Unit = {}, // Unit 값을 이 함수로 넘김
@@ -242,8 +245,11 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
 
         item { // 리스트 안에 들어갈 한 칸을 시작함
             TopHeaderSection( // 바로 앞 설정을 이어서 적음
+                isWalletConnected = isWalletConnected, // 지갑 연결 여부를 넘김
+                walletAddress = walletAddress, // 지갑 주소를 넘김
+                walletProvider = walletProvider, // 지갑 제공자 이름을 넘김
                 onWalletConnectClick = { // verticalArrangement 값을 이 함수로 넘김
-                    // 팬텀 지갑 연결 기능은 추후 여기에 연결하면 됩니다.
+                    // 필요하면 로그인 화면이나 지갑 관리 화면으로 연결
                 } // 블록 끝
             )
         } // 블록 끝
@@ -371,6 +377,9 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
+    isWalletConnected: Boolean, // 지갑 연결 여부를 받음
+    walletAddress: String, // 지갑 주소를 받음
+    walletProvider: String, // 지갑 제공자 이름을 받음
     onWalletConnectClick: () -> Unit = {} // 버튼을 눌렀을 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     Card( // 카드 모양 UI를 시작함
@@ -392,15 +401,19 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                 modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
             ) { // 이 블록 안의 내용이 시작됨
                 Text( // 글자를 화면에 보여주기 시작함
-                    text = "NFT 거래 및 토큰 교환 지갑", // 화면에 보여줄 글자를 정함
+                    text = if (isWalletConnected) "지갑 연결됨" else "NFT 거래 및 토큰 교환 지갑", // 연결 상태에 따라 제목을 정함
                     fontSize = 16.sp, // 글자 크기를 정함
                     fontWeight = FontWeight.Bold, // 글자 두께를 정함
                     color = Color(0xFF1F2A37) // 색상을 정함
                 )
                 Text( // 글자를 화면에 보여주기 시작함
-                    text = "팬텀 지갑 연결이 필요합니다", // 화면에 보여줄 글자를 정함
+                    text = if (isWalletConnected) { // 조건이 참일 때 연결 정보를 보여줌
+                        "${walletProvider} · ${formatWalletAddress(walletAddress)}" // 지갑 제공자와 주소를 함께 보여줌
+                    } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
+                        "팬텀 지갑 연결이 필요합니다" // 연결 안내 문구를 보여줌
+                    },
                     fontSize = 13.sp, // 글자 크기를 정함
-                    color = Color(0xFF6B7280) // 색상을 정함
+                    color = if (isWalletConnected) Color(0xFF16A34A) else Color(0xFF6B7280) // 연결 여부에 따라 글자색을 정함
                 )
             } // 블록 끝
 
@@ -430,7 +443,7 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                     contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
                 ) { // 이 블록 안의 내용이 시작됨
                     Text( // 글자를 화면에 보여주기 시작함
-                        text = "지갑 연결", // 화면에 보여줄 글자를 정함
+                        text = if (isWalletConnected) "연결 완료" else "지갑 연결", // 연결 상태에 따라 버튼 글자를 정함
                         fontSize = 13.sp, // 글자 크기를 정함
                         fontWeight = FontWeight.Bold, // 글자 두께를 정함
                         color = Color.White // 색상을 정함
@@ -1966,6 +1979,12 @@ private fun ExpenseItemData.toEntity(): ExpenseEntity { // diary 값을 이 함�
         diary = diary, // diary 값을 이 함수로 넘김
         receiptImageUri = receiptImageName // receiptImageUri 값을 이 함수로 넘김
     )
+} // 블록 끝
+
+// 지갑 주소를 앞 4자리와 뒤 4자리만 보이도록 줄여서 표시합니다.
+private fun formatWalletAddress(address: String): String { // formatWalletAddress 함수 시작
+    return if (address.length <= 10) address // 주소 길이가 짧으면 그대로 돌려줌
+    else "${address.take(4)}...${address.takeLast(4)}" // 주소가 길면 앞 4자리와 뒤 4자리만 보여줌
 } // 블록 끝
 
 private fun getCategoryEmoji(category: String): String { // getCategoryEmoji 함수 시작

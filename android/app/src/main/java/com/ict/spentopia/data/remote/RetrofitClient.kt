@@ -35,7 +35,7 @@ object RetrofitClient {
     //
     // 중요:
     // baseUrl은 보통 마지막에 / 가 있어야 함
-    private const val BASE_URL = "https://api.spentopia.com/"  // 서버 넣기
+    private const val BASE_URL = "http://10.0.2.2:1113/"  // 서버 넣기
 
     // loggingInterceptor 변수 만듦
     // -> 네트워크 요청, 응답을 로그로 출력하는 역할

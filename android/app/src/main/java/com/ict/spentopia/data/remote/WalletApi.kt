@@ -15,29 +15,108 @@ import retrofit2.http.POST
 
 
 // ------------------------------
-// 1) 서버가 nonce를 발급해줄 때 받는 응답 데이터
+// 1) 서버에 nonce 발급 요청할 때 보내는 데이터
 // ------------------------------
 
-// data class는 "데이터를 담는 용도"의 클래스입니다.
-// 서버가 JSON으로 { "nonce": "abc123" } 이런 식으로 보내주면
-// 이 클래스로 받아서 사용할 수 있습니다.
+// 백엔드 auth/handler.rs 기준으로
+// /auth/wallet/nonce 는 body로 wallet_address를 받습니다.
+//
+// 요청 예:
+// {
+//   "wallet_address": "7xKXtg2CW87d..."
+// }
+data class NonceRequest(
+
+    // nonce를 발급받을 대상 Solana 지갑 주소
+    // Base58 형식의 공개키 문자열입니다.
+    val wallet_address: String
+)
+
+
+// ------------------------------
+// 2) 서버가 nonce를 발급해줄 때 받는 응답 데이터
+// ------------------------------
+
+// 백엔드는 nonce만 주는 것이 아니라,
+// 실제 지갑이 서명해야 하는 message도 함께 내려줍니다.
+//
+// 응답 예:
+// {
+//   "nonce": "abc123...",
+//   "message": "Spentopia 지갑 인증 ..."
+// }
 data class NonceResponse(
 
     // 서버가 내려주는 nonce 값
     // nonce는 보통 "한 번만 사용하는 임시 문자열" 같은 개념입니다.
     // 지갑 서명 요청 시 보안 목적으로 많이 사용합니다.
-    val nonce: String
+    val nonce: String,
+
+    // 실제 지갑으로 서명해야 하는 인증 메시지입니다.
+    // 안드로이드에서는 nonce 원문이 아니라
+    // 이 message 전체를 지갑으로 서명해야 합니다.
+    val message: String
 )
 
 
 // ------------------------------
-// 2) 지갑 연결(link) 요청 보낼 때 사용하는 데이터
+// 3) 지갑 로그인 요청 보낼 때 사용하는 데이터
+// ------------------------------
+
+// 백엔드 /auth/wallet/login 또는 /auth/app/wallet/login 에
+// 지갑 주소 + nonce + signature를 보낼 때 사용합니다.
+//
+// 주의:
+// 실제 서명 대상은 nonce 자체가 아니라
+// nonce 응답에 포함된 message 전체입니다.
+data class WalletLoginRequest(
+
+    // 로그인에 사용할 지갑 주소
+    val wallet_address: String,
+
+    // nonce 발급 API에서 받은 nonce
+    val nonce: String,
+
+    // 사용자가 지갑으로 message를 서명한 결과값
+    // 백엔드에서는 Base58 형식을 기대합니다.
+    val signature: String
+)
+
+
+// ------------------------------
+// 4) 지갑 로그인 성공 후 서버가 주는 응답 데이터
+// ------------------------------
+
+// 백엔드 코드 기준으로 앱 로그인 응답은
+// access_token, refresh_token, is_new_user 를 반환합니다.
+//
+// 응답 예:
+// {
+//   "access_token": "...",
+//   "refresh_token": "...",
+//   "is_new_user": false
+// }
+data class WalletLoginResponse(
+
+    // 우리 앱 access token
+    val access_token: String,
+
+    // 우리 앱 refresh token
+    val refresh_token: String,
+
+    // 신규 유저 여부
+    val is_new_user: Boolean
+)
+
+
+// ------------------------------
+// 5) 지갑 연결(link) 요청 보낼 때 사용하는 데이터
 // ------------------------------
 
 // 서버에 지갑 연결 요청을 보낼 때 body에 담기는 값들입니다.
 // 예:
 // {
-//   "wallet_address": "0x123...",
+//   "wallet_address": "7xKXtg2CW87d...",
 //   "nonce": "abc123",
 //   "signature": "서명값"
 // }
@@ -49,19 +128,19 @@ data class WalletLinkRequest(
     // 서버에서 먼저 발급받은 nonce
     val nonce: String,
 
-    // 사용자가 지갑으로 nonce에 서명한 결과값
+    // 사용자가 지갑으로 message에 서명한 결과값
     val signature: String
 )
 
 
 // ------------------------------
-// 3) 지갑 연결(link) 성공 후 서버가 주는 응답 데이터
+// 6) 지갑 연결(link) 성공 후 서버가 주는 응답 데이터
 // ------------------------------
 
 // 서버가 예를 들어
 // {
-//   "wallet_address": "0x123...",
-//   "message": "Wallet linked successfully"
+//   "wallet_address": "7xKXtg2CW87d...",
+//   "message": "지갑이 연동되었습니다."
 // }
 // 이런 식으로 보내주면 이 클래스로 받습니다.
 data class WalletLinkResponse(
@@ -75,7 +154,7 @@ data class WalletLinkResponse(
 
 
 // ------------------------------
-// 4) 지갑 연결 해제(unlink) 요청 보낼 때 사용하는 데이터
+// 7) 지갑 연결 해제(unlink) 요청 보낼 때 사용하는 데이터
 // ------------------------------
 
 // unlink도 link와 비슷하게
@@ -88,18 +167,18 @@ data class WalletUnlinkRequest(
     // unlink 요청용 nonce
     val nonce: String,
 
-    // 사용자가 지갑으로 서명한 값
+    // 사용자가 지갑으로 message를 서명한 값
     val signature: String
 )
 
 
 // ------------------------------
-// 5) 지갑 연결 해제(unlink) 후 서버 응답 데이터
+// 8) 지갑 연결 해제(unlink) 후 서버 응답 데이터
 // ------------------------------
 
 // 서버가 예:
 // {
-//   "message": "Wallet unlinked successfully"
+//   "message": "지갑 연동이 해제되었습니다."
 // }
 // 이런 식으로 보내준다고 가정합니다.
 data class WalletUnlinkResponse(
@@ -110,7 +189,7 @@ data class WalletUnlinkResponse(
 
 
 // ------------------------------
-// 6) 실제 API 목록을 정의하는 인터페이스
+// 9) 실제 API 목록을 정의하는 인터페이스
 // ------------------------------
 
 // Retrofit은 이 interface를 보고
@@ -125,16 +204,45 @@ interface WalletApi {
     // -> 코루틴에서 호출하기 위한 함수입니다.
     // -> 네트워크 요청은 시간이 걸리므로 비동기 처리에 자주 사용합니다.
     //
-    // issueWalletNonce()
-    // -> 파라미터 없이 nonce 발급 요청
+    // issueWalletNonce(request)
+    // -> wallet_address를 body에 담아 nonce 발급 요청
     //
     // : NonceResponse
     // -> 응답 결과를 NonceResponse 형태로 받겠다는 뜻
-    suspend fun issueWalletNonce(): NonceResponse
+    suspend fun issueWalletNonce(
+
+        // 요청 body에 wallet_address 전달
+        @Body request: NonceRequest
+    ): NonceResponse
+
+
+    // @POST("/auth/wallet/login")
+    // -> 웹/공통 지갑 로그인 API입니다.
+    @POST("/auth/wallet/login")
+
+    // walletLogin 함수는 지갑 로그인 API입니다.
+    suspend fun walletLogin(
+
+        // 요청 body에 wallet_address, nonce, signature 전달
+        @Body request: WalletLoginRequest
+
+        // 응답은 WalletLoginResponse로 받음
+    ): WalletLoginResponse
+
+
+    // @POST("/auth/app/wallet/login")
+    // -> 앱 전용 지갑 로그인 API입니다.
+    // 백엔드에서 app 요청 여부를 체크하는 경우 이 엔드포인트를 사용합니다.
+    @POST("/auth/app/wallet/login")
+    suspend fun walletLoginApp(
+        @Header("X-Client-Type") clientType: String = "app",
+        @Body request: WalletLoginRequest
+    ): WalletLoginResponse
 
 
     // @POST("/wallet/link")
     // -> POST 방식으로 /wallet/link 주소에 요청을 보냅니다.
+    // -> 이미 로그인된 사용자의 계정에 지갑을 연동하는 보호 API입니다.
     @POST("/wallet/link")
 
     // linkWallet 함수는 지갑 연결 API입니다.
@@ -145,7 +253,7 @@ interface WalletApi {
         // 예: "Bearer eyJhbGciOi..."
         //
         // authorization: String
-        // -> 함수 호출할 때 토큰 문자열을 넘겨줍니다.
+        // -> 함수 호출할 때 실제 로그인 JWT를 넘겨줍니다.
         @Header("Authorization") authorization: String,
 
         // @Body
