@@ -30,6 +30,7 @@ import {
     AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
 import {Link as LinkIcon, Wallet} from "lucide-react";
+import {toast} from "sonner";
 
 interface WalletSectionProps {
     isLoggedIn?: boolean;
@@ -162,6 +163,9 @@ export function WalletSection({
             } finally {
                 deselectWallet();
             }
+            toast.success(result.message);
+        } else {
+            toast.error(result.message);
         }
         setLocalMessage(result.message);
     };
@@ -193,19 +197,45 @@ export function WalletSection({
             setLinkedAddress(walletAddress);
             onWalletLinked?.(walletAddress);
             setIsDialogOpen(false);
+            toast.success(result.message);
+        } else {
+            toast.error(result.message);
+            try {
+                await disconnectWallet();
+            } catch {
+                // 연결 실패 후 로컬 adapter 정리만 시도한다.
+            } finally {
+                deselectWallet();
+            }
         }
         setLocalMessage(result.message);
     }
     ;
 
     useEffect(() => {
-        if (!linkRequested || !connected || !walletAddress || linkedAddress || isProcessing) {
+        if (
+            !linkRequested ||
+            !connected ||
+            !walletAddress ||
+            linkedAddress ||
+            isProcessing ||
+            openingWalletModal ||
+            walletModalVisible
+        ) {
             return;
         }
 
         setLinkRequested(false);
         void handleLinkWallet();
-    }, [linkRequested, connected, walletAddress, linkedAddress, isProcessing]);
+    }, [
+        linkRequested,
+        connected,
+        walletAddress,
+        linkedAddress,
+        isProcessing,
+        openingWalletModal,
+        walletModalVisible,
+    ]);
 
     const handleLinkWalletStart = async () => {
         setLocalMessage(null);

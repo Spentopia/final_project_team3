@@ -142,6 +142,9 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
             detail: { walletAddress },
           })
         );
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
       }
     }).finally(() => {
       linkInFlightRef.current = false;
