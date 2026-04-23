@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const aiPlans = [
+const [aiPlans, setAiPlans] = useState([
   {
     id: 1,
     name: "월 50만원 생활 플랜",
@@ -63,7 +63,7 @@ const aiPlans = [
       { name: "저축", amount: 30000, icon: PiggyBank },
     ],
   },
-];
+]);
 
 const STORAGE_KEY = "customBudget";
 const SELECTED_PLAN_KEY = "selectedPlan";
@@ -163,6 +163,44 @@ export default function BudgetPage() {
     );
   };
 
+  const handleGenerateAiPlans = async () => {
+  try {
+    const res = await fetch("http://localhost:8000/api/v1/ai-plans", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        budget: customBudget.monthly || 500000,
+      }),
+    });
+
+    const data = await res.json();
+
+    const mappedPlans = data.plans.map((plan: any, index: number) => ({
+      id: index + 1,
+      name: plan.name,
+      budget: plan.budget,
+      savings: plan.savings,
+      description: plan.description,
+      categories: [
+        { name: "식비", amount: plan.food, icon: Coffee },
+        { name: "교통비", amount: plan.transport, icon: Car },
+        { name: "생활비", amount: plan.living, icon: Home },
+        { name: "여가/취미", amount: plan.leisure, icon: Heart },
+        { name: "저축", amount: plan.savings, icon: PiggyBank },
+      ],
+    }));
+
+    setAiPlans(mappedPlans);
+
+    toast.success("AI 플랜 생성 완료!");
+  } catch (err) {
+    console.error(err);
+    toast.error("AI 플랜 생성 실패");
+  }
+};
+
   const handleSaveCustomBudget = () => {
     setMonthlyBudget(monthKey, Number(customBudget.monthly) || 0);
     toast.success(`${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`);
@@ -253,7 +291,10 @@ export default function BudgetPage() {
           </p>
         </div>
 
-        <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
+        <Button
+  onClick={handleGenerateAiPlans}
+  className="bg-gradient-to-r from-cyan-500 to-blue-500"
+>
           <Sparkles className="mr-2 h-4 w-4" />
           AI 플랜 생성
         </Button>
