@@ -68,33 +68,37 @@ const aiPlans = [
 const STORAGE_KEY = "customBudget";
 const SELECTED_PLAN_KEY = "selectedPlan";
 
+type CustomBudget = {
+  monthly: number;
+  savings: number;
+  food: number;
+  transport: number;
+  living: number;
+  leisure: number;
+};
+
+const createEmptyBudget = (): CustomBudget => ({
+  monthly: 0,
+  savings: 0,
+  food: 0,
+  transport: 0,
+  living: 0,
+  leisure: 0,
+});
+
 export default function BudgetPage() {
   const { budgets, setMonthlyBudget } = useFinance();
 
   const [customBudget, setCustomBudget] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) {
-      return {
-        monthly: 0,
-        savings: 0,
-        food: 0,
-        transport: 0,
-        living: 0,
-        leisure: 0,
-      };
+      return createEmptyBudget();
     }
 
     try {
-      return JSON.parse(saved);
+      return { ...createEmptyBudget(), ...JSON.parse(saved) };
     } catch {
-      return {
-        monthly: 0,
-        savings: 0,
-        food: 0,
-        transport: 0,
-        living: 0,
-        leisure: 0,
-      };
+      return createEmptyBudget();
     }
   });
 
@@ -107,7 +111,7 @@ export default function BudgetPage() {
   const [selectedYear] = useState(new Date().getFullYear());
 
   const monthKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
-  const currentBudget = budgets[monthKey] || 0;
+  const currentBudget = budgets[monthKey] ?? 0;
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(customBudget));
@@ -123,7 +127,7 @@ export default function BudgetPage() {
 
   useEffect(() => {
     if (currentBudget > 0) {
-      setCustomBudget((prev: typeof customBudget) => ({
+      setCustomBudget((prev) => ({
         ...prev,
         monthly: currentBudget,
       }));
@@ -136,6 +140,14 @@ export default function BudgetPage() {
 
     setSelectedPlan(planId);
     setMonthlyBudget(monthKey, plan.budget);
+    setCustomBudget({
+      monthly: plan.budget,
+      savings: plan.savings,
+      food: plan.categories.find((cat) => cat.name === "식비")?.amount ?? 0,
+      transport: plan.categories.find((cat) => cat.name === "교통비")?.amount ?? 0,
+      living: plan.categories.find((cat) => cat.name === "생활비")?.amount ?? 0,
+      leisure: plan.categories.find((cat) => cat.name === "여가/취미")?.amount ?? 0,
+    });
 
     toast.success(
       <div>

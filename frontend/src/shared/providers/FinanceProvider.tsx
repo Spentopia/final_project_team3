@@ -14,6 +14,8 @@ export type Transaction = {
 type FinanceContextType = {
   budget: number;
   setBudget: (b: number) => void;
+  budgets: Record<string, number>;
+  setMonthlyBudget: (monthKey: string, amount: number) => void;
   transactions: Transaction[];
   replaceTransactions: (items: Transaction[]) => void;
   addTransaction: (t: Transaction) => void;
@@ -24,19 +26,47 @@ const FinanceContext = createContext<FinanceContextType | null>(null);
 
 export const FinanceProvider = ({ children }: { children: React.ReactNode }) => {
   const [budget, setBudgetState] = useState(500000);
+  const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
     const savedBudget = localStorage.getItem("budget");
+    const savedBudgets = localStorage.getItem("budgets");
 
     if (savedBudget) {
       setBudgetState(Number(savedBudget));
+    }
+
+    if (savedBudgets) {
+      try {
+        const parsed = JSON.parse(savedBudgets);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          setBudgets(parsed);
+        }
+      } catch {
+        localStorage.removeItem("budgets");
+      }
     }
   }, []);
 
   const setBudget = (b: number) => {
     setBudgetState(b);
     localStorage.setItem("budget", String(b));
+  };
+
+  const setMonthlyBudget = (monthKey: string, amount: number) => {
+    const normalizedAmount = Number(amount) || 0;
+
+    setBudgets((prev) => {
+      const next = {
+        ...prev,
+        [monthKey]: normalizedAmount,
+      };
+      localStorage.setItem("budgets", JSON.stringify(next));
+      return next;
+    });
+
+    setBudget(normalizedAmount);
   };
 
   const replaceTransactions = (items: Transaction[]) => {
@@ -53,7 +83,16 @@ export const FinanceProvider = ({ children }: { children: React.ReactNode }) => 
 
   return (
     <FinanceContext.Provider
-      value={{ budget, setBudget, transactions, replaceTransactions, addTransaction, removeTransaction }}
+      value={{
+        budget,
+        setBudget,
+        budgets,
+        setMonthlyBudget,
+        transactions,
+        replaceTransactions,
+        addTransaction,
+        removeTransaction,
+      }}
     >
       {children}
     </FinanceContext.Provider>
