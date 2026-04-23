@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useFinance } from "@/shared/providers/FinanceProvider"; // ✅ 추가
+import { useFinance } from "@/shared/providers/FinanceProvider";
 
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
@@ -16,7 +16,7 @@ import {
   Coffee,
   Home,
   Car,
-  Heart
+  Heart,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -64,89 +64,212 @@ const aiPlans = [
     ],
   },
 ];
+
 const STORAGE_KEY = "customBudget";
+const SELECTED_PLAN_KEY = "selectedPlan";
 
-export default function Budget() {
-  const { setBudget } = useFinance();
+type CustomBudget = {
+  monthly: number;
+  savings: number;
+  food: number;
+  transport: number;
+  living: number;
+  leisure: number;
+};
 
-  // ✅ localStorage에서 불러오기
-  const [customBudget, setCustomBudget] = useState(() => {
+type BudgetCategoryKey = "food" | "transport" | "living" | "leisure";
+
+const BUDGET_CATEGORY_KEYS: BudgetCategoryKey[] = ["food", "transport", "living", "leisure"];
+
+const createEmptyBudget = (): CustomBudget => ({
+  monthly: 0,
+  savings: 0,
+  food: 0,
+  transport: 0,
+  living: 0,
+  leisure: 0,
+});
+
+export default function BudgetPage() {
+  const { budgets, setMonthlyBudget } = useFinance();
+
+  const [customBudget, setCustomBudget] = useState<CustomBudget>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved
-      ? JSON.parse(saved)
-        : {
-          monthly: 0,
-          savings: 0,
-          food: 0,
-          transport: 0,
-          living: 0,
-          leisure: 0,
-        };
+    if (!saved) {
+      return createEmptyBudget();
+    }
+
+    try {
+      return { ...createEmptyBudget(), ...JSON.parse(saved) };
+    } catch {
+      return createEmptyBudget();
+    }
   });
 
   const [selectedPlan, setSelectedPlan] = useState<number | null>(() => {
-  const saved = localStorage.getItem("selectedPlan");
-  return saved ? Number(saved) : null;
-});
+    const saved = localStorage.getItem(SELECTED_PLAN_KEY);
+    return saved ? Number(saved) : null;
+  });
 
-  // ✅ ⭐⭐⭐ 여기 추가 (중요 포인트)
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear] = useState(new Date().getFullYear());
+
+  const monthKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
+  const currentBudget = budgets[monthKey] ?? 0;
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(customBudget));
   }, [customBudget]);
 
-  // =========================
-  // AI 플랜 적용
-  // =========================
+  useEffect(() => {
+    if (selectedPlan === null) {
+      localStorage.removeItem(SELECTED_PLAN_KEY);
+      return;
+    }
+    localStorage.setItem(SELECTED_PLAN_KEY, String(selectedPlan));
+  }, [selectedPlan]);
+
+  useEffect(() => {
+    if (currentBudget > 0) {
+      setCustomBudget((prev) => ({
+        ...prev,
+        monthly: currentBudget,
+      }));
+    }
+  }, [currentBudget]);
+
   const handleApplyPlan = (planId: number) => {
     const plan = aiPlans.find((p) => p.id === planId);
-    if (plan) {
-      setSelectedPlan(planId);
+    if (!plan) return;
 
-      setBudget(plan.budget);
+    setSelectedPlan(planId);
+    setMonthlyBudget(monthKey, plan.budget);
+    setCustomBudget({
+      monthly: plan.budget,
+      savings: plan.savings,
+      food: plan.categories.find((cat) => cat.name === "식비")?.amount ?? 0,
+      transport: plan.categories.find((cat) => cat.name === "교통비")?.amount ?? 0,
+      living: plan.categories.find((cat) => cat.name === "생활비")?.amount ?? 0,
+      leisure: plan.categories.find((cat) => cat.name === "여가/취미")?.amount ?? 0,
+    });
 
-      toast.success(
-        <div>
-          <p className="font-bold">{plan.name} 적용 완료! 🎉</p>
-          <p className="text-sm">이제 AI가 당신의 소비를 분석해드려요</p>
-        </div>
-      );
-    }
+    toast.success(
+      <div>
+        <p className="font-bold">{plan.name} 적용 완료! 🎉</p>
+        <p className="text-sm">
+          {selectedMonth + 1}월 예산으로 {plan.budget.toLocaleString()}원이 저장되었습니다
+        </p>
+      </div>
+    );
   };
 
   const handleSaveCustomBudget = () => {
-    setBudget(customBudget.monthly);
-
-    toast.success("맞춤 예산이 저장되었습니다!");
+    setMonthlyBudget(monthKey, Number(customBudget.monthly) || 0);
+    toast.success(`${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`);
   };
 
-  const totalBudget = customBudget.food + customBudget.transport + customBudget.living + customBudget.leisure;
-  const withSavings = totalBudget + customBudget.savings;
+  const fitCategoryBudgetsToMonthly = (budget: CustomBudget): CustomBudget => {
+    const monthlyLimit = Math.max(0, Number(budget.monthly) || 0);
+    let remaining = monthlyLimit;
+    const next = { ...budget };
+
+    BUDGET_CATEGORY_KEYS.forEach((key) => {
+      const amount = Math.max(0, Number(next[key]) || 0);
+      const fittedAmount = Math.min(amount, remaining);
+      next[key] = fittedAmount;
+      remaining -= fittedAmount;
+    });
+
+    return next;
+  };
+
+  const updateMonthlyBudget = (monthly: number) => {
+    setCustomBudget((prev) => fitCategoryBudgetsToMonthly({ ...prev, monthly }));
+  };
+
+  const updateCategoryBudget = (key: BudgetCategoryKey, amount: number) => {
+    setCustomBudget((prev) => {
+      const monthlyLimit = Math.max(0, Number(prev.monthly) || 0);
+      const otherTotal = BUDGET_CATEGORY_KEYS
+        .filter((categoryKey) => categoryKey !== key)
+        .reduce((sum, categoryKey) => sum + Number(prev[categoryKey]), 0);
+      const maxAmount = Math.max(0, monthlyLimit - otherTotal);
+
+      return {
+        ...prev,
+        [key]: Math.min(Math.max(0, amount), maxAmount),
+      };
+    });
+  };
+
+  const totalBudget =
+    Number(customBudget.food) +
+    Number(customBudget.transport) +
+    Number(customBudget.living) +
+    Number(customBudget.leisure);
+
+  const withSavings = totalBudget + Number(customBudget.savings);
+  const remainingCategoryBudget = Math.max(0, Number(customBudget.monthly) - totalBudget);
+  const getCategorySliderMax = (key: BudgetCategoryKey) => {
+    const otherTotal = BUDGET_CATEGORY_KEYS
+      .filter((categoryKey) => categoryKey !== key)
+      .reduce((sum, categoryKey) => sum + Number(customBudget[categoryKey]), 0);
+
+    return Math.max(Number(customBudget[key]), Number(customBudget.monthly) - otherTotal, 0);
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">예산 설정</h1>
-          <p className="text-gray-600 dark:text-gray-300">AI가 추천하는 플랜으로 시작하거나 직접 설정해보세요</p>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
+            예산 설정
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300">
+            AI가 추천하는 플랜으로 시작하거나 직접 설정해보세요
+          </p>
+
+          <div className="mt-4 mb-2 flex flex-wrap gap-2">
+            {Array.from({ length: 12 }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => setSelectedMonth(i)}
+                className={`rounded-lg px-3 py-1 text-sm transition ${
+                  selectedMonth === i
+                    ? "bg-cyan-500 text-white"
+                    : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                }`}
+              >
+                {i + 1}월
+              </button>
+            ))}
+          </div>
+
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            현재 선택: {selectedYear}년 {selectedMonth + 1}월 / 저장된 예산{" "}
+            <span className="font-semibold text-cyan-600 dark:text-cyan-400">
+              {currentBudget.toLocaleString()}원
+            </span>
+          </p>
         </div>
+
         <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
           <Sparkles className="mr-2 h-4 w-4" />
           AI 플랜 생성
         </Button>
       </div>
 
-      {/* AI Recommended Plans */}
       <div>
-        <h2 className="mb-4 flex items-center gap-2 font-bold text-gray-900">
+        <h2 className="mb-4 flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100">
           <Sparkles className="h-5 w-5 text-cyan-600" />
           AI 추천 플랜
         </h2>
+
         <div className="grid gap-6 md:grid-cols-3">
           {aiPlans.map((plan) => (
             <Card
               key={plan.id}
-              className={`border-2 bg-white/80 p-6 backdrop-blur-xl transition-all ${
+              className={`border-2 bg-white/80 p-6 backdrop-blur-xl transition-all dark:bg-gray-800/80 ${
                 selectedPlan === plan.id
                   ? "border-cyan-500 shadow-xl"
                   : "border-transparent hover:border-cyan-300"
@@ -154,22 +277,30 @@ export default function Budget() {
             >
               <div className="mb-4">
                 <div className="mb-2 flex items-start justify-between">
-                  <h3 className="font-bold text-gray-900">{plan.name}</h3>
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">
+                    {plan.name}
+                  </h3>
                   {selectedPlan === plan.id && (
                     <Badge className="bg-cyan-500">적용중</Badge>
                   )}
                 </div>
-                <p className="text-sm text-gray-600">{plan.description}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {plan.description}
+                </p>
               </div>
 
               <div className="mb-4 space-y-3">
                 <div className="flex items-center justify-between rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 p-3">
                   <span className="text-sm font-medium text-gray-700">월 예산</span>
-                  <span className="font-bold text-gray-900">{plan.budget.toLocaleString()}원</span>
+                  <span className="font-bold text-gray-900">
+                    {plan.budget.toLocaleString()}원
+                  </span>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 p-3">
                   <span className="text-sm font-medium text-gray-700">목표 저축</span>
-                  <span className="font-bold text-green-700">{plan.savings.toLocaleString()}원</span>
+                  <span className="font-bold text-green-700">
+                    {plan.savings.toLocaleString()}원
+                  </span>
                 </div>
               </div>
 
@@ -177,12 +308,17 @@ export default function Budget() {
                 {plan.categories.map((cat) => {
                   const Icon = cat.icon;
                   return (
-                    <div key={cat.name} className="flex items-center justify-between text-sm">
+                    <div
+                      key={cat.name}
+                      className="flex items-center justify-between text-sm"
+                    >
                       <div className="flex items-center gap-2">
                         <Icon className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-700">{cat.name}</span>
+                        <span className="text-gray-700 dark:text-gray-300">
+                          {cat.name}
+                        </span>
                       </div>
-                      <span className="font-medium text-gray-900">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
                         {cat.amount.toLocaleString()}원
                       </span>
                     </div>
@@ -206,213 +342,210 @@ export default function Budget() {
         </div>
       </div>
 
-      {/* Custom Budget Setting */}
-      <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
-        <h2 className="mb-6 flex items-center gap-2 font-bold text-gray-900">
+      <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+        <h2 className="mb-6 flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100">
           <Target className="h-5 w-5 text-cyan-600" />
           맞춤 예산 설정
         </h2>
 
         <div className="grid gap-8 lg:grid-cols-2">
-          {/* Left: Input Controls */}
           <div className="space-y-6">
             <div>
-              <div className="mb-3 flex items-center justify-between">
-                <Label>월 예산</Label>
-                <span className="font-bold text-gray-900">
-                  {customBudget.monthly.toLocaleString()}원
-                </span>
-              </div>
+              <Label className="text-gray-700 dark:text-gray-200">월 전체 예산</Label>
               <Input
-                type="text"
-                inputMode="numeric"
-                value={customBudget.monthly === 0 ? "" : String(customBudget.monthly)}
-                onChange={(e) => {
-                  const nextValue = Number(e.target.value.replace(/[^0-9]/g, ""));
+                type="number"
+                value={customBudget.monthly}
+                onChange={(e) => updateMonthlyBudget(Number(e.target.value) || 0)}
+                className="mt-2"
+                placeholder="예: 500000"
+              />
+            </div>
+
+            <div>
+              <Label className="text-gray-700 dark:text-gray-200">목표 저축액</Label>
+              <Input
+                type="number"
+                value={customBudget.savings}
+                onChange={(e) =>
                   setCustomBudget({
                     ...customBudget,
-                    monthly: Number.isNaN(nextValue) ? 0 : nextValue,
-                  });
-                }}
-                className="mt-1"
-                placeholder="월 예산을 입력해주세요."
+                    savings: Number(e.target.value) || 0,
+                  })
+                }
+                className="mt-2"
+                placeholder="예: 100000"
               />
             </div>
 
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <Label>저축 목표</Label>
-                <span className="font-bold text-green-700">
-                  {customBudget.savings.toLocaleString()}원
-                </span>
+            <div className="space-y-5">
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                    <Coffee className="h-4 w-4" />
+                    식비
+                  </Label>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {Number(customBudget.food).toLocaleString()}원
+                  </span>
+                </div>
+                <Slider
+                  value={[Number(customBudget.food)]}
+                  onValueChange={(value) => updateCategoryBudget("food", value[0])}
+                  max={getCategorySliderMax("food")}
+                  step={10000}
+                />
               </div>
-              <Slider
-                value={[customBudget.savings]}
-                onValueChange={([value]) => setCustomBudget({ ...customBudget, savings: value })}
-                min={0}
-                max={customBudget.monthly}
-                step={10000}
-                className="mb-2"
-              />
-            </div>
 
-            <div className="h-px bg-gray-200"></div>
-
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <Label className="flex items-center gap-2">
-                  <Coffee className="h-4 w-4" />
-                  식비
-                </Label>
-                <span className="font-bold text-gray-900">
-                  {customBudget.food.toLocaleString()}원
-                </span>
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                    <Car className="h-4 w-4" />
+                    교통비
+                  </Label>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {Number(customBudget.transport).toLocaleString()}원
+                  </span>
+                </div>
+                <Slider
+                  value={[Number(customBudget.transport)]}
+                  onValueChange={(value) => updateCategoryBudget("transport", value[0])}
+                  max={getCategorySliderMax("transport")}
+                  step={10000}
+                />
               </div>
-              <Slider
-                value={[customBudget.food]}
-                onValueChange={([value]) => setCustomBudget({ ...customBudget, food: value })}
-                min={0}
-                max={10000000}
-                step={10000}
-              />
+
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                    <Home className="h-4 w-4" />
+                    생활비
+                  </Label>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {Number(customBudget.living).toLocaleString()}원
+                  </span>
+                </div>
+                <Slider
+                  value={[Number(customBudget.living)]}
+                  onValueChange={(value) => updateCategoryBudget("living", value[0])}
+                  max={getCategorySliderMax("living")}
+                  step={10000}
+                />
+              </div>
+
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                    <Heart className="h-4 w-4" />
+                    여가/취미
+                  </Label>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {Number(customBudget.leisure).toLocaleString()}원
+                  </span>
+                </div>
+                <Slider
+                  value={[Number(customBudget.leisure)]}
+                  onValueChange={(value) => updateCategoryBudget("leisure", value[0])}
+                  max={getCategorySliderMax("leisure")}
+                  step={10000}
+                />
+              </div>
             </div>
 
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <Label className="flex items-center gap-2">
-                  <Car className="h-4 w-4" />
-                  교통비
-                </Label>
-                <span className="font-bold text-gray-900">
-                  {customBudget.transport.toLocaleString()}원
-                </span>
-              </div>
-              <Slider
-                value={[customBudget.transport]}
-                onValueChange={([value]) => setCustomBudget({ ...customBudget, transport: value })}
-                min={0}
-                max={10000000}
-                step={10000}
-              />
-            </div>
-
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <Label className="flex items-center gap-2">
-                  <Home className="h-4 w-4" />
-                  생활비
-                </Label>
-                <span className="font-bold text-gray-900">
-                  {customBudget.living.toLocaleString()}원
-                </span>
-              </div>
-              <Slider
-                value={[customBudget.living]}
-                onValueChange={([value]) => setCustomBudget({ ...customBudget, living: value })}
-                min={0}
-                max={10000000}
-                step={10000}
-              />
-            </div>
-
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <Label className="flex items-center gap-2">
-                  <Heart className="h-4 w-4" />
-                  여가/취미
-                </Label>
-                <span className="font-bold text-gray-900">
-                  {customBudget.leisure.toLocaleString()}원
-                </span>
-              </div>
-              <Slider
-                value={[customBudget.leisure]}
-                onValueChange={([value]) => setCustomBudget({ ...customBudget, leisure: value })}
-                min={0}
-                max={10000000}
-                step={10000}
-              />
-            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              카테고리에 배분 가능한 남은 예산은{" "}
+              <span className="font-semibold text-cyan-600 dark:text-cyan-400">
+                {remainingCategoryBudget.toLocaleString()}원
+              </span>
+              입니다.
+            </p>
 
             <Button
               onClick={handleSaveCustomBudget}
               className="w-full bg-gradient-to-r from-cyan-500 to-blue-500"
             >
-              설정 저장
+              <Wallet className="mr-2 h-4 w-4" />
+              {selectedMonth + 1}월 맞춤 예산 저장
             </Button>
           </div>
 
-          {/* Right: Summary */}
-          <div className="space-y-6">
-            <div className="rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white">
-              <h3 className="mb-4 font-bold">예산 요약</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span>월 예산</span>
-                  <span className="font-bold">{customBudget.monthly.toLocaleString()}원</span>
-                </div>
-                <div className="h-px bg-white/30"></div>
-                <div className="flex items-center justify-between">
-                  <span>총 지출 예정</span>
-                  <span className="font-bold">{totalBudget.toLocaleString()}원</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>저축 목표</span>
-                  <span className="font-bold">{customBudget.savings.toLocaleString()}원</span>
-                </div>
-                <div className="h-px bg-white/30"></div>
-                <div className="flex items-center justify-between text-lg">
-                  <span>합계</span>
-                  <span className="font-bold">{withSavings.toLocaleString()}원</span>
-                </div>
-                {withSavings > customBudget.monthly && (
-                  <div className="mt-3 rounded-lg bg-red-500/20 p-3 text-sm">
-                    ⚠️ 예산이 수입을 {(withSavings - customBudget.monthly).toLocaleString()}원 초과했어요!
-                  </div>
-                )}
-                {withSavings <= customBudget.monthly && (
-                  <div className="mt-3 rounded-lg bg-green-500/20 p-3 text-sm">
-                    ✅ 균형잡힌 예산이에요! 남은 금액: {(customBudget.monthly - withSavings).toLocaleString()}원
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="space-y-4">
+            <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white">
+              <p className="mb-1 text-sm opacity-90">현재 설정한 월 예산</p>
+              <p className="text-3xl font-bold">
+                {Number(customBudget.monthly).toLocaleString()}원
+              </p>
+              <p className="mt-2 text-sm opacity-90">
+                {selectedYear}년 {selectedMonth + 1}월 기준
+              </p>
+            </Card>
 
-            <Card className="p-6">
-              <h3 className="mb-4 font-bold text-gray-900">AI 분석</h3>
-              <div className="space-y-3 text-sm text-gray-700">
-                <div className="flex items-start gap-2">
-                  <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-                  <p>식비 비중이 적정 수준이에요. 건강한 소비 습관이에요!</p>
+            <Card className="border-none bg-white/90 p-6 dark:bg-gray-900/80">
+              <div className="mb-4 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-green-600" />
+                <h3 className="font-bold text-gray-900 dark:text-gray-100">
+                  예산 요약
+                </h3>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600 dark:text-gray-300">카테고리 합계</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                    {totalBudget.toLocaleString()}원
+                  </span>
                 </div>
-                <div className="flex items-start gap-2">
-                  <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                  <p>
-                    저축 비율이{" "}
-                    {customBudget.monthly > 0
-                      ? Math.round((customBudget.savings / customBudget.monthly) * 100)
-                      : 0}
-                    %예요. 목표 달성 가능해요!
-                  </p>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600 dark:text-gray-300">목표 저축액 포함</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                    {withSavings.toLocaleString()}원
+                  </span>
                 </div>
-                <div className="flex items-start gap-2">
-                  <PiggyBank className="mt-0.5 h-4 w-4 shrink-0 text-cyan-600" />
-                  <p>
-                    {customBudget.savings > 0
-                      ? `이 속도면 ${Math.round(10000000 / (customBudget.savings * 12))}년 후 1천만원을 모을 수 있어요!`
-                      : "저축 목표를 입력하면 목표 달성 기간을 계산해드려요!"}
-                  </p>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600 dark:text-gray-300">저장된 월 예산</span>
+                  <span className="font-medium text-cyan-600 dark:text-cyan-400">
+                    {currentBudget.toLocaleString()}원
+                  </span>
                 </div>
+
+                <div className="pt-2">
+                  {Number(customBudget.monthly) > 0 && (
+                    <div className="h-3 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                      <div
+                        className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            Math.round((withSavings / Number(customBudget.monthly)) * 100)
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  카테고리 예산은 월 전체 예산 안에서만 배분되며, 목표 저축액은 별도로 관리됩니다.
+                </p>
               </div>
             </Card>
 
-            <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 p-6">
-              <h4 className="mb-3 font-bold text-gray-900">💡 절약 팁</h4>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li>• 식비는 외식을 줄이면 월 5만원 절약 가능해요</li>
-                <li>• 대중교통 정기권으로 교통비 20% 절감하세요</li>
-                <li>• 구독 서비스를 정리하면 월 3만원 아낄 수 있어요</li>
-              </ul>
+            <Card className="border-none bg-gradient-to-br from-amber-50 to-yellow-50 p-6 text-gray-900">
+              <div className="mb-3 flex items-center gap-2">
+                <PiggyBank className="h-5 w-5 text-amber-600" />
+                <h3 className="font-bold">예산 설정 한마디</h3>
+              </div>
+
+              <p className="text-sm leading-6 text-gray-700">
+                지금 선택한 {selectedMonth + 1}월 예산은{" "}
+                <span className="font-semibold">
+                  {currentBudget.toLocaleString()}원
+                </span>
+                입니다.
+                AI 플랜을 먼저 적용한 뒤, 맞춤 예산에서 세부 카테고리를 다듬으면 더 편리하게
+                관리할 수 있습니다.
+              </p>
             </Card>
           </div>
         </div>

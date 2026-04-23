@@ -1,5 +1,9 @@
 import { apiClient } from "@/shared/api/client";
-import type { ProfileStatus } from "@/domains/profile/model/types";
+import type {
+  ProfileStatus,
+  UpdateUserProfileRequest,
+  UserProfile,
+} from "@/domains/profile/model/types";
 
 export async function getProfileCompletionStatus(): Promise<ProfileStatus> {
   // TODO: 백엔드 -> Supabase 프로필 상태 조회 엔드포인트에 연결
@@ -12,4 +16,16 @@ export async function getProfileCompletionStatus(): Promise<ProfileStatus> {
     email: null,
     nickname: null,
   };
+}
+
+export async function getUserProfile(): Promise<UserProfile> {
+  const { data } = await apiClient.get<UserProfile>("/api/user/profile");
+  return data;
+}
+
+export async function updateUserProfile(
+  payload: UpdateUserProfileRequest,
+): Promise<UserProfile> {
+  const { data } = await apiClient.patch<UserProfile>("/api/user/profile", payload);
+  return data;
 }

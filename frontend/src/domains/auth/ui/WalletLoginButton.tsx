@@ -22,7 +22,9 @@ export function WalletLoginButton({
         disconnecting,
         walletAddress,
         canSignMessage,
+        walletModalVisible,
         openWalletModal,
+        connectWallet,
         deselectWallet,
         loginWithWallet,
         isProcessing,
@@ -34,13 +36,14 @@ export function WalletLoginButton({
     const [loginRequested, setLoginRequested] = useState(false);
     const [openingWalletModal, setOpeningWalletModal] = useState(false);
     const loginInFlightRef = useRef(false);
+    const connectInFlightRef = useRef(false);
 
     const runWalletLogin = useCallback(async () => {
         if (loginInFlightRef.current) return;
 
         if (!canSignMessage) {
-            toast.error('현재 지갑은 signMessage를 지원하지 않습니다.');
             setLoginRequested(false);
+            deselectWallet();
             return;
         }
 
@@ -70,19 +73,81 @@ export function WalletLoginButton({
     }, [openingWalletModal, wallet, disconnecting, openWalletModal]);
 
     useEffect(() => {
-        if (!loginRequested || !connected || !walletAddress || connecting || disconnecting) return;
-        void runWalletLogin();
-    }, [loginRequested, connected, walletAddress, connecting, disconnecting, runWalletLogin]);
-
-    const handleClick = async () => {
-        if (connected) {
-            await runWalletLogin();
+        if (!loginRequested || walletModalVisible || wallet || connected || openingWalletModal) {
             return;
         }
 
+        setLoginRequested(false);
+        toast.error('지갑 선택이 취소되었습니다.');
+    }, [loginRequested, walletModalVisible, wallet, connected, openingWalletModal]);
+
+    useEffect(() => {
+        if (
+            !loginRequested ||
+            !wallet ||
+            connected ||
+            connecting ||
+            disconnecting ||
+            openingWalletModal ||
+            walletModalVisible ||
+            connectInFlightRef.current
+        ) {
+            return;
+        }
+
+        connectInFlightRef.current = true;
+        connectWallet()
+            .catch(() => {
+                setLoginRequested(false);
+            })
+            .finally(() => {
+                connectInFlightRef.current = false;
+            });
+    }, [
+        loginRequested,
+        wallet,
+        connected,
+        connecting,
+        disconnecting,
+        openingWalletModal,
+        walletModalVisible,
+        connectWallet,
+    ]);
+
+    useEffect(() => {
+        if (
+            !loginRequested ||
+            !connected ||
+            !walletAddress ||
+            connecting ||
+            disconnecting ||
+            openingWalletModal ||
+            walletModalVisible
+        ) {
+            return;
+        }
+        void runWalletLogin();
+    }, [
+        loginRequested,
+        connected,
+        walletAddress,
+        connecting,
+        disconnecting,
+        openingWalletModal,
+        walletModalVisible,
+        runWalletLogin,
+    ]);
+
+    const handleClick = async () => {
         setLoginRequested(true);
 
         if (wallet) {
+            setOpeningWalletModal(true);
+            deselectWallet();
+            return;
+        }
+
+        if (connected) {
             setOpeningWalletModal(true);
             deselectWallet();
             return;

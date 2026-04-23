@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useFinance } from "@/shared/providers/FinanceProvider";
+import { useFinance, type Transaction } from "@/shared/providers/FinanceProvider";
 import { listExpenses } from "@/shared/api/expenseApi";
 
 import { Card } from "@/shared/ui/card";
@@ -33,24 +33,184 @@ import {
 } from "lucide-react";
 import styles from "./AnalyticsPage.module.css";
 
-const weeklyData = [
-  { day: "월", amount: 15000 },
-  { day: "화", amount: 8000 },
-  { day: "수", amount: 22000 },
-  { day: "목", amount: 12000 },
-  { day: "금", amount: 35000 },
-  { day: "토", amount: 45000 },
-  { day: "일", amount: 28000 },
-];
+const WEEKLY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
+const MONTHLY_LABELS = Array.from({ length: 12 }, (_, index) => `${index + 1}월`);
 
-const monthlyData = [
-  { month: "1월", amount: 320000 },
-  { month: "2월", amount: 280000 },
-  { month: "3월", amount: 350000 },
-  { month: "4월", amount: 310000 },
-  { month: "5월", amount: 290000 },
-  { month: "6월", amount: 265000 },
-];
+const parseTransactionDate = (dateValue: string) => {
+  const [year, month, day] = dateValue.split("-").map(Number);
+
+  if (year && month && day) {
+    return new Date(year, month - 1, day);
+  }
+
+  const fallbackDate = new Date(dateValue);
+  return Number.isNaN(fallbackDate.getTime()) ? null : fallbackDate;
+};
+
+const getWeekStart = (date: Date) => {
+  const weekStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const mondayOffset = (weekStart.getDay() + 6) % 7;
+  weekStart.setDate(weekStart.getDate() - mondayOffset);
+  weekStart.setHours(0, 0, 0, 0);
+  return weekStart;
+};
+
+const expenseTransactionsOnly = (transactions: Transaction[]) =>
+  transactions.filter((transaction) => (transaction.type ?? "expense") === "expense");
+
+const buildWeeklyData = (transactions: Transaction[], baseDate: Date) => {
+  const weekStart = getWeekStart(baseDate);
+  const dailyTotals = Array(7).fill(0);
+
+  expenseTransactionsOnly(transactions).forEach((transaction) => {
+    const date = parseTransactionDate(transaction.date);
+    if (!date) return;
+
+    const dayIndex = Math.floor((date.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (dayIndex >= 0 && dayIndex < 7) {
+      dailyTotals[dayIndex] += transaction.amount;
+    }
+  });
+
+  return WEEKLY_LABELS.map((day, index) => ({
+    day,
+    amount: dailyTotals[index],
+  }));
+};
+
+const buildMonthlyData = (transactions: Transaction[], year: number) => {
+  const monthlyTotals = Array(12).fill(0);
+
+  expenseTransactionsOnly(transactions).forEach((transaction) => {
+    const date = parseTransactionDate(transaction.date);
+    if (!date || date.getFullYear() !== year) return;
+
+    monthlyTotals[date.getMonth()] += transaction.amount;
+  });
+
+  return MONTHLY_LABELS.map((month, index) => ({
+    month,
+    amount: monthlyTotals[index],
+  }));
+};
+
+const hasExplicitTime = (dateValue: string) => /[T\s]\d{1,2}:\d{2}/.test(dateValue);
+
+const calculatePercent = (amount: number, total: number) =>
+  total > 0 ? Math.round((amount / total) * 100) : 0;
+
+const buildTimePatternData = (transactions: Transaction[]) => {
+  const slots = [
+    { label: "새벽 (00-06시)", amount: 0 },
+    { label: "오전 (06-12시)", amount: 0 },
+    { label: "오후 (12-18시)", amount: 0 },
+    { label: "저녁 (18-24시)", amount: 0 },
+  ];
+
+  transactions.forEach((transaction) => {
+    if (!hasExplicitTime(transaction.date)) return;
+
+    const date = parseTransactionDate(transaction.date);
+    if (!date) return;
+
+    const hour = date.getHours();
+    const slotIndex = hour < 6 ? 0 : hour < 12 ? 1 : hour < 18 ? 2 : 3;
+    slots[slotIndex].amount += transaction.amount;
+  });
+
+  const total = slots.reduce((sum, slot) => sum + slot.amount, 0);
+
+  return slots.map((slot) => ({
+    ...slot,
+    percent: calculatePercent(slot.amount, total),
+  }));
+};
+
+const buildWeekdayPatternData = (transactions: Transaction[]) => {
+  const totals = transactions.reduce(
+    (result, transaction) => {
+      const date = parseTransactionDate(transaction.date);
+      if (!date) return result;
+
+      const day = date.getDay();
+      const key = day === 0 || day === 6 ? "weekend" : "weekday";
+      result[key] += transaction.amount;
+      return result;
+    },
+    { weekday: 0, weekend: 0 }
+  );
+
+  if (totals.weekday === 0 && totals.weekend === 0) {
+    return {
+      ...totals,
+      description: "이번 달 소비 데이터가 없어요",
+    };
+  }
+
+  if (totals.weekday === totals.weekend) {
+    return {
+      ...totals,
+      description: "평일과 주말 소비가 같아요",
+    };
+  }
+
+  if (totals.weekday === 0) {
+    return {
+      ...totals,
+      description: "이번 달 주말 소비만 기록됐어요",
+    };
+  }
+
+  if (totals.weekend === 0) {
+    return {
+      ...totals,
+      description: "이번 달 평일 소비만 기록됐어요",
+    };
+  }
+
+  const [largerLabel, smallerAmount, largerAmount] =
+    totals.weekend > totals.weekday
+      ? ["주말", totals.weekday, totals.weekend]
+      : ["평일", totals.weekend, totals.weekday];
+  const increaseRate = Math.round(((largerAmount - smallerAmount) / smallerAmount) * 100);
+
+  return {
+    ...totals,
+    description: `${largerLabel} 소비가 ${increaseRate}% 더 많아요`,
+  };
+};
+
+const getPaymentMethod = (transaction: Transaction) => {
+  const patternTransaction = transaction as Transaction & {
+    paymentMethod?: string;
+    payment?: string;
+    method?: string;
+  };
+
+  return patternTransaction.paymentMethod ?? patternTransaction.payment ?? patternTransaction.method;
+};
+
+const buildPaymentPatternData = (transactions: Transaction[]) => {
+  const totals = new Map<string, number>();
+
+  transactions.forEach((transaction) => {
+    const method = getPaymentMethod(transaction);
+    if (!method) return;
+
+    totals.set(method, (totals.get(method) ?? 0) + transaction.amount);
+  });
+
+  const total = Array.from(totals.values()).reduce((sum, amount) => sum + amount, 0);
+
+  return Array.from(totals.entries())
+    .map(([method, amount]) => ({
+      method,
+      amount,
+      percent: calculatePercent(amount, total),
+    }))
+    .sort((a, b) => b.amount - a.amount);
+};
 
 const categoryData = [
   {
@@ -128,19 +288,28 @@ export default function Analytics() {
     };
   }, [transactions.length]);
 
-  const thisMonthTransactions = transactions.filter((t: any) => {
-    const date = new Date(t.date);
+  const weeklyData = buildWeeklyData(transactions, now);
+  const monthlyData = buildMonthlyData(transactions, now.getFullYear());
+
+  const thisMonthTransactions = expenseTransactionsOnly(transactions).filter((transaction) => {
+    const date = parseTransactionDate(transaction.date);
+    if (!date) return false;
+
     return (
-      (t.type ?? "expense") === "expense" &&
       date.getFullYear() === now.getFullYear() &&
       date.getMonth() === now.getMonth()
     );
   });
 
   const totalExpense = thisMonthTransactions.reduce(
-    (sum: number, t: any) => sum + t.amount,
+    (sum, transaction) => sum + transaction.amount,
     0
   );
+  const timePatternData = buildTimePatternData(thisMonthTransactions);
+  const timePatternTotal = timePatternData.reduce((sum, slot) => sum + slot.amount, 0);
+  const weekdayPatternData = buildWeekdayPatternData(thisMonthTransactions);
+  const paymentPatternData = buildPaymentPatternData(thisMonthTransactions);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -373,33 +542,26 @@ export default function Analytics() {
           <div>
             <h4 className="mb-3 font-bold text-gray-900">시간대별 소비</h4>
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">오전 (06-12시)</span>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
-                    <div className="h-full w-[30%] bg-cyan-500"></div>
+              {timePatternTotal > 0 ? (
+                timePatternData.map((slot) => (
+                  <div key={slot.label} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">{slot.label}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
+                        <div
+                          className="h-full bg-cyan-500"
+                          style={{ width: `${slot.percent}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">{slot.percent}%</span>
+                    </div>
                   </div>
-                  <span className="text-sm font-bold text-gray-900">30%</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">오후 (12-18시)</span>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
-                    <div className="h-full w-[50%] bg-cyan-500"></div>
-                  </div>
-                  <span className="text-sm font-bold text-gray-900">50%</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">저녁 (18-24시)</span>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
-                    <div className="h-full w-[20%] bg-cyan-500"></div>
-                  </div>
-                  <span className="text-sm font-bold text-gray-900">20%</span>
-                </div>
-              </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500">
+                  시간 정보가 입력된 소비가 없어요
+                </p>
+              )}
             </div>
           </div>
 
@@ -408,31 +570,31 @@ export default function Analytics() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">평일</span>
-                <Badge>65,000원</Badge>
+                <Badge>{weekdayPatternData.weekday.toLocaleString()}원</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">주말</span>
-                <Badge variant="secondary">100,000원</Badge>
+                <Badge variant="secondary">{weekdayPatternData.weekend.toLocaleString()}원</Badge>
               </div>
-              <p className="text-sm text-gray-600">주말 소비가 54% 더 많아요</p>
+              <p className="text-sm text-gray-600">{weekdayPatternData.description}</p>
             </div>
           </div>
 
           <div>
             <h4 className="mb-3 font-bold text-gray-900">결제 방법</h4>
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">카드</span>
-                <span className="text-sm font-bold text-gray-900">75%</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">현금</span>
-                <span className="text-sm font-bold text-gray-900">20%</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">기타</span>
-                <span className="text-sm font-bold text-gray-900">5%</span>
-              </div>
+              {paymentPatternData.length > 0 ? (
+                paymentPatternData.map((payment) => (
+                  <div key={payment.method} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">{payment.method}</span>
+                    <span className="text-sm font-bold text-gray-900">{payment.percent}%</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500">
+                  결제 방법이 입력된 소비가 없어요
+                </p>
+              )}
             </div>
           </div>
         </div>

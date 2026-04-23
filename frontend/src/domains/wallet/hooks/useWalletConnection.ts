@@ -72,7 +72,7 @@ function getErrorMessage(error: unknown): string {
 // 4) 연동 시 사용자 계정과 지갑 주소 매핑 저장
 export function useWalletConnection() {
     const {connection} = useConnection();
-    const {setVisible} = useWalletModal();
+    const {setVisible, visible: walletModalVisible} = useWalletModal();
 
     const {
         wallet,
@@ -303,7 +303,11 @@ export function useWalletConnection() {
                 message: response.message,
             };
         } catch (error) {
-            const message = getErrorMessage(error);
+            const rawMessage = getErrorMessage(error);
+            const message =
+                rawMessage === '취소했어요.' || rawMessage === '지갑 창이 닫혔어요.'
+                    ? '지갑 연결 해제를 취소했습니다.'
+                    : rawMessage;
             setErrorMessage(message);
 
             return {
@@ -328,6 +332,7 @@ export function useWalletConnection() {
         connected,
         connecting,
         disconnecting,
+        walletModalVisible,
 
         // 기능 지원 여부
         canSignMessage: typeof signMessage === 'function',

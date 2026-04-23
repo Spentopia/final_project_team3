@@ -21,6 +21,7 @@ import {
   Users,
   Gamepad2,
   Zap,
+  ChevronDown,
 } from "lucide-react";
 
 const menuItems = [
@@ -30,7 +31,11 @@ const menuItems = [
   { path: "/marketplace", icon: Store, label: "NFT 마켓" },
   { path: "/plaza", icon: Gamepad2, label: "광장" },
   { path: "/community", icon: Users, label: "커뮤니티" },
-  { path: "/profile", icon: User, label: "마이페이지" },
+];
+
+const profileSubItems = [
+  { path: "/profile", label: "내 프로필" },
+  { path: "/profile/items", label: "내 아바타 아이템" },
 ];
 
 type SidebarProps = {
@@ -42,6 +47,10 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
   const location = useLocation();
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(() =>
+    location.pathname.startsWith("/profile"),
+  );
+  const isProfileSectionActive = location.pathname.startsWith("/profile");
 
   const handleLogout = async () => {
     try {
@@ -92,6 +101,51 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
             </Link>
           );
         })}
+
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => {
+              setIsProfileMenuOpen((prev) => !prev);
+              if (!isProfileSectionActive) {
+                navigate("/profile");
+              }
+            }}
+            className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-all ${
+              isProfileSectionActive
+                ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-card before:absolute before:left-1.5 before:top-1/2 before:h-6 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-luxury-gold"
+                : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+            }`}
+          >
+            <User className="h-5 w-5" />
+            <span className="flex-1 font-medium">마이페이지</span>
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${isProfileMenuOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {isProfileMenuOpen && (
+            <div className="ml-4 space-y-1 border-l border-sidebar-border/80 pl-3">
+              {profileSubItems.map((item) => {
+                const isActive = location.pathname === item.path;
+
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
+                      isActive
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </nav>
 
       <div className="shrink-0 border-t border-sidebar-border p-4">
