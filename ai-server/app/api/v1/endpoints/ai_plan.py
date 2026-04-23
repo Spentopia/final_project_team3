@@ -7,6 +7,6 @@ router = APIRouter()
 async def create_ai_plans(data: dict):
     budget = data.get("budget", 500000)
 
-    plans = await generate_ai_plans(budget)
+    result = await generate_ai_plans(budget)
 
-    return {"plans": plans}
+    return result

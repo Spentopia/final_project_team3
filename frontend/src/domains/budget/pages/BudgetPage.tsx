@@ -159,13 +159,16 @@ export default function BudgetPage() {
       <div>
         <p className="font-bold">{plan.name} 적용 완료! 🎉</p>
         <p className="text-sm">
-          {selectedMonth + 1}월 예산으로 {plan.budget.toLocaleString()}원이 저장되었습니다
+          {selectedMonth + 1}월 예산으로 {Number(plan.budget || 0).toLocaleString()}원이 저장되었습니다
         </p>
       </div>
     );
   };
 
+  const [loading, setLoading] = useState(false);
+
   const handleGenerateAiPlans = async () => {
+    setLoading(true);
   try {
     const res = await fetch("http://localhost:8000/api/v1/ai-plans", {
       method: "POST",
@@ -178,21 +181,29 @@ export default function BudgetPage() {
     });
 
     const data = await res.json();
+console.log("AI 응답:", data);
+console.log("🔥 data:", data);
 
-    const mappedPlans = data.plans.map((plan: any, index: number) => ({
-      id: index + 1,
-      name: plan.name,
-      budget: plan.budget,
-      savings: plan.savings,
-      description: plan.description,
-      categories: [
-        { name: "식비", amount: plan.food, icon: Coffee },
-        { name: "교통비", amount: plan.transport, icon: Car },
-        { name: "생활비", amount: plan.living, icon: Home },
-        { name: "여가/취미", amount: plan.leisure, icon: Heart },
-        { name: "저축", amount: plan.savings, icon: PiggyBank },
-      ],
-    }));
+    const plansArray = Array.isArray(data.plans)
+  ? data.plans
+  : data.plans
+  ? [data.plans]
+  : [];
+
+const mappedPlans = plansArray.map((plan: any, index: number) => ({
+  id: index + 1,
+  name: plan.name ?? "플랜",
+  budget: Number(plan.budget ?? 0),
+  savings: Number(plan.savings ?? 0),
+  description: plan.description ?? "",
+  categories: [
+    { name: "식비", amount: Number(plan.food ?? 0), icon: Coffee },
+    { name: "교통비", amount: Number(plan.transport ?? 0), icon: Car },
+    { name: "생활비", amount: Number(plan.living ?? 0), icon: Home },
+    { name: "여가/취미", amount: Number(plan.leisure ?? 0), icon: Heart },
+    { name: "저축", amount: Number(plan.savings ?? 0), icon: PiggyBank },
+  ],
+}));
 
     setAiPlans(mappedPlans);
 
@@ -200,6 +211,8 @@ export default function BudgetPage() {
   } catch (err) {
     console.error(err);
     toast.error("AI 플랜 생성 실패");
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -293,13 +306,9 @@ export default function BudgetPage() {
           </p>
         </div>
 
-        <Button
-  onClick={handleGenerateAiPlans}
-  className="bg-gradient-to-r from-cyan-500 to-blue-500"
->
-          <Sparkles className="mr-2 h-4 w-4" />
-          AI 플랜 생성
-        </Button>
+        <Button onClick={handleGenerateAiPlans} disabled={loading}>
+  {loading ? "AI 생성 중..." : "AI 플랜 생성"}
+</Button>
       </div>
 
       <div>
@@ -336,13 +345,13 @@ export default function BudgetPage() {
                 <div className="flex items-center justify-between rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 p-3">
                   <span className="text-sm font-medium text-gray-700">월 예산</span>
                   <span className="font-bold text-gray-900">
-                    {plan.budget.toLocaleString()}원
+                    {Number(plan.budget || 0).toLocaleString()}원
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 p-3">
                   <span className="text-sm font-medium text-gray-700">목표 저축</span>
                   <span className="font-bold text-green-700">
-                    {plan.savings.toLocaleString()}원
+                    {Number(plan.savings || 0).toLocaleString()}원
                   </span>
                 </div>
               </div>
@@ -362,7 +371,7 @@ export default function BudgetPage() {
                         </span>
                       </div>
                       <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {cat.amount.toLocaleString()}원
+                        {Number(cat.amount || 0).toLocaleString()}원
                       </span>
                     </div>
                   );
