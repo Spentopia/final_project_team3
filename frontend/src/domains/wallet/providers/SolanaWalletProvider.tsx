@@ -1,7 +1,7 @@
 // 앱 전체에서 Solana wallet adapter context를 공급하는 Provider.
 // 프론트는 여기서 "브라우저 지갑 연결 환경"만 준비하고,
 // 실제 로그인/연동 검증은 useWalletConnection -> backend API에서 처리한다.
-import {PropsWithChildren, useMemo} from "react";
+import {PropsWithChildren, useEffect, useMemo} from "react";
 import {getSolanaEndpoint} from "@/domains/wallet/lib/solana";
 import {ConnectionProvider, WalletProvider} from "@solana/wallet-adapter-react";
 import {WalletModalProvider} from "@solana/wallet-adapter-react-ui";
@@ -16,12 +16,12 @@ export function SolanaWalletProvider({children}: PropsWithChildren) {
     // 어댑터가 중복 등록되어 "Connection rejected" 충돌이 발생한다.
     const wallets = useMemo(() => [], []);
 
-    if (typeof window !== "undefined") {
+    useEffect(() => {
         // 연결/연동은 항상 사용자가 모달에서 직접 선택한 지갑으로 시작한다.
         // dev server 재시작이나 새로고침 후 stale adapter가 복원되면 signMessage가 빠질 수 있다.
         window.localStorage.removeItem(walletStorageKey);
         window.localStorage.removeItem("walletName");
-    }
+    }, [walletStorageKey]);
 
     return (
         <ConnectionProvider endpoint={endpoint}>

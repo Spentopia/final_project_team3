@@ -187,43 +187,28 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
   };
 
   const handleUnlinkConfirm = async () => {
-    if (linkedWalletAddress && !isLinkedWalletConnected) {
-      setShowUnlinkDialog(false);
-
-      if (connected && walletAddress && walletAddress !== linkedWalletAddress) {
-        toast.error("계정에 연동된 지갑과 현재 연결된 지갑이 다릅니다. 같은 지갑으로 다시 연결해 주세요.");
-        return;
-      }
-
-      toast.error("연동 해제를 위해 계정에 연동된 지갑을 먼저 연결해 주세요.");
-      return;
-    }
-
-    if (connected && walletAddress && (!linkedWalletAddress || walletAddress === linkedWalletAddress)) {
-      const result = await unlinkWallet();
-      if (result.success) {
-        setLinkedWalletAddress(null);
-        window.dispatchEvent(
-          new CustomEvent("spentopia:wallet-change", {
-            detail: { walletAddress: null },
-          })
-        );
-        try {
-          await disconnectWallet();
-        } catch {
-          // 서버 연동 해제는 성공했으므로 로컬 adapter 선택 상태 정리는 계속 진행한다.
-        } finally {
-          deselectWallet();
-        }
-        toast.success(result.message);
-      } else {
-        toast.error(result.message);
-      }
-      return;
-    }
-
     setShowUnlinkDialog(false);
-    toast.error("연동 해제를 위해 지갑 연결이 필요합니다.");
+
+    const result = await unlinkWallet();
+    if (result.success) {
+      setLinkedWalletAddress(null);
+      window.dispatchEvent(
+        new CustomEvent("spentopia:wallet-change", {
+          detail: { walletAddress: null },
+        })
+      );
+      try {
+        await disconnectWallet();
+      } catch {
+        // 서버 연동 해제는 성공했으므로 로컬 adapter 선택 상태 정리는 계속 진행한다.
+      } finally {
+        deselectWallet();
+      }
+      toast.success(result.message);
+      return;
+    }
+
+    toast.error(result.message);
   };
 
   const isLoading = connecting || disconnecting || isProcessing || linkRequested;
