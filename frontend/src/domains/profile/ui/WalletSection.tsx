@@ -85,7 +85,13 @@ export function WalletSection({
     }, [openingWalletModal, wallet, disconnecting, openWalletModal]);
 
     useEffect(() => {
-        if (!linkRequested || walletModalVisible || wallet || connected || openingWalletModal) {
+        if (
+            !linkRequested ||
+            walletModalVisible ||
+            wallet ||
+            connected ||
+            openingWalletModal
+        ) {
             return;
         }
 
@@ -141,11 +147,6 @@ export function WalletSection({
     const runSignedUnlinkWallet = async () => {
         if (!linkedAddress) {
             setLocalMessage('연동된 지갑이 없습니다.');
-            return;
-        }
-
-        if (!connected || !walletAddress) {
-            setLocalMessage('연동 해제를 위해 계정에 연동된 지갑을 연결해 주세요.');
             return;
         }
 
@@ -248,20 +249,8 @@ export function WalletSection({
             return;
         }
 
-        if (connected && walletAddress) {
-            if (walletAddress !== linkedAddress) {
-                setShowUnlinkDialog(false);
-                setLocalMessage('계정에 연동된 지갑과 현재 연결된 지갑이 다릅니다. 같은 지갑으로 다시 연결해 주세요.');
-                return;
-            }
-
-            setShowUnlinkDialog(false);
-            await runSignedUnlinkWallet();
-            return;
-        }
-
         setShowUnlinkDialog(false);
-        setLocalMessage('연동 해제를 위해 계정에 연동된 지갑을 먼저 연결해 주세요.');
+        await runSignedUnlinkWallet();
     };
 
     const browserWalletStatus = connected && walletAddress
@@ -293,7 +282,7 @@ export function WalletSection({
                             <p className="text-xs text-gray-600 dark:text-gray-400">
                                 {isLinkedWalletConnected
                                     ? "브라우저 지갑도 연결되어 있어요"
-                                    : "연동 해제는 같은 지갑 연결 후 서명이 필요합니다"}
+                                    : "연동 해제는 지갑 서명이 필요합니다"}
                             </p>
                         </div>
 

@@ -22,7 +22,9 @@ export function WalletLoginButton({
         disconnecting,
         walletAddress,
         canSignMessage,
+        walletModalVisible,
         openWalletModal,
+        connectWallet,
         deselectWallet,
         loginWithWallet,
         isProcessing,
@@ -34,6 +36,7 @@ export function WalletLoginButton({
     const [loginRequested, setLoginRequested] = useState(false);
     const [openingWalletModal, setOpeningWalletModal] = useState(false);
     const loginInFlightRef = useRef(false);
+    const connectInFlightRef = useRef(false);
 
     const runWalletLogin = useCallback(async () => {
         if (loginInFlightRef.current) return;
@@ -68,6 +71,48 @@ export function WalletLoginButton({
         setOpeningWalletModal(false);
         openWalletModal();
     }, [openingWalletModal, wallet, disconnecting, openWalletModal]);
+
+    useEffect(() => {
+        if (!loginRequested || walletModalVisible || wallet || connected || openingWalletModal) {
+            return;
+        }
+
+        setLoginRequested(false);
+        toast.error('지갑 선택이 취소되었습니다.');
+    }, [loginRequested, walletModalVisible, wallet, connected, openingWalletModal]);
+
+    useEffect(() => {
+        if (
+            !loginRequested ||
+            !wallet ||
+            connected ||
+            connecting ||
+            disconnecting ||
+            openingWalletModal ||
+            walletModalVisible ||
+            connectInFlightRef.current
+        ) {
+            return;
+        }
+
+        connectInFlightRef.current = true;
+        connectWallet()
+            .catch(() => {
+                setLoginRequested(false);
+            })
+            .finally(() => {
+                connectInFlightRef.current = false;
+            });
+    }, [
+        loginRequested,
+        wallet,
+        connected,
+        connecting,
+        disconnecting,
+        openingWalletModal,
+        walletModalVisible,
+        connectWallet,
+    ]);
 
     useEffect(() => {
         if (!loginRequested || !connected || !walletAddress || connecting || disconnecting) return;
