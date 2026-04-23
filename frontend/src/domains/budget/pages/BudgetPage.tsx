@@ -20,7 +20,37 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const [aiPlans, setAiPlans] = useState([
+
+
+const STORAGE_KEY = "customBudget";
+const SELECTED_PLAN_KEY = "selectedPlan";
+
+type CustomBudget = {
+  monthly: number;
+  savings: number;
+  food: number;
+  transport: number;
+  living: number;
+  leisure: number;
+};
+
+type BudgetCategoryKey = "food" | "transport" | "living" | "leisure";
+
+const BUDGET_CATEGORY_KEYS: BudgetCategoryKey[] = ["food", "transport", "living", "leisure"];
+
+const createEmptyBudget = (): CustomBudget => ({
+  monthly: 0,
+  savings: 0,
+  food: 0,
+  transport: 0,
+  living: 0,
+  leisure: 0,
+});
+
+export default function BudgetPage() {
+  const { budgets, setMonthlyBudget } = useFinance();
+
+  const [aiPlans, setAiPlans] = useState([
   {
     id: 1,
     name: "월 50만원 생활 플랜",
@@ -64,34 +94,6 @@ const [aiPlans, setAiPlans] = useState([
     ],
   },
 ]);
-
-const STORAGE_KEY = "customBudget";
-const SELECTED_PLAN_KEY = "selectedPlan";
-
-type CustomBudget = {
-  monthly: number;
-  savings: number;
-  food: number;
-  transport: number;
-  living: number;
-  leisure: number;
-};
-
-type BudgetCategoryKey = "food" | "transport" | "living" | "leisure";
-
-const BUDGET_CATEGORY_KEYS: BudgetCategoryKey[] = ["food", "transport", "living", "leisure"];
-
-const createEmptyBudget = (): CustomBudget => ({
-  monthly: 0,
-  savings: 0,
-  food: 0,
-  transport: 0,
-  living: 0,
-  leisure: 0,
-});
-
-export default function BudgetPage() {
-  const { budgets, setMonthlyBudget } = useFinance();
 
   const [customBudget, setCustomBudget] = useState<CustomBudget>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
