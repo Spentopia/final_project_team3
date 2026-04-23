@@ -42,8 +42,8 @@ export function WalletLoginButton({
         if (loginInFlightRef.current) return;
 
         if (!canSignMessage) {
-            toast.error('현재 지갑은 signMessage를 지원하지 않습니다.');
             setLoginRequested(false);
+            deselectWallet();
             return;
         }
 
@@ -115,19 +115,39 @@ export function WalletLoginButton({
     ]);
 
     useEffect(() => {
-        if (!loginRequested || !connected || !walletAddress || connecting || disconnecting) return;
-        void runWalletLogin();
-    }, [loginRequested, connected, walletAddress, connecting, disconnecting, runWalletLogin]);
-
-    const handleClick = async () => {
-        if (connected) {
-            await runWalletLogin();
+        if (
+            !loginRequested ||
+            !connected ||
+            !walletAddress ||
+            connecting ||
+            disconnecting ||
+            openingWalletModal ||
+            walletModalVisible
+        ) {
             return;
         }
+        void runWalletLogin();
+    }, [
+        loginRequested,
+        connected,
+        walletAddress,
+        connecting,
+        disconnecting,
+        openingWalletModal,
+        walletModalVisible,
+        runWalletLogin,
+    ]);
 
+    const handleClick = async () => {
         setLoginRequested(true);
 
         if (wallet) {
+            setOpeningWalletModal(true);
+            deselectWallet();
+            return;
+        }
+
+        if (connected) {
             setOpeningWalletModal(true);
             deselectWallet();
             return;
