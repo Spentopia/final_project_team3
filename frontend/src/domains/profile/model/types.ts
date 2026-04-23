@@ -9,6 +9,7 @@ export interface UserProfile {
   email: string | null;
   nickname: string | null;
   phone: string | null;
+  introduction: string | null;
   profile_image: string | null;
   login_provider: string | null;
   wallet_address: string | null;
@@ -21,5 +22,6 @@ export interface UserProfile {
 export interface UpdateUserProfileRequest {
   nickname?: string;
   phone?: string;
+  introduction?: string | null;
   profile_image?: string;
 }

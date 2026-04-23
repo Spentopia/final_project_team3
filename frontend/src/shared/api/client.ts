@@ -38,6 +38,15 @@
     _retry?: boolean;
   };
 
+  const NO_REFRESH_PATHS = [
+    "/auth/exchange",
+    "/auth/app/exchange",
+    "/auth/refresh",
+    "/auth/app/refresh",
+    "/auth/logout",
+    "/auth/app/logout",
+  ];
+
   // ── 전역 refresh 상태 관리 ────────────────────────────────────
   //
   // isRefreshing: 현재 refresh 요청이 진행 중인지 여부
@@ -94,10 +103,12 @@
         return Promise.reject(error);
       }
 
-      // refresh 요청 자체가 401로 실패한 경우 → 재귀 방지
-      // 이 경우는 refresh token도 만료된 것이므로 로그아웃 처리
-      if (originalRequest.url?.includes("/auth/refresh")) {
-        authStorage.clear();
+      // 인증 진입/종료 엔드포인트는 자동 refresh 대상이 아님.
+      // 여기서 401이면 "기존 access 만료"가 아니라 현재 인증 시도 자체의 실패로 본다.
+      if (NO_REFRESH_PATHS.some((path) => originalRequest.url?.includes(path))) {
+        if (originalRequest.url?.includes("/auth/refresh")) {
+          authStorage.clear();
+        }
         return Promise.reject(error);
       }
 

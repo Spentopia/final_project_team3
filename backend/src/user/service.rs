@@ -18,6 +18,91 @@ use crate::filter;
 // ── 프로필 조회 ───────────────────────────────────────────────
 
 pub async fn get_profile(state: &AppState, user_id: Uuid) -> Result<UserResponse> {
+    let user = get_user_by_id(state, user_id).await?;
+    Ok(to_response(user))
+}
+
+// ── 프로필 수정 ───────────────────────────────────────────────
+
+pub async fn update_profile(
+    state: &AppState,
+    user_id: Uuid,
+    req: UpdateProfileRequest,
+) -> Result<UserResponse> {
+    let current_user = get_user_by_id(state, user_id).await?;
+
+    // 닉네임 검증
+    if let Some(ref nickname) = req.nickname {
+        filter::validate_nickname(nickname)
+            .map_err(|msg| anyhow!(msg))?;
+    }
+
+    if let Some(Some(ref introduction)) = req.introduction {
+        if !filter::check(introduction) {
+            return Err(anyhow!("한 줄 소개에 사용할 수 없는 표현이 포함되어 있습니다."));
+        }
+    }
+
+    // 이메일 변경은 프론트에서 supabase.auth.updateUser로 직접 처리
+    // public.users PATCH
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    #[derive(Serialize)]
+    struct PatchPayload {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        nickname: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        phone: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        introduction: Option<Option<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        profile_image: Option<String>,
+        profile_completed: bool,
+    }
+
+    let final_nickname = req.nickname.clone().or(current_user.nickname);
+    let final_phone = req.phone.clone().or(current_user.phone);
+    let profile_completed = final_nickname.is_some() && final_phone.is_some();
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=representation")
+        .json(&PatchPayload {
+            nickname: req.nickname,
+            phone: req.phone,
+            introduction: req.introduction,
+            profile_image: req.profile_image,
+            profile_completed,
+        })
+        .send()
+        .await
+        .context("users PATCH 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("users PATCH 실패: {}", body));
+    }
+
+    let updated: Vec<User> = res.json().await.context("users PATCH 역직렬화 실패")?;
+    let user = updated
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("수정된 유저 정보를 찾을 수 없음"))?;
+
+    Ok(to_response(user))
+}
+
+async fn get_user_by_id(state: &AppState, user_id: Uuid) -> Result<User> {
     let url = format!(
         "{}/rest/v1/users?id=eq.{}&select=*&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
@@ -42,82 +127,10 @@ pub async fn get_profile(state: &AppState, user_id: Uuid) -> Result<UserResponse
     }
 
     let users: Vec<User> = res.json().await.context("users 역직렬화 실패")?;
-    let user = users
+    users
         .into_iter()
         .next()
-        .ok_or_else(|| anyhow!("유저를 찾을 수 없음: {}", user_id))?;
-
-    Ok(to_response(user))
-}
-
-// ── 프로필 수정 ───────────────────────────────────────────────
-// nickname이 포함된 요청이면 validate_nickname() 먼저 통과해야 함
-// 검증 실패 시 Err 반환 → handler에서 400으로 응답
-
-pub async fn update_profile(
-    state: &AppState,
-    user_id: Uuid,
-    req: UpdateProfileRequest,
-) -> Result<UserResponse> {
-
-    // 닉네임 검증 (Some일 때만 — 변경 요청이 있을 때만 검사)
-    // validate_nickname: 앞뒤공백 → 길이(2~8자) → 금칙어 순서로 검사
-    if let Some(ref nickname) = req.nickname {
-        filter::validate_nickname(nickname)
-            .map_err(|msg| anyhow!(msg))?;
-    }
-
-    let url = format!(
-        "{}/rest/v1/users?id=eq.{}",
-        state.config.supabase_url.trim_end_matches('/'),
-        user_id,
-    );
-
-    // nickname + phone 모두 있으면 profile_completed = true
-    #[derive(Serialize)]
-    struct PatchPayload {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        nickname: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        phone: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        profile_image: Option<String>,
-        profile_completed: bool,
-    }
-
-    let profile_completed = req.nickname.is_some() && req.phone.is_some();
-
-    let res = state
-        .http_client
-        .patch(&url)
-        .header(
-            "Authorization",
-            format!("Bearer {}", state.config.supabase_secret_key),
-        )
-        .header("apikey", &state.config.supabase_secret_key)
-        .header("Prefer", "return=representation")
-        .json(&PatchPayload {
-            nickname: req.nickname,
-            phone: req.phone,
-            profile_image: req.profile_image,
-            profile_completed,
-        })
-        .send()
-        .await
-        .context("users PATCH 요청 실패")?;
-
-    if !res.status().is_success() {
-        let body = res.text().await.unwrap_or_default();
-        return Err(anyhow!("users PATCH 실패: {}", body));
-    }
-
-    let updated: Vec<User> = res.json().await.context("users PATCH 역직렬화 실패")?;
-    let user = updated
-        .into_iter()
-        .next()
-        .ok_or_else(|| anyhow!("수정된 유저 정보를 찾을 수 없음"))?;
-
-    Ok(to_response(user))
+        .ok_or_else(|| anyhow!("유저를 찾을 수 없음: {}", user_id))
 }
 
 // ── 알림 설정 조회 ─────────────────────────────────────────────
@@ -214,12 +227,133 @@ pub async fn update_settings(
     })
 }
 
+// ── 비밀번호 변경 ──────────────────────────────────────────────
+
+pub async fn change_password(
+    state: &AppState,
+    user_id: Uuid,
+    current_password: &str,
+    new_password: &str,
+) -> Result<()> {
+    // 1) 유저 조회 (email, login_provider 확인)
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=email,login_provider&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("유저 조회 요청 실패")?;
+
+    #[derive(serde::Deserialize)]
+    struct UserRow {
+        email: Option<String>,
+        login_provider: Option<String>,
+    }
+
+    let rows: Vec<UserRow> = res.json().await.context("유저 조회 역직렬화 실패")?;
+    let user = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("유저를 찾을 수 없음"))?;
+
+    // 2) 이메일 로그인 유저만 허용
+    if user.login_provider.as_deref() != Some("email") {
+        return Err(anyhow!("소셜 로그인 계정은 비밀번호를 변경할 수 없습니다"));
+    }
+
+    let email = user.email.ok_or_else(|| anyhow!("이메일 정보가 없습니다"))?;
+
+    // 3) 현재 비밀번호 검증 (Supabase 로그인 시도로 확인)
+    let token_url = format!(
+        "{}/auth/v1/token?grant_type=password",
+        state.config.supabase_url.trim_end_matches('/'),
+    );
+
+    let verify_res = state
+        .http_client
+        .post(&token_url)
+        .header("apikey", &state.config.supabase_publishable_key)
+        .json(&serde_json::json!({
+              "email": email,
+              "password": current_password,
+          }))
+        .send()
+        .await
+        .context("현재 비밀번호 검증 요청 실패")?;
+
+    if !verify_res.status().is_success() {
+        return Err(anyhow!("현재 비밀번호가 올바르지 않습니다"));
+    }
+
+    // 4) 새 비밀번호 유효성 검사
+    validate_password(new_password)?;
+
+    // 5) Admin API로 비밀번호 변경
+    let auth_url = format!(
+        "{}/auth/v1/admin/users/{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    let update_res = state
+        .http_client
+        .put(&auth_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .json(&serde_json::json!({ "password": new_password }))
+        .send()
+        .await
+        .context("비밀번호 변경 요청 실패")?;
+
+    if !update_res.status().is_success() {
+        let body = update_res.text().await.unwrap_or_default();
+        return Err(anyhow!("비밀번호 변경 실패: {}", body));
+    }
+
+    Ok(())
+}
+
+fn validate_password(password: &str) -> Result<()> {
+    if password.len() < 8 {
+        return Err(anyhow!("비밀번호는 8자 이상이어야 합니다"));
+    }
+    if !password.chars().any(|c| c.is_uppercase()) {
+        return Err(anyhow!("비밀번호에 영문 대문자를 포함해야 합니다"));
+    }
+    if !password.chars().any(|c| c.is_lowercase()) {
+        return Err(anyhow!("비밀번호에 영문 소문자를 포함해야 합니다"));
+    }
+    if !password.chars().any(|c| c.is_ascii_digit()) {
+        return Err(anyhow!("비밀번호에 숫자를 포함해야 합니다"));
+    }
+    if !password.chars().any(|c| !c.is_alphanumeric()) {
+        return Err(anyhow!("비밀번호에 특수문자를 포함해야 합니다"));
+    }
+    Ok(())
+}
+
+
+
 fn to_response(u: User) -> UserResponse {
     UserResponse {
         id: u.id,
         email: u.email,
         nickname: u.nickname,
         phone: u.phone,
+        introduction: u.introduction,
         profile_image: u.profile_image,
         login_provider: u.login_provider,
         wallet_address: u.wallet_address,
