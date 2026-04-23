@@ -769,6 +769,15 @@ async fn ensure_public_user_exists(
         urlencoding::encode(user_id)
     );
 
+    // email이 Some일 때만 PATCH에 포함 (None이면 기존 이메일 유지)
+    let mut patch_data = serde_json::Map::new();
+    patch_data.insert("is_active".to_string(), json!(true));
+    patch_data.insert("updated_at".to_string(), json!(chrono::Utc::now()));
+    patch_data.insert("google_connected".to_string(), json!(google_connected));
+    if let Some(mail) = email {
+        patch_data.insert("email".to_string(), json!(mail));
+    }
+
     let patch_resp = state
         .http_client
         .patch(&patch_url)
@@ -779,11 +788,7 @@ async fn ensure_public_user_exists(
         )
         .header("Content-Type", "application/json")
         .header("Prefer", "return=minimal")
-        .json(&json!({
-            "is_active": true,
-            "updated_at": chrono::Utc::now(),
-            "google_connected": google_connected
-        }))
+        .json(&patch_data)
         .send()
         .await
         .context("public.users 활성 상태 갱신 실패")?;

@@ -52,3 +52,10 @@ pub struct UpdateSettingsRequest {
     pub alert_streak: Option<bool>,
     pub notification_listener: Option<bool>,
 }
+
+// ── 비밀번호 변경 요청 ─────────────────────────────────────────
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ChangePasswordRequest {
+    pub current_password: String,
+    pub new_password: String,
+}

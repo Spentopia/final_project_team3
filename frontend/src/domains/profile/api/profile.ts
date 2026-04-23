@@ -1,4 +1,5 @@
 import { apiClient } from "@/shared/api/client";
+import { supabase } from "@/shared/lib/supabase";
 import type {
   ProfileStatus,
   UpdateUserProfileRequest,
@@ -28,4 +29,22 @@ export async function updateUserProfile(
 ): Promise<UserProfile> {
   const { data } = await apiClient.patch<UserProfile>("/api/user/profile", payload);
   return data;
+}
+
+export async function changePassword(
+    currentPassword: string,
+    newPassword: string,
+): Promise<void> {
+  await apiClient.patch("/api/user/password", {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
+}
+
+export async function changeEmail(newEmail: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser(
+    { email: newEmail },
+    { emailRedirectTo: `${window.location.origin}/email-confirmed` },
+  );
+  if (error) throw new Error(error.message);
 }

@@ -51,8 +51,6 @@ pub async fn get_profile(state: &AppState, user_id: Uuid) -> Result<UserResponse
 }
 
 // ── 프로필 수정 ───────────────────────────────────────────────
-// nickname이 포함된 요청이면 validate_nickname() 먼저 통과해야 함
-// 검증 실패 시 Err 반환 → handler에서 400으로 응답
 
 pub async fn update_profile(
     state: &AppState,
@@ -60,20 +58,20 @@ pub async fn update_profile(
     req: UpdateProfileRequest,
 ) -> Result<UserResponse> {
 
-    // 닉네임 검증 (Some일 때만 — 변경 요청이 있을 때만 검사)
-    // validate_nickname: 앞뒤공백 → 길이(2~8자) → 금칙어 순서로 검사
+    // 닉네임 검증
     if let Some(ref nickname) = req.nickname {
         filter::validate_nickname(nickname)
             .map_err(|msg| anyhow!(msg))?;
     }
 
+    // 이메일 변경은 프론트에서 supabase.auth.updateUser로 직접 처리
+    // public.users PATCH
     let url = format!(
         "{}/rest/v1/users?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
 
-    // nickname + phone 모두 있으면 profile_completed = true
     #[derive(Serialize)]
     struct PatchPayload {
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -213,6 +211,126 @@ pub async fn update_settings(
         notification_listener: s.notification_listener,
     })
 }
+
+// ── 비밀번호 변경 ──────────────────────────────────────────────
+
+pub async fn change_password(
+    state: &AppState,
+    user_id: Uuid,
+    current_password: &str,
+    new_password: &str,
+) -> Result<()> {
+    // 1) 유저 조회 (email, login_provider 확인)
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=email,login_provider&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("유저 조회 요청 실패")?;
+
+    #[derive(serde::Deserialize)]
+    struct UserRow {
+        email: Option<String>,
+        login_provider: Option<String>,
+    }
+
+    let rows: Vec<UserRow> = res.json().await.context("유저 조회 역직렬화 실패")?;
+    let user = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("유저를 찾을 수 없음"))?;
+
+    // 2) 이메일 로그인 유저만 허용
+    if user.login_provider.as_deref() != Some("email") {
+        return Err(anyhow!("소셜 로그인 계정은 비밀번호를 변경할 수 없습니다"));
+    }
+
+    let email = user.email.ok_or_else(|| anyhow!("이메일 정보가 없습니다"))?;
+
+    // 3) 현재 비밀번호 검증 (Supabase 로그인 시도로 확인)
+    let token_url = format!(
+        "{}/auth/v1/token?grant_type=password",
+        state.config.supabase_url.trim_end_matches('/'),
+    );
+
+    let verify_res = state
+        .http_client
+        .post(&token_url)
+        .header("apikey", &state.config.supabase_publishable_key)
+        .json(&serde_json::json!({
+              "email": email,
+              "password": current_password,
+          }))
+        .send()
+        .await
+        .context("현재 비밀번호 검증 요청 실패")?;
+
+    if !verify_res.status().is_success() {
+        return Err(anyhow!("현재 비밀번호가 올바르지 않습니다"));
+    }
+
+    // 4) 새 비밀번호 유효성 검사
+    validate_password(new_password)?;
+
+    // 5) Admin API로 비밀번호 변경
+    let auth_url = format!(
+        "{}/auth/v1/admin/users/{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    let update_res = state
+        .http_client
+        .put(&auth_url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .json(&serde_json::json!({ "password": new_password }))
+        .send()
+        .await
+        .context("비밀번호 변경 요청 실패")?;
+
+    if !update_res.status().is_success() {
+        let body = update_res.text().await.unwrap_or_default();
+        return Err(anyhow!("비밀번호 변경 실패: {}", body));
+    }
+
+    Ok(())
+}
+
+fn validate_password(password: &str) -> Result<()> {
+    if password.len() < 8 {
+        return Err(anyhow!("비밀번호는 8자 이상이어야 합니다"));
+    }
+    if !password.chars().any(|c| c.is_uppercase()) {
+        return Err(anyhow!("비밀번호에 영문 대문자를 포함해야 합니다"));
+    }
+    if !password.chars().any(|c| c.is_lowercase()) {
+        return Err(anyhow!("비밀번호에 영문 소문자를 포함해야 합니다"));
+    }
+    if !password.chars().any(|c| c.is_ascii_digit()) {
+        return Err(anyhow!("비밀번호에 숫자를 포함해야 합니다"));
+    }
+    if !password.chars().any(|c| !c.is_alphanumeric()) {
+        return Err(anyhow!("비밀번호에 특수문자를 포함해야 합니다"));
+    }
+    Ok(())
+}
+
+
 
 fn to_response(u: User) -> UserResponse {
     UserResponse {
