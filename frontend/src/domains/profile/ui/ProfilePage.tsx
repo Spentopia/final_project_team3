@@ -95,6 +95,23 @@ export default function ProfilePage() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleWalletChange = (event: Event) => {
+      const walletAddress = (event as CustomEvent<{ walletAddress: string | null }>).detail
+        ?.walletAddress;
+
+      setProfile((prev) => ({
+        ...prev,
+        walletAddress: walletAddress ?? "",
+      }));
+    };
+
+    window.addEventListener("spentopia:wallet-change", handleWalletChange);
+    return () => {
+      window.removeEventListener("spentopia:wallet-change", handleWalletChange);
+    };
+  }, []);
+
   const handleSave = async () => {
     try {
       setIsSaving(true);
@@ -404,12 +421,22 @@ export default function ProfilePage() {
               isLoggedIn
               isProfileComplete={isProfileComplete}
               linkedWalletAddress={profile.walletAddress}
-              onWalletLinked={(walletAddress) =>
-                setProfile((prev) => ({ ...prev, walletAddress }))
-              }
-              onWalletUnlinked={() =>
-                setProfile((prev) => ({ ...prev, walletAddress: "" }))
-              }
+              onWalletLinked={(walletAddress) => {
+                setProfile((prev) => ({ ...prev, walletAddress }));
+                window.dispatchEvent(
+                  new CustomEvent("spentopia:wallet-change", {
+                    detail: { walletAddress },
+                  })
+                );
+              }}
+              onWalletUnlinked={() => {
+                setProfile((prev) => ({ ...prev, walletAddress: "" }));
+                window.dispatchEvent(
+                  new CustomEvent("spentopia:wallet-change", {
+                    detail: { walletAddress: null },
+                  })
+                );
+              }}
             />
           </div>
         </div>
