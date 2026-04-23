@@ -9,8 +9,10 @@ import { WalletSection } from "./WalletSection";
 import { useProfileImage } from "@/domains/auth/hooks/useProfileImage";
 import { uploadProfileImage } from "@/domains/auth/api/profileImage";
 import {
+  getUserSettings,
   getUserProfile,
   updateUserProfile,
+  updateUserSettings,
   changePassword,
   changeEmail,
 } from "@/domains/profile/api/profile";
@@ -87,6 +89,7 @@ export default function ProfilePage() {
     alertStreak: true,
     notificationListener: false,
   });
+  const [isSavingNotifications, setIsSavingNotifications] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,7 +97,10 @@ export default function ProfilePage() {
     const loadProfile = async () => {
       try {
         setIsProfileLoading(true);
-        const data = await getUserProfile();
+        const [data, settings] = await Promise.all([
+          getUserProfile(),
+          getUserSettings(),
+        ]);
         if (cancelled) return;
 
         setProfile((prev) => ({
@@ -109,6 +115,12 @@ export default function ProfilePage() {
           imagePath: data.profile_image ?? "",
           walletAddress: data.wallet_address ?? "",
         }));
+        setNotifications({
+          alertBudget: settings.alert_budget ?? true,
+          alertReward: settings.alert_reward ?? true,
+          alertStreak: settings.alert_streak ?? true,
+          notificationListener: settings.notification_listener ?? true,
+        });
 
         originalEmailRef.current = data.email ?? "";
       } catch {
@@ -254,9 +266,34 @@ export default function ProfilePage() {
     }
   };
 
-  const handleNotificationToggle = (key: keyof typeof notifications) => {
-    setNotifications({ ...notifications, [key]: !notifications[key] });
-    toast.success("알림 설정이 변경되었습니다");
+  const handleNotificationToggle = async (key: keyof typeof notifications) => {
+    const nextValue = !notifications[key];
+    const nextNotifications = { ...notifications, [key]: nextValue };
+    setNotifications(nextNotifications);
+
+    try {
+      setIsSavingNotifications(true);
+      const updated = await updateUserSettings({
+        alert_budget: nextNotifications.alertBudget,
+        alert_reward: nextNotifications.alertReward,
+        alert_streak: nextNotifications.alertStreak,
+        notification_listener: nextNotifications.notificationListener,
+      });
+      setNotifications({
+        alertBudget: updated.alert_budget ?? true,
+        alertReward: updated.alert_reward ?? true,
+        alertStreak: updated.alert_streak ?? true,
+        notificationListener: updated.notification_listener ?? true,
+      });
+      toast.success("알림 설정이 변경되었습니다");
+    } catch (error) {
+      setNotifications(notifications);
+      toast.error(
+        error instanceof Error ? error.message : "알림 설정 저장에 실패했습니다"
+      );
+    } finally {
+      setIsSavingNotifications(false);
+    }
   };
 
   const isProfileComplete = Boolean(profile.nickname && profile.phone);
@@ -472,6 +509,7 @@ export default function ProfilePage() {
                   </div>
                   <Switch
                       checked={notifications.alertBudget}
+                      disabled={isSavingNotifications}
                       onCheckedChange={() => handleNotificationToggle("alertBudget")}
                   />
                 </div>
@@ -490,6 +528,7 @@ export default function ProfilePage() {
                   </div>
                   <Switch
                       checked={notifications.alertReward}
+                      disabled={isSavingNotifications}
                       onCheckedChange={() => handleNotificationToggle("alertReward")}
                   />
                 </div>
@@ -508,6 +547,7 @@ export default function ProfilePage() {
                   </div>
                   <Switch
                       checked={notifications.alertStreak}
+                      disabled={isSavingNotifications}
                       onCheckedChange={() => handleNotificationToggle("alertStreak")}
                   />
                 </div>
@@ -526,6 +566,7 @@ export default function ProfilePage() {
                   </div>
                   <Switch
                       checked={notifications.notificationListener}
+                      disabled={isSavingNotifications}
                       onCheckedChange={() =>
                           handleNotificationToggle("notificationListener")
                       }

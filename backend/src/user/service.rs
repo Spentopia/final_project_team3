@@ -186,34 +186,40 @@ pub async fn update_settings(
     req: UpdateSettingsRequest,
 ) -> Result<UserSettingsResponse> {
     let url = format!(
-        "{}/rest/v1/user_settings?user_id=eq.{}",
-        state.config.supabase_url.trim_end_matches('/'),
-        user_id,
+        "{}/rest/v1/user_settings?on_conflict=user_id",
+        state.config.supabase_url.trim_end_matches('/')
     );
 
     let res = state
         .http_client
-        .patch(&url)
+        .post(&url)
         .header(
             "Authorization",
             format!("Bearer {}", state.config.supabase_secret_key),
         )
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Prefer", "return=representation")
-        .json(&req)
+        .header("Content-Type", "application/json")
+        .header("Prefer", "resolution=merge-duplicates,return=representation")
+        .json(&serde_json::json!([{
+            "user_id": user_id,
+            "alert_budget": req.alert_budget,
+            "alert_reward": req.alert_reward,
+            "alert_streak": req.alert_streak,
+            "notification_listener": req.notification_listener,
+        }]))
         .send()
         .await
-        .context("user_settings PATCH 요청 실패")?;
+        .context("user_settings UPSERT 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
-        return Err(anyhow!("user_settings PATCH 실패: {}", body));
+        return Err(anyhow!("user_settings UPSERT 실패: {}", body));
     }
 
     let updated: Vec<UserSettings> = res
         .json()
         .await
-        .context("user_settings PATCH 역직렬화 실패")?;
+        .context("user_settings UPSERT 역직렬화 실패")?;
     let s = updated
         .into_iter()
         .next()

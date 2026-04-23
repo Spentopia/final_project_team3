@@ -25,3 +25,17 @@ export interface UpdateUserProfileRequest {
   introduction?: string | null;
   profile_image?: string;
 }
+
+export interface UserSettings {
+  alert_budget: boolean | null;
+  alert_reward: boolean | null;
+  alert_streak: boolean | null;
+  notification_listener: boolean | null;
+}
+
+export interface UpdateUserSettingsRequest {
+  alert_budget?: boolean;
+  alert_reward?: boolean;
+  alert_streak?: boolean;
+  notification_listener?: boolean;
+}

@@ -2,8 +2,10 @@ import { apiClient } from "@/shared/api/client";
 import { supabase } from "@/shared/lib/supabase";
 import type {
   ProfileStatus,
+  UpdateUserSettingsRequest,
   UpdateUserProfileRequest,
   UserProfile,
+  UserSettings,
 } from "@/domains/profile/model/types";
 
 const extractApiErrorMessage = (error: unknown, fallback: string) => {
@@ -56,6 +58,11 @@ export async function getUserProfile(): Promise<UserProfile> {
   return data;
 }
 
+export async function getUserSettings(): Promise<UserSettings> {
+  const { data } = await apiClient.get<UserSettings>("/api/user/settings");
+  return data;
+}
+
 export async function updateUserProfile(
   payload: UpdateUserProfileRequest,
 ): Promise<UserProfile> {
@@ -64,6 +71,17 @@ export async function updateUserProfile(
     return data;
   } catch (error) {
     throw new Error(extractApiErrorMessage(error, "프로필 저장에 실패했습니다."));
+  }
+}
+
+export async function updateUserSettings(
+  payload: UpdateUserSettingsRequest,
+): Promise<UserSettings> {
+  try {
+    const { data } = await apiClient.patch<UserSettings>("/api/user/settings", payload);
+    return data;
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error, "알림 설정 저장에 실패했습니다."));
   }
 }
 
