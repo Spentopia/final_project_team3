@@ -41,6 +41,7 @@ export default function ProfilePage() {
     createdAt: "",
     sptBalance: 0,
     imagePath: "",
+    walletAddress: "",
   });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const profileImage = useProfileImage({
@@ -74,6 +75,7 @@ export default function ProfilePage() {
           createdAt: data.created_at,
           sptBalance: data.spt_balance ?? 0,
           imagePath: data.profile_image ?? "",
+          walletAddress: data.wallet_address ?? "",
         }));
       } catch (error) {
         if (!cancelled) {
@@ -112,6 +114,7 @@ export default function ProfilePage() {
         createdAt: updated.created_at,
         sptBalance: updated.spt_balance ?? 0,
         imagePath: updated.profile_image ?? "",
+        walletAddress: updated.wallet_address ?? prev.walletAddress,
       }));
       setIsEditing(false);
       toast.success("프로필이 저장되었습니다");
@@ -397,7 +400,17 @@ export default function ProfilePage() {
           </Card>
 
           <div className="h-full">
-            <WalletSection isLoggedIn isProfileComplete={isProfileComplete} />
+            <WalletSection
+              isLoggedIn
+              isProfileComplete={isProfileComplete}
+              linkedWalletAddress={profile.walletAddress}
+              onWalletLinked={(walletAddress) =>
+                setProfile((prev) => ({ ...prev, walletAddress }))
+              }
+              onWalletUnlinked={() =>
+                setProfile((prev) => ({ ...prev, walletAddress: "" }))
+              }
+            />
           </div>
         </div>
       </div>
