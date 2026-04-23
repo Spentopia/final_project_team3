@@ -102,6 +102,7 @@ export default function ProfilePage() {
           nickname: data.nickname ?? "",
           email: data.email ?? "",
           phone: data.phone ?? "",
+          bio: data.introduction ?? "",
           loginProvider: data.login_provider ?? "",
           createdAt: data.created_at,
           sptBalance: data.spt_balance ?? 0,
@@ -193,12 +194,14 @@ export default function ProfilePage() {
       const updated = await updateUserProfile({
         nickname: profile.nickname || undefined,
         phone: profile.phone || undefined,
+        introduction: profile.bio.trim() ? profile.bio.trim() : null,
       });
 
       setProfile((prev) => ({
         ...prev,
         nickname: updated.nickname ?? "",
         phone: updated.phone ?? "",
+        bio: updated.introduction ?? "",
         loginProvider: updated.login_provider ?? "",
         createdAt: updated.created_at,
         sptBalance: updated.spt_balance ?? 0,
@@ -318,6 +321,11 @@ export default function ProfilePage() {
                 <span>{profile.email || "이메일 정보 없음"}</span>
                 {isProfileComplete ? <BadgeCheck className="h-4 w-4" /> : null}
               </div>
+              {profile.bio ? (
+                <p className="mt-3 text-center text-sm leading-6 text-white/90">
+                  {profile.bio}
+                </p>
+              ) : null}
             </div>
 
             <div className="space-y-5">

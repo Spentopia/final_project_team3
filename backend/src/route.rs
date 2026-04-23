@@ -114,7 +114,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/user/profile", patch(user::handler::update_profile))
         .route("/api/user/settings", get(user::handler::get_settings))
         .route("/api/user/settings", patch(user::handler::update_settings))
-        .route("/api/users/password", patch(user::handler::change_password))
+        .route("/api/user/password", patch(user::handler::change_password))
         // ── 소비 내역 ──────────────────────────────────────
         .route(
             "/api/expenses",

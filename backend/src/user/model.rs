@@ -12,6 +12,7 @@ pub struct User {
     pub email: Option<String>,
     pub nickname: Option<String>,
     pub phone: Option<String>,
+    pub introduction: Option<String>,
     pub profile_image: Option<String>,
     pub login_provider: Option<String>,
     pub wallet_address: Option<String>,

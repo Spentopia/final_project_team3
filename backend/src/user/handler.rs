@@ -43,6 +43,11 @@ pub async fn update_profile(
             let msg = e.to_string();
             if msg.contains("소셜 로그인") {
                 (StatusCode::FORBIDDEN, msg).into_response()
+            } else if msg.contains("사용할 수 없는 닉네임")
+                || msg.contains("닉네임")
+                || msg.contains("한 줄 소개에 사용할 수 없는 표현")
+            {
+                (StatusCode::BAD_REQUEST, msg).into_response()
             } else {
                 (StatusCode::INTERNAL_SERVER_ERROR, msg).into_response()
             }

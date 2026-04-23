@@ -18,6 +18,91 @@ use crate::filter;
 // ── 프로필 조회 ───────────────────────────────────────────────
 
 pub async fn get_profile(state: &AppState, user_id: Uuid) -> Result<UserResponse> {
+    let user = get_user_by_id(state, user_id).await?;
+    Ok(to_response(user))
+}
+
+// ── 프로필 수정 ───────────────────────────────────────────────
+
+pub async fn update_profile(
+    state: &AppState,
+    user_id: Uuid,
+    req: UpdateProfileRequest,
+) -> Result<UserResponse> {
+    let current_user = get_user_by_id(state, user_id).await?;
+
+    // 닉네임 검증
+    if let Some(ref nickname) = req.nickname {
+        filter::validate_nickname(nickname)
+            .map_err(|msg| anyhow!(msg))?;
+    }
+
+    if let Some(Some(ref introduction)) = req.introduction {
+        if !filter::check(introduction) {
+            return Err(anyhow!("한 줄 소개에 사용할 수 없는 표현이 포함되어 있습니다."));
+        }
+    }
+
+    // 이메일 변경은 프론트에서 supabase.auth.updateUser로 직접 처리
+    // public.users PATCH
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    #[derive(Serialize)]
+    struct PatchPayload {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        nickname: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        phone: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        introduction: Option<Option<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        profile_image: Option<String>,
+        profile_completed: bool,
+    }
+
+    let final_nickname = req.nickname.clone().or(current_user.nickname);
+    let final_phone = req.phone.clone().or(current_user.phone);
+    let profile_completed = final_nickname.is_some() && final_phone.is_some();
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=representation")
+        .json(&PatchPayload {
+            nickname: req.nickname,
+            phone: req.phone,
+            introduction: req.introduction,
+            profile_image: req.profile_image,
+            profile_completed,
+        })
+        .send()
+        .await
+        .context("users PATCH 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("users PATCH 실패: {}", body));
+    }
+
+    let updated: Vec<User> = res.json().await.context("users PATCH 역직렬화 실패")?;
+    let user = updated
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("수정된 유저 정보를 찾을 수 없음"))?;
+
+    Ok(to_response(user))
+}
+
+async fn get_user_by_id(state: &AppState, user_id: Uuid) -> Result<User> {
     let url = format!(
         "{}/rest/v1/users?id=eq.{}&select=*&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
@@ -42,80 +127,10 @@ pub async fn get_profile(state: &AppState, user_id: Uuid) -> Result<UserResponse
     }
 
     let users: Vec<User> = res.json().await.context("users 역직렬화 실패")?;
-    let user = users
+    users
         .into_iter()
         .next()
-        .ok_or_else(|| anyhow!("유저를 찾을 수 없음: {}", user_id))?;
-
-    Ok(to_response(user))
-}
-
-// ── 프로필 수정 ───────────────────────────────────────────────
-
-pub async fn update_profile(
-    state: &AppState,
-    user_id: Uuid,
-    req: UpdateProfileRequest,
-) -> Result<UserResponse> {
-
-    // 닉네임 검증
-    if let Some(ref nickname) = req.nickname {
-        filter::validate_nickname(nickname)
-            .map_err(|msg| anyhow!(msg))?;
-    }
-
-    // 이메일 변경은 프론트에서 supabase.auth.updateUser로 직접 처리
-    // public.users PATCH
-    let url = format!(
-        "{}/rest/v1/users?id=eq.{}",
-        state.config.supabase_url.trim_end_matches('/'),
-        user_id,
-    );
-
-    #[derive(Serialize)]
-    struct PatchPayload {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        nickname: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        phone: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        profile_image: Option<String>,
-        profile_completed: bool,
-    }
-
-    let profile_completed = req.nickname.is_some() && req.phone.is_some();
-
-    let res = state
-        .http_client
-        .patch(&url)
-        .header(
-            "Authorization",
-            format!("Bearer {}", state.config.supabase_secret_key),
-        )
-        .header("apikey", &state.config.supabase_secret_key)
-        .header("Prefer", "return=representation")
-        .json(&PatchPayload {
-            nickname: req.nickname,
-            phone: req.phone,
-            profile_image: req.profile_image,
-            profile_completed,
-        })
-        .send()
-        .await
-        .context("users PATCH 요청 실패")?;
-
-    if !res.status().is_success() {
-        let body = res.text().await.unwrap_or_default();
-        return Err(anyhow!("users PATCH 실패: {}", body));
-    }
-
-    let updated: Vec<User> = res.json().await.context("users PATCH 역직렬화 실패")?;
-    let user = updated
-        .into_iter()
-        .next()
-        .ok_or_else(|| anyhow!("수정된 유저 정보를 찾을 수 없음"))?;
-
-    Ok(to_response(user))
+        .ok_or_else(|| anyhow!("유저를 찾을 수 없음: {}", user_id))
 }
 
 // ── 알림 설정 조회 ─────────────────────────────────────────────
@@ -338,6 +353,7 @@ fn to_response(u: User) -> UserResponse {
         email: u.email,
         nickname: u.nickname,
         phone: u.phone,
+        introduction: u.introduction,
         profile_image: u.profile_image,
         login_provider: u.login_provider,
         wallet_address: u.wallet_address,
