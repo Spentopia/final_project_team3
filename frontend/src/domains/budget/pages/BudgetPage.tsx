@@ -93,7 +93,7 @@ const createEmptyBudget = (): CustomBudget => ({
 export default function BudgetPage() {
   const { budgets, setMonthlyBudget } = useFinance();
 
-  const [customBudget, setCustomBudget] = useState(() => {
+  const [customBudget, setCustomBudget] = useState<CustomBudget>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) {
       return createEmptyBudget();
