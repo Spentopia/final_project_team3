@@ -24,19 +24,11 @@ function persistWalletTokens(payload: WalletLoginResponse): void {
 // 2) { message: string } JSON 응답
 // 둘 다 수용한다.
 function getErrorMessage(error: unknown): string {
-    const normalizeMessage = (message: string): string => {
-        if (message.includes('이미') && message.includes('지갑')) {
-            return '이미 사용 중인 지갑입니다.';
-        }
-
-        return message;
-    };
-
     if (error instanceof AxiosError) {
         const responseData = error.response?.data;
 
         if (typeof responseData === 'string' && responseData.trim().length > 0) {
-            return normalizeMessage(responseData);
+            return responseData;
         }
 
         if (
@@ -46,7 +38,7 @@ function getErrorMessage(error: unknown): string {
             typeof responseData.message === 'string'
 
         ) {
-            return normalizeMessage(responseData.message);
+            return responseData.message;
         }
     }
 
@@ -59,7 +51,7 @@ function getErrorMessage(error: unknown): string {
         if (lower.includes('plugin closed') || lower.includes('closed')) {
             return '지갑 창이 닫혔어요.';
         }
-        return normalizeMessage(error.message);
+        return error.message;
     }
     return '알 수 없는 오류가 발생했어요';
 }
