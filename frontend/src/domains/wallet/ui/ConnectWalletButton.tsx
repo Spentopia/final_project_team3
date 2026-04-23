@@ -84,9 +84,11 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
   }, []);
 
   const [linkRequested, setLinkRequested] = useState(false);
+  const [unlinkRequested, setUnlinkRequested] = useState(false);
   const [openingWalletModal, setOpeningWalletModal] = useState(false);
   const connectInFlightRef = useRef(false);
   const linkInFlightRef = useRef(false);
+  const unlinkInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!openingWalletModal || wallet || disconnecting) return;
@@ -97,7 +99,7 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
 
   useEffect(() => {
     if (
-      !linkRequested ||
+      !(linkRequested || unlinkRequested) ||
       !wallet ||
       connected ||
       connecting ||
@@ -113,12 +115,14 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
     connectWallet()
       .catch(() => {
         setLinkRequested(false);
+        setUnlinkRequested(false);
       })
       .finally(() => {
         connectInFlightRef.current = false;
       });
   }, [
     linkRequested,
+    unlinkRequested,
     wallet,
     connected,
     connecting,
@@ -130,7 +134,16 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
 
   // 지갑이 연결되면 연동(linkWallet) 시도.
   useEffect(() => {
-    if (!linkRequested || !connected || !walletAddress || connecting || disconnecting || linkInFlightRef.current) return;
+    if (
+      !linkRequested ||
+      !connected ||
+      !walletAddress ||
+      connecting ||
+      disconnecting ||
+      openingWalletModal ||
+      walletModalVisible ||
+      linkInFlightRef.current
+    ) return;
 
     linkInFlightRef.current = true;
     setLinkRequested(false);
@@ -142,11 +155,84 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
             detail: { walletAddress },
           })
         );
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+        void disconnectWallet().catch(() => {
+          // 연결 실패 후 로컬 adapter 정리만 시도한다.
+        }).finally(() => {
+          deselectWallet();
+        });
       }
     }).finally(() => {
       linkInFlightRef.current = false;
     });
-  }, [linkRequested, connected, walletAddress, connecting, disconnecting]);
+  }, [
+    linkRequested,
+    connected,
+    walletAddress,
+    connecting,
+    disconnecting,
+    openingWalletModal,
+    walletModalVisible,
+    disconnectWallet,
+    deselectWallet,
+  ]);
+
+  useEffect(() => {
+    if (
+      !unlinkRequested ||
+      !connected ||
+      !walletAddress ||
+      connecting ||
+      disconnecting ||
+      unlinkInFlightRef.current
+    ) return;
+
+    unlinkInFlightRef.current = true;
+    setUnlinkRequested(false);
+
+    if (linkedWalletAddress && walletAddress !== linkedWalletAddress) {
+      toast.error("계정에 연동된 지갑과 현재 연결된 지갑이 다릅니다.");
+      void disconnectWallet().catch(() => {
+        // 잘못 연결된 adapter 정리만 시도한다.
+      }).finally(() => {
+        deselectWallet();
+        unlinkInFlightRef.current = false;
+      });
+      return;
+    }
+
+    unlinkWallet().then((result) => {
+      if (result.success) {
+        setLinkedWalletAddress(null);
+        window.dispatchEvent(
+          new CustomEvent("spentopia:wallet-change", {
+            detail: { walletAddress: null },
+          })
+        );
+        void disconnectWallet().catch(() => {
+          // 서버 연동 해제는 성공했으므로 로컬 adapter 선택 상태 정리는 계속 진행한다.
+        }).finally(() => {
+          deselectWallet();
+        });
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
+    }).finally(() => {
+      unlinkInFlightRef.current = false;
+    });
+  }, [
+    unlinkRequested,
+    connected,
+    walletAddress,
+    connecting,
+    disconnecting,
+    unlinkWallet,
+    disconnectWallet,
+    deselectWallet,
+  ]);
 
   useEffect(() => {
     if (!linkRequested || wallet || openingWalletModal || connected) return;
@@ -189,29 +275,24 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
   const handleUnlinkConfirm = async () => {
     setShowUnlinkDialog(false);
 
-    const result = await unlinkWallet();
-    if (result.success) {
-      setLinkedWalletAddress(null);
-      window.dispatchEvent(
-        new CustomEvent("spentopia:wallet-change", {
-          detail: { walletAddress: null },
-        })
-      );
-      try {
-        await disconnectWallet();
-      } catch {
-        // 서버 연동 해제는 성공했으므로 로컬 adapter 선택 상태 정리는 계속 진행한다.
-      } finally {
-        deselectWallet();
-      }
-      toast.success(result.message);
+    if (connected && linkedWalletAddress && walletAddress !== linkedWalletAddress) {
+      toast.error("계정에 연동된 지갑과 현재 연결된 지갑이 다릅니다.");
       return;
     }
 
-    toast.error(result.message);
+    setUnlinkRequested(true);
+
+    if (!connected && wallet) {
+      return;
+    }
+
+    if (!connected) {
+      toast.error("지갑 앱에서 연결을 먼저 허용해 주세요.");
+      return;
+    }
   };
 
-  const isLoading = connecting || disconnecting || isProcessing || linkRequested;
+  const isLoading = connecting || disconnecting || isProcessing || linkRequested || unlinkRequested;
 
   return (
     <>

@@ -13,6 +13,13 @@ import type {
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
+const clearWalletAdapterState = () => {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.removeItem("spentopiaWalletName");
+  window.localStorage.removeItem("walletName");
+};
+
 const extractApiErrorMessage = (error: unknown, fallback: string) => {
   if (error && typeof error === "object" && "response" in error) {
     const response = (
@@ -92,6 +99,7 @@ const clearAllAuthState = async () => {
 
   // 앱 access token 메모리 삭제
   authStorage.clear();
+  clearWalletAdapterState();
 
   // Supabase session 정리
   try {
@@ -349,6 +357,7 @@ export const findEmailByPhone = async (
 export const withdrawAccount = async () => {
   await apiClient.post("/auth/withdraw", {}, { withCredentials: true });
   authStorage.clear();
+  clearWalletAdapterState();
   await supabase.auth.signOut();
 };
 
@@ -359,5 +368,6 @@ export const signOut = async () => {
   } finally {
     await supabase.auth.signOut();  // ✅ 여기서만
     authStorage.clear();
+    clearWalletAdapterState();
   }
 };

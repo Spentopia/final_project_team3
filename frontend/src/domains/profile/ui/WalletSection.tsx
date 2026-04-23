@@ -30,6 +30,7 @@ import {
     AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
 import {Link as LinkIcon, Wallet} from "lucide-react";
+import {toast} from "sonner";
 
 interface WalletSectionProps {
     isLoggedIn?: boolean;
@@ -50,6 +51,7 @@ export function WalletSection({
     const [linkedAddress, setLinkedAddress] = useState<string | null>(linkedWalletAddress);
     const [openingWalletModal, setOpeningWalletModal] = useState(false);
     const [linkRequested, setLinkRequested] = useState(false);
+    const [unlinkRequested, setUnlinkRequested] = useState(false);
     const [showUnlinkDialog, setShowUnlinkDialog] = useState(false);
     const {
         wallet,
@@ -86,7 +88,7 @@ export function WalletSection({
 
     useEffect(() => {
         if (
-            !linkRequested ||
+            !(linkRequested || unlinkRequested) ||
             walletModalVisible ||
             wallet ||
             connected ||
@@ -96,12 +98,13 @@ export function WalletSection({
         }
 
         setLinkRequested(false);
+        setUnlinkRequested(false);
         setLocalMessage('지갑 선택이 취소되었습니다.');
-    }, [linkRequested, walletModalVisible, wallet, connected, openingWalletModal]);
+    }, [linkRequested, unlinkRequested, walletModalVisible, wallet, connected, openingWalletModal]);
 
     useEffect(() => {
         if (
-            !linkRequested ||
+            !(linkRequested || unlinkRequested) ||
             !wallet ||
             connected ||
             connecting ||
@@ -117,12 +120,14 @@ export function WalletSection({
         connectWallet()
             .catch(() => {
                 setLinkRequested(false);
+                setUnlinkRequested(false);
             })
             .finally(() => {
                 connectInFlightRef.current = false;
             });
     }, [
         linkRequested,
+        unlinkRequested,
         wallet,
         connected,
         connecting,
@@ -162,6 +167,9 @@ export function WalletSection({
             } finally {
                 deselectWallet();
             }
+            toast.success(result.message);
+        } else {
+            toast.error(result.message);
         }
         setLocalMessage(result.message);
     };
@@ -193,19 +201,80 @@ export function WalletSection({
             setLinkedAddress(walletAddress);
             onWalletLinked?.(walletAddress);
             setIsDialogOpen(false);
+            toast.success(result.message);
+        } else {
+            toast.error(result.message);
+            try {
+                await disconnectWallet();
+            } catch {
+                // 연결 실패 후 로컬 adapter 정리만 시도한다.
+            } finally {
+                deselectWallet();
+            }
         }
         setLocalMessage(result.message);
     }
     ;
 
     useEffect(() => {
-        if (!linkRequested || !connected || !walletAddress || linkedAddress || isProcessing) {
+        if (
+            !linkRequested ||
+            !connected ||
+            !walletAddress ||
+            linkedAddress ||
+            isProcessing ||
+            openingWalletModal ||
+            walletModalVisible
+        ) {
             return;
         }
 
         setLinkRequested(false);
         void handleLinkWallet();
-    }, [linkRequested, connected, walletAddress, linkedAddress, isProcessing]);
+    }, [
+        linkRequested,
+        connected,
+        walletAddress,
+        linkedAddress,
+        isProcessing,
+        openingWalletModal,
+        walletModalVisible,
+    ]);
+
+    useEffect(() => {
+        if (
+            !unlinkRequested ||
+            !connected ||
+            !walletAddress ||
+            isProcessing ||
+            connecting ||
+            disconnecting
+        ) {
+            return;
+        }
+
+        setUnlinkRequested(false);
+
+        if (linkedAddress && walletAddress !== linkedAddress) {
+            setLocalMessage('계정에 연동된 지갑과 현재 연결된 지갑이 다릅니다.');
+            toast.error('계정에 연동된 지갑과 현재 연결된 지갑이 다릅니다.');
+            void disconnectWallet().catch(() => {
+                // 잘못 연결된 adapter 정리만 시도한다.
+            }).finally(() => {
+                deselectWallet();
+            });
+            return;
+        }
+
+        void runSignedUnlinkWallet();
+    }, [
+        unlinkRequested,
+        connected,
+        walletAddress,
+        isProcessing,
+        connecting,
+        disconnecting,
+    ]);
 
     const handleLinkWalletStart = async () => {
         setLocalMessage(null);
@@ -250,7 +319,23 @@ export function WalletSection({
         }
 
         setShowUnlinkDialog(false);
-        await runSignedUnlinkWallet();
+
+        if (connected && linkedAddress && walletAddress !== linkedAddress) {
+            setLocalMessage('계정에 연동된 지갑과 현재 연결된 지갑이 다릅니다.');
+            toast.error('계정에 연동된 지갑과 현재 연결된 지갑이 다릅니다.');
+            return;
+        }
+
+        setUnlinkRequested(true);
+
+        if (!connected && wallet) {
+            return;
+        }
+
+        if (!connected) {
+            setLocalMessage('지갑 앱에서 연결을 먼저 허용해 주세요.');
+            return;
+        }
     };
 
     const browserWalletStatus = connected && walletAddress
@@ -291,11 +376,11 @@ export function WalletSection({
                             onClick={() => {
                                 void handleUnlinkWallet();
                             }}
-                            disabled={isProcessing}
+                            disabled={isProcessing || unlinkRequested}
                             variant="outline"
                             className="w-full border-red-300 text-red-600 hover:bg-red-50"
                         >
-                            {isProcessing && currentProcess === "unlink"
+                            {(unlinkRequested || (isProcessing && currentProcess === "unlink"))
                                 ? "지갑 연결 해제 중..."
                                 : "지갑 연결 해제"}
                         </Button>
@@ -397,11 +482,11 @@ export function WalletSection({
                                 onClick={() => {
                                 void handleUnlinkWallet();
                             }}
-                            disabled={isProcessing}
+                            disabled={isProcessing || unlinkRequested}
                             variant="outline"
                             className="w-full border-red-300 text-red-600 hover:bg-red-50"
                         >
-                            {isProcessing && currentProcess === "unlink"
+                            {(unlinkRequested || (isProcessing && currentProcess === "unlink"))
                                 ? "지갑 연동 해제 중..."
                                 : "지갑 연동 해제"}
                         </Button>
@@ -440,7 +525,7 @@ export function WalletSection({
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel
-                            disabled={isProcessing}
+                            disabled={isProcessing || unlinkRequested}
                             onClick={() => {
                                 setLocalMessage('지갑 연결 해제를 취소했습니다.');
                             }}
@@ -449,7 +534,7 @@ export function WalletSection({
                         </AlertDialogCancel>
                         <Button
                             type="button"
-                            disabled={isProcessing}
+                            disabled={isProcessing || unlinkRequested}
                             onClick={() => {
                                 void handleUnlinkConfirm();
                             }}
