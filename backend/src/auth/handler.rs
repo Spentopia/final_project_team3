@@ -43,7 +43,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::auth::dto::{
-    AppLoginResponse, AppRefreshResponse, CheckEmailRequest, CheckEmailResponse,
+    AppKakaoStartResponse, AppLoginResponse, AppRefreshResponse, CheckEmailRequest, CheckEmailResponse,
     CheckProfileAvailabilityRequest, CheckResetPasswordEmailRequest,
     CheckResetPasswordEmailResponse, CompleteProfileRequest, CompleteProfileResponse,
     ExchangeTokenRequest, FindEmailRequest, FindEmailResponse, HandoffExchangeRequest,
@@ -358,6 +358,9 @@ pub async fn wallet_login_app(
         if msg.contains("nonce") || msg.contains("서명") {
             tracing::warn!("앱 지갑 로그인 실패 (클라이언트): {}", msg);
             (StatusCode::UNAUTHORIZED, msg)
+        } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
+            tracing::warn!("앱 지갑 로그인 차단: {}", msg);
+            (StatusCode::FORBIDDEN, msg)
         } else {
             tracing::error!("앱 지갑 로그인 실패 (서버): {}", msg);
             (StatusCode::INTERNAL_SERVER_ERROR, msg)
@@ -442,8 +445,14 @@ pub async fn exchange_token_app(
     let issued = service::exchange_supabase_token(&state, &body.access_token, "app")
         .await
         .map_err(|e| {
-            tracing::error!("앱 토큰 교환 실패: {}", e);
-            (StatusCode::UNAUTHORIZED, e.to_string())
+            let msg = e.to_string();
+            tracing::error!("앱 토큰 교환 실패: {}", msg);
+
+            if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
+                (StatusCode::FORBIDDEN, msg)
+            } else {
+                (StatusCode::UNAUTHORIZED, msg)
+            }
         })?;
 
     let body = AppLoginResponse {
@@ -1322,6 +1331,43 @@ pub async fn kakao_login(
     Ok((merged_headers, Json(serde_json::to_value(body).unwrap())))
 }
 
+pub async fn kakao_login_app(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<KakaoLoginRequest>,
+) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
+    ensure_app_request(&headers)?;
+
+    if body.code.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "인가 코드가 비어있음".to_string()));
+    }
+
+    if body.state.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "state가 비어있음".to_string()));
+    }
+
+    let issued = service::kakao_login(&state, &body.code, "app")
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            tracing::error!("앱 카카오 로그인 실패: {}", msg);
+
+            if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
+                (StatusCode::FORBIDDEN, msg)
+            } else {
+                (StatusCode::INTERNAL_SERVER_ERROR, msg)
+            }
+        })?;
+
+    let body = AppLoginResponse {
+        access_token: issued.access_token,
+        refresh_token: issued.refresh_token,
+        is_new_user: issued.is_new_user,
+    };
+
+    Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
+}
+
 #[utoipa::path(
     post,
     path = "/auth/kakao/start",
@@ -1345,6 +1391,30 @@ pub async fn kakao_start(
     let cookie_headers = build_kakao_state_cookie(&state, &oauth_state);
 
     Ok((cookie_headers, Json(KakaoStartResponse { auth_url })))
+}
+
+pub async fn kakao_start_app(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<(HeaderMap, Json<AppKakaoStartResponse>), (StatusCode, String)> {
+    ensure_app_request(&headers)?;
+
+    let oauth_state = uuid::Uuid::new_v4().to_string();
+
+    let auth_url = format!(
+        "https://kauth.kakao.com/oauth/authorize?client_id={}&redirect_uri={}&response_type=code&scope=profile_nickname,profile_image&prompt=select_account&state={}",
+        state.config.kakao_rest_api_key,
+        urlencoding::encode(&state.config.kakao_app_redirect_uri),
+        oauth_state
+    );
+
+    Ok((
+        HeaderMap::new(),
+        Json(AppKakaoStartResponse {
+            auth_url,
+            state: oauth_state,
+        }),
+    ))
 }
 
 // ═══════════════════════════════════════════════════════════════

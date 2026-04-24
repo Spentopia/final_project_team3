@@ -51,7 +51,9 @@ pub fn create_router(state: AppState) -> Router {
             post(auth::handler::wallet_login_app),
         )
         .route("/auth/kakao/start", post(auth::handler::kakao_start))
+        .route("/auth/app/kakao/start", post(auth::handler::kakao_start_app))
         .route("/auth/kakao/login", post(auth::handler::kakao_login))
+        .route("/auth/app/kakao/login", post(auth::handler::kakao_login_app))
         // ── handoff 교환 (공개) ─────────────────────────────
         // 유니티 exe가 실행 시 전달받은 handoff token을 여기로 보냄
         // JWT 없이 접근 가능 (아직 유니티에 토큰이 없으므로)
