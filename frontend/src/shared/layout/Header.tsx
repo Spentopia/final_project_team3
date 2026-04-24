@@ -28,14 +28,18 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   // 게임 실행 버튼 클릭 시
   // 1) 백엔드에서 handoff token 발급
-  // 2) 커스텀 프로토콜로 유니티 exe 실행
-  // 3) exe가 handoff token으로 자기 access/refresh를 교환
+  // 2) 커스텀 프로토콜로 유니티 exe 실행 시도
+  // 3) 프론트는 blur / visibilitychange로 실행 시도만 간접 감지
+  // 4) 실제 인증 교환은 exe가 /auth/handoff/exchange에서 수행
   const handleStartGame = async () => {
     try {
       await startUnityGame();
     } catch (error) {
-      console.error("게임 시작 실패:", error);
-      toast.error("게임 시작에 실패했어요.");
+      console.error("게임 실행 실패:", error);
+
+      toast.error(
+          error instanceof Error ? error.message : "게임 실행에 실패했어요."
+      );
     }
   };
 

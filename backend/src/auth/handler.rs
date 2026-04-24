@@ -1667,7 +1667,8 @@ pub async fn create_handoff(
     responses(
         (status = 200, description = "교환 성공 — 유니티용 access+refresh 발급", body = HandoffExchangeResponse),
         (status = 400, description = "handoff_token 비어있음"),
-        (status = 401, description = "유효하지 않은 handoff token")
+        (status = 401, description = "유효하지 않거나 만료된 handoff token"),
+        (status = 500, description = "유니티용 세션 발급 실패")
     )
 )]
 pub async fn exchange_handoff(
@@ -1693,7 +1694,14 @@ pub async fn exchange_handoff(
         .map_err(|e| {
             let msg = e.to_string();
             tracing::warn!("handoff 교환 실패: {}", msg);
-            (StatusCode::UNAUTHORIZED, msg)
+            let status = match msg.as_str() {
+                "유효하지 않은 handoff token입니다."
+                | "handoff token이 만료되었습니다."
+                | "handoff token의 대상 서비스가 일치하지 않습니다." => StatusCode::UNAUTHORIZED,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+
+            (status, msg)
         })?;
 
     // ── 3) 응답 ─────────────────────────────────────────────
