@@ -19,6 +19,10 @@ import {
   Heart,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  getMonthlyExpenseTotal,
+  getMonthlyIncomeTotal,
+} from "@/shared/utils/finance";
 
 
 

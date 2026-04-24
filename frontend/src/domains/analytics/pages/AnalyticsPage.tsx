@@ -32,9 +32,24 @@ import {
   CheckCircle,
 } from "lucide-react";
 import styles from "./AnalyticsPage.module.css";
+import {
+  getMonthlyExpenseTotal,
+  getMonthlyIncomeTotal,
+} from "@/shared/utils/finance";
 
 const WEEKLY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const MONTHLY_LABELS = Array.from({ length: 12 }, (_, index) => `${index + 1}월`);
+
+const CATEGORY_MAP: Record<string, { label: string; icon: string }> = {
+  food: { label: "식비", icon: "🍔" },
+  transport: { label: "교통", icon: "🚌" },
+  shopping: { label: "쇼핑", icon: "🛍️" },
+  entertainment: { label: "여가", icon: "🎮" },
+  health: { label: "의료", icon: "💊" },
+  education: { label: "교육", icon: "📚" },
+  utility: { label: "공과금", icon: "💡" },
+  other: { label: "기타", icon: "📦" },
+};
 
 const parseTransactionDate = (dateValue: string) => {
   const [year, month, day] = dateValue.split("-").map(Number);
@@ -212,47 +227,85 @@ const buildPaymentPatternData = (transactions: Transaction[]) => {
     .sort((a, b) => b.amount - a.amount);
 };
 
-const categoryData = [
-  {
-    name: "식비",
-    value: 45,
-    amount: 135000,
-    color: "#f97316",
-    meterClassName: styles.categoryMeterFood,
-  },
-  {
-    name: "교통",
-    value: 20,
-    amount: 60000,
-    color: "#3b82f6",
-    meterClassName: styles.categoryMeterTransport,
-  },
-  {
-    name: "쇼핑",
-    value: 15,
-    amount: 45000,
-    color: "#ec4899",
-    meterClassName: styles.categoryMeterShopping,
-  },
-  {
-    name: "여가",
-    value: 12,
-    amount: 36000,
-    color: "#a855f7",
-    meterClassName: styles.categoryMeterLeisure,
-  },
-  {
-    name: "기타",
-    value: 8,
-    amount: 24000,
-    color: "#6b7280",
-    meterClassName: styles.categoryMeterEtc,
-  },
-];
-
 export default function Analytics() {
-  const { transactions, replaceTransactions } = useFinance();
+  const { transactions, replaceTransactions, budgets } = useFinance();
   const now = new Date();
+
+  const thisMonthTransactions = expenseTransactionsOnly(transactions).filter((transaction) => {
+  const date = parseTransactionDate(transaction.date);
+  if (!date) return false;
+
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth()
+  );
+});
+
+// 총 지출
+const totalExpense = getMonthlyExpenseTotal(transactions, now);
+
+// ✅ 일 평균
+const days = new Date().getDate();
+const dailyAverage = Math.round(totalExpense / days);
+
+// 🔥 이번 달 / 지난 달 계산 (여기로 이동)
+const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+const currentMonthExpense = getMonthlyExpenseTotal(transactions, now);
+const lastMonthExpense = getMonthlyExpenseTotal(transactions, lastMonth);
+
+// 🔥 총 지출 변화율
+const expenseChangeRate =
+  lastMonthExpense > 0
+    ? Math.round(((currentMonthExpense - lastMonthExpense) / lastMonthExpense) * 100)
+    : 0;
+
+// 🔥 지난달 일 평균
+const lastMonthDays = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+const lastMonthDailyAverage =
+  lastMonthExpense > 0 ? Math.round(lastMonthExpense / lastMonthDays) : 0;
+
+// 🔥 일 평균 변화율
+const dailyChangeRate =
+  lastMonthDailyAverage > 0
+    ? Math.round(((dailyAverage - lastMonthDailyAverage) / lastMonthDailyAverage) * 100)
+    : 0;
+
+// ✅ 2. 예산 사용률
+const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+const currentBudget = budgets[monthKey] ?? 0;
+
+const budgetUsage =
+  currentBudget > 0
+    ? Math.round((totalExpense / currentBudget) * 100)
+    : 0;
+
+// ✅ 3. 카테고리 계산
+const categoryTotals = thisMonthTransactions.reduce((acc, cur) => {
+  const key = cur.category ?? "기타";
+  acc[key] = (acc[key] ?? 0) + cur.amount;
+  return acc;
+}, {} as Record<string, number>);
+
+// 최다 카테고리
+const topCategory = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0];
+
+const topCategoryName =
+  CATEGORY_MAP[topCategory?.[0] ?? ""]?.label ?? "없음";
+const topCategoryPercent = totalExpense
+  ? Math.round((topCategory?.[1] ?? 0) / totalExpense * 100)
+  : 0;
+
+// 파이 차트용 데이터
+const COLORS = ["#a855f7", "#ec4899", "#22c55e", "#f59e0b", "#3b82f6", "#ef4444"];
+
+const categoryData = Object.entries(categoryTotals).map(([name, amount], index) => ({
+  key: name, // 원래 key 따로 보관
+  name: CATEGORY_MAP[name]?.label ?? name, // 🔥 한국어 변환
+  amount,
+  value: totalExpense ? Math.round((amount / totalExpense) * 100) : 0,
+  color: COLORS[index % COLORS.length],
+}));
 
   useEffect(() => {
     if (transactions.length > 0) return;
@@ -288,23 +341,9 @@ export default function Analytics() {
     };
   }, [transactions.length]);
 
-  const weeklyData = buildWeeklyData(transactions, now);
+  const weeklyData = buildWeeklyData(thisMonthTransactions, now);
   const monthlyData = buildMonthlyData(transactions, now.getFullYear());
 
-  const thisMonthTransactions = expenseTransactionsOnly(transactions).filter((transaction) => {
-    const date = parseTransactionDate(transaction.date);
-    if (!date) return false;
-
-    return (
-      date.getFullYear() === now.getFullYear() &&
-      date.getMonth() === now.getMonth()
-    );
-  });
-
-  const totalExpense = thisMonthTransactions.reduce(
-    (sum, transaction) => sum + transaction.amount,
-    0
-  );
   const timePatternData = buildTimePatternData(thisMonthTransactions);
   const timePatternTotal = timePatternData.reduce((sum, slot) => sum + slot.amount, 0);
   const weekdayPatternData = buildWeekdayPatternData(thisMonthTransactions);
@@ -339,22 +378,30 @@ export default function Analytics() {
 </p>
           <div className="flex items-center gap-1 text-sm">
             <TrendingDown className="h-4 w-4" />
-            <span>지난 달 대비 -12%</span>
+            <span>
+  지난 달 대비 {expenseChangeRate > 0 ? "+" : ""}
+  {expenseChangeRate}%
+</span>
           </div>
         </Card>
 
         <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
           <p className="mb-1 text-sm text-gray-600">일 평균 지출</p>
-          <p className="mb-2 text-3xl font-bold text-gray-900">23,571원</p>
-          <div className="flex items-center gap-1 text-sm text-green-600">
-            <TrendingDown className="h-4 w-4" />
-            <span>-5% 절약중</span>
-          </div>
+          <p className="mb-2 text-3xl font-bold text-gray-900">
+  {dailyAverage.toLocaleString()}원
+</p>
+<div className="flex items-center gap-1 text-sm">
+  <TrendingDown className="h-4 w-4" />
+  <span>
+    {dailyChangeRate > 0 ? "+" : ""}
+    {dailyChangeRate}%
+  </span>
+</div>
         </Card>
 
         <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
           <p className="mb-1 text-sm text-gray-600">예산 사용률</p>
-          <p className="mb-2 text-3xl font-bold text-gray-900">60%</p>
+          <p className="mb-2 text-3xl font-bold text-gray-900">{budgetUsage}%</p>
           <div className="h-2 overflow-hidden rounded-full bg-gray-200">
             <div className="h-full w-[60%] bg-gradient-to-r from-cyan-500 to-blue-500"></div>
           </div>
@@ -362,8 +409,8 @@ export default function Analytics() {
 
         <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
           <p className="mb-1 text-sm text-gray-600">최다 소비 카테고리</p>
-          <p className="mb-2 text-3xl font-bold text-gray-900">🍔 식비</p>
-          <p className="text-sm text-gray-600">전체의 45%</p>
+          <p className="mb-2 text-3xl font-bold text-gray-900">{topCategoryName}</p>
+          <p className="text-sm text-gray-600">전체의 {topCategoryPercent}%</p>
         </Card>
       </div>
 
@@ -440,7 +487,9 @@ export default function Analytics() {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, value }) => `${name} ${value}%`}
+                label={({ name, percent }) =>
+  `${CATEGORY_MAP[name]?.label ?? name} ${(percent * 100).toFixed(0)}%`
+}
                 outerRadius={100}
                 fill="#8884d8"
                 dataKey="value"
@@ -449,7 +498,12 @@ export default function Analytics() {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip
+  formatter={(value, name) => [
+    `${value}%`,
+    CATEGORY_MAP[name as string]?.label ?? name,
+  ]}
+/>
             </PieChart>
           </ResponsiveContainer>
         </Card>
@@ -460,14 +514,17 @@ export default function Analytics() {
             {categoryData.map((cat) => (
               <div key={cat.name} className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-gray-900">{cat.name}</span>
+                  <span className="font-medium text-gray-900">
+  {CATEGORY_MAP[cat.key]?.icon} {cat.name}
+</span>
                   <span className="font-bold text-gray-900">{cat.amount.toLocaleString()}원</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
                     <div
-                      className={`${styles.categoryMeter} ${cat.meterClassName}`}
-                    ></div>
+  className="h-full"
+  style={{ backgroundColor: cat.color }}
+></div>
                   </div>
                   <span className="text-sm font-medium text-gray-600">{cat.value}%</span>
                 </div>
