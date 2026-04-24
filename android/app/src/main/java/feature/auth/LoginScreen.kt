@@ -2,10 +2,8 @@ package com.ict.spentopia.feature.auth
 
 import android.net.Uri
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,22 +43,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ict.spentopia.R
 import com.ict.spentopia.feature.auth.connector.PhantomDeepLinkConnector
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
 import com.ict.spentopia.feature.social.SocialLoginButton
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import kotlinx.coroutines.launch
-
-enum class SolanaWalletType(
-    val title: String,
-    val description: String
-) {
-    PHANTOM("PHANTOM", "연결하려면 클릭"),
-    SOLFLARE("SOLFLARE", "연결하려면 클릭"),
-    BACKPACK("BACKPACK", "연결하려면 클릭")
-}
 
 @Composable
 fun LoginScreen(
@@ -472,130 +462,6 @@ private fun SolanaWalletConnectButton(
                     fontWeight = FontWeight.SemiBold
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun SolanaWalletDialog(
-    onDismiss: () -> Unit,
-    onSelectWallet: (SolanaWalletType) -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 24.dp)
-            ) {
-                Text(
-                    text = "Solana 지갑 연결",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF222222)
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                WalletOptionItem(
-                    title = SolanaWalletType.PHANTOM.title,
-                    description = SolanaWalletType.PHANTOM.description,
-                    onClick = { onSelectWallet(SolanaWalletType.PHANTOM) }
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                WalletOptionItem(
-                    title = SolanaWalletType.SOLFLARE.title,
-                    description = SolanaWalletType.SOLFLARE.description,
-                    onClick = { onSelectWallet(SolanaWalletType.SOLFLARE) }
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                WalletOptionItem(
-                    title = SolanaWalletType.BACKPACK.title,
-                    description = SolanaWalletType.BACKPACK.description,
-                    onClick = { onSelectWallet(SolanaWalletType.BACKPACK) }
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Text(
-                    text = "선택한 지갑과 실제로 열리는 지갑 앱은 현재 다를 수 있습니다.",
-                    fontSize = 12.sp,
-                    color = Color(0xFF6B7280),
-                    lineHeight = 18.sp
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Text(
-                        text = "닫기",
-                        color = Color(0xFF2563EB),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clickable { onDismiss() }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun WalletOptionItem(
-    title: String,
-    description: String,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2B2B2B)
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = description,
-                    fontSize = 13.sp,
-                    color = Color(0xFF8A8A8A)
-                )
-            }
-
-            Text(
-                text = "연결",
-                color = Color(0xFF2563EB),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable { onClick() }
-            )
         }
     }
 }

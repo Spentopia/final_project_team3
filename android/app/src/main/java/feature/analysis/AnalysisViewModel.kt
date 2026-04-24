@@ -158,8 +158,16 @@ class AnalysisViewModel(
                 budgetDataStore.budgetSettingsFlow
             ) { expenseList, budgetSettings ->
 
+                // 수입 카테고리는 소비 분석에서 제외합니다.
+                // 예: 월급, 용돈, 부수입, 환급, 기타수입은
+                // 이번 달 총 지출 / 카테고리별 지출 / 소비 추이 / 예산 사용률 계산에 들어가면 안 됩니다.
+                val expenseOnlyList = expenseList.filter { expense ->
+                    isExpenseEntity(expense)
+                }
+
                 // 이번 달 총 지출입니다.
-                val totalExpense = expenseList.sumOf { it.amount }
+                // 수입 항목을 제외한 실제 지출 금액만 더합니다.
+                val totalExpense = expenseOnlyList.sumOf { it.amount }
 
                 // 이번 달 일 평균 지출입니다.
                 // 초보자 기준으로 이해하기 쉽게 "오늘 날짜 기준"으로 나눕니다.
@@ -183,7 +191,7 @@ class AnalysisViewModel(
                     }
 
                 // 카테고리별로 소비를 묶습니다.
-                val categoryAmountMap = expenseList
+                val categoryAmountMap = expenseOnlyList
                     .groupBy { expense ->
                         expense.category
                     }
@@ -216,11 +224,11 @@ class AnalysisViewModel(
                 // 주간 그래프 데이터입니다.
                 // 현재 달의 소비를 "요일별"이 아니라 "최근 7일 라벨 형태"로 단순화하지 않고,
                 // 지금 프로젝트 구조에 맞게 "월~일" 기준 합계로 보여줍니다.
-                val weeklyExpenseList = createWeeklyExpenseList(expenseList)
+                val weeklyExpenseList = createWeeklyExpenseList(expenseOnlyList)
 
                 // 월간 그래프 데이터입니다.
                 // 이번 달 소비를 1주, 2주, 3주, 4주, 5주 단위로 묶습니다.
-                val monthlyExpenseList = createMonthlyExpenseList(expenseList)
+                val monthlyExpenseList = createMonthlyExpenseList(expenseOnlyList)
 
                 // AI 분석 카드입니다.
                 // 아직 완전한 AI 분석은 아니지만,
@@ -265,6 +273,33 @@ class AnalysisViewModel(
                 _uiState.value = newUiState
             }
         }
+    }
+
+    // 카테고리가 "수입"인지 판별하는 함수입니다.
+    // 이 목록에 들어있는 카테고리는 소비 분석 계산에서 제외합니다.
+    private fun isIncomeCategory(category: String): Boolean {
+        return category in listOf(
+            "월급",
+            "용돈",
+            "부수입",
+            "환급",
+            "기타수입"
+        )
+    }
+
+    // ExpenseEntity 하나가 수입 항목인지 판별하는 함수입니다.
+    private fun isIncomeEntity(
+        expense: com.ict.spentopia.data.local.ExpenseEntity
+    ): Boolean {
+        return isIncomeCategory(expense.category)
+    }
+
+    // ExpenseEntity 하나가 지출 항목인지 판별하는 함수입니다.
+    // 수입이 아니면 모두 지출로 처리합니다.
+    private fun isExpenseEntity(
+        expense: com.ict.spentopia.data.local.ExpenseEntity
+    ): Boolean {
+        return !isIncomeEntity(expense)
     }
 
     // 현재 연-월 문자열을 구하는 함수입니다.

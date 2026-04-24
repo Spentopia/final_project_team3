@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.CalendarMonth // 달력 아이콘�
 // Material3 관련 import입니다.
 import androidx.compose.material3.Button // 버튼 컴포넌트를 가져옴
 import androidx.compose.material3.ButtonDefaults // 버튼 기본 스타일 도구를 가져옴
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card // 카드 UI를 가져옴
 import androidx.compose.material3.CardDefaults // 카드 기본 스타일 도구를 가져옴
 import androidx.compose.material3.DropdownMenu // 드롭다운 메뉴를 가져옴
@@ -83,6 +84,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle // Flow 값을 안
 // BudgetViewModel import입니다.
 import com.ict.spentopia.feature.budget.BudgetViewModel // 예산 화면용 ViewModel을 가져옴
 
+// 지갑 선택 다이얼로그 관련 import입니다.
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog // 솔라나 지갑 선택 다이얼로그를 가져옴
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // 선택한 솔라나 지갑 종류를 가져옴
+
 // Room Entity import입니다.
 import com.ict.spentopia.data.local.ExpenseEntity // DB에 저장되는 소비 데이터 타입을 가져옴
 
@@ -125,7 +130,9 @@ data class WeeklyRecordData( // WeeklyRecordData 데이터를 묶어둘 클래�
 fun HomeScreen( // HomeScreen 함수 선언 시작
     isWalletConnected: Boolean = false, // 지갑 연결 여부를 받음
     walletAddress: String = "", // 연결된 지갑 주소를 받음
-    walletProvider: String = "", // 연결된 지갑 제공자 이름을 받음
+    walletProvider: String = "", //연결된 지갑 주소 이름
+    onWalletDisconnectClick: () -> Unit = {}, // 지갑 연결 해제 버튼함수
+    onWalletConnectClick: (SolanaWalletType) -> Unit = {}, // 지갑 연결 버튼을 눌러 선택한 지갑 종류를 넘기는 함수
     onLedgerClick: () -> Unit = {}, // Unit 값을 이 함수로 넘김
     onMyPageClick: () -> Unit = {}, // Unit 값을 이 함수로 넘김
     onBudgetClick: () -> Unit = {}, // Unit 값을 이 함수로 넘김
@@ -190,15 +197,32 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
 
     // 수정 중인 소비 항목 상태입니다.
     var editingExpense by remember { mutableStateOf<ExpenseItemData?>(null) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
+    var showWalletDisconnectDialog by remember { mutableStateOf(false) } // 지갑 연결 해제 팝업창을 띄울지 말지 결정하는 스위치
+    var showWalletDialog by remember { mutableStateOf(false) } // 지갑 선택 팝업창을 띄울지 말지 결정하는 스위치
+    // (화면이 새로고침되어도 상태 유지)
 
     // 월 달력 팝업 표시 여부 상태입니다.
     var showCalendarDialog by remember { mutableStateOf(false) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
 
-    // 예산 설정 화면에서 저장한 값으로 월 예산을 계산합니다.
-    // 현재 프로젝트 구조에서는
-    // "월 수입 - 저축 목표"를 실제 사용 가능한 한 달 예산으로 사용하고 있습니다.
-    val monthlyBudget = remember(budgetState) { // 이 블록의 내용이 여기서 시작됨
-        budgetState.monthlyIncome - budgetState.savingGoal // 바로 앞 설정을 이어서 적음
+    // 현재 선택된 달의 입력된 수입 금액을 계산합니다.
+    // 예산 설정의 기본 월 수입과 별개로, 홈에서 수입 입력한 금액을 수입 카드에 함께 반영합니다.
+    val fixedCurrentMonthInputIncome = remember(expenseList, selectedYearMonth) { // 이 블록의 내용이 여기서 시작됨
+        expenseList
+            .filter { it.date.startsWith(selectedYearMonth) }
+            .filter { isIncomeItem(it) }
+            .sumOf { it.amount }
+    } // 블록 끝
+
+    // 이번 달 총 수입입니다.
+    // 예산 설정의 월 수입 + 이번 달 수입 입력 금액을 합쳐서 보여줍니다.
+    val fixedCurrentMonthTotalIncome = remember(budgetState, fixedCurrentMonthInputIncome) { // 이 블록의 내용이 여기서 시작됨
+        budgetState.monthlyIncome + fixedCurrentMonthInputIncome // 기본 월 수입과 추가 입력 수입을 합산함
+    } // 블록 끝
+
+    // 예산 설정 화면에서 저장한 저축 목표와 이번 달 총 수입으로 월 예산을 계산합니다.
+    // "이번 달 총 수입 - 저축 목표"를 실제 사용 가능한 한 달 예산으로 사용합니다.
+    val monthlyBudget = remember(fixedCurrentMonthTotalIncome, budgetState) { // 이 블록의 내용이 여기서 시작됨
+        fixedCurrentMonthTotalIncome - budgetState.savingGoal // 이번 달 총 수입에서 저축 목표를 뺌
     } // 블록 끝
 
     // 오늘 날짜를 yyyy-MM-dd 형식으로 생성합니다.
@@ -212,24 +236,61 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
     } // 블록 끝
 
     // 현재 달의 남은 예산 계산입니다.
-    // 예산보다 소비가 많으면 음수가 될 수 있습니다.
-    val remainingBudget = monthlyBudget - currentMonthTotalExpense // remainingBudget 값을 계산해서 저장함
+// 예산보다 소비가 많으면 음수가 될 수 있습니다.
 
-    // 사용률 텍스트 계산입니다.
-    // 기존에는 Int로 바로 잘라서 0.2% 같은 값이 0%가 되는 문제가 있었기 때문에
-    // 이제는 문자열로 만들어서 0.3% 같은 값도 보이게 처리합니다.
-    val usageRateText = remember(currentMonthTotalExpense, monthlyBudget) { // 이 블록의 내용이 여기서 시작됨
+// 현재 선택된 달의 소비만 다시 계산합니다.
+// 수입 같은 항목은 제외하고 소비 항목만 합산합니다.
+    val fixedCurrentMonthTotalExpense = remember(expenseList, selectedYearMonth) { // 이 블록의 내용이 여기서 시작됨
+        expenseList
+            .filter { it.date.startsWith(selectedYearMonth) }
+            .filter { isExpenseItem(it) }
+            .sumOf { it.amount }
+    } // 블록 끝
+
+    // 현재 선택된 달의 소비 건수만 다시 계산합니다.
+// 수입 항목은 홈 상단의 소비 건수에 포함하지 않습니다.
+    val fixedCurrentMonthExpenseCount = remember(expenseList, selectedYearMonth) { // 이 블록의 내용이 여기서 시작됨
+        expenseList
+            .filter { it.date.startsWith(selectedYearMonth) }
+            .count { isExpenseItem(it) }
+    } // 블록 끝
+
+    // 지난달 대비 계산에서도 수입 항목을 제외하기 위해 이전 달 소비 금액을 다시 계산합니다.
+// ViewModel의 previousMonthTotalExpense 값에 수입이 섞여 있을 수 있어서 홈 화면에서 한 번 더 안전하게 필터링합니다.
+    val fixedPreviousMonthTotalExpense = remember(expenseList, selectedYearMonth) { // 이 블록의 내용이 여기서 시작됨
+        val selectedYear = selectedYearMonth.substring(0, 4).toIntOrNull() ?: Calendar.getInstance().get(Calendar.YEAR) // 선택 연도를 숫자로 바꿈
+        val selectedMonth = selectedYearMonth.substring(5, 7).toIntOrNull() ?: (Calendar.getInstance().get(Calendar.MONTH) + 1) // 선택 월을 숫자로 바꿈
+        val previousCalendar = Calendar.getInstance() // 이전 달 계산을 위한 Calendar 객체를 만듦
+        previousCalendar.set(selectedYear, selectedMonth - 1, 1) // 선택된 달의 1일로 맞춤
+        previousCalendar.add(Calendar.MONTH, -1) // 한 달 전으로 이동함
+        val previousYearMonth = "%04d-%02d".format( // yyyy-MM 형식 문자열을 만듦
+            previousCalendar.get(Calendar.YEAR), // 이전 달의 연도를 가져옴
+            previousCalendar.get(Calendar.MONTH) + 1 // 이전 달의 월을 가져옴
+        )
+
+        expenseList
+            .filter { it.date.startsWith(previousYearMonth) }
+            .filter { isExpenseItem(it) }
+            .sumOf { it.amount }
+    } // 블록 끝
+
+    val remainingBudget = monthlyBudget - fixedCurrentMonthTotalExpense // remainingBudget 값을 계산해서 저장함
+
+// 사용률 텍스트 계산입니다.
+// 기존에는 Int로 바로 잘라서 0.2% 같은 값이 0%가 되는 문제가 있었기 때문에
+// 이제는 문자열로 만들어서 0.3% 같은 값도 보이게 처리합니다.
+    val usageRateText = remember(fixedCurrentMonthTotalExpense, monthlyBudget) { // 이 블록의 내용이 여기서 시작됨
         createUsageRateText( // 글자를 화면에 보여주기 시작함
-            currentAmount = currentMonthTotalExpense, // currentAmount 값을 이 함수로 넘김
+            currentAmount = fixedCurrentMonthTotalExpense, // currentAmount 값을 이 함수로 넘김
             monthlyBudget = monthlyBudget // monthlyBudget 값을 이 함수로 넘김
         )
     } // 블록 끝
 
     // 지난달 대비 증감 문구 계산입니다.
-    val changeRateText = remember(currentMonthTotalExpense, previousMonthTotalExpense) { // 이 블록의 내용이 여기서 시작됨
+    val changeRateText = remember(fixedCurrentMonthTotalExpense, fixedPreviousMonthTotalExpense) { // 이 블록의 내용이 여기서 시작됨
         createChangeRateText( // 글자를 화면에 보여주기 시작함
-            currentAmount = currentMonthTotalExpense, // currentAmount 값을 이 함수로 넘김
-            previousAmount = previousMonthTotalExpense // previousAmount 값을 이 함수로 넘김
+            currentAmount = fixedCurrentMonthTotalExpense, // 수입을 제외한 현재 달 소비 금액을 넘김
+            previousAmount = fixedPreviousMonthTotalExpense // 수입을 제외한 지난달 소비 금액을 넘김
         )
     } // 블록 끝
 
@@ -249,8 +310,12 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                 walletAddress = walletAddress, // 지갑 주소를 넘김
                 walletProvider = walletProvider, // 지갑 제공자 이름을 넘김
                 onWalletConnectClick = { // verticalArrangement 값을 이 함수로 넘김
-                    // 필요하면 로그인 화면이나 지갑 관리 화면으로 연결
-                } // 블록 끝
+                    if (isWalletConnected) {
+                        showWalletDisconnectDialog = true
+                    } else {
+                        showWalletDialog = true
+                    }
+                }
             )
         } // 블록 끝
 
@@ -258,10 +323,10 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
             MonthlySummaryCard( // 카드 모양 UI를 시작함
                 currentYear = currentYear, // verticalArrangement 값을 이 함수로 넘김
                 currentMonth = currentMonth, // currentMonth 값을 이 함수로 넘김
-                currentMonthTotalExpense = currentMonthTotalExpense, // currentMonthTotalExpense 값을 이 함수로 넘김
-                currentMonthExpenseCount = currentMonthExpenseCount, // currentMonthExpenseCount 값을 이 함수로 넘김
+                currentMonthTotalExpense = fixedCurrentMonthTotalExpense, // 수입을 제외한 현재 달 소비 금액을 넘김
+                currentMonthExpenseCount = fixedCurrentMonthExpenseCount, // 수입을 제외한 현재 달 소비 건수를 넘김
                 monthlyBudget = monthlyBudget, // monthlyBudget 값을 이 함수로 넘김
-                monthlyIncome = budgetState.monthlyIncome, // monthlyIncome 값을 이 함수로 넘김
+                monthlyIncome = fixedCurrentMonthTotalIncome, // 기본 월 수입과 이번 달 입력 수입을 합친 값을 넘김
                 remainingBudget = remainingBudget, // remainingBudget 값을 이 함수로 넘김
                 usageRateText = usageRateText, // usageRateText 값을 이 함수로 넘김
                 changeRateText = changeRateText, // changeRateText 값을 이 함수로 넘김
@@ -372,6 +437,61 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                 )
             } // 블록 끝
         } // 블록 끝
+    } // 블록 끝
+
+    if (showWalletDialog) { // 조건이 참일 때만 아래 코드를 실행함
+        SolanaWalletDialog( // 솔라나 지갑 선택 팝업을 띄움
+            onDismiss = { // 팝업이 닫힐 때 실행할 코드를 시작함
+                showWalletDialog = false // 지갑 선택 팝업을 닫음
+            },
+            onSelectWallet = { walletType -> // 지갑을 선택했을 때 실행할 코드를 시작함
+                showWalletDialog = false // 지갑 선택 팝업을 닫음
+                onWalletConnectClick(walletType) // 선택한 지갑 종류를 AppNavGraph로 넘김
+            }
+        )
+    } // 블록 끝
+
+    if (showWalletDisconnectDialog) { // 조건이 참일 때만 아래 코드를 실행함
+        AlertDialog( // 확인 팝업 창을 띄우는 영역을 시작함
+            onDismissRequest = { // 팝업이 닫힐 때 실행할 코드를 시작함
+                showWalletDisconnectDialog = false // 지갑 해제 팝업을 닫음
+            }, // 설정 구분
+            title = { // 제목 영역을 시작함
+                Text(text = "지갑을 해제하시겠습니까?") // 제목 텍스트를 표시함
+            }, // 설정 구분
+            text = { // 본문 영역을 시작함
+                Column { // 세로로 내용을 배치함
+                    Text(text = "현재 연결된 지갑: ${formatWalletAddress(walletAddress)}") // 현재 지갑 주소를 표시함
+
+                    Spacer(modifier = Modifier.height(8.dp)) // 위아래 간격을 추가함
+
+                    Text(text = "해제 후 기존 지갑 재등록 및 새로운 지갑 등록이 가능합니다.") // 안내 문구를 표시함
+                } // 블록 끝
+            }, // 설정 구분
+            confirmButton = { // 확인 버튼 영역을 시작함
+                TextButton( // 텍스트 버튼을 시작함
+                    onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
+                        showWalletDisconnectDialog = false // 지갑 해제 팝업을 닫음
+                        onWalletDisconnectClick() // 지갑 해제 동작을 실행함
+                    } // 블록 끝
+                ) { // 버튼 안의 내용이 시작됨
+                    Text( // 버튼 텍스트를 시작함
+                        text = "지갑 해제", // 버튼에 표시할 글자
+                        color = Color(0xFFE53935), // 글자 색상을 빨간색으로 설정함
+                        fontWeight = FontWeight.Bold // 글자를 굵게 설정함
+                    ) // 블록 끝
+                } // 블록 끝
+            }, // 설정 구분
+            dismissButton = { // 취소 버튼 영역을 시작함
+                TextButton( // 텍스트 버튼을 시작함
+                    onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
+                        showWalletDisconnectDialog = false // 지갑 해제 팝업을 닫음
+                    } // 블록 끝
+                ) { // 버튼 안의 내용이 시작됨
+                    Text(text = "취소") // 취소 버튼 글자를 표시함
+                } // 블록 끝
+            } // 블록 끝
+        ) // 블록 끝
     } // 블록 끝
 } // 블록 끝
 
@@ -623,6 +743,27 @@ private fun SummaryMiniCard( // SummaryMiniCard 함수 선언 시작
     } // 블록 끝
 } // 블록 끝
 
+// 카테고리가 "수입"인지 판별하는 함수
+private fun isIncomeCategory(category: String): Boolean {
+    return category in listOf(
+        "월급",
+        "용돈",
+        "부수입",
+        "환급",
+        "기타수입"
+    )
+}
+
+// 하나의 소비 항목이 "수입"인지 판별
+private fun isIncomeItem(item: ExpenseItemData): Boolean {
+    return isIncomeCategory(item.category)
+}
+
+// 하나의 소비 항목이 "지출"인지 판별
+// (수입이 아니면 모두 지출로 처리)
+private fun isExpenseItem(item: ExpenseItemData): Boolean {
+    return !isIncomeItem(item)
+}
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun CalendarCard( // CalendarCard 함수 선언 시작
     currentYear: Int, // currentYear 값을 함수 밖에서 받아옴
@@ -802,7 +943,9 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
     onDeleteExpense: (Long) -> Unit // onDeleteExpense 는 눌렀을 때 실행할 동작을 받음
 ) { // 이 블록 안의 내용이 시작됨
     val filteredList = expenseList.filter { it.date == selectedDate } // 조건에 맞는 항목만 남김
-    val totalAmount = filteredList.sumOf { it.amount } // 각 항목 값을 더해서 합계를 구함
+    val totalAmount = filteredList // 선택한 날짜의 지출 항목 금액만 더함
+        .filter { isExpenseItem(it) } // 수입 항목은 제외하고 지출 항목만 남김
+        .sumOf { it.amount } // 지출 항목의 금액만 합산함
     val diaryText = filteredList.firstOrNull { it.diary.isNotBlank() }?.diary ?: "" // 조건에 맞는 첫 항목을 찾되 없으면 null을 줌
 
     Card( // 카드 모양 UI를 시작함
@@ -823,7 +966,7 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
             Spacer(modifier = Modifier.height(6.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
             Text( // 글자를 화면에 보여주기 시작함
-                text = "총 ${formatAmount(totalAmount)}원 · ${filteredList.size}건", // 화면에 보여줄 글자를 정함
+                text = "총 ${formatAmount(totalAmount)}원 · ${filteredList.count { isExpenseItem(it) }}건", // 화면에 보여줄 글자를 정함
                 fontSize = 14.sp, // 글자 크기를 정함
                 color = Color(0xFF6B7280) // 색상을 정함
             )
@@ -842,7 +985,11 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
                         emoji = getCategoryEmoji(item.category), // emoji 값을 이 함수로 넘김
                         title = item.title, // title 값을 이 함수로 넘김
                         category = item.category, // category 값을 이 함수로 넘김
-                        amount = "${formatAmount(item.amount)}원", // amount 값을 이 함수로 넘김
+                        amount = if (isIncomeItem(item)) { // 수입 항목이면 금액 앞에 + 표시를 붙임
+                            "+${formatAmount(item.amount)}원" // 수입 금액 표시
+                        } else { // 지출 항목이면 기존처럼 금액만 표시함
+                            "${formatAmount(item.amount)}원" // 지출 금액 표시
+                        }, // amount 값을 이 함수로 넘김
                         tag = when { // 바로 앞 설정을 이어서 적음
                             item.receiptImageName.isNotBlank() -> "영수증" // 이 조건이면 오른쪽 값을 선택함
                             item.memo.isNotBlank() -> "메모" // 이 조건이면 오른쪽 값을 선택함
@@ -995,7 +1142,7 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
                     text = amount, // 화면에 보여줄 글자를 정함
                     fontSize = 16.sp, // 글자 크기를 정함
                     fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                    color = Color(0xFF1F2A37) // 색상을 정함
+                    color = if (amount.startsWith("+")) Color(0xFF00C896) else Color(0xFF1F2A37) // 수입이면 초록색, 지출이면 기본색으로 표시함
                 )
             } // 블록 끝
 
@@ -2016,7 +2163,12 @@ private fun createExpenseTitle(category: String, memo: String): String { // crea
             "교통" -> "이동" // 이 조건이면 오른쪽 값을 선택함
             "쇼핑" -> "쇼핑" // 이 조건이면 오른쪽 값을 선택함
             "카페" -> "카페" // 이 조건이면 오른쪽 값을 선택함
-            else -> "기타 지출" // 이 조건이면 오른쪽 값을 선택함
+            "월급" -> "월급" // 수입 카테고리 제목을 수입 이름 그대로 보여줌
+            "용돈" -> "용돈" // 수입 카테고리 제목을 수입 이름 그대로 보여줌
+            "부수입" -> "부수입" // 수입 카테고리 제목을 수입 이름 그대로 보여줌
+            "환급" -> "환급" // 수입 카테고리 제목을 수입 이름 그대로 보여줌
+            "기타수입" -> "기타 수입" // 수입 카테고리 제목을 수입 이름 그대로 보여줌
+            else -> "기타" // 이 조건이면 오른쪽 값을 선택함
         } // 블록 끝
     } // 블록 끝
 } // 블록 끝

@@ -3,11 +3,13 @@ package com.ict.spentopia.navigation
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -17,12 +19,16 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
@@ -32,8 +38,18 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.spentopia.feature.plaza.PlazaScreen
+import com.ict.spentopia.data.remote.NonceRequest
+import com.ict.spentopia.data.remote.RetrofitClient
+import com.ict.spentopia.data.remote.WalletLinkRequest
+import com.ict.spentopia.data.remote.WalletUnlinkRequest
 import com.ict.spentopia.feature.analysis.AnalysisScreen
 import com.ict.spentopia.feature.auth.LoginScreen
+import com.ict.spentopia.feature.auth.connector.MwaBackpackConnector
+import com.ict.spentopia.feature.auth.connector.MwaPhantomConnector
+import com.ict.spentopia.feature.auth.connector.MwaSolflareConnector
+import com.ict.spentopia.feature.auth.connector.WalletConnectionResult
+import com.ict.spentopia.feature.auth.connector.WalletSignResult
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
 import com.ict.spentopia.feature.budget.BudgetScreen
 import com.ict.spentopia.feature.community.CommunityDetailScreen
 import com.ict.spentopia.feature.community.CommunityPost
@@ -51,15 +67,42 @@ import kotlinx.coroutines.launch
 fun AppNavGraph(
     walletActivityResultSender: ActivityResultSender,
     walletCallbackUri: Uri?,
-    onWalletCallbackConsumed: () -> Unit
+    onWalletCallbackConsumed: () -> Unit,
+    isDarkTheme: Boolean,
+    onThemeChange: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
     val navController = rememberNavController()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
+    var showThemeDialog by remember {
+        mutableStateOf(false)
+    }
+
+    // 알림 창을 보여줄지 관리하는 상태입니다.
+    var showNotificationDialog by remember {
+        mutableStateOf(false)
+    }
+
     val prefs = remember {
         context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
+    }
+
+    var walletConnected by remember {
+        mutableStateOf(prefs.getBoolean("wallet_connected", false))
+    }
+
+    var walletAddress by remember {
+        mutableStateOf(prefs.getString("wallet_address", "") ?: "")
+    }
+
+    var walletProvider by remember {
+        mutableStateOf(prefs.getString("wallet_provider", "") ?: "")
+    }
+
+    fun shouldForceLogout(): Boolean {
+        return prefs.getBoolean("force_logout", false)
     }
 
     fun hasSavedToken(): Boolean {
@@ -115,6 +158,171 @@ fun AppNavGraph(
             .apply()
     }
 
+    fun clearWalletInfo() {
+        prefs.edit()
+            .remove("wallet_connected")
+            .remove("wallet_address")
+            .remove("wallet_provider")
+            .apply()
+    }
+
+    fun startWalletUnlink() {
+        val currentWalletAddress = walletAddress
+        val accessToken = prefs.getString("access_token", "") ?: ""
+
+        if (currentWalletAddress.isBlank()) {
+            Toast.makeText(context, "연결된 지갑 주소가 없습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (accessToken.isBlank()) {
+            Toast.makeText(context, "로그인 토큰이 없습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        scope.launch {
+            try {
+                // 1. 서버에서 nonce/message 발급
+                val nonceResponse = RetrofitClient.walletApi.issueWalletNonce(
+                    NonceRequest(wallet_address = currentWalletAddress)
+                )
+
+                // 2. MWA로 Phantom 서명 요청
+                val connector = MwaPhantomConnector()
+
+                val signResult = connector.signMessage(
+                    walletActivityResultSender = walletActivityResultSender,
+                    message = nonceResponse.message.toByteArray()
+                )
+
+                when (signResult) {
+                    is WalletSignResult.Success -> {
+                        // 3. 서버에 unlink 요청
+                        RetrofitClient.walletApi.unlinkWallet(
+                            authorization = "Bearer $accessToken",
+                            request = WalletUnlinkRequest(
+                                wallet_address = currentWalletAddress,
+                                nonce = nonceResponse.nonce,
+                                signature = signResult.signature
+                            )
+                        )
+
+                        // 4. 로컬 상태 삭제
+                        clearWalletInfo()
+
+                        walletConnected = false
+                        walletAddress = ""
+                        walletProvider = ""
+
+                        Toast.makeText(context, "지갑 연결이 해제되었습니다.", Toast.LENGTH_SHORT).show()
+                    }
+
+                    is WalletSignResult.Failure -> {
+                        Toast.makeText(context, signResult.message, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("Spentopia", "지갑 해제 실패", e)
+                Toast.makeText(
+                    context,
+                    e.message ?: "지갑 해제 실패",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    fun startWalletReconnect(walletType: SolanaWalletType) {
+        val accessToken = prefs.getString("access_token", "") ?: ""
+
+        if (accessToken.isBlank()) {
+            Toast.makeText(context, "로그인 토큰이 없습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        scope.launch {
+            try {
+                // 1. 선택한 지갑 종류에 맞는 connector를 준비합니다.
+                val connector = when (walletType) {
+                    SolanaWalletType.PHANTOM -> MwaPhantomConnector()
+                    SolanaWalletType.SOLFLARE -> MwaSolflareConnector()
+                    SolanaWalletType.BACKPACK -> MwaBackpackConnector()
+                }
+
+                // 2. 선택한 지갑 앱을 열고 지갑 주소를 가져옵니다.
+                val connectResult = connector.connect(walletActivityResultSender)
+
+                val newWalletAddress = when (connectResult) {
+                    is WalletConnectionResult.Success -> {
+                        connectResult.walletAddress
+                    }
+
+                    is WalletConnectionResult.Failure -> {
+                        Toast.makeText(context, connectResult.message, Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+                }
+
+                if (newWalletAddress.isBlank()) {
+                    Toast.makeText(context, "지갑 주소를 가져오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
+                // 3. 서버에서 nonce/message를 발급받습니다.
+                val nonceResponse = RetrofitClient.walletApi.issueWalletNonce(
+                    NonceRequest(wallet_address = newWalletAddress)
+                )
+
+                // 4. 선택한 지갑으로 서버 message를 서명합니다.
+                val signResult = connector.signMessage(
+                    walletActivityResultSender = walletActivityResultSender,
+                    message = nonceResponse.message.toByteArray()
+                )
+
+                val signature = when (signResult) {
+                    is WalletSignResult.Success -> {
+                        signResult.signature
+                    }
+
+                    is WalletSignResult.Failure -> {
+                        Toast.makeText(context, signResult.message, Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+                }
+
+                // 5. 로그인은 유지한 채 현재 계정에 지갑만 다시 연결합니다.
+                val linkResponse = RetrofitClient.walletApi.linkWallet(
+                    authorization = "Bearer $accessToken",
+                    request = WalletLinkRequest(
+                        wallet_address = newWalletAddress,
+                        nonce = nonceResponse.nonce,
+                        signature = signature
+                    )
+                )
+
+                // 6. SharedPreferences에 지갑 정보를 저장합니다.
+                saveWalletInfo(
+                    walletAddress = linkResponse.wallet_address,
+                    walletProvider = walletType.name
+                )
+
+                // 7. Compose State를 즉시 갱신해서 홈 화면 UI가 바로 바뀌게 합니다.
+                walletConnected = true
+                walletAddress = linkResponse.wallet_address
+                walletProvider = walletType.name
+
+                Toast.makeText(context, "지갑이 다시 연결되었습니다.", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("Spentopia", "지갑 재연결 실패", e)
+                Toast.makeText(
+                    context,
+                    e.message ?: "지갑 재연결 실패",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
     fun clearAuthState() {
         prefs.edit()
             .remove("access_token")
@@ -122,6 +330,9 @@ fun AppNavGraph(
             .remove("wallet_connected")
             .remove("wallet_address")
             .remove("wallet_provider")
+            .remove("force_logout")
+            .remove("user_id")
+            .remove("nickname")
             .apply()
     }
 
@@ -139,6 +350,14 @@ fun AppNavGraph(
         }
     }
 
+    LaunchedEffect(Unit) {
+        if (shouldForceLogout()) {
+            Log.d("Spentopia", "강제 로그아웃 감지됨. 로그인 화면으로 이동합니다.")
+            clearAuthState()
+            moveToLogin()
+        }
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = shouldShowDrawer,
@@ -146,46 +365,47 @@ fun AppNavGraph(
             if (shouldShowDrawer) {
                 ModalDrawerSheet {
                     AppDrawerContent(
+                        onCloseClick = {
+                            scope.launch { drawerState.close() }
+                        },
                         onLedgerClick = {
                             scope.launch { drawerState.close() }
-                            navController.navigate(Route.Home.route) {
-                                launchSingleTop = true
-                            }
+                            navController.navigate(Route.Home.route) { launchSingleTop = true }
                         },
                         onBudgetClick = {
                             scope.launch { drawerState.close() }
-                            navController.navigate(Route.Budget.route) {
-                                launchSingleTop = true
-                            }
+                            navController.navigate(Route.Budget.route) { launchSingleTop = true }
                         },
                         onAnalysisClick = {
                             scope.launch { drawerState.close() }
-                            navController.navigate(Route.Analysis.route) {
-                                launchSingleTop = true
-                            }
+                            navController.navigate(Route.Analysis.route) { launchSingleTop = true }
                         },
                         onProfileAvatarClick = {
                             scope.launch { drawerState.close() }
-                            navController.navigate(Route.ProfileAvatar.route) {
-                                launchSingleTop = true
-                            }
+                            navController.navigate(Route.ProfileAvatar.route) { launchSingleTop = true }
                         },
                         onMarketClick = {
                             scope.launch { drawerState.close() }
-                            navController.navigate(Route.Market.route) {
-                                launchSingleTop = true
-                            }
+                            navController.navigate(Route.Market.route) { launchSingleTop = true }
                         },
                         onPlazaClick = {
                             scope.launch { drawerState.close() }
-                            navController.navigate(Route.Plaza.route) {
-                                launchSingleTop = true
-                            }
+                            navController.navigate(Route.Plaza.route) { launchSingleTop = true }
                         },
                         onCommunityClick = {
                             scope.launch { drawerState.close() }
-                            navController.navigate(Route.Community.route) {
-                                launchSingleTop = true
+                            navController.navigate(Route.Community.route) { launchSingleTop = true }
+                        },
+                        onLogoutClick = {
+                            scope.launch {
+                                try {
+                                    RetrofitClient.walletApi.logout()
+                                } catch (e: Exception) {
+                                    Log.e("Spentopia", "로그아웃 API 실패", e)
+                                } finally {
+                                    clearAuthState()
+                                    moveToLogin()
+                                }
                             }
                         }
                     )
@@ -206,13 +426,15 @@ fun AppNavGraph(
                             }
                         },
                         actions = {
+                            // --- 수정된 설정 부분 ---
                             IconButton(onClick = {
-                                clearAuthState()
-                                moveToLogin()
+                                showThemeDialog = true
                             }) {
-                                Icon(Icons.Default.Settings, contentDescription = "로그아웃")
+                                Icon(Icons.Default.Settings, contentDescription = "설정")
                             }
-                            IconButton(onClick = {}) {
+                            IconButton(onClick = {
+                                showNotificationDialog = true
+                            }) {
                                 Icon(Icons.Default.NotificationsNone, contentDescription = "알림")
                             }
                         }
@@ -220,7 +442,6 @@ fun AppNavGraph(
                 }
             }
         ) { innerPadding ->
-
             NavHost(
                 navController = navController,
                 startDestination = startRoute,
@@ -228,34 +449,20 @@ fun AppNavGraph(
             ) {
                 composable(Route.Login.route) {
                     LoginScreen(
-                        onLoginClick = {
-                            moveToHome()
-                        },
+                        onLoginClick = { moveToHome() },
                         walletActivityResultSender = walletActivityResultSender,
                         walletCallbackUri = walletCallbackUri,
                         onWalletCallbackConsumed = onWalletCallbackConsumed,
-                        onWalletConnected = { accessToken, refreshToken, walletAddress, walletProvider ->
-                            Log.d("Spentopia", "onWalletConnected called")
-                            Log.d("Spentopia", "wallet accessToken: '$accessToken'")
-                            Log.d("Spentopia", "wallet refreshToken: '$refreshToken'")
-                            Log.d("Spentopia", "wallet walletAddress: '$walletAddress'")
-                            Log.d("Spentopia", "wallet walletProvider: '$walletProvider'")
-
+                        onWalletConnected = { accessToken, refreshToken, newWalletAddress, newWalletProvider ->
                             if (accessToken.isNotBlank() && refreshToken.isNotBlank()) {
-                                saveAuthTokens(
-                                    accessToken = accessToken,
-                                    refreshToken = refreshToken
-                                )
+                                saveAuthTokens(accessToken, refreshToken)
+                                saveWalletInfo(newWalletAddress, newWalletProvider)
 
-                                saveWalletInfo(
-                                    walletAddress = walletAddress,
-                                    walletProvider = walletProvider
-                                )
+                                walletConnected = true
+                                walletAddress = newWalletAddress
+                                walletProvider = newWalletProvider
 
-                                Log.d("Spentopia", "토큰 + 지갑 정보 저장 완료")
                                 moveToHome()
-                            } else {
-                                Log.e("Spentopia", "토큰 없음 - 홈 이동 안 함")
                             }
                         }
                     )
@@ -263,9 +470,15 @@ fun AppNavGraph(
 
                 composable(Route.Home.route) {
                     HomeScreen(
-                        isWalletConnected = prefs.getBoolean("wallet_connected", false),
-                        walletAddress = prefs.getString("wallet_address", "") ?: "",
-                        walletProvider = prefs.getString("wallet_provider", "") ?: "",
+                        isWalletConnected = walletConnected,
+                        walletAddress = walletAddress,
+                        walletProvider = walletProvider,
+                        onWalletDisconnectClick = {
+                            startWalletUnlink()
+                        },
+                        onWalletConnectClick = { walletType ->
+                            startWalletReconnect(walletType)
+                        },
                         onLedgerClick = { navController.navigate(Route.Home.route) },
                         onMyPageClick = { navController.navigate(Route.ProfileAvatar.route) },
                         onBudgetClick = { navController.navigate(Route.Budget.route) },
@@ -283,9 +496,9 @@ fun AppNavGraph(
 
                 composable(Route.Market.route) {
                     MarketScreen(
-                        isWalletConnected = prefs.getBoolean("wallet_connected", false),
-                        walletAddress = prefs.getString("wallet_address", "") ?: "",
-                        walletProvider = prefs.getString("wallet_provider", "") ?: ""
+                        isWalletConnected = walletConnected,
+                        walletAddress = walletAddress,
+                        walletProvider = walletProvider
                     )
                 }
 
@@ -307,7 +520,6 @@ fun AppNavGraph(
                         onBackClick = { navController.popBackStack() },
                         onSubmitClick = { category, title, content ->
                             val nextId = (communityPosts.maxOfOrNull { it.id } ?: 0) + 1
-
                             val newPost = CommunityPost(
                                 id = nextId,
                                 title = title,
@@ -322,7 +534,6 @@ fun AppNavGraph(
                                 comments = emptyList(),
                                 isLiked = false
                             )
-
                             communityPosts.add(0, newPost)
                             navController.popBackStack()
                         }
@@ -331,9 +542,7 @@ fun AppNavGraph(
 
                 composable(
                     route = Route.CommunityDetail.route,
-                    arguments = listOf(
-                        navArgument("postId") { type = NavType.IntType }
-                    )
+                    arguments = listOf(navArgument("postId") { type = NavType.IntType })
                 ) { backStackEntry ->
                     val postId = backStackEntry.arguments?.getInt("postId") ?: -1
                     val selectedPost = communityPosts.find { it.id == postId }
@@ -356,8 +565,11 @@ fun AppNavGraph(
                                 val oldPost = communityPosts[index]
                                 val newIsLiked = !oldPost.isLiked
                                 val newLikeCount =
-                                    if (oldPost.isLiked) (oldPost.likeCount - 1).coerceAtLeast(0)
-                                    else oldPost.likeCount + 1
+                                    if (oldPost.isLiked) {
+                                        (oldPost.likeCount - 1).coerceAtLeast(0)
+                                    } else {
+                                        oldPost.likeCount + 1
+                                    }
 
                                 communityPosts[index] = oldPost.copy(
                                     isLiked = newIsLiked,
@@ -368,6 +580,71 @@ fun AppNavGraph(
                     )
                 }
             }
+        }
+
+        if (showThemeDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showThemeDialog = false
+                },
+                title = {
+                    Text("화면 설정")
+                },
+                text = {
+                    Text(
+                        text = if (isDarkTheme) {
+                            "현재 다크모드가 적용되어 있습니다."
+                        } else {
+                            "현재 라이트모드가 적용되어 있습니다."
+                        }
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onThemeChange(true)
+                            showThemeDialog = false
+                        }
+                    ) {
+                        Text("다크모드")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            onThemeChange(false)
+                            showThemeDialog = false
+                        }
+                    ) {
+                        Text("라이트모드")
+                    }
+                }
+            )
+        }
+
+        if (showNotificationDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showNotificationDialog = false
+                },
+                title = {
+                    Text("알림")
+                },
+                text = {
+                    Text(
+                        text = "예산의 80%를 사용했어요!\n5분 전\n\n새로운 아바타를 획득했어요\n1시간 전\n\n7일 연속 기록 달성! 보상이 지급됐어요\n2시간 전"
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showNotificationDialog = false
+                        }
+                    ) {
+                        Text("닫기")
+                    }
+                }
+            )
         }
     }
 }

@@ -5,10 +5,12 @@ package com.ict.spentopia.data.remote
 // Retrofit에서 사용하는 어노테이션들을 import 합니다.
 // @Body   : 요청 본문(body)에 데이터를 담아서 보낼 때 사용
 // @DELETE : DELETE 요청을 보낼 때 사용
+// @GET    : GET 요청을 보낼 때 사용
 // @HTTP   : DELETE인데 body도 같이 보내고 싶을 때 사용
 // @Header : 헤더 값을 직접 넣을 때 사용
 // @POST   : POST 요청을 보낼 때 사용
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.POST
@@ -189,7 +191,75 @@ data class WalletUnlinkResponse(
 
 
 // ------------------------------
-// 9) 실제 API 목록을 정의하는 인터페이스
+// 9) 토큰 재발급 요청할 때 사용하는 데이터
+// ------------------------------
+
+// access_token이 만료되어 401 Unauthorized가 발생했을 때
+// 저장된 refresh_token을 서버에 보내 새 access_token을 받기 위해 사용합니다.
+//
+// 요청 예:
+// {
+//   "refresh_token": "..."
+// }
+data class RefreshTokenRequest(
+
+    // 로그인 성공 시 서버에서 받은 refresh token
+    val refresh_token: String
+)
+
+
+// ------------------------------
+// 10) 토큰 재발급 성공 후 서버가 주는 응답 데이터
+// ------------------------------
+
+// 서버가 예:
+// {
+//   "access_token": "...",
+//   "refresh_token": "..."
+// }
+// 이런 식으로 새 토큰을 내려준다고 가정합니다.
+data class RefreshTokenResponse(
+
+    // 새로 발급받은 access token
+    val access_token: String,
+
+    // 새로 발급받은 refresh token
+    val refresh_token: String
+)
+
+
+// ------------------------------
+// 11) 내 정보 조회 응답 데이터
+// ------------------------------
+
+// 보호 API 테스트용 내 정보 응답 데이터입니다.
+// 실제 백엔드 응답 필드가 다르면 여기를 서버 응답에 맞게 수정하면 됩니다.
+//
+// 응답 예:
+// {
+//   "id": 1,
+//   "wallet_address": "7xKXtg2CW87d...",
+//   "nickname": "user",
+//   "email": "test@example.com"
+// }
+data class MeResponse(
+
+    // 사용자 id
+    val id: String? = null,
+
+    // 연결된 지갑 주소
+    val wallet_address: String? = null,
+
+    // 사용자 닉네임
+    val nickname: String? = null,
+
+    // 사용자 이메일
+    val email: String? = null
+)
+
+
+// ------------------------------
+// 12) 실제 API 목록을 정의하는 인터페이스
 // ------------------------------
 
 // Retrofit은 이 interface를 보고
@@ -240,6 +310,26 @@ interface WalletApi {
     ): WalletLoginResponse
 
 
+    // @POST("/auth/app/refresh")
+    // -> 앱 전용 토큰 재발급 API입니다.
+    // access_token이 만료되었을 때 refresh_token으로 새 토큰을 발급받습니다.
+    @POST("/auth/app/refresh")
+    suspend fun refreshToken(
+        @Header("X-Client-Type") clientType: String = "app",
+        @Body request: RefreshTokenRequest
+    ): RefreshTokenResponse
+
+
+    // @GET("/auth/me")
+    // -> 로그인된 사용자의 내 정보 조회 API입니다.
+    // -> Authorization 헤더는 AuthInterceptor가 자동으로 붙여줍니다.
+    //
+    // 주의:
+    // 백엔드 실제 경로가 /auth/me가 아니면 이 경로를 수정해야 합니다.
+    @GET("/me")
+    suspend fun getMe(): MeResponse
+
+
     // @POST("/wallet/link")
     // -> POST 방식으로 /wallet/link 주소에 요청을 보냅니다.
     // -> 이미 로그인된 사용자의 계정에 지갑을 연동하는 보호 API입니다.
@@ -279,6 +369,13 @@ interface WalletApi {
     //
     // hasBody = true
     // -> DELETE 요청이지만 body도 함께 보낸다는 뜻
+
+
+    //api 로그아웃 추가
+    @POST("/auth/app/logout")
+    suspend fun logout(
+        @Header("X-Client-Type") clientType: String = "app"
+    )
     @HTTP(method = "DELETE", path = "/wallet/unlink", hasBody = true)
 
     // unlinkWallet 함수는 지갑 연결 해제 API입니다.

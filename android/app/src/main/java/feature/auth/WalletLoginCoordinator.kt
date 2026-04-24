@@ -7,6 +7,7 @@ import com.ict.spentopia.feature.auth.connector.MwaSolflareConnector
 import com.ict.spentopia.feature.auth.connector.SolanaWalletConnector
 import com.ict.spentopia.feature.auth.connector.WalletConnectionResult
 import com.ict.spentopia.feature.auth.connector.WalletSignResult
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 
 class WalletLoginCoordinator(

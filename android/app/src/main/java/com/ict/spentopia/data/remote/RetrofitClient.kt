@@ -1,6 +1,18 @@
 // 이 파일이 속한 패키지 경로
 package com.ict.spentopia.data.remote
 
+// Context 가져옴
+// -> SharedPreferences에서 토큰을 읽기 위해 필요함
+import android.content.Context
+
+// AuthInterceptor 가져옴
+// -> access_token을 Authorization 헤더에 자동으로 붙이는 역할
+import com.ict.spentopia.data.network.AuthInterceptor
+
+// TokenAuthenticator 가져옴
+// -> access_token 만료로 401이 발생했을 때 refresh_token으로 새 토큰을 받는 역할
+import com.ict.spentopia.data.network.TokenAuthenticator
+
 // OkHttpClient 가져옴
 // -> 실제로 네트워크 통신할 때 사용하는 클라이언트
 import okhttp3.OkHttpClient
@@ -37,6 +49,23 @@ object RetrofitClient {
     // baseUrl은 보통 마지막에 / 가 있어야 함
     private const val BASE_URL = "http://10.0.2.2:1113/"  // 서버 넣기
 
+    // appContext 변수 만듦
+    // -> AuthInterceptor에서 SharedPreferences를 읽기 위해 사용함
+    // -> Activity Context를 오래 들고 있으면 위험하므로 applicationContext만 저장함
+    private lateinit var appContext: Context
+
+    // initialized 변수 만듦
+    // -> RetrofitClient.init(context)가 호출됐는지 확인하기 위해 사용함
+    private var initialized = false
+
+    // init 함수
+    // -> 앱 시작 시 또는 RetrofitClient를 쓰기 전에 한 번 호출해야 함
+    // -> 예: RetrofitClient.init(applicationContext)
+    fun init(context: Context) {
+        appContext = context.applicationContext
+        initialized = true
+    }
+
     // loggingInterceptor 변수 만듦
     // -> 네트워크 요청, 응답을 로그로 출력하는 역할
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
@@ -52,14 +81,32 @@ object RetrofitClient {
 
     // OkHttpClient 생성
     // -> Retrofit이 내부적으로 이 클라이언트를 사용해서 서버와 통신함
-    private val okHttpClient = OkHttpClient.Builder()
+    private val okHttpClient: OkHttpClient by lazy {
 
-        // 아까 만든 loggingInterceptor 추가
-        // -> 그래서 요청/응답 로그를 볼 수 있게 됨
-        .addInterceptor(loggingInterceptor)
+        // init(context)가 먼저 호출되지 않으면 에러를 발생시킴
+        // -> context 없이 토큰을 읽을 수 없기 때문
+        check(initialized) {
+            "RetrofitClient.init(context)를 먼저 호출해야 합니다."
+        }
 
-        // 최종적으로 클라이언트 완성
-        .build()
+        OkHttpClient.Builder()
+
+            // AuthInterceptor 추가
+            // -> 저장된 access_token이 있으면 Authorization: Bearer 토큰 형식으로 자동 추가함
+            .addInterceptor(AuthInterceptor(appContext))
+
+            // TokenAuthenticator 추가
+            // -> access_token이 만료되어 401이 발생하면
+            // -> refresh_token으로 새 access_token을 요청하고 기존 요청을 다시 시도함
+            .authenticator(TokenAuthenticator(appContext))
+
+            // 아까 만든 loggingInterceptor 추가
+            // -> 그래서 요청/응답 로그를 볼 수 있게 됨
+            .addInterceptor(loggingInterceptor)
+
+            // 최종적으로 클라이언트 완성
+            .build()
+    }
 
     // walletApi 라는 변수 만듦
     //

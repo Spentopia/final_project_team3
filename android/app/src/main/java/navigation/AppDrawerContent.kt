@@ -25,13 +25,15 @@ import androidx.compose.ui.unit.dp // dp 단위 사용
 
 @Composable // Compose UI 함수
 fun AppDrawerContent( // 공통 드로어 메뉴 UI 함수
+    onCloseClick: () -> Unit, // 닫기 클릭 콜백
     onLedgerClick: () -> Unit, // 가계부 클릭 콜백
     onBudgetClick: () -> Unit, // 예산 설정 클릭 콜백
     onAnalysisClick: () -> Unit, // 소비 분석 클릭 콜백
     onProfileAvatarClick: () -> Unit, // 수정: 마이페이지/내 아바타 통합 클릭 콜백으로 변경
     onMarketClick: () -> Unit, // NFT 마켓 클릭 콜백
     onPlazaClick: () -> Unit, // 광장 클릭 콜백
-    onCommunityClick: () -> Unit // 커뮤니티 클릭 콜백
+    onCommunityClick: () -> Unit, // 커뮤니티 클릭 콜백
+    onLogoutClick: () -> Unit // 로그아웃 클릭 콜백
 ) {
     Column( // 전체 드로어를 세로로 배치
         modifier = Modifier // Modifier 시작
@@ -63,7 +65,11 @@ fun AppDrawerContent( // 공통 드로어 메뉴 UI 함수
             Text( // 닫기 텍스트 버튼
                 text = "닫기", // 표시할 글자
                 color = Color(0xFF2563EB), // 파란색 글자
-                fontWeight = FontWeight.SemiBold // 반굵게 표시
+                fontWeight = FontWeight.SemiBold, // 반굵게 표시
+                modifier = Modifier // 닫기 텍스트에도 Modifier를 적용
+                    .clip(RoundedCornerShape(8.dp)) // 터치 영역을 살짝 둥글게 만듦
+                    .clickable { onCloseClick() } // 닫기 글자를 누르면 드로어를 닫음
+                    .padding(horizontal = 8.dp, vertical = 6.dp) // 누르기 쉬운 터치 여백 추가
             )
         }
 
@@ -109,6 +115,14 @@ fun AppDrawerContent( // 공통 드로어 메뉴 UI 함수
             emoji = "💬", // 이모지
             title = "커뮤니티", // 메뉴 이름
             onClick = onCommunityClick // 클릭 시 실행
+        )
+
+        Spacer(modifier = Modifier.height(18.dp)) // 커뮤니티 메뉴와 로그아웃 메뉴 사이 여백
+
+        DrawerMenuItem( // 로그아웃 메뉴 아이템
+            emoji = "🚪", // 이모지
+            title = "로그아웃", // 메뉴 이름
+            onClick = onLogoutClick // 클릭 시 로그아웃 실행
         )
     }
 }
