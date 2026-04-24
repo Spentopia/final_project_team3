@@ -1,5 +1,6 @@
 pub mod buy_nft;
 pub mod cancel_listing;
+pub mod init_avatar_collection;
 pub mod init_platform;
 pub mod init_spt_token;
 pub mod list_nft;
@@ -9,6 +10,7 @@ pub mod transfer_avatar_nft;
 
 pub use buy_nft::*;
 pub use cancel_listing::*;
+pub use init_avatar_collection::*;
 pub use init_platform::*;
 pub use init_spt_token::*;
 pub use list_nft::*;

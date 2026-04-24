@@ -653,7 +653,10 @@ pub async fn exchange_supabase_token(
             .http_client
             .get(&email_check_url)
             .header("apikey", &state.config.supabase_secret_key)
-            .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+            .header(
+                "Authorization",
+                format!("Bearer {}", state.config.supabase_secret_key),
+            )
             .send()
             .await
             .context("이메일 기반 탈퇴 여부 조회 실패")?;
@@ -1108,7 +1111,10 @@ async fn find_or_create_social_user(
             .http_client
             .get(&deleted_check_url)
             .header("apikey", &state.config.supabase_secret_key)
-            .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+            .header(
+                "Authorization",
+                format!("Bearer {}", state.config.supabase_secret_key),
+            )
             .send()
             .await
             .context("탈퇴 여부 조회 실패")?;
@@ -1116,7 +1122,10 @@ async fn find_or_create_social_user(
             let rows: Vec<serde_json::Value> = deleted_resp.json().await.unwrap_or_default();
             if let Some(row) = rows.first() {
                 if row["deleted_at"].is_string() {
-                    tracing::warn!("탈퇴 유저 카카오 로그인 시도 차단: user_id={}", existing_user_id);
+                    tracing::warn!(
+                        "탈퇴 유저 카카오 로그인 시도 차단: user_id={}",
+                        existing_user_id
+                    );
                     return Err(anyhow!("이미 탈퇴한 회원입니다."));
                 }
             }
@@ -1597,11 +1606,9 @@ pub async fn check_profile_availability(
     nickname: &str,
     phone: &str,
 ) -> Result<()> {
-
     // 닉네임 유효성 검사 (길이 2~8자 + 금칙어)
     // 실패 시 에러 메시지가 프론트 toast로 그대로 올라감
-    crate::filter::validate_nickname(nickname)
-        .map_err(|msg| anyhow!(msg))?;
+    crate::filter::validate_nickname(nickname).map_err(|msg| anyhow!(msg))?;
 
     let normalized_nickname = nickname.trim();
     let formatted_phone = format_phone(phone);

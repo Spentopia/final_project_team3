@@ -1,11 +1,13 @@
 use crate::constants::*;
+use crate::errors::SpentopiaError;
 use crate::state::PlatformConfig;
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::metadata::{set_and_verify_collection, SetAndVerifyCollection};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use mpl_token_metadata::{
     instructions::{CreateV1CpiBuilder, MintV1CpiBuilder},
-    types::{PrintSupply, TokenStandard},
+    types::{Collection, PrintSupply, TokenStandard},
     ID as TOKEN_METADATA_ID,
 };
 
@@ -22,6 +24,10 @@ pub fn mint_avatar_nft_handler(
     uri: String,     // Pinata에 올린 metadata JSON URI
 ) -> Result<()> {
     let platform_config = &ctx.accounts.platform_config;
+    require!(
+        platform_config.collection_mint != Pubkey::default(),
+        SpentopiaError::AvatarCollectionNotInitialized
+    );
 
     // avatar_mint PDA 서명용 seeds.
     // CreateV1, MintV1 CPI 모두 mint가 서명자여야 하므로 signer_seeds 필요.
@@ -50,6 +56,10 @@ pub fn mint_avatar_nft_handler(
         .uri(uri)
         .seller_fee_basis_points(0) // 2차 판매 로열티 없음
         .token_standard(TokenStandard::NonFungible)
+        .collection(Collection {
+            verified: false,
+            key: ctx.accounts.collection_mint.key(),
+        })
         .print_supply(PrintSupply::Zero) // 에디션 복제 불가
         .invoke_signed(signer_seeds)?;
 
@@ -72,6 +82,23 @@ pub fn mint_avatar_nft_handler(
         .spl_ata_program(&ctx.accounts.associated_token_program.to_account_info())
         .amount(1)
         .invoke_signed(&[authority_signer_seeds])?;
+
+    set_and_verify_collection(
+        CpiContext::new_with_signer(
+            ctx.accounts.metadata_program.to_account_info(),
+            SetAndVerifyCollection {
+                metadata: ctx.accounts.metadata.to_account_info(),
+                collection_authority: ctx.accounts.spt_token_authority.to_account_info(),
+                payer: ctx.accounts.admin.to_account_info(),
+                update_authority: ctx.accounts.spt_token_authority.to_account_info(),
+                collection_mint: ctx.accounts.collection_mint.to_account_info(),
+                collection_metadata: ctx.accounts.collection_metadata.to_account_info(),
+                collection_master_edition: ctx.accounts.collection_master_edition.to_account_info(),
+            },
+            &[authority_signer_seeds],
+        ),
+        None,
+    )?;
 
     msg!(
         "아바타 NFT 민팅 완료 | 유저: {} | item_id: {}",
@@ -144,6 +171,23 @@ pub struct MintAvatarNft<'info> {
         associated_token::token_program = token_program,
     )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
+
+    /// 프로젝트 전용 컬렉션 mint.
+    #[account(
+        seeds = [AVATAR_COLLECTION_MINT_SEED],
+        bump,
+        constraint = collection_mint.key() == platform_config.collection_mint
+            @ SpentopiaError::AvatarCollectionNotInitialized,
+    )]
+    pub collection_mint: InterfaceAccount<'info, Mint>,
+
+    /// 프로젝트 컬렉션 metadata PDA.
+    /// CHECK: mpl-token-metadata CPI 내부에서 검증
+    pub collection_metadata: UncheckedAccount<'info>,
+
+    /// 프로젝트 컬렉션 master edition PDA.
+    /// CHECK: mpl-token-metadata CPI 내부에서 검증
+    pub collection_master_edition: UncheckedAccount<'info>,
 
     /// mpl-token-metadata 프로그램.
     /// CHECK: 고정된 프로그램 주소

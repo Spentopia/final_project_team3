@@ -12,8 +12,8 @@ use super::{
     dto::{UpdateProfileRequest, UpdateSettingsRequest, UserResponse, UserSettingsResponse},
     model::{User, UserSettings},
 };
-use crate::state::AppState;
 use crate::filter;
+use crate::state::AppState;
 
 // ── 프로필 조회 ───────────────────────────────────────────────
 
@@ -33,13 +33,14 @@ pub async fn update_profile(
 
     // 닉네임 검증
     if let Some(ref nickname) = req.nickname {
-        filter::validate_nickname(nickname)
-            .map_err(|msg| anyhow!(msg))?;
+        filter::validate_nickname(nickname).map_err(|msg| anyhow!(msg))?;
     }
 
     if let Some(Some(ref introduction)) = req.introduction {
         if !filter::check(introduction) {
-            return Err(anyhow!("한 줄 소개에 사용할 수 없는 표현이 포함되어 있습니다."));
+            return Err(anyhow!(
+                "한 줄 소개에 사용할 수 없는 표현이 포함되어 있습니다."
+            ));
         }
     }
 
@@ -199,7 +200,10 @@ pub async fn update_settings(
         )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Content-Type", "application/json")
-        .header("Prefer", "resolution=merge-duplicates,return=representation")
+        .header(
+            "Prefer",
+            "resolution=merge-duplicates,return=representation",
+        )
         .json(&serde_json::json!([{
             "user_id": user_id,
             "alert_budget": req.alert_budget,
@@ -277,7 +281,9 @@ pub async fn change_password(
         return Err(anyhow!("소셜 로그인 계정은 비밀번호를 변경할 수 없습니다"));
     }
 
-    let email = user.email.ok_or_else(|| anyhow!("이메일 정보가 없습니다"))?;
+    let email = user
+        .email
+        .ok_or_else(|| anyhow!("이메일 정보가 없습니다"))?;
 
     // 3) 현재 비밀번호 검증 (Supabase 로그인 시도로 확인)
     let token_url = format!(
@@ -290,9 +296,9 @@ pub async fn change_password(
         .post(&token_url)
         .header("apikey", &state.config.supabase_publishable_key)
         .json(&serde_json::json!({
-              "email": email,
-              "password": current_password,
-          }))
+            "email": email,
+            "password": current_password,
+        }))
         .send()
         .await
         .context("현재 비밀번호 검증 요청 실패")?;
@@ -350,8 +356,6 @@ fn validate_password(password: &str) -> Result<()> {
     }
     Ok(())
 }
-
-
 
 fn to_response(u: User) -> UserResponse {
     UserResponse {

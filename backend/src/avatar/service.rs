@@ -20,7 +20,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::dto::{
-    MintNftRequest, MintNftResponse, TransferNftRequest, TransferNftResponse, UserItemResponse,
+    MintNftRequest, MintNftResponse, OwnedNftResponse, TransferNftRequest, TransferNftResponse,
+    UserItemResponse,
 };
 use crate::clients::solana_client;
 use crate::state::AppState;
@@ -110,6 +111,49 @@ async fn get_user_wallet(state: &AppState, user_id: Uuid) -> Result<String> {
         .and_then(|r| r.wallet_address)
         .filter(|w| !w.trim().is_empty())
         .ok_or_else(|| anyhow!("지갑이 연동된 유저만 NFT 상태를 기록할 수 있습니다"))
+}
+
+async fn get_user_wallet_optional(state: &AppState, user_id: Uuid) -> Result<Option<String>> {
+    #[derive(Deserialize)]
+    struct WalletRow {
+        wallet_address: Option<String>,
+    }
+
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=wallet_address",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("users wallet_address 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "users wallet_address 조회 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rows: Vec<WalletRow> = res
+        .json()
+        .await
+        .context("users wallet_address 역직렬화 실패")?;
+
+    Ok(rows
+        .into_iter()
+        .next()
+        .and_then(|r| r.wallet_address)
+        .filter(|w| !w.trim().is_empty()))
 }
 
 // mint_nft
@@ -478,4 +522,104 @@ pub async fn get_user_items(
         })
         .collect();
     Ok(items)
+}
+
+pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<OwnedNftResponse>> {
+    let wallet_address = match get_user_wallet_optional(state, user_id).await? {
+        Some(wallet) => wallet,
+        None => return Ok(Vec::new()),
+    };
+
+    let collection_mint = state.config.solana_avatar_collection_mint.trim();
+    if collection_mint.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let assets = solana_client::get_collection_assets_by_owner(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        &wallet_address,
+        collection_mint,
+    )
+    .await
+    .context("컬렉션 NFT 조회 실패")?;
+
+    let mut owned = Vec::with_capacity(assets.len());
+    for asset in assets {
+        let mint_address = asset["id"].as_str().unwrap_or_default().to_string();
+        let metadata_uri = asset["content"]["json_uri"].as_str().map(str::to_string);
+        let fallback_name = asset["content"]["metadata"]["name"]
+            .as_str()
+            .unwrap_or("Unknown NFT")
+            .to_string();
+        let fallback_image = asset["content"]["links"]["image"]
+            .as_str()
+            .map(str::to_string);
+
+        #[derive(Deserialize)]
+        struct AvatarItemLookup {
+            id: Uuid,
+            name: String,
+            category: String,
+            rarity: String,
+            image_url: String,
+            metadata_uri: Option<String>,
+            unity_asset_key: Option<String>,
+        }
+
+        let avatar_item = if let Some(uri) = metadata_uri.as_deref() {
+            let lookup_url = format!(
+                "{}/rest/v1/avatar_items?metadata_uri=eq.{}&select=id,name,category,rarity,image_url,metadata_uri,unity_asset_key&limit=1",
+                state.config.supabase_url.trim_end_matches('/'),
+                urlencoding::encode(uri)
+            );
+
+            let lookup_res = state
+                .http_client
+                .get(&lookup_url)
+                .header(
+                    "Authorization",
+                    format!("Bearer {}", state.config.supabase_secret_key),
+                )
+                .header("apikey", &state.config.supabase_secret_key)
+                .send()
+                .await
+                .context("avatar_items metadata_uri 조회 요청 실패")?;
+
+            if lookup_res.status().is_success() {
+                lookup_res
+                    .json::<Vec<AvatarItemLookup>>()
+                    .await
+                    .context("avatar_items metadata_uri 역직렬화 실패")?
+                    .into_iter()
+                    .next()
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        owned.push(OwnedNftResponse {
+            mint_address,
+            item_id: avatar_item.as_ref().map(|item| item.id),
+            name: avatar_item
+                .as_ref()
+                .map(|item| item.name.clone())
+                .unwrap_or(fallback_name),
+            category: avatar_item.as_ref().map(|item| item.category.clone()),
+            rarity: avatar_item.as_ref().map(|item| item.rarity.clone()),
+            image_url: avatar_item
+                .as_ref()
+                .map(|item| Some(item.image_url.clone()))
+                .unwrap_or(fallback_image),
+            metadata_uri: avatar_item
+                .as_ref()
+                .and_then(|item| item.metadata_uri.clone())
+                .or(metadata_uri),
+            unity_asset_key: avatar_item.and_then(|item| item.unity_asset_key),
+        });
+    }
+
+    Ok(owned)
 }

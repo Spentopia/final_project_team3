@@ -27,6 +27,7 @@ pub mod clients;
 pub mod community;
 mod config;
 pub mod expense;
+mod filter;
 pub mod ledger;
 pub mod market;
 pub mod notification;
@@ -38,13 +39,12 @@ mod route;
 mod state;
 pub mod user;
 pub mod wallet;
-mod filter;
 
 use axum::http::{HeaderValue, Method, header};
 use std::net::SocketAddr;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
+use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 // ─────────────────────────────────────────────────────────────
 // Rate Limiting 관련 import

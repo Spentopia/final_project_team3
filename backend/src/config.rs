@@ -69,6 +69,10 @@ pub struct Config {
 
     // 배포된 Spentopia 프로그램 ID
     pub solana_program_id: String,
+
+    // 프로젝트 전용 아바타 컬렉션 mint 주소
+    // 없으면 NFT collection 조회 API는 빈 결과/에러 처리한다.
+    pub solana_avatar_collection_mint: String,
 }
 
 impl Config {
@@ -128,6 +132,9 @@ impl Config {
 
             solana_program_id: std::env::var("SOLANA_PROGRAM_ID")
                 .unwrap_or_else(|_| "9s5Z96GSLVgVsnj5NAZ1HoxPvaF8Re8B1LeSmcBKQv61".to_string()),
+
+            solana_avatar_collection_mint: std::env::var("SOLANA_AVATAR_COLLECTION_MINT")
+                .unwrap_or_default(),
         })
     }
 }
