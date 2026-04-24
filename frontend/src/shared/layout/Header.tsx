@@ -26,10 +26,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   const { theme, setTheme } = useTheme();
 
-  // 게임 시작 버튼 클릭 시
+  // 게임 실행 버튼 클릭 시
   // 1) 백엔드에서 handoff token 발급
-  // 2) 유니티 새 탭 오픈
-  // 3) 유니티 READY 수신 후 postMessage로 handoff 전달
+  // 2) 커스텀 프로토콜로 유니티 exe 실행
+  // 3) exe가 handoff token으로 자기 access/refresh를 교환
   const handleStartGame = async () => {
     try {
       await startUnityGame();

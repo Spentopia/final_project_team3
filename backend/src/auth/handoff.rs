@@ -69,7 +69,7 @@ pub fn hash_handoff_token(token: &str) -> String {
 //    - key: token_hash
 //    - 만료: 30초
 // 4) 원문 token을 프론트에 반환
-//    (프론트가 postMessage로 유니티에 전달)
+//    (프론트가 exe 실행용 프로토콜/런처에 실어 전달)
 //
 // 반환: handoff token 원문 (1회만 볼 수 있음)
 // ─────────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ pub fn create_handoff_token(state: &AppState, user_id: Uuid, target_service: &st
     );
 
     // 원문 반환 (해시가 아님!)
-    // 프론트가 이 값을 postMessage로 유니티에 전달
+    // 프론트가 이 값을 exe 실행용 프로토콜/런처에 실어 전달
     token
 }
 
