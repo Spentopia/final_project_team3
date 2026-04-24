@@ -117,6 +117,14 @@ struct UserRow {
     id: Uuid,
 }
 
+#[derive(Debug, Deserialize)]
+struct PublicUserProfileStatusRow {
+    profile_completed: Option<bool>,
+}
+
+const APP_SIGNUP_REQUIRED_MESSAGE: &str =
+    "웹에서 회원가입 완료 후 다시 이용해 주세요.";
+
 // ─────────────────────────────────────────────────────────────
 // 공통 토큰 발급 + refresh session 저장
 //
@@ -332,6 +340,19 @@ pub async fn verify_and_login(
     // 찾으면 → 해당 유저의 UUID 반환
     // 없으면 → 지갑 연동을 안 한 유저이므로 로그인 불가 에러 반환
     let user_id = find_user_by_wallet(state, wallet_address).await?;
+
+    if client_type == "app"
+        && !get_public_user_profile_completed_by_user_id(state, &user_id.to_string())
+            .await?
+            .unwrap_or(false)
+    {
+        tracing::warn!(
+            "앱 지갑 로그인 차단: 회원가입 미완료 user_id={} wallet={}",
+            user_id,
+            wallet_address
+        );
+        return Err(anyhow!(APP_SIGNUP_REQUIRED_MESSAGE));
+    }
 
     // 최종 토큰 발급 + refresh session 저장
     // 지갑 로그인은 기존 유저만 가능하므로 is_new_user = false
@@ -668,7 +689,26 @@ pub async fn exchange_supabase_token(
         }
     }
 
-    ensure_public_user_exists(
+    if client_type == "app" {
+        let completed_user_exists = has_completed_public_user_for_app_login(
+            state,
+            user_id,
+            email,
+            google_connected,
+        )
+        .await?;
+
+        if !completed_user_exists {
+            tracing::warn!(
+                "앱 로그인 차단: 회원가입 미완료 user_id={} email={:?}",
+                user_id,
+                email
+            );
+            return Err(anyhow!(APP_SIGNUP_REQUIRED_MESSAGE));
+        }
+    }
+
+    let resolved_user_id = ensure_public_user_exists(
         state,
         user_id,
         email,
@@ -678,9 +718,106 @@ pub async fn exchange_supabase_token(
     )
     .await?;
 
-    let user_uuid = Uuid::parse_str(user_id).context("Supabase user_id UUID 파싱 실패")?;
+    let user_uuid =
+        Uuid::parse_str(&resolved_user_id).context("최종 사용자 user_id UUID 파싱 실패")?;
 
     issue_login_tokens(state, user_uuid, client_type, false).await
+}
+
+async fn has_completed_public_user_for_app_login(
+    state: &AppState,
+    user_id: &str,
+    email: Option<&str>,
+    google_connected: bool,
+) -> Result<bool> {
+    if let Some(is_completed) = get_public_user_profile_completed_by_user_id(state, user_id).await? {
+        return Ok(is_completed);
+    }
+
+    if google_connected {
+        if let Some(real_email) = email {
+            return get_public_user_profile_completed_by_email(state, real_email).await;
+        }
+    }
+
+    Ok(false)
+}
+
+async fn get_public_user_profile_completed_by_user_id(
+    state: &AppState,
+    user_id: &str,
+) -> Result<Option<bool>> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&deleted_at=is.null&select=profile_completed&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        urlencoding::encode(user_id)
+    );
+
+    let resp = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("앱 로그인용 public.users(user_id) 조회 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("앱 로그인용 public.users(user_id) 조회 실패: {}", err));
+    }
+
+    let rows: Vec<PublicUserProfileStatusRow> = resp
+        .json()
+        .await
+        .context("앱 로그인용 public.users(user_id) 응답 파싱 실패")?;
+
+    Ok(rows
+        .into_iter()
+        .next()
+        .map(|row| row.profile_completed.unwrap_or(false)))
+}
+
+async fn get_public_user_profile_completed_by_email(
+    state: &AppState,
+    email: &str,
+) -> Result<bool> {
+    let url = format!(
+        "{}/rest/v1/users?email=eq.{}&deleted_at=is.null&select=profile_completed&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        urlencoding::encode(email)
+    );
+
+    let resp = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("앱 로그인용 public.users(email) 조회 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("앱 로그인용 public.users(email) 조회 실패: {}", err));
+    }
+
+    let rows: Vec<PublicUserProfileStatusRow> = resp
+        .json()
+        .await
+        .context("앱 로그인용 public.users(email) 응답 파싱 실패")?;
+
+    Ok(rows
+        .into_iter()
+        .next()
+        .and_then(|row| row.profile_completed)
+        .unwrap_or(false))
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -696,7 +833,7 @@ async fn ensure_public_user_exists(
     provider: &str,
     provider_id: Option<&str>,
     google_connected: bool,
-) -> Result<()> {
+) -> Result<String> {
     // ─────────────────────────────────────────────────────────
     // 0) 구글 연결 특수 처리
     //
@@ -718,7 +855,7 @@ async fn ensure_public_user_exists(
 
                     link_google_to_existing_user(state, &existing_user_id).await?;
                     ensure_settings_and_streaks_exist(state, &existing_user_id).await?;
-                    return Ok(());
+                    return Ok(existing_user_id);
                 }
             }
         }
@@ -801,7 +938,7 @@ async fn ensure_public_user_exists(
     // 3) user_settings / streaks 보장
     ensure_settings_and_streaks_exist(state, user_id).await?;
 
-    Ok(())
+    Ok(user_id.to_string())
 }
 
 async fn ensure_settings_and_streaks_exist(state: &AppState, user_id: &str) -> Result<()> {
@@ -887,8 +1024,11 @@ pub async fn kakao_login(
         std::env::var("KAKAO_REST_API_KEY").context("KAKAO_REST_API_KEY 환경변수 없음")?;
     let kakao_client_secret =
         std::env::var("KAKAO_CLIENT_SECRET").context("KAKAO_CLIENT_SECRET 환경변수 없음")?;
-    let redirect_uri =
-        std::env::var("KAKAO_REDIRECT_URI").context("KAKAO_REDIRECT_URI 환경변수 없음")?;
+    let redirect_uri = if client_type == "app" {
+        state.config.kakao_app_redirect_uri.clone()
+    } else {
+        state.config.kakao_redirect_uri.clone()
+    };
 
     let token_resp = state
         .http_client
@@ -967,6 +1107,19 @@ pub async fn kakao_login(
         find_or_create_social_user(state, provider, &provider_id, email, nickname).await?;
 
     let user_uuid = Uuid::parse_str(&user_id).context("카카오 user_id UUID 파싱 실패")?;
+
+    if client_type == "app"
+        && !get_public_user_profile_completed_by_user_id(state, &user_id)
+            .await?
+            .unwrap_or(false)
+    {
+        tracing::warn!(
+            "앱 카카오 로그인 차단: 회원가입 미완료 user_id={} email={:?}",
+            user_id,
+            email
+        );
+        return Err(anyhow!(APP_SIGNUP_REQUIRED_MESSAGE));
+    }
 
     issue_login_tokens(state, user_uuid, client_type, is_new_user).await
 }

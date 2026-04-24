@@ -155,6 +155,12 @@ pub struct KakaoStartResponse {
     pub auth_url: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AppKakaoStartResponse {
+    pub auth_url: String,
+    pub state: String,
+}
+
 // ── 프로필 완성 ───────────────────────────────────────────────
 //
 // 회원가입/소셜 로그인 후 nickname + phone + profile_image 저장

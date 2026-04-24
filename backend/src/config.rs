@@ -35,6 +35,7 @@ pub struct Config {
     pub kakao_rest_api_key: String,
     pub kakao_client_secret: String,
     pub kakao_redirect_uri: String,
+    pub kakao_app_redirect_uri: String,
 
     // 프로필 이미지 저장용 private bucket 이름
     pub supabase_profile_image_bucket: String,
@@ -93,6 +94,10 @@ impl Config {
 
             kakao_redirect_uri: std::env::var("KAKAO_REDIRECT_URI")
                 .context("KAKAO_REDIRECT_URI 환경변수 없음")?,
+
+            kakao_app_redirect_uri: std::env::var("KAKAO_APP_REDIRECT_URI")
+                .or_else(|_| std::env::var("KAKAO_REDIRECT_URI"))
+                .context("KAKAO_APP_REDIRECT_URI 또는 KAKAO_REDIRECT_URI 환경변수 없음")?,
 
             supabase_profile_image_bucket: std::env::var("SUPABASE_PROFILE_IMAGE_BUCKET")
                 .context("SUPABASE_PROFILE_IMAGE_BUCKET 환경변수 없음")?,
