@@ -33,6 +33,10 @@ import {
 import { format, isValid, parse } from "date-fns";
 import { ko } from "date-fns/locale";
 import { toast } from "sonner";
+import {
+  getMonthlyExpenseTotal,
+  getMonthlyIncomeTotal,
+} from "@/shared/utils/finance";
 
 interface Expense {
   id: string | number;
@@ -77,7 +81,7 @@ const incomeCategories = [
 ];
 
 export default function DashboardPage() {
-  const { budget, transactions, replaceTransactions } = useFinance();
+  const { budget, budgets, transactions, replaceTransactions, addTransaction } = useFinance();
   const draftStorageKey = "dashboard-expense-draft";
   const selectedDateStorageKey = "dashboard-selected-date";
   const entryTypeStorageKey = "dashboard-entry-type";
@@ -309,19 +313,16 @@ export default function DashboardPage() {
 
       const expense = toDashboardExpense(savedExpense);
 
-      replaceTransactions([
-        {
-          id: String(expense.id),
-          date: format(expense.date, "yyyy-MM-dd"),
-          amount: expense.amount,
-          category: expense.category,
-          memo: expense.memo,
-          type: entryType,
-          receipt: entryType === "expense" ? serverReceiptVerified : undefined,
-          diary: entryType === "expense" ? expense.diary : undefined,
-        },
-        ...transactions,
-      ]);
+      addTransaction({
+  id: String(expense.id),
+  date: format(expense.date, "yyyy-MM-dd"),
+  amount: expense.amount,
+  category: expense.category,
+  memo: expense.memo,
+  type: entryType,
+  receipt: entryType === "expense" ? serverReceiptVerified : undefined,
+  diary: entryType === "expense" ? expense.diary : undefined,
+});
       setSelectedDate(expense.date);
 
       if (savedExpense.transactionType !== entryType) {
@@ -384,23 +385,17 @@ export default function DashboardPage() {
     .filter((e) => e.type === "income")
     .reduce((sum, e) => sum + e.amount, 0);
 
-  const monthlyTotal = expenses
-    .filter(
-      (e) =>
-        e.type === "expense" &&
-        e.date.getFullYear() === (selectedDate || new Date()).getFullYear() &&
-        e.date.getMonth() === (selectedDate || new Date()).getMonth()
-    )
-    .reduce((sum, e) => sum + e.amount, 0);
+  const monthlyTotal = getMonthlyExpenseTotal(
+  transactions,
+  selectedDate || new Date()
+);
+    const monthKey = format(selectedDate || new Date(), "yyyy-MM");
+const currentBudget = budgets[monthKey] ?? budget;
 
-  const monthlyIncomeTotal = expenses
-    .filter(
-      (e) =>
-        e.type === "income" &&
-        e.date.getFullYear() === (selectedDate || new Date()).getFullYear() &&
-        e.date.getMonth() === (selectedDate || new Date()).getMonth()
-    )
-    .reduce((sum, e) => sum + e.amount, 0);
+  const monthlyIncomeTotal = getMonthlyIncomeTotal(
+  transactions,
+  selectedDate || new Date()
+);
 
   const recordedDates = expenses.map((expense) => expense.date);
   const selectedDateInputValue = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
@@ -435,23 +430,23 @@ export default function DashboardPage() {
             <div className="rounded-lg bg-cyan-100 p-4 text-gray-900 dark:bg-cyan-100 dark:text-gray-900">
               <p className="text-sm font-medium">예산</p>
               <p className="font-bold">
-                {budget.toLocaleString()}원
+                {currentBudget.toLocaleString()}원
               </p>
             </div>
 
             <div className="rounded-lg bg-blue-100 p-4 text-gray-900 dark:bg-blue-100 dark:text-gray-900">
               <p className="text-sm font-medium">남은 예산</p>
               <p className="font-bold">
-                {(budget - monthlyTotal).toLocaleString()}원
+                {(currentBudget - monthlyTotal).toLocaleString()}원
               </p>
             </div>
 
             <div className="rounded-lg bg-teal-100 p-4 text-gray-900 dark:bg-teal-100 dark:text-gray-900">
               <p className="text-sm font-medium">사용률</p>
               <p className="font-bold">
-                {budget > 0
-                  ? Math.round((monthlyTotal / budget) * 100)
-                  : 0}
+                {currentBudget > 0
+  ? Math.round((monthlyTotal / currentBudget) * 100)
+  : 0}
                 %
               </p>
             </div>
