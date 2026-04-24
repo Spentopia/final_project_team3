@@ -307,15 +307,19 @@ const mappedPlans = plansArray.map((plan: any, index: number) => ({
         </div>
 
         <Button onClick={handleGenerateAiPlans} disabled={loading}>
-  {loading ? "AI 생성 중..." : "AI 플랜 생성"}
+  {loading ? "AI 생성 중..." : "AI 플랜 추천"}
 </Button>
       </div>
 
       <div>
         <h2 className="mb-4 flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100">
-          <Sparkles className="h-5 w-5 text-cyan-600" />
-          AI 추천 플랜
-        </h2>
+  <Sparkles className="h-5 w-5 text-cyan-600" />
+  AI 추천 플랜
+</h2>
+
+<p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+  기본 추천 플랜입니다. AI로 새로 추천받을 수 있어요.
+</p>
 
         <div className="grid gap-6 md:grid-cols-3">
           {aiPlans.map((plan) => (
