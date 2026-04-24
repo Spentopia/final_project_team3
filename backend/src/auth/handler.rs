@@ -1581,8 +1581,7 @@ fn should_use_secure_cookies(state: &AppState) -> bool {
 //   "expires_in": 30
 // }
 //
-// 프론트는 이 handoff_token을 URL에 넣지 않고
-// 부모 탭 -> 유니티 탭 postMessage로만 전달해야 함.
+// 프론트는 이 handoff_token을 exe 실행용 프로토콜/런처에만 전달해야 한다.
 #[utoipa::path(
     post,
     path = "/auth/handoff",
@@ -1600,7 +1599,7 @@ fn should_use_secure_cookies(state: &AppState) -> bool {
 pub async fn create_handoff(
     State(state): State<AppState>,
     // jwt_middleware가 넣어준 user_id
-    axum::Extension(user_id): axum::Extension<Uuid>,
+    Extension(user_id): Extension<Uuid>,
     Json(body): Json<HandoffRequest>,
 ) -> Result<Json<HandoffResponse>, (StatusCode, String)> {
     // ── 1) target_service 검증 ──────────────────────────────
@@ -1640,8 +1639,8 @@ pub async fn create_handoff(
 // 공개 라우트 → JWT 불필요
 //
 // 이유:
-// - 유니티는 아직 access token이 없는 상태에서 시작함
-// - 부모 탭이 postMessage로 넘긴 handoff token만 가지고 교환해야 함
+// - 유니티 exe는 아직 access token이 없는 상태에서 시작함
+// - 실행 시 전달받은 handoff token만 가지고 교환해야 함
 //
 // 요청 예시:
 // POST /auth/handoff/exchange
@@ -1658,8 +1657,8 @@ pub async fn create_handoff(
 //
 // 유니티는 이 토큰들을 메모리에 저장하고:
 // - access_token으로 API 호출
-// - refresh_token으로 /auth/refresh (body 방식)로 세션 연장
-// - 이 시점부터 부모 탭(웹) 닫아도 유니티 독립 운영 가능
+// - refresh_token으로 /auth/app/refresh (body 방식)로 세션 연장
+// - 이 시점부터 웹과 독립적으로 운영 가능
 #[utoipa::path(
     post,
     path = "/auth/handoff/exchange",

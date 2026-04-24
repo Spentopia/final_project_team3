@@ -52,13 +52,12 @@ pub fn create_router(state: AppState) -> Router {
         .route("/auth/kakao/start", post(auth::handler::kakao_start))
         .route("/auth/kakao/login", post(auth::handler::kakao_login))
         // ── handoff 교환 (공개) ─────────────────────────────
-        // 유니티가 postMessage로 받은 handoff token을 여기로 보냄
+        // 유니티 exe가 실행 시 전달받은 handoff token을 여기로 보냄
         // JWT 없이 접근 가능 (아직 유니티에 토큰이 없으므로)
         .route(
             "/auth/handoff/exchange",
             post(auth::handler::exchange_handoff),
         );
-
     // ── 열거 공격 방어 전용 rate limit ───────────────────────────
     let enumeration_rate_limit = Arc::new(
         GovernorConfigBuilder::default()
@@ -103,7 +102,7 @@ pub fn create_router(state: AppState) -> Router {
             get(auth::handler::get_profile_image_signed_url),
         )
         // ── handoff 발급 (보호) ─────────────────────────────
-        // 웹에서 "게임 시작" 클릭 시 호출
+        // 웹에서 "게임 실행" 클릭 시 호출
         // JWT 필수 → 누구의 handoff인지 알아야 하니까
         .route("/auth/handoff", post(auth::handler::create_handoff))
         // ── 지갑 연동 ──────────────────────────────────────

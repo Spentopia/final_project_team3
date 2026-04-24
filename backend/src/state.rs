@@ -29,12 +29,12 @@ pub struct NonceEntry {
 // ─────────────────────────────────────────────────────────────
 // handoff token 임시 저장 구조체
 //
-// 웹에서 유니티로 로그인 상태를 안전하게 넘기기 위한 1회용 교환권.
+// 웹에서 유니티 exe로 로그인 상태를 안전하게 넘기기 위한 1회용 교환권.
 //
 // 흐름:
-// 1) 웹에서 "게임 시작" → 백엔드가 handoff token 발급 → 메모리 저장
-// 2) 웹이 postMessage로 유니티에 handoff token 전달
-// 3) 유니티가 /auth/handoff/exchange 호출 → 백엔드가 검증
+// 1) 웹에서 "게임 실행" → 백엔드가 handoff token 발급 → 메모리 저장
+// 2) 웹이 exe 실행용 프로토콜/런처에 handoff token 전달
+// 3) 유니티 exe가 /auth/handoff/exchange 호출 → 백엔드가 검증
 // 4) 검증 성공 → handoff 즉시 삭제 → 유니티용 access+refresh 발급
 //
 // - key는 handoff token 원문의 SHA-256 해시를 사용

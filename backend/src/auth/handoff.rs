@@ -1,22 +1,22 @@
 // src/auth/handoff.rs
 // ─────────────────────────────────────────────────────────────
-// 유니티 진입용 handoff token 발급/교환 로직
+// 유니티 exe 진입용 handoff token 발급/교환 로직
 //
 // handoff란?
-//   웹에서 유니티(새 탭)로 로그인 상태를 안전하게 넘기기 위한
+//   웹에서 유니티 exe로 로그인 상태를 안전하게 넘기기 위한
 //   1회용 교환권(one-time exchange token).
 //
 // 왜 필요한가?
 //   - 웹의 access token은 JS 메모리에만 있음
-//   - 새 탭을 열면 메모리가 분리되어 토큰이 없음
+//   - exe는 웹 탭 메모리를 공유하지 않음
 //   - 웹의 refresh token은 HttpOnly 쿠키라 JS가 읽을 수 없음
 //   - 따라서 원본 토큰(access/refresh)을 직접 넘기면
-//     웹에서 힘들게 지킨 보안 모델이 깨짐
+//     웹에서 유지하던 보안 모델이 깨짐
 //
 // 해결:
 //   - 웹이 백엔드에서 짧은 수명(30초)의 handoff token을 발급받음
-//   - 부모 탭 → 유니티 탭 postMessage로 전달 (URL에 안 남음)
-//   - 유니티가 handoff token으로 자기만의 access+refresh를 교환
+//   - 웹이 exe 실행용 프로토콜/런처에 handoff token을 실어 전달
+//   - 유니티 exe가 handoff token으로 자기만의 access+refresh를 교환
 //   - 교환 성공 시 handoff token 즉시 삭제 (1회용)
 //
 // 저장 방식:
@@ -110,7 +110,7 @@ pub fn create_handoff_token(state: &AppState, user_id: Uuid, target_service: &st
 // ─────────────────────────────────────────────────────────────
 // handoff token 교환
 //
-// 호출 시점: 유니티가 postMessage로 받은 handoff token으로
+// 호출 시점: 유니티 exe가 실행 시 전달받은 handoff token으로
 //           /auth/handoff/exchange를 호출
 //
 // 동작:
