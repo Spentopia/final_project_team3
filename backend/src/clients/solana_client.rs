@@ -27,6 +27,7 @@ const SPT_TOKEN_AUTHORITY_SEED: &[u8] = b"spt_token_authority";
 const LISTING_SEED: &[u8] = b"listing";
 const ESCROW_SEED: &[u8] = b"escrow";
 const AVATAR_MINT_SEED: &[u8] = b"avatar_mint";
+const AVATAR_COLLECTION_MINT_SEED: &[u8] = b"avatar_collection_mint";
 
 // SPT decimals: 1 SPT = 1_000_000 base units
 pub const SPT_DECIMALS: u64 = 1_000_000;
@@ -176,7 +177,11 @@ async fn check_signature_status(
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        return Err(anyhow!("getSignatureStatuses 오류 (HTTP {}): {}", status, body));
+        return Err(anyhow!(
+            "getSignatureStatuses 오류 (HTTP {}): {}",
+            status,
+            body
+        ));
     }
 
     let res: serde_json::Value = response
@@ -190,7 +195,10 @@ async fn check_signature_status(
         .ok_or_else(|| anyhow!("트랜잭션 상태를 찾을 수 없습니다: {}", signature))?;
 
     if status.is_null() {
-        return Err(anyhow!("트랜잭션이 아직 처리되지 않았습니다: {}", signature));
+        return Err(anyhow!(
+            "트랜잭션이 아직 처리되지 않았습니다: {}",
+            signature
+        ));
     }
     if !status["err"].is_null() {
         return Err(anyhow!("트랜잭션 실패 확인됨: {}", status["err"]));
@@ -272,10 +280,7 @@ async fn get_helius_transaction(
         return Err(anyhow!("Helius API 오류 (HTTP {}): {}", status, body));
     }
 
-    let res: Vec<serde_json::Value> = response
-        .json()
-        .await
-        .context("Helius API 응답 파싱 실패")?;
+    let res: Vec<serde_json::Value> = response.json().await.context("Helius API 응답 파싱 실패")?;
 
     let tx = res
         .into_iter()
@@ -545,6 +550,9 @@ fn build_mint_avatar_tx(
     metadata: &[u8; 32],
     spt_token_authority: &[u8; 32],
     user_token_account: &[u8; 32],
+    collection_mint: &[u8; 32],
+    collection_metadata: &[u8; 32],
+    collection_master_edition: &[u8; 32],
     program_id: &[u8; 32],
     recent_blockhash: &[u8; 32],
     ix_data: &[u8],
@@ -557,19 +565,22 @@ fn build_mint_avatar_tx(
     let system_program = decode_pubkey(SYSTEM_PROGRAM_ID).unwrap();
 
     let accounts: &[[u8; 32]] = &[
-        *admin_pubkey,        // 0 writable signer
-        *avatar_mint,         // 1 writable
-        *metadata,            // 2 writable
-        *user_token_account,  // 3 writable
-        *platform_config,     // 4 readonly
-        *user_wallet,         // 5 readonly
-        *spt_token_authority, // 6 readonly
-        metadata_program,     // 7 readonly
-        sysvar_instructions,  // 8 readonly
-        token_program,        // 9 readonly
-        assoc_token_prog,     // 10 readonly
-        system_program,       // 11 readonly
-        *program_id,          // 12 readonly program
+        *admin_pubkey,              // 0 writable signer
+        *avatar_mint,               // 1 writable
+        *metadata,                  // 2 writable
+        *user_token_account,        // 3 writable
+        *platform_config,           // 4 readonly
+        *user_wallet,               // 5 readonly
+        *spt_token_authority,       // 6 readonly
+        *collection_mint,           // 7 readonly
+        *collection_metadata,       // 8 readonly
+        *collection_master_edition, // 9 readonly
+        metadata_program,           // 10 readonly
+        sysvar_instructions,        // 11 readonly
+        token_program,              // 12 readonly
+        assoc_token_prog,           // 13 readonly
+        system_program,             // 14 readonly
+        *program_id,                // 15 readonly program
     ];
 
     let ix_accounts: &[u8] = &[
@@ -580,22 +591,25 @@ fn build_mint_avatar_tx(
         2,  // metadata
         6,  // spt_token_authority
         3,  // user_token_account
-        7,  // metadata_program
-        8,  // sysvar_instructions
-        9,  // token_program
-        10, // associated_token_program
-        11, // system_program
+        7,  // collection_mint
+        8,  // collection_metadata
+        9,  // collection_master_edition
+        10, // metadata_program
+        11, // sysvar_instructions
+        12, // token_program
+        13, // associated_token_program
+        14, // system_program
     ];
 
     let mut msg = Vec::new();
-    msg.extend_from_slice(&[1u8, 0u8, 9u8]);
+    msg.extend_from_slice(&[1u8, 0u8, 12u8]);
     msg.extend(compact_u16(accounts.len()));
     for acc in accounts {
         msg.extend_from_slice(acc);
     }
     msg.extend_from_slice(recent_blockhash);
     msg.extend(compact_u16(1));
-    msg.push(12u8);
+    msg.push(15u8);
     msg.extend(compact_u16(ix_accounts.len()));
     msg.extend_from_slice(ix_accounts);
     msg.extend(compact_u16(ix_data.len()));
@@ -715,8 +729,26 @@ pub async fn mint_avatar_nft_to_user(
         &[AVATAR_MINT_SEED, user_wallet.as_ref(), item_id.as_bytes()],
         &program_id,
     );
+    let (collection_mint, _) = find_program_address(&[AVATAR_COLLECTION_MINT_SEED], &program_id);
     let (metadata, _) = find_program_address(
         &[b"metadata", metadata_program.as_ref(), avatar_mint.as_ref()],
+        &metadata_program,
+    );
+    let (collection_metadata, _) = find_program_address(
+        &[
+            b"metadata",
+            metadata_program.as_ref(),
+            collection_mint.as_ref(),
+        ],
+        &metadata_program,
+    );
+    let (collection_master_edition, _) = find_program_address(
+        &[
+            b"metadata",
+            metadata_program.as_ref(),
+            collection_mint.as_ref(),
+            b"edition",
+        ],
         &metadata_program,
     );
     let user_token_account = get_associated_token_address(&user_wallet, &avatar_mint)?;
@@ -737,6 +769,9 @@ pub async fn mint_avatar_nft_to_user(
         &metadata,
         &spt_token_authority,
         &user_token_account,
+        &collection_mint,
+        &collection_metadata,
+        &collection_master_edition,
         &program_id,
         &blockhash,
         &ix_data,
@@ -753,4 +788,64 @@ pub async fn mint_avatar_nft_to_user(
         signature
     );
     Ok((signature, mint_address))
+}
+
+pub async fn get_collection_assets_by_owner(
+    rpc_url: &str,
+    client: &reqwest::Client,
+    owner_wallet_b58: &str,
+    collection_mint_b58: &str,
+) -> Result<Vec<serde_json::Value>> {
+    let response = client
+        .post(rpc_url)
+        .json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getAssetsByOwner",
+            "params": {
+                "ownerAddress": owner_wallet_b58,
+                "page": 1,
+                "limit": 1000,
+                "displayOptions": {
+                    "showCollectionMetadata": true
+                }
+            }
+        }))
+        .send()
+        .await
+        .context("getAssetsByOwner 요청 실패")?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(anyhow!("getAssetsByOwner 오류 (HTTP {}): {}", status, body));
+    }
+
+    let res: serde_json::Value = response
+        .json()
+        .await
+        .context("getAssetsByOwner 응답 파싱 실패")?;
+
+    if let Some(err) = res.get("error") {
+        return Err(anyhow!("getAssetsByOwner RPC 오류: {}", err));
+    }
+
+    let items = res["result"]["items"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+
+    let filtered = items
+        .into_iter()
+        .filter(|asset| {
+            asset["grouping"].as_array().is_some_and(|groups| {
+                groups.iter().any(|group| {
+                    group["group_key"].as_str() == Some("collection")
+                        && group["group_value"].as_str() == Some(collection_mint_b58)
+                })
+            })
+        })
+        .collect();
+
+    Ok(filtered)
 }

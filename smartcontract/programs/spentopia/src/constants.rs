@@ -21,6 +21,10 @@ pub const MAX_FEE_RATE: u16 = 10_000;
 /// 유저별 + 아이템별로 고유한 민트를 만들기 위해 user_pubkey + item_id를 함께 사용.
 pub const AVATAR_MINT_SEED: &[u8] = b"avatar_mint";
 
+/// Spentopia 아바타 컬렉션 NFT 민트 PDA seed.
+/// 프로젝트 전용 collection mint를 단 1개만 만들기 위해 고정 seed를 사용한다.
+pub const AVATAR_COLLECTION_MINT_SEED: &[u8] = b"avatar_collection_mint";
+
 /// 판매 등록 계정 PDA seed.
 /// seller + nft_mint 조합 → 동일 NFT 중복 등록 방지
 pub const LISTING_SEED: &[u8] = b"listing";

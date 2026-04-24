@@ -9,9 +9,17 @@ export default defineConfig({
     tailwindcss(),
   ],
   resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
+    alias: [
+      { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+      { find: /^buffer$/, replacement: 'buffer/' },
+      { find: /^node:buffer$/, replacement: 'buffer/' },
+    ],
+  },
+  define: {
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    include: ['buffer', 'buffer/'],
   },
   server: {
     open: true,

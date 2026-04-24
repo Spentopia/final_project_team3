@@ -29,4 +29,12 @@ pub enum SpentopiaError {
     /// 본인 NFT 구매 시도 시
     #[msg("본인의 NFT는 구매할 수 없습니다.")]
     SelfPurchase,
+
+    /// 아바타 컬렉션이 이미 초기화된 경우
+    #[msg("아바타 컬렉션이 이미 초기화되어 있습니다.")]
+    AvatarCollectionAlreadyInitialized,
+
+    /// 아바타 컬렉션이 아직 초기화되지 않은 경우
+    #[msg("아바타 컬렉션이 아직 초기화되지 않았습니다.")]
+    AvatarCollectionNotInitialized,
 }

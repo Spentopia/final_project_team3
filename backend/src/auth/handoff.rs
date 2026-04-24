@@ -1,22 +1,22 @@
 // src/auth/handoff.rs
 // ─────────────────────────────────────────────────────────────
-// 유니티 진입용 handoff token 발급/교환 로직
+// 유니티 exe 진입용 handoff token 발급/교환 로직
 //
 // handoff란?
-//   웹에서 유니티(새 탭)로 로그인 상태를 안전하게 넘기기 위한
+//   웹에서 유니티 exe로 로그인 상태를 안전하게 넘기기 위한
 //   1회용 교환권(one-time exchange token).
 //
 // 왜 필요한가?
 //   - 웹의 access token은 JS 메모리에만 있음
-//   - 새 탭을 열면 메모리가 분리되어 토큰이 없음
+//   - exe는 웹 탭 메모리를 공유하지 않음
 //   - 웹의 refresh token은 HttpOnly 쿠키라 JS가 읽을 수 없음
 //   - 따라서 원본 토큰(access/refresh)을 직접 넘기면
-//     웹에서 힘들게 지킨 보안 모델이 깨짐
+//     웹에서 유지하던 보안 모델이 깨짐
 //
 // 해결:
 //   - 웹이 백엔드에서 짧은 수명(30초)의 handoff token을 발급받음
-//   - 부모 탭 → 유니티 탭 postMessage로 전달 (URL에 안 남음)
-//   - 유니티가 handoff token으로 자기만의 access+refresh를 교환
+//   - 웹이 exe 실행용 프로토콜/런처에 handoff token을 실어 전달
+//   - 유니티 exe가 handoff token으로 자기만의 access+refresh를 교환
 //   - 교환 성공 시 handoff token 즉시 삭제 (1회용)
 //
 // 저장 방식:
@@ -30,10 +30,10 @@
 //   - refresh_store와 같은 패턴
 //
 // 중요 수정 포인트:
-//   - 이전 버전은 exchange 시 remove()를 너무 먼저 해서
-//     검증 실패여도 token이 날아갈 수 있었음
-//   - 지금은 get()으로 먼저 확인하고
-//     검증이 모두 끝난 뒤 remove()로 1회용 처리함
+//   - 경쟁 상황에서도 1회용이 보장되도록
+//     exchange 시 remove()로 먼저 선점한다.
+//   - 선점에 성공한 요청만 검증/토큰 발급까지 진행하고
+//     나머지는 "이미 사용됨"으로 실패한다.
 
 use anyhow::{Result, anyhow};
 use rand::Rng;
@@ -69,7 +69,7 @@ pub fn hash_handoff_token(token: &str) -> String {
 //    - key: token_hash
 //    - 만료: 30초
 // 4) 원문 token을 프론트에 반환
-//    (프론트가 postMessage로 유니티에 전달)
+//    (프론트가 exe 실행용 프로토콜/런처에 실어 전달)
 //
 // 반환: handoff token 원문 (1회만 볼 수 있음)
 // ─────────────────────────────────────────────────────────────
@@ -103,24 +103,24 @@ pub fn create_handoff_token(state: &AppState, user_id: Uuid, target_service: &st
     );
 
     // 원문 반환 (해시가 아님!)
-    // 프론트가 이 값을 postMessage로 유니티에 전달
+    // 프론트가 이 값을 exe 실행용 프로토콜/런처에 실어 전달
     token
 }
 
 // ─────────────────────────────────────────────────────────────
 // handoff token 교환
 //
-// 호출 시점: 유니티가 postMessage로 받은 handoff token으로
+// 호출 시점: 유니티 exe가 실행 시 전달받은 handoff token으로
 //           /auth/handoff/exchange를 호출
 //
 // 동작:
 // 1) 들어온 token을 해시
-// 2) handoff_store에서 해시로 조회
+// 2) handoff_store에서 remove()로 선점
 // 3) 검증:
 //    - 존재하는지
 //    - 만료되지 않았는지
 //    - target_service가 "unity"인지
-// 4) 검증 성공 → handoff 즉시 삭제 (1회용)
+// 4) 선점 성공한 요청만 access+refresh 발급
 // 5) 해당 user_id로 유니티용 access+refresh 발급
 //    - client_type = "app" (유니티는 쿠키 안 쓰므로 body 방식)
 //
@@ -129,19 +129,18 @@ pub fn create_handoff_token(state: &AppState, user_id: Uuid, target_service: &st
 pub async fn exchange_handoff_token(state: &AppState, token: &str) -> Result<LoginIssueResult> {
     let token_hash = hash_handoff_token(token);
 
-    // ── 1) handoff_store에서 조회 ────────────────────────────
+    // ── 1) handoff_store에서 즉시 remove()로 선점 ────────────
+    // handoff는 경쟁 상황에서도 1회용이어야 하므로
+    // "조회 후 나중에 삭제"가 아니라 "먼저 가져간 요청만 성공"하게 만든다.
+    //
     // 주의:
-    // 예전에는 remove()를 먼저 했는데,
-    // 그러면 검증 실패 시에도 token이 날아가서 불필요한 소모가 생김.
-    // 그래서 먼저 get()으로 확인하고,
-    // 검증이 다 끝난 뒤 remove()로 1회용 처리함.
-    let entry_ref = state.handoff_store.get(&token_hash).ok_or_else(|| {
+    // 만료/target_service 검증 전에 remove()가 일어나므로
+    // 잘못된 handoff도 재사용은 불가능하다.
+    // handoff는 30초 TTL의 1회용 토큰이므로 이 동작이 더 안전하다.
+    let (_, entry) = state.handoff_store.remove(&token_hash).ok_or_else(|| {
         tracing::warn!("handoff token 없음 또는 이미 사용됨");
         anyhow!("유효하지 않은 handoff token입니다.")
     })?;
-
-    let entry = entry_ref.clone();
-    drop(entry_ref);
 
     // ── 2) 만료 체크 ────────────────────────────────────────
     if SystemTime::now() > entry.expires_at {
@@ -160,11 +159,7 @@ pub async fn exchange_handoff_token(state: &AppState, token: &str) -> Result<Log
         return Err(anyhow!("handoff token의 대상 서비스가 일치하지 않습니다."));
     }
 
-    // ── 4) 검증 성공 후 즉시 삭제 (1회용 보장) ──────────────
-    // 여기서 remove()를 해야
-    // 정상 검증이 끝난 token만 1회용으로 소모된다.
-    state.handoff_store.remove(&token_hash);
-
+    // ── 4) 선점 성공한 요청만 유니티용 access+refresh 발급 ────
     tracing::info!(
         "handoff token 교환 성공: user_id={}, target={}",
         entry.user_id,

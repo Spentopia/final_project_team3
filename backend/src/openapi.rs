@@ -64,6 +64,7 @@ use crate::wallet;
 
         // ── 커뮤니티 / 챗봇 ───────────────────────────────────
         crate::community::handler::list_contests,
+        crate::community::handler::chat,
         crate::community::handler::list_posts,
         crate::community::handler::create_post,
         crate::community::handler::delete_post,
@@ -146,6 +147,8 @@ use crate::wallet;
 
             // ── community DTO ─────────────────────────────────
             community::dto::ContestEventResponse,
+            community::dto::ChatRequest,
+            community::dto::ChatResponse,
             community::dto::CreatePostRequest,
             community::dto::UpdatePostRequest,
             community::dto::PostResponse,

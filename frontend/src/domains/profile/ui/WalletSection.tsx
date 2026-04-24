@@ -306,7 +306,7 @@ export function WalletSection({
                                 <Wallet className="h-5 w-5" />
                                 <span className="font-bold">계정에 지갑 연동됨</span>
                             </div>
-                            <p className="mb-2 font-mono text-sm text-gray-700 dark:text-gray-300">
+                            <p className="mb-2 break-all font-mono text-sm text-gray-700 dark:text-gray-300">
                                 {linkedAddress}
                             </p>
                             <p className="text-xs text-gray-600 dark:text-gray-400">

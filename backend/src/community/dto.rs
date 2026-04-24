@@ -50,3 +50,12 @@ pub struct PostResponse {
     pub created_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ChatRequest {
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ChatResponse {
+    pub response: String,
+}

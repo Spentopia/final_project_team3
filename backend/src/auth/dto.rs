@@ -199,9 +199,9 @@ pub struct ProfileImageUrlResponse {
 // POST /auth/handoff
 // Authorization: Bearer <access_token>
 //
-// 웹에서 "게임 시작" 버튼 클릭 시 호출.
+// 웹에서 "게임 실행" 버튼 클릭 시 호출.
 // JWT 미들웨어가 user_id를 확인한 뒤,
-// 유니티 진입용 1회용 handoff token을 발급한다.
+// 유니티 exe 진입용 1회용 handoff token을 발급한다.
 // ─────────────────────────────────────────────────────────────
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct HandoffRequest {
@@ -211,7 +211,7 @@ pub struct HandoffRequest {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct HandoffResponse {
-    // 부모 탭이 유니티 탭으로 postMessage 할 1회용 token 원문
+    // 웹이 exe 실행용 프로토콜/런처에 실어 전달할 1회용 token 원문
     pub handoff_token: String,
 
     // 프론트 디버깅/UX용
@@ -223,7 +223,7 @@ pub struct HandoffResponse {
 //
 // POST /auth/handoff/exchange
 //
-// 유니티가 부모 탭에서 postMessage로 받은 handoff token을
+// 유니티 exe가 실행 시 전달받은 handoff token을
 // 자기 서비스용 access/refresh로 교환할 때 사용.
 //
 // 중요:

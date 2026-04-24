@@ -1,3 +1,7 @@
+import { useState } from "react";
+import { Card } from "@/shared/ui/card";
+import { Badge } from "@/shared/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import {
   BookOpen,
   Receipt,
@@ -6,249 +10,564 @@ import {
   ShieldCheck,
   Sparkles,
   Coins,
-  ChevronRight,
+  Wallet,
+  Smartphone,
+  Monitor,
+  ShoppingBag,
+  Tag,
+  PiggyBank,
+  BrainCircuit,
+  Users,
+  MessageSquare,
+  Store,
+  AlertTriangle,
+  CheckCircle,
 } from "lucide-react";
 
-const guideSteps = [
-  {
-    icon: Receipt,
-    title: "소비 기록 작성",
-    description:
-      "날짜, 금액, 카테고리, 메모를 입력해서 오늘의 소비를 빠르게 기록할 수 있어요.",
-    details: [
-      "날짜를 선택하거나 직접 입력해서 기록 가능",
-      "카테고리를 선택해 소비 패턴 분류",
-      "메모를 남겨서 나중에 쉽게 회상 가능",
-    ],
-  },
-  {
-    icon: ShieldCheck,
-    title: "영수증 인증",
-    description:
-      "영수증 이미지를 업로드하면 OCR로 구매 내역을 확인하고 인증 상태를 반영할 수 있어요.",
-    details: [
-      "실제 결제 내역 확인에 활용",
-      "소비 기록의 신뢰도 향상",
-      "추후 보상/미션 기능과 연계 가능",
-    ],
-  },
-  {
-    icon: PenSquare,
-    title: "한줄 소비 일기",
-    description:
-      "오늘의 소비에 대해 짧게 기록하면서 감정과 소비 습관을 함께 돌아볼 수 있어요.",
-    details: [
-      "충동구매였는지 스스로 체크",
-      "만족한 소비인지 기록",
-      "나만의 소비 패턴 회고 가능",
-    ],
-  },
-  {
-    icon: BarChart3,
-    title: "분석 리포트 확인",
-    description:
-      "누적된 소비 데이터를 바탕으로 카테고리별 지출과 패턴을 한눈에 분석할 수 있어요.",
-    details: [
-      "카테고리별 소비 비중 확인",
-      "예산 초과 여부 체크",
-      "주간/월간 흐름 파악",
-    ],
-  },
-];
+// ─── 지갑 연동 탭 내부 앱/웹 서브탭 ──────────────────────────────────────────
 
-const quickTips = [
-  "영수증 인증까지 함께 하면 기록의 정확도가 높아져요.",
-  "한줄 일기를 같이 남기면 나중에 소비 이유를 파악하기 쉬워요.",
-  "분석 페이지를 주기적으로 보면 불필요한 지출을 줄이는 데 도움이 돼요.",
-];
+function WalletAppGuide() {
+  const wallets = [
+    {
+      name: "Phantom",
+      steps: [
+        "Google Play에서 Phantom 앱 설치",
+        "Spentopia 앱 → 프로필 → 지갑 연동",
+        "'Phantom으로 연결' 버튼 탭",
+        "Phantom 앱에서 연결 승인",
+      ],
+    },
+    {
+      name: "Solflare",
+      steps: [
+        "Google Play에서 Solflare 앱 설치",
+        "Spentopia 앱 → 프로필 → 지갑 연동",
+        "'Solflare로 연결' 버튼 탭",
+        "Solflare 앱에서 서명 승인",
+      ],
+    },
+    {
+      name: "Backpack",
+      steps: [
+        "Google Play에서 Backpack 앱 설치",
+        "Spentopia 앱 → 프로필 → 지갑 연동",
+        "'Backpack으로 연결' 버튼 탭",
+        "Backpack 앱에서 연결 승인",
+      ],
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-none bg-white/80 p-5 backdrop-blur-xl dark:bg-gray-800/80">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            MWA 방식이라 지갑 앱이 기기에 설치되어 있어야 연결됩니다.
+          </p>
+        </div>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {wallets.map((w) => (
+          <Card key={w.name} className="border-none bg-white/80 p-5 backdrop-blur-xl dark:bg-gray-800/80">
+            <p className="mb-4 font-bold text-gray-900 dark:text-gray-100">{w.name}</p>
+            <ol className="space-y-3">
+              {w.steps.map((s, i) => (
+                <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                    {i + 1}
+                  </span>
+                  {s}
+                </li>
+              ))}
+            </ol>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="border-none bg-white/80 p-5 backdrop-blur-xl dark:bg-gray-800/80">
+        <p className="mb-3 font-bold text-gray-900 dark:text-gray-100">연동 해제</p>
+        <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+          <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+          프로필 → 지갑 연동 섹션 → '연동 해제' 버튼. 해제해도 소비 기록과 SPT 잔액은 유지됩니다.
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function WalletWebGuide() {
+  const wallets = [
+    {
+      name: "Phantom (브라우저 확장)",
+      steps: [
+        "Chrome 웹 스토어에서 Phantom 확장 설치",
+        "Phantom에서 Solana 지갑 생성 또는 복구",
+        "Spentopia 웹 → 지갑 연결 버튼 클릭",
+        "팝업에서 Phantom 선택 후 승인",
+      ],
+    },
+    {
+      name: "Solflare (브라우저 확장)",
+      steps: [
+        "Chrome 웹 스토어에서 Solflare 확장 설치",
+        "Solflare에서 지갑 생성 또는 시드 구문으로 복구",
+        "Spentopia 웹 → 지갑 연결 버튼 클릭",
+        "팝업에서 Solflare 선택 후 승인",
+      ],
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-none bg-white/80 p-5 backdrop-blur-xl dark:bg-gray-800/80">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            시드 구문(복구 구문)은 절대 타인에게 공유하지 마세요. Spentopia는 시드 구문을 요구하지 않습니다.
+          </p>
+        </div>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {wallets.map((w) => (
+          <Card key={w.name} className="border-none bg-white/80 p-5 backdrop-blur-xl dark:bg-gray-800/80">
+            <p className="mb-4 font-bold text-gray-900 dark:text-gray-100">{w.name}</p>
+            <ol className="space-y-3">
+              {w.steps.map((s, i) => (
+                <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                    {i + 1}
+                  </span>
+                  {s}
+                </li>
+              ))}
+            </ol>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="border-none bg-white/80 p-5 backdrop-blur-xl dark:bg-gray-800/80">
+        <p className="mb-3 font-bold text-gray-900 dark:text-gray-100">공통 안내</p>
+        <div className="space-y-2">
+          {[
+            "지갑 연결은 서명 요청만 발생하며, 자산이 자동으로 이동하지 않습니다.",
+            "연결된 지갑 주소는 프로필 → 지갑 연동 섹션에서 언제든 해제할 수 있습니다.",
+          ].map((t) => (
+            <div key={t} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+              <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+              {t}
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ─── 메인 페이지 ──────────────────────────────────────────────────────────────
 
 export default function GuidePage() {
+  const [walletSub, setWalletSub] = useState<"app" | "web">("app");
+
+  const startSteps = [
+    {
+      icon: Receipt,
+      step: "01",
+      title: "소비 기록",
+      desc: "홈에서 날짜·금액·카테고리를 입력해 바로 기록하세요.",
+      points: ["카테고리로 소비 패턴 분류", "메모로 내용 기억", "과거 날짜 소급 입력 가능"],
+    },
+    {
+      icon: ShieldCheck,
+      step: "02",
+      title: "영수증 인증",
+      desc: "영수증 사진을 올리면 OCR이 날짜·금액을 자동 추출해 검증해요.",
+      points: ["인증 성공 시 기록에 인증 마크", "실제 결제 내역 교차 확인", "인증 데이터 분석에 반영"],
+    },
+    {
+      icon: PenSquare,
+      step: "03",
+      title: "한 줄 소비 일기",
+      desc: "기록과 함께 한 줄 일기를 남기면 소비 습관을 돌아볼 수 있어요.",
+      points: ["충동구매 여부 셀프 체크", "만족 여부 기록", "나중에 소비 이유 파악"],
+    },
+    {
+      icon: BarChart3,
+      step: "04",
+      title: "분석 리포트",
+      desc: "누적 데이터가 카테고리별 지출과 패턴으로 시각화돼요.",
+      points: ["카테고리별 소비 비중", "예산 초과 여부 확인", "주간·월간 흐름 파악"],
+    },
+  ];
+
   return (
     <div className="min-h-full bg-gradient-to-br from-cyan-50 via-white to-blue-50 p-6 dark:from-gray-950 dark:via-gray-900 dark:to-cyan-950/30">
       <div className="mx-auto max-w-6xl space-y-6">
-        {/* Hero */}
-        <section className="overflow-hidden rounded-3xl border border-white/60 bg-white/80 p-8 shadow-xl backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/70">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-1.5 text-sm font-semibold text-white shadow-lg">
-                <BookOpen className="h-4 w-4" />
-                Spentopia 이용가이드
-              </div>
 
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100 sm:text-3xl">
-                소비를 기록하고,
-                <br className="hidden sm:block" />
-                더 똑똑하게 관리하는 방법
-              </h1>
-
-              <p className="mt-4 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-300">
-                Spentopia는 단순한 가계부를 넘어서, 소비 기록 · 영수증 인증 ·
-                소비 일기 · 분석 리포트를 하나로 연결해주는 서비스예요.
-                아래 순서대로 따라가면 처음 사용하는 사람도 쉽게 적응할 수 있어요.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 lg:w-[320px]">
-              <div className="rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 p-5 text-white shadow-lg">
-                <div className="text-sm opacity-90">핵심 기능</div>
-                <div className="mt-2 text-2xl font-bold">4단계</div>
-                <div className="mt-1 text-sm opacity-90">기록부터 분석까지</div>
-              </div>
-
-              <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-5 dark:border-cyan-900/40 dark:bg-cyan-950/30">
-                <div className="text-sm text-gray-500 dark:text-gray-400">추천 습관</div>
-                <div className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  매일 1회
-                </div>
-                <div className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                  짧게라도 꾸준히
-                </div>
-              </div>
-            </div>
+        {/* 헤더 */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">이용 가이드</h1>
+            <p className="text-gray-600 dark:text-gray-400">Spentopia의 모든 기능을 한눈에 확인하세요</p>
           </div>
-        </section>
-
-        {/* Quick summary cards */}
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-white/60 bg-white/80 p-5 shadow-md backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/70">
-            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
-              <Receipt className="h-5 w-5" />
-            </div>
-            <h2 className="font-bold text-gray-900 dark:text-gray-100">기록 중심</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-              소비를 빠짐없이 남기면 데이터가 쌓이고, 그게 곧 분석의 기반이 돼요.
-            </p>
+          <div className="hidden items-center gap-2 lg:flex">
+            <Badge className="bg-gradient-to-r from-cyan-500 to-blue-500">
+              <BookOpen className="mr-1 h-3 w-3" />
+              가이드
+            </Badge>
           </div>
+        </div>
 
-          <div className="rounded-2xl border border-white/60 bg-white/80 p-5 shadow-md backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/70">
-            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <h2 className="font-bold text-gray-900 dark:text-gray-100">인증 강화</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-              영수증 인증으로 소비 기록의 정확도를 높이고 신뢰도 있는 관리가 가능해요.
-            </p>
-          </div>
+        {/* 메인 탭 */}
+        <Tabs defaultValue="start">
+          <TabsList className="h-auto w-full justify-start gap-1 bg-white/80 p-1.5 backdrop-blur-xl dark:bg-gray-800/80">
+            {[
+              { value: "start",     icon: Sparkles,  label: "시작하기" },
+              { value: "wallet",    icon: Wallet,    label: "지갑 연동" },
+              { value: "market",    icon: Store,     label: "NFT 마켓" },
+              { value: "budget",    icon: PiggyBank, label: "예산·분석" },
+              { value: "community", icon: Users,     label: "커뮤니티" },
+            ].map(({ value, icon: Icon, label }) => (
+              <TabsTrigger key={value} value={value} className="flex items-center gap-1.5 px-4 py-2">
+                <Icon className="h-4 w-4" />
+                {label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-          <div className="rounded-2xl border border-white/60 bg-white/80 p-5 shadow-md backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/70">
-            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
-              <BarChart3 className="h-5 w-5" />
-            </div>
-            <h2 className="font-bold text-gray-900 dark:text-gray-100">분석 연결</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-              누적된 기록은 소비 분석, 예산 관리, 향후 보상 시스템과 연결될 수 있어요.
-            </p>
-          </div>
-        </section>
-
-        {/* Step guide */}
-        <section className="rounded-3xl border border-white/60 bg-white/80 p-6 shadow-xl backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/70">
-          <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                단계별 이용 방법
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                처음 사용하는 사람도 쉽게 따라올 수 있도록 순서대로 정리했어요.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-            {guideSteps.map((step, index) => {
-              const Icon = step.icon;
-
-              return (
-                <div
-                  key={step.title}
-                  className="group rounded-2xl border border-cyan-100/70 bg-gradient-to-br from-white to-cyan-50/60 p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg dark:border-cyan-900/30 dark:from-gray-900 dark:to-cyan-950/20"
-                >
-                  <div className="mb-4 flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white shadow-md">
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-cyan-600 dark:text-cyan-400">
-                          STEP {index + 1}
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                          {step.title}
-                        </h3>
-                      </div>
+          {/* ── 시작하기 ── */}
+          <TabsContent value="start" className="mt-4 space-y-4">
+            <div className="grid gap-4 lg:grid-cols-2">
+              {startSteps.map(({ icon: Icon, step, title, desc, points }) => (
+                <Card key={step} className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+                  <div className="mb-4 flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white shadow-md">
+                      <Icon className="h-5 w-5" />
                     </div>
-
-                    <ChevronRight className="h-5 w-5 text-gray-300 transition-transform group-hover:translate-x-1 dark:text-gray-600" />
+                    <div>
+                      <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400">STEP {step}</p>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100">{title}</h3>
+                    </div>
                   </div>
-
-                  <p className="text-sm leading-6 text-gray-600 dark:text-gray-300">
-                    {step.description}
-                  </p>
-
-                  <ul className="mt-4 space-y-2">
-                    {step.details.map((detail) => (
-                      <li
-                        key={detail}
-                        className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300"
-                      >
-                        <span className="mt-1 h-2 w-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500" />
-                        <span>{detail}</span>
+                  <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">{desc}</p>
+                  <ul className="space-y-1.5">
+                    {points.map((p) => (
+                      <li key={p} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500" />
+                        {p}
                       </li>
                     ))}
                   </ul>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Tips + reward */}
-        <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-          <div className="rounded-3xl border border-white/60 bg-white/80 p-6 shadow-xl backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/70">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              이용 팁
-            </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              더 잘 활용하려면 아래 팁을 같이 기억해두면 좋아요.
-            </p>
-
-            <div className="mt-5 space-y-3">
-              {quickTips.map((tip, index) => (
-                <div
-                  key={tip}
-                  className="flex items-start gap-3 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 dark:border-cyan-900/30 dark:bg-cyan-950/20"
-                >
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-sm font-bold text-white">
-                    {index + 1}
-                  </div>
-                  <p className="text-sm leading-6 text-gray-700 dark:text-gray-300">
-                    {tip}
-                  </p>
-                </div>
+                </Card>
               ))}
             </div>
-          </div>
 
-          <div className="rounded-3xl bg-gradient-to-br from-cyan-500 to-blue-600 p-6 text-white shadow-xl">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20">
-              <Coins className="h-6 w-6" />
+            <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+              <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+                <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">추천 루틴</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  {["소비 기록", "영수증 인증", "한 줄 일기", "분석 확인"].map((s, i, arr) => (
+                    <div key={s} className="flex items-center gap-2">
+                      <Badge variant="outline" className="border-cyan-200 text-cyan-700 dark:border-cyan-700 dark:text-cyan-300">
+                        {s}
+                      </Badge>
+                      {i < arr.length - 1 && <span className="text-gray-400">→</span>}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+              <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-600 p-6 text-white shadow-xl">
+                <Coins className="mb-3 h-6 w-6" />
+                <p className="font-bold">매일 1회</p>
+                <p className="mt-1 text-sm text-white/80">짧게라도 꾸준히</p>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ── 지갑 연동 ── */}
+          <TabsContent value="wallet" className="mt-4 space-y-4">
+            <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
+                  <Wallet className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-gray-900 dark:text-gray-100">지갑 연동</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">앱과 웹에서 Solana 지갑을 연결하는 방법이에요</p>
+                </div>
+              </div>
+
+              {/* 앱 / 웹 서브탭 */}
+              <div className="flex gap-2">
+                {(["app", "web"] as const).map((sub) => (
+                  <button
+                    key={sub}
+                    onClick={() => setWalletSub(sub)}
+                    className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+                      walletSub === sub
+                        ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700/60 dark:text-gray-300 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    {sub === "app" ? <Smartphone className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
+                    {sub === "app" ? "앱 (Android)" : "웹 (브라우저)"}
+                  </button>
+                ))}
+              </div>
+            </Card>
+
+            {walletSub === "app" ? <WalletAppGuide /> : <WalletWebGuide />}
+          </TabsContent>
+
+          {/* ── NFT 마켓 ── */}
+          <TabsContent value="market" className="mt-4 space-y-4">
+            <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
+                  <Coins className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-gray-900 dark:text-gray-100">SPT 토큰</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Spentopia 생태계의 기본 보상 토큰</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: "획득", value: "소비 기록 · 영수증 인증 · 미션" },
+                  { label: "사용", value: "NFT 마켓 아바타 구매" },
+                  { label: "조회", value: "프로필 → 보유 SPT" },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-xl bg-cyan-50 p-3 dark:bg-cyan-950/30">
+                    <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400">{item.label}</p>
+                    <p className="mt-1 text-sm font-bold text-gray-900 dark:text-gray-100">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+                <div className="mb-4 flex items-center gap-3">
+                  <ShoppingBag className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">아바타 구매</h3>
+                </div>
+                <ol className="space-y-3">
+                  {[
+                    "지갑 연동 완료 후 마켓플레이스 진입",
+                    "원하는 아바타 NFT 선택",
+                    "'구매하기' 클릭 → 지갑 서명 요청",
+                    "승인 시 SPT 차감 + 아바타 지급",
+                  ].map((s, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                        {i + 1}
+                      </span>
+                      {s}
+                    </li>
+                  ))}
+                </ol>
+                <div className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950/20">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                  <p className="text-xs text-gray-600 dark:text-gray-400">구매 전 프로필에서 SPT 잔액을 확인하세요.</p>
+                </div>
+              </Card>
+
+              <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+                <div className="mb-4 flex items-center gap-3">
+                  <Tag className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">아바타 판매 등록</h3>
+                </div>
+                <ol className="space-y-3">
+                  {[
+                    "마켓플레이스 → '내 아이템' 탭",
+                    "판매할 아바타 선택 → '판매 등록'",
+                    "판매 가격(SPT) 입력 후 등록",
+                    "구매 완료 시 SPT가 내 지갑으로 전송",
+                  ].map((s, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                        {i + 1}
+                      </span>
+                      {s}
+                    </li>
+                  ))}
+                </ol>
+                <div className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 dark:bg-emerald-950/20">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                  <p className="text-xs text-gray-600 dark:text-gray-400">판매 등록된 NFT는 에스크로 컨트랙트에 안전하게 보관됩니다.</p>
+                </div>
+              </Card>
             </div>
 
-            <h2 className="mt-5 text-2xl font-bold">기록이 쌓일수록 가치도 커져요</h2>
-            <p className="mt-3 text-sm leading-6 text-white/90">
-              Spentopia는 단순한 입력 화면이 아니라, 소비 습관을 자산처럼 관리하는
-              경험을 목표로 해요. 꾸준한 기록은 앞으로 더 큰 분석과 보상으로 이어질 수 있어요.
-            </p>
+            <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+              <div className="mb-4 flex items-center gap-3">
+                <ShieldCheck className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                <h3 className="font-bold text-gray-900 dark:text-gray-100">에스크로 거래 흐름</h3>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { step: "01", label: "판매 등록", desc: "NFT → 에스크로 컨트랙트" },
+                  { step: "02", label: "구매 결제", desc: "SPT → 컨트랙트 예치" },
+                  { step: "03", label: "자동 정산", desc: "NFT → 구매자 / SPT → 판매자" },
+                ].map((item) => (
+                  <div key={item.step} className="rounded-xl border border-cyan-100 bg-cyan-50/70 p-4 dark:border-cyan-900/30 dark:bg-cyan-950/20">
+                    <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400">STEP {item.step}</p>
+                    <p className="mt-1 font-bold text-gray-900 dark:text-gray-100">{item.label}</p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </TabsContent>
 
-            <div className="mt-6 rounded-2xl bg-white/15 p-4 backdrop-blur-sm">
-              <div className="text-sm text-white/80">추천 루틴</div>
-              <div className="mt-1 text-lg font-bold">기록 → 인증 → 일기 → 분석 확인</div>
+          {/* ── 예산·분석 ── */}
+          <TabsContent value="budget" className="mt-4 space-y-4">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+                <div className="mb-4 flex items-center gap-3">
+                  <PiggyBank className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">월 예산 설정</h3>
+                </div>
+                <ol className="space-y-3">
+                  {[
+                    "사이드바 → '예산' 메뉴 진입",
+                    "월 선택 후 전체 또는 카테고리별 예산 입력",
+                    "'저장' 클릭으로 예산 등록",
+                    "대시보드·분석에서 예산 대비 현황 확인",
+                  ].map((s, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                        {i + 1}
+                      </span>
+                      {s}
+                    </li>
+                  ))}
+                </ol>
+              </Card>
+
+              <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+                <div className="mb-4 flex items-center gap-3">
+                  <BrainCircuit className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">AI 예산 플랜</h3>
+                </div>
+                <ol className="space-y-3">
+                  {[
+                    "예산 페이지 → 'AI 플랜 생성' 클릭",
+                    "AI가 최근 소비 패턴 분석 후 카테고리별 추천",
+                    "추천 금액 그대로 적용하거나 수정",
+                    "확정 시 해당 월 예산으로 즉시 반영",
+                  ].map((s, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                        {i + 1}
+                      </span>
+                      {s}
+                    </li>
+                  ))}
+                </ol>
+                <div className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950/20">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                  <p className="text-xs text-gray-600 dark:text-gray-400">2주 이상 기록이 쌓일수록 추천 정확도가 올라가요.</p>
+                </div>
+              </Card>
             </div>
-          </div>
-        </section>
+
+            <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+              <div className="mb-4 flex items-center gap-3">
+                <BarChart3 className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                <h3 className="font-bold text-gray-900 dark:text-gray-100">분석 리포트</h3>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  { label: "카테고리 분석", desc: "식비·교통·쇼핑 등 소비 비중 파이 차트" },
+                  { label: "기간별 추이", desc: "주간·월간 소비 흐름 그래프" },
+                  { label: "예산 대비 현황", desc: "설정 예산 vs 실제 소비 비율" },
+                  { label: "AI 채팅 분석", desc: "챗봇에 질문하면 데이터 기반 답변" },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-xl border border-cyan-100/70 bg-cyan-50/60 p-4 dark:border-cyan-900/30 dark:bg-cyan-950/20">
+                    <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{item.label}</p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="border-none bg-white/80 p-5 backdrop-blur-xl dark:bg-gray-800/80">
+              <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                예산 80% 초과 시 알림이 발송됩니다. 프로필 → 알림 설정에서 켜두세요.
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* ── 커뮤니티 ── */}
+          <TabsContent value="community" className="mt-4 space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                { icon: MessageSquare, label: "게시글", desc: "소비 노하우·절약 팁 자유롭게 공유" },
+                { icon: Sparkles,      label: "좋아요",  desc: "유용한 게시글에 공감 표현" },
+                { icon: Users,         label: "광장",    desc: "다른 유저 소비 기록 실시간 피드" },
+              ].map(({ icon: Icon, label, desc }) => (
+                <Card key={label} className="border-none bg-white/80 p-5 backdrop-blur-xl dark:bg-gray-800/80">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="font-bold text-gray-900 dark:text-gray-100">{label}</p>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{desc}</p>
+                </Card>
+              ))}
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+                <div className="mb-4 flex items-center gap-3">
+                  <MessageSquare className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">게시글 작성</h3>
+                </div>
+                <ol className="space-y-3">
+                  {[
+                    "사이드바 → '커뮤니티' 진입",
+                    "상단 '글쓰기' 버튼 클릭",
+                    "제목·내용 입력 후 등록",
+                    "등록 즉시 피드에 노출",
+                  ].map((s, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                        {i + 1}
+                      </span>
+                      {s}
+                    </li>
+                  ))}
+                </ol>
+              </Card>
+
+              <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+                <div className="mb-4 flex items-center gap-3">
+                  <Users className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">광장 (Plaza)</h3>
+                </div>
+                <ul className="space-y-3">
+                  {[
+                    "사이드바 → '광장' 진입",
+                    "다른 유저의 소비 기록과 한 줄 일기 확인",
+                    "좋은 소비 습관 유저에게 동기부여 받기",
+                  ].map((t, i) => (
+                    <li key={i} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500" />
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950/20">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                  <p className="text-xs text-gray-600 dark:text-gray-400">광장에는 닉네임만 공개돼요. 민감한 금액 정보는 직접 공유하지 않도록 주의하세요.</p>
+                </div>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

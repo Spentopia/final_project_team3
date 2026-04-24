@@ -30,7 +30,7 @@
 // - 실패 시 400 + 구체적인 에러 메시지 반환
 
 use axum::{
-    Json, Extension,
+    Extension, Json,
     extract::{Multipart, Query, State},
     http::{HeaderMap, StatusCode, header::SET_COOKIE},
     response::IntoResponse,
@@ -52,9 +52,9 @@ use crate::auth::dto::{
     RefreshRequest, WalletLoginRequest, WebLoginResponse, WebRefreshResponse,
 };
 use crate::auth::service;
+use crate::filter;
 use crate::state::AppState;
 use utoipa;
-use crate::filter;
 
 fn ensure_app_request(headers: &HeaderMap) -> Result<(), (StatusCode, String)> {
     // origin: 브라우저 cross-origin 요청 시 자동 포함
@@ -1581,8 +1581,7 @@ fn should_use_secure_cookies(state: &AppState) -> bool {
 //   "expires_in": 30
 // }
 //
-// 프론트는 이 handoff_token을 URL에 넣지 않고
-// 부모 탭 -> 유니티 탭 postMessage로만 전달해야 함.
+// 프론트는 이 handoff_token을 exe 실행용 프로토콜/런처에만 전달해야 한다.
 #[utoipa::path(
     post,
     path = "/auth/handoff",
@@ -1600,7 +1599,7 @@ fn should_use_secure_cookies(state: &AppState) -> bool {
 pub async fn create_handoff(
     State(state): State<AppState>,
     // jwt_middleware가 넣어준 user_id
-    axum::Extension(user_id): axum::Extension<Uuid>,
+    Extension(user_id): Extension<Uuid>,
     Json(body): Json<HandoffRequest>,
 ) -> Result<Json<HandoffResponse>, (StatusCode, String)> {
     // ── 1) target_service 검증 ──────────────────────────────
@@ -1640,8 +1639,8 @@ pub async fn create_handoff(
 // 공개 라우트 → JWT 불필요
 //
 // 이유:
-// - 유니티는 아직 access token이 없는 상태에서 시작함
-// - 부모 탭이 postMessage로 넘긴 handoff token만 가지고 교환해야 함
+// - 유니티 exe는 아직 access token이 없는 상태에서 시작함
+// - 실행 시 전달받은 handoff token만 가지고 교환해야 함
 //
 // 요청 예시:
 // POST /auth/handoff/exchange
@@ -1658,8 +1657,8 @@ pub async fn create_handoff(
 //
 // 유니티는 이 토큰들을 메모리에 저장하고:
 // - access_token으로 API 호출
-// - refresh_token으로 /auth/refresh (body 방식)로 세션 연장
-// - 이 시점부터 부모 탭(웹) 닫아도 유니티 독립 운영 가능
+// - refresh_token으로 /auth/app/refresh (body 방식)로 세션 연장
+// - 이 시점부터 웹과 독립적으로 운영 가능
 #[utoipa::path(
     post,
     path = "/auth/handoff/exchange",
@@ -1668,7 +1667,8 @@ pub async fn create_handoff(
     responses(
         (status = 200, description = "교환 성공 — 유니티용 access+refresh 발급", body = HandoffExchangeResponse),
         (status = 400, description = "handoff_token 비어있음"),
-        (status = 401, description = "유효하지 않은 handoff token")
+        (status = 401, description = "유효하지 않거나 만료된 handoff token"),
+        (status = 500, description = "유니티용 세션 발급 실패")
     )
 )]
 pub async fn exchange_handoff(
@@ -1694,7 +1694,14 @@ pub async fn exchange_handoff(
         .map_err(|e| {
             let msg = e.to_string();
             tracing::warn!("handoff 교환 실패: {}", msg);
-            (StatusCode::UNAUTHORIZED, msg)
+            let status = match msg.as_str() {
+                "유효하지 않은 handoff token입니다."
+                | "handoff token이 만료되었습니다."
+                | "handoff token의 대상 서비스가 일치하지 않습니다." => StatusCode::UNAUTHORIZED,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+
+            (status, msg)
         })?;
 
     // ── 3) 응답 ─────────────────────────────────────────────

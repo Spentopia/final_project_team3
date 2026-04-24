@@ -67,6 +67,7 @@ export const router = createBrowserRouter([
       { path: "profile/items", Component: AvatarPage },
       { path: "community", Component: CommunityPage },
       { path: "plaza", Component: PlazaPage },
+      { path: "guide", Component: GuidePage },
       { path: "*", Component: NotFoundPage },
     ],
   },
@@ -117,9 +118,5 @@ export const router = createBrowserRouter([
   {
     path: "/receipt-test",
     Component: ReceiptOcrTestPage ,
-  },
-  {
-    path: "/guide",
-    Component: GuidePage,
   },
 ]);

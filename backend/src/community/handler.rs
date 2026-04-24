@@ -10,7 +10,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use super::{
-    dto:: CreatePostRequest,
+    dto::{ChatRequest, CreatePostRequest},
     service,
 };
 use crate::state::AppState;
@@ -124,4 +124,28 @@ pub async fn vote_post(
     }
 }
 
+#[utoipa::path(
+    post, path = "/api/chat",
+    tag = "커뮤니티",
+    request_body = ChatRequest,
+    responses((status = 200, description = "챗봇 응답 성공")),
+    security(("bearer_auth" = []))
+)]
+pub async fn chat(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Json(req): Json<ChatRequest>,
+) -> impl IntoResponse {
+    if req.message.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            "message는 비어 있을 수 없습니다.".to_string(),
+        )
+            .into_response();
+    }
 
+    match service::chat_with_bot(&state, user_id, req.message).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => (StatusCode::BAD_GATEWAY, e.to_string()).into_response(),
+    }
+}

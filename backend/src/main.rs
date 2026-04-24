@@ -27,6 +27,7 @@ pub mod clients;
 pub mod community;
 mod config;
 pub mod expense;
+mod filter;
 pub mod ledger;
 pub mod market;
 pub mod notification;
@@ -38,13 +39,12 @@ mod route;
 mod state;
 pub mod user;
 pub mod wallet;
-mod filter;
 
 use axum::http::{HeaderValue, Method, header};
 use std::net::SocketAddr;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
+use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 // ─────────────────────────────────────────────────────────────
 // Rate Limiting 관련 import
@@ -228,7 +228,7 @@ async fn main() {
     // 정상적인 경우 exchange_handoff_token()에서 즉시 삭제되지만,
     // exchange 안 하고 방치된 handoff가 메모리에 쌓이는 걸 방지.
     //
-    // 예: 유저가 "게임 시작" 누르고 취소한 경우
+    // 예: 유저가 "게임 실행" 누른 뒤 exe 실행에 실패한 경우
     //     → handoff가 발급됐지만 교환 안 됨
     //     → 30초 후 여기서 정리
     // ─────────────────────────────────────────────────────────

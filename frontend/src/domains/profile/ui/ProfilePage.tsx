@@ -45,6 +45,7 @@ export default function ProfilePage() {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
   const [profile, setProfile] = useState({
     nickname: "",
     email: "",
@@ -268,12 +269,8 @@ export default function ProfilePage() {
     }
   };
 
-  const handleWithdraw = async () => {
-    const confirmed = window.confirm(
-      "정말 회원탈퇴하시겠습니까? 탈퇴 후에는 계정을 복구할 수 없습니다."
-    );
-    if (!confirmed) return;
-
+  const performWithdraw = async () => {
+    setShowWithdrawConfirm(false);
     try {
       setIsWithdrawing(true);
       await withdrawAccount();
@@ -286,6 +283,10 @@ export default function ProfilePage() {
     } finally {
       setIsWithdrawing(false);
     }
+  };
+
+  const handleWithdraw = () => {
+    setShowWithdrawConfirm(true);
   };
 
   const handleNotificationToggle = async (key: keyof typeof notifications) => {
@@ -325,6 +326,42 @@ export default function ProfilePage() {
 
   return (
       <div className="space-y-6">
+        {showWithdrawConfirm && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowWithdrawConfirm(false)}
+          >
+            <div
+              className="relative w-[420px] rounded-[14px] border border-white/10 bg-white/90 p-5 shadow-2xl backdrop-blur-xl dark:bg-gray-900/90"
+              style={{ borderLeft: "3px solid #f79009" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                정말 회원탈퇴하시겠습니까?
+              </p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                탈퇴 후에는 계정을 복구할 수 없습니다.
+              </p>
+              <div className="mt-4 flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowWithdrawConfirm(false)}
+                >
+                  취소
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={isWithdrawing}
+                  className="bg-red-500 text-white hover:bg-red-600"
+                  onClick={() => void performWithdraw()}
+                >
+                  {isWithdrawing ? "탈퇴 처리 중..." : "탈퇴하기"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">

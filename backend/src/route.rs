@@ -5,8 +5,9 @@
 // ── 보호 라우트: JWT 필수. jwt_middleware를 통과해야 핸들러에 도달
 
 use axum::{
-    Router, middleware,
+    Router,
     extract::DefaultBodyLimit,
+    middleware,
     routing::{delete, get, patch, post},
 };
 use std::sync::Arc;
@@ -52,13 +53,12 @@ pub fn create_router(state: AppState) -> Router {
         .route("/auth/kakao/start", post(auth::handler::kakao_start))
         .route("/auth/kakao/login", post(auth::handler::kakao_login))
         // ── handoff 교환 (공개) ─────────────────────────────
-        // 유니티가 postMessage로 받은 handoff token을 여기로 보냄
+        // 유니티 exe가 실행 시 전달받은 handoff token을 여기로 보냄
         // JWT 없이 접근 가능 (아직 유니티에 토큰이 없으므로)
         .route(
             "/auth/handoff/exchange",
             post(auth::handler::exchange_handoff),
         );
-
     // ── 열거 공격 방어 전용 rate limit ───────────────────────────
     let enumeration_rate_limit = Arc::new(
         GovernorConfigBuilder::default()
@@ -103,7 +103,7 @@ pub fn create_router(state: AppState) -> Router {
             get(auth::handler::get_profile_image_signed_url),
         )
         // ── handoff 발급 (보호) ─────────────────────────────
-        // 웹에서 "게임 시작" 클릭 시 호출
+        // 웹에서 "게임 실행" 클릭 시 호출
         // JWT 필수 → 누구의 handoff인지 알아야 하니까
         .route("/auth/handoff", post(auth::handler::create_handoff))
         // ── 지갑 연동 ──────────────────────────────────────
@@ -162,11 +162,11 @@ pub fn create_router(state: AppState) -> Router {
         )
         // ── 커뮤니티 ─────────────────────────────────────
         .route("/api/contests", get(community::handler::list_contests))
+        .route("/api/chat", post(community::handler::chat))
         .route("/api/posts", get(community::handler::list_posts))
         .route("/api/posts", post(community::handler::create_post))
         .route("/api/posts/:id", delete(community::handler::delete_post))
         .route("/api/posts/:id/vote", post(community::handler::vote_post))
-
         // ── 알림 ──────────────────────────────────────────
         .route(
             "/api/notifications",
@@ -204,6 +204,7 @@ pub fn create_router(state: AppState) -> Router {
             post(avatar::handler::transfer_nft),
         )
         .route("/api/avatar/items", get(avatar::handler::get_user_items))
+        .route("/api/avatar/nfts", get(avatar::handler::get_owned_nfts))
         // ── 마켓 ──────────────────────────────────────────
         .route(
             "/api/market/listings",

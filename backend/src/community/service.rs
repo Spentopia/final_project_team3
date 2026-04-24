@@ -10,10 +10,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{
-    dto::{
-        ContestEventResponse, CreatePostRequest,
-        PostResponse,
-    },
+    dto::{ChatResponse, ContestEventResponse, CreatePostRequest, PostResponse},
     model::{ChatbotLog, ContestEvent, Post},
 };
 use crate::state::AppState;
@@ -233,4 +230,55 @@ pub async fn vote_post(state: &AppState, user_id: Uuid, post_id: Uuid) -> Result
     Ok(())
 }
 
+pub async fn chat_with_bot(
+    state: &AppState,
+    user_id: Uuid,
+    message: String,
+) -> Result<ChatResponse> {
+    let ai_response = crate::clients::ai_client::chat(
+        state,
+        crate::clients::ai_client::ChatPayload {
+            user_id: user_id.to_string(),
+            message: message.clone(),
+        },
+    )
+    .await?;
 
+    let log_url = format!(
+        "{}/rest/v1/chatbot_logs",
+        state.config.supabase_url.trim_end_matches('/'),
+    );
+
+    let insert_result = state
+        .http_client
+        .post(&log_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=representation")
+        .json(&serde_json::json!({
+            "user_id": user_id,
+            "user_message": message,
+            "bot_response": ai_response.response,
+        }))
+        .send()
+        .await
+        .context("chatbot_logs INSERT 요청 실패");
+
+    if let Ok(response) = insert_result {
+        if response.status().is_success() {
+            let _ = response.json::<Vec<ChatbotLog>>().await;
+        } else {
+            let body = response.text().await.unwrap_or_default();
+            tracing::warn!("chatbot_logs INSERT 실패: {}", body);
+        }
+    } else if let Err(error) = insert_result {
+        tracing::warn!("chatbot_logs 저장 중 오류: {error}");
+    }
+
+    Ok(ChatResponse {
+        response: ai_response.response,
+    })
+}
