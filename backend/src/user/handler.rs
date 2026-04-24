@@ -4,7 +4,7 @@ use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResp
 use uuid::Uuid;
 
 use super::{
-    dto::{UpdateProfileRequest, UpdateSettingsRequest, ChangePasswordRequest},
+    dto::{ChangePasswordRequest, UpdateProfileRequest, UpdateSettingsRequest},
     service,
 };
 use crate::state::AppState;

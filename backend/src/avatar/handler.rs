@@ -107,3 +107,19 @@ pub async fn get_user_items(
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
+
+#[utoipa::path(
+    get, path = "/api/avatar/nfts",
+    tag = "아바타",
+    responses((status = 200, description = "연결된 지갑의 컬렉션 NFT 조회 성공")),
+    security(("bearer_auth" = []))
+)]
+pub async fn get_owned_nfts(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+) -> impl IntoResponse {
+    match service::get_owned_nfts(&state, user_id).await {
+        Ok(items) => (StatusCode::OK, Json(items)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}

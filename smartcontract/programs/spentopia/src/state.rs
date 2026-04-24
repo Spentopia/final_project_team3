@@ -32,6 +32,10 @@ pub struct PlatformConfig {
     /// SPT 최대 발행 가능량 (base units).
     /// init_platform 시 설정. 1억 SPT = 100_000_000_000_000 (decimals=6 기준).
     pub max_supply: u64,
+
+    /// Spentopia 아바타 컬렉션 mint 주소.
+    /// 아직 초기화되지 않았다면 Pubkey::default() 상태다.
+    pub collection_mint: Pubkey,
 }
 
 impl PlatformConfig {
@@ -45,7 +49,8 @@ impl PlatformConfig {
     /// 1: spt_authority_bump: u8
     /// 8: total_minted (u64)
     /// 8: max_supply (u64)
-    pub const LEN: usize = 8 + 32 + 2 + 1 + 1 + 1 + 8 + 8;
+    /// 32: collection_mint (Pubkey)
+    pub const LEN: usize = 8 + 32 + 2 + 1 + 1 + 1 + 8 + 8 + 32;
 }
 
 /// NFT 판매 등록 정보를 온체인에 저장하는 계정.

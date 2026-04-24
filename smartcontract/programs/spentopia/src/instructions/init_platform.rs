@@ -34,6 +34,7 @@ pub fn init_platform_handler(
     // 발행량 초기값: 0, 최대 발행량 설정
     config.total_minted = 0;
     config.max_supply = max_supply;
+    config.collection_mint = Pubkey::default();
 
     msg!(
         "플랫폼 초기화 완료 | admin: {} | fee_rate: {} bps | max_supply: {}",

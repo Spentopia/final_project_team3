@@ -57,15 +57,15 @@ pub fn validate_nickname(nickname: &str) -> Result<(), &'static str> {
     // chars().count() 사용 - 한글은 바이트가 3이므로 len() 쓰면 안됨
     let char_count = trimmed.chars().count();
     if char_count < 2 {
-        return Err("닉네임은 최소 2자 이상이어야 합니다.")
+        return Err("닉네임은 최소 2자 이상이어야 합니다.");
     }
     if char_count > 8 {
-        return Err("닉네임은 최대 8자까지 입니다.")
+        return Err("닉네임은 최대 8자까지 입니다.");
     }
 
     // 4) 금칙어 체크
     // 공백 제거 + 소문자 정규화 후 검사
-    let normalized = trimmed.replace(' ',"").to_lowercase();
+    let normalized = trimmed.replace(' ', "").to_lowercase();
     if AC.find(normalized.as_str()).is_some() {
         return Err("사용할 수 없는 닉네임입니다.");
     }
@@ -73,12 +73,10 @@ pub fn validate_nickname(nickname: &str) -> Result<(), &'static str> {
     Ok(())
 }
 
-
-
 // 금칙어 포함 여부 확인
 // 반환값 : true -> 금칙어 없음, false -> 금칙어 있음
 // 사용처: 닉네임 설정/변경 시 차단, 게시글 작성 시 차단
 pub fn check(text: &str) -> bool {
-    let normalized = text.replace(' ',"").to_lowercase();
+    let normalized = text.replace(' ', "").to_lowercase();
     AC.find(normalized.as_str()).is_none()
 }

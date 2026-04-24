@@ -30,7 +30,7 @@
 // - 실패 시 400 + 구체적인 에러 메시지 반환
 
 use axum::{
-    Json, Extension,
+    Extension, Json,
     extract::{Multipart, Query, State},
     http::{HeaderMap, StatusCode, header::SET_COOKIE},
     response::IntoResponse,
@@ -52,9 +52,9 @@ use crate::auth::dto::{
     RefreshRequest, WalletLoginRequest, WebLoginResponse, WebRefreshResponse,
 };
 use crate::auth::service;
+use crate::filter;
 use crate::state::AppState;
 use utoipa;
-use crate::filter;
 
 fn ensure_app_request(headers: &HeaderMap) -> Result<(), (StatusCode, String)> {
     // origin: 브라우저 cross-origin 요청 시 자동 포함

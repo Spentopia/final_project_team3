@@ -22,8 +22,14 @@ pub mod spentopia {
     /// - SPT Token 민트 계정을 PDA로 생성한다.
     /// - 민트 권한(authority)은 프로그램 PDA가 가진다.
     /// - decimals는 6으로 설정된다.
-    pub fn init_spt_token(ctx: Context<InitSptToken>) -> Result<()> {
-        init_spt_token_handler(ctx)
+    /// - `name`, `symbol`, `uri`를 받아 토큰 메타데이터도 함께 생성한다.
+    pub fn init_spt_token(
+        ctx: Context<InitSptToken>,
+        name: String,
+        symbol: String,
+        uri: String,
+    ) -> Result<()> {
+        init_spt_token_handler(ctx, name, symbol, uri)
     }
 
     /// 플랫폼 전역 설정을 초기화한다.
@@ -33,6 +39,20 @@ pub mod spentopia {
     /// - 이후 모든 관리자 전용 instruction의 권한 기준이 되는 계정을 생성한다.
     pub fn init_platform(ctx: Context<InitPlatform>, fee_rate: u16, max_supply: u64) -> Result<()> {
         init_platform_handler(ctx, fee_rate, max_supply)
+    }
+
+    /// 프로젝트 전용 아바타 컬렉션 NFT를 초기화한다.
+    ///
+    /// - `name`: 컬렉션 이름
+    /// - `symbol`: 컬렉션 심볼
+    /// - `uri`: 컬렉션 metadata JSON URI
+    pub fn init_avatar_collection(
+        ctx: Context<InitAvatarCollection>,
+        name: String,
+        symbol: String,
+        uri: String,
+    ) -> Result<()> {
+        init_avatar_collection_handler(ctx, name, symbol, uri)
     }
 
     /// 성실도 보상 SPI를 유저에게 민팅한다.

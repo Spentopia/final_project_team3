@@ -149,5 +149,3 @@ pub async fn chat(
         Err(e) => (StatusCode::BAD_GATEWAY, e.to_string()).into_response(),
     }
 }
-
-

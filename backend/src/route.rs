@@ -5,8 +5,9 @@
 // ── 보호 라우트: JWT 필수. jwt_middleware를 통과해야 핸들러에 도달
 
 use axum::{
-    Router, middleware,
+    Router,
     extract::DefaultBodyLimit,
+    middleware,
     routing::{delete, get, patch, post},
 };
 use std::sync::Arc;
@@ -166,7 +167,6 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/posts", post(community::handler::create_post))
         .route("/api/posts/:id", delete(community::handler::delete_post))
         .route("/api/posts/:id/vote", post(community::handler::vote_post))
-
         // ── 알림 ──────────────────────────────────────────
         .route(
             "/api/notifications",
@@ -204,6 +204,7 @@ pub fn create_router(state: AppState) -> Router {
             post(avatar::handler::transfer_nft),
         )
         .route("/api/avatar/items", get(avatar::handler::get_user_items))
+        .route("/api/avatar/nfts", get(avatar::handler::get_owned_nfts))
         // ── 마켓 ──────────────────────────────────────────
         .route(
             "/api/market/listings",

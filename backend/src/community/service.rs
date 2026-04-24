@@ -10,10 +10,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{
-    dto::{
-        ChatResponse, ContestEventResponse, CreatePostRequest,
-        PostResponse,
-    },
+    dto::{ChatResponse, ContestEventResponse, CreatePostRequest, PostResponse},
     model::{ChatbotLog, ContestEvent, Post},
 };
 use crate::state::AppState;
@@ -233,7 +230,11 @@ pub async fn vote_post(state: &AppState, user_id: Uuid, post_id: Uuid) -> Result
     Ok(())
 }
 
-pub async fn chat_with_bot(state: &AppState, user_id: Uuid, message: String) -> Result<ChatResponse> {
+pub async fn chat_with_bot(
+    state: &AppState,
+    user_id: Uuid,
+    message: String,
+) -> Result<ChatResponse> {
     let ai_response = crate::clients::ai_client::chat(
         state,
         crate::clients::ai_client::ChatPayload {
@@ -281,5 +282,3 @@ pub async fn chat_with_bot(state: &AppState, user_id: Uuid, message: String) -> 
         response: ai_response.response,
     })
 }
-
-

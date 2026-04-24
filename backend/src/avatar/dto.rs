@@ -66,6 +66,18 @@ pub struct UserItemResponse {
     pub acquired_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct OwnedNftResponse {
+    pub mint_address: String,
+    pub item_id: Option<Uuid>,
+    pub name: String,
+    pub category: Option<String>,
+    pub rarity: Option<String>,
+    pub image_url: Option<String>,
+    pub metadata_uri: Option<String>,
+    pub unity_asset_key: Option<String>,
+}
+
 // ── 가챠 티켓 응답 ────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
