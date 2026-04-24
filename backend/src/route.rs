@@ -162,6 +162,7 @@ pub fn create_router(state: AppState) -> Router {
         )
         // ── 커뮤니티 ─────────────────────────────────────
         .route("/api/contests", get(community::handler::list_contests))
+        .route("/api/chat", post(community::handler::chat))
         .route("/api/posts", get(community::handler::list_posts))
         .route("/api/posts", post(community::handler::create_post))
         .route("/api/posts/:id", delete(community::handler::delete_post))
