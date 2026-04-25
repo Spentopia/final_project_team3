@@ -122,7 +122,7 @@ pub fn create_handoff_token(state: &AppState, user_id: Uuid, target_service: &st
 //    - target_service가 "unity"인지
 // 4) 선점 성공한 요청만 access+refresh 발급
 // 5) 해당 user_id로 유니티용 access+refresh 발급
-//    - client_type = "app" (유니티는 쿠키 안 쓰므로 body 방식)
+//    - client_type = "unity" (유니티는 쿠키 안 쓰므로 body 방식)
 //
 // 반환: LoginIssueResult (access_token, refresh_token, is_new_user)
 // ─────────────────────────────────────────────────────────────
@@ -167,17 +167,17 @@ pub async fn exchange_handoff_token(state: &AppState, token: &str) -> Result<Log
     );
 
     // ── 5) 유니티용 access+refresh 발급 ─────────────────────
-    // client_type = "app"
+    // client_type = "unity"
     //   → 유니티는 브라우저 쿠키를 쓸 수 없으므로
     //     refresh token도 body로 내려줘야 함
-    //   → 기존 앱(Android/Kotlin) 방식과 동일
+    //   → 모바일 app 세션과 분리해서 Unity 종료/로그아웃 시 unity 세션만 끊을 수 있게 함
     //
     // is_new_user = false
     //   → handoff는 이미 로그인된 유저가 쓰는 거라 항상 false
     let result = issue_login_tokens(
         state,
         entry.user_id,
-        "app", // 유니티 = 앱 방식 (body로 refresh 전달)
+        "unity",
         false, // 이미 로그인된 유저
     )
     .await?;

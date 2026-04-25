@@ -43,8 +43,13 @@ pub fn create_router(state: AppState) -> Router {
         .route("/auth/wallet/nonce", post(auth::handler::request_nonce))
         .route("/auth/refresh", post(auth::handler::refresh_token))
         .route("/auth/app/refresh", post(auth::handler::refresh_token_app))
+        .route(
+            "/auth/unity/refresh",
+            post(auth::handler::refresh_token_unity),
+        )
         .route("/auth/logout", post(auth::handler::logout))
         .route("/auth/app/logout", post(auth::handler::logout_app))
+        .route("/auth/unity/logout", post(auth::handler::logout_unity))
         .route("/auth/wallet/login", post(auth::handler::wallet_login))
         .route(
             "/auth/app/wallet/login",

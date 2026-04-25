@@ -314,6 +314,8 @@ export const updatePassword = async (newPassword: string) => {
       mapSupabaseAuthError(error.message, "비밀번호 변경에 실패했습니다.")
     );
   }
+
+  await supabase.auth.signOut();
 };
 
 // 전화번호로 이메일 찾기

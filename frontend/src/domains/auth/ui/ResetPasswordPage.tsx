@@ -55,6 +55,7 @@ export default function ResetPasswordPage() {
     try {
       // Supabase updateUser()로 비밀번호 변경
       // 이미 임시 세션이 활성화되어 있어서 별도 인증 불필요
+      // 변경 후 reset용 Supabase 임시 세션은 updatePassword() 내부에서 정리
       await updatePassword(password);
       toast.success("비밀번호 변경이 완료되었습니다.");
       navigate("/login"); // 변경 완료 → 로그인 페이지로

@@ -50,8 +50,12 @@ async fn get_current_streak(state: &AppState, user_id: Uuid) -> Result<i32> {
         return Ok(0);
     }
 
-    let rows: Vec<crate::user::model::Streak> =
-        res.json().await.context("streaks 역직렬화 실패")?;
+    #[derive(serde::Deserialize)]
+    struct StreakRow {
+        current_streak: i32,
+    }
+
+    let rows: Vec<StreakRow> = res.json().await.context("streaks 역직렬화 실패")?;
 
     Ok(rows.into_iter().next().map(|s| s.current_streak).unwrap_or(0))
 }

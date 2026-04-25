@@ -82,6 +82,31 @@ fn ensure_app_request(headers: &HeaderMap) -> Result<(), (StatusCode, String)> {
     }
 }
 
+fn ensure_unity_request(headers: &HeaderMap) -> Result<(), (StatusCode, String)> {
+    // origin: 브라우저 cross-origin 요청 시 자동 포함
+    // sec-fetch-site: 브라우저 same-origin 포함 모든 fetch/XHR에 자동 포함, JS 위조 불가
+    // 둘 중 하나라도 있으면 브라우저 요청으로 간주하여 차단
+    if headers.contains_key("origin") || headers.contains_key("sec-fetch-site") {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "브라우저에서는 사용할 수 없는 유니티 전용 인증 엔드포인트입니다.".to_string(),
+        ));
+    }
+
+    match headers
+        .get("x-client-type")
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("unity") => Ok(()),
+        _ => Err((
+            StatusCode::BAD_REQUEST,
+            "유니티 전용 인증 요청에는 X-Client-Type: unity 헤더가 필요합니다.".to_string(),
+        )),
+    }
+}
+
 /// 웹용 refresh 쿠키 생성
 ///
 /// 로컬 시연 기준이라 secure(false) 고정
@@ -1505,6 +1530,39 @@ pub async fn refresh_token_app(
     Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
 }
 
+pub async fn refresh_token_unity(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<RefreshRequest>,
+) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
+    ensure_unity_request(&headers)?;
+    tracing::debug!("refresh 요청 수신: client_type=unity");
+
+    let refresh_token = body
+        .refresh_token
+        .filter(|v| !v.trim().is_empty())
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                "refresh_token을 입력해 주세요.".to_string(),
+            )
+        })?;
+
+    let rotated = service::rotate_refresh_token(&state, &refresh_token, "unity")
+        .await
+        .map_err(|e| {
+            tracing::warn!("유니티 refresh 실패: {}", e);
+            (StatusCode::UNAUTHORIZED, e.to_string())
+        })?;
+
+    let body = AppRefreshResponse {
+        access_token: rotated.access_token,
+        refresh_token: rotated.refresh_token,
+    };
+
+    Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
+}
+
 // ═══════════════════════════════════════════════════════════════
 // [logout] POST /auth/logout
 // ═══════════════════════════════════════════════════════════════
@@ -1534,7 +1592,7 @@ pub async fn logout(
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     let refresh_token = extract_refresh_cookie(&headers);
 
-    // refresh 토큰이 있다면 해당 세션 revoke 시도
+    // refresh 토큰이 있다면 현재 웹 세션만 revoke한다.
     if let Some(token) = refresh_token {
         if let Ok(claims) =
             crate::auth::app_jwt::verify_app_refresh_token(&state.config.app_jwt_secret, &token)
@@ -1557,6 +1615,28 @@ pub async fn logout_app(
     Json(body): Json<RefreshRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     ensure_app_request(&headers)?;
+
+    if let Some(token) = body.refresh_token {
+        if let Ok(claims) =
+            crate::auth::app_jwt::verify_app_refresh_token(&state.config.app_jwt_secret, &token)
+        {
+            if let Ok(session_id) = uuid::Uuid::parse_str(&claims.sid) {
+                let _ =
+                    crate::auth::refresh_store::revoke_refresh_session(&state, session_id, None)
+                        .await;
+            }
+        }
+    }
+
+    Ok((HeaderMap::new(), Json(json!({ "logged_out": true }))))
+}
+
+pub async fn logout_unity(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<RefreshRequest>,
+) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
+    ensure_unity_request(&headers)?;
 
     if let Some(token) = body.refresh_token {
         if let Ok(claims) =
@@ -1727,8 +1807,8 @@ pub async fn create_handoff(
 //
 // 유니티는 이 토큰들을 메모리에 저장하고:
 // - access_token으로 API 호출
-// - refresh_token으로 /auth/app/refresh (body 방식)로 세션 연장
-// - 이 시점부터 웹과 독립적으로 운영 가능
+// - refresh_token으로 /auth/unity/refresh (body 방식)로 세션 연장
+// - 유니티 종료/로그아웃 시 /auth/unity/logout 으로 해당 unity 세션만 종료
 #[utoipa::path(
     post,
     path = "/auth/handoff/exchange",
