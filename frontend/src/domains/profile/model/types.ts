@@ -12,6 +12,7 @@ export interface UserProfile {
   introduction: string | null;
   profile_image: string | null;
   login_provider: string | null;
+  google_connected: boolean;
   wallet_address: string | null;
   role_type: string;
   profile_completed: boolean;

@@ -52,6 +52,7 @@ export default function ProfilePage() {
     phone: "",
     bio: "",
     loginProvider: "",
+    googleConnected: false,
     createdAt: "",
     sptBalance: 0,
     imagePath: "",
@@ -114,6 +115,7 @@ export default function ProfilePage() {
           phone: data.phone ?? "",
           bio: data.introduction ?? "",
           loginProvider: data.login_provider ?? "",
+          googleConnected: data.google_connected ?? false,
           createdAt: data.created_at,
           sptBalance: data.spt_balance ?? 0,
           imagePath: data.profile_image ?? "",
@@ -447,7 +449,11 @@ export default function ProfilePage() {
               </div>
               <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
                 <p className="mb-1 text-sm opacity-90">로그인 방식</p>
-                <p className="font-bold uppercase">{profile.loginProvider || "-"}</p>
+                <p className="font-bold uppercase">
+                  {profile.loginProvider === "email" && profile.googleConnected
+                    ? "EMAIL / GOOGLE"
+                    : (profile.loginProvider || "-")}
+                </p>
               </div>
             </div>
           </Card>

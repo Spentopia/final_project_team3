@@ -404,11 +404,12 @@ fn to_response(u: User, current_streak: i32) -> UserResponse {
         introduction: u.introduction,
         profile_image: u.profile_image,
         login_provider: u.login_provider,
+        google_connected: u.google_connected.unwrap_or(false),
         wallet_address: u.wallet_address,
         role_type: u.role_type,
         profile_completed: u.profile_completed,
         spt_balance: u.spt_balance,
         created_at: u.created_at,
-        current_streak,  // ← 추가
+        current_streak,
     }
 }

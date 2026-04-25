@@ -1,7 +1,7 @@
 // user/model.rs
 // public.users, public.user_settings 테이블에 대응하는 DB 엔티티 구조체
 
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -22,7 +22,8 @@ pub struct User {
     pub spt_balance: i32,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub is_active: bool,
+    pub is_active: Option<bool>,
+    pub google_connected: Option<bool>,
 }
 
 // public.user_settings 테이블
