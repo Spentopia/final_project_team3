@@ -56,6 +56,7 @@ export default function ProfilePage() {
     sptBalance: 0,
     imagePath: "",
     walletAddress: "",
+    currentStreak: 0,
   });
 
   const originalEmailRef = useRef("");
@@ -117,6 +118,7 @@ export default function ProfilePage() {
           sptBalance: data.spt_balance ?? 0,
           imagePath: data.profile_image ?? "",
           walletAddress: data.wallet_address ?? "",
+          currentStreak: data.current_streak ?? 0,
         }));
         setNotifications({
           alertBudget: settings.alert_budget ?? true,
@@ -431,7 +433,7 @@ export default function ProfilePage() {
               </div>
               <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
                 <p className="mb-1 text-sm opacity-90">연속 기록</p>
-                <p className="font-bold">7일 🔥</p>
+                <p className="font-bold">{profile.currentStreak}🔥</p>
               </div>
               <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
                 <p className="mb-1 text-sm opacity-90">보유 SPT</p>

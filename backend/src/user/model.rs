@@ -36,3 +36,10 @@ pub struct UserSettings {
     pub notification_listener: Option<bool>,
     pub updated_at: Option<DateTime<Utc>>,
 }
+
+// public.streaks 테이블
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Streak {
+    pub user_id: Uuid,
+    pub current_streak: i32,
+}

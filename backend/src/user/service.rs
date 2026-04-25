@@ -18,8 +18,42 @@ use crate::state::AppState;
 // ── 프로필 조회 ───────────────────────────────────────────────
 
 pub async fn get_profile(state: &AppState, user_id: Uuid) -> Result<UserResponse> {
-    let user = get_user_by_id(state, user_id).await?;
-    Ok(to_response(user))
+    // users + streaks 병렬 조회
+    let (user, current_streak) = tokio::try_join!(
+        get_user_by_id(state, user_id),
+        get_current_streak(state, user_id),
+    )?;
+    Ok(to_response(user, current_streak))
+}
+
+async fn get_current_streak(state: &AppState, user_id: Uuid) -> Result<i32> {
+    let url = format!(
+        "{}/rest/v1/streaks?user_id=eq.{}&select=current_streak&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("streaks SELECT 요청 실패")?;
+
+    if !res.status().is_success() {
+        // streak 조회 실패는 치명적이지 않으므로 0 반환
+        return Ok(0);
+    }
+
+    let rows: Vec<crate::user::model::Streak> =
+        res.json().await.context("streaks 역직렬화 실패")?;
+
+    Ok(rows.into_iter().next().map(|s| s.current_streak).unwrap_or(0))
 }
 
 // ── 프로필 수정 ───────────────────────────────────────────────
@@ -100,7 +134,7 @@ pub async fn update_profile(
         .next()
         .ok_or_else(|| anyhow!("수정된 유저 정보를 찾을 수 없음"))?;
 
-    Ok(to_response(user))
+    Ok(to_response(user,0))
 }
 
 async fn get_user_by_id(state: &AppState, user_id: Uuid) -> Result<User> {
@@ -357,7 +391,7 @@ fn validate_password(password: &str) -> Result<()> {
     Ok(())
 }
 
-fn to_response(u: User) -> UserResponse {
+fn to_response(u: User, current_streak: i32) -> UserResponse {
     UserResponse {
         id: u.id,
         email: u.email,
@@ -371,5 +405,6 @@ fn to_response(u: User) -> UserResponse {
         profile_completed: u.profile_completed,
         spt_balance: u.spt_balance,
         created_at: u.created_at,
+        current_streak,  // ← 추가
     }
 }

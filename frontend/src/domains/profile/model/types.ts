@@ -17,6 +17,7 @@ export interface UserProfile {
   profile_completed: boolean;
   spt_balance: number;
   created_at: string;
+  current_streak: number;
 }
 
 export interface UpdateUserProfileRequest {

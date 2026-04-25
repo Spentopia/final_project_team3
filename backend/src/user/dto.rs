@@ -23,6 +23,7 @@ pub struct UserResponse {
     pub profile_completed: bool,
     pub spt_balance: i32,
     pub created_at: DateTime<Utc>,
+    pub current_streak: i32,
 }
 
 // ── 프로필 수정 요청 ───────────────────────────────────────────
