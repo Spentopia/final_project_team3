@@ -14,7 +14,7 @@ interface UseMarketReturn {
     listings: ListingResponse[];
     listingsLoading: boolean;
     createListing: (itemId: string, priceSpt: number) => Promise<ListingResponse | null>;
-    updateEscrow: (listingId: string, escrowAddress: string) => Promise<void>;
+    updateEscrow: (listingId: string, escrowAddress: string, txSignature: string) => Promise<boolean>;
     purchaseItem: (listingId: string, txSignature: string)=>Promise<TransactionResponse | null>;
     creatingListing: boolean;
     updatingEscrow: boolean;
@@ -57,7 +57,7 @@ export function useMarket(): UseMarketReturn{
             // prev: 이전 상태 - React가 비동기 환경에서 안전하게 상태를 업데이트하는 패턴
             setListings((prev)=>[newListing, ...prev]);
 
-            toast.success("판매 등록이 완료되었습니다.");
+            toast.success("판매 등록 요청이 생성되었습니다.");
             return newListing;
         }catch (err){
             const message = err instanceof Error ? err.message : "판매 등록 중 오류가 발생했습니다.";
@@ -69,18 +69,29 @@ export function useMarket(): UseMarketReturn{
         }
     }, []);
 
-    // updateEscrow: escrow PDA 주소 저장
-    // 성공/실패 모두 toast로만 처리 (반환값 불필요)
     const updateEscrow = useCallback(async(
         listingId: string,
-        escrowAddress: string
-    ): Promise<void>=>{
+        escrowAddress: string,
+        txSignature: string
+    ): Promise<boolean>=>{
         setUpdatingEscrow(true);
         try{
-            await updateEscrowApi(listingId, escrowAddress);
+            await updateEscrowApi(listingId, {
+                escrow_address: escrowAddress,
+                tx_signature: txSignature,
+            });
+            setListings((prev) =>
+                prev.map((listing) =>
+                    listing.id === listingId
+                        ? {...listing, escrow_address: escrowAddress}
+                        : listing
+                )
+            );
             toast.success("에스크로 주소가 저장되었습니다.");
+            return true;
         }catch (err){
             toast.error(err instanceof Error ? err.message : "에스크로 저장 중 오류가 발생했습니다.");
+            return false;
         } finally {
             setUpdatingEscrow(false);
         }

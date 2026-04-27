@@ -293,7 +293,7 @@ async fn grant_untradeable_avatar_item(
 
     let key = &state.config.supabase_secret_key;
     let base_url = state.config.supabase_url.trim_end_matches('/');
-    let item_url = format!("{}/rest/v1/avatar_items?select=id", base_url);
+    let item_url = format!("{}/rest/v1/item_master?select=id", base_url);
     let item_res = state
         .http_client
         .get(&item_url)
@@ -319,7 +319,7 @@ async fn grant_untradeable_avatar_item(
         .map(|item| item.id)
         .ok_or_else(|| anyhow!("지급 가능한 avatar_items가 없습니다"))?;
 
-    let user_item_url = format!("{}/rest/v1/user_items", base_url);
+    let user_item_url = format!("{}/rest/v1/user_inventory", base_url);
     let user_item_res = state
         .http_client
         .post(&user_item_url)
@@ -388,7 +388,7 @@ async fn grant_nft_avatar_item(
     let key = &state.config.supabase_secret_key;
     let base_url = state.config.supabase_url.trim_end_matches('/');
     let item_url = format!(
-        "{}/rest/v1/avatar_items?select=id,name,image_url,metadata_uri",
+        "{}/rest/v1/item_master?select=id,name,image_url,metadata_uri",
         base_url
     );
     let item_res = state
@@ -435,7 +435,26 @@ async fn grant_nft_avatar_item(
     .await
     .context("주간 보상 NFT 아바타 민팅 실패")?;
 
-    let user_item_url = format!("{}/rest/v1/user_items", base_url);
+    if let Err(e) = solana_client::check_signature_confirmed(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        &tx_signature,
+    )
+    .await
+    {
+        tracing::error!(
+            "[보상 NFT 민팅 확인 실패] 온체인 민팅은 성공했으나 confirmed 확인 불가. \
+             수동 DB 동기화 필요. user_id={} reward_key={} nft_mint_address={} tx_signature={} err={}",
+            user_id,
+            reward_key,
+            nft_mint_address,
+            tx_signature,
+            e
+        );
+        return Err(anyhow!("보상 NFT 민팅 트랜잭션 확인 실패: {}", e));
+    }
+
+    let user_item_url = format!("{}/rest/v1/user_inventory", base_url);
     let user_item_res = state
         .http_client
         .post(&user_item_url)

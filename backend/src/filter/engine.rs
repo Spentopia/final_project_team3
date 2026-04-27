@@ -21,7 +21,7 @@
 // - 소문자 변환: "FUCK" → "fuck"
 // - 초성 변형(ㅅㅂ 등)은 wordlist.txt에 직접 등록해서 처리
 
-use aho_corasick::{AhoCorasick, AhoCorasickBuilder};
+use aho_corasick::AhoCorasick;
 use once_cell::sync::Lazy;
 
 static AC: Lazy<AhoCorasick> = Lazy::new(|| {

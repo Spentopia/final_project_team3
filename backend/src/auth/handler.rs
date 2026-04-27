@@ -33,7 +33,6 @@ use axum::{
     Extension, Json,
     extract::{Multipart, Query, State},
     http::{HeaderMap, StatusCode, header::SET_COOKIE},
-    response::IntoResponse,
 };
 
 use crate::auth::handoff::{create_handoff_token, exchange_handoff_token};

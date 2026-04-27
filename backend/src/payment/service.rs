@@ -6,7 +6,7 @@
 //  TOSS_SECRET_KEY는 config에 추가 예정.
 
 use anyhow::{Context, Result, anyhow};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use uuid::Uuid;
 
 use super::{

@@ -15,6 +15,9 @@
 // ============================================================
 
 import { useState } from "react";
+import { toast } from "sonner";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 
 // shadcn/ui 컴포넌트 — 프로젝트 실제 경로 @/shared/ui
 import { Card, CardContent, CardFooter } from "@/shared/ui/card";
@@ -51,6 +54,7 @@ import { useMarket } from "../hooks/useMarket";
 // 타입도 도메인 간 참조
 import type { UserItemResponse } from "@/domains/avatar/model/types";
 import type { ListingResponse } from "../model/types";
+import { buyNftOnChain, listNftOnChain } from "../lib/marketplaceSolana";
 
 import styles from "./MarketplacePage.module.css";
 
@@ -280,8 +284,13 @@ function ListingCard({ listing, onBuy }: ListingCardProps) {
         </CardContent>
 
         <CardFooter className={styles.cardFooter}>
-          <Button className={styles.buyButton} size="sm" onClick={onBuy}>
-            구매
+          <Button
+              className={styles.buyButton}
+              size="sm"
+              onClick={onBuy}
+              disabled={!listing.escrow_address}
+          >
+            {listing.escrow_address ? "구매" : "동기화 중"}
           </Button>
         </CardFooter>
       </Card>
@@ -302,8 +311,20 @@ export default function MarketplacePage() {
   // useMarket: 판매 목록 상태 + 판매 등록/구매 액션
   //   → listings는 로컬 상태 (GET API 미구현으로 서버에서 못 가져옴)
   // ──────────────────────────────────────────────────────────
+  const { connection } = useConnection();
+  const { publicKey, connected, sendTransaction } = useWallet();
+  const { setVisible: setWalletModalVisible } = useWalletModal();
   const { items, loading: itemsLoading } = useAvatarItems();
-  const { listings, listingsLoading, createListing, purchaseItem, creatingListing, purchasing } = useMarket();
+  const {
+    listings,
+    listingsLoading,
+    createListing,
+    updateEscrow,
+    purchaseItem,
+    creatingListing,
+    updatingEscrow,
+    purchasing,
+  } = useMarket();
 
   // ──────────────────────────────────────────────────────────
   // 로컬 UI 상태
@@ -315,6 +336,7 @@ export default function MarketplacePage() {
   // ──────────────────────────────────────────────────────────
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [purchaseTarget, setPurchaseTarget] = useState<ListingResponse | null>(null);
+  const [listingOnChain, setListingOnChain] = useState(false);
 
   // ──────────────────────────────────────────────────────────
   // NFT 아이템 필터링
@@ -328,23 +350,83 @@ export default function MarketplacePage() {
   // createListing 내부에서 성공/실패 toast 처리
   // ──────────────────────────────────────────────────────────
   const handleCreateListing = async (itemId: string, priceSpt: number) => {
-    await createListing(itemId, priceSpt);
-    // Dialog 닫기는 CreateListingDialog 내부 handleClose에서 처리
+    if (!connected || !publicKey) {
+      setWalletModalVisible(true);
+      toast.error("판매 등록을 하려면 지갑을 먼저 연결해 주세요.");
+      return;
+    }
+
+    const item = nftItems.find((candidate) => candidate.id === itemId);
+    if (!item?.nft_mint_address) {
+      toast.error("NFT mint 주소가 없는 아이템은 판매 등록할 수 없습니다.");
+      return;
+    }
+
+    setListingOnChain(true);
+    try {
+      const listing = await createListing(itemId, priceSpt);
+      if (!listing) return;
+
+      const { signature, escrowAddress } = await listNftOnChain({
+        connection,
+        publicKey,
+        sendTransaction,
+        nftMintAddress: item.nft_mint_address,
+        priceSpt,
+      });
+
+      const escrowSaved = await updateEscrow(listing.id, escrowAddress, signature);
+      if (!escrowSaved) {
+        toast.error("온체인 판매 등록은 완료됐지만 DB 에스크로 저장에 실패했습니다. 다시 동기화가 필요합니다.");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "온체인 판매 등록 중 오류가 발생했습니다.");
+    } finally {
+      setListingOnChain(false);
+    }
   };
 
   // ──────────────────────────────────────────────────────────
   // 구매 확인 핸들러
   // AlertDialog의 "구매 확인" 버튼 클릭 시 호출
   //
-  // TODO: 실제 Solana 구매 트랜잭션 완료 후 tx_signature로 교체
-  // 현재: placeholder 서명 사용 (백엔드 tx 검증은 추후)
   // ──────────────────────────────────────────────────────────
   const handleConfirmPurchase = async () => {
     if (!purchaseTarget) return; // 타입 가드
 
-    await purchaseItem(purchaseTarget.id, "mock_tx_signature_placeholder");
-    // 성공 시 useMarket 내부에서 listings 목록에서 해당 항목 제거
-    setPurchaseTarget(null); // AlertDialog 닫기
+    if (!connected || !publicKey) {
+      setWalletModalVisible(true);
+      toast.error("구매하려면 지갑을 먼저 연결해 주세요.");
+      return;
+    }
+    if (purchaseTarget.seller_wallet_address === publicKey.toBase58()) {
+      toast.error("본인 상품은 구매할 수 없습니다.");
+      return;
+    }
+    if (!purchaseTarget.seller_wallet_address || !purchaseTarget.nft_mint_address) {
+      toast.error("구매에 필요한 온체인 주소 정보가 없습니다.");
+      return;
+    }
+    if (!purchaseTarget.escrow_address) {
+      toast.error("온체인 에스크로가 연결되지 않은 리스팅입니다.");
+      return;
+    }
+
+    try {
+      const signature = await buyNftOnChain({
+        connection,
+        publicKey,
+        sendTransaction,
+        sellerWalletAddress: purchaseTarget.seller_wallet_address,
+        nftMintAddress: purchaseTarget.nft_mint_address,
+      });
+      const result = await purchaseItem(purchaseTarget.id, signature);
+      if (result) {
+        setPurchaseTarget(null);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "온체인 구매 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -420,7 +502,7 @@ export default function MarketplacePage() {
             nftItems={nftItems}         // 필터링된 NFT 아이템 목록 전달
             itemsLoading={itemsLoading} // 아이템 로딩 중이면 다이얼로그 내 로딩 표시
             onSubmit={handleCreateListing}
-            submitting={creatingListing} // 등록 중이면 버튼 비활성화
+            submitting={creatingListing || updatingEscrow || listingOnChain} // 등록 중이면 버튼 비활성화
         />
 
         {/* ── 구매 확인 AlertDialog ── */}
@@ -452,8 +534,7 @@ export default function MarketplacePage() {
                   </span>
                       에 구매하시겠습니까?
                       <span className={styles.purchaseFeeNote}>
-                    {/* 수수료 5% 미리 계산해서 표시 — 백엔드도 동일하게 계산 */}
-                        수수료: {Math.floor(purchaseTarget.price_spt * 0.05).toLocaleString()} SPT (5%)
+                        수수료는 온체인 설정 기준으로 구매 시 계산됩니다.
                   </span>
                     </>
                 )}
@@ -475,7 +556,10 @@ export default function MarketplacePage() {
                   여기서는 기본 동작 유지해도 무방
             */}
               <AlertDialogAction
-                  onClick={handleConfirmPurchase}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    void handleConfirmPurchase();
+                  }}
                   disabled={purchasing}
               >
                 {purchasing ? "구매 중..." : "구매 확인"}

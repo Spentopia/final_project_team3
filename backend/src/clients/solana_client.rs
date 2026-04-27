@@ -65,6 +65,61 @@ fn base64_encode(bytes: &[u8]) -> String {
     out
 }
 
+fn base64_decode(input: &str) -> Result<Vec<u8>> {
+    fn val(b: u8) -> Option<u8> {
+        match b {
+            b'A'..=b'Z' => Some(b - b'A'),
+            b'a'..=b'z' => Some(b - b'a' + 26),
+            b'0'..=b'9' => Some(b - b'0' + 52),
+            b'+' => Some(62),
+            b'/' => Some(63),
+            _ => None,
+        }
+    }
+
+    let bytes: Vec<u8> = input
+        .as_bytes()
+        .iter()
+        .copied()
+        .filter(|b| !b.is_ascii_whitespace())
+        .collect();
+    if bytes.len() % 4 != 0 {
+        return Err(anyhow!("base64 길이 오류"));
+    }
+
+    let mut out = Vec::with_capacity(bytes.len() / 4 * 3);
+    for chunk in bytes.chunks(4) {
+        let pad = chunk.iter().rev().take_while(|&&b| b == b'=').count();
+        if pad > 2 {
+            return Err(anyhow!("base64 padding 오류"));
+        }
+
+        let n0 = val(chunk[0]).ok_or_else(|| anyhow!("base64 문자 오류"))? as u32;
+        let n1 = val(chunk[1]).ok_or_else(|| anyhow!("base64 문자 오류"))? as u32;
+        let n2 = if chunk[2] == b'=' {
+            0
+        } else {
+            val(chunk[2]).ok_or_else(|| anyhow!("base64 문자 오류"))? as u32
+        };
+        let n3 = if chunk[3] == b'=' {
+            0
+        } else {
+            val(chunk[3]).ok_or_else(|| anyhow!("base64 문자 오류"))? as u32
+        };
+        let n = (n0 << 18) | (n1 << 12) | (n2 << 6) | n3;
+
+        out.push(((n >> 16) & 0xff) as u8);
+        if pad < 2 {
+            out.push(((n >> 8) & 0xff) as u8);
+        }
+        if pad < 1 {
+            out.push((n & 0xff) as u8);
+        }
+    }
+
+    Ok(out)
+}
+
 // ── Compact-u16 인코딩 (Solana 트랜잭션 내부 길이 표현 방식) ───────
 fn compact_u16(n: usize) -> Vec<u8> {
     let mut out = Vec::new();
@@ -149,6 +204,55 @@ pub fn derive_escrow_address(listing_b58: &str, program_id_str: &str) -> Result<
     let program_id = decode_pubkey(program_id_str)?;
     let (escrow, _) = find_program_address(&[ESCROW_SEED, listing.as_ref()], &program_id);
     Ok(bs58::encode(escrow).into_string())
+}
+
+pub async fn get_platform_fee_rate(
+    rpc_url: &str,
+    client: &reqwest::Client,
+    program_id_str: &str,
+) -> Result<u16> {
+    let program_id = decode_pubkey(program_id_str)?;
+    let (platform_config, _) = find_program_address(&[PLATFORM_CONFIG_SEED], &program_id);
+    let platform_config_b58 = bs58::encode(platform_config).into_string();
+
+    let res: serde_json::Value = client
+        .post(rpc_url)
+        .json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getAccountInfo",
+            "params": [
+                platform_config_b58,
+                {"encoding": "base64", "commitment": "confirmed"}
+            ]
+        }))
+        .send()
+        .await
+        .context("platform_config getAccountInfo 요청 실패")?
+        .json()
+        .await
+        .context("platform_config getAccountInfo 파싱 실패")?;
+
+    if let Some(err) = res.get("error") {
+        return Err(anyhow!("platform_config getAccountInfo 실패: {}", err));
+    }
+
+    let data_b64 = res["result"]["value"]["data"]
+        .as_array()
+        .and_then(|arr| arr.first())
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow!("platform_config data 필드 없음"))?;
+    let data = base64_decode(data_b64)?;
+
+    // PlatformConfig layout: discriminator(8) + admin(32) + fee_rate(u16 LE) + ...
+    let fee_offset = 8 + 32;
+    let fee_bytes: [u8; 2] = data
+        .get(fee_offset..fee_offset + 2)
+        .ok_or_else(|| anyhow!("platform_config fee_rate 데이터 길이 부족"))?
+        .try_into()
+        .map_err(|_| anyhow!("platform_config fee_rate 파싱 실패"))?;
+
+    Ok(u16::from_le_bytes(fee_bytes))
 }
 
 // ── RPC: getSignatureStatuses ─────────────────────────────────
@@ -305,7 +409,7 @@ async fn get_helius_transaction(
 // required_pubkeys: 트랜잭션에 반드시 포함돼야 할 pubkey 목록
 // required_signer: feePayer로 검증할 서명자 pubkey (None이면 생략)
 // expected_account_positions: instruction accounts 배열에서 특정 위치의 pubkey 검증
-pub async fn verify_program_instruction_tx(
+pub async fn verify_program_instruction_tx_data(
     rpc_url: &str,
     helius_api_key: &str,
     client: &reqwest::Client,
@@ -315,7 +419,7 @@ pub async fn verify_program_instruction_tx(
     required_pubkeys: &[&str],
     required_signer: Option<&str>,
     expected_account_positions: Option<&[(usize, &str)]>,
-) -> Result<()> {
+) -> Result<Vec<u8>> {
     if signature.trim().is_empty() {
         return Err(anyhow!("tx_signature 누락"));
     }
@@ -360,6 +464,11 @@ pub async fn verify_program_instruction_tx(
             )
         })?;
 
+    let data_bytes = instruction["data"]
+        .as_str()
+        .and_then(|s| bs58::decode(s).into_vec().ok())
+        .ok_or_else(|| anyhow!("instruction data 디코딩 실패"))?;
+
     // Helius에서 accounts는 flat pubkey 문자열 배열
     let accounts: Vec<&str> = instruction["accounts"]
         .as_array()
@@ -396,7 +505,66 @@ pub async fn verify_program_instruction_tx(
     // RPC로 불가역 확정 여부를 한 번 더 체크한다.
     check_signature_finalized(rpc_url, client, signature).await?;
 
+    Ok(data_bytes)
+}
+
+pub async fn verify_program_instruction_tx(
+    rpc_url: &str,
+    helius_api_key: &str,
+    client: &reqwest::Client,
+    signature: &str,
+    program_id: &str,
+    instruction_name: &str,
+    required_pubkeys: &[&str],
+    required_signer: Option<&str>,
+    expected_account_positions: Option<&[(usize, &str)]>,
+) -> Result<()> {
+    verify_program_instruction_tx_data(
+        rpc_url,
+        helius_api_key,
+        client,
+        signature,
+        program_id,
+        instruction_name,
+        required_pubkeys,
+        required_signer,
+        expected_account_positions,
+    )
+    .await?;
+
     Ok(())
+}
+
+pub async fn verify_program_instruction_tx_u64_arg(
+    rpc_url: &str,
+    helius_api_key: &str,
+    client: &reqwest::Client,
+    signature: &str,
+    program_id: &str,
+    instruction_name: &str,
+    required_pubkeys: &[&str],
+    required_signer: Option<&str>,
+    expected_account_positions: Option<&[(usize, &str)]>,
+) -> Result<u64> {
+    let data = verify_program_instruction_tx_data(
+        rpc_url,
+        helius_api_key,
+        client,
+        signature,
+        program_id,
+        instruction_name,
+        required_pubkeys,
+        required_signer,
+        expected_account_positions,
+    )
+    .await?;
+
+    let value_bytes: [u8; 8] = data
+        .get(8..16)
+        .ok_or_else(|| anyhow!("{} u64 인자 데이터 길이 부족", instruction_name))?
+        .try_into()
+        .map_err(|_| anyhow!("{} u64 인자 파싱 실패", instruction_name))?;
+    Ok(u64::from_le_bytes(value_bytes))
 }
 
 // ── RPC: getLatestBlockhash ────────────────────────────────────

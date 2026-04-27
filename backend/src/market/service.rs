@@ -37,6 +37,7 @@ use crate::state::AppState;
 #[derive(Deserialize)]
 struct SellerEmbed {
     nickname: Option<String>,
+    wallet_address: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -49,7 +50,8 @@ struct AvatarItemEmbed {
 
 #[derive(Deserialize)]
 struct UserItemEmbed {
-    avatar_items: AvatarItemEmbed,
+    item_master: AvatarItemEmbed,
+    nft_mint_address: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -59,9 +61,10 @@ struct ListingRaw {
     item_id: Uuid,
     price_spt: i32,
     status: Option<String>,
+    escrow_address: Option<String>,
     listed_at: Option<DateTime<Utc>>,
     users: SellerEmbed,
-    user_items: UserItemEmbed,
+    user_inventory: UserItemEmbed,
 }
 
 #[derive(Debug, Deserialize)]
@@ -114,7 +117,7 @@ async fn get_user_wallet(state: &AppState, user_id: Uuid) -> Result<String> {
 
 async fn get_user_item_nft(state: &AppState, user_id: Uuid, user_item_id: Uuid) -> Result<String> {
     let url = format!(
-        "{}/rest/v1/user_items?id=eq.{}&user_id=eq.{}&select=is_nft,nft_mint_address",
+        "{}/rest/v1/user_inventory?id=eq.{}&user_id=eq.{}&select=is_nft,nft_mint_address",
         state.config.supabase_url.trim_end_matches('/'),
         user_item_id,
         user_id,
@@ -252,7 +255,7 @@ pub async fn create_listing(
 ///     의도를 정확히 인식한다. 생략하면 ambigous 에러 가능.
 async fn fetch_listing_response(state: &AppState, listing_id: Uuid) -> Result<ListingResponse> {
     let url = format!(
-        "{}/rest/v1/market_listings?id=eq.{}&select=*,users!seller_id(nickname),user_items!item_id(avatar_items(name,image_url,category,rarity))",
+        "{}/rest/v1/market_listings?id=eq.{}&select=*,users!seller_id(nickname,wallet_address),user_inventory!item_id(nft_mint_address,item_master(name,image_url,category,rarity))",
         state.config.supabase_url.trim_end_matches('/'),
         listing_id,
     );
@@ -286,11 +289,14 @@ async fn fetch_listing_response(state: &AppState, listing_id: Uuid) -> Result<Li
         id: r.id,
         seller_id: r.seller_id,
         seller_nickname: r.users.nickname, // embedding에서 추출
+        seller_wallet_address: r.users.wallet_address,
         item_id: r.item_id,
-        item_name: r.user_items.avatar_items.name, // 2중 중첩에서 추출
-        item_image_url: r.user_items.avatar_items.image_url,
-        item_category: r.user_items.avatar_items.category,
-        item_rarity: r.user_items.avatar_items.rarity,
+        item_name: r.user_inventory.item_master.name, // 2중 중첩에서 추출
+        item_image_url: r.user_inventory.item_master.image_url,
+        item_category: r.user_inventory.item_master.category,
+        item_rarity: r.user_inventory.item_master.rarity,
+        nft_mint_address: r.user_inventory.nft_mint_address,
+        escrow_address: r.escrow_address,
         price_spt: r.price_spt,
         status: r.status,
         listed_at: r.listed_at,
@@ -304,7 +310,7 @@ async fn fetch_listing_response(state: &AppState, listing_id: Uuid) -> Result<Li
 /// 페이지네이션 없이 전체 반환 (아이템 수가 적은 MVP 단계 기준).
 pub async fn get_listings(state: &AppState) -> Result<Vec<ListingResponse>> {
     let url = format!(
-        "{}/rest/v1/market_listings?status=eq.active&select=*,users!seller_id(nickname),user_items!item_id(avatar_items(name,image_url,category,rarity))&order=listed_at.desc",
+        "{}/rest/v1/market_listings?status=eq.active&escrow_address=not.is.null&select=*,users!seller_id(nickname,wallet_address),user_inventory!item_id(nft_mint_address,item_master(name,image_url,category,rarity))&order=listed_at.desc",
         state.config.supabase_url.trim_end_matches('/'),
     );
 
@@ -333,11 +339,14 @@ pub async fn get_listings(state: &AppState) -> Result<Vec<ListingResponse>> {
             id: r.id,
             seller_id: r.seller_id,
             seller_nickname: r.users.nickname,
+            seller_wallet_address: r.users.wallet_address,
             item_id: r.item_id,
-            item_name: r.user_items.avatar_items.name,
-            item_image_url: r.user_items.avatar_items.image_url,
-            item_category: r.user_items.avatar_items.category,
-            item_rarity: r.user_items.avatar_items.rarity,
+            item_name: r.user_inventory.item_master.name,
+            item_image_url: r.user_inventory.item_master.image_url,
+            item_category: r.user_inventory.item_master.category,
+            item_rarity: r.user_inventory.item_master.rarity,
+            nft_mint_address: r.user_inventory.nft_mint_address,
+            escrow_address: r.escrow_address,
             price_spt: r.price_spt,
             status: r.status,
             listed_at: r.listed_at,
@@ -363,16 +372,18 @@ pub async fn update_escrow(
     user_id: Uuid,          // JWT에서 추출한 현재 로그인 유저 UUID (= seller_id)
     listing_id: Uuid,       // URL path에서 추출한 대상 listing UUID
     escrow_address: String, // 저장할 Solana 에스크로 PDA 주소
+    tx_signature: String,   // list_nft 온체인 트랜잭션 서명
 ) -> Result<()> {
     #[derive(Deserialize)]
     struct EscrowListingRow {
         seller_id: Uuid,
-        user_items: UserItemNftRow,
+        price_spt: i32,
+        user_inventory: UserItemNftRow,
         users: UserWalletRow,
     }
 
     let lookup_url = format!(
-        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}&select=seller_id,user_items!item_id(is_nft,nft_mint_address),users!seller_id(wallet_address)",
+        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}&select=seller_id,price_spt,user_inventory!item_id(is_nft,nft_mint_address),users!seller_id(wallet_address)",
         state.config.supabase_url.trim_end_matches('/'),
         listing_id,
         user_id,
@@ -408,7 +419,7 @@ pub async fn update_escrow(
     if row.seller_id != user_id {
         return Err(anyhow!("본인 판매 등록만 수정할 수 있습니다"));
     }
-    if row.user_items.is_nft != Some(true) {
+    if row.user_inventory.is_nft != Some(true) {
         return Err(anyhow!("NFT로 발행된 아이템만 escrow를 저장할 수 있습니다"));
     }
 
@@ -417,7 +428,7 @@ pub async fn update_escrow(
         .wallet_address
         .ok_or_else(|| anyhow!("판매자 지갑 주소가 없습니다"))?;
     let nft_mint = row
-        .user_items
+        .user_inventory
         .nft_mint_address
         .ok_or_else(|| anyhow!("NFT mint 주소가 없습니다"))?;
     let listing_pda = solana_client::derive_listing_address(
@@ -433,6 +444,41 @@ pub async fn update_escrow(
             "escrow 주소가 PDA와 일치하지 않습니다. expected={}, got={}",
             expected_escrow,
             escrow_address
+        ));
+    }
+
+    let expected_price_base_units = (row.price_spt as u64)
+        .checked_mul(solana_client::SPT_DECIMALS)
+        .ok_or_else(|| anyhow!("판매 가격 base units 변환 중 overflow"))?;
+    let onchain_price_base_units = solana_client::verify_program_instruction_tx_u64_arg(
+        &state.config.solana_rpc_url,
+        &state.config.helius_api_key,
+        &state.http_client,
+        &tx_signature,
+        &state.config.solana_program_id,
+        "list_nft",
+        &[
+            seller_wallet.as_str(),
+            nft_mint.as_str(),
+            listing_pda.as_str(),
+            expected_escrow.as_str(),
+        ],
+        Some(seller_wallet.as_str()),
+        Some(&[
+            (0, seller_wallet.as_str()),
+            (1, nft_mint.as_str()),
+            (3, listing_pda.as_str()),
+            (4, expected_escrow.as_str()),
+        ]),
+    )
+    .await
+    .context("판매 등록 트랜잭션 검증 실패")?;
+
+    if onchain_price_base_units != expected_price_base_units {
+        return Err(anyhow!(
+            "온체인 판매 가격이 DB 가격과 일치하지 않습니다. expected_base_units={}, got_base_units={}",
+            expected_price_base_units,
+            onchain_price_base_units
         ));
     }
 
@@ -508,7 +554,7 @@ pub async fn purchase(
     // price_spt (수수료 계산에 필요), status (active 여부 확인) 조회
     // select로 필요한 컬럼만 지정해 페이로드 최소화
     let listing_url = format!(
-        "{}/rest/v1/market_listings?id=eq.{}&select=price_spt,status,escrow_address,seller_id,user_items!item_id(nft_mint_address),users!seller_id(wallet_address)",
+        "{}/rest/v1/market_listings?id=eq.{}&select=price_spt,status,escrow_address,seller_id,user_inventory!item_id(nft_mint_address),users!seller_id(wallet_address)",
         state.config.supabase_url.trim_end_matches('/'),
         req.listing_id,
     );
@@ -520,7 +566,7 @@ pub async fn purchase(
         status: Option<String>, // 현재 상태("active" 여야 구매 가능)
         escrow_address: Option<String>,
         seller_id: Uuid,
-        user_items: UserItemNftRow,
+        user_inventory: UserItemNftRow,
         users: UserWalletRow,
     }
 
@@ -570,7 +616,7 @@ pub async fn purchase(
         .ok_or_else(|| anyhow!("판매자 지갑 주소가 없습니다"))?;
     let buyer_wallet = get_user_wallet(state, user_id).await?;
     let nft_mint = listing
-        .user_items
+        .user_inventory
         .nft_mint_address
         .as_deref()
         .ok_or_else(|| anyhow!("NFT mint 주소가 없습니다"))?;
@@ -613,9 +659,21 @@ pub async fn purchase(
     .context("구매 트랜잭션 검증 실패")?;
 
     // 2. 수수료 계산
-    // 수수료: price의 5% (정수 나눗셈 → 소수점 절사)
-    // 예: price=1000 → fee = 50 / price=19 → fee=0
-    let fee = listing.price_spt * 5 / 100;
+    // 수수료율은 온체인 platform_config를 기준으로 계산한다.
+    let fee_rate = solana_client::get_platform_fee_rate(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        &state.config.solana_program_id,
+    )
+    .await
+    .context("온체인 수수료율 조회 실패")?;
+    let fee = i32::try_from(
+        i64::from(listing.price_spt)
+            .checked_mul(i64::from(fee_rate))
+            .ok_or_else(|| anyhow!("수수료 계산 중 overflow"))?
+            / 10_000,
+    )
+    .map_err(|_| anyhow!("수수료 값 범위 초과"))?;
 
     // 3. market_transactions INSERT
     // INSERT 후 DB 트리거(handle_market_purchase)가 자동 실행:
