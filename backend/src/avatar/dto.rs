@@ -1,5 +1,5 @@
 // avatar/dto.rs
-// 아바타, 아이템, 가챠, 스크린샷 관련 요청/응답 구조체
+// 아바타, 아이템, 장착, 가챠, 스크린샷 관련 요청/응답 구조체
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -58,13 +58,46 @@ pub struct UserItemResponse {
     pub category: String,
     pub rarity: String,
     pub image_url: String,
+    pub visual_parts: Option<serde_json::Value>, // 장착용 이미지/모델 경로 JSON
     pub metadata_uri: Option<String>,
-    pub unity_asset_key: Option<String>,
+    pub slot_name: Option<String>,
     pub is_equipped: Option<bool>,
     pub is_nft: Option<bool>,
     pub nft_mint_address: Option<String>,
+    pub minted_to_wallet: Option<String>,
+    pub collection_mint: Option<String>,
     pub acquired_at: Option<DateTime<Utc>>,
 }
+
+// ── 장착 요청/응답 ────────────────────────────────────────────
+
+// POST /api/avatar/equipment — 아이템 장착
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct EquipItemRequest {
+    pub inventory_id: Uuid, // user_items.id
+    pub slot_name: String,  // hair / top / bottom / gloves / shoes / weapon / glasses
+}
+
+// DELETE /api/avatar/equipment/:slot_name — 슬롯 해제
+// 라우트 파라미터로 slot_name 받으므로 별도 바디 없음
+
+// GET /api/avatar/equipment 응답 — 슬롯 1개
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct EquipmentSlotResponse {
+    pub slot_name: String,
+    pub inventory_id: Option<Uuid>,
+    pub is_visible: bool,
+    pub equipped_at: Option<DateTime<Utc>>,
+    // 장착 아이템 정보 (inventory_id가 NULL이면 전부 None)
+    pub name: Option<String>,
+    pub category: Option<String>,
+    pub rarity: Option<String>,
+    pub visual_parts: Option<serde_json::Value>,
+    pub is_nft: Option<bool>,
+    pub nft_mint_address: Option<String>,
+}
+
+// ── NFT 조회 응답 ─────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct OwnedNftResponse {
@@ -75,7 +108,6 @@ pub struct OwnedNftResponse {
     pub rarity: Option<String>,
     pub image_url: Option<String>,
     pub metadata_uri: Option<String>,
-    pub unity_asset_key: Option<String>,
 }
 
 // ── 가챠 티켓 응답 ────────────────────────────────────────────
@@ -88,14 +120,10 @@ pub struct GachaTicketResponse {
     pub acquired_at: Option<DateTime<Utc>>,
 }
 
-// ── 가챠 사용 요청 ────────────────────────────────────────────
-
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct UseGachaTicketRequest {
     pub ticket_id: Uuid,
 }
-
-// ── 가챠 결과 응답 ────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GachaResultResponse {
@@ -106,15 +134,13 @@ pub struct GachaResultResponse {
     pub image_url: String,
 }
 
-// ── 스크린샷 생성 요청 ────────────────────────────────────────
+// ── 스크린샷 요청/응답 ────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreateScreenshotRequest {
     pub image_url: String,
     pub caption: Option<String>,
 }
-
-// ── 스크린샷 응답 ─────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ScreenshotResponse {

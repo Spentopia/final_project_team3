@@ -20,8 +20,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::dto::{
-    MintNftRequest, MintNftResponse, OwnedNftResponse, TransferNftRequest, TransferNftResponse,
-    UserItemResponse,
+    EquipItemRequest, EquipmentSlotResponse, MintNftRequest, MintNftResponse, OwnedNftResponse,
+    TransferNftRequest, TransferNftResponse, UserItemResponse,
 };
 use crate::clients::solana_client;
 use crate::state::AppState;
@@ -188,11 +188,11 @@ pub async fn mint_nft(
     #[derive(Deserialize)]
     struct UserItemRaw {
         is_nft: Option<bool>,
-        avatar_items: AvatarItemEmbed,
+        item_master: AvatarItemEmbed,
     }
 
     let item_url = format!(
-        "{}/rest/v1/user_items?id=eq.{}&user_id=eq.{}&select=is_nft,avatar_items(name,metadata_uri,image_url)",
+        "{}/rest/v1/user_inventory?id=eq.{}&user_id=eq.{}&select=is_nft,item_master(name,metadata_uri,image_url)",
         state.config.supabase_url.trim_end_matches('/'),
         req.user_item_id,
         user_id,
@@ -236,11 +236,11 @@ pub async fn mint_nft(
     // item_seed: user_item_id(UUID)를 하이픈 없는 형태로 사용 → 32바이트 이하 보장
     let item_seed = req.user_item_id.simple().to_string();
     let nft_uri = item
-        .avatar_items
+        .item_master
         .metadata_uri
         .as_deref()
-        .filter(|v| !v.trim().is_empty())
-        .unwrap_or(&item.avatar_items.image_url);
+        .filter(|v: &&str| !v.trim().is_empty())
+        .unwrap_or(&item.item_master.image_url);
 
     let (tx_signature, nft_mint_address) = solana_client::mint_avatar_nft_to_user(
         &state.config.solana_rpc_url,
@@ -249,7 +249,7 @@ pub async fn mint_nft(
         &wallet_address,
         &state.config.solana_program_id,
         &item_seed,
-        &item.avatar_items.name,
+        &item.item_master.name,
         "SPTA",
         nft_uri,
     )
@@ -281,7 +281,7 @@ pub async fn mint_nft(
 
     // 5. DB 업데이트 — is_nft=true, mint 주소, tx 서명 기록
     let url = format!(
-        "{}/rest/v1/user_items?id=eq.{}&user_id=eq.{}",
+        "{}/rest/v1/user_inventory?id=eq.{}&user_id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
         req.user_item_id,
         user_id,
@@ -292,7 +292,14 @@ pub async fn mint_nft(
         nft_mint_address: String,
         is_nft: bool,
         nft_tx_signature: String,
+        minted_to_wallet: String,
+        collection_mint: Option<String>,
     }
+
+    let collection_mint = {
+        let v = state.config.solana_avatar_collection_mint.trim();
+        if v.is_empty() { None } else { Some(v.to_string()) }
+    };
 
     let res = state
         .http_client
@@ -307,6 +314,8 @@ pub async fn mint_nft(
             nft_mint_address: nft_mint_address.clone(),
             is_nft: true,
             nft_tx_signature: tx_signature.clone(),
+            minted_to_wallet: wallet_address.clone(),
+            collection_mint,
         })
         .send()
         .await
@@ -421,7 +430,7 @@ pub async fn transfer_nft(
 /// 유저가 보유한 꾸미기 아이템 전체를 아이템 마스터 정보와 함께 조회한다.
 ///
 /// PostgREST embedding(JOIN) 방식:
-///     public.user_items.item_id → public.avatar_items.id
+///     public.user_items.item_id → public.item_master.id
 ///
 /// 쿼리 파라미터:
 ///     select=*.avatar_items(name,image_url,category,rarity)
@@ -449,7 +458,7 @@ pub async fn get_user_items(
     //  user_items?user_id=eq.{user_id} → 본인 아이템만 필터
     //  &select=*.avatar_items(...) → avatar_items 테이블 JOIN
     let url = format!(
-        "{}/rest/v1/user_items?user_id=eq.{}&select=*,avatar_items(name,image_url,metadata_uri,unity_asset_key,category,rarity)",
+        "{}/rest/v1/user_inventory?user_id=eq.{}&select=*,item_master(name,image_url,metadata_uri,category,rarity,visual_parts),user_equipment(slot_name)",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
@@ -460,12 +469,12 @@ pub async fn get_user_items(
     /// PostgREST embedding으로 함께 오는 avatar_items 중첩 객체
     #[derive(Deserialize)]
     struct AvatarItemEmbed {
-        name: String,                    // 아이템 이름 (예: "골든 프레임")
-        image_url: String,               // 아이템 이미지 URL
-        metadata_uri: Option<String>,    // NFT metadata JSON URI
-        unity_asset_key: Option<String>, // Unity Addressable/Prefab key
-        category: String,                // 카테고리 (background / frame / effect / motion)
-        rarity: String,                  // 희귀도
+        name: String,
+        image_url: String,
+        metadata_uri: Option<String>,
+        category: String,
+        rarity: String,
+        visual_parts: Option<serde_json::Value>,
     }
 
     /// PostgREST 응답 원형: user_items 컬럼 + avatar_items 중첩 객체
@@ -473,12 +482,20 @@ pub async fn get_user_items(
     struct UserItemRaw {
         id: Uuid,
         user_id: Uuid,
-        item_id: Uuid,                      // avatar_items FK
-        is_equipped: Option<bool>,          // 현재 장착 여부
-        is_nft: Option<bool>,               // NFT 발행 여부
-        nft_mint_address: Option<String>,   // Solana NFT mint 주소 (없으면 null)
-        acquired_at: Option<DateTime<Utc>>, // 획득 시각
-        avatar_items: AvatarItemEmbed,      // JOIN 결과 (중첩 객체)
+        item_id: Uuid,
+        is_equipped: Option<bool>,
+        is_nft: Option<bool>,
+        nft_mint_address: Option<String>,
+        minted_to_wallet: Option<String>,
+        collection_mint: Option<String>,
+        acquired_at: Option<DateTime<Utc>>,
+        item_master: AvatarItemEmbed,
+        user_equipment: Vec<UserEquipmentEmbed>,
+    }
+
+    #[derive(Deserialize)]
+    struct UserEquipmentEmbed {
+        slot_name: String,
     }
 
     let res = state
@@ -511,17 +528,215 @@ pub async fn get_user_items(
             is_equipped: r.is_equipped,
             is_nft: r.is_nft,
             nft_mint_address: r.nft_mint_address,
+            minted_to_wallet: r.minted_to_wallet,
+            collection_mint: r.collection_mint,
             acquired_at: r.acquired_at,
-            // avatar_items 중첩 객체에서 flat하게 꺼냄
-            name: r.avatar_items.name,
-            image_url: r.avatar_items.image_url,
-            metadata_uri: r.avatar_items.metadata_uri,
-            unity_asset_key: r.avatar_items.unity_asset_key,
-            category: r.avatar_items.category,
-            rarity: r.avatar_items.rarity,
+            name: r.item_master.name,
+            image_url: r.item_master.image_url,
+            visual_parts: r.item_master.visual_parts,
+            metadata_uri: r.item_master.metadata_uri,
+            category: r.item_master.category,
+            rarity: r.item_master.rarity,
+            slot_name: r.user_equipment.into_iter().next().map(|e| e.slot_name),
         })
         .collect();
     Ok(items)
+}
+
+// equip_item
+//
+// user_equipment 테이블에 장착 정보를 upsert한다.
+// (user_id, slot_name) PK 기준 — 같은 슬롯에 다시 장착하면 교체됨.
+//
+// 보안:
+//   inventory_id가 실제로 본인(user_id) 소유인지 먼저 확인한다.
+//   다른 유저의 inventory_id를 넘겨도 소유권 체크에서 차단된다.
+pub async fn equip_item(
+    state: &AppState,
+    user_id: Uuid,
+    req: EquipItemRequest,
+) -> Result<()> {
+    // 1. inventory_id가 본인 소유인지 확인
+    let check_url = format!(
+        "{}/rest/v1/user_inventory?id=eq.{}&user_id=eq.{}&select=id&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        req.inventory_id,
+        user_id,
+    );
+
+    let check_res = state
+        .http_client
+        .get(&check_url)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("user_items 소유권 확인 요청 실패")?;
+
+    if !check_res.status().is_success() {
+        return Err(anyhow!("user_items 소유권 확인 실패: {}", check_res.text().await.unwrap_or_default()));
+    }
+
+    let rows: Vec<serde_json::Value> = check_res.json().await.context("user_items 소유권 확인 파싱 실패")?;
+    if rows.is_empty() {
+        return Err(anyhow!("해당 아이템이 없거나 본인 소유가 아닙니다"));
+    }
+
+    // 2. user_equipment upsert
+    // on_conflict=user_id,slot_name → 같은 슬롯이면 inventory_id, equipped_at 교체
+    let upsert_url = format!(
+        "{}/rest/v1/user_equipment?on_conflict=user_id,slot_name",
+        state.config.supabase_url.trim_end_matches('/'),
+    );
+
+    #[derive(Serialize)]
+    struct UpsertPayload {
+        user_id: Uuid,
+        slot_name: String,
+        inventory_id: Uuid,
+        is_visible: bool,
+    }
+
+    let res = state
+        .http_client
+        .post(&upsert_url)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "resolution=merge-duplicates,return=minimal")
+        .json(&UpsertPayload {
+            user_id,
+            slot_name: req.slot_name,
+            inventory_id: req.inventory_id,
+            is_visible: true,
+        })
+        .send()
+        .await
+        .context("user_equipment upsert 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!("user_equipment upsert 실패: {}", res.text().await.unwrap_or_default()));
+    }
+
+    Ok(())
+}
+
+// unequip_item
+//
+// 지정한 슬롯의 inventory_id를 NULL로 설정 (슬롯 비우기).
+// 행 자체는 남겨두고 inventory_id만 NULL 처리한다.
+pub async fn unequip_item(
+    state: &AppState,
+    user_id: Uuid,
+    slot_name: &str,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/user_equipment?user_id=eq.{}&slot_name=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+        slot_name,
+    );
+
+    #[derive(Serialize)]
+    struct PatchPayload {
+        inventory_id: Option<Uuid>,
+    }
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=minimal")
+        .json(&PatchPayload { inventory_id: None })
+        .send()
+        .await
+        .context("user_equipment unequip 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!("user_equipment unequip 실패: {}", res.text().await.unwrap_or_default()));
+    }
+
+    Ok(())
+}
+
+// get_equipment
+//
+// 유저의 전체 장착 현황을 슬롯별로 조회한다.
+// user_equipment → user_items → avatar_items 순서로 JOIN하여
+// 슬롯별 아이템 정보(name, category, visual_parts 등)를 함께 반환한다.
+pub async fn get_equipment(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<Vec<EquipmentSlotResponse>> {
+    // PostgREST embedding:
+    //   user_equipment.inventory_id → user_items.id (FK)
+    //   user_items.item_id          → avatar_items.id (FK)
+    let url = format!(
+        "{}/rest/v1/user_equipment?user_id=eq.{}&select=slot_name,inventory_id,equipped_at,is_visible,user_inventory(id,is_nft,nft_mint_address,item_master(name,category,rarity,visual_parts))",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    #[derive(Deserialize)]
+    struct AvatarItemEmbed {
+        name: String,
+        category: String,
+        rarity: String,
+        visual_parts: Option<serde_json::Value>,
+    }
+
+    #[derive(Deserialize)]
+    struct UserItemEmbed {
+        id: Uuid,
+        is_nft: Option<bool>,
+        nft_mint_address: Option<String>,
+        item_master: Option<AvatarItemEmbed>,
+    }
+
+    #[derive(Deserialize)]
+    struct EquipmentRaw {
+        slot_name: String,
+        inventory_id: Option<Uuid>,
+        equipped_at: Option<DateTime<Utc>>,
+        is_visible: bool,
+        user_inventory: Option<UserItemEmbed>,
+    }
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("user_equipment SELECT 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!("user_equipment SELECT 실패: {}", res.text().await.unwrap_or_default()));
+    }
+
+    let raw: Vec<EquipmentRaw> = res.json().await.context("user_equipment 역직렬화 실패")?;
+
+    let slots = raw
+        .into_iter()
+        .map(|r| {
+            let item = r.user_inventory;
+            EquipmentSlotResponse {
+                slot_name: r.slot_name,
+                inventory_id: r.inventory_id,
+                is_visible: r.is_visible,
+                equipped_at: r.equipped_at,
+                name: item.as_ref().and_then(|i| i.item_master.as_ref()).map(|a| a.name.clone()),
+                category: item.as_ref().and_then(|i| i.item_master.as_ref()).map(|a| a.category.clone()),
+                rarity: item.as_ref().and_then(|i| i.item_master.as_ref()).map(|a| a.rarity.clone()),
+                visual_parts: item.as_ref().and_then(|i| i.item_master.as_ref()).and_then(|a| a.visual_parts.clone()),
+                is_nft: item.as_ref().and_then(|i| i.is_nft),
+                nft_mint_address: item.as_ref().and_then(|i| i.nft_mint_address.clone()),
+            }
+        })
+        .collect();
+
+    Ok(slots)
 }
 
 pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<OwnedNftResponse>> {
@@ -564,12 +779,11 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
             rarity: String,
             image_url: String,
             metadata_uri: Option<String>,
-            unity_asset_key: Option<String>,
         }
 
         let avatar_item = if let Some(uri) = metadata_uri.as_deref() {
             let lookup_url = format!(
-                "{}/rest/v1/avatar_items?metadata_uri=eq.{}&select=id,name,category,rarity,image_url,metadata_uri,unity_asset_key&limit=1",
+                "{}/rest/v1/item_master?metadata_uri=eq.{}&select=id,name,category,rarity,image_url,metadata_uri&limit=1",
                 state.config.supabase_url.trim_end_matches('/'),
                 urlencoding::encode(uri)
             );
@@ -617,7 +831,6 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
                 .as_ref()
                 .and_then(|item| item.metadata_uri.clone())
                 .or(metadata_uri),
-            unity_asset_key: avatar_item.and_then(|item| item.unity_asset_key),
         });
     }
 
