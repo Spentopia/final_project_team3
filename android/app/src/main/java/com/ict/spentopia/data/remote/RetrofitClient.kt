@@ -147,5 +147,14 @@ object RetrofitClient {
             // issueWalletNonce(), linkWallet(), unlinkWallet()
             // 같은 함수들을 실제 호출 가능하게 바꿔줌
             .create(WalletApi::class.java)
+
+    }
+    val authApi: AuthApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(AuthApi::class.java)
     }
 }

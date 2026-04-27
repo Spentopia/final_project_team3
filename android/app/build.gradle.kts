@@ -1,8 +1,8 @@
 plugins {
-    alias(libs.plugins.android.application) // Android 앱 플러그인
-    alias(libs.plugins.kotlin.android)      // Kotlin Android 지원
-    alias(libs.plugins.kotlin.compose)      // Jetpack Compose 지원
-    alias(libs.plugins.ksp)                 // Kotlin Symbol Processing (Room 컴파일러용)
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -21,7 +21,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false // 난독화/최적화 비활성화
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -30,102 +30,119 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17 // Java 17 사용
-        targetCompatibility = JavaVersion.VERSION_17 // Java 17 타겟
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "17" // Kotlin JVM 타겟 17
+        jvmTarget = "17"
     }
 
     buildFeatures {
-        compose = true // Jetpack Compose 활성화
+        compose = true
     }
 }
 
 kotlin {
-    jvmToolchain(17) // Kotlin 툴체인 17 사용
+    jvmToolchain(17)
 }
 
 dependencies {
     // =========================
     // Android 기본 라이브러리
     // =========================
-    implementation(libs.androidx.core.ktx)              // Android KTX 확장 함수
-    implementation(libs.androidx.lifecycle.runtime.ktx) // Lifecycle 런타임 KTX
-    implementation(libs.androidx.activity.compose)      // Activity + Compose 연동
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.activity.compose)
 
     // =========================
     // Jetpack Compose
     // =========================
-    implementation(platform(libs.androidx.compose.bom)) // Compose BOM 버전 통일
-    implementation(libs.androidx.compose.ui)            // Compose UI 핵심
-    implementation(libs.androidx.compose.ui.graphics)   // Compose 그래픽 처리
-    implementation(libs.androidx.compose.ui.tooling.preview) // 미리보기 지원
-    implementation(libs.androidx.compose.material3)     // Material 3 UI 컴포넌트
-    implementation("androidx.compose.material:material-icons-extended") // 확장 머티리얼 아이콘
-    implementation("androidx.navigation:navigation-compose:2.7.7")      // Compose 네비게이션
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.material3)
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.navigation:navigation-compose:2.7.7")
 
     // =========================
     // Lifecycle / 상태 관리
     // =========================
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3") // Compose에서 Lifecycle 연동
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
 
     // =========================
     // 로컬 데이터 저장
     // =========================
-    implementation("androidx.datastore:datastore-preferences:1.1.1") // 키-값 기반 설정 저장(DataStore)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // =========================
     // Room 데이터베이스
     // =========================
-    implementation("androidx.room:room-runtime:2.6.1") // Room 런타임
-    implementation("androidx.room:room-ktx:2.6.1")     // Room 코루틴/KTX 지원
-    ksp("androidx.room:room-compiler:2.6.1")           // Room 어노테이션 처리기
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
 
     // =========================
     // Supabase
     // =========================
-    implementation(platform("io.github.jan-tennert.supabase:bom:3.0.0")) // Supabase BOM 버전 통일
-    implementation("io.github.jan-tennert.supabase:auth-kt")              // 인증(Auth)
-    implementation("io.github.jan-tennert.supabase:postgrest-kt")         // DB/PostgREST 통신
+    implementation(platform("io.github.jan-tennert.supabase:bom:3.0.0"))
+    implementation("io.github.jan-tennert.supabase:auth-kt")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
 
     // =========================
     // 이미지 로딩
     // =========================
-    implementation("io.coil-kt:coil-compose:2.6.0") // Compose용 이미지 로딩 라이브러리
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
     // =========================
     // Solana / Wallet 연동
     // =========================
     implementation("com.solanamobile:mobile-wallet-adapter-clientlib-ktx:2.0.3")
-    // Solana 모바일 월렛 어댑터 클라이언트 라이브러리
 
+    // =========================
+    // Coroutine
+    // =========================
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    // 비동기 처리용 Kotlin Coroutines
 
+    // =========================
+    // Retrofit / OkHttp
+    // =========================
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    // REST API 통신용 Retrofit
-
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-    // Retrofit JSON 변환기 (Gson)
-
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-    // 네트워크 요청/응답 로그 확인
 
+    // =========================
+    // Ktor
+    // =========================
+    // 기존에 2.3.10과 3.0.3이 같이 있어서 충돌 가능성이 있음.
+    // 삭제하지 않고 주석 처리만 해둠.
+    // implementation("io.ktor:ktor-client-okhttp:2.3.10")
+
+    implementation("io.ktor:ktor-client-core:3.0.3")
+    implementation("io.ktor:ktor-client-okhttp:3.0.3")
+    implementation("io.ktor:ktor-client-logging:3.0.3")
+
+    // =========================
+    // Bitcoin
+    // =========================
     implementation("org.bitcoinj:bitcoinj-core:0.16.3")
-    // 비트코인 관련 기능 처리 라이브러리
+
+    // =========================
+    // Kakao Login SDK
+    // =========================
+    implementation("com.kakao.sdk:v2-user:2.20.1")
 
     // =========================
     // 테스트
     // =========================
-    testImplementation(libs.junit)                        // 단위 테스트
-    androidTestImplementation(libs.androidx.junit)       // AndroidX JUnit 테스트
-    androidTestImplementation(libs.androidx.espresso.core) // UI 테스트(Espresso)
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
 
-    androidTestImplementation(platform(libs.androidx.compose.bom)) // Compose 테스트 BOM
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4) // Compose UI 테스트
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 
-    debugImplementation(libs.androidx.compose.ui.tooling)      // 디버그용 Compose 툴링
-    debugImplementation(libs.androidx.compose.ui.test.manifest) // 테스트 매니페스트 지원
+    debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

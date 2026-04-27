@@ -223,7 +223,7 @@ pub async fn rotate_refresh_token(
         client_type,
         &pair.refresh_token,
     )
-    .await?;
+        .await?;
 
     // 7) 기존 refresh session revoke
     //
@@ -343,8 +343,8 @@ pub async fn verify_and_login(
 
     if client_type == "app"
         && !get_public_user_profile_completed_by_user_id(state, &user_id.to_string())
-            .await?
-            .unwrap_or(false)
+        .await?
+        .unwrap_or(false)
     {
         tracing::warn!(
             "앱 지갑 로그인 차단: 회원가입 미완료 user_id={} wallet={}",
@@ -699,7 +699,7 @@ pub async fn exchange_supabase_token(
             email,
             google_connected,
         )
-        .await?;
+            .await?;
 
         if !completed_user_exists {
             tracing::warn!(
@@ -719,7 +719,7 @@ pub async fn exchange_supabase_token(
         provider_id,
         google_connected,
     )
-    .await?;
+        .await?;
 
     let user_uuid =
         Uuid::parse_str(&resolved_user_id).context("최종 사용자 user_id UUID 파싱 실패")?;
@@ -1023,26 +1023,40 @@ pub async fn kakao_login(
 
     let token_url = "https://kauth.kakao.com/oauth/token";
 
-    let kakao_client_id =
-        std::env::var("KAKAO_REST_API_KEY").context("KAKAO_REST_API_KEY 환경변수 없음")?;
-    let kakao_client_secret =
-        std::env::var("KAKAO_CLIENT_SECRET").context("KAKAO_CLIENT_SECRET 환경변수 없음")?;
+    let kakao_client_id = if client_type == "app" {
+        std::env::var("KAKAO_ANDROID_REST_API_KEY")
+            .context("KAKAO_ANDROID_REST_API_KEY 환경변수 없음")?
+    } else {
+        std::env::var("KAKAO_REST_API_KEY").context("KAKAO_REST_API_KEY 환경변수 없음")?
+    };
+
+    let kakao_client_secret = if client_type == "app" {
+        std::env::var("KAKAO_ANDROID_CLIENT_SECRET").unwrap_or_default()
+    } else {
+        std::env::var("KAKAO_CLIENT_SECRET").unwrap_or_default()
+    };
+
     let redirect_uri = if client_type == "app" {
         state.config.kakao_app_redirect_uri.clone()
     } else {
         state.config.kakao_redirect_uri.clone()
     };
 
+    let mut token_form = vec![
+        ("grant_type", "authorization_code".to_string()),
+        ("client_id", kakao_client_id),
+        ("redirect_uri", redirect_uri),
+        ("code", code.to_string()),
+    ];
+
+    if !kakao_client_secret.trim().is_empty() {
+        token_form.push(("client_secret", kakao_client_secret));
+    }
+
     let token_resp = state
         .http_client
         .post(token_url)
-        .form(&[
-            ("grant_type", "authorization_code"),
-            ("client_id", &kakao_client_id),
-            ("client_secret", &kakao_client_secret),
-            ("redirect_uri", &redirect_uri),
-            ("code", code),
-        ])
+        .form(&token_form)
         .send()
         .await
         .context("카카오 토큰 요청 실패")?;
@@ -1113,8 +1127,8 @@ pub async fn kakao_login(
 
     if client_type == "app"
         && !get_public_user_profile_completed_by_user_id(state, &user_id)
-            .await?
-            .unwrap_or(false)
+        .await?
+        .unwrap_or(false)
     {
         tracing::warn!(
             "앱 카카오 로그인 차단: 회원가입 미완료 user_id={} email={:?}",
