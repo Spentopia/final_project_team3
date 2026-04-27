@@ -13,11 +13,14 @@ export interface ListingResponse{
     id: string;                             // listings.id (UUID) - 구매 시 이 id를 사용
     seller_id: string;                      // 판매자 user UUIDD
     seller_nickname: string | null;         // 판매자 닉네임 (없으면 null)
+    seller_wallet_address: string | null;   // buy_nft instruction에 필요한 판매자 지갑 주소
     item_id: string;                        // 판매 중인 아이템 UUID
     item_name: string;                      // 아이템 이름 (JOIN된 값)
     item_image_url: string;                 // 아이템 이미지 URL
     item_category: "background" | "frame" | "effect" | "motion";
     item_rarity: "common" | "rare" | "epic";
+    nft_mint_address: string | null;        // 판매 중인 NFT mint 주소
+    escrow_address: string | null;          // list_nft 후 생성된 escrow PDA
     price_spt: number;                      // 등록된 판매가
     status: string | null;                  // "active" | "sold" 등 - 현재는 "active"만
     listed_at: string | null;               // 등록 시각 ISO 8601
