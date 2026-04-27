@@ -27,6 +27,10 @@ import androidx.compose.material3.SwitchDefaults // 스위치 색상
 import androidx.compose.material3.Text // 텍스트 출력
 import androidx.compose.material3.TextButton // 탭 버튼
 import androidx.compose.runtime.Composable // 컴포저블 함수
+import androidx.compose.runtime.getValue // 수정: state 위임 사용
+import androidx.compose.runtime.mutableStateOf // 수정: 지갑 선택 다이얼로그 상태 저장
+import androidx.compose.runtime.remember // 수정: Compose 상태 유지
+import androidx.compose.runtime.setValue // 수정: state 위임 사용
 import androidx.compose.ui.Alignment // 정렬 기준
 import androidx.compose.ui.Modifier // UI 수정자
 import androidx.compose.ui.graphics.Brush // 그라데이션 배경
@@ -37,14 +41,22 @@ import androidx.compose.ui.unit.dp // dp 단위
 import androidx.compose.ui.unit.sp // 폰트 크기 단위
 import androidx.lifecycle.viewmodel.compose.viewModel // ViewModel 연결
 import coil.compose.AsyncImage // 이미지 출력
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog // 수정: 솔라나 지갑 선택 다이얼로그
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // 수정: 선택한 솔라나 지갑 종류
 
 // 기존 주석 유지
 // 마이페이지 화면
 @Composable
 fun MyPageScreen(
+    isWalletConnected: Boolean = false, // 수정: AppNavGraph에서 전달받은 실제 지갑 연결 여부
+    walletAddress: String = "", // 수정: AppNavGraph에서 전달받은 실제 지갑 주소
+    walletProvider: String = "", // 수정: AppNavGraph에서 전달받은 실제 지갑 종류
+    onWalletConnectClick: (SolanaWalletType) -> Unit = {}, // 수정: 선택한 지갑 종류를 AppNavGraph로 넘기는 함수
     myPageViewModel: MyPageViewModel = viewModel() // ViewModel 연결
 ) {
     val uiState = myPageViewModel.uiState // 현재 화면 상태 읽기
+
+    var showWalletDialog by remember { mutableStateOf(false) } // 수정: 지갑 선택 팝업 표시 여부 상태
 
     val imageLauncher = rememberLauncherForActivityResult( // 이미지 선택 런처
         contract = ActivityResultContracts.GetContent()
@@ -116,11 +128,31 @@ fun MyPageScreen(
             }
 
             MyPageTab.WALLET -> {
-                WalletTabContent(uiState = uiState) // 지갑 탭 본문
+                WalletTabContent(
+                    uiState = uiState, // 지갑 탭 본문
+                    isWalletConnected = isWalletConnected, // 수정: 실제 지갑 연결 여부 전달
+                    walletAddress = walletAddress, // 수정: 실제 지갑 주소 전달
+                    walletProvider = walletProvider, // 수정: 실제 지갑 종류 전달
+                    onWalletConnectButtonClick = {
+                        showWalletDialog = true // 수정: 지갑 연결 버튼 클릭 시 선택창 표시
+                    }
+                )
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp)) // 하단 여백
+    }
+
+    if (showWalletDialog) { // 수정: 지갑 선택 팝업 표시
+        SolanaWalletDialog(
+            onDismiss = {
+                showWalletDialog = false // 수정: 팝업 닫기
+            },
+            onSelectWallet = { walletType ->
+                showWalletDialog = false // 수정: 선택 후 팝업 닫기
+                onWalletConnectClick(walletType) // 수정: 선택한 지갑 종류를 AppNavGraph로 전달
+            }
+        )
     }
 }
 
@@ -713,7 +745,11 @@ private fun NotificationToggleRow(
 // 지갑 탭 본문
 @Composable
 private fun WalletTabContent(
-    uiState: MyPageUiState // 전체 상태 받기
+    uiState: MyPageUiState, // 전체 상태 받기
+    isWalletConnected: Boolean, // 수정: 실제 지갑 연결 여부
+    walletAddress: String, // 수정: 실제 지갑 주소
+    walletProvider: String, // 수정: 실제 지갑 종류
+    onWalletConnectButtonClick: () -> Unit // 수정: 지갑 연결 버튼 클릭 이벤트
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(14.dp) // 카드 간격
@@ -736,7 +772,7 @@ private fun WalletTabContent(
                     modifier = Modifier.fillMaxWidth() // 전체 너비 사용
                 )
 
-                if (!uiState.walletUi.isConnected) { // 미연결 상태 분기
+                if (!isWalletConnected) { // 수정: AppNavGraph의 실제 지갑 연결 상태 기준으로 미연결 분기
                     Box(
                         modifier = Modifier
                             .fillMaxWidth() // 전체 너비 사용
@@ -781,6 +817,9 @@ private fun WalletTabContent(
                                         ),
                                         shape = RoundedCornerShape(12.dp) // 둥근 버튼
                                     )
+                                    .clickable {
+                                        onWalletConnectButtonClick() // 수정: 지갑 선택 다이얼로그 열기
+                                    }
                                     .padding(horizontal = 18.dp, vertical = 10.dp) // 버튼 여백
                             ) {
                                 Text(
@@ -813,14 +852,14 @@ private fun WalletTabContent(
                             )
 
                             Text(
-                                text = uiState.walletUi.walletProvider, // 지갑 종류 표시
+                                text = walletProvider, // 수정: 실제 지갑 종류 표시
                                 fontSize = 18.sp, // 지갑 종류 크기
                                 fontWeight = FontWeight.Bold, // 지갑 종류 강조
                                 color = Color(0xFF111827) // 지갑 종류 색상
                             )
 
                             Text(
-                                text = uiState.walletUi.walletAddress, // 지갑 주소 표시
+                                text = formatWalletAddress(walletAddress), // 수정: 실제 지갑 주소 표시
                                 fontSize = 13.sp, // 주소 크기
                                 color = Color(0xFF6B7280) // 주소 색상
                             )
@@ -866,4 +905,13 @@ private fun WalletBenefitText(
         color = Color(0xFF374151), // 글자 색상
         fontWeight = FontWeight.Medium // 글자 강조
     )
+}
+
+// 지갑 주소를 보기 좋게 줄여서 표시하는 함수
+private fun formatWalletAddress(address: String): String {
+    return if (address.length <= 10) {
+        address
+    } else {
+        "${address.take(4)}...${address.takeLast(4)}"
+    }
 }

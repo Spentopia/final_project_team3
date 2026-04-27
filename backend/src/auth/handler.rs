@@ -315,21 +315,21 @@ pub async fn wallet_login(
         &body.signature,
         "web",
     )
-    .await
-    .map_err(|e| {
-        // service에서 올라온 에러를 여기서 로깅하고 적절한 HTTP 상태코드로 변환
-        // 에러 메시지에 따라 401(인증실패) 또는 500(서버에러) 구분
-        let msg = e.to_string();
-        if msg.contains("nonce") || msg.contains("서명") {
-            // nonce 불일치, 서명 검증 실패 → 클라이언트 잘못
-            tracing::warn!("지갑 로그인 실패 (클라이언트): {}", msg);
-            (StatusCode::UNAUTHORIZED, msg)
-        } else {
-            // Supabase API 실패 등 → 서버 잘못
-            tracing::error!("지갑 로그인 실패 (서버): {}", msg);
-            (StatusCode::INTERNAL_SERVER_ERROR, msg)
-        }
-    })?;
+        .await
+        .map_err(|e| {
+            // service에서 올라온 에러를 여기서 로깅하고 적절한 HTTP 상태코드로 변환
+            // 에러 메시지에 따라 401(인증실패) 또는 500(서버에러) 구분
+            let msg = e.to_string();
+            if msg.contains("nonce") || msg.contains("서명") {
+                // nonce 불일치, 서명 검증 실패 → 클라이언트 잘못
+                tracing::warn!("지갑 로그인 실패 (클라이언트): {}", msg);
+                (StatusCode::UNAUTHORIZED, msg)
+            } else {
+                // Supabase API 실패 등 → 서버 잘못
+                tracing::error!("지갑 로그인 실패 (서버): {}", msg);
+                (StatusCode::INTERNAL_SERVER_ERROR, msg)
+            }
+        })?;
 
     tracing::info!("지갑 로그인 성공: wallet={}", body.wallet_address);
 
@@ -376,20 +376,20 @@ pub async fn wallet_login_app(
         &body.signature,
         "app",
     )
-    .await
-    .map_err(|e| {
-        let msg = e.to_string();
-        if msg.contains("nonce") || msg.contains("서명") {
-            tracing::warn!("앱 지갑 로그인 실패 (클라이언트): {}", msg);
-            (StatusCode::UNAUTHORIZED, msg)
-        } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
-            tracing::warn!("앱 지갑 로그인 차단: {}", msg);
-            (StatusCode::FORBIDDEN, msg)
-        } else {
-            tracing::error!("앱 지갑 로그인 실패 (서버): {}", msg);
-            (StatusCode::INTERNAL_SERVER_ERROR, msg)
-        }
-    })?;
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("nonce") || msg.contains("서명") {
+                tracing::warn!("앱 지갑 로그인 실패 (클라이언트): {}", msg);
+                (StatusCode::UNAUTHORIZED, msg)
+            } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
+                tracing::warn!("앱 지갑 로그인 차단: {}", msg);
+                (StatusCode::FORBIDDEN, msg)
+            } else {
+                tracing::error!("앱 지갑 로그인 실패 (서버): {}", msg);
+                (StatusCode::INTERNAL_SERVER_ERROR, msg)
+            }
+        })?;
 
     let body = AppLoginResponse {
         access_token: response.access_token,
@@ -1053,11 +1053,11 @@ pub async fn find_email(
         &state.config.turnstile_secret_key,
         &body.captcha_token,
     )
-    .await
-    .map_err(|e| {
-        tracing::warn!("Turnstile 검증 실패: {}", e);
-        (StatusCode::BAD_REQUEST, e.to_string())
-    })?;
+        .await
+        .map_err(|e| {
+            tracing::warn!("Turnstile 검증 실패: {}", e);
+            (StatusCode::BAD_REQUEST, e.to_string())
+        })?;
 
     // 3) 전화번호 값 검사
     if body.phone.trim().is_empty() {
@@ -1130,14 +1130,14 @@ pub async fn check_email(
         &state.config.turnstile_secret_key,
         &body.captcha_token,
     )
-    .await
-    .map_err(|e| {
-        tracing::warn!("Turnstile 검증 실패(check_email): {}", e);
-        (
-            StatusCode::BAD_REQUEST,
-            "사람 인증 검증에 실패했습니다.".to_string(),
-        )
-    })?;
+        .await
+        .map_err(|e| {
+            tracing::warn!("Turnstile 검증 실패(check_email): {}", e);
+            (
+                StatusCode::BAD_REQUEST,
+                "사람 인증 검증에 실패했습니다.".to_string(),
+            )
+        })?;
 
     // 3) 이메일 값 검사
     let email = body.email.trim().to_lowercase();
@@ -1234,14 +1234,14 @@ pub async fn check_reset_password_email(
         &state.config.turnstile_secret_key,
         &body.captcha_token,
     )
-    .await
-    .map_err(|e| {
-        tracing::warn!("Turnstile 검증 실패(check_reset_password_email): {}", e);
-        (
-            StatusCode::BAD_REQUEST,
-            "사람 인증 검증에 실패했습니다.".to_string(),
-        )
-    })?;
+        .await
+        .map_err(|e| {
+            tracing::warn!("Turnstile 검증 실패(check_reset_password_email): {}", e);
+            (
+                StatusCode::BAD_REQUEST,
+                "사람 인증 검증에 실패했습니다.".to_string(),
+            )
+        })?;
 
     // 3) 이메일 값 검사
     let email = body.email.trim().to_lowercase();
@@ -1425,9 +1425,18 @@ pub async fn kakao_start_app(
 
     let oauth_state = uuid::Uuid::new_v4().to_string();
 
+    // Android 앱용 카카오 REST API 키를 별도로 사용한다.
+    // 기존 웹용 KAKAO_REST_API_KEY는 건드리지 않음.
+    let kakao_android_rest_api_key = std::env::var("KAKAO_ANDROID_REST_API_KEY").map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "KAKAO_ANDROID_REST_API_KEY 환경변수가 설정되지 않았습니다.".to_string(),
+        )
+    })?;
+
     let auth_url = format!(
         "https://kauth.kakao.com/oauth/authorize?client_id={}&redirect_uri={}&response_type=code&scope=profile_nickname,profile_image&prompt=select_account&state={}",
-        state.config.kakao_rest_api_key,
+        kakao_android_rest_api_key,
         urlencoding::encode(&state.config.kakao_app_redirect_uri),
         oauth_state
     );
@@ -1704,6 +1713,33 @@ fn should_use_secure_cookies(state: &AppState) -> bool {
             .as_str(),
         "prod" | "production"
     )
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// [카카오 앱 콜백] GET /auth/kakao/callback
+// ═══════════════════════════════════════════════════════════════
+//
+// 카카오 OAuth 인증 후 브라우저가 이 URL로 돌아오면
+// 백엔드가 앱 딥링크(spentopia://kakao-callback)로 다시 넘겨준다.
+//
+// 흐름:
+// Kakao -> http://10.0.2.2:1113/auth/kakao/callback?code=...&state=...
+// Backend -> spentopia://kakao-callback?code=...&state=...
+// Android 앱 -> code/state 추출 후 /auth/app/kakao/login 호출
+pub async fn kakao_callback(
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> impl IntoResponse {
+    let code = params.get("code").cloned().unwrap_or_default();
+    let state = params.get("state").cloned().unwrap_or_default();
+
+    let redirect_url = format!(
+        "spentopia://kakao-callback?code={}&state={}",
+        urlencoding::encode(&code),
+        urlencoding::encode(&state)
+    );
+
+    axum::response::Redirect::temporary(&redirect_url)
 }
 
 // ═══════════════════════════════════════════════════════════════

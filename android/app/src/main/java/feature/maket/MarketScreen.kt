@@ -22,6 +22,10 @@ import androidx.compose.material3.CardDefaults // 수정: 카드 스타일 지�
 import androidx.compose.material3.Text // 수정: 텍스트 출력에 사용
 import androidx.compose.material3.TextButton // 수정: 탭 버튼에 사용
 import androidx.compose.runtime.Composable // 기존 유지
+import androidx.compose.runtime.getValue // 수정: delegate 사용을 위해 추가
+import androidx.compose.runtime.mutableStateOf // 수정: 다이얼로그 상태 관리를 위해 추가
+import androidx.compose.runtime.remember // 수정: 상태 기억을 위해 추가
+import androidx.compose.runtime.setValue // 수정: delegate 사용을 위해 추가
 import androidx.compose.ui.Alignment // 수정: 내부 정렬에 사용
 import androidx.compose.ui.Modifier // 기존 유지
 import androidx.compose.ui.graphics.Brush // 수정: 그라데이션 카드 배경에 사용
@@ -30,6 +34,8 @@ import androidx.compose.ui.text.font.FontWeight // 수정: 제목 강조에 사�
 import androidx.compose.ui.unit.dp // 기존 유지
 import androidx.compose.ui.unit.sp // 수정: 폰트 크기 지정에 사용
 import androidx.lifecycle.viewmodel.compose.viewModel // 수정: MarketViewModel을 화면에서 주입받기 위해 사용
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog // 수정: 지갑 선택 다이얼로그 추가
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // 수정: 지갑 타입 열거형 추가
 
 // 기존 주석 유지
 // NFT 마켓 화면
@@ -40,9 +46,13 @@ fun MarketScreen(
     isWalletConnected: Boolean = false,
     walletAddress: String = "",
     walletProvider: String = "",
+    onWalletConnectClick: (SolanaWalletType) -> Unit = {}, // 수정: 지갑 연결 클릭 콜백 추가
     marketViewModel: MarketViewModel = viewModel() // 수정: 화면에서 사용할 MarketViewModel을 주입
 ) {
     val uiState = marketViewModel.uiState // 수정: ViewModel의 현재 UI 상태를 읽어옴
+
+    // 수정: 지갑 연결 다이얼로그 표시 상태 관리
+    var showWalletDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -77,7 +87,12 @@ fun MarketScreen(
             Spacer(modifier = Modifier.padding(horizontal = 6.dp)) // 수정: 제목 영역과 버튼 사이 간격을 추가
 
             Button(
-                onClick = { }, // 수정: 현재는 더미 버튼 동작으로 비워
+                onClick = {
+                    // 수정: 지갑이 연결되지 않았을 때만 다이얼로그를 띄움
+                    if (!isWalletConnected) {
+                        showWalletDialog = true
+                    }
+                },
                 shape = RoundedCornerShape(12.dp), // 수정: 둥근 버튼 모양을 적용
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isWalletConnected) Color(0xFF16A34A) else Color(0xFFA855F7), // 수정: 연결 시 초록색, 미연결 시 보라색 적용
@@ -252,6 +267,19 @@ fun MarketScreen(
 
         Spacer(modifier = Modifier.height(24.dp)) // 수정: 화면 하단 여백을 추가
     }
+
+    // 수정: 지갑 선택 다이얼로그 표시 로직 추가
+    if (showWalletDialog) {
+        SolanaWalletDialog(
+            onDismiss = {
+                showWalletDialog = false
+            },
+            onSelectWallet = { walletType ->
+                showWalletDialog = false
+                onWalletConnectClick(walletType)
+            }
+        )
+    }
 }
 
 // 바꿀 것 2: 주소 포맷 함수 추가
@@ -267,24 +295,25 @@ private fun MarketTabButton(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    // ... (기존과 동일하므로 생략)
     TextButton(
-        onClick = { onClick() }, // 수정: 탭 클릭 시 전달받은 동작을 실행
+        onClick = { onClick() },
         modifier = Modifier
             .background(
-                color = if (selected) Color.White else Color.Transparent, // 수정: 선택된 탭만 흰색 배경을 적용
-                shape = RoundedCornerShape(999.dp) // 수정: 캡슐형 버튼 모양을 적용
+                color = if (selected) Color.White else Color.Transparent,
+                shape = RoundedCornerShape(999.dp)
             )
     ) {
         Text(
-            text = text, // 수정: 탭 텍스트를 표시
-            color = Color(0xFF111827), // 수정: 탭 텍스트 색상을 지정
-            fontSize = 13.sp, // 수정: 탭 텍스트 크기를 지정
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium // 수정: 선택된 탭을 굵게 표시.
+            text = text,
+            color = Color(0xFF111827),
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
     }
 }
 
-// 수정: 마켓 통계 카드를 구성
+// ... (이하 MarketStatCard, FilterBox, MarketItemCard, marketRarityColor 함수들은 기존 코드 유지)
 @Composable
 private fun MarketStatCard(
     title: String,
@@ -295,44 +324,43 @@ private fun MarketStatCard(
     gradient: Brush? = null
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(0.47f), // 수정: 두 칸 배치 느낌으로 카드 너비를 설정
-        shape = RoundedCornerShape(18.dp), // 수정: 둥근 카드 모양을 적용
-        colors = CardDefaults.cardColors(containerColor = bgColor) // 수정: 카드 배경색을 적용
+        modifier = Modifier.fillMaxWidth(0.47f),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = bgColor)
     ) {
         Column(
             modifier = Modifier
                 .background(
-                    brush = gradient ?: Brush.linearGradient(listOf(bgColor, bgColor)), // 수정: 그라데이션이 있으면 적용하고 없으면 단색 배경을 유지합니다.
-                    shape = RoundedCornerShape(18.dp) // 수정: 배경에도 둥근 모서리를 적용
+                    brush = gradient ?: Brush.linearGradient(listOf(bgColor, bgColor)),
+                    shape = RoundedCornerShape(18.dp)
                 )
-                .padding(16.dp), // 수정: 카드 내부 여백을 적용합니다.
-            verticalArrangement = Arrangement.spacedBy(10.dp) // 수정: 내부 요소 간격을 지정
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = title, // 수정: 통계 제목을 표시
-                fontSize = 15.sp, // 수정: 제목 크기를 지정
-                color = if (gradient != null) Color.White.copy(alpha = 0.9f) else Color(0xFF6B7280), // 수정: 강조 카드 여부에 따라 제목 색상을 다르게 적용합니다.
-                fontWeight = FontWeight.Medium // 수정: 제목을 약간 강조
+                text = title,
+                fontSize = 15.sp,
+                color = if (gradient != null) Color.White.copy(alpha = 0.9f) else Color(0xFF6B7280),
+                fontWeight = FontWeight.Medium
             )
 
             Text(
-                text = value, // 수정: 통계 수치를 표시
-                fontSize = 24.sp, // 수정: 수치 크기를 크게 지정
-                color = if (gradient != null) Color.White else Color(0xFF111827), // 수정: 강조 카드 여부에 따라 수치 색상을 다르게 적용합니다.
-                fontWeight = FontWeight.Bold // 수정: 수치를 강조
+                text = value,
+                fontSize = 24.sp,
+                color = if (gradient != null) Color.White else Color(0xFF111827),
+                fontWeight = FontWeight.Bold
             )
 
             Text(
-                text = subText, // 수정: 통계 부가 설명을 표시
-                fontSize = 14.sp, // 수정: 설명 텍스트 크기를 지정
-                color = subTextColor, // 수정: 전달받은 설명 색상을 적용
-                fontWeight = FontWeight.SemiBold // 수정: 설명을 약간 강조
+                text = subText,
+                fontSize = 14.sp,
+                color = subTextColor,
+                fontWeight = FontWeight.SemiBold
             )
         }
     }
 }
 
-// 수정: 검색/필터 박스를 구성
 @Composable
 private fun FilterBox(
     text: String,
@@ -341,116 +369,115 @@ private fun FilterBox(
     Box(
         modifier = modifier
             .background(
-                color = Color(0xFFF5F7FA), // 수정: 연한 회색 배경을 적용
-                shape = RoundedCornerShape(12.dp) // 수정: 둥근 박스 모양을 적용
+                color = Color(0xFFF5F7FA),
+                shape = RoundedCornerShape(12.dp)
             )
-            .padding(horizontal = 14.dp, vertical = 14.dp) // 수정: 박스 내부 여백을 적용
+            .padding(horizontal = 14.dp, vertical = 14.dp)
     ) {
         Text(
-            text = text, // 수정: 검색/필터 텍스트를 표시
-            fontSize = 14.sp, // 수정: 텍스트 크기를 지정
-            color = Color(0xFF6B7280) // 수정: 보조 텍스트 색상을 적용
+            text = text,
+            fontSize = 14.sp,
+            color = Color(0xFF6B7280)
         )
     }
 }
 
-// 수정: 개별 마켓 아이템 카드를 구성
 @Composable
 private fun MarketItemCard(item: MarketItemUi) {
     Card(
-        modifier = Modifier.fillMaxWidth(0.47f), // 수정: 두 칸 배치 느낌으로 카드 너비를 적용
-        shape = RoundedCornerShape(18.dp), // 수정: 둥근 카드 모양을 적용합니다.
-        colors = CardDefaults.cardColors(containerColor = Color.White), // 수정: 흰색 카드 배경을 적용
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // 수정: 살짝 떠 있는 느낌을 적용
+        modifier = Modifier.fillMaxWidth(0.47f),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth() // 수정: 상단 이미지 영역이 가로 전체를 사용하도록 설정
-                    .height(160.dp) // 수정: 이미지 영역 높이를 지정
+                    .fillMaxWidth()
+                    .height(160.dp)
                     .background(
-                        color = Color(0xFFF6EAF8), // 수정: 연한 보라색 이미지 배경을 적용
-                        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp) // 수정: 상단만 둥근 모서리를 적용
+                        color = Color(0xFFF6EAF8),
+                        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
                     ),
-                contentAlignment = Alignment.Center // 수정: 이모지를 중앙 정렬
+                contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = item.emoji, // 수정: 아이템 대표 이모지를 표시합
-                    fontSize = 60.sp // 수정: 이모지 크기를 크게 지정
+                    text = item.emoji,
+                    fontSize = 60.sp
                 )
             }
 
             Column(
-                modifier = Modifier.padding(16.dp), // 수정: 카드 하단 정보 영역 내부 여백을 적용
-                verticalArrangement = Arrangement.spacedBy(8.dp) // 수정: 내부 요소 간격을 지정
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(), // 수정: 제목과 희귀도 배지를 양 끝 배치
-                    horizontalArrangement = Arrangement.SpaceBetween, // 수정: 양 끝 정렬을 적용
-                    verticalAlignment = Alignment.CenterVertically // 수정: 세로 중앙 정렬을 적용
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = item.title, // 수정: 아이템 이름을 표시
-                        fontSize = 20.sp, // 수정: 제목 크기를 지정
-                        fontWeight = FontWeight.Bold, // 수정: 제목을 강조
-                        color = Color(0xFF111827) // 수정: 제목 색상을 지정.
+                        text = item.title,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
                     )
 
                     Box(
                         modifier = Modifier
                             .background(
-                                color = marketRarityColor(item.rarity), // 수정: 희귀도별 배경색을 적용
-                                shape = RoundedCornerShape(999.dp) // 수정: 캡슐형 배지 모양을 적용
+                                color = marketRarityColor(item.rarity),
+                                shape = RoundedCornerShape(999.dp)
                             )
-                            .padding(horizontal = 10.dp, vertical = 4.dp) // 수정: 배지 내부 여백을 적용
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = item.rarity, // 수정: 희귀도 텍스트를 표시
-                            color = Color.White, // 수정: 흰색 텍스트를 적용
-                            fontSize = 12.sp, // 수정: 희귀도 텍스트 크기를 지정
-                            fontWeight = FontWeight.Bold // 수정: 희귀도 텍스트를 강조
+                            text = item.rarity,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
 
                 Text(
-                    text = item.seller, // 수정: 판매자 정보를 표시
-                    fontSize = 14.sp, // 수정: 판매자 텍스트 크기를 지정
-                    color = Color(0xFF6B7280) // 수정: 보조 텍스트 색상을 적용
+                    text = item.seller,
+                    fontSize = 14.sp,
+                    color = Color(0xFF6B7280)
                 )
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(), // 수정: 가격과 시간 정보를 양 끝 배치
-                    horizontalArrangement = Arrangement.SpaceBetween, // 수정: 양 끝 정렬을 적용합
-                    verticalAlignment = Alignment.CenterVertically // 수정: 세로 중앙 정렬을 적용
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "🪙 ${item.price}", // 수정: 가격 텍스트를 표시
-                        fontSize = 22.sp, // 수정: 가격 텍스트 크기를 지정
-                        fontWeight = FontWeight.Bold, // 수정: 가격을 강조
-                        color = Color(0xFF111827) // 수정: 가격 색상을 지정
+                        text = "🪙 ${item.price}",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
                     )
 
                     Text(
-                        text = item.time, // 수정: 등록 시간을 표시
-                        fontSize = 13.sp, // 수정: 시간 텍스트 크기를 지정
-                        color = Color(0xFF6B7280) // 수정: 보조 텍스트 색상을 적용
+                        text = item.time,
+                        fontSize = 13.sp,
+                        color = Color(0xFF6B7280)
                     )
                 }
 
                 Button(
-                    onClick = { }, // 수정: 현재는 더미 버튼 동작으로 비워둡니다.
-                    modifier = Modifier.fillMaxWidth(), // 수정: 구매 버튼이 가로 전체를 사용하도록 설정
-                    shape = RoundedCornerShape(12.dp), // 수정: 둥근 버튼 모양을 적용
+                    onClick = { },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFEC4899), // 수정: 핑크색 구매 버튼 배경을 적용
-                        contentColor = Color.White // 수정: 흰색 버튼 텍스트를 적용
+                        containerColor = Color(0xFFEC4899),
+                        contentColor = Color.White
                     )
                 ) {
                     Text(
-                        text = "구매하기", // 수정: 구매 버튼 텍스트를 표시함
-                        fontSize = 15.sp, // 수정: 버튼 텍스트 크기를 지정함
-                        fontWeight = FontWeight.Bold // 수정: 버튼 텍스트를 강조함
+                        text = "구매하기",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -458,13 +485,12 @@ private fun MarketItemCard(item: MarketItemUi) {
     }
 }
 
-// 수정: 희귀도에 따른 색상을 반환합니다.
 private fun marketRarityColor(rarity: String): Color {
     return when (rarity) {
-        "일반" -> Color(0xFF6B7280) // 수정: 일반 등급 색상을 반환함
-        "레어" -> Color(0xFF3B82F6) // 수정: 레어 등급 색상을 반환함
-        "에픽" -> Color(0xFFA855F7) // 수정: 에픽 등급 색상을 반환함.
-        "전설" -> Color(0xFFF59E0B) // 수정: 전설 등급 색상을 반환함
-        else -> Color(0xFF6B7280) // 수정: 기본값으로 일반 색상을 반환함
+        "일반" -> Color(0xFF6B7280)
+        "레어" -> Color(0xFF3B82F6)
+        "에픽" -> Color(0xFFA855F7)
+        "전설" -> Color(0xFFF59E0B)
+        else -> Color(0xFF6B7280)
     }
 }

@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color // 수정: 색상 적용을 위해 사
 import androidx.compose.ui.text.font.FontWeight // 수정: 선택 탭 강조를 위해 사용
 import androidx.compose.ui.unit.dp // 기존 유지
 import androidx.compose.ui.unit.sp // 수정: 폰트 크기 지정에 사용
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // 수정: SolanaWalletType import 추가
 import com.ict.spentopia.feature.avatar.AvatarScreen // 수정: 내 아바타 콘텐츠를 불러오기 위해 사용
 
 // 수정: 프로필 화면 내부 탭 상태 정의
@@ -31,7 +32,13 @@ private enum class ProfileTab {
 // 기존 주석 유지
 // 마이페이지 / 내 아바타 통합 화면
 @Composable
-fun ProfileAvatarScreen() {
+fun ProfileAvatarScreen(
+    // 바꿀 것 1: ProfileAvatarScreen 파라미터 변경
+    isWalletConnected: Boolean = false,
+    walletAddress: String = "",
+    walletProvider: String = "",
+    onWalletConnectClick: (SolanaWalletType) -> Unit = {}
+) {
     var selectedTab by remember { mutableStateOf(ProfileTab.MY_PAGE) } // 수정: 기본 진입을 마이페이지로 설정
 
     Column(
@@ -65,7 +72,13 @@ fun ProfileAvatarScreen() {
 
         when (selectedTab) {
             ProfileTab.MY_PAGE -> {
-                MyPageScreen() // 수정: 마이페이지 탭 선택 시 마이페이지 본문 표시
+                // 바꿀 것 2: MyPageScreen 호출부 변경 (지갑 정보 전달)
+                MyPageScreen(
+                    isWalletConnected = isWalletConnected,
+                    walletAddress = walletAddress,
+                    walletProvider = walletProvider,
+                    onWalletConnectClick = onWalletConnectClick
+                )
             }
 
             ProfileTab.AVATAR -> {

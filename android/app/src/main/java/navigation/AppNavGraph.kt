@@ -43,6 +43,8 @@ import com.ict.spentopia.data.remote.RetrofitClient
 import com.ict.spentopia.data.remote.WalletLinkRequest
 import com.ict.spentopia.data.remote.WalletUnlinkRequest
 import com.ict.spentopia.feature.analysis.AnalysisScreen
+import com.ict.spentopia.feature.auth.FindEmailScreen
+import com.ict.spentopia.feature.auth.FindPasswordScreen
 import com.ict.spentopia.feature.auth.LoginScreen
 import com.ict.spentopia.feature.auth.connector.MwaBackpackConnector
 import com.ict.spentopia.feature.auth.connector.MwaPhantomConnector
@@ -68,6 +70,8 @@ fun AppNavGraph(
     walletActivityResultSender: ActivityResultSender,
     walletCallbackUri: Uri?,
     onWalletCallbackConsumed: () -> Unit,
+    kakaoCallbackUri: Uri?,
+    onKakaoCallbackConsumed: () -> Unit,
     isDarkTheme: Boolean,
     onThemeChange: (Boolean) -> Unit
 ) {
@@ -76,17 +80,23 @@ fun AppNavGraph(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    var showThemeDialog by remember {
-        mutableStateOf(false)
-    }
+    var showThemeDialog by remember { mutableStateOf(false) }
+    var showNotificationDialog by remember { mutableStateOf(false) }
 
-    // 알림 창을 보여줄지 관리하는 상태입니다.
-    var showNotificationDialog by remember {
-        mutableStateOf(false)
-    }
-
+    // SharedPreferences 초기화
     val prefs = remember {
         context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
+    }
+
+    // --- 자동 로그인 체크 로직 ---
+    fun hasSavedToken(): Boolean {
+        val accessToken = prefs.getString("access_token", null)
+        return !accessToken.isNullOrBlank()
+    }
+
+    // 초기 시작 루트 결정 (토큰이 있으면 Home, 없으면 Login)
+    val startRoute = remember {
+        if (hasSavedToken()) Route.Home.route else Route.Login.route
     }
 
     var walletConnected by remember {
@@ -101,18 +111,7 @@ fun AppNavGraph(
         mutableStateOf(prefs.getString("wallet_provider", "") ?: "")
     }
 
-    fun shouldForceLogout(): Boolean {
-        return prefs.getBoolean("force_logout", false)
-    }
-
-    fun hasSavedToken(): Boolean {
-        val accessToken = prefs.getString("access_token", null)
-        return !accessToken.isNullOrBlank()
-    }
-
-    val startRoute = remember {
-        if (hasSavedToken()) Route.Home.route else Route.Login.route
-    }
+    fun shouldForceLogout(): Boolean = prefs.getBoolean("force_logout", false)
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -137,20 +136,15 @@ fun AppNavGraph(
 
     val shouldShowDrawer = currentRoute in showDrawerScreens
 
-    fun saveAuthTokens(
-        accessToken: String,
-        refreshToken: String
-    ) {
+    // 인증 토큰 저장 함수
+    fun saveAuthTokens(accessToken: String, refreshToken: String) {
         prefs.edit()
             .putString("access_token", accessToken)
             .putString("refresh_token", refreshToken)
             .apply()
     }
 
-    fun saveWalletInfo(
-        walletAddress: String,
-        walletProvider: String
-    ) {
+    fun saveWalletInfo(walletAddress: String, walletProvider: String) {
         prefs.edit()
             .putBoolean("wallet_connected", true)
             .putString("wallet_address", walletAddress)
@@ -182,14 +176,11 @@ fun AppNavGraph(
 
         scope.launch {
             try {
-                // 1. 서버에서 nonce/message 발급
                 val nonceResponse = RetrofitClient.walletApi.issueWalletNonce(
                     NonceRequest(wallet_address = currentWalletAddress)
                 )
 
-                // 2. MWA로 Phantom 서명 요청
                 val connector = MwaPhantomConnector()
-
                 val signResult = connector.signMessage(
                     walletActivityResultSender = walletActivityResultSender,
                     message = nonceResponse.message.toByteArray()
@@ -197,7 +188,6 @@ fun AppNavGraph(
 
                 when (signResult) {
                     is WalletSignResult.Success -> {
-                        // 3. 서버에 unlink 요청
                         RetrofitClient.walletApi.unlinkWallet(
                             authorization = "Bearer $accessToken",
                             request = WalletUnlinkRequest(
@@ -207,27 +197,20 @@ fun AppNavGraph(
                             )
                         )
 
-                        // 4. 로컬 상태 삭제
                         clearWalletInfo()
-
                         walletConnected = false
                         walletAddress = ""
                         walletProvider = ""
 
                         Toast.makeText(context, "지갑 연결이 해제되었습니다.", Toast.LENGTH_SHORT).show()
                     }
-
                     is WalletSignResult.Failure -> {
                         Toast.makeText(context, signResult.message, Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
                 Log.e("Spentopia", "지갑 해제 실패", e)
-                Toast.makeText(
-                    context,
-                    e.message ?: "지갑 해제 실패",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(context, e.message ?: "지갑 해제 실패", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -242,21 +225,15 @@ fun AppNavGraph(
 
         scope.launch {
             try {
-                // 1. 선택한 지갑 종류에 맞는 connector를 준비합니다.
                 val connector = when (walletType) {
                     SolanaWalletType.PHANTOM -> MwaPhantomConnector()
                     SolanaWalletType.SOLFLARE -> MwaSolflareConnector()
                     SolanaWalletType.BACKPACK -> MwaBackpackConnector()
                 }
 
-                // 2. 선택한 지갑 앱을 열고 지갑 주소를 가져옵니다.
                 val connectResult = connector.connect(walletActivityResultSender)
-
                 val newWalletAddress = when (connectResult) {
-                    is WalletConnectionResult.Success -> {
-                        connectResult.walletAddress
-                    }
-
+                    is WalletConnectionResult.Success -> connectResult.walletAddress
                     is WalletConnectionResult.Failure -> {
                         Toast.makeText(context, connectResult.message, Toast.LENGTH_SHORT).show()
                         return@launch
@@ -268,29 +245,23 @@ fun AppNavGraph(
                     return@launch
                 }
 
-                // 3. 서버에서 nonce/message를 발급받습니다.
                 val nonceResponse = RetrofitClient.walletApi.issueWalletNonce(
                     NonceRequest(wallet_address = newWalletAddress)
                 )
 
-                // 4. 선택한 지갑으로 서버 message를 서명합니다.
                 val signResult = connector.signMessage(
                     walletActivityResultSender = walletActivityResultSender,
                     message = nonceResponse.message.toByteArray()
                 )
 
                 val signature = when (signResult) {
-                    is WalletSignResult.Success -> {
-                        signResult.signature
-                    }
-
+                    is WalletSignResult.Success -> signResult.signature
                     is WalletSignResult.Failure -> {
                         Toast.makeText(context, signResult.message, Toast.LENGTH_SHORT).show()
                         return@launch
                     }
                 }
 
-                // 5. 로그인은 유지한 채 현재 계정에 지갑만 다시 연결합니다.
                 val linkResponse = RetrofitClient.walletApi.linkWallet(
                     authorization = "Bearer $accessToken",
                     request = WalletLinkRequest(
@@ -300,13 +271,11 @@ fun AppNavGraph(
                     )
                 )
 
-                // 6. SharedPreferences에 지갑 정보를 저장합니다.
                 saveWalletInfo(
                     walletAddress = linkResponse.wallet_address,
                     walletProvider = walletType.name
                 )
 
-                // 7. Compose State를 즉시 갱신해서 홈 화면 UI가 바로 바뀌게 합니다.
                 walletConnected = true
                 walletAddress = linkResponse.wallet_address
                 walletProvider = walletType.name
@@ -314,11 +283,7 @@ fun AppNavGraph(
                 Toast.makeText(context, "지갑이 다시 연결되었습니다.", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Log.e("Spentopia", "지갑 재연결 실패", e)
-                Toast.makeText(
-                    context,
-                    e.message ?: "지갑 재연결 실패",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(context, e.message ?: "지갑 재연결 실패", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -352,7 +317,6 @@ fun AppNavGraph(
 
     LaunchedEffect(Unit) {
         if (shouldForceLogout()) {
-            Log.d("Spentopia", "강제 로그아웃 감지됨. 로그인 화면으로 이동합니다.")
             clearAuthState()
             moveToLogin()
         }
@@ -365,9 +329,7 @@ fun AppNavGraph(
             if (shouldShowDrawer) {
                 ModalDrawerSheet {
                     AppDrawerContent(
-                        onCloseClick = {
-                            scope.launch { drawerState.close() }
-                        },
+                        onCloseClick = { scope.launch { drawerState.close() } },
                         onLedgerClick = {
                             scope.launch { drawerState.close() }
                             navController.navigate(Route.Home.route) { launchSingleTop = true }
@@ -419,22 +381,15 @@ fun AppNavGraph(
                     CenterAlignedTopAppBar(
                         title = { Text("Spentopia") },
                         navigationIcon = {
-                            IconButton(onClick = {
-                                scope.launch { drawerState.open() }
-                            }) {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(Icons.Default.Menu, contentDescription = "메뉴")
                             }
                         },
                         actions = {
-                            // --- 수정된 설정 부분 ---
-                            IconButton(onClick = {
-                                showThemeDialog = true
-                            }) {
+                            IconButton(onClick = { showThemeDialog = true }) {
                                 Icon(Icons.Default.Settings, contentDescription = "설정")
                             }
-                            IconButton(onClick = {
-                                showNotificationDialog = true
-                            }) {
+                            IconButton(onClick = { showNotificationDialog = true }) {
                                 Icon(Icons.Default.NotificationsNone, contentDescription = "알림")
                             }
                         }
@@ -444,7 +399,7 @@ fun AppNavGraph(
         ) { innerPadding ->
             NavHost(
                 navController = navController,
-                startDestination = startRoute,
+                startDestination = startRoute, // 토큰 체크 결과에 따른 시작점 설정
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable(Route.Login.route) {
@@ -453,19 +408,39 @@ fun AppNavGraph(
                         walletActivityResultSender = walletActivityResultSender,
                         walletCallbackUri = walletCallbackUri,
                         onWalletCallbackConsumed = onWalletCallbackConsumed,
+                        kakaoCallbackUri = kakaoCallbackUri,
+                        onKakaoCallbackConsumed = onKakaoCallbackConsumed,
+                        onKakaoClick = {
+                            Toast.makeText(context, "카카오 로그인 연결 예정", Toast.LENGTH_SHORT).show()
+                        },
+                        onGoogleClick = {
+                            Toast.makeText(context, "구글 로그인 연결 예정", Toast.LENGTH_SHORT).show()
+                        },
+                        onFindEmailClick = {
+                            navController.navigate(Route.FindEmail.route)
+                        },
+                        onFindPasswordClick = {
+                            navController.navigate(Route.FindPassword.route)
+                        },
                         onWalletConnected = { accessToken, refreshToken, newWalletAddress, newWalletProvider ->
                             if (accessToken.isNotBlank() && refreshToken.isNotBlank()) {
                                 saveAuthTokens(accessToken, refreshToken)
                                 saveWalletInfo(newWalletAddress, newWalletProvider)
-
                                 walletConnected = true
                                 walletAddress = newWalletAddress
                                 walletProvider = newWalletProvider
-
                                 moveToHome()
                             }
                         }
                     )
+                }
+
+                composable(Route.FindEmail.route) {
+                    FindEmailScreen(onBackToLoginClick = { navController.popBackStack() })
+                }
+
+                composable(Route.FindPassword.route) {
+                    FindPasswordScreen(onBackToLoginClick = { navController.popBackStack() })
                 }
 
                 composable(Route.Home.route) {
@@ -473,12 +448,8 @@ fun AppNavGraph(
                         isWalletConnected = walletConnected,
                         walletAddress = walletAddress,
                         walletProvider = walletProvider,
-                        onWalletDisconnectClick = {
-                            startWalletUnlink()
-                        },
-                        onWalletConnectClick = { walletType ->
-                            startWalletReconnect(walletType)
-                        },
+                        onWalletDisconnectClick = { startWalletUnlink() },
+                        onWalletConnectClick = { walletType -> startWalletReconnect(walletType) },
                         onLedgerClick = { navController.navigate(Route.Home.route) },
                         onMyPageClick = { navController.navigate(Route.ProfileAvatar.route) },
                         onBudgetClick = { navController.navigate(Route.Budget.route) },
@@ -492,13 +463,22 @@ fun AppNavGraph(
 
                 composable(Route.Budget.route) { BudgetScreen() }
                 composable(Route.Analysis.route) { AnalysisScreen() }
-                composable(Route.ProfileAvatar.route) { ProfileAvatarScreen() }
+
+                composable(Route.ProfileAvatar.route) {
+                    ProfileAvatarScreen(
+                        isWalletConnected = walletConnected,
+                        walletAddress = walletAddress,
+                        walletProvider = walletProvider,
+                        onWalletConnectClick = { walletType -> startWalletReconnect(walletType) }
+                    )
+                }
 
                 composable(Route.Market.route) {
                     MarketScreen(
                         isWalletConnected = walletConnected,
                         walletAddress = walletAddress,
-                        walletProvider = walletProvider
+                        walletProvider = walletProvider,
+                        onWalletConnectClick = { walletType -> startWalletReconnect(walletType) }
                     )
                 }
 
@@ -563,17 +543,9 @@ fun AppNavGraph(
                             val index = communityPosts.indexOfFirst { it.id == targetPostId }
                             if (index != -1) {
                                 val oldPost = communityPosts[index]
-                                val newIsLiked = !oldPost.isLiked
-                                val newLikeCount =
-                                    if (oldPost.isLiked) {
-                                        (oldPost.likeCount - 1).coerceAtLeast(0)
-                                    } else {
-                                        oldPost.likeCount + 1
-                                    }
-
                                 communityPosts[index] = oldPost.copy(
-                                    isLiked = newIsLiked,
-                                    likeCount = newLikeCount
+                                    isLiked = !oldPost.isLiked,
+                                    likeCount = if (oldPost.isLiked) (oldPost.likeCount - 1).coerceAtLeast(0) else oldPost.likeCount + 1
                                 )
                             }
                         }
@@ -584,65 +556,25 @@ fun AppNavGraph(
 
         if (showThemeDialog) {
             AlertDialog(
-                onDismissRequest = {
-                    showThemeDialog = false
-                },
-                title = {
-                    Text("화면 설정")
-                },
-                text = {
-                    Text(
-                        text = if (isDarkTheme) {
-                            "현재 다크모드가 적용되어 있습니다."
-                        } else {
-                            "현재 라이트모드가 적용되어 있습니다."
-                        }
-                    )
-                },
+                onDismissRequest = { showThemeDialog = false },
+                title = { Text("화면 설정") },
+                text = { Text(if (isDarkTheme) "현재 다크모드가 적용되어 있습니다." else "현재 라이트모드가 적용되어 있습니다.") },
                 confirmButton = {
-                    TextButton(
-                        onClick = {
-                            onThemeChange(true)
-                            showThemeDialog = false
-                        }
-                    ) {
-                        Text("다크모드")
-                    }
+                    TextButton(onClick = { onThemeChange(true); showThemeDialog = false }) { Text("다크모드") }
                 },
                 dismissButton = {
-                    TextButton(
-                        onClick = {
-                            onThemeChange(false)
-                            showThemeDialog = false
-                        }
-                    ) {
-                        Text("라이트모드")
-                    }
+                    TextButton(onClick = { onThemeChange(false); showThemeDialog = false }) { Text("라이트모드") }
                 }
             )
         }
 
         if (showNotificationDialog) {
             AlertDialog(
-                onDismissRequest = {
-                    showNotificationDialog = false
-                },
-                title = {
-                    Text("알림")
-                },
-                text = {
-                    Text(
-                        text = "예산의 80%를 사용했어요!\n5분 전\n\n새로운 아바타를 획득했어요\n1시간 전\n\n7일 연속 기록 달성! 보상이 지급됐어요\n2시간 전"
-                    )
-                },
+                onDismissRequest = { showNotificationDialog = false },
+                title = { Text("알림") },
+                text = { Text("예산의 80%를 사용했어요!\n5분 전\n\n새로운 아바타를 획득했어요\n1시간 전\n\n7일 연속 기록 달성! 보상이 지급됐어요\n2시간 전") },
                 confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showNotificationDialog = false
-                        }
-                    ) {
-                        Text("닫기")
-                    }
+                    TextButton(onClick = { showNotificationDialog = false }) { Text("닫기") }
                 }
             )
         }

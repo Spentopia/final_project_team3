@@ -1,28 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 이 파일이 UTF-8 인코딩을 사용하는 XML 문서라는 뜻 -->
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-    <!-- manifest: 안드로이드 앱의 전체 설정 파일 시작 -->
-    <!-- xmlns:android : android: 로 시작하는 속성을 쓰기 위한 선언 -->
-    <!-- xmlns:tools : tools: 로 시작하는 속성을 쓰기 위한 선언 -->
-    <!-- 지금 이 코드에서는 tools를 실제로 안 쓰고 있어서 없어도 될 수 있음 -->
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- 인터넷 권한 추가 -->
-    <!-- Retrofit / OkHttp 등으로 백엔드 API 호출할 때 필요 -->
 
-    <queries> <!--앱 가시성 선언 시작-->
-        <!-- 팬텀 조회 -->
+    <queries>
         <package android:name="app.phantom" />
-
-        <!-- 솔플레어 조회 -->
         <package android:name="com.solflare.mobile" />
-
-        <!-- 백팩 조회 -->
         <package android:name="app.backpack.mobile" />
 
-        <!-- 백팩 딥링크 조회 -->
+        <!-- 카카오톡 앱 조회 -->
+        <package android:name="com.kakao.talk" />
+
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data
@@ -30,7 +20,6 @@
                 android:host="backpack.app" />
         </intent>
 
-        <!-- 팬텀 유니버설 링크 조회 -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data
@@ -50,6 +39,10 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.Spentopia">
 
+        <meta-data
+            android:name="com.kakao.sdk.AppKey"
+            android:value="여기에_네이티브앱키" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -57,24 +50,43 @@
             android:theme="@style/Theme.Spentopia">
 
             <intent-filter>
-                <!-- 앱 실행용 기본 인텐트 -->
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- 지갑 콜백 -->
             <intent-filter>
-                <!-- 지갑 앱에서 우리 앱으로 다시 돌아올 콜백용 딥링크 -->
                 <action android:name="android.intent.action.VIEW" />
-
-                <!-- 브라우저/외부 앱에서 열릴 수 있게 설정 -->
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
-                <!-- redirect_link 로 사용할 우리 앱 고유 스킴 -->
                 <data
                     android:scheme="spentopia"
                     android:host="wallet-callback" />
             </intent-filter>
+
+            <!-- 카카오 SDK 로그인 콜백 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="kakao여기에_네이티브앱키"
+                    android:host="oauth" />
+            </intent-filter>
+
+            <!-- 백엔드 카카오 콜백 -> 앱 딥링크 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="spentopia"
+                    android:host="kakao-callback" />
+            </intent-filter>
+
         </activity>
     </application>
 
