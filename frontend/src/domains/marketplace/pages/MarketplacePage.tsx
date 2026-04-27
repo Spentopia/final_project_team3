@@ -15,6 +15,7 @@
 // ============================================================
 
 import { useState } from "react";
+import { toast } from "sonner";
 
 // shadcn/ui 컴포넌트 — 프로젝트 실제 경로 @/shared/ui
 import { Card, CardContent, CardFooter } from "@/shared/ui/card";
@@ -303,7 +304,7 @@ export default function MarketplacePage() {
   //   → listings는 로컬 상태 (GET API 미구현으로 서버에서 못 가져옴)
   // ──────────────────────────────────────────────────────────
   const { items, loading: itemsLoading } = useAvatarItems();
-  const { listings, listingsLoading, createListing, purchaseItem, creatingListing, purchasing } = useMarket();
+  const { listings, listingsLoading, createListing, creatingListing } = useMarket();
 
   // ──────────────────────────────────────────────────────────
   // 로컬 UI 상태
@@ -336,15 +337,12 @@ export default function MarketplacePage() {
   // 구매 확인 핸들러
   // AlertDialog의 "구매 확인" 버튼 클릭 시 호출
   //
-  // TODO: 실제 Solana 구매 트랜잭션 완료 후 tx_signature로 교체
-  // 현재: placeholder 서명 사용 (백엔드 tx 검증은 추후)
+  // 온체인 buy_nft 호출이 붙기 전까지는 fake signature를 보내지 않는다.
   // ──────────────────────────────────────────────────────────
   const handleConfirmPurchase = async () => {
     if (!purchaseTarget) return; // 타입 가드
 
-    await purchaseItem(purchaseTarget.id, "mock_tx_signature_placeholder");
-    // 성공 시 useMarket 내부에서 listings 목록에서 해당 항목 제거
-    setPurchaseTarget(null); // AlertDialog 닫기
+    toast.error("온체인 구매 트랜잭션 연동 후 구매할 수 있습니다.");
   };
 
   return (
@@ -452,8 +450,7 @@ export default function MarketplacePage() {
                   </span>
                       에 구매하시겠습니까?
                       <span className={styles.purchaseFeeNote}>
-                    {/* 수수료 5% 미리 계산해서 표시 — 백엔드도 동일하게 계산 */}
-                        수수료: {Math.floor(purchaseTarget.price_spt * 0.05).toLocaleString()} SPT (5%)
+                        수수료는 온체인 설정 기준으로 구매 시 계산됩니다.
                   </span>
                     </>
                 )}
@@ -465,7 +462,7 @@ export default function MarketplacePage() {
               AlertDialogCancel: 취소 버튼 — 클릭 시 AlertDialog 자동 닫힘
               구매 중에는 취소도 비활성화 (중간에 취소하면 상태 불일치 위험)
             */}
-              <AlertDialogCancel disabled={purchasing}>취소</AlertDialogCancel>
+              <AlertDialogCancel>취소</AlertDialogCancel>
 
               {/*
               AlertDialogAction: 확인 버튼
@@ -476,9 +473,8 @@ export default function MarketplacePage() {
             */}
               <AlertDialogAction
                   onClick={handleConfirmPurchase}
-                  disabled={purchasing}
               >
-                {purchasing ? "구매 중..." : "구매 확인"}
+                구매 확인
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

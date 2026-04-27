@@ -363,16 +363,18 @@ pub async fn update_escrow(
     user_id: Uuid,          // JWT에서 추출한 현재 로그인 유저 UUID (= seller_id)
     listing_id: Uuid,       // URL path에서 추출한 대상 listing UUID
     escrow_address: String, // 저장할 Solana 에스크로 PDA 주소
+    tx_signature: String,   // list_nft 온체인 트랜잭션 서명
 ) -> Result<()> {
     #[derive(Deserialize)]
     struct EscrowListingRow {
         seller_id: Uuid,
+        price_spt: i32,
         user_inventory: UserItemNftRow,
         users: UserWalletRow,
     }
 
     let lookup_url = format!(
-        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}&select=seller_id,user_inventory!item_id(is_nft,nft_mint_address),users!seller_id(wallet_address)",
+        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}&select=seller_id,price_spt,user_inventory!item_id(is_nft,nft_mint_address),users!seller_id(wallet_address)",
         state.config.supabase_url.trim_end_matches('/'),
         listing_id,
         user_id,
@@ -433,6 +435,41 @@ pub async fn update_escrow(
             "escrow 주소가 PDA와 일치하지 않습니다. expected={}, got={}",
             expected_escrow,
             escrow_address
+        ));
+    }
+
+    let expected_price_base_units = (row.price_spt as u64)
+        .checked_mul(solana_client::SPT_DECIMALS)
+        .ok_or_else(|| anyhow!("판매 가격 base units 변환 중 overflow"))?;
+    let onchain_price_base_units = solana_client::verify_program_instruction_tx_u64_arg(
+        &state.config.solana_rpc_url,
+        &state.config.helius_api_key,
+        &state.http_client,
+        &tx_signature,
+        &state.config.solana_program_id,
+        "list_nft",
+        &[
+            seller_wallet.as_str(),
+            nft_mint.as_str(),
+            listing_pda.as_str(),
+            expected_escrow.as_str(),
+        ],
+        Some(seller_wallet.as_str()),
+        Some(&[
+            (0, seller_wallet.as_str()),
+            (1, nft_mint.as_str()),
+            (3, listing_pda.as_str()),
+            (4, expected_escrow.as_str()),
+        ]),
+    )
+    .await
+    .context("판매 등록 트랜잭션 검증 실패")?;
+
+    if onchain_price_base_units != expected_price_base_units {
+        return Err(anyhow!(
+            "온체인 판매 가격이 DB 가격과 일치하지 않습니다. expected_base_units={}, got_base_units={}",
+            expected_price_base_units,
+            onchain_price_base_units
         ));
     }
 
@@ -613,9 +650,21 @@ pub async fn purchase(
     .context("구매 트랜잭션 검증 실패")?;
 
     // 2. 수수료 계산
-    // 수수료: price의 5% (정수 나눗셈 → 소수점 절사)
-    // 예: price=1000 → fee = 50 / price=19 → fee=0
-    let fee = listing.price_spt * 5 / 100;
+    // 수수료율은 온체인 platform_config를 기준으로 계산한다.
+    let fee_rate = solana_client::get_platform_fee_rate(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        &state.config.solana_program_id,
+    )
+    .await
+    .context("온체인 수수료율 조회 실패")?;
+    let fee = i32::try_from(
+        i64::from(listing.price_spt)
+            .checked_mul(i64::from(fee_rate))
+            .ok_or_else(|| anyhow!("수수료 계산 중 overflow"))?
+            / 10_000,
+    )
+    .map_err(|_| anyhow!("수수료 값 범위 초과"))?;
 
     // 3. market_transactions INSERT
     // INSERT 후 DB 트리거(handle_market_purchase)가 자동 실행:

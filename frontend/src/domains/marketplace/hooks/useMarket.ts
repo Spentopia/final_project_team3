@@ -14,7 +14,7 @@ interface UseMarketReturn {
     listings: ListingResponse[];
     listingsLoading: boolean;
     createListing: (itemId: string, priceSpt: number) => Promise<ListingResponse | null>;
-    updateEscrow: (listingId: string, escrowAddress: string) => Promise<void>;
+    updateEscrow: (listingId: string, escrowAddress: string, txSignature: string) => Promise<void>;
     purchaseItem: (listingId: string, txSignature: string)=>Promise<TransactionResponse | null>;
     creatingListing: boolean;
     updatingEscrow: boolean;
@@ -73,11 +73,15 @@ export function useMarket(): UseMarketReturn{
     // 성공/실패 모두 toast로만 처리 (반환값 불필요)
     const updateEscrow = useCallback(async(
         listingId: string,
-        escrowAddress: string
+        escrowAddress: string,
+        txSignature: string
     ): Promise<void>=>{
         setUpdatingEscrow(true);
         try{
-            await updateEscrowApi(listingId, escrowAddress);
+            await updateEscrowApi(listingId, {
+                escrow_address: escrowAddress,
+                tx_signature: txSignature,
+            });
             toast.success("에스크로 주소가 저장되었습니다.");
         }catch (err){
             toast.error(err instanceof Error ? err.message : "에스크로 저장 중 오류가 발생했습니다.");

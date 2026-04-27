@@ -112,7 +112,24 @@ pub async fn update_escrow(
     Path(listing_id): Path<Uuid>,         // URL 경로에서 추출한 listing_UUID
     Json(req): Json<UpdateEscrowRequest>, // 요청 바디: { escrow+address }
 ) -> impl IntoResponse {
-    match service::update_escrow(&state, user_id, listing_id, req.escrow_address).await {
+    if req.tx_signature.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            "tx_signature는 필수입니다. list_nft 온체인 트랜잭션 완료 후 요청해 주세요."
+                .to_string(),
+        )
+            .into_response();
+    }
+
+    match service::update_escrow(
+        &state,
+        user_id,
+        listing_id,
+        req.escrow_address,
+        req.tx_signature,
+    )
+    .await
+    {
         Ok(_) => (
             StatusCode::OK,
             // 단순 메세지 응답 → serde_json::json! 매크로의 인라인 생성
@@ -181,6 +198,8 @@ pub async fn purchase(
 #[derive(Deserialize)]
 pub struct UpdateEscrowRequest {
     /// Solana 에스크로 PDA 주소
-    /// Anchor 프로그램의 seeds: ["escrow"m seller_pubkey, nft_mint_pubkey ]
+    /// Anchor 프로그램의 seeds: ["escrow", listing_pda]
     pub escrow_address: String,
+    /// list_nft 온체인 트랜잭션 서명
+    pub tx_signature: String,
 }

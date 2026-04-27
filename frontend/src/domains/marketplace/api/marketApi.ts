@@ -5,6 +5,7 @@ import {apiClient} from "@/shared/api/client.ts";
 import type {
     CreateListingRequest,
     ListingResponse,
+    UpdateEscrowRequest,
     UpdateEscrowResponse,
     PurchaseRequest,
     TransactionResponse,
@@ -58,12 +59,12 @@ export async function createListing(req: CreateListingRequest): Promise<ListingR
 // - 개인키가 없으므로 프로그램만 제어 가능 (trustless)
 export async function updateEscrow(
     listingId: string,          // URL 경로에 삽입: /api/market/listings/{listingId}/escrow
-    escrowAddress: string       // body에 담아 전송
+    req: UpdateEscrowRequest    // body에 담아 전송
 ): Promise<UpdateEscrowResponse>{
     try{
         const res = await apiClient.patch<UpdateEscrowResponse>(
             `/api/market/listings/${listingId}/escrow`,
-            {escrow_address: escrowAddress} // UpdateEscrowRequest 인라인 구성
+            req
         );
         return res.data;
     }catch(error: unknown){

@@ -28,6 +28,7 @@ export interface ListingResponse{
 // PDA(Program Derived Address): Solana 프로그램이 소유하는 결정론적 주소
 export interface UpdateEscrowRequest{
     escrow_address: string; // Solana escrow PDA 주소 (base58)
+    tx_signature: string;   // list_nft 온체인 트랜잭션 서명
 }
 
 // PATCH /api/market/listings/{id}/escrow 응답 타입
@@ -49,9 +50,8 @@ export interface TransactionResponse{
     listing_id: string;             // 어떤 리스팅인지
     buyer_id: string;               // 구매자 UUID
     price: number;                  // 실제 결제 금액 (SPT)
-    fee: number;                    // 수수료 = price * 5% (백엔드 자동 계산)
+    fee: number;                    // 온체인 platform_config.fee_rate 기준 수수료
     tx_signature: string | null;    // 저장된 Solana tx 서명
     transacted_at: string | null;   // 거래 시각 ISO 8601
 }
-
 
