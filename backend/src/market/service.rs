@@ -49,7 +49,7 @@ struct AvatarItemEmbed {
 
 #[derive(Deserialize)]
 struct UserItemEmbed {
-    avatar_items: AvatarItemEmbed,
+    item_master: AvatarItemEmbed,
 }
 
 #[derive(Deserialize)]
@@ -61,7 +61,7 @@ struct ListingRaw {
     status: Option<String>,
     listed_at: Option<DateTime<Utc>>,
     users: SellerEmbed,
-    user_items: UserItemEmbed,
+    user_inventory: UserItemEmbed,
 }
 
 #[derive(Debug, Deserialize)]
@@ -114,7 +114,7 @@ async fn get_user_wallet(state: &AppState, user_id: Uuid) -> Result<String> {
 
 async fn get_user_item_nft(state: &AppState, user_id: Uuid, user_item_id: Uuid) -> Result<String> {
     let url = format!(
-        "{}/rest/v1/user_items?id=eq.{}&user_id=eq.{}&select=is_nft,nft_mint_address",
+        "{}/rest/v1/user_inventory?id=eq.{}&user_id=eq.{}&select=is_nft,nft_mint_address",
         state.config.supabase_url.trim_end_matches('/'),
         user_item_id,
         user_id,
@@ -252,7 +252,7 @@ pub async fn create_listing(
 ///     의도를 정확히 인식한다. 생략하면 ambigous 에러 가능.
 async fn fetch_listing_response(state: &AppState, listing_id: Uuid) -> Result<ListingResponse> {
     let url = format!(
-        "{}/rest/v1/market_listings?id=eq.{}&select=*,users!seller_id(nickname),user_items!item_id(avatar_items(name,image_url,category,rarity))",
+        "{}/rest/v1/market_listings?id=eq.{}&select=*,users!seller_id(nickname),user_inventory!item_id(item_master(name,image_url,category,rarity))",
         state.config.supabase_url.trim_end_matches('/'),
         listing_id,
     );
@@ -287,10 +287,10 @@ async fn fetch_listing_response(state: &AppState, listing_id: Uuid) -> Result<Li
         seller_id: r.seller_id,
         seller_nickname: r.users.nickname, // embedding에서 추출
         item_id: r.item_id,
-        item_name: r.user_items.avatar_items.name, // 2중 중첩에서 추출
-        item_image_url: r.user_items.avatar_items.image_url,
-        item_category: r.user_items.avatar_items.category,
-        item_rarity: r.user_items.avatar_items.rarity,
+        item_name: r.user_inventory.item_master.name, // 2중 중첩에서 추출
+        item_image_url: r.user_inventory.item_master.image_url,
+        item_category: r.user_inventory.item_master.category,
+        item_rarity: r.user_inventory.item_master.rarity,
         price_spt: r.price_spt,
         status: r.status,
         listed_at: r.listed_at,
@@ -304,7 +304,7 @@ async fn fetch_listing_response(state: &AppState, listing_id: Uuid) -> Result<Li
 /// 페이지네이션 없이 전체 반환 (아이템 수가 적은 MVP 단계 기준).
 pub async fn get_listings(state: &AppState) -> Result<Vec<ListingResponse>> {
     let url = format!(
-        "{}/rest/v1/market_listings?status=eq.active&select=*,users!seller_id(nickname),user_items!item_id(avatar_items(name,image_url,category,rarity))&order=listed_at.desc",
+        "{}/rest/v1/market_listings?status=eq.active&select=*,users!seller_id(nickname),user_inventory!item_id(item_master(name,image_url,category,rarity))&order=listed_at.desc",
         state.config.supabase_url.trim_end_matches('/'),
     );
 
@@ -334,10 +334,10 @@ pub async fn get_listings(state: &AppState) -> Result<Vec<ListingResponse>> {
             seller_id: r.seller_id,
             seller_nickname: r.users.nickname,
             item_id: r.item_id,
-            item_name: r.user_items.avatar_items.name,
-            item_image_url: r.user_items.avatar_items.image_url,
-            item_category: r.user_items.avatar_items.category,
-            item_rarity: r.user_items.avatar_items.rarity,
+            item_name: r.user_inventory.item_master.name,
+            item_image_url: r.user_inventory.item_master.image_url,
+            item_category: r.user_inventory.item_master.category,
+            item_rarity: r.user_inventory.item_master.rarity,
             price_spt: r.price_spt,
             status: r.status,
             listed_at: r.listed_at,
@@ -367,12 +367,12 @@ pub async fn update_escrow(
     #[derive(Deserialize)]
     struct EscrowListingRow {
         seller_id: Uuid,
-        user_items: UserItemNftRow,
+        user_inventory: UserItemNftRow,
         users: UserWalletRow,
     }
 
     let lookup_url = format!(
-        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}&select=seller_id,user_items!item_id(is_nft,nft_mint_address),users!seller_id(wallet_address)",
+        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}&select=seller_id,user_inventory!item_id(is_nft,nft_mint_address),users!seller_id(wallet_address)",
         state.config.supabase_url.trim_end_matches('/'),
         listing_id,
         user_id,
@@ -408,7 +408,7 @@ pub async fn update_escrow(
     if row.seller_id != user_id {
         return Err(anyhow!("본인 판매 등록만 수정할 수 있습니다"));
     }
-    if row.user_items.is_nft != Some(true) {
+    if row.user_inventory.is_nft != Some(true) {
         return Err(anyhow!("NFT로 발행된 아이템만 escrow를 저장할 수 있습니다"));
     }
 
@@ -417,7 +417,7 @@ pub async fn update_escrow(
         .wallet_address
         .ok_or_else(|| anyhow!("판매자 지갑 주소가 없습니다"))?;
     let nft_mint = row
-        .user_items
+        .user_inventory
         .nft_mint_address
         .ok_or_else(|| anyhow!("NFT mint 주소가 없습니다"))?;
     let listing_pda = solana_client::derive_listing_address(
@@ -508,7 +508,7 @@ pub async fn purchase(
     // price_spt (수수료 계산에 필요), status (active 여부 확인) 조회
     // select로 필요한 컬럼만 지정해 페이로드 최소화
     let listing_url = format!(
-        "{}/rest/v1/market_listings?id=eq.{}&select=price_spt,status,escrow_address,seller_id,user_items!item_id(nft_mint_address),users!seller_id(wallet_address)",
+        "{}/rest/v1/market_listings?id=eq.{}&select=price_spt,status,escrow_address,seller_id,user_inventory!item_id(nft_mint_address),users!seller_id(wallet_address)",
         state.config.supabase_url.trim_end_matches('/'),
         req.listing_id,
     );
@@ -520,7 +520,7 @@ pub async fn purchase(
         status: Option<String>, // 현재 상태("active" 여야 구매 가능)
         escrow_address: Option<String>,
         seller_id: Uuid,
-        user_items: UserItemNftRow,
+        user_inventory: UserItemNftRow,
         users: UserWalletRow,
     }
 
@@ -570,7 +570,7 @@ pub async fn purchase(
         .ok_or_else(|| anyhow!("판매자 지갑 주소가 없습니다"))?;
     let buyer_wallet = get_user_wallet(state, user_id).await?;
     let nft_mint = listing
-        .user_items
+        .user_inventory
         .nft_mint_address
         .as_deref()
         .ok_or_else(|| anyhow!("NFT mint 주소가 없습니다"))?;

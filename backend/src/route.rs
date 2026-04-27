@@ -212,6 +212,15 @@ pub fn create_router(state: AppState) -> Router {
         )
         .route("/api/avatar/items", get(avatar::handler::get_user_items))
         .route("/api/avatar/nfts", get(avatar::handler::get_owned_nfts))
+        // 장착 관련
+        .route(
+            "/api/avatar/equipment",
+            get(avatar::handler::get_equipment).post(avatar::handler::equip_item),
+        )
+        .route(
+            "/api/avatar/equipment/:slot_name",
+            delete(avatar::handler::unequip_item),
+        )
         // ── 마켓 ──────────────────────────────────────────
         .route(
             "/api/market/listings",

@@ -15,11 +15,11 @@
 // JWT 미들웨어가 토큰을 검증한 뒤 Extension<Uuid>에 user_id를 삽입하므로
 // 핸들러 파라미터에서 Extension(user_id): Extension<Uuid>로 꺼내 쓴다.
 use axum::http::StatusCode;
-use axum::{Extension, Json, extract::State, response::IntoResponse};
+use axum::{Extension, Json, extract::{Path, State}, response::IntoResponse};
 use uuid::Uuid;
 
 use super::{
-    dto::{MintNftRequest, MintNftResponse, TransferNftRequest, TransferNftResponse},
+    dto::{EquipItemRequest, MintNftRequest, MintNftResponse, TransferNftRequest, TransferNftResponse},
     service,
 };
 use crate::state::AppState;
@@ -120,6 +120,79 @@ pub async fn get_owned_nfts(
 ) -> impl IntoResponse {
     match service::get_owned_nfts(&state, user_id).await {
         Ok(items) => (StatusCode::OK, Json(items)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+// GET /api/avatar/equipment
+//
+// 유저의 전체 장착 현황 조회.
+// 각 슬롯(slot_name)에 어떤 아이템이 장착돼 있는지 반환한다.
+#[utoipa::path(
+    get, path = "/api/avatar/equipment",
+    tag = "아바타",
+    responses((status = 200, description = "장착 현황 조회 성공")),
+    security(("bearer_auth" = []))
+)]
+pub async fn get_equipment(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+) -> impl IntoResponse {
+    match service::get_equipment(&state, user_id).await {
+        Ok(slots) => (StatusCode::OK, Json(slots)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+// POST /api/avatar/equipment
+//
+// 아이템 장착.
+// 같은 슬롯에 이미 아이템이 있으면 교체된다.
+#[utoipa::path(
+    post, path = "/api/avatar/equipment",
+    tag = "아바타",
+    request_body = EquipItemRequest,
+    responses(
+        (status = 200, description = "장착 완료"),
+        (status = 403, description = "본인 소유 아이템 아님"),
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn equip_item(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Json(req): Json<EquipItemRequest>,
+) -> impl IntoResponse {
+    match service::equip_item(&state, user_id, req).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"message": "장착 완료"}))).into_response(),
+        Err(e) => {
+            let msg = e.to_string();
+            if msg.contains("본인 소유가 아닙니다") {
+                (StatusCode::FORBIDDEN, msg).into_response()
+            } else {
+                (StatusCode::INTERNAL_SERVER_ERROR, msg).into_response()
+            }
+        }
+    }
+}
+
+// DELETE /api/avatar/equipment/:slot_name
+//
+// 슬롯 해제. inventory_id를 NULL로 설정하여 슬롯을 비운다.
+#[utoipa::path(
+    delete, path = "/api/avatar/equipment/{slot_name}",
+    tag = "아바타",
+    params(("slot_name" = String, Path, description = "해제할 슬롯 이름")),
+    responses((status = 200, description = "슬롯 해제 완료")),
+    security(("bearer_auth" = []))
+)]
+pub async fn unequip_item(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(slot_name): Path<String>,
+) -> impl IntoResponse {
+    match service::unequip_item(&state, user_id, &slot_name).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"message": "슬롯 해제 완료"}))).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
