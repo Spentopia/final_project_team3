@@ -83,7 +83,7 @@ export function useMarket(): UseMarketReturn{
             setListings((prev) =>
                 prev.map((listing) =>
                     listing.id === listingId
-                        ? {...listing, escrow_address: escrowAddress}
+                        ? {...listing, escrow_address: escrowAddress, status: "active"}
                         : listing
                 )
             );

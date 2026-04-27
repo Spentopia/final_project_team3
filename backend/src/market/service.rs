@@ -8,12 +8,9 @@
 //  - 결과를 DTO로 변환해 핸들러에 반환
 //
 // ※ DB 트리거 활용 (handle_market_purchase):
-//  public.market_transactions에 INSERT 하면 PostgreSQL 트리거가 자동 실행되어 아래 작업을 원자적(atomic)으로 처리한다:
-//  1. 구매자 spt_balance 차감
-//  2. 판매자 spt_balance 증가 (수수료 제외)
-//  3. market_listings.status → "sold", sold_at = now()
-//  4. user_items.user_id → buyer_id, is_equipped = false
-// 따라서 백엔드에서 별도로 PATCH하지 않아도 된다.
+//  SPT 잔액은 온체인 ATA가 source of truth다.
+//  public.market_transactions INSERT 시 DB 트리거는 거래 기록/리스팅 상태/아이템 소유권만 동기화한다.
+//  users.spt_balance는 캐시 용도이므로 마켓 구매 성공/실패 판정에 사용하지 않는다.
 //
 // ※ PostgREST embedding(!kf 문법):
 //  FK가 여러 개일 때 어느 FK로 JOIN할지 명시해야 한다.
@@ -197,7 +194,7 @@ pub async fn create_listing(
         seller_id: Uuid,      // 판매자 = 현재 로그인 유저
         item_id: Uuid,        // 판매할 user_items.id (NFT 발행된 아이템)
         price_spt: i32,       // 판매 가격 (SPT 토큰 단위)
-        status: &'static str, // "active" 고정: 판매 등록 직후 상태
+        status: &'static str, // 온체인 list_nft 검증 전까지 pending_onchain
     }
 
     let res = state
@@ -378,12 +375,14 @@ pub async fn update_escrow(
     struct EscrowListingRow {
         seller_id: Uuid,
         price_spt: i32,
+        status: Option<String>,
+        escrow_address: Option<String>,
         user_inventory: UserItemNftRow,
         users: UserWalletRow,
     }
 
     let lookup_url = format!(
-        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}&select=seller_id,price_spt,user_inventory!item_id(is_nft,nft_mint_address),users!seller_id(wallet_address)",
+        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}&select=seller_id,price_spt,status,escrow_address,user_inventory!item_id(is_nft,nft_mint_address),users!seller_id(wallet_address)",
         state.config.supabase_url.trim_end_matches('/'),
         listing_id,
         user_id,
@@ -418,6 +417,14 @@ pub async fn update_escrow(
         .ok_or_else(|| anyhow!("본인 판매 등록을 찾을 수 없습니다"))?;
     if row.seller_id != user_id {
         return Err(anyhow!("본인 판매 등록만 수정할 수 있습니다"));
+    }
+    if row.status.as_deref() != Some("pending_onchain") {
+        return Err(anyhow!(
+            "온체인 등록 대기 상태의 판매글만 escrow를 저장할 수 있습니다"
+        ));
+    }
+    if row.escrow_address.is_some() {
+        return Err(anyhow!("이미 escrow가 저장된 판매글입니다"));
     }
     if row.user_inventory.is_nft != Some(true) {
         return Err(anyhow!("NFT로 발행된 아이템만 escrow를 저장할 수 있습니다"));
@@ -482,10 +489,10 @@ pub async fn update_escrow(
         ));
     }
 
-    // 필터: id=eq.{listing_id} AND seller_id=eq.{user_id}
-    //  → 본인이 등록한 listing만 수정 가능 (보안 필터)
+    // 필터: id=eq.{listing_id} AND seller_id=eq.{user_id} AND pending_onchain AND escrow NULL
+    //  → 본인이 등록했고 아직 온체인 동기화가 완료되지 않은 listing만 수정 가능.
     let url = format!(
-        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}",
+        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}&status=eq.pending_onchain&escrow_address=is.null",
         state.config.supabase_url.trim_end_matches('/'),
         listing_id,
         user_id,
@@ -495,6 +502,7 @@ pub async fn update_escrow(
     #[derive(Serialize)]
     struct PatchPayload {
         escrow_address: String,
+        status: &'static str,
     }
 
     let res = state
@@ -505,8 +513,11 @@ pub async fn update_escrow(
             format!("Bearer {}", state.config.supabase_secret_key),
         )
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Prefer", "return=minimal")
-        .json(&PatchPayload { escrow_address })
+        .header("Prefer", "return=representation")
+        .json(&PatchPayload {
+            escrow_address,
+            status: "active",
+        })
         .send()
         .await
         .context("market_listings escrow PATCH 요청 실패")?;
@@ -514,6 +525,15 @@ pub async fn update_escrow(
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
         return Err(anyhow!("escrow_address PATH 실패: {}", body));
+    }
+    let updated: Vec<MarketListing> = res
+        .json()
+        .await
+        .context("escrow_address PATCH 응답 역직렬화 실패")?;
+    if updated.is_empty() {
+        return Err(anyhow!(
+            "escrow_address PATCH 대상이 없습니다. 이미 처리됐거나 상태가 변경되었습니다"
+        ));
     }
 
     // 핸들러에서 { "message": "escrow 주소 저장 완료" } 응답을 만들기 떄문에 여기서는 성공 여부만 Ok(())로 전달
@@ -527,18 +547,15 @@ pub async fn update_escrow(
 /// 처리 순서:
 ///     1. tx_signature 재확인 (핸들러에서 이미 검증했지만 service에서도 방어)
 ///     2. market_listings 조회 → price_spt, status 확인
-///     3. 수수료 계산: fee = price_spt * 5 / 100
+///     3. 수수료 계산: 온체인 platform_config.fee_rate 기준
 ///     4. market_transaction INSERT
 ///         → DB 트리거(handle_market_purchase)가 원자적으로 후처리 실행:
-///             ① 구매자 spt_balance -= price
-///             ② 판매자 spt_balance += (price - fee)
-///             ③ market_listings.status = "sold", sold_at = now()
-///             ④ user_items.user_id = buyer, is_equipped = false
+///             ① market_listings.status = "sold", sold_at = now()
+///             ② user_items.user_id = buyer, is_equipped = false
 ///         → 따라서 백엔드에서 별도 PATCH 불필요
 ///
 /// # 에러
 /// - listing이 active 상태가 아닌 경우 → Err (트리거에서도 체크하지만 선제 차단)
-/// - 트리거 내부에서 SPT 잔액 부족 → INSERT 실패 → Err
 pub async fn purchase(
     state: &AppState,
     user_id: Uuid,        // JWT에서 추출한 현재 로그인 유저 UUID (= buyer_id)

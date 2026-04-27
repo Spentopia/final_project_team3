@@ -56,7 +56,7 @@ use crate::state::AppState;
 // NFT 아이템을 마켓에 판매 등록한다.
 ///
 /// 흐름:
-///   1. public.market_listings에 INSERT (status="active", seller_id=JWT user_id)
+///   1. public.market_listings에 INSERT (status="pending_onchain", seller_id=JWT user_id)
 ///   2. INSERT 후 listing id로 JOIN 조회해 ListingResponse 구성
 ///      (seller nickname, 아이템 이름/이미지/카테고리/희귀도 포함)
 ///
@@ -154,10 +154,9 @@ pub async fn update_escrow(
 ///   3. service 내부에서 market_transaction INSERT
 ///
 /// DB 트리거(handle_market_purchase) 자동 처리 항목:
-///  - 구매자 SPT 잔액 차감(price 만큼)
-///  - 판매자 SPT 잔액 증가(price - fee 만큼)
 ///  - market_listings.status → "sold", sold_at = now()
-///  - user_items.user_id → buyer_idm is_equipped = false
+///  - user_items.user_id → buyer_id, is_equipped = false
+///  - SPT 잔액은 온체인 ATA가 source of truth이므로 DB 잔액으로 판정하지 않음
 ///  → 백엔드에서 별도 PATCH 불필요
 ///
 /// # 응답
