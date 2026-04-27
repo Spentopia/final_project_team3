@@ -31,8 +31,6 @@ export function WalletLoginButton({
         currentProcess,
     } = useWalletConnection();
 
-    const isWalletReady = wallets.length > 0 || !!wallet;
-
     const [loginRequested, setLoginRequested] = useState(false);
     const [openingWalletModal, setOpeningWalletModal] = useState(false);
     const loginInFlightRef = useRef(false);
@@ -139,6 +137,11 @@ export function WalletLoginButton({
     ]);
 
     const handleClick = async () => {
+        if (wallets.length === 0 && !wallet) {
+            toast.error('확장 프로그램에서 지갑을 설치해 주세요.');
+            return;
+        }
+
         setLoginRequested(true);
 
         if (wallet) {
@@ -162,13 +165,11 @@ export function WalletLoginButton({
                 type="button"
                 className={className}
                 onClick={() => { void handleClick(); }}
-                disabled={isProcessing || loginInFlightRef.current || !isWalletReady}
+                disabled={isProcessing || loginInFlightRef.current}
             >
-                {!isWalletReady
-                    ? '지갑 감지 중...'
-                    : (isProcessing || loginRequested) && currentProcess === 'login'
-                        ? '지갑 로그인 중...'
-                        : '지갑으로 로그인'}
+                {(isProcessing || loginRequested) && currentProcess === 'login'
+                    ? '지갑 로그인 중...'
+                    : '지갑으로 로그인'}
             </button>
 
         </div>
