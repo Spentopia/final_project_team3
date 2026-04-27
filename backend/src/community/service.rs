@@ -6,7 +6,7 @@
 //  대화 내용은 chatbot_logs에 저장.
 
 use anyhow::{Context, Result, anyhow};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use uuid::Uuid;
 
 use super::{

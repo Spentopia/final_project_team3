@@ -16,7 +16,7 @@ use crate::config::Config;
 use dashmap::DashMap;
 use reqwest::Client;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 use uuid::Uuid;
 
 // nonce + 만료 시각을 묶어서 저장하는 구조체

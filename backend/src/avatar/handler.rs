@@ -19,7 +19,7 @@ use axum::{Extension, Json, extract::{Path, State}, response::IntoResponse};
 use uuid::Uuid;
 
 use super::{
-    dto::{EquipItemRequest, MintNftRequest, MintNftResponse, TransferNftRequest, TransferNftResponse},
+    dto::{EquipItemRequest, MintNftRequest, TransferNftRequest},
     service,
 };
 use crate::state::AppState;
