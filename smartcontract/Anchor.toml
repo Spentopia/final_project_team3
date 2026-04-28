@@ -17,4 +17,8 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
+init-platform = "node scripts/init-platform.js"
+init-spt-token = "node scripts/init-spt-token.js"
 init-avatar-collection = "node scripts/init-avatar-collection.js"
+mint-spt-to-wallet = "node scripts/mint-spt-to-wallet.js"
+mint-avatar-nft-to-wallet = "node scripts/mint-avatar-nft-to-wallet.js"

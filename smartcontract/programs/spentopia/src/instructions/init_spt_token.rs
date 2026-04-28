@@ -5,6 +5,7 @@ use mpl_token_metadata::{
 };
 
 use crate::constants::*;
+use crate::state::PlatformConfig;
 
 /// SPT Token 민트와 토큰 메타데이터를 함께 초기화한다.
 ///
@@ -24,7 +25,7 @@ pub fn init_spt_token_handler(
         .metadata(&ctx.accounts.metadata.to_account_info())
         .mint(&ctx.accounts.spt_token_mint.to_account_info(), false)
         .authority(&ctx.accounts.spt_token_authority.to_account_info())
-        .payer(&ctx.accounts.payer.to_account_info())
+        .payer(&ctx.accounts.admin.to_account_info())
         .update_authority(&ctx.accounts.spt_token_authority.to_account_info(), true)
         .system_program(&ctx.accounts.system_program.to_account_info())
         .sysvar_instructions(&ctx.accounts.sysvar_instructions.to_account_info())
@@ -43,9 +44,17 @@ pub fn init_spt_token_handler(
 
 #[derive(Accounts)]
 pub struct InitSptToken<'info> {
-    /// 트랜잭션 수수료와 계정 생성 비용을 지불하는 서명자.
+    /// 플랫폼 설정 계정. admin 권한 검증 기준.
+    #[account(
+        seeds = [PLATFORM_CONFIG_SEED],
+        bump = platform_config.bump,
+        has_one = admin,
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
+
+    /// 트랜잭션 수수료와 계정 생성 비용을 지불하는 관리자 서명자.
     #[account(mut)]
-    pub payer: Signer<'info>,
+    pub admin: Signer<'info>,
 
     /// SPT Token 민트 계정.
     ///
@@ -55,7 +64,7 @@ pub struct InitSptToken<'info> {
     /// - freeze 권한도 동일한 PDA가 가진다.
     #[account(
         init,
-        payer = payer,
+        payer = admin,
         seeds = [SPT_TOKEN_MINT_SEED],
         bump,
         mint::decimals = SPT_TOKEN_DECIMALS,

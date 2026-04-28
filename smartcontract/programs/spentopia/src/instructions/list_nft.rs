@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{
     transfer_checked, Mint, TokenAccount, TokenInterface, TransferChecked,
 };
@@ -98,6 +97,8 @@ pub struct ListNft<'info> {
     pub escrow_token_account: InterfaceAccount<'info, TokenAccount>,
 
     pub token_program: Interface<'info, TokenInterface>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
+    /// CHECK: 표준 SPL Associated Token Program 고정 주소
+    #[account(address = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bYh"))]
+    pub associated_token_program: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
