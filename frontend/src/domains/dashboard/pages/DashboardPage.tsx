@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useFinance } from "@/shared/providers/FinanceProvider";
+import { deleteExpense } from "@/shared/api/expenseApi";
+
 
 import { Calendar } from "@/shared/ui/calendar";
 import { Card } from "@/shared/ui/card";
@@ -29,6 +31,7 @@ import {
   TrendingDown,
   TrendingUp,
   Zap,
+  Trash2, // 👈 추가
 } from "lucide-react";
 import { format, isValid, parse } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -350,6 +353,23 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDeleteExpense = async (id: string) => {
+  try {
+    await deleteExpense(id);
+
+    // 상태에서 제거
+    replaceTransactions(
+      transactions.filter((t) => String(t.id) !== id)
+    );
+
+    toast.success("삭제 완료");
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "삭제 실패";
+    toast.error(message);
+  }
+};
+
   const handleExpenseDateChange = (value: string) => {
     if (!value) {
       setSelectedDate(undefined);
@@ -560,17 +580,26 @@ const currentBudget = budgets[monthKey] ?? budget;
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <p
-                        className={`font-bold ${
-                          isIncome
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-gray-900 dark:text-gray-100"
-                        }`}
-                      >
-                        {isIncome ? "+" : "-"}
-                        {expense.amount.toLocaleString()}원
-                      </p>
-                    </div>
+  <p
+    className={`font-bold ${
+      isIncome
+        ? "text-emerald-600 dark:text-emerald-400"
+        : "text-gray-900 dark:text-gray-100"
+    }`}
+  >
+    {isIncome ? "+" : "-"}
+    {expense.amount.toLocaleString()}원
+  </p>
+
+  <Button
+  variant="ghost"
+  size="icon"
+  onClick={() => handleDeleteExpense(String(expense.id))}
+  className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30"
+>
+  <Trash2 className="h-4 w-4" />
+</Button>
+</div>
                   </div>
                 );
               })

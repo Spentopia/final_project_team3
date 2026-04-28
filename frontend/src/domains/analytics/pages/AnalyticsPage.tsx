@@ -6,6 +6,8 @@ import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { analyzeReport } from "@/shared/api/aiApi";
+import { useState } from "react";
 
 import {
   BarChart,
@@ -36,6 +38,15 @@ import {
   getMonthlyExpenseTotal,
   getMonthlyIncomeTotal,
 } from "@/shared/utils/finance";
+
+type AIReport = {
+  good: string;
+  warning: string;
+  advice: string;
+  prediction: string;
+  pattern: string;
+  improvement: string;
+};
 
 const WEEKLY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const MONTHLY_LABELS = Array.from({ length: 12 }, (_, index) => `${index + 1}월`);
@@ -241,6 +252,8 @@ export default function Analytics() {
   );
 });
 
+const [aiReport, setAiReport] = useState<AIReport | null>(null);
+
 // 총 지출
 const totalExpense = getMonthlyExpenseTotal(transactions, now);
 
@@ -340,9 +353,47 @@ const categoryData = Object.entries(categoryTotals).map(([name, amount], index) 
       cancelled = true;
     };
   }, [transactions.length]);
-
   const weeklyData = buildWeeklyData(thisMonthTransactions, now);
   const monthlyData = buildMonthlyData(transactions, now.getFullYear());
+
+  useEffect(() => {
+  if (transactions.length === 0) return;
+
+  const fetchAIReport = async () => {
+    try {
+      const payload = {
+        transactions: transactions.map((t) => ({
+          date: t.date,
+          amount: t.amount,
+          category: t.category,
+          type: t.type,
+        })),
+
+        totalExpense,
+        budget: currentBudget,
+        topCategory: topCategoryName,
+        topCategoryPercent,
+
+        dailyAverage,
+        expenseChangeRate,
+        budgetUsage,
+
+        weeklyData,
+        monthlyData,
+        categoryData,
+      };
+
+      const result = await analyzeReport(payload) as AIReport;
+setAiReport(result);
+    } catch (error) {
+      console.error("AI 리포트 실패", error);
+    }
+  };
+
+  fetchAIReport();
+}, [transactions]);
+
+
 
   const timePatternData = buildTimePatternData(thisMonthTransactions);
   const timePatternTotal = timePatternData.reduce((sum, slot) => sum + slot.amount, 0);
@@ -541,121 +592,59 @@ const categoryData = Object.entries(categoryTotals).map(([name, amount], index) 
           <h3 className="font-bold text-gray-900">AI 소비 분석 리포트</h3>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg border border-cyan-200 bg-white p-4">
-            <div className="mb-2 flex items-start gap-2">
-              <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
-              <div>
-                <h4 className="mb-1 font-bold text-gray-900">잘하고 있어요!</h4>
-                <p className="text-sm text-gray-700">
-                  식비 지출이 지난 달 대비 15% 감소했어요. 집밥 먹기를 실천하고 계시네요! 👏
-                </p>
-              </div>
-            </div>
-          </div>
+        {aiReport && (
+  <div className="grid gap-4 md:grid-cols-2">
+    <div className="rounded-lg border bg-white p-4">
+      <h4 className="font-bold">👍 좋은 점</h4>
+      <p className="text-sm">{aiReport.good}</p>
+    </div>
 
-          <div className="rounded-lg border border-cyan-200 bg-white p-4">
-            <div className="mb-2 flex items-start gap-2">
-              <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
-              <div>
-                <h4 className="mb-1 font-bold text-gray-900">절약 습관 형성</h4>
-                <p className="text-sm text-gray-700">
-                  대중교통 이용이 늘어나면서 교통비가 20% 절약되었어요. 환경도 지키고 돈도 아끼고! 🚇
-                </p>
-              </div>
-            </div>
-          </div>
+    <div className="rounded-lg border bg-white p-4">
+      <h4 className="font-bold">⚠️ 주의</h4>
+      <p className="text-sm">{aiReport.warning}</p>
+    </div>
 
-          <div className="rounded-lg border border-amber-200 bg-white p-4">
-            <div className="mb-2 flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
-              <div>
-                <h4 className="mb-1 font-bold text-gray-900">주의가 필요해요</h4>
-                <p className="text-sm text-gray-700">
-                  여가/취미 지출이 예산의 150%를 초과했어요. 다음 달엔 조금만 줄여보는 건 어떨까요?
-                </p>
-              </div>
-            </div>
-          </div>
+    <div className="rounded-lg border bg-white p-4">
+      <h4 className="font-bold">💡 조언</h4>
+      <p className="text-sm">{aiReport.advice}</p>
+    </div>
 
-          <div className="rounded-lg border border-blue-200 bg-white p-4">
-            <div className="mb-2 flex items-start gap-2">
-              <TrendingUp className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />
-              <div>
-                <h4 className="mb-1 font-bold text-gray-900">목표 달성 예상</h4>
-                <p className="text-sm text-gray-700">
-                  이 속도면 연말까지 저축 목표 100만원을 달성할 수 있어요! 화이팅! 💪
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="rounded-lg border bg-white p-4">
+      <h4 className="font-bold">📈 예측</h4>
+      <p className="text-sm">{aiReport.prediction}</p>
+    </div>
+  </div>
+)}
       </Card>
 
       {/* Spending Patterns */}
       <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
-        <h3 className="mb-6 font-bold text-gray-900">소비 패턴 분석</h3>
-        <div className="grid gap-6 md:grid-cols-3">
-          <div>
-            <h4 className="mb-3 font-bold text-gray-900">시간대별 소비</h4>
-            <div className="space-y-3">
-              {timePatternTotal > 0 ? (
-                timePatternData.map((slot) => (
-                  <div key={slot.label} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">{slot.label}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
-                        <div
-                          className="h-full bg-cyan-500"
-                          style={{ width: `${slot.percent}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-bold text-gray-900">{slot.percent}%</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">
-                  시간 정보가 입력된 소비가 없어요
-                </p>
-              )}
-            </div>
-          </div>
+  <h3 className="mb-6 font-bold text-gray-900">소비 패턴 분석</h3>
 
-          <div>
-            <h4 className="mb-3 font-bold text-gray-900">요일별 소비</h4>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">평일</span>
-                <Badge>{weekdayPatternData.weekday.toLocaleString()}원</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">주말</span>
-                <Badge variant="secondary">{weekdayPatternData.weekend.toLocaleString()}원</Badge>
-              </div>
-              <p className="text-sm text-gray-600">{weekdayPatternData.description}</p>
-            </div>
-          </div>
+  {aiReport ? (
+    <div className="grid gap-6 md:grid-cols-2">
 
-          <div>
-            <h4 className="mb-3 font-bold text-gray-900">결제 방법</h4>
-            <div className="space-y-3">
-              {paymentPatternData.length > 0 ? (
-                paymentPatternData.map((payment) => (
-                  <div key={payment.method} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">{payment.method}</span>
-                    <span className="text-sm font-bold text-gray-900">{payment.percent}%</span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">
-                  결제 방법이 입력된 소비가 없어요
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </Card>
+      {/* 🔹 분석 */}
+      <div className="rounded-lg bg-gray-50 p-5">
+        <h4 className="mb-2 font-bold text-gray-900">📊 분석</h4>
+        <p className="text-sm text-gray-700 leading-relaxed">
+          {aiReport.pattern.replace("소비 패턴 분석:", "")}
+        </p>
+      </div>
+
+      {/* 🔹 개선 방안 */}
+      <div className="rounded-lg bg-gray-50 p-5">
+        <h4 className="mb-2 font-bold text-gray-900">💡 개선 방안</h4>
+        <p className="text-sm text-gray-700 leading-relaxed">
+          {aiReport.improvement}
+        </p>
+      </div>
+
+    </div>
+  ) : (
+    <p className="text-sm text-gray-500">AI가 분석 중입니다...</p>
+  )}
+</Card>
     </div>
   );
 }
