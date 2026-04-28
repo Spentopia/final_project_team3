@@ -499,7 +499,7 @@ pub async fn find_user_by_wallet(state: &AppState, wallet_address: &str) -> Resu
     // ,map(|row| row.id): UserRow에서 id만 추출
     // .ok_or_else: None(결과 없음)이면 에러로 변환
     rows.into_iter().next().map(|row| row.id).ok_or_else(|| {
-        anyhow!("해당 지갑 주소로 연동된 계정 없음. 앱에서 먼저 지갑 연동을 해주세요.")
+        anyhow!("해당 지갑 주소로 연동된 계정이 없습니다. 먼저 지갑 연동을 해주세요.")
     })
 }
 
