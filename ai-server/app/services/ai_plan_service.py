@@ -1,6 +1,6 @@
 import json
 import random
-from app.clients.openai_client import client
+from app.clients.openai_client import OpenAIClient
 
 def fix_budgets(plans):
     if not plans:
@@ -39,7 +39,7 @@ async def generate_ai_plans(budget: int):
     }}
     """
 
-    response = client.chat.completions.create(
+    response = OpenAIClient.client.chat.completions.create(
         model="gpt-4.1-mini",
         messages=[
             {"role": "system", "content": "너는 가계부 전문가야"},

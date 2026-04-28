@@ -6,7 +6,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 # 텍스트 작업과 비전 작업 모델을 분리해 두면
 # 기능별로 성능/비용을 조절하기 쉽다.
 TEXT_MODEL = os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini")
@@ -14,6 +14,7 @@ VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini")
 
 
 class OpenAIClient:
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     @staticmethod
     def analyze(spending: str):
@@ -37,7 +38,7 @@ class OpenAIClient:
         try:
             # chat.completions.create는 가장 단순한 텍스트 질의 방식이다.
             # 여기서는 소비 분석 결과를 구조화된 JSON으로 받는 용도다.
-            response = client.chat.completions.create(
+            response = OpenAIClient.client.chat.completions.create(
                 model=TEXT_MODEL,
                 messages=[
                     {"role": "system", "content": "너는 소비 분석 AI다."},
@@ -61,7 +62,7 @@ class OpenAIClient:
     @staticmethod
     def chat(message: str):
         try:
-            response = client.chat.completions.create(
+            response = OpenAIClient.client.chat.completions.create(
                 model=TEXT_MODEL,
                 messages=[
                     {"role": "system", "content": "너는 소비 상담 AI다."},
@@ -106,7 +107,7 @@ class OpenAIClient:
         try:
             # response_format=json_object를 줘서
             # 모델이 설명문 대신 JSON 한 덩어리로 응답하도록 유도한다.
-            response = client.chat.completions.create(
+            response = OpenAIClient.client.chat.completions.create(
                 model=VISION_MODEL,
                 response_format={"type": "json_object"},
                 messages=[
