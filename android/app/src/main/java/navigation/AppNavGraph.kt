@@ -88,17 +88,6 @@ fun AppNavGraph(
         context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
     }
 
-    // --- 자동 로그인 체크 로직 ---
-    fun hasSavedToken(): Boolean {
-        val accessToken = prefs.getString("access_token", null)
-        return !accessToken.isNullOrBlank()
-    }
-
-    // 초기 시작 루트 결정 (토큰이 있으면 Home, 없으면 Login)
-    val startRoute = remember {
-        if (hasSavedToken()) Route.Home.route else Route.Login.route
-    }
-
     var walletConnected by remember {
         mutableStateOf(prefs.getBoolean("wallet_connected", false))
     }
@@ -399,7 +388,7 @@ fun AppNavGraph(
         ) { innerPadding ->
             NavHost(
                 navController = navController,
-                startDestination = startRoute, // 토큰 체크 결과에 따른 시작점 설정
+                startDestination = Route.Login.route,
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable(Route.Login.route) {

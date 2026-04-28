@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -51,7 +52,7 @@ fun FindPasswordScreen(
         val trimmedEmail = email.trim()
 
         if (trimmedEmail.isBlank()) {
-            Toast.makeText(context, "가입한 이메일을 입력해 주세요.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.find_password_email_required), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -65,19 +66,17 @@ fun FindPasswordScreen(
                  * 예시:
                  * loginViewModel.findPassword(
                  *     email = trimmedEmail,
-                 *     onSuccess = {
-                 *         Toast.makeText(context, "재설정 링크를 보냈습니다.", Toast.LENGTH_LONG).show()
-                 *     },
+                 *     onSuccess = { ... },
                  *     onError = { message ->
                  *         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                  *     }
                  * )
                  */
-                Toast.makeText(context, "비밀번호 찾기 API 연결이 필요합니다.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.find_password_api_needed), Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Toast.makeText(
                     context,
-                    e.message ?: "비밀번호 찾기 중 오류가 발생했습니다.",
+                    e.message ?: context.getString(R.string.find_password_error),
                     Toast.LENGTH_SHORT
                 ).show()
             } finally {
@@ -101,7 +100,7 @@ fun FindPasswordScreen(
         ) {
             Image(
                 painter = painterResource(id = R.drawable.ic_spentopia_logo),
-                contentDescription = "Spentopia Logo",
+                contentDescription = stringResource(id = R.string.spentopia_logo_content_description),
                 modifier = Modifier.size(74.dp),
                 contentScale = ContentScale.Fit
             )
@@ -109,7 +108,7 @@ fun FindPasswordScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "비밀번호 찾기",
+                text = stringResource(id = R.string.find_password_title),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF111827)
@@ -118,7 +117,7 @@ fun FindPasswordScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "가입한 이메일로 재설정 안내를 보내드릴게요.",
+                text = stringResource(id = R.string.find_password_description),
                 fontSize = 14.sp,
                 color = Color(0xFF6B7280)
             )
@@ -127,7 +126,7 @@ fun FindPasswordScreen(
 
             Text(
                 modifier = Modifier.fillMaxWidth(),
-                text = "이메일",
+                text = stringResource(id = R.string.login_email_label),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF1F2937)
@@ -143,7 +142,7 @@ fun FindPasswordScreen(
                     .height(54.dp),
                 placeholder = {
                     Text(
-                        text = "이메일을 입력해주세요",
+                        text = stringResource(id = R.string.login_email_placeholder),
                         color = Color(0xFF8B95A1),
                         fontSize = 14.sp
                     )
@@ -163,7 +162,11 @@ fun FindPasswordScreen(
             Spacer(modifier = Modifier.height(26.dp))
 
             AuthGradientButton(
-                text = if (isLoading) "전송 중..." else "재설정 링크 보내기",
+                text = if (isLoading) {
+                    stringResource(id = R.string.find_password_loading)
+                } else {
+                    stringResource(id = R.string.send_reset_link)
+                },
                 enabled = !isLoading,
                 onClick = {
                     startFindPassword()
@@ -174,7 +177,7 @@ fun FindPasswordScreen(
 
             TextButton(onClick = onBackToLoginClick) {
                 Text(
-                    text = "로그인으로 돌아가기",
+                    text = stringResource(id = R.string.back_to_login),
                     fontSize = 14.sp,
                     color = Color(0xFF8A94A6)
                 )

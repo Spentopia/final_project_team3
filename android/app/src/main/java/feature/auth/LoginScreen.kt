@@ -3,6 +3,8 @@ package com.ict.spentopia.feature.auth
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -45,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -53,12 +56,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ict.spentopia.BuildConfig
 import com.ict.spentopia.R
 import com.ict.spentopia.feature.auth.connector.PhantomDeepLinkConnector
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import kotlinx.coroutines.launch
+import android.util.Log
+
 @Composable
 fun LoginScreen(
     onLoginClick: () -> Unit,
@@ -87,12 +96,58 @@ fun LoginScreen(
     var selectedWallet by remember { mutableStateOf<SolanaWalletType?>(null) }
     var isWalletLoading by remember { mutableStateOf(false) }
     var isEmailLoginLoading by remember { mutableStateOf(false) }
+    var isGoogleLoginLoading by remember { mutableStateOf(false) }
 
     var pendingWalletAddress by remember { mutableStateOf<String?>(null) }
     var pendingNonce by remember { mutableStateOf<String?>(null) }
 
     val walletLoginCoordinator = remember(loginViewModel) {
         WalletLoginCoordinator(loginViewModel)
+    }
+
+    val googleSignInClient = remember {
+        val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+            .requestEmail()
+            .build()
+
+        GoogleSignIn.getClient(context, options)
+    }
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        try {
+            val account = GoogleSignIn
+                .getSignedInAccountFromIntent(result.data)
+                .getResult(ApiException::class.java)
+
+            val idToken = account.idToken
+            if (idToken.isNullOrBlank()) {
+                isGoogleLoginLoading = false
+                Toast.makeText(context, context.getString(R.string.google_id_token_missing), Toast.LENGTH_SHORT).show()
+                return@rememberLauncherForActivityResult
+            }
+
+            loginViewModel.googleLogin(
+                idToken = idToken,
+                onSuccess = {
+                    isGoogleLoginLoading = false
+                    Toast.makeText(context, context.getString(R.string.google_login_success), Toast.LENGTH_SHORT).show()
+                    onLoginClick()
+                },
+                onError = { message ->
+                    isGoogleLoginLoading = false
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
+            )
+        } catch (e: ApiException) {
+            isGoogleLoginLoading = false
+            Toast.makeText(context, context.getString(R.string.google_login_failed_with_code, e.statusCode), Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            isGoogleLoginLoading = false
+            Toast.makeText(context, e.message ?: context.getString(R.string.google_login_failed), Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun startWalletLogin(walletType: SolanaWalletType) {
@@ -136,17 +191,16 @@ fun LoginScreen(
         }
     }
 
-    // 수정된 이메일 로그인 함수
     fun startEmailLogin() {
         val trimmedEmail = email.trim()
 
         if (trimmedEmail.isBlank()) {
-            Toast.makeText(context, "이메일을 입력해 주세요.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.email_required), Toast.LENGTH_SHORT).show()
             return
         }
 
         if (password.isBlank()) {
-            Toast.makeText(context, "비밀번호를 입력해 주세요.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.password_required), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -158,8 +212,7 @@ fun LoginScreen(
                 password = password,
                 onSuccess = {
                     isEmailLoginLoading = false
-                    Toast.makeText(context, "로그인 성공", Toast.LENGTH_SHORT).show()
-                    // 로그인 성공 시에만 홈 화면으로 이동
+                    Toast.makeText(context, context.getString(R.string.email_login_success), Toast.LENGTH_SHORT).show()
                     onLoginClick()
                 },
                 onError = { message ->
@@ -169,7 +222,6 @@ fun LoginScreen(
             )
         }
     }
-
 
     fun startKakaoLogin() {
         scope.launch {
@@ -184,7 +236,7 @@ fun LoginScreen(
                     } catch (e: Exception) {
                         Toast.makeText(
                             context,
-                            "카카오 로그인 화면을 열 수 없습니다.",
+                            context.getString(R.string.kakao_login_open_failed),
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -198,6 +250,18 @@ fun LoginScreen(
                 }
             )
         }
+    }
+
+    fun startGoogleLogin() {
+        Log.e("Spentopia", "WEB_ID=${BuildConfig.GOOGLE_WEB_CLIENT_ID}")
+
+        if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isBlank()) {
+            Toast.makeText(context, context.getString(R.string.google_web_client_id_missing), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        isGoogleLoginLoading = true
+        googleSignInLauncher.launch(googleSignInClient.signInIntent)
     }
 
     Box(
@@ -216,7 +280,7 @@ fun LoginScreen(
         ) {
             Image(
                 painter = painterResource(id = R.drawable.ic_spentopia_logo),
-                contentDescription = "Spentopia Logo",
+                contentDescription = stringResource(id = R.string.spentopia_logo_content_description),
                 modifier = Modifier.size(74.dp),
                 contentScale = ContentScale.Fit
             )
@@ -224,7 +288,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Spentopia",
+                text = stringResource(id = R.string.app_name),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF111827)
@@ -233,7 +297,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "내가 기록한 소비가 나를 만든다",
+                text = stringResource(id = R.string.login_tagline),
                 fontSize = 14.sp,
                 color = Color(0xFF6B7280)
             )
@@ -241,20 +305,20 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(34.dp))
 
             LoginInputField(
-                title = "이메일",
+                title = stringResource(id = R.string.login_email_label),
                 value = email,
                 onValueChange = { email = it },
-                placeholder = "이메일을 입력해주세요",
+                placeholder = stringResource(id = R.string.login_email_placeholder),
                 keyboardType = KeyboardType.Email
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
             LoginInputField(
-                title = "비밀번호",
+                title = stringResource(id = R.string.login_password_label),
                 value = password,
                 onValueChange = { password = it },
-                placeholder = "비밀번호를 입력해주세요",
+                placeholder = stringResource(id = R.string.login_password_placeholder),
                 keyboardType = KeyboardType.Password,
                 visualTransformation = if (passwordVisible) {
                     VisualTransformation.None
@@ -268,7 +332,11 @@ fun LoginScreen(
                         }
                     ) {
                         Text(
-                            text = if (passwordVisible) "숨김" else "보기",
+                            text = if (passwordVisible) {
+                                stringResource(id = R.string.login_password_hide)
+                            } else {
+                                stringResource(id = R.string.login_password_show)
+                            },
                             fontSize = 12.sp,
                             color = Color(0xFF6B7280)
                         )
@@ -279,7 +347,11 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             GradientLoginButton(
-                text = if (isEmailLoginLoading) "로그인 중..." else "로그인",
+                text = if (isEmailLoginLoading) {
+                    stringResource(id = R.string.login_button_loading)
+                } else {
+                    stringResource(id = R.string.login_button)
+                },
                 enabled = !isEmailLoginLoading && !isWalletLoading,
                 onClick = {
                     startEmailLogin()
@@ -295,7 +367,7 @@ fun LoginScreen(
             ) {
                 TextButton(onClick = onFindEmailClick) {
                     Text(
-                        text = "이메일 찾기",
+                        text = stringResource(id = R.string.find_email),
                         fontSize = 13.sp,
                         color = Color(0xFF8A94A6)
                     )
@@ -309,7 +381,7 @@ fun LoginScreen(
 
                 TextButton(onClick = onFindPasswordClick) {
                     Text(
-                        text = "비밀번호 찾기",
+                        text = stringResource(id = R.string.find_password),
                         fontSize = 13.sp,
                         color = Color(0xFF8A94A6)
                     )
@@ -323,7 +395,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             LoginOptionButton(
-                text = "카카오 로그인",
+                text = stringResource(id = R.string.kakao_login_button),
                 iconRes = R.drawable.ic_kakao_login,
                 containerColor = Color(0xFFFEE500),
                 textColor = Color(0xFF191919),
@@ -334,18 +406,19 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             LoginOptionButton(
-                text = "구글 로그인",
+                text = stringResource(id = R.string.google_login_button),
                 iconRes = R.drawable.ic_google_login,
                 containerColor = Color.White,
                 textColor = Color(0xFF111827),
                 borderColor = Color(0xFFDDE3EA),
-                onClick = onGoogleClick
+                enabled = !isGoogleLoginLoading && !isEmailLoginLoading && !isWalletLoading,
+                onClick = { startGoogleLogin() }
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
             WalletLoginOptionButton(
-                text = "지갑으로 로그인",
+                text = stringResource(id = R.string.wallet_login_button),
                 iconRes = R.drawable.ic_wallet_login,
                 enabled = !isWalletLoading && !isEmailLoginLoading,
                 onClick = {
@@ -362,7 +435,7 @@ fun LoginScreen(
                             val walletAddress = phantomConnector.parseConnectCallback(uri)
                             if (walletAddress.isNullOrBlank()) {
                                 isWalletLoading = false
-                                Toast.makeText(context, "지갑 주소를 가져오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.wallet_address_missing), Toast.LENGTH_SHORT).show()
                                 onWalletCallbackConsumed()
                                 return@let
                             }
@@ -374,10 +447,11 @@ fun LoginScreen(
                                     phantomConnector.signMessage(nonceResponse.message)
                                 } catch (e: Exception) {
                                     isWalletLoading = false
-                                    Toast.makeText(context, e.message ?: "nonce 요청 실패", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, e.message ?: context.getString(R.string.wallet_nonce_failed), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
+
                         phantomConnector.isSignCallback(uri) -> {
                             val signature = phantomConnector.parseSignCallback(uri)
                             val walletAddress = pendingWalletAddress
@@ -385,13 +459,13 @@ fun LoginScreen(
 
                             if (signature.isNullOrBlank()) {
                                 isWalletLoading = false
-                                Toast.makeText(context, "서명값을 가져오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.wallet_signature_missing), Toast.LENGTH_SHORT).show()
                                 onWalletCallbackConsumed()
                                 return@let
                             }
                             if (walletAddress.isNullOrBlank() || nonce.isNullOrBlank()) {
                                 isWalletLoading = false
-                                Toast.makeText(context, "로그인 중간 상태가 유실되었습니다.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.wallet_login_state_lost), Toast.LENGTH_SHORT).show()
                                 onWalletCallbackConsumed()
                                 return@let
                             }
@@ -443,7 +517,7 @@ fun LoginScreen(
                             code = code,
                             state = state,
                             onSuccess = {
-                                Toast.makeText(context, "카카오 로그인 성공", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.kakao_login_success), Toast.LENGTH_SHORT).show()
                                 onLoginClick()
                             },
                             onError = { message ->
@@ -456,7 +530,6 @@ fun LoginScreen(
                 }
             }
         }
-
 
         if (showWalletDialog) {
             SolanaWalletDialog(
@@ -681,7 +754,7 @@ private fun OrDivider() {
             color = Color(0xFFD6DCE5)
         )
         Text(
-            text = "  또는  ",
+            text = "  ${stringResource(id = R.string.login_or_divider)}  ",
             color = Color(0xFF9AA4B2),
             fontSize = 13.sp
         )

@@ -17,7 +17,9 @@ import com.ict.spentopia.data.repository.WalletRepository
 import com.ict.spentopia.data.repository.WalletRepositoryImpl
 import com.ict.spentopia.feature.auth.connector.WalletSignResult
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.providers.builtin.IDToken
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -49,7 +51,7 @@ class LoginViewModel(
     val walletNonceError: StateFlow<String?> = _walletNonceError
 
     // ===============================
-    // 이메일 로그인 추가
+    // 이메일 로그인
     // ===============================
     fun emailLogin(
         email: String,
@@ -96,6 +98,59 @@ class LoginViewModel(
             } catch (e: Exception) {
                 Log.e("Spentopia", "emailLogin 실패", e)
                 onError(e.message ?: "로그인 실패")
+            }
+        }
+    }
+
+    // ===============================
+    // 구글 로그인
+    // ===============================
+    fun googleLogin(
+        idToken: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                if (idToken.isBlank()) {
+                    onError("Google idToken이 없습니다.")
+                    return@launch
+                }
+
+                SupabaseClient.client.auth.signInWith(IDToken) {
+                    this.idToken = idToken
+                    provider = Google
+                }
+
+                val session =
+                    SupabaseClient.client.auth.currentSessionOrNull()
+
+                val supabaseToken =
+                    session?.accessToken
+                        ?: throw Exception("Supabase 토큰 없음")
+
+                val response = RetrofitClient.authApi.exchangeToken(
+                    request = ExchangeTokenRequest(
+                        access_token = supabaseToken
+                    )
+                )
+
+                val prefs = getApplication<Application>()
+                    .getSharedPreferences(
+                        "auth_prefs",
+                        Context.MODE_PRIVATE
+                    )
+
+                prefs.edit {
+                    putString("access_token", response.access_token)
+                    putString("refresh_token", response.refresh_token)
+                }
+
+                onSuccess()
+
+            } catch (e: Exception) {
+                Log.e("Spentopia", "구글 로그인 실패", e)
+                onError(e.message ?: "구글 로그인 실패")
             }
         }
     }

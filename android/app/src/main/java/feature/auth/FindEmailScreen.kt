@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -55,7 +56,7 @@ fun FindEmailScreen(
         val trimmedPhoneNumber = phoneNumber.trim()
 
         if (trimmedPhoneNumber.isBlank()) {
-            Toast.makeText(context, "가입 시 입력한 전화번호를 입력해 주세요.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.phone_number_required), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -69,19 +70,17 @@ fun FindEmailScreen(
                  * 예시:
                  * loginViewModel.findEmail(
                  *     phoneNumber = trimmedPhoneNumber,
-                 *     onSuccess = { email ->
-                 *         Toast.makeText(context, "가입된 이메일: $email", Toast.LENGTH_LONG).show()
-                 *     },
+                 *     onSuccess = { email -> ... },
                  *     onError = { message ->
                  *         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                  *     }
                  * )
                  */
-                Toast.makeText(context, "이메일 찾기 API 연결이 필요합니다.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.find_email_api_needed), Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Toast.makeText(
                     context,
-                    e.message ?: "이메일 찾기 중 오류가 발생했습니다.",
+                    e.message ?: context.getString(R.string.find_email_error),
                     Toast.LENGTH_SHORT
                 ).show()
             } finally {
@@ -105,7 +104,7 @@ fun FindEmailScreen(
         ) {
             Image(
                 painter = painterResource(id = R.drawable.ic_spentopia_logo),
-                contentDescription = "Spentopia Logo",
+                contentDescription = stringResource(id = R.string.spentopia_logo_content_description),
                 modifier = Modifier.size(74.dp),
                 contentScale = ContentScale.Fit
             )
@@ -113,7 +112,7 @@ fun FindEmailScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "이메일 찾기",
+                text = stringResource(id = R.string.find_email_title),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF111827)
@@ -122,7 +121,7 @@ fun FindEmailScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "가입 시 사용한 전화번호를 입력해 주세요.",
+                text = stringResource(id = R.string.find_email_description),
                 fontSize = 14.sp,
                 color = Color(0xFF6B7280)
             )
@@ -131,7 +130,7 @@ fun FindEmailScreen(
 
             Text(
                 modifier = Modifier.fillMaxWidth(),
-                text = "전화번호",
+                text = stringResource(id = R.string.phone_number_label),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF1F2937)
@@ -167,7 +166,11 @@ fun FindEmailScreen(
             Spacer(modifier = Modifier.height(26.dp))
 
             AuthGradientButton(
-                text = if (isLoading) "확인 중..." else "이메일 찾기",
+                text = if (isLoading) {
+                    stringResource(id = R.string.find_email_loading)
+                } else {
+                    stringResource(id = R.string.find_email_title)
+                },
                 enabled = !isLoading,
                 onClick = {
                     startFindEmail()
@@ -178,7 +181,7 @@ fun FindEmailScreen(
 
             TextButton(onClick = onBackToLoginClick) {
                 Text(
-                    text = "로그인으로 돌아가기",
+                    text = stringResource(id = R.string.back_to_login),
                     fontSize = 14.sp,
                     color = Color(0xFF8A94A6)
                 )

@@ -1,9 +1,31 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
+
+// =====================================================
+// local.properties 읽기
+// -----------------------------------------------------
+// android/local.properties 파일에 아래처럼 저장해둔 값을 읽어옴
+//
+// GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
+//
+// 이렇게 하면 LoginScreen.kt에 Web Client ID를 직접 하드코딩 안해도됨
+// =====================================================
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        load(file.inputStream())
+    }
+}
+
+// local.properties에서 GOOGLE_WEB_CLIENT_ID 값을 가져옴
+// 값이 없으면 빈 문자열("")이 들어갑니다.
+val googleWebClientId = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID") ?: ""
 
 android {
     namespace = "com.ict.spentopia"
@@ -16,7 +38,23 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        testApplicationId = "com.ict.spentopia.test"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // =====================================================
+        // BuildConfig에 Google Web Client ID 등록
+        // -----------------------------------------------------
+        // Kotlin 코드에서는 아래처럼 사용할 수 있음
+        //
+        // BuildConfig.GOOGLE_WEB_CLIENT_ID
+        //
+        // 실제 값은 local.properties의 GOOGLE_WEB_CLIENT_ID에서 가져옴
+        // =====================================================
+        buildConfigField(
+            "String",
+            "GOOGLE_WEB_CLIENT_ID",
+            "\"$googleWebClientId\""
+        )
     }
 
     buildTypes {
@@ -39,7 +77,11 @@ android {
     }
 
     buildFeatures {
+        // Jetpack Compose 사용
         compose = true
+
+        // BuildConfig.GOOGLE_WEB_CLIENT_ID를 사용하려면 true 필요
+        buildConfig = true
     }
 }
 
@@ -132,6 +174,11 @@ dependencies {
     // Kakao Login SDK
     // =========================
     implementation("com.kakao.sdk:v2-user:2.20.1")
+
+    // =========================
+    // Google Login
+    // =========================
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 
     // =========================
     // 테스트
