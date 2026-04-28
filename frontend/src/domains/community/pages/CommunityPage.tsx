@@ -32,6 +32,7 @@ interface Post {
   isNew?: boolean;
   views: number;
   content: string;
+  image_url?: string | null;
 }
 
 // ── 탭 정의 ──────────────────────────────────────────────────
@@ -76,6 +77,15 @@ function isNewPost(value: string | null): boolean {
   return Date.now() - createdAt <= 3 * 24 * 60 * 60 * 1000;
 }
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const COMMUNITY_BUCKET = "posts";
+
+function buildImageUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  return `${SUPABASE_URL}/storage/v1/object/public/${COMMUNITY_BUCKET}/${path}`;
+}
+
 function toPost(post: CommunityPostResponse): Post {
   return {
     id: post.id,
@@ -86,6 +96,7 @@ function toPost(post: CommunityPostResponse): Post {
     isNew: isNewPost(post.created_at),
     views: post.view_count,
     content: post.content ?? "",
+    image_url: buildImageUrl(post.image_url),
   };
 }
 
@@ -370,7 +381,14 @@ export default function Community() {
             </div>
 
             {/* 본문 */}
-            <div className="px-8 py-8 min-h-[240px]">
+            <div className="px-8 py-8 min-h-[240px] space-y-6">
+              {selectedPost.image_url && (
+                <img
+                  src={selectedPost.image_url}
+                  alt="게시글 이미지"
+                  className="max-w-full rounded-lg"
+                />
+              )}
               <p className="text-base text-gray-700 dark:text-gray-300 leading-8 whitespace-pre-wrap">
                 {selectedPost.content}
               </p>
