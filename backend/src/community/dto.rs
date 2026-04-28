@@ -6,6 +6,40 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+// ── 게시물 타입 / 정렬 ───────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PostType {
+    Notice,
+    Request,
+    Contest,
+}
+
+impl PostType {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            PostType::Notice => "notice",
+            PostType::Request => "request",
+            PostType::Contest => "contest",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PostSort {
+    Date,
+    Likes,
+    Views,
+}
+
+impl Default for PostSort {
+    fn default() -> Self {
+        Self::Date
+    }
+}
+
 // ── 콘테스트 이벤트 응답 ──────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -23,8 +57,10 @@ pub struct ContestEventResponse {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreatePostRequest {
+    pub post_type: PostType,
+    pub title: String,
     pub contest_id: Option<Uuid>,
-    pub image_url: String,
+    pub image_url: Option<String>,
     pub content: Option<String>,
 }
 
@@ -32,6 +68,8 @@ pub struct CreatePostRequest {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct UpdatePostRequest {
+    pub title: Option<String>,
+    pub image_url: Option<String>,
     pub content: Option<String>,
 }
 
@@ -44,10 +82,18 @@ pub struct PostResponse {
     pub author_nickname: Option<String>,
     pub author_profile_image: Option<String>,
     pub contest_id: Option<Uuid>,
-    pub image_url: String,
+    pub post_type: String,
+    pub title: String,
+    pub image_url: Option<String>,
     pub content: Option<String>,
     pub vote_count: Option<i32>,
+    pub view_count: i32,
     pub created_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UploadCommunityImageResponse {
+    pub path: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

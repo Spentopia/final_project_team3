@@ -510,7 +510,7 @@ pub async fn get_me(
     axum::Extension(user_id): axum::Extension<uuid::Uuid>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let url = format!(
-        "{}/rest/v1/users?id=eq.{}&select=id,email,profile_completed,login_provider,nickname,phone,profile_image,wallet_address",
+        "{}/rest/v1/users?id=eq.{}&select=id,email,profile_completed,login_provider,nickname,phone,profile_image,wallet_address,role_type",
         state.config.supabase_url.trim_end_matches('/'),
         user_id
     );

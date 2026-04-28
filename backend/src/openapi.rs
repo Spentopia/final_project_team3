@@ -66,7 +66,10 @@ use crate::wallet;
         crate::community::handler::list_contests,
         crate::community::handler::chat,
         crate::community::handler::list_posts,
+        crate::community::handler::get_post,
         crate::community::handler::create_post,
+        crate::community::handler::upload_post_image,
+        crate::community::handler::update_post,
         crate::community::handler::delete_post,
         crate::community::handler::vote_post,
 
@@ -149,9 +152,12 @@ use crate::wallet;
             community::dto::ContestEventResponse,
             community::dto::ChatRequest,
             community::dto::ChatResponse,
+            community::dto::PostType,
+            community::dto::PostSort,
             community::dto::CreatePostRequest,
             community::dto::UpdatePostRequest,
             community::dto::PostResponse,
+            community::dto::UploadCommunityImageResponse,
 
 
             // ── notification DTO ──────────────────────────────
