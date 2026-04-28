@@ -66,21 +66,17 @@ pub async fn get_current_weekly_score(
 }
 
 // ────────────────────────────────────────────────────────────
-// 신규 핸들러 2: grant_contest_reward
+// grant_contest_reward
 //
 // POST /api/admin/contest/reward
 // 관리자가 공모전 수상자에게 SPT 수동 지급
-//
-// TODO: 관리자 권한 체크 미들웨어 추가 예정
-//   현재는 JWT 인증만 통과하면 누구든 호출 가능
-//   → 추후 Extension<Role>으로 관리자 여부 확인 필요
+// route.rs에서 admin_middleware + jwt_middleware가 라우트 레이어로 적용됨
 //
 // Json(req): request body를 ContestRewardRequest로 역직렬화
 //   역직렬화 실패 시 Axum이 자동으로 422 반환
 // ────────────────────────────────────────────────────────────
 pub async fn grant_contest_reward(
     State(state): State<AppState>,
-    // TODO: Extension<Role>으로 관리자 권한 체크 추가
     Json(req): Json<ContestRewardRequest>,
 ) -> impl IntoResponse {
     match service::grant_contest_reward(&state, req).await {
