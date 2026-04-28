@@ -1,10 +1,22 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type FormEvent } from "react";
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import AiChatbotDialog from "@/components/chat/AiChatbotDialog";
 import { MessageCircle, Search, Send, Eye, ChevronUp, ChevronDown, Link2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  createCommunityPost,
+  getCommunityMe,
+  getCommunityPost,
+  listCommunityPosts,
+  listContests,
+  updateCommunityPost,
+  uploadCommunityImage,
+  type ContestResponse,
+  type CommunityPostResponse,
+  type PostType,
+} from "@/domains/community/api/communityApi";
 
 // ── 타입 ─────────────────────────────────────────────────────
 
@@ -12,7 +24,7 @@ type PostCategory = "notice" | "contest" | "item" | "tip";
 type TabKey = "all" | PostCategory;
 
 interface Post {
-  id: number;
+  id: string;
   category: PostCategory;
   title: string;
   author: string;
@@ -41,229 +53,41 @@ const BADGE_STYLE: Record<PostCategory, { bg: string; text: string; label: strin
   tip:     { bg: "bg-rose-100 dark:bg-rose-900/40",     text: "text-rose-700 dark:text-rose-300",     label: "꿀팁" },
 };
 
-// ── 목 데이터 (실제 연동 시 API로 교체) ───────────────────────
-
-const MOCK_POSTS: Post[] = [
-  {
-    id: 1, category: "notice", title: "4월 아바타 콘테스트 참여 방법 안내",
-    author: "운영자", date: "2026.04.27", isNew: true, views: 1024,
-    content: `안녕하세요, Spentopia 운영팀입니다.
-
-4월 아바타 콘테스트 참여 방법을 안내드립니다.
-
-[참여 방법]
-1. 커뮤니티 > 아바타 콘테스트 탭으로 이동합니다.
-2. 글쓰기 버튼을 눌러 본인의 아바타 스크린샷을 첨부합니다.
-3. 제목과 간단한 소개를 작성하고 게시하면 참여 완료!
-
-[심사 기준]
-○ 좋아요 수 (게시물 좋아요로 투표)
-○ 콘테스트 기간: 2026년 4월 1일 ~ 4월 30일
-
-[보상]
-- 1위: SPT 500개 + 한정 아바타 1종
-- 2위: SPT 300개
-- 3위: SPT 100개
-
-많은 참여 부탁드립니다!`,
-  },
-  {
-    id: 2, category: "notice", title: "Spentopia 이용약관 변경 안내",
-    author: "운영자", date: "2026.04.23", isNew: false, views: 812,
-    content: `안녕하세요, Spentopia 운영팀입니다.
-
-이용약관이 2026년 5월 28일자로 변경됩니다.
-회원 여러분께서는 아래의 내용을 참고하시어 서비스 이용에 불편이 없으시길 바랍니다.
-
-[변경 내용]
-○ 제10조 (환불 정책 개정)
-- 기존 환불 조항에 세부 항목 추가
-
-○ 시행 일시: 2026년 5월 28일 (금)
-- 시행 전까지 이용약관에 별도 의사표시가 없을 경우 동의한 것으로 보아 개정된 이용약관이 적용됩니다.
-
-이용에 불편이 없으시길 바랍니다.`,
-  },
-  {
-    id: 3, category: "notice", title: "서비스 점검 안내 (4/28 새벽 2시~4시)",
-    author: "운영자", date: "2026.04.22", isNew: true, views: 634,
-    content: `안녕하세요, Spentopia 운영팀입니다.
-
-안정적인 서비스 제공을 위해 아래와 같이 서버 점검을 진행합니다.
-
-[점검 일정]
-- 일시: 2026년 4월 28일 (화) 새벽 02:00 ~ 04:00 (약 2시간)
-- 점검 유형: 정기 서버 점검 및 보안 패치
-
-[점검 중 제한 사항]
-- 서비스 전체 이용 불가 (로그인, 가계부 기록 등)
-
-점검 시간 동안 불편을 드려 죄송합니다. 더 나은 서비스로 보답하겠습니다.`,
-  },
-  {
-    id: 4, category: "notice", title: "친구 초대 이벤트 — 초대당 SPT 100개 지급!",
-    author: "운영자", date: "2026.04.18", isNew: false, views: 2341,
-    content: `안녕하세요, Spentopia 운영팀입니다.
-
-친구를 초대하고 SPT를 받아가세요!
-
-[이벤트 내용]
-- 초대한 친구가 회원가입 완료 시 초대자에게 SPT 100개 지급
-- 초대받은 친구에게도 가입 축하 SPT 50개 지급
-- 초대 인원 제한 없음 (무제한 적립 가능)
-
-[참여 방법]
-마이페이지 > 친구 초대 메뉴에서 초대 링크를 복사하여 공유하세요.
-
-[이벤트 기간]
-2026년 4월 18일 ~ 2026년 5월 31일`,
-  },
-  {
-    id: 5, category: "contest", title: "나만의 힙스터 아바타 공개합니다 🕶️",
-    author: "패션왕", date: "2026.04.27", isNew: true, views: 318,
-    content: `안녕하세요! 드디어 완성한 힙스터 컨셉 아바타를 공개합니다.
-
-베레모 + 선글라스 + 오버핏 자켓 조합으로 만들었어요.
-아이템 조합이 생각보다 잘 어울려서 너무 만족스러워요 😎
-
-좋아요 눌러주시면 감사하겠습니다!`,
-  },
-  {
-    id: 6, category: "contest", title: "핑크핑크 러블리 공주님 컨셉 코디 🎀",
-    author: "큐티", date: "2026.04.27", isNew: true, views: 245,
-    content: `핑크 드레스에 왕관까지 완성한 공주님 컨셉이에요~!
-
-분홍색 계열 아이템만 모아서 코디해봤는데 생각보다 이쁘게 나왔어요 ㅎㅎ
-투표 많이 해주세요! 🌸`,
-  },
-  {
-    id: 7, category: "contest", title: "RPG 용사 갑옷 세트 완성했어요 ⚔️",
-    author: "전사", date: "2026.04.26", isNew: false, views: 189,
-    content: `RPG 게임 주인공처럼 갑옷 풀세트를 맞췄습니다.
-
-투구 + 갑옷 + 방패 + 검 조합으로 완성!
-용사 느낌 물씬 나지 않나요? 😄`,
-  },
-  {
-    id: 8, category: "contest", title: "봄봄 파스텔 아바타 어때요?",
-    author: "봄이", date: "2026.04.25", isNew: false, views: 156,
-    content: `봄 느낌 물씬 나는 파스텔 컬러 아바타예요!
-
-연두색 원피스에 꽃 머리핀 조합이 포인트입니다 🌷
-좋아요 많이 눌러주세요~`,
-  },
-  {
-    id: 9, category: "item", title: "이 운동화 아바타 아이템으로 만들어주세요!",
-    author: "스니커즈러버", date: "2026.04.27", isNew: true, views: 412,
-    content: `사진 첨부했습니다!
-
-제가 요즘 너무 좋아하는 흰색 청키 스니커즈인데요,
-아바타 아이템으로 있으면 진짜 매일 신을 것 같아요 👟
-
-비슷한 스타일 원하시는 분들 좋아요 눌러주세요!`,
-  },
-  {
-    id: 10, category: "item", title: "제가 입은 체크무늬 코트 아이템화 부탁드려요 🧥",
-    author: "코트사랑", date: "2026.04.27", isNew: true, views: 287,
-    content: `겨울마다 꺼내 입는 블랙 체크 코트예요.
-
-아바타한테도 입혀주고 싶어서 요청드려요!
-클래식한 느낌이라 다양한 코디에 어울릴 것 같아요 🖤`,
-  },
-  {
-    id: 11, category: "item", title: "고양이 귀 머리띠 아이템 추가해 주세요 🐱",
-    author: "냥집사", date: "2026.04.26", isNew: false, views: 534,
-    content: `고양이 귀 머리띠가 너무 갖고 싶어요!
-
-분홍색이랑 검정색 두 가지 색상으로 만들어주시면 더 좋을 것 같아요.
-냥집사 여러분 같이 투표해요~ 🐾`,
-  },
-  {
-    id: 12, category: "item", title: "할로윈 호박 모자 시즌 아이템으로 요청드려요 🎃",
-    author: "호박유령", date: "2026.04.24", isNew: false, views: 198,
-    content: `할로윈 시즌 한정으로 호박 모자 아이템 추가해주세요!
-
-매년 할로윈에 꺼내 쓸 수 있게 시즌 아이템으로 만들어주시면 좋겠어요.
-다음 할로윈 준비 미리미리 해요 👻`,
-  },
-  {
-    id: 13, category: "item", title: "캐주얼 후드집업 아이템으로 만들어주세요",
-    author: "후디러버", date: "2026.04.22", isNew: false, views: 167,
-    content: `편안한 후드집업 아이템이 있었으면 해요.
-
-회색이나 네이비 계열로 만들어주시면 데일리 코디로 딱일 것 같아요!
-집에서 입는 느낌 물씬 나는 편한 스타일이요 😊`,
-  },
-  {
-    id: 14, category: "tip", title: "집밥 도시락으로 월 20만원 절약하는 법 🍱",
-    author: "절약고수", date: "2026.04.25", isNew: false, views: 1823,
-    content: `외식 대신 도시락을 싸면 한 달에 평균 20만원을 아낄 수 있어요.
-
-[핵심 팁]
-1. 주말에 반찬 5가지 미리 만들어두기
-2. 냉동 보관 가능한 반찬 위주로 구성
-3. 장볼 때 주간 메뉴 미리 계획하고 장보기
-
-저는 이 방법으로 3개월째 식비를 30만원 이하로 유지 중이에요!
-처음엔 귀찮지만 익숙해지면 오히려 더 편해요 😄`,
-  },
-  {
-    id: 15, category: "tip", title: "대중교통 정기권으로 교통비 30% 아끼기",
-    author: "알뜰맨", date: "2026.04.24", isNew: false, views: 967,
-    content: `매일 출퇴근하시나요? 정기권을 이용하면 교통비를 30% 이상 절약할 수 있어요.
-
-[정기권 종류]
-- 지하철 정기권: 44회 사용 가능, 약 15% 절약
-- 버스+지하철 환승 정기권: 구간에 따라 최대 30% 절약
-
-한 달 기준 약 3~5만원 절약 효과가 있어요.
-티끌 모아 태산이라고, 1년이면 36~60만원이에요!`,
-  },
-  {
-    id: 16, category: "tip", title: "안 쓰는 구독 서비스 정리하고 월 5만원 아끼기",
-    author: "구독킬러", date: "2026.04.22", isNew: false, views: 756,
-    content: `OTT, 음악 스트리밍, 클라우드 등 안 쓰는 구독은 과감히 정리하세요!
-
-[구독 점검 방법]
-1. 신용카드 명세서에서 정기 결제 항목 전부 확인
-2. 최근 한 달간 실제 사용 여부 체크
-3. 안 쓴 것은 즉시 해지
-
-저는 이 방법으로 월 5만 3천원을 아꼈어요.
-1년이면 63만원이에요! 작은 것들이 쌓이면 엄청나죠 💪`,
-  },
-  {
-    id: 17, category: "tip", title: "카드 포인트 현금처럼 쓰는 꿀팁 총정리",
-    author: "포인트왕", date: "2026.04.21", isNew: false, views: 1234,
-    content: `쌓인 카드 포인트, 그냥 두지 마세요!
-
-[포인트 활용법]
-1. 통신비 자동납부 할인 전환 (매달 자동 차감)
-2. 편의점/마트 할인 쿠폰으로 전환
-3. 카드사 앱에서 현금 캐시백으로 전환
-4. 항공 마일리지로 전환 (일부 카드 가능)
-
-저는 방치해뒀던 포인트로 작년에 항공권 보조금으로 15만원 썼어요!`,
-  },
-  {
-    id: 18, category: "tip", title: "이번 달 50만원으로 살기 성공 후기 + 비법 공개",
-    author: "절약왕", date: "2026.04.20", isNew: false, views: 2156,
-    content: `드디어 한 달 50만원으로 생활하기 성공했습니다! 🎉
-
-[항목별 지출 내역]
-- 식비: 18만원 (자취 + 도시락 병행)
-- 교통비: 6만원 (정기권 사용)
-- 통신비: 3만원 (알뜰폰 전환)
-- 생활용품: 3만원
-- 여가/문화: 5만원
-- 예비비: 15만원
-
-포인트는 딱 필요한 것만 사고, 외식은 주 1회로 제한했어요.
-처음엔 너무 힘들었는데 3개월 지나니 오히려 즐거워요!`,
-  },
-];
-
 const PER_PAGE = 10;
+
+function formatPostDate(value: string | null): string {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}.${month}.${day}`;
+}
+
+function isNewPost(value: string | null): boolean {
+  if (!value) return false;
+
+  const createdAt = new Date(value).getTime();
+  if (Number.isNaN(createdAt)) return false;
+
+  return Date.now() - createdAt <= 3 * 24 * 60 * 60 * 1000;
+}
+
+function toPost(post: CommunityPostResponse): Post {
+  return {
+    id: post.id,
+    category: post.post_type === "request" ? "item" : post.post_type,
+    title: post.title,
+    author: post.author_nickname ?? "익명",
+    date: formatPostDate(post.created_at),
+    isNew: isNewPost(post.created_at),
+    views: post.view_count,
+    content: post.content ?? "",
+  };
+}
 
 // ── 컴포넌트 ─────────────────────────────────────────────────
 
@@ -271,28 +95,109 @@ export default function Community() {
   const [activeTab, setActiveTab]         = useState<TabKey>("all");
   const [searchQuery, setSearchQuery]     = useState("");
   const [currentPage, setCurrentPage]     = useState(1);
+  const [posts, setPosts]                 = useState<Post[]>([]);
   const [selectedPost, setSelectedPost]   = useState<Post | null>(null);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+  const [isWriteOpen, setIsWriteOpen]     = useState(false);
+  const [isSubmitting, setIsSubmitting]   = useState(false);
+  const [contests, setContests]           = useState<ContestResponse[]>([]);
+  const [myRoleType, setMyRoleType]       = useState("user");
+  const [writeType, setWriteType]         = useState<PostType>("request");
+  const [writeTitle, setWriteTitle]       = useState("");
+  const [writeContent, setWriteContent]   = useState("");
+  const [writeContestId, setWriteContestId] = useState("");
+  const [writeFile, setWriteFile]         = useState<File | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function fetchMe() {
+      try {
+        const data = await getCommunityMe();
+        if (!ignore) {
+          setMyRoleType(data.role_type ?? "user");
+        }
+      } catch (error) {
+        if (!ignore) {
+          console.error("내 권한 조회 실패:", error);
+        }
+      }
+    }
+
+    void fetchMe();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function fetchPosts() {
+      try {
+        const data = await listCommunityPosts({ sort: "date" });
+        if (!ignore) {
+          setPosts(data.map(toPost));
+        }
+      } catch (error) {
+        if (!ignore) {
+          toast.error("게시글 목록을 불러오지 못했습니다");
+          console.error("게시글 목록 조회 실패:", error);
+        }
+      }
+    }
+
+    void fetchPosts();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function fetchContests() {
+      try {
+        const data = await listContests();
+        if (!ignore) {
+          setContests(data);
+          setWriteContestId((prev) => prev || data[0]?.id || "");
+        }
+      } catch (error) {
+        if (!ignore) {
+          console.error("콘테스트 목록 조회 실패:", error);
+        }
+      }
+    }
+
+    void fetchContests();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   // 필터링
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return MOCK_POSTS.filter((p) => {
+    return posts.filter((p) => {
       const tabMatch    = activeTab === "all" || p.category === activeTab;
       const searchMatch = !q || p.title.toLowerCase().includes(q);
       return tabMatch && searchMatch;
     });
-  }, [activeTab, searchQuery]);
+  }, [activeTab, posts, searchQuery]);
 
   // 페이지네이션
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paginated  = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
 
   // 이전글 / 다음글 (전체 목록 id 순서 기준)
-  const allIds       = MOCK_POSTS.map((p) => p.id);
+  const allIds       = posts.map((p) => p.id);
   const currentIdx   = selectedPost ? allIds.indexOf(selectedPost.id) : -1;
-  const prevPost     = currentIdx > 0 ? MOCK_POSTS[currentIdx - 1] : null;
-  const nextPost     = currentIdx < MOCK_POSTS.length - 1 ? MOCK_POSTS[currentIdx + 1] : null;
+  const prevPost     = currentIdx > 0 ? posts[currentIdx - 1] : null;
+  const nextPost     = currentIdx < posts.length - 1 ? posts[currentIdx + 1] : null;
 
   const handleTabChange = (tab: TabKey) => {
     setActiveTab(tab);
@@ -307,10 +212,106 @@ export default function Community() {
     setSelectedPost(null);
   };
 
-  const handlePostClick = (post: Post) => {
-    setSelectedPost(post);
+  const handlePostClick = async (post: Post) => {
+    try {
+      const detail = toPost(await getCommunityPost(post.id));
+      setPosts((prev) => prev.map((item) => (item.id === detail.id ? detail : item)));
+      setSelectedPost(detail);
+    } catch (error) {
+      setSelectedPost(post);
+      toast.error("게시글 상세 조회에 실패했습니다");
+      console.error("게시글 상세 조회 실패:", error);
+    }
+
     window.history.pushState({ postId: post.id }, "", "");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const resetWriteForm = () => {
+    setWriteType("request");
+    setWriteTitle("");
+    setWriteContent("");
+    setWriteContestId(contests[0]?.id || "");
+    setWriteFile(null);
+  };
+
+  const handleWriteSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const title = writeTitle.trim();
+    const content = writeContent.trim();
+
+    if (!title) {
+      toast.error("제목을 입력해주세요");
+      return;
+    }
+
+    if (writeType === "notice" && myRoleType !== "admin") {
+      toast.error("운영자만 가능합니다");
+      return;
+    }
+
+    if (writeType === "contest" && !writeContestId) {
+      toast.error("콘테스트를 선택해주세요");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      let created: CommunityPostResponse;
+
+      if (writeType === "notice") {
+        created = await createCommunityPost({
+          post_type: "notice",
+          title,
+          contest_id: null,
+          image_url: null,
+          content: content || null,
+        });
+
+        if (writeFile) {
+          const uploaded = await uploadCommunityImage({
+            file: writeFile,
+            target: { postType: "notice", postId: created.id },
+          });
+          created = await updateCommunityPost(created.id, { image_url: uploaded.path });
+        }
+      } else {
+        let imagePath: string | null = null;
+
+        if (writeFile) {
+          const uploaded = await uploadCommunityImage({
+            file: writeFile,
+            target:
+              writeType === "contest"
+                ? { postType: "contest", contestId: writeContestId }
+                : { postType: "request" },
+          });
+          imagePath = uploaded.path;
+        }
+
+        created = await createCommunityPost({
+          post_type: writeType,
+          title,
+          contest_id: writeType === "contest" ? writeContestId : null,
+          image_url: imagePath,
+          content: content || null,
+        });
+      }
+
+      setPosts((prev) => [toPost(created), ...prev.filter((post) => post.id !== created.id)]);
+      setCurrentPage(1);
+      setActiveTab("all");
+      setIsWriteOpen(false);
+      resetWriteForm();
+      toast.success("게시글이 등록되었습니다");
+    } catch (error) {
+      toast.error("게시글 등록에 실패했습니다");
+      console.error("게시글 등록 실패:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // 브라우저 뒤로가기 → 목록으로
@@ -455,7 +456,7 @@ export default function Community() {
               />
             </div>
             <Button
-                onClick={() => toast.info("글쓰기 기능은 준비 중입니다")}
+                onClick={() => setIsWriteOpen(true)}
                 className="bg-gradient-to-r from-cyan-500 to-blue-500 h-11 text-base px-5"
             >
               <Send className="mr-2 h-4 w-4" />
@@ -545,6 +546,115 @@ export default function Community() {
               </div>
           )}
         </div>
+
+        {isWriteOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <Card className="w-full max-w-xl border-none bg-white dark:bg-gray-800 p-6 shadow-2xl">
+              <div className="mb-5">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">글쓰기</h2>
+              </div>
+
+              <form onSubmit={handleWriteSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="space-y-1.5">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">게시판</span>
+                    <select
+                      value={writeType}
+                      onChange={(event) => {
+                        const nextType = event.target.value as PostType;
+
+                        if (nextType === "notice" && myRoleType !== "admin") {
+                          toast.error("운영자만 가능합니다");
+                          return;
+                        }
+
+                        setWriteType(nextType);
+                      }}
+                      className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    >
+                      <option value="request">이거 만들어주세요</option>
+                      <option value="contest">아바타 콘테스트</option>
+                      <option value="notice">공지사항</option>
+                    </select>
+                  </label>
+
+                  {writeType === "contest" && (
+                    <label className="space-y-1.5">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">콘테스트</span>
+                      <select
+                        value={writeContestId}
+                        onChange={(event) => setWriteContestId(event.target.value)}
+                        className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                      >
+                        {contests.length === 0 ? (
+                          <option value="">등록된 콘테스트 없음</option>
+                        ) : (
+                          contests.map((contest) => (
+                            <option key={contest.id} value={contest.id}>
+                              {contest.title}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </label>
+                  )}
+                </div>
+
+                <label className="block space-y-1.5">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">제목</span>
+                  <Input
+                    value={writeTitle}
+                    onChange={(event) => setWriteTitle(event.target.value)}
+                    placeholder="제목을 입력하세요"
+                    className="h-11 text-base"
+                  />
+                </label>
+
+                <label className="block space-y-1.5">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">내용</span>
+                  <textarea
+                    value={writeContent}
+                    onChange={(event) => setWriteContent(event.target.value)}
+                    placeholder="내용을 입력하세요"
+                    rows={7}
+                    className="w-full resize-none rounded-md border border-gray-200 bg-white px-3 py-3 text-base text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </label>
+
+                <label className="block space-y-1.5">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">이미지</span>
+                  <Input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(event) => setWriteFile(event.target.files?.[0] ?? null)}
+                    className="h-11 text-base"
+                  />
+                </label>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsWriteOpen(false);
+                      resetWriteForm();
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    취소
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="bg-gradient-to-r from-cyan-500 to-blue-500"
+                  >
+                    {isSubmitting ? "등록 중" : "등록"}
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </div>
+        )}
 
         <AiChatbotDialog open={isChatbotOpen} onOpenChange={setIsChatbotOpen} />
       </div>

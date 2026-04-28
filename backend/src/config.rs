@@ -40,6 +40,9 @@ pub struct Config {
     // 프로필 이미지 저장용 private bucket 이름
     pub supabase_profile_image_bucket: String,
 
+    // 커뮤니티 게시글 이미지 저장용 bucket 이름
+    pub supabase_community_bucket: String,
+
     // CORS 허용 origin
     pub cors_origin: String,
 
@@ -109,6 +112,9 @@ impl Config {
 
             supabase_profile_image_bucket: std::env::var("SUPABASE_PROFILE_IMAGE_BUCKET")
                 .context("SUPABASE_PROFILE_IMAGE_BUCKET 환경변수 없음")?,
+
+            supabase_community_bucket: std::env::var("SUPABASE_COMMUNITY_BUCKET")
+                .unwrap_or_else(|_| "posts".to_string()),
 
             // 프론트 origin 하드코딩 대신 환경변수 사용
             cors_origin: std::env::var("CORS_ORIGIN")

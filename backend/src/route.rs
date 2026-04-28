@@ -179,7 +179,17 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/chat", post(community::handler::chat))
         .route("/api/posts", get(community::handler::list_posts))
         .route("/api/posts", post(community::handler::create_post))
-        .route("/api/posts/:id", delete(community::handler::delete_post))
+        .route(
+            "/api/posts/image/upload",
+            post(community::handler::upload_post_image)
+                .layer(DefaultBodyLimit::max(10 * 1024 * 1024)),
+        )
+        .route(
+            "/api/posts/:id",
+            get(community::handler::get_post)
+                .patch(community::handler::update_post)
+                .delete(community::handler::delete_post),
+        )
         .route("/api/posts/:id/vote", post(community::handler::vote_post))
         // ── 알림 ──────────────────────────────────────────
         .route(
