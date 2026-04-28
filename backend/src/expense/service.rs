@@ -398,6 +398,14 @@ pub async fn check_receipt_limit(
         .await
         .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
 
+    if !count_res.status().is_success() {
+        let body = count_res.text().await.unwrap_or_default();
+        return Err(ReceiptLimitError::Internal(format!(
+            "오늘 영수증 인증 건수 조회 실패: {}",
+            body
+        )));
+    }
+
     let total_count = count_res
         .headers()
         .get("content-range")
@@ -426,14 +434,20 @@ pub async fn check_receipt_limit(
             .await
             .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
 
-        if dup_res.status().is_success() {
-            let rows: Vec<serde_json::Value> = dup_res
-                .json()
-                .await
-                .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
-            if !rows.is_empty() {
-                return Err(ReceiptLimitError::Duplicate);
-            }
+        if !dup_res.status().is_success() {
+            let body = dup_res.text().await.unwrap_or_default();
+            return Err(ReceiptLimitError::Internal(format!(
+                "영수증 중복 인증 조회 실패: {}",
+                body
+            )));
+        }
+
+        let rows: Vec<serde_json::Value> = dup_res
+            .json()
+            .await
+            .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
+        if !rows.is_empty() {
+            return Err(ReceiptLimitError::Duplicate);
         }
     }
 
@@ -465,6 +479,7 @@ pub async fn update_receipt_verified(
             format!("Bearer {}", state.config.supabase_secret_key),
         )
         .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=representation")
         .json(&serde_json::json!({ "receipt_verified": true }))
         .send()
         .await
@@ -474,6 +489,16 @@ pub async fn update_receipt_verified(
         return Err(anyhow!(
             "expenses receipt_verified UPDATE 실패: {}",
             res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rows: Vec<serde_json::Value> = res
+        .json()
+        .await
+        .context("expenses receipt_verified UPDATE 응답 파싱 실패")?;
+    if rows.is_empty() {
+        return Err(anyhow!(
+            "인증 처리할 소비 내역이 없거나 본인 소유가 아닙니다"
         ));
     }
 

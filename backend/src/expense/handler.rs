@@ -158,22 +158,36 @@ pub async fn verify_receipt_ocr(
                     if let Err(e) =
                         service::update_receipt_verified(&state, user_id, expense_id).await
                     {
-                        tracing::warn!("receipt_verified UPDATE 실패: {}", e);
-                    } else {
-                        let state_clone = state.clone();
-                        let today = Local::now().date_naive();
-                        tokio::spawn(async move {
-                            if let Err(e) = crate::reward::service::recalculate_weekly_score(
-                                &state_clone,
-                                user_id,
-                                today,
-                            )
-                            .await
-                            {
-                                tracing::warn!("영수증 인증 후 성실도 재계산 실패: {}", e);
-                            }
-                        });
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            format!("영수증 인증 상태 업데이트 실패: {}", e),
+                        )
+                            .into_response();
                     }
+
+                    if let Err(e) =
+                        crate::reward::service::increment_box_count(&state, user_id).await
+                    {
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            format!("상자 오픈권 지급 실패: {}", e),
+                        )
+                            .into_response();
+                    }
+
+                    let state_clone = state.clone();
+                    let today = Local::now().date_naive();
+                    tokio::spawn(async move {
+                        if let Err(e) = crate::reward::service::recalculate_weekly_score(
+                            &state_clone,
+                            user_id,
+                            today,
+                        )
+                        .await
+                        {
+                            tracing::warn!("영수증 인증 후 성실도 재계산 실패: {}", e);
+                        }
+                    });
                 }
             }
             (StatusCode::OK, Json(res)).into_response()

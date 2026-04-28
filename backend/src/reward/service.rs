@@ -9,13 +9,19 @@
 
 use anyhow::{Context, Result, anyhow};
 use chrono::{Datelike, Local, NaiveDate};
-use rand::seq::SliceRandom;
+use rand::{
+    distributions::{Distribution, WeightedIndex},
+    seq::SliceRandom,
+};
 use uuid::Uuid;
 
 use crate::clients::solana_client;
 
 use super::{
-    dto::{ContestRewardRequest, RewardResponse, StreakResponse, WeeklyScoreResponse},
+    dto::{
+        BoxCountResponse, ContestRewardRequest, OpenBoxResponse, RewardResponse, StreakResponse,
+        UnityAvatarItemResponse, WeeklyScoreResponse,
+    },
     model::{Reward, Streak, WeeklyScore},
 };
 use crate::state::AppState;
@@ -1074,6 +1080,422 @@ pub async fn get_current_weekly_score(
             reward_granted: s.reward_granted,
         },
     ))
+}
+
+pub async fn get_box_count(state: &AppState, user_id: Uuid) -> Result<BoxCountResponse> {
+    Ok(BoxCountResponse {
+        box_count: fetch_box_count(state, user_id).await?,
+    })
+}
+
+pub async fn increment_box_count(state: &AppState, user_id: Uuid) -> Result<i32> {
+    for _ in 0..3 {
+        let current = fetch_box_count(state, user_id).await?;
+        match patch_box_count_if_current(state, user_id, current, current + 1).await? {
+            Some(updated) => return Ok(updated),
+            None => continue,
+        }
+    }
+
+    Err(anyhow!("box_count 증가 충돌이 반복되었습니다"))
+}
+
+pub async fn open_box(state: &AppState, user_id: Uuid) -> Result<OpenBoxResponse> {
+    let current = fetch_box_count(state, user_id).await?;
+    if current <= 0 {
+        return Err(anyhow!("열 수 있는 상자가 없습니다"));
+    }
+
+    let wallet_address = get_wallet_address(state, user_id).await?;
+    let next_count = current - 1;
+    let claimed_count = patch_box_count_if_current(state, user_id, current, next_count)
+        .await?
+        .ok_or_else(|| anyhow!("상자 개수가 변경되었습니다. 다시 시도해주세요"))?;
+
+    let grant_result = match wallet_address {
+        Some(wallet) => open_box_for_nft_user(state, user_id, &wallet).await,
+        None => open_box_for_normal_user(state, user_id).await,
+    };
+
+    match grant_result {
+        Ok(item) => Ok(match item {
+            Some(item) => OpenBoxResponse {
+                remaining_box_count: claimed_count,
+                is_win: true,
+                message: "아바타를 획득했습니다".to_string(),
+                item: Some(item),
+            },
+            None => OpenBoxResponse {
+                remaining_box_count: claimed_count,
+                is_win: false,
+                message: "꽝입니다".to_string(),
+                item: None,
+            },
+        }),
+        Err(e) => {
+            if let Err(refund_err) = increment_box_count(state, user_id).await {
+                tracing::error!(
+                    "상자 보상 실패 후 box_count 복구 실패: user={} grant_err={} refund_err={}",
+                    user_id,
+                    e,
+                    refund_err
+                );
+            }
+            Err(e)
+        }
+    }
+}
+
+async fn open_box_for_normal_user(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<Option<UnityAvatarItemResponse>> {
+    let items = fetch_box_items(state, "normal").await?;
+    if items.is_empty() {
+        return Err(anyhow!("지급 가능한 일반 아이템이 없습니다"));
+    }
+
+    let owned = fetch_owned_normal_item_ids(state, user_id).await?;
+    let candidates: Vec<BoxItemRow> = items
+        .into_iter()
+        .filter(|item| !owned.contains(&item.id))
+        .collect();
+
+    if candidates.is_empty() {
+        return Ok(None);
+    }
+
+    let Some(item) = draw_box_item(&candidates, state.config.reward_box_miss_weight)? else {
+        return Ok(None);
+    };
+
+    let inventory_id =
+        insert_user_inventory(state, user_id, item.id, false, None, None, None).await?;
+
+    Ok(Some(UnityAvatarItemResponse {
+        inventory_id,
+        item_id: item.id,
+        name: item.name,
+        is_equipped: false,
+        slot_name: item.category,
+    }))
+}
+
+async fn open_box_for_nft_user(
+    state: &AppState,
+    user_id: Uuid,
+    wallet_address: &str,
+) -> Result<Option<UnityAvatarItemResponse>> {
+    let items = fetch_box_items(state, "nft").await?;
+    if items.is_empty() {
+        return Err(anyhow!("지급 가능한 NFT 아이템이 없습니다"));
+    }
+
+    let Some(item) = draw_box_item(&items, state.config.reward_box_miss_weight)? else {
+        return Ok(None);
+    };
+
+    Ok(Some(
+        mint_and_insert_box_nft_avatar_item(state, user_id, wallet_address, item).await?,
+    ))
+}
+
+async fn fetch_box_items(state: &AppState, item_type: &str) -> Result<Vec<BoxItemRow>> {
+    let key = &state.config.supabase_secret_key;
+    let base_url = state.config.supabase_url.trim_end_matches('/');
+
+    let item_url = format!(
+        "{}/rest/v1/item_master?item_type=eq.{}&drop_weight=gt.0&select=id,name,category,image_url,metadata_uri,drop_weight",
+        base_url, item_type
+    );
+    let item_res = state
+        .http_client
+        .get(&item_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key)
+        .send()
+        .await
+        .context("상자 아이템 후보 조회 요청 실패")?;
+
+    if !item_res.status().is_success() {
+        return Err(anyhow!(
+            "상자 아이템 후보 조회 실패: {}",
+            item_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    item_res
+        .json()
+        .await
+        .context("상자 아이템 후보 역직렬화 실패")
+}
+
+async fn fetch_owned_normal_item_ids(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<std::collections::HashSet<Uuid>> {
+    let key = &state.config.supabase_secret_key;
+    let base_url = state.config.supabase_url.trim_end_matches('/');
+
+    let owned_url = format!(
+        "{}/rest/v1/user_inventory?user_id=eq.{}&nft_mint_address=is.null&select=item_id",
+        base_url, user_id
+    );
+    let owned_res = state
+        .http_client
+        .get(&owned_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key)
+        .send()
+        .await
+        .context("보유 일반 아이템 조회 요청 실패")?;
+
+    if !owned_res.status().is_success() {
+        return Err(anyhow!(
+            "보유 일반 아이템 조회 실패: {}",
+            owned_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    #[derive(serde::Deserialize)]
+    struct OwnedRow {
+        item_id: Uuid,
+    }
+
+    let owned_rows: Vec<OwnedRow> = owned_res
+        .json()
+        .await
+        .context("보유 일반 아이템 역직렬화 실패")?;
+    Ok(owned_rows.into_iter().map(|row| row.item_id).collect())
+}
+
+fn draw_box_item(items: &[BoxItemRow], miss_weight: u32) -> Result<Option<BoxItemRow>> {
+    let mut weights: Vec<u32> = items
+        .iter()
+        .map(|item| item.drop_weight.unwrap_or(1))
+        .collect();
+    weights.push(miss_weight);
+
+    let distribution = WeightedIndex::new(&weights).context("상자 확률 가중치 생성 실패")?;
+    let selected = distribution.sample(&mut rand::thread_rng());
+
+    if selected == items.len() {
+        Ok(None)
+    } else {
+        Ok(Some(items[selected].clone()))
+    }
+}
+
+async fn mint_and_insert_box_nft_avatar_item(
+    state: &AppState,
+    user_id: Uuid,
+    wallet_address: &str,
+    item: BoxItemRow,
+) -> Result<UnityAvatarItemResponse> {
+    if state.config.solana_admin_keypair.is_empty() {
+        return Err(anyhow!(
+            "NFT 상자 보상을 지급하려면 SOLANA_ADMIN_KEYPAIR가 필요합니다"
+        ));
+    }
+
+    let item_seed = Uuid::new_v4().simple().to_string();
+    let nft_uri = item
+        .metadata_uri
+        .as_deref()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or(&item.image_url);
+    let (tx_signature, nft_mint_address) = solana_client::mint_avatar_nft_to_user(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        &state.config.solana_admin_keypair,
+        wallet_address,
+        &state.config.solana_program_id,
+        &item_seed,
+        &item.name,
+        "SPTA",
+        nft_uri,
+    )
+    .await
+    .context("상자 NFT 아바타 민팅 실패")?;
+
+    solana_client::check_signature_confirmed(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        &tx_signature,
+    )
+    .await
+    .context("상자 NFT 민팅 트랜잭션 확인 실패")?;
+
+    let inventory_id = insert_user_inventory(
+        state,
+        user_id,
+        item.id,
+        true,
+        Some(nft_mint_address),
+        Some(tx_signature),
+        Some(wallet_address.to_string()),
+    )
+    .await?;
+
+    Ok(UnityAvatarItemResponse {
+        inventory_id,
+        item_id: item.id,
+        name: item.name,
+        is_equipped: false,
+        slot_name: item.category,
+    })
+}
+
+async fn fetch_box_count(state: &AppState, user_id: Uuid) -> Result<i32> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=box_count&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("users box_count 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "users box_count 조회 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    #[derive(serde::Deserialize)]
+    struct UserBoxRow {
+        box_count: Option<i32>,
+    }
+
+    let rows: Vec<UserBoxRow> = res.json().await.context("users box_count 역직렬화 실패")?;
+    rows.into_iter()
+        .next()
+        .map(|row| row.box_count.unwrap_or(0))
+        .ok_or_else(|| anyhow!("users row를 찾을 수 없습니다"))
+}
+
+async fn patch_box_count_if_current(
+    state: &AppState,
+    user_id: Uuid,
+    current: i32,
+    next: i32,
+) -> Result<Option<i32>> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&box_count=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+        current
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=representation")
+        .json(&serde_json::json!({ "box_count": next }))
+        .send()
+        .await
+        .context("users box_count UPDATE 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "users box_count UPDATE 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    #[derive(serde::Deserialize)]
+    struct UserBoxRow {
+        box_count: i32,
+    }
+
+    let rows: Vec<UserBoxRow> = res
+        .json()
+        .await
+        .context("users box_count UPDATE 역직렬화 실패")?;
+    Ok(rows.into_iter().next().map(|row| row.box_count))
+}
+
+#[derive(Clone, serde::Deserialize)]
+struct BoxItemRow {
+    id: Uuid,
+    name: String,
+    category: String,
+    image_url: String,
+    metadata_uri: Option<String>,
+    drop_weight: Option<u32>,
+}
+
+#[derive(serde::Deserialize)]
+struct InventoryInsertRow {
+    id: Uuid,
+}
+
+async fn insert_user_inventory(
+    state: &AppState,
+    user_id: Uuid,
+    item_id: Uuid,
+    is_nft: bool,
+    nft_mint_address: Option<String>,
+    nft_tx_signature: Option<String>,
+    minted_to_wallet: Option<String>,
+) -> Result<Uuid> {
+    let url = format!(
+        "{}/rest/v1/user_inventory",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let res = state
+        .http_client
+        .post(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=representation")
+        .json(&serde_json::json!({
+            "user_id": user_id,
+            "item_id": item_id,
+            "is_equipped": false,
+            "is_nft": is_nft,
+            "nft_mint_address": nft_mint_address,
+            "nft_tx_signature": nft_tx_signature,
+            "minted_to_wallet": minted_to_wallet,
+        }))
+        .send()
+        .await
+        .context("user_inventory 상자 보상 INSERT 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "user_inventory 상자 보상 INSERT 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rows: Vec<InventoryInsertRow> = res
+        .json()
+        .await
+        .context("user_inventory 상자 보상 INSERT 역직렬화 실패")?;
+    rows.into_iter()
+        .next()
+        .map(|row| row.id)
+        .ok_or_else(|| anyhow!("user_inventory 상자 보상 INSERT 결과가 비어있음"))
 }
 
 // ────────────────────────────────────────────────────────────

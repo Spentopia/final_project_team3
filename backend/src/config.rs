@@ -74,6 +74,10 @@ pub struct Config {
     // 프로젝트 전용 아바타 컬렉션 mint 주소
     // 없으면 NFT collection 조회 API는 빈 결과/에러 처리한다.
     pub solana_avatar_collection_mint: String,
+
+    // Unity 상자에서 아무 아이템도 나오지 않는 "꽝" 가중치.
+    // item_master.drop_weight와 같은 단위로 계산한다.
+    pub reward_box_miss_weight: u32,
 }
 
 impl Config {
@@ -140,6 +144,11 @@ impl Config {
 
             solana_avatar_collection_mint: std::env::var("SOLANA_AVATAR_COLLECTION_MINT")
                 .unwrap_or_default(),
+
+            reward_box_miss_weight: std::env::var("REWARD_BOX_MISS_WEIGHT")
+                .ok()
+                .and_then(|v| v.parse::<u32>().ok())
+                .unwrap_or(9000),
         })
     }
 }

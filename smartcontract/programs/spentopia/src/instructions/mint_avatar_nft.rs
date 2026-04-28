@@ -18,10 +18,10 @@ use mpl_token_metadata::{
 /// - admin 단독 서명, 유저 서명 불필요
 pub fn mint_avatar_nft_handler(
     ctx: Context<MintAvatarNft>,
-    item_id: String, // 파츠 식별자 (백엔드 관리). PDA seed에도 사용됨
-    name: String,    // NFT 이름 (예: "Spentopida Cap #001")
-    symbol: String,  // NFT 심볼 (예: "SPT")
-    uri: String,     // Pinata에 올린 metadata JSON URI
+    mint_seed: String, // 민트 고유 식별자. 같은 item_id NFT 중복 지급을 위해 매번 달라야 함
+    name: String,      // NFT 이름 (예: "Spentopida Cap #001")
+    symbol: String,    // NFT 심볼 (예: "SPT")
+    uri: String,       // Pinata에 올린 metadata JSON URI
 ) -> Result<()> {
     let platform_config = &ctx.accounts.platform_config;
     require!(
@@ -31,12 +31,13 @@ pub fn mint_avatar_nft_handler(
 
     // avatar_mint PDA 서명용 seeds.
     // CreateV1, MintV1 CPI 모두 mint가 서명자여야 하므로 signer_seeds 필요.
-    let item_id_bytes = item_id.as_bytes();
+    let mint_seed_bytes = mint_seed.as_bytes();
     let user_key = ctx.accounts.user.key();
     let user_key_bytes = user_key.as_ref();
     let mint_bump = &[ctx.bumps.avatar_mint];
 
-    let mint_signer_seeds: &[&[u8]] = &[AVATAR_MINT_SEED, user_key_bytes, item_id_bytes, mint_bump];
+    let mint_signer_seeds: &[&[u8]] =
+        &[AVATAR_MINT_SEED, user_key_bytes, mint_seed_bytes, mint_bump];
     let signer_seeds = &[mint_signer_seeds];
 
     // Step 1: NFT 메타데이터 계정 생성 (CreateV1)
@@ -101,16 +102,16 @@ pub fn mint_avatar_nft_handler(
     )?;
 
     msg!(
-        "아바타 NFT 민팅 완료 | 유저: {} | item_id: {}",
+        "아바타 NFT 민팅 완료 | 유저: {} | mint_seed: {}",
         ctx.accounts.user.key(),
-        item_id
+        mint_seed
     );
 
     Ok(())
 }
 
 #[derive(Accounts)]
-#[instruction(item_id: String)]
+#[instruction(mint_seed: String)]
 pub struct MintAvatarNft<'info> {
     /// 플랫폼 설정 계정.
     /// has_one = admin으로 관리자 검증.
@@ -131,12 +132,12 @@ pub struct MintAvatarNft<'info> {
 
     /// 아바타 파츠 NFT 민트 계정.
     ///
-    /// - user_pubkey + item_id를 seed에 포함 → 유저별 + 파츠별 고유 민트 보장
-    /// - item_id가 같으면 같은 파츠 → 중복 민팅 방지 가능
+    /// - user_pubkey + mint_seed를 seed에 포함 → 같은 파츠 NFT도 중복 민팅 가능
+    /// - mint_seed는 백엔드에서 매 보상마다 고유하게 생성한다.
     #[account(
         init,
         payer = admin,
-        seeds = [AVATAR_MINT_SEED, user.key().as_ref(), item_id.as_bytes()],
+        seeds = [AVATAR_MINT_SEED, user.key().as_ref(), mint_seed.as_bytes()],
         bump,
         mint::decimals = 0,     // NFT는 소수점 없음
         mint::authority = spt_token_authority,

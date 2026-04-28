@@ -298,7 +298,11 @@ pub async fn mint_nft(
 
     let collection_mint = {
         let v = state.config.solana_avatar_collection_mint.trim();
-        if v.is_empty() { None } else { Some(v.to_string()) }
+        if v.is_empty() {
+            None
+        } else {
+            Some(v.to_string())
+        }
     };
 
     let res = state
@@ -458,7 +462,7 @@ pub async fn get_user_items(
     //  user_items?user_id=eq.{user_id} → 본인 아이템만 필터
     //  &select=*.avatar_items(...) → avatar_items 테이블 JOIN
     let url = format!(
-        "{}/rest/v1/user_inventory?user_id=eq.{}&select=*,item_master(name,image_url,metadata_uri,category,rarity,visual_parts),user_equipment(slot_name)",
+        "{}/rest/v1/user_inventory?user_id=eq.{}&select=*,item_master(name,image_url,metadata_uri,category,rarity,visual_parts)",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
@@ -481,7 +485,6 @@ pub async fn get_user_items(
     #[derive(Deserialize)]
     struct UserItemRaw {
         id: Uuid,
-        user_id: Uuid,
         item_id: Uuid,
         is_equipped: Option<bool>,
         is_nft: Option<bool>,
@@ -490,12 +493,6 @@ pub async fn get_user_items(
         collection_mint: Option<String>,
         acquired_at: Option<DateTime<Utc>>,
         item_master: AvatarItemEmbed,
-        user_equipment: Vec<UserEquipmentEmbed>,
-    }
-
-    #[derive(Deserialize)]
-    struct UserEquipmentEmbed {
-        slot_name: String,
     }
 
     let res = state
@@ -535,9 +532,9 @@ pub async fn get_user_items(
             image_url: r.item_master.image_url,
             visual_parts: r.item_master.visual_parts,
             metadata_uri: r.item_master.metadata_uri,
+            slot_name: Some(r.item_master.category.clone()),
             category: r.item_master.category,
             rarity: r.item_master.rarity,
-            slot_name: r.user_equipment.into_iter().next().map(|e| e.slot_name),
         })
         .collect();
     Ok(items)
@@ -551,11 +548,7 @@ pub async fn get_user_items(
 // 보안:
 //   inventory_id가 실제로 본인(user_id) 소유인지 먼저 확인한다.
 //   다른 유저의 inventory_id를 넘겨도 소유권 체크에서 차단된다.
-pub async fn equip_item(
-    state: &AppState,
-    user_id: Uuid,
-    req: EquipItemRequest,
-) -> Result<()> {
+pub async fn equip_item(state: &AppState, user_id: Uuid, req: EquipItemRequest) -> Result<()> {
     // 1. inventory_id가 본인 소유인지 확인
     let check_url = format!(
         "{}/rest/v1/user_inventory?id=eq.{}&user_id=eq.{}&select=id&limit=1",
@@ -567,20 +560,31 @@ pub async fn equip_item(
     let check_res = state
         .http_client
         .get(&check_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .send()
         .await
         .context("user_items 소유권 확인 요청 실패")?;
 
     if !check_res.status().is_success() {
-        return Err(anyhow!("user_items 소유권 확인 실패: {}", check_res.text().await.unwrap_or_default()));
+        return Err(anyhow!(
+            "user_items 소유권 확인 실패: {}",
+            check_res.text().await.unwrap_or_default()
+        ));
     }
 
-    let rows: Vec<serde_json::Value> = check_res.json().await.context("user_items 소유권 확인 파싱 실패")?;
+    let rows: Vec<serde_json::Value> = check_res
+        .json()
+        .await
+        .context("user_items 소유권 확인 파싱 실패")?;
     if rows.is_empty() {
         return Err(anyhow!("해당 아이템이 없거나 본인 소유가 아닙니다"));
     }
+
+    let previous_inventory_id = find_equipped_inventory_id(state, user_id, &req.slot_name).await?;
 
     // 2. user_equipment upsert
     // on_conflict=user_id,slot_name → 같은 슬롯이면 inventory_id, equipped_at 교체
@@ -600,7 +604,10 @@ pub async fn equip_item(
     let res = state
         .http_client
         .post(&upsert_url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "resolution=merge-duplicates,return=minimal")
         .json(&UpsertPayload {
@@ -614,8 +621,18 @@ pub async fn equip_item(
         .context("user_equipment upsert 요청 실패")?;
 
     if !res.status().is_success() {
-        return Err(anyhow!("user_equipment upsert 실패: {}", res.text().await.unwrap_or_default()));
+        return Err(anyhow!(
+            "user_equipment upsert 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
     }
+
+    if let Some(previous_id) = previous_inventory_id {
+        if previous_id != req.inventory_id {
+            update_inventory_equipped(state, user_id, previous_id, false).await?;
+        }
+    }
+    update_inventory_equipped(state, user_id, req.inventory_id, true).await?;
 
     Ok(())
 }
@@ -624,11 +641,9 @@ pub async fn equip_item(
 //
 // 지정한 슬롯의 inventory_id를 NULL로 설정 (슬롯 비우기).
 // 행 자체는 남겨두고 inventory_id만 NULL 처리한다.
-pub async fn unequip_item(
-    state: &AppState,
-    user_id: Uuid,
-    slot_name: &str,
-) -> Result<()> {
+pub async fn unequip_item(state: &AppState, user_id: Uuid, slot_name: &str) -> Result<()> {
+    let previous_inventory_id = find_equipped_inventory_id(state, user_id, slot_name).await?;
+
     let url = format!(
         "{}/rest/v1/user_equipment?user_id=eq.{}&slot_name=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
@@ -644,7 +659,10 @@ pub async fn unequip_item(
     let res = state
         .http_client
         .patch(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=minimal")
         .json(&PatchPayload { inventory_id: None })
@@ -653,7 +671,94 @@ pub async fn unequip_item(
         .context("user_equipment unequip 요청 실패")?;
 
     if !res.status().is_success() {
-        return Err(anyhow!("user_equipment unequip 실패: {}", res.text().await.unwrap_or_default()));
+        return Err(anyhow!(
+            "user_equipment unequip 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    if let Some(previous_id) = previous_inventory_id {
+        update_inventory_equipped(state, user_id, previous_id, false).await?;
+    }
+
+    Ok(())
+}
+
+async fn find_equipped_inventory_id(
+    state: &AppState,
+    user_id: Uuid,
+    slot_name: &str,
+) -> Result<Option<Uuid>> {
+    let url = format!(
+        "{}/rest/v1/user_equipment?user_id=eq.{}&slot_name=eq.{}&select=inventory_id&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+        slot_name,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("user_equipment 현재 장착 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "user_equipment 현재 장착 조회 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    #[derive(Deserialize)]
+    struct EquipmentRow {
+        inventory_id: Option<Uuid>,
+    }
+
+    let rows: Vec<EquipmentRow> = res
+        .json()
+        .await
+        .context("user_equipment 현재 장착 조회 파싱 실패")?;
+    Ok(rows.into_iter().next().and_then(|row| row.inventory_id))
+}
+
+async fn update_inventory_equipped(
+    state: &AppState,
+    user_id: Uuid,
+    inventory_id: Uuid,
+    is_equipped: bool,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/user_inventory?id=eq.{}&user_id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        inventory_id,
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=minimal")
+        .json(&serde_json::json!({ "is_equipped": is_equipped }))
+        .send()
+        .await
+        .context("user_inventory is_equipped UPDATE 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "user_inventory is_equipped UPDATE 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
     }
 
     Ok(())
@@ -664,10 +769,7 @@ pub async fn unequip_item(
 // 유저의 전체 장착 현황을 슬롯별로 조회한다.
 // user_equipment → user_items → avatar_items 순서로 JOIN하여
 // 슬롯별 아이템 정보(name, category, visual_parts 등)를 함께 반환한다.
-pub async fn get_equipment(
-    state: &AppState,
-    user_id: Uuid,
-) -> Result<Vec<EquipmentSlotResponse>> {
+pub async fn get_equipment(state: &AppState, user_id: Uuid) -> Result<Vec<EquipmentSlotResponse>> {
     // PostgREST embedding:
     //   user_equipment.inventory_id → user_items.id (FK)
     //   user_items.item_id          → avatar_items.id (FK)
@@ -705,14 +807,20 @@ pub async fn get_equipment(
     let res = state
         .http_client
         .get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("apikey", &state.config.supabase_secret_key)
         .send()
         .await
         .context("user_equipment SELECT 요청 실패")?;
 
     if !res.status().is_success() {
-        return Err(anyhow!("user_equipment SELECT 실패: {}", res.text().await.unwrap_or_default()));
+        return Err(anyhow!(
+            "user_equipment SELECT 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
     }
 
     let raw: Vec<EquipmentRaw> = res.json().await.context("user_equipment 역직렬화 실패")?;
@@ -726,10 +834,22 @@ pub async fn get_equipment(
                 inventory_id: r.inventory_id,
                 is_visible: r.is_visible,
                 equipped_at: r.equipped_at,
-                name: item.as_ref().and_then(|i| i.item_master.as_ref()).map(|a| a.name.clone()),
-                category: item.as_ref().and_then(|i| i.item_master.as_ref()).map(|a| a.category.clone()),
-                rarity: item.as_ref().and_then(|i| i.item_master.as_ref()).map(|a| a.rarity.clone()),
-                visual_parts: item.as_ref().and_then(|i| i.item_master.as_ref()).and_then(|a| a.visual_parts.clone()),
+                name: item
+                    .as_ref()
+                    .and_then(|i| i.item_master.as_ref())
+                    .map(|a| a.name.clone()),
+                category: item
+                    .as_ref()
+                    .and_then(|i| i.item_master.as_ref())
+                    .map(|a| a.category.clone()),
+                rarity: item
+                    .as_ref()
+                    .and_then(|i| i.item_master.as_ref())
+                    .map(|a| a.rarity.clone()),
+                visual_parts: item
+                    .as_ref()
+                    .and_then(|i| i.item_master.as_ref())
+                    .and_then(|a| a.visual_parts.clone()),
                 is_nft: item.as_ref().and_then(|i| i.is_nft),
                 nft_mint_address: item.as_ref().and_then(|i| i.nft_mint_address.clone()),
             }

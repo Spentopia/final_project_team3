@@ -868,13 +868,13 @@ pub async fn mint_avatar_nft_to_user(
     keypair_b58: &str,
     user_wallet_b58: &str,
     program_id_str: &str,
-    item_id: &str,
+    mint_seed: &str,
     name: &str,
     symbol: &str,
     uri: &str,
 ) -> Result<(String, String)> {
-    if item_id.as_bytes().len() > 32 {
-        return Err(anyhow!("avatar item_id seed는 32바이트 이하여야 합니다"));
+    if mint_seed.as_bytes().len() > 32 {
+        return Err(anyhow!("avatar mint_seed는 32바이트 이하여야 합니다"));
     }
 
     let keypair_bytes = bs58::decode(keypair_b58)
@@ -894,7 +894,7 @@ pub async fn mint_avatar_nft_to_user(
     let (platform_config, _) = find_program_address(&[PLATFORM_CONFIG_SEED], &program_id);
     let (spt_token_authority, _) = find_program_address(&[SPT_TOKEN_AUTHORITY_SEED], &program_id);
     let (avatar_mint, _) = find_program_address(
-        &[AVATAR_MINT_SEED, user_wallet.as_ref(), item_id.as_bytes()],
+        &[AVATAR_MINT_SEED, user_wallet.as_ref(), mint_seed.as_bytes()],
         &program_id,
     );
     let (collection_mint, _) = find_program_address(&[AVATAR_COLLECTION_MINT_SEED], &program_id);
@@ -923,7 +923,7 @@ pub async fn mint_avatar_nft_to_user(
 
     let mut ix_data = Vec::new();
     ix_data.extend_from_slice(&anchor_discriminator("mint_avatar_nft"));
-    push_anchor_string(&mut ix_data, item_id)?;
+    push_anchor_string(&mut ix_data, mint_seed)?;
     push_anchor_string(&mut ix_data, name)?;
     push_anchor_string(&mut ix_data, symbol)?;
     push_anchor_string(&mut ix_data, uri)?;
@@ -949,9 +949,9 @@ pub async fn mint_avatar_nft_to_user(
     let signature = send_transaction(rpc_url, client, &tx).await?;
     let mint_address = bs58::encode(avatar_mint).into_string();
     tracing::info!(
-        "mint_avatar_nft 성공 | user: {} | item_id: {} | mint: {} | tx: {}",
+        "mint_avatar_nft 성공 | user: {} | mint_seed: {} | mint: {} | tx: {}",
         user_wallet_b58,
-        item_id,
+        mint_seed,
         mint_address,
         signature
     );

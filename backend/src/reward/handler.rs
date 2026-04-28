@@ -88,3 +88,33 @@ pub async fn grant_contest_reward(
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
+
+pub async fn get_box_count(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+) -> impl IntoResponse {
+    match service::get_box_count(&state, user_id).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+pub async fn open_box(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+) -> impl IntoResponse {
+    match service::open_box(&state, user_id).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => {
+            let msg = e.to_string();
+            if msg.contains("열 수 있는 상자가 없습니다")
+                || msg.contains("지급 가능한 일반 아이템이 없습니다")
+                || msg.contains("지급 가능한 NFT 아이템이 없습니다")
+            {
+                (StatusCode::BAD_REQUEST, msg).into_response()
+            } else {
+                (StatusCode::INTERNAL_SERVER_ERROR, msg).into_response()
+            }
+        }
+    }
+}

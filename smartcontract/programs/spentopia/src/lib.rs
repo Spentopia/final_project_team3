@@ -65,18 +65,18 @@ pub mod spentopia {
 
     /// 아바타 파츠 NFT를 유저에게 민팅한다.
     ///
-    /// - `item_id`: 파츠 고유 식별자 (백엔드 관리, PDA seed에 사용)
+    /// - `mint_seed`: 민트 고유 식별자 (백엔드 관리, PDA seed에 사용)
     /// - `name`: NFT 이름
     /// - `symbol`: NFT 심볼
     /// - `uri`: Pinata metadata JSON URI
     pub fn mint_avatar_nft(
         ctx: Context<MintAvatarNft>,
-        item_id: String,
+        mint_seed: String,
         name: String,
         symbol: String,
         uri: String,
     ) -> Result<()> {
-        mint_avatar_nft_handler(ctx, item_id, name, symbol, uri)
+        mint_avatar_nft_handler(ctx, mint_seed, name, symbol, uri)
     }
 
     /// NFT를 마켓에 판매 등록한다.

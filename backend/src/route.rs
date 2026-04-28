@@ -56,9 +56,15 @@ pub fn create_router(state: AppState) -> Router {
             post(auth::handler::wallet_login_app),
         )
         .route("/auth/kakao/start", post(auth::handler::kakao_start))
-        .route("/auth/app/kakao/start", post(auth::handler::kakao_start_app))
+        .route(
+            "/auth/app/kakao/start",
+            post(auth::handler::kakao_start_app),
+        )
         .route("/auth/kakao/login", post(auth::handler::kakao_login))
-        .route("/auth/app/kakao/login", post(auth::handler::kakao_login_app))
+        .route(
+            "/auth/app/kakao/login",
+            post(auth::handler::kakao_login_app),
+        )
         .route("/auth/kakao/callback", get(auth::handler::kakao_callback))
         // ── handoff 교환 (공개) ─────────────────────────────
         // 유니티 exe가 실행 시 전달받은 handoff token을 여기로 보냄
@@ -205,6 +211,20 @@ pub fn create_router(state: AppState) -> Router {
             "/api/rewards/weekly-score",
             get(reward::handler::get_weekly_scores),
         )
+        // ── Unity 보상 / 아바타 ────────────────────────────
+        .route(
+            "/api/unity/rewards/box-count",
+            get(reward::handler::get_box_count),
+        )
+        .route(
+            "/api/unity/rewards/open-box",
+            post(reward::handler::open_box),
+        )
+        .route(
+            "/api/unity/avatar/inventory",
+            get(avatar::handler::get_user_items),
+        )
+        .route("/api/unity/avatar/equip", post(avatar::handler::equip_item))
         // ── 아바타 / 아이템 ───────────────────────────────
         .route("/api/avatar/mint-nft", post(avatar::handler::mint_nft))
         .route(

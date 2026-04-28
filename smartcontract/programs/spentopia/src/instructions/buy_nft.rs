@@ -172,7 +172,8 @@ pub struct BuyNft<'info> {
 
     /// 판매자 SPT ATA. 판매 대금 수령.
     #[account(
-        mut,
+        init_if_needed,
+        payer = buyer,
         associated_token::mint = spt_token_mint,
         associated_token::authority = seller,
         associated_token::token_program = token_program,
