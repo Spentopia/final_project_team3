@@ -83,35 +83,37 @@ async fn get_post(state: &AppState, post_id: Uuid) -> Result<Post> {
         .ok_or_else(|| anyhow!("게시물을 찾을 수 없습니다."))
 }
 
-async fn update_post_view_count(state: &AppState, post_id: Uuid, view_count: i32) -> Result<()> {
+async fn increment_post_view_count(state: &AppState, post_id: Uuid) -> Result<i32> {
     let url = format!(
-        "{}/rest/v1/posts?id=eq.{}&is_deleted=eq.false",
+        "{}/rest/v1/rpc/increment_post_view_count",
         state.config.supabase_url.trim_end_matches('/'),
-        post_id,
     );
 
     let res = state
         .http_client
-        .patch(&url)
+        .post(&url)
+        .header("apikey", &state.config.supabase_secret_key)
         .header(
             "Authorization",
             format!("Bearer {}", state.config.supabase_secret_key),
         )
-        .header("apikey", &state.config.supabase_secret_key)
-        .header("Prefer", "return=minimal")
+        .header("Content-Type", "application/json")
         .json(&serde_json::json!({
-            "view_count": view_count,
+            "p_post_id": post_id
         }))
         .send()
         .await
-        .context("posts view_count UPDATE 요청 실패")?;
+        .context("posts view_count RPC 요청 실패")?;
 
     if !res.status().is_success() {
+        let status = res.status();
         let body = res.text().await.unwrap_or_default();
-        return Err(anyhow!("posts view_count UPDATE 실패: {}", body));
+        return Err(anyhow!("posts view_count RPC 실패: {} {}", status, body));
     }
 
-    Ok(())
+    res.json::<i32>()
+        .await
+        .context("posts view_count RPC 응답 역직렬화 실패")
 }
 
 async fn ensure_can_modify_post(state: &AppState, user_id: Uuid, post: &Post) -> Result<()> {
@@ -405,14 +407,11 @@ pub async fn list_posts(
 
 pub async fn get_post_detail(state: &AppState, post_id: Uuid) -> Result<PostResponse> {
     let mut post = get_post(state, post_id).await?;
-    let next_view_count = post.view_count.saturating_add(1);
-
-    update_post_view_count(state, post_id, next_view_count).await?;
+    let next_view_count = increment_post_view_count(state, post_id).await?;
     post.view_count = next_view_count;
 
     Ok(to_post_response(post))
 }
-
 // ── 게시물 생성 ───────────────────────────────────────────────
 
 pub async fn create_post(
