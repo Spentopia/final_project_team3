@@ -2,11 +2,9 @@ use crate::constants::*;
 use crate::errors::SpentopiaError;
 use crate::state::PlatformConfig;
 use anchor_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::metadata::{create_master_edition_v3, CreateMasterEditionV3};
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use anchor_spl::token_interface::{Mint, TokenInterface};
 use mpl_token_metadata::{
-    instructions::{CreateV1CpiBuilder, MintV1CpiBuilder},
+    instructions::CreateV1CpiBuilder,
     types::{CollectionDetails, PrintSupply, TokenStandard},
     ID as TOKEN_METADATA_ID,
 };
@@ -36,6 +34,7 @@ pub fn init_avatar_collection_handler(
 
     CreateV1CpiBuilder::new(&ctx.accounts.metadata_program.to_account_info())
         .metadata(&ctx.accounts.collection_metadata.to_account_info())
+        .master_edition(Some(&ctx.accounts.collection_master_edition.to_account_info()))
         .mint(&ctx.accounts.collection_mint.to_account_info(), true)
         .authority(&ctx.accounts.spt_token_authority.to_account_info())
         .payer(&ctx.accounts.admin.to_account_info())
@@ -51,43 +50,6 @@ pub fn init_avatar_collection_handler(
         .collection_details(CollectionDetails::V1 { size: 0 })
         .print_supply(PrintSupply::Zero)
         .invoke_signed(&[collection_signer_seeds, authority_signer_seeds])?;
-
-    MintV1CpiBuilder::new(&ctx.accounts.metadata_program.to_account_info())
-        .token(
-            &ctx.accounts
-                .admin_collection_token_account
-                .to_account_info(),
-        )
-        .token_owner(Some(&ctx.accounts.admin.to_account_info()))
-        .metadata(&ctx.accounts.collection_metadata.to_account_info())
-        .mint(&ctx.accounts.collection_mint.to_account_info())
-        .authority(&ctx.accounts.spt_token_authority.to_account_info())
-        .payer(&ctx.accounts.admin.to_account_info())
-        .system_program(&ctx.accounts.system_program.to_account_info())
-        .sysvar_instructions(&ctx.accounts.sysvar_instructions.to_account_info())
-        .spl_token_program(&ctx.accounts.token_program.to_account_info())
-        .spl_ata_program(&ctx.accounts.associated_token_program.to_account_info())
-        .amount(1)
-        .invoke_signed(&[authority_signer_seeds])?;
-
-    create_master_edition_v3(
-        CpiContext::new_with_signer(
-            ctx.accounts.metadata_program.to_account_info(),
-            CreateMasterEditionV3 {
-                edition: ctx.accounts.collection_master_edition.to_account_info(),
-                mint: ctx.accounts.collection_mint.to_account_info(),
-                update_authority: ctx.accounts.spt_token_authority.to_account_info(),
-                mint_authority: ctx.accounts.spt_token_authority.to_account_info(),
-                payer: ctx.accounts.admin.to_account_info(),
-                metadata: ctx.accounts.collection_metadata.to_account_info(),
-                token_program: ctx.accounts.token_program.to_account_info(),
-                system_program: ctx.accounts.system_program.to_account_info(),
-                rent: ctx.accounts.rent.to_account_info(),
-            },
-            &[authority_signer_seeds],
-        ),
-        Some(0),
-    )?;
 
     platform_config.collection_mint = ctx.accounts.collection_mint.key();
 
@@ -139,15 +101,6 @@ pub struct InitAvatarCollection<'info> {
     )]
     pub spt_token_authority: UncheckedAccount<'info>,
 
-    #[account(
-        init_if_needed,
-        payer = admin,
-        associated_token::mint = collection_mint,
-        associated_token::authority = admin,
-        associated_token::token_program = token_program,
-    )]
-    pub admin_collection_token_account: InterfaceAccount<'info, TokenAccount>,
-
     /// CHECK: mpl-token-metadata 프로그램 고정 주소
     #[account(address = TOKEN_METADATA_ID)]
     pub metadata_program: UncheckedAccount<'info>,
@@ -156,11 +109,6 @@ pub struct InitAvatarCollection<'info> {
     #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
     pub sysvar_instructions: UncheckedAccount<'info>,
 
-    /// CHECK: 고정 rent sysvar 주소
-    #[account(address = anchor_lang::solana_program::sysvar::rent::ID)]
-    pub rent: UncheckedAccount<'info>,
-
     pub token_program: Interface<'info, TokenInterface>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }

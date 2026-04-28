@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{mint_to, Mint, MintTo, TokenAccount, TokenInterface};
 
 use crate::constants::*;
@@ -100,21 +99,15 @@ pub struct MintSptToUser<'info> {
     pub spt_token_authority: UncheckedAccount<'info>,
 
     /// 유저의 SPT ATA (Associated Token Account).
-    ///
-    /// - `init_if_needed`: 없으면 자동 생성, 있으면 그냥 사용.
-    /// - 생성 비용은 admin이 지불한다.
-    /// - `associated_token::authority = user`: 이 ATA의 소유자가 user임을 검증.
-    /// - `associated_token::mint = spt_token_mint`: SPT 민트 전용 ATA임을 검증.
+    /// mint/authority 검증만 하고 생성은 JS에서 미리 처리.
     #[account(
-        init_if_needed,
-        payer = admin,
-        associated_token::mint = spt_token_mint,
-        associated_token::authority = user,
-        associated_token::token_program = token_program,
+        mut,
+        token::mint = spt_token_mint,
+        token::authority = user,
+        token::token_program = token_program,
     )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
     pub token_program: Interface<'info, TokenInterface>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }

@@ -7,19 +7,9 @@ const TOKEN_METADATA_PROGRAM_ID = new PublicKey(
 const TOKEN_PROGRAM_ID = new PublicKey(
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 );
-const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
-  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bYh"
-);
 const SYSVAR_INSTRUCTIONS_PUBKEY = new PublicKey(
   "Sysvar1nstructions1111111111111111111111111"
 );
-
-function deriveAta(owner, mint) {
-  return PublicKey.findProgramAddressSync(
-    [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
-    ASSOCIATED_TOKEN_PROGRAM_ID
-  )[0];
-}
 
 async function main() {
   const provider = anchor.AnchorProvider.env();
@@ -68,11 +58,6 @@ async function main() {
     ],
     TOKEN_METADATA_PROGRAM_ID
   );
-  const adminCollectionTokenAccount = deriveAta(
-    provider.wallet.publicKey,
-    collectionMint
-  );
-
   console.log("programId:", program.programId.toBase58());
   console.log("platformConfig:", platformConfig.toBase58());
   console.log("collectionMint:", collectionMint.toBase58());
@@ -88,12 +73,9 @@ async function main() {
       collectionMetadata,
       collectionMasterEdition,
       sptTokenAuthority,
-      adminCollectionTokenAccount,
       metadataProgram: TOKEN_METADATA_PROGRAM_ID,
       sysvarInstructions: SYSVAR_INSTRUCTIONS_PUBKEY,
-      rent: SYSVAR_RENT_PUBKEY,
       tokenProgram: TOKEN_PROGRAM_ID,
-      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
     })
     .rpc();

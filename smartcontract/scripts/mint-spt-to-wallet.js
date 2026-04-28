@@ -1,5 +1,6 @@
 const anchor = require("@coral-xyz/anchor");
 const { PublicKey, SystemProgram } = require("@solana/web3.js");
+const spl = require("@solana/spl-token");
 
 const TOKEN_PROGRAM_ID = new PublicKey(
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -13,6 +14,17 @@ function deriveAta(owner, mint) {
     [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
     ASSOCIATED_TOKEN_PROGRAM_ID
   )[0];
+}
+
+async function getOrCreateAta(provider, owner, mint) {
+  const account = await spl.getOrCreateAssociatedTokenAccount(
+    provider.connection,
+    provider.wallet.payer,
+    mint,
+    owner
+  );
+  console.log("ATA 주소:", account.address.toBase58());
+  return account.address;
 }
 
 function parseAmountBaseUnits() {
@@ -49,14 +61,13 @@ async function main() {
     [Buffer.from("spt_token_authority")],
     program.programId
   );
-  const userTokenAccount = deriveAta(user, sptTokenMint);
-
   console.log("programId:", program.programId.toBase58());
   console.log("admin:", provider.wallet.publicKey.toBase58());
   console.log("recipient:", user.toBase58());
   console.log("sptTokenMint:", sptTokenMint.toBase58());
-  console.log("userTokenAccount:", userTokenAccount.toBase58());
   console.log("amountBaseUnits:", amount.toString());
+
+  const userTokenAccount = await getOrCreateAta(provider, user, sptTokenMint);
 
   const tx = await program.methods
     .mintSptToUser(amount)
@@ -68,7 +79,6 @@ async function main() {
       sptTokenAuthority,
       userTokenAccount,
       tokenProgram: TOKEN_PROGRAM_ID,
-      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
     })
     .rpc();

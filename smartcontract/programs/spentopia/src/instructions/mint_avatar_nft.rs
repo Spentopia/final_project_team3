@@ -2,11 +2,10 @@ use crate::constants::*;
 use crate::errors::SpentopiaError;
 use crate::state::PlatformConfig;
 use anchor_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::metadata::{set_and_verify_collection, SetAndVerifyCollection};
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use anchor_spl::token_interface::{mint_to, Mint, MintTo, TokenAccount, TokenInterface};
 use mpl_token_metadata::{
-    instructions::{CreateV1CpiBuilder, MintV1CpiBuilder},
+    instructions::CreateV1CpiBuilder,
     types::{Collection, PrintSupply, TokenStandard},
     ID as TOKEN_METADATA_ID,
 };
@@ -38,13 +37,16 @@ pub fn mint_avatar_nft_handler(
 
     let mint_signer_seeds: &[&[u8]] =
         &[AVATAR_MINT_SEED, user_key_bytes, mint_seed_bytes, mint_bump];
-    let signer_seeds = &[mint_signer_seeds];
 
     // Step 1: NFT 메타데이터 계정 생성 (CreateV1)
     // CreateV1은 민트 계정 생성 + 메타데이터 계정 생성을 한 번에 처리한다.
     // TokenStandard::NonFungible → supply가 1로 고정된 진짜 NFT.
+    let authority_bump = &[platform_config.spt_authority_bump];
+    let authority_signer_seeds: &[&[u8]] = &[SPT_TOKEN_AUTHORITY_SEED, authority_bump];
+
     CreateV1CpiBuilder::new(&ctx.accounts.metadata_program.to_account_info())
         .metadata(&ctx.accounts.metadata.to_account_info())
+        .master_edition(Some(&ctx.accounts.master_edition.to_account_info()))
         .mint(&ctx.accounts.avatar_mint.to_account_info(), true) // true = mint가 서명자
         .authority(&ctx.accounts.spt_token_authority.to_account_info())
         .payer(&ctx.accounts.admin.to_account_info())
@@ -55,34 +57,28 @@ pub fn mint_avatar_nft_handler(
         .name(name)
         .symbol(symbol)
         .uri(uri)
-        .seller_fee_basis_points(0) // 2차 판매 로열티 없음
+        .seller_fee_basis_points(0)
         .token_standard(TokenStandard::NonFungible)
         .collection(Collection {
             verified: false,
             key: ctx.accounts.collection_mint.key(),
         })
-        .print_supply(PrintSupply::Zero) // 에디션 복제 불가
-        .invoke_signed(signer_seeds)?;
+        .print_supply(PrintSupply::Zero)
+        .invoke_signed(&[mint_signer_seeds, authority_signer_seeds])?;
 
-    // Step 2: 유저 ATA에 NFT 1개 민팅 (MintV1)
-    // MintV1은 실제 토큰을 ATA에 전송한다.
-    // authority = spt_token_authority PDA가 서명.
-    let authority_bump = &[platform_config.spt_authority_bump];
-    let authority_signer_seeds: &[&[u8]] = &[SPT_TOKEN_AUTHORITY_SEED, authority_bump];
-
-    MintV1CpiBuilder::new(&ctx.accounts.metadata_program.to_account_info())
-        .token(&ctx.accounts.user_token_account.to_account_info())
-        .token_owner(Some(&ctx.accounts.user.to_account_info()))
-        .metadata(&ctx.accounts.metadata.to_account_info())
-        .mint(&ctx.accounts.avatar_mint.to_account_info())
-        .authority(&ctx.accounts.spt_token_authority.to_account_info())
-        .payer(&ctx.accounts.admin.to_account_info())
-        .system_program(&ctx.accounts.system_program.to_account_info())
-        .sysvar_instructions(&ctx.accounts.sysvar_instructions.to_account_info())
-        .spl_token_program(&ctx.accounts.token_program.to_account_info())
-        .spl_ata_program(&ctx.accounts.associated_token_program.to_account_info())
-        .amount(1)
-        .invoke_signed(&[authority_signer_seeds])?;
+    // Step 2: 유저 ATA에 NFT 1개 민팅
+    mint_to(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            MintTo {
+                mint: ctx.accounts.avatar_mint.to_account_info(),
+                to: ctx.accounts.user_token_account.to_account_info(),
+                authority: ctx.accounts.spt_token_authority.to_account_info(),
+            },
+            &[authority_signer_seeds],
+        ),
+        1,
+    )?;
 
     set_and_verify_collection(
         CpiContext::new_with_signer(
@@ -153,6 +149,11 @@ pub struct MintAvatarNft<'info> {
     #[account(mut)]
     pub metadata: UncheckedAccount<'info>,
 
+    /// NFT master edition 계정.
+    /// CHECK: mpl-token-metadata CPI 내부에서 검증
+    #[account(mut)]
+    pub master_edition: UncheckedAccount<'info>,
+
     /// SPT authority PDA. NFT 민트 권한 + 메타데이터 authority 역할.
     ///
     /// CHECK: seeds + bump 검증
@@ -162,14 +163,12 @@ pub struct MintAvatarNft<'info> {
     )]
     pub spt_token_authority: UncheckedAccount<'info>,
 
-    /// 유저의 NFT ATA.
-    /// init_if_needed로 없으면 자동 생성.
+    /// 유저의 NFT ATA. JS에서 미리 생성.
     #[account(
-        init_if_needed,
-        payer = admin,
-        associated_token::mint=avatar_mint,
-        associated_token::authority=user,
-        associated_token::token_program = token_program,
+        mut,
+        token::mint = avatar_mint,
+        token::authority = user,
+        token::token_program = token_program,
     )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
@@ -201,6 +200,8 @@ pub struct MintAvatarNft<'info> {
     pub sysvar_instructions: UncheckedAccount<'info>,
 
     pub token_program: Interface<'info, TokenInterface>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
+    /// CHECK: 표준 SPL Associated Token Program 고정 주소
+    #[account(address = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bYh"))]
+    pub associated_token_program: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }

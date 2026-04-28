@@ -1,5 +1,6 @@
 const anchor = require("@coral-xyz/anchor");
 const { PublicKey, SystemProgram } = require("@solana/web3.js");
+const spl = require("@solana/spl-token");
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey(
   "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
@@ -19,6 +20,17 @@ function deriveAta(owner, mint) {
     [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
     ASSOCIATED_TOKEN_PROGRAM_ID
   )[0];
+}
+
+async function getOrCreateAta(provider, owner, mint) {
+  const account = await spl.getOrCreateAssociatedTokenAccount(
+    provider.connection,
+    provider.wallet.payer,
+    mint,
+    owner
+  );
+  console.log("ATA 주소:", account.address.toBase58());
+  return account.address;
 }
 
 async function main() {
@@ -71,6 +83,15 @@ async function main() {
     ],
     TOKEN_METADATA_PROGRAM_ID
   );
+  const [masterEdition] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("metadata"),
+      TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+      avatarMint.toBuffer(),
+      Buffer.from("edition"),
+    ],
+    TOKEN_METADATA_PROGRAM_ID
+  );
   const [collectionMetadata] = PublicKey.findProgramAddressSync(
     [
       Buffer.from("metadata"),
@@ -88,13 +109,13 @@ async function main() {
     ],
     TOKEN_METADATA_PROGRAM_ID
   );
-  const userTokenAccount = deriveAta(user, avatarMint);
-
   console.log("programId:", program.programId.toBase58());
   console.log("admin:", provider.wallet.publicKey.toBase58());
   console.log("recipient:", user.toBase58());
   console.log("mintSeed:", mintSeed);
   console.log("avatarMint:", avatarMint.toBase58());
+
+  const userTokenAccount = await getOrCreateAta(provider, user, avatarMint);
 
   const tx = await program.methods
     .mintAvatarNft(mintSeed, name, symbol, uri)
@@ -104,6 +125,7 @@ async function main() {
       user,
       avatarMint,
       metadata,
+      masterEdition,
       sptTokenAuthority,
       userTokenAccount,
       collectionMint,
