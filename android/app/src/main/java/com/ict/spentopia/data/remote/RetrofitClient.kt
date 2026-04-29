@@ -189,4 +189,13 @@ object RetrofitClient {
             .build()
             .create(ChatApi::class.java)
     }
+
+    val reportApi: ReportApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(ReportApi::class.java)
+    }
 }
