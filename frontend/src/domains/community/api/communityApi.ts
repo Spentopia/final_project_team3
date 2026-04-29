@@ -8,6 +8,7 @@ export interface CommunityPostResponse {
   user_id: string;
   author_nickname: string | null;
   author_profile_image: string | null;
+  author_profile_image_url: string | null;
   contest_id: string | null;
   post_type: PostType;
   title: string;

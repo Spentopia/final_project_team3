@@ -32,6 +32,7 @@ interface Post {
   category: PostCategory;
   title: string;
   author: string;
+  authorProfileImageUrl: string | null;
   date: string;
   isNew?: boolean;
   likes: number;
@@ -44,10 +45,10 @@ interface Post {
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "all",     label: "전체" },
+  { key: "notice",  label: "공지사항" },
   { key: "contest", label: "아바타 콘테스트" },
   { key: "item",    label: "이거 만들어주세요" },
   { key: "tip",     label: "절약 꿀팁" },
-  { key: "notice",  label: "공지사항" },
 ];
 
 // ── 뱃지 스타일 ───────────────────────────────────────────────
@@ -111,6 +112,7 @@ function toPost(post: CommunityPostResponse): Post {
     category: post.post_type === "request" ? "item" : post.post_type,
     title: post.title,
     author: post.author_nickname ?? "익명",
+    authorProfileImageUrl: post.author_profile_image_url,
     date: formatPostDate(post.created_at),
     isNew: isNewPost(post.created_at),
     likes: post.vote_count ?? 0,
@@ -538,8 +540,19 @@ export default function Community() {
               </h2>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-6 text-sm text-gray-400 dark:text-gray-500">
-                  <span className="font-medium text-gray-600 dark:text-gray-400">
-                    {selectedPost.author}
+                  <span className="flex items-center gap-2 font-medium text-gray-600 dark:text-gray-400">
+                    {selectedPost.authorProfileImageUrl ? (
+                      <img
+                        src={selectedPost.authorProfileImageUrl}
+                        alt={selectedPost.author}
+                        className="h-6 w-6 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+                        {selectedPost.author.slice(0, 1)}
+                      </span>
+                    )}
+                    <span>{selectedPost.author}</span>
                   </span>
                   <span className="flex items-center gap-1">
                     <Heart className="h-3.5 w-3.5" />
@@ -855,89 +868,96 @@ export default function Community() {
 
         {isWriteOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <Card className="w-full max-w-xl border-none bg-white dark:bg-gray-800 p-6 shadow-2xl">
-              <div className="mb-5">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">글쓰기</h2>
-              </div>
-
-              <form onSubmit={handleWriteSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label className="space-y-1.5">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">게시판</span>
-                    <select
-                      value={writeType}
-                      onChange={(event) => {
-                        const nextType = event.target.value as PostType;
-
-                        if (nextType === "notice" && myRoleType !== "admin") {
-                          toast.error("운영자만 가능합니다");
-                          return;
-                        }
-
-                        setWriteType(nextType);
-                      }}
-                      className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-                    >
-                      <option value="request">이거 만들어주세요</option>
-                      <option value="contest">아바타 콘테스트</option>
-                      <option value="notice">공지사항</option>
-                    </select>
-                  </label>
-
-                  {writeType === "contest" && (
+            <Card className="max-h-[90vh] w-full max-w-3xl overflow-y-auto border-none bg-white/95 shadow-2xl backdrop-blur-xl dark:bg-gray-800/95">
+              <form onSubmit={handleWriteSubmit}>
+                <div className="border-b border-gray-100 px-8 pb-6 pt-8 dark:border-gray-700">
+                  <div className="mb-4 flex flex-wrap items-end gap-3">
                     <label className="space-y-1.5">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">콘테스트</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">게시판</span>
                       <select
-                        value={writeContestId}
-                        onChange={(event) => setWriteContestId(event.target.value)}
-                        className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                        value={writeType}
+                        onChange={(event) => {
+                          const nextType = event.target.value as PostType;
+
+                          if (nextType === "notice" && myRoleType !== "admin") {
+                            toast.error("운영자만 가능합니다");
+                            return;
+                          }
+
+                          setWriteType(nextType);
+                        }}
+                        className={`h-9 min-w-[150px] rounded border-0 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-cyan-400 ${
+                          BADGE_STYLE[writeType === "request" ? "item" : writeType].bg
+                        } ${BADGE_STYLE[writeType === "request" ? "item" : writeType].text}`}
                       >
-                        {contests.length === 0 ? (
-                          <option value="">등록된 콘테스트 없음</option>
-                        ) : (
-                          contests.map((contest) => (
-                            <option key={contest.id} value={contest.id}>
-                              {contest.title}
-                            </option>
-                          ))
-                        )}
+                        <option value="request">이거 만들어주세요</option>
+                        <option value="contest">아바타 콘테스트</option>
+                        <option value="notice">공지사항</option>
                       </select>
                     </label>
-                  )}
-                </div>
 
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">제목</span>
+                    {writeType === "contest" && (
+                      <label className="min-w-0 flex-1 space-y-1.5">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">콘테스트</span>
+                        <select
+                          value={writeContestId}
+                          onChange={(event) => setWriteContestId(event.target.value)}
+                          className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                        >
+                          {contests.length === 0 ? (
+                            <option value="">등록된 콘테스트 없음</option>
+                          ) : (
+                            contests.map((contest) => (
+                              <option key={contest.id} value={contest.id}>
+                                {contest.title}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      </label>
+                    )}
+                  </div>
+
                   <Input
                     value={writeTitle}
                     onChange={(event) => setWriteTitle(event.target.value)}
                     placeholder="제목을 입력하세요"
-                    className="h-11 text-base"
+                    className="h-auto border-0 bg-transparent px-0 py-1 text-2xl font-bold leading-snug text-gray-900 shadow-none outline-none placeholder:text-gray-300 focus-visible:ring-0 dark:text-gray-100 dark:placeholder:text-gray-600"
                   />
-                </label>
 
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">내용</span>
+                  <div className="mt-5 flex items-center gap-6 text-sm text-gray-400 dark:text-gray-500">
+                    <span className="font-medium text-gray-600 dark:text-gray-400">작성 중</span>
+                    <span className="flex items-center gap-1">
+                      <Heart className="h-3.5 w-3.5" />0
+                    </span>
+                    <span>{formatPostDate(new Date().toISOString())}</span>
+                    <span className="flex items-center gap-1">
+                      <Eye className="h-3.5 w-3.5" />0
+                    </span>
+                  </div>
+                </div>
+
+                <div className="min-h-[260px] space-y-5 px-8 py-8">
                   <textarea
                     value={writeContent}
                     onChange={(event) => setWriteContent(event.target.value)}
                     placeholder="내용을 입력하세요"
-                    rows={7}
-                    className="w-full resize-none rounded-md border border-gray-200 bg-white px-3 py-3 text-base text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    rows={10}
+                    className="w-full resize-none border-0 bg-transparent p-0 text-base leading-8 text-gray-700 outline-none placeholder:text-gray-300 focus:ring-0 dark:text-gray-300 dark:placeholder:text-gray-600"
                   />
-                </label>
 
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">이미지</span>
-                  <Input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={(event) => setWriteFile(event.target.files?.[0] ?? null)}
-                    className="h-11 text-base"
-                  />
-                </label>
+                  <label className="block space-y-1.5 rounded-lg border border-dashed border-gray-200 bg-gray-50/70 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/40">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">이미지</span>
+                    <Input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(event) => setWriteFile(event.target.files?.[0] ?? null)}
+                      className="h-11 bg-white text-base dark:bg-gray-900"
+                    />
+                  </label>
+                </div>
 
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="flex justify-center gap-2 border-t border-gray-100 px-8 py-5 dark:border-gray-700">
                   <Button
                     type="button"
                     variant="outline"
@@ -946,13 +966,14 @@ export default function Community() {
                       resetWriteForm();
                     }}
                     disabled={isSubmitting}
+                    className="h-11 px-10 text-base"
                   >
                     취소
                   </Button>
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-gradient-to-r from-cyan-500 to-blue-500"
+                    className="h-11 bg-gradient-to-r from-cyan-500 to-blue-500 px-10 text-base"
                   >
                     {isSubmitting ? "등록 중" : "등록"}
                   </Button>
