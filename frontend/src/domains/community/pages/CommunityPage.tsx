@@ -3,7 +3,7 @@ import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import AiChatbotDialog from "@/components/chat/AiChatbotDialog";
-import { Search, Send, Eye, ChevronUp, ChevronDown, Link2, Pencil, Trash2 } from "lucide-react";
+import { Search, Send, Eye, Heart, ChevronUp, ChevronDown, Link2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AxiosError } from "axios";
 import {
@@ -34,6 +34,7 @@ interface Post {
   author: string;
   date: string;
   isNew?: boolean;
+  likes: number;
   views: number;
   content: string;
   image_url?: string | null;
@@ -83,6 +84,7 @@ function isNewPost(value: string | null): boolean {
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const COMMUNITY_BUCKET = "posts";
+const COMMUNITY_READ_POSTS_KEY_PREFIX = "community:read-posts";
 
 function buildImageUrl(path: string | null | undefined): string | null {
   if (!path) return null;
@@ -111,6 +113,7 @@ function toPost(post: CommunityPostResponse): Post {
     author: post.author_nickname ?? "익명",
     date: formatPostDate(post.created_at),
     isNew: isNewPost(post.created_at),
+    likes: post.vote_count ?? 0,
     views: post.view_count,
     content: post.content ?? "",
     image_url: buildImageUrl(post.image_url),
@@ -122,10 +125,12 @@ function toPost(post: CommunityPostResponse): Post {
 export default function Community() {
   const [activeTab, setActiveTab]         = useState<TabKey>("all");
   const [searchQuery, setSearchQuery]     = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [currentPage, setCurrentPage]     = useState(1);
   const [posts, setPosts]                 = useState<Post[]>([]);
   const [totalCount, setTotalCount]       = useState(0);
   const [selectedPost, setSelectedPost]   = useState<Post | null>(null);
+  const [readPostIds, setReadPostIds]     = useState<Set<string>>(() => new Set());
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [isWriteOpen, setIsWriteOpen]     = useState(false);
   const [isSubmitting, setIsSubmitting]   = useState(false);
@@ -141,6 +146,10 @@ export default function Community() {
   const [editTitle, setEditTitle]         = useState("");
   const [editContent, setEditContent]     = useState("");
   const [editFile, setEditFile]           = useState<File | null>(null);
+
+  const readPostsStorageKey = myUserId
+    ? `${COMMUNITY_READ_POSTS_KEY_PREFIX}:${myUserId}`
+    : "";
 
   useEffect(() => {
     let ignore = false;
@@ -167,13 +176,29 @@ export default function Community() {
   }, []);
 
   useEffect(() => {
+    if (!readPostsStorageKey) return;
+
+    try {
+      const stored = window.localStorage.getItem(readPostsStorageKey);
+      const ids = stored ? (JSON.parse(stored) as unknown) : [];
+
+      if (Array.isArray(ids)) {
+        setReadPostIds(new Set(ids.filter((id): id is string => typeof id === "string")));
+      }
+    } catch (error) {
+      console.error("읽은 게시글 목록 로드 실패:", error);
+      setReadPostIds(new Set());
+    }
+  }, [readPostsStorageKey]);
+
+  useEffect(() => {
     let ignore = false;
 
     async function fetchPosts() {
       try {
         const data = await listCommunityPosts({
           sort: "date",
-          title: searchQuery.trim() || undefined,
+          title: debouncedSearchQuery || undefined,
           page: currentPage,
           pageSize: PER_PAGE,
         });
@@ -194,7 +219,16 @@ export default function Community() {
     return () => {
       ignore = true;
     };
-  }, [currentPage, searchQuery]);
+  }, [currentPage, debouncedSearchQuery]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+      setCurrentPage(1);
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     let ignore = false;
@@ -252,6 +286,17 @@ export default function Community() {
   };
 
   const handlePostClick = async (post: Post) => {
+    setReadPostIds((prev) => {
+      const next = new Set(prev);
+      next.add(post.id);
+
+      if (readPostsStorageKey) {
+        window.localStorage.setItem(readPostsStorageKey, JSON.stringify([...next]));
+      }
+
+      return next;
+    });
+
     try {
       const detail = toPost(await getCommunityPost(post.id));
       setPosts((prev) => prev.map((item) => (item.id === detail.id ? detail : item)));
@@ -492,15 +537,21 @@ export default function Community() {
                 {selectedPost.title}
               </h2>
               <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                {selectedPost.author}
-              </span>
-                <div className="flex items-center gap-4 text-sm text-gray-400 dark:text-gray-500">
-                <span className="flex items-center gap-1">
-                  <Eye className="h-3.5 w-3.5" />
-                  {selectedPost.views.toLocaleString()}
-                </span>
+                <div className="flex items-center gap-6 text-sm text-gray-400 dark:text-gray-500">
+                  <span className="font-medium text-gray-600 dark:text-gray-400">
+                    {selectedPost.author}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Heart className="h-3.5 w-3.5" />
+                    {selectedPost.likes.toLocaleString()}
+                  </span>
                   <span>{selectedPost.date}</span>
+                  <span className="flex items-center gap-1">
+                    <Eye className="h-3.5 w-3.5" />
+                    {selectedPost.views.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-gray-400 dark:text-gray-500">
                   <button
                       onClick={() => {
                         void navigator.clipboard.writeText(window.location.href);
@@ -754,21 +805,28 @@ export default function Community() {
                     <span className="text-base text-gray-900 dark:text-gray-100 truncate">
                       {post.title}
                     </span>
-                          {post.isNew && (
+                          {post.isNew && post.user_id !== myUserId && !readPostIds.has(post.id) && (
                               <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0 inline-block" />
                           )}
                   </span>
 
-                        {/* 조회수 */}
-                        <span className="flex items-center gap-1 text-sm text-gray-400 dark:text-gray-500 flex-shrink-0">
-                    <Eye className="h-3.5 w-3.5" />
-                          {post.views.toLocaleString()}
-                  </span>
+                        {/* 작성자 · 좋아요 · 날짜 · 조회수 */}
+                        <span className="grid grid-cols-[110px_60px_100px_72px] items-center text-sm text-gray-400 dark:text-gray-500 flex-shrink-0 min-w-[325px]">
+                          <span className="truncate text-left">{post.author}</span>
 
-                        {/* 작성자 · 날짜 */}
-                        <span className="text-sm text-gray-400 dark:text-gray-500 flex-shrink-0 min-w-[130px] text-right">
-                    {post.author} · {post.date}
-                  </span>
+                          <span className="flex items-center justify-center gap-1">
+                            <Heart className="h-3.5 w-3.5" />
+                            <span className="tabular-nums">{post.likes.toLocaleString()}</span>
+                          </span>
+
+                          <span className="text-center tabular-nums">{post.date}</span>
+                            <span className="grid grid-cols-[16px_30px] items-center justify-end gap-1">
+                              <Eye className="h-3.5 w-3.5" />
+                              <span className="tabular-nums text-left">
+                                {post.views.toLocaleString()}
+                              </span>
+                            </span>
+                        </span>
                       </div>
                   );
                 })

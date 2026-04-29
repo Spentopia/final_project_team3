@@ -177,6 +177,30 @@ fn validate_post_text(title: Option<&str>, content: Option<&str>) -> Result<()> 
     Ok(())
 }
 
+const CHOSEONG_COMPAT: [char; 19] = [
+    'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ',
+    'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ',
+];
+
+fn hangul_choseong(value: char) -> Option<char> {
+    let code = value as u32;
+    if !(0xAC00..=0xD7A3).contains(&code) {
+        return None;
+    }
+
+    let index = ((code - 0xAC00) / 588) as usize;
+    Some(CHOSEONG_COMPAT[index])
+}
+
+fn contains_choseong_query(value: &str) -> bool {
+    value.chars().any(|ch| CHOSEONG_COMPAT.contains(&ch))
+}
+
+fn title_matches_choseong(title: &str, query: &str) -> bool {
+    let title_choseong: String = title.chars().filter_map(hangul_choseong).collect();
+    title_choseong.contains(query)
+}
+
 fn normalize_optional_string(value: Option<String>) -> Option<String> {
     value
         .map(|value| value.trim().to_string())
@@ -390,6 +414,11 @@ pub async fn list_posts(
     let page_size = page_size.clamp(1, 50);
     let offset = (page - 1) * page_size;
     let end = offset + page_size - 1;
+    let search_title = normalize_optional_string(title);
+    let use_choseong_filter = search_title
+        .as_deref()
+        .map(contains_choseong_query)
+        .unwrap_or(false);
 
     let mut filters = vec!["is_deleted=eq.false".to_string()];
 
@@ -397,8 +426,10 @@ pub async fn list_posts(
         filters.push(format!("contest_id=eq.{}", id));
     }
 
-    if let Some(title) = normalize_optional_string(title) {
-        filters.push(format!("title=eq.{}", urlencoding::encode(&title)));
+    if let Some(title) = search_title.as_deref() {
+        if !use_choseong_filter {
+            filters.push(format!("title=ilike.*{}*", urlencoding::encode(title)));
+        }
     }
 
     let order = match sort {
@@ -414,7 +445,7 @@ pub async fn list_posts(
         order,
     );
 
-    let res = state
+    let req = state
         .http_client
         .get(&url)
         .header(
@@ -423,8 +454,15 @@ pub async fn list_posts(
         )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "count=exact")
-        .header("Range-Unit", "items")
-        .header("Range", format!("{}-{}", offset, end))
+        .header("Range-Unit", "items");
+
+    let req = if use_choseong_filter {
+        req
+    } else {
+        req.header("Range", format!("{}-{}", offset, end))
+    };
+
+    let res = req
         .send()
         .await
         .context("posts SELECT 요청 실패")?;
@@ -434,7 +472,7 @@ pub async fn list_posts(
         return Err(anyhow!("posts SELECT 실패: {}", body));
     }
 
-    let total_count = res
+    let db_total_count = res
         .headers()
         .get("content-range")
         .and_then(|value| value.to_str().ok())
@@ -442,7 +480,24 @@ pub async fn list_posts(
         .and_then(|value| value.parse::<i64>().ok())
         .unwrap_or(0);
 
-    let posts: Vec<Post> = res.json().await.context("posts 역직렬화 실패")?;
+    let mut posts: Vec<Post> = res.json().await.context("posts 역직렬화 실패")?;
+
+    let total_count = if use_choseong_filter {
+        if let Some(title) = search_title.as_deref() {
+            posts.retain(|post| title_matches_choseong(&post.title, title));
+        }
+        posts.len() as i64
+    } else {
+        db_total_count
+    };
+
+    if use_choseong_filter {
+        posts = posts
+            .into_iter()
+            .skip(offset as usize)
+            .take(page_size as usize)
+            .collect();
+    }
 
     Ok(PostListResponse {
         items: posts.into_iter().map(to_post_response).collect(),
