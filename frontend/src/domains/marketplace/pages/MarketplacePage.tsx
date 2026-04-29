@@ -14,7 +14,7 @@
 // import 경로: @/shared/ui/...
 // ============================================================
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
@@ -49,35 +49,28 @@ import { Separator } from "@/shared/ui/separator";
 
 // 도메인 간 훅 참조 — 상대경로(..) 대신 절대경로(@/)로 명확하게
 import { useAvatarItems } from "@/domains/avatar/hooks/useAvatarItems";
+import { syncOwnedNfts } from "@/domains/avatar/api/avatarApi";
 import { useMarket } from "../hooks/useMarket";
 
 // 타입도 도메인 간 참조
 import type { UserItemResponse } from "@/domains/avatar/model/types";
 import type { ListingResponse } from "../model/types";
 import { buyNftOnChain, listNftOnChain } from "../lib/marketplaceSolana";
+import { useSptBalance } from "@/shared/hooks/useSptBalance";
 
 import styles from "./MarketplacePage.module.css";
 
 // ────────────────────────────────────────────────────────────
-// 레어리티 / 카테고리 매핑 상수
+// 카테고리 매핑 상수
 // ────────────────────────────────────────────────────────────
-const rarityClassMap: Record<UserItemResponse["rarity"], string> = {
-  common: styles.rarityCommon,
-  rare: styles.rarityRare,
-  epic: styles.rarityEpic,
-};
-
-const rarityLabel: Record<UserItemResponse["rarity"], string> = {
-  common: "일반",
-  rare: "레어",
-  epic: "에픽",
-};
-
-const categoryLabel: Record<UserItemResponse["category"], string> = {
-  background: "배경",
-  frame: "프레임",
-  effect: "효과",
-  motion: "모션",
+const categoryLabel: Record<string, string> = {
+  hair: "헤어",
+  top: "상의",
+  bottom: "하의",
+  gloves: "장갑",
+  shoes: "신발",
+  weapon: "무기",
+  glasses: "안경",
 };
 
 // ────────────────────────────────────────────────────────────
@@ -186,8 +179,8 @@ function CreateListingDialog({
                         {/* 아이템 정보 */}
                         <div className={styles.selectableItemInfo}>
                           <p className={styles.selectableItemName}>{item.name}</p>
-                          <Badge className={rarityClassMap[item.rarity]}>
-                            {rarityLabel[item.rarity]}
+                          <Badge variant="outline">
+                            {categoryLabel[item.category] ?? item.category}
                           </Badge>
                         </div>
                       </div>
@@ -262,13 +255,10 @@ function ListingCard({ listing, onBuy }: ListingCardProps) {
           {/* 아이템 이름 */}
           <p className={styles.itemName}>{listing.item_name}</p>
 
-          {/* 레어리티 + 카테고리 배지 */}
+          {/* 카테고리 배지 */}
           <div className={styles.badgeRow}>
-            <Badge className={rarityClassMap[listing.item_rarity]}>
-              {rarityLabel[listing.item_rarity]}
-            </Badge>
             <Badge variant="outline">
-              {categoryLabel[listing.item_category]}
+              {categoryLabel[listing.item_category] ?? listing.item_category}
             </Badge>
           </div>
 
@@ -314,7 +304,8 @@ export default function MarketplacePage() {
   const { connection } = useConnection();
   const { publicKey, connected, sendTransaction } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
-  const { items, loading: itemsLoading } = useAvatarItems();
+  const { items, loading: itemsLoading, refetch: refetchItems } = useAvatarItems();
+  const { sptBalance, sptLoading, refreshSptBalance } = useSptBalance();
   const {
     listings,
     listingsLoading,
@@ -337,13 +328,47 @@ export default function MarketplacePage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [purchaseTarget, setPurchaseTarget] = useState<ListingResponse | null>(null);
   const [listingOnChain, setListingOnChain] = useState(false);
+  const [syncingOwnedNfts, setSyncingOwnedNfts] = useState(false);
+
+  useEffect(() => {
+    if (!connected || !publicKey) return;
+
+    let cancelled = false;
+    setSyncingOwnedNfts(true);
+    syncOwnedNfts()
+      .then((result) => {
+        if (cancelled) return;
+        if (result.synced_count > 0) {
+          refetchItems();
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(error instanceof Error ? error.message : "보유 NFT 동기화에 실패했습니다.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSyncingOwnedNfts(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [connected, publicKey, refetchItems]);
 
   // ──────────────────────────────────────────────────────────
   // NFT 아이템 필터링
   // is_nft === true인 아이템만 판매 등록 가능
   // is_nft가 boolean | null이므로 === true로 엄격하게 비교
   // ──────────────────────────────────────────────────────────
-  const nftItems = items.filter((item) => item.is_nft === true);
+  const connectedWalletAddress = publicKey?.toBase58() ?? null;
+  const nftItems = items.filter((item) => {
+    if (item.is_nft !== true || !item.nft_mint_address) return false;
+    if (!connectedWalletAddress || !item.minted_to_wallet) return true;
+    return item.minted_to_wallet === connectedWalletAddress;
+  });
 
   // ──────────────────────────────────────────────────────────
   // 판매 등록 핸들러
@@ -423,6 +448,8 @@ export default function MarketplacePage() {
       const result = await purchaseItem(purchaseTarget.id, signature);
       if (result) {
         setPurchaseTarget(null);
+        refreshSptBalance();
+        void syncOwnedNfts().then(() => refetchItems()).catch(() => {});
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "온체인 구매 중 오류가 발생했습니다.");
@@ -451,6 +478,16 @@ export default function MarketplacePage() {
               <div className={styles.summaryItem}>
                 <span className={styles.summaryLabel}>등록 가능</span>
                 <strong>{nftItems.length.toLocaleString()}</strong>
+              </div>
+              <div className={styles.summaryItem}>
+                <span className={styles.summaryLabel}>내 SPT</span>
+                <strong>
+                  {!connected
+                    ? "—"
+                    : sptLoading
+                    ? "..."
+                    : (sptBalance ?? 0).toLocaleString()}
+                </strong>
               </div>
             </div>
 
@@ -500,7 +537,7 @@ export default function MarketplacePage() {
             open={isCreateDialogOpen}
             onClose={() => setIsCreateDialogOpen(false)}
             nftItems={nftItems}         // 필터링된 NFT 아이템 목록 전달
-            itemsLoading={itemsLoading} // 아이템 로딩 중이면 다이얼로그 내 로딩 표시
+            itemsLoading={itemsLoading || syncingOwnedNfts} // 아이템/NFT 동기화 중이면 다이얼로그 내 로딩 표시
             onSubmit={handleCreateListing}
             submitting={creatingListing || updatingEscrow || listingOnChain} // 등록 중이면 버튼 비활성화
         />

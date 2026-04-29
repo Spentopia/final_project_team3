@@ -10,6 +10,8 @@ import {apiClient} from "@/shared/api/client.ts";
 
 import type {
     UserItemResponse,
+    OwnedNftResponse,
+    SyncOwnedNftsResponse,
     MintNftRequest,
     MintNftResponse,
     TransferNftRequest,
@@ -32,6 +34,42 @@ export async function getUserItems(): Promise<UserItemResponse[]> {
                     ? axiosError.response.data
                     : JSON.stringify(axiosError.response?.data);
             throw new Error(`아이템 목록 조회 실패: ${axiosError.response?.status} ${detail}`);
+        }
+        throw error;
+    }
+}
+
+// GET /api/avatar/nfts
+// 연동된 지갑의 온체인 NFT 목록 조회 (Helius DAS API)
+export async function getOwnedNfts(): Promise<OwnedNftResponse[]> {
+    try {
+        const res = await apiClient.get<OwnedNftResponse[]>("/api/avatar/nfts");
+        return res.data;
+    } catch (error: unknown) {
+        if (error && typeof error === "object" && "response" in error) {
+            const axiosError = error as { response?: { status?: number; data?: unknown } };
+            const detail =
+                typeof axiosError.response?.data === "string"
+                    ? axiosError.response.data
+                    : JSON.stringify(axiosError.response?.data);
+            throw new Error(`NFT 목록 조회 실패: ${axiosError.response?.status} ${detail}`);
+        }
+        throw error;
+    }
+}
+
+export async function syncOwnedNfts(): Promise<SyncOwnedNftsResponse> {
+    try {
+        const res = await apiClient.post<SyncOwnedNftsResponse>("/api/avatar/nfts/sync");
+        return res.data;
+    } catch (error: unknown) {
+        if (error && typeof error === "object" && "response" in error) {
+            const axiosError = error as { response?: { status?: number; data?: unknown } };
+            const detail =
+                typeof axiosError.response?.data === "string"
+                    ? axiosError.response.data
+                    : JSON.stringify(axiosError.response?.data);
+            throw new Error(`NFT 동기화 실패: ${axiosError.response?.status} ${detail}`);
         }
         throw error;
     }

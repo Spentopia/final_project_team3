@@ -96,3 +96,12 @@ test-ledger
 .yarn
 
 .codex
+
+#supabase CLI
+supabase_windows_amd64/
+supabase_windows_amd64.tar.gz
+supabase.exe
+supabase/.temp/
+supabase/.branches/
+schema.sql
+supabase/config.toml

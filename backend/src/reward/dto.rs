@@ -62,3 +62,25 @@ pub struct ContestRewardRequest {
     pub user_id: Uuid, // 수상자 UUID
     pub rank: u8,      // 1, 2, 3만 허용
 }
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct BoxCountResponse {
+    pub box_count: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UnityAvatarItemResponse {
+    pub inventory_id: Uuid,
+    pub item_id: Uuid,
+    pub name: String,
+    pub is_equipped: bool,
+    pub slot_name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct OpenBoxResponse {
+    pub remaining_box_count: i32,
+    pub is_win: bool,
+    pub message: String,
+    pub item: Option<UnityAvatarItemResponse>,
+}

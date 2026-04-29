@@ -17,8 +17,7 @@ export interface ListingResponse{
     item_id: string;                        // 판매 중인 아이템 UUID
     item_name: string;                      // 아이템 이름 (JOIN된 값)
     item_image_url: string;                 // 아이템 이미지 URL
-    item_category: "background" | "frame" | "effect" | "motion";
-    item_rarity: "common" | "rare" | "epic";
+    item_category: string;
     nft_mint_address: string | null;        // 판매 중인 NFT mint 주소
     escrow_address: string | null;          // list_nft 후 생성된 escrow PDA
     price_spt: number;                      // 등록된 판매가

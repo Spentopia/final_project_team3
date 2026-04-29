@@ -42,7 +42,6 @@ struct AvatarItemEmbed {
     name: String,
     image_url: String,
     category: String,
-    rarity: String,
 }
 
 #[derive(Deserialize)]
@@ -210,7 +209,7 @@ pub async fn create_listing(
             seller_id: user_id,
             item_id: req.item_id,
             price_spt: req.price_spt,
-            status: "active",
+            status: "pending_onchain",
         })
         .send()
         .await
@@ -242,7 +241,7 @@ pub async fn create_listing(
 ///     market_listings
 ///     → users!seller_id(nickname)
 ///     FK: market_listings.seller_id → users.id → seller의 nickname 가져옴
-///     → user_items!item_id(avatar_items(name, image, url, category, rarity))
+///     → user_items!item_id(avatar_items(name, image, url, category))
 ///     FK: market_listings.item_id → user_items.id
 ///     → user_items에서 다시 avatar_items JOIN
 ///     FK: user_items.item_id → avatar_items.id
@@ -252,7 +251,7 @@ pub async fn create_listing(
 ///     의도를 정확히 인식한다. 생략하면 ambigous 에러 가능.
 async fn fetch_listing_response(state: &AppState, listing_id: Uuid) -> Result<ListingResponse> {
     let url = format!(
-        "{}/rest/v1/market_listings?id=eq.{}&select=*,users!seller_id(nickname,wallet_address),user_inventory!item_id(nft_mint_address,item_master(name,image_url,category,rarity))",
+        "{}/rest/v1/market_listings?id=eq.{}&select=*,users!seller_id(nickname,wallet_address),user_inventory!item_id(nft_mint_address,item_master(name,image_url,category))",
         state.config.supabase_url.trim_end_matches('/'),
         listing_id,
     );
@@ -291,7 +290,6 @@ async fn fetch_listing_response(state: &AppState, listing_id: Uuid) -> Result<Li
         item_name: r.user_inventory.item_master.name, // 2중 중첩에서 추출
         item_image_url: r.user_inventory.item_master.image_url,
         item_category: r.user_inventory.item_master.category,
-        item_rarity: r.user_inventory.item_master.rarity,
         nft_mint_address: r.user_inventory.nft_mint_address,
         escrow_address: r.escrow_address,
         price_spt: r.price_spt,
@@ -307,7 +305,7 @@ async fn fetch_listing_response(state: &AppState, listing_id: Uuid) -> Result<Li
 /// 페이지네이션 없이 전체 반환 (아이템 수가 적은 MVP 단계 기준).
 pub async fn get_listings(state: &AppState) -> Result<Vec<ListingResponse>> {
     let url = format!(
-        "{}/rest/v1/market_listings?status=eq.active&escrow_address=not.is.null&select=*,users!seller_id(nickname,wallet_address),user_inventory!item_id(nft_mint_address,item_master(name,image_url,category,rarity))&order=listed_at.desc",
+        "{}/rest/v1/market_listings?status=eq.active&escrow_address=not.is.null&select=*,users!seller_id(nickname,wallet_address),user_inventory!item_id(nft_mint_address,item_master(name,image_url,category))&order=listed_at.desc",
         state.config.supabase_url.trim_end_matches('/'),
     );
 
@@ -341,7 +339,6 @@ pub async fn get_listings(state: &AppState) -> Result<Vec<ListingResponse>> {
             item_name: r.user_inventory.item_master.name,
             item_image_url: r.user_inventory.item_master.image_url,
             item_category: r.user_inventory.item_master.category,
-            item_rarity: r.user_inventory.item_master.rarity,
             nft_mint_address: r.user_inventory.nft_mint_address,
             escrow_address: r.escrow_address,
             price_spt: r.price_spt,

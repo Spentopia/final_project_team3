@@ -18,7 +18,7 @@ pub const PLATFORM_CONFIG_SEED: &[u8] = b"platform_config";
 pub const MAX_FEE_RATE: u16 = 10_000;
 
 /// 아바타 NFT 민트 PDA seed.
-/// 유저별 + 아이템별로 고유한 민트를 만들기 위해 user_pubkey + item_id를 함께 사용.
+/// 유저별 + 민트별로 고유한 민트를 만들기 위해 user_pubkey + mint_seed를 함께 사용.
 pub const AVATAR_MINT_SEED: &[u8] = b"avatar_mint";
 
 /// Spentopia 아바타 컬렉션 NFT 민트 PDA seed.

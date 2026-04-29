@@ -19,6 +19,12 @@ pub struct ContestEvent {
     pub created_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostAuthor {
+    pub nickname: Option<String>,
+    pub profile_image: Option<String>,
+}
+
 // public.posts 테이블
 // 커뮤니티 게시물 (콘테스트 참가 / 일반)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,10 +32,17 @@ pub struct Post {
     pub id: Uuid,
     pub user_id: Uuid,
     pub contest_id: Option<Uuid>, // 일반 게시물이면 null
-    pub image_url: String,
+    pub image_url: Option<String>,
     pub content: Option<String>,
     pub vote_count: Option<i32>,
     pub created_at: Option<DateTime<Utc>>,
+    pub post_type: String,
+    pub title: String,
+    pub updated_at: Option<DateTime<Utc>>,
+    pub is_deleted: bool,
+    pub deleted_at: Option<DateTime<Utc>>,
+    pub view_count: i32,
+    pub users: Option<PostAuthor>,
 }
 
 // public.votes 테이블

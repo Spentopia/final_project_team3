@@ -2,7 +2,7 @@
 
 use axum::{
     Extension, Json,
-    extract::{Path, Query, State},
+    extract::{Multipart, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
@@ -10,7 +10,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use super::{
-    dto::{ChatRequest, CreatePostRequest},
+    dto::{ChatRequest, CreatePostRequest, PostSort, UpdatePostRequest},
     service,
 };
 use crate::state::AppState;
@@ -18,6 +18,50 @@ use crate::state::AppState;
 #[derive(Deserialize)]
 pub struct PostQuery {
     pub contest_id: Option<Uuid>,
+    pub sort: Option<PostSort>,
+    pub title: Option<String>,
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
+}
+
+fn map_community_error(error: anyhow::Error) -> axum::response::Response {
+    let message = error.to_string();
+
+    if message.contains("권한") || message.contains("본인 게시글") || message.contains("관리자") {
+        return (StatusCode::FORBIDDEN, message).into_response();
+    }
+
+    if message.contains("찾을 수 없습니다") {
+        return (StatusCode::NOT_FOUND, message).into_response();
+    }
+
+    if message.contains("null value in column")
+        && message.contains("image_url")
+        && message.contains("violates not-null constraint")
+    {
+        return (
+            StatusCode::BAD_REQUEST,
+            "posts.image_url 컬럼이 아직 NOT NULL입니다. 사진 없는 글을 허용하려면 DB에서 image_url NOT NULL 제약을 제거해야 합니다.".to_string(),
+        )
+            .into_response();
+    }
+
+    if message.contains("필수")
+        || message.contains("비어")
+        || message.contains("contest_id")
+        || message.contains("post_id")
+        || message.contains("투표는")
+        || message.contains("수정할 필드")
+        || message.contains("멀티파트")
+        || message.contains("파일")
+        || message.contains("이미지만")
+        || message.contains("지원하지 않는 post_type")
+        || message.contains("사용할 수 없는 표현")
+    {
+        return (StatusCode::BAD_REQUEST, message).into_response();
+    }
+
+    (StatusCode::INTERNAL_SERVER_ERROR, message).into_response()
 }
 
 #[utoipa::path(
@@ -48,9 +92,36 @@ pub async fn list_posts(
     Extension(_user_id): Extension<Uuid>,
     Query(query): Query<PostQuery>,
 ) -> impl IntoResponse {
-    match service::list_posts(&state, query.contest_id).await {
+    match service::list_posts(
+        &state,
+        query.contest_id,
+        query.sort.unwrap_or_default(),
+        query.title,
+        query.page.unwrap_or(1),
+        query.page_size.unwrap_or(10),
+    )
+    .await
+    {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[utoipa::path(
+    get, path = "/api/posts/{id}",
+    tag = "커뮤니티",
+    params(("id" = Uuid, Path, description = "게시물 ID")),
+    responses((status = 200, description = "게시물 상세 조회 성공"), (status = 404, description = "게시물 없음")),
+    security(("bearer_auth" = []))
+)]
+pub async fn get_post(
+    State(state): State<AppState>,
+    Extension(_user_id): Extension<Uuid>,
+    Path(post_id): Path<Uuid>,
+) -> impl IntoResponse {
+    match service::get_post_detail(&state, post_id).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_community_error(e),
     }
 }
 
@@ -66,16 +137,46 @@ pub async fn create_post(
     Extension(user_id): Extension<Uuid>,
     Json(req): Json<CreatePostRequest>,
 ) -> impl IntoResponse {
-    if req.image_url.trim().is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            "image_url은 필수입니다.".to_string(),
-        )
-            .into_response();
-    }
     match service::create_post(&state, user_id, req).await {
         Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => map_community_error(e),
+    }
+}
+
+#[utoipa::path(
+    post, path = "/api/posts/image/upload",
+    tag = "커뮤니티",
+    responses((status = 200, description = "커뮤니티 이미지 업로드 성공")),
+    security(("bearer_auth" = []))
+)]
+pub async fn upload_post_image(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    multipart: Multipart,
+) -> impl IntoResponse {
+    match service::upload_post_image(&state, user_id, multipart).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_community_error(e),
+    }
+}
+
+#[utoipa::path(
+    patch, path = "/api/posts/{id}",
+    tag = "커뮤니티",
+    params(("id" = Uuid, Path, description = "게시물 ID")),
+    request_body = UpdatePostRequest,
+    responses((status = 200, description = "게시물 수정 성공"), (status = 403, description = "권한 없음")),
+    security(("bearer_auth" = []))
+)]
+pub async fn update_post(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(post_id): Path<Uuid>,
+    Json(req): Json<UpdatePostRequest>,
+) -> impl IntoResponse {
+    match service::update_post(&state, user_id, post_id, req).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_community_error(e),
     }
 }
 
@@ -93,7 +194,7 @@ pub async fn delete_post(
 ) -> impl IntoResponse {
     match service::delete_post(&state, user_id, post_id).await {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => map_community_error(e),
     }
 }
 
@@ -119,7 +220,7 @@ pub async fn vote_post(
                 )
                     .into_response();
             }
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
+            map_community_error(e)
         }
     }
 }
