@@ -16,7 +16,8 @@ import {
   Coffee,
   Home,
   Car,
-  Heart,
+  Heart as HeartIcon,
+  LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -26,8 +27,25 @@ import {
 
 
 
+
 const STORAGE_KEY = "customBudget";
 const SELECTED_PLAN_KEY = "selectedPlan";
+const AI_PLANS_KEY = "aiPlans";
+
+
+type PlanCategory = {
+  name: string;
+  amount: number;
+};
+
+type AiPlan = {
+  id: number;
+  name: string;
+  budget: number;
+  savings: number;
+  description: string;
+  categories: PlanCategory[];
+};
 
 type CustomBudget = {
   monthly: number;
@@ -42,6 +60,7 @@ type BudgetCategoryKey = "food" | "transport" | "living" | "leisure";
 
 const BUDGET_CATEGORY_KEYS: BudgetCategoryKey[] = ["food", "transport", "living", "leisure"];
 
+
 const createEmptyBudget = (): CustomBudget => ({
   monthly: 0,
   savings: 0,
@@ -51,10 +70,29 @@ const createEmptyBudget = (): CustomBudget => ({
   leisure: 0,
 });
 
+const iconMap = {
+  식비: Coffee,
+  교통비: Car,
+  생활비: Home,
+  여가취미: HeartIcon,
+  저축: PiggyBank,
+} as const;
+
 export default function BudgetPage() {
   const { budgets, setMonthlyBudget } = useFinance();
 
-  const [aiPlans, setAiPlans] = useState([
+  const [aiPlans, setAiPlans] = useState<AiPlan[]>(() => {
+  const saved = localStorage.getItem(AI_PLANS_KEY);
+
+
+  if (saved) {
+    try {
+      return JSON.parse(saved) as AiPlan[];
+    } catch {}
+  }
+
+  // fallback (처음 접속 시만)
+  return [
   {
     id: 1,
     name: "월 50만원 생활 플랜",
@@ -62,12 +100,12 @@ export default function BudgetPage() {
     savings: 50000,
     description: "합리적인 소비와 저축을 위한 균형잡힌 플랜",
     categories: [
-      { name: "식비", amount: 150000, icon: Coffee },
-      { name: "교통비", amount: 80000, icon: Car },
-      { name: "생활비", amount: 120000, icon: Home },
-      { name: "여가/취미", amount: 100000, icon: Heart },
-      { name: "저축", amount: 50000, icon: PiggyBank },
-    ],
+  { name: "식비", amount: 150000 },
+  { name: "교통비", amount: 80000 },
+  { name: "생활비", amount: 120000 },
+  { name: "여가/취미", amount: 100000 },
+  { name: "저축", amount: 50000 },
+],
   },
   {
     id: 2,
@@ -76,11 +114,11 @@ export default function BudgetPage() {
     savings: 150000,
     description: "목표 지향적인 저축 중심 플랜",
     categories: [
-      { name: "식비", amount: 100000, icon: Coffee },
-      { name: "교통비", amount: 60000, icon: Car },
-      { name: "생활비", amount: 90000, icon: Home },
-      { name: "여가/취미", amount: 50000, icon: Heart },
-      { name: "저축", amount: 150000, icon: PiggyBank },
+      { name: "식비", amount: 100000 },
+      { name: "교통비", amount: 60000 },
+      { name: "생활비", amount: 90000 },
+      { name: "여가/취미", amount: 50000 },
+      { name: "저축", amount: 150000 },
     ],
   },
   {
@@ -90,14 +128,14 @@ export default function BudgetPage() {
     savings: 30000,
     description: "현재의 삶을 즐기면서도 미래를 준비하는 플랜",
     categories: [
-      { name: "식비", amount: 200000, icon: Coffee },
-      { name: "교통비", amount: 100000, icon: Car },
-      { name: "생활비", amount: 200000, icon: Home },
-      { name: "여가/취미", amount: 170000, icon: Heart },
-      { name: "저축", amount: 30000, icon: PiggyBank },
+      { name: "식비", amount: 200000 },
+      { name: "교통비", amount: 100000 },
+      { name: "생활비", amount: 200000 },
+      { name: "여가/취미", amount: 170000 },
+      { name: "저축", amount: 30000 },
     ],
   },
-]);
+  ]});
 
   const [customBudget, setCustomBudget] = useState<CustomBudget>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -126,6 +164,10 @@ export default function BudgetPage() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(customBudget));
   }, [customBudget]);
+
+  useEffect(() => {
+  localStorage.setItem(AI_PLANS_KEY, JSON.stringify(aiPlans));
+}, [aiPlans]);
 
   useEffect(() => {
     if (selectedPlan === null) {
@@ -194,19 +236,19 @@ console.log("🔥 data:", data);
   ? [data.plans]
   : [];
 
-const mappedPlans = plansArray.map((plan: any, index: number) => ({
-  id: index + 1,
+const mappedPlans = plansArray.map((plan: any, index: number): AiPlan => ({
+  id: Date.now() + index,
   name: plan.name ?? "플랜",
   budget: Number(plan.budget ?? 0),
   savings: Number(plan.savings ?? 0),
   description: plan.description ?? "",
   categories: [
-    { name: "식비", amount: Number(plan.food ?? 0), icon: Coffee },
-    { name: "교통비", amount: Number(plan.transport ?? 0), icon: Car },
-    { name: "생활비", amount: Number(plan.living ?? 0), icon: Home },
-    { name: "여가/취미", amount: Number(plan.leisure ?? 0), icon: Heart },
-    { name: "저축", amount: Number(plan.savings ?? 0), icon: PiggyBank },
-  ],
+  { name: "식비", amount: Number(plan.food ?? 0) },
+  { name: "교통비", amount: Number(plan.transport ?? 0) },
+  { name: "생활비", amount: Number(plan.living ?? 0) },
+  { name: "여가/취미", amount: Number(plan.leisure ?? 0) },
+  { name: "저축", amount: Number(plan.savings ?? 0) },
+],
 }));
 
     setAiPlans(mappedPlans);
@@ -366,7 +408,7 @@ const mappedPlans = plansArray.map((plan: any, index: number) => ({
 
               <div className="mb-4 space-y-2">
                 {plan.categories.map((cat) => {
-                  const Icon = cat.icon;
+                  const Icon = iconMap[cat.name as keyof typeof iconMap] || Coffee;
                   return (
                     <div
                       key={cat.name}
@@ -495,7 +537,7 @@ const mappedPlans = plansArray.map((plan: any, index: number) => ({
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
-                    <Heart className="h-4 w-4" />
+                    <HeartIcon className="h-4 w-4" />
                     여가/취미
                   </Label>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">

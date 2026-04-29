@@ -27,3 +27,50 @@
   width: 8%;
   background-color: #6b7280;
 }
+
+/* 🔥 PDF 모드에서는 안전한 색상만 사용 */
+.pdf-mode * {
+  background-image: none !important;
+  filter: none !important;
+}
+
+.pdf-mode {
+  background: #ffffff !important;
+}
+
+/* 텍스트만 강제 */
+.pdf-mode h1,
+.pdf-mode h2,
+.pdf-mode h3,
+.pdf-mode p,
+.pdf-mode span {
+  color: #000 !important;
+}
+
+/* 🔥 PDF 완전 안전 모드 */
+.pdf-mode * {
+  background: none !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+
+  /* Tailwind 문제 요소 제거 */
+  backdrop-filter: none !important;
+  filter: none !important;
+}
+
+/* 카드 스타일 강제 */
+.pdf-mode .bg-white\/80,
+.pdf-mode .bg-gradient-to-r,
+.pdf-mode .bg-gradient-to-br {
+  background: #ffffff !important;
+}
+
+/* 차트 gradient 제거 */
+.pdf-mode svg linearGradient {
+  display: none !important;
+}
+
+.pdf-button {
+  background: #2563eb !important;
+  color: white !important;
+}
