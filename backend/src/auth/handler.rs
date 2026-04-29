@@ -1899,7 +1899,7 @@ pub async fn exchange_handoff(
         access_token: result.access_token,
         refresh_token: result.refresh_token,
         user_id: result.user_id,
-        nickname,
+        nickname: nickname,
     }))
 }
 
