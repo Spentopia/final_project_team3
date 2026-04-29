@@ -247,4 +247,5 @@ pub struct HandoffExchangeResponse {
     pub access_token: String,
     pub refresh_token: String,
     pub user_id: Uuid,
+    pub nickname: Option<String>,
 }
