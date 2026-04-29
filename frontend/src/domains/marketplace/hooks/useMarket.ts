@@ -16,7 +16,11 @@ interface UseMarketReturn {
     listingsLoading: boolean;
     createListing: (itemId: string, priceSpt: number) => Promise<ListingResponse | null>;
     updateEscrow: (listingId: string, escrowAddress: string, txSignature: string) => Promise<boolean>;
-    purchaseItem: (listingId: string, txSignature: string) => Promise<TransactionResponse | null>;
+    purchaseItem: (
+        listingId: string,
+        txSignature: string,
+        options?: { suppressErrorToast?: boolean },
+    ) => Promise<TransactionResponse | null>;
     cancelListing: (listingId: string, txSignature: string) => Promise<boolean>;
     creatingListing: boolean;
     updatingEscrow: boolean;
@@ -106,7 +110,8 @@ export function useMarket(): UseMarketReturn{
     // 성공 시 해당 listingId를 로컬 목록에서 제거 (sold 처리)
     const purchaseItem = useCallback(async(
         listingId: string,
-        txSignature: string
+        txSignature: string,
+        options?: { suppressErrorToast?: boolean },
     ): Promise<TransactionResponse | null>=>{
         setPurchasing(true)
         setPurchaseError(null);
@@ -120,7 +125,10 @@ export function useMarket(): UseMarketReturn{
         }catch (err){
             const message = err instanceof Error ? err.message : "구매 중 오류가 발생했습니다.";
             setPurchaseError(message);
-            toast.error(message);
+            setListings((prev)=>prev.filter((l)=>l.id !==listingId));
+            if (!options?.suppressErrorToast) {
+                toast.error(message);
+            }
             return null;
         }finally {
             setPurchasing(false);

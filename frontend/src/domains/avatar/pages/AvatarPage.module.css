@@ -25,22 +25,26 @@
 
 /* ── 탭 ── */
 .tabsWrapper {
-    margin-bottom: 28px;
+    margin-bottom: 18px;
 }
 
 /* ── 그리드 ── */
 .grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
 }
 
 @media (min-width: 640px) {
-    .grid { grid-template-columns: repeat(3, 1fr); }
+    .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media (min-width: 768px) {
-    .grid { grid-template-columns: repeat(4, 1fr); }
+    .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1280px) {
+    .grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
 }
 
 /* ── 상태 ── */
@@ -64,7 +68,7 @@
 .itemCard {
     cursor: pointer;
     border: 1px solid #e5e7eb;
-    border-radius: 16px;
+    border-radius: 10px;
     background: #ffffff;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     position: relative;
@@ -72,8 +76,8 @@
 }
 
 .itemCard:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 /* 장착 중: 골드 글로우 */
@@ -89,7 +93,7 @@
 }
 
 .cardContent {
-    padding: 12px;
+    padding: 8px;
 }
 
 /* ── 이미지 영역 ── */
@@ -97,8 +101,8 @@
     aspect-ratio: 1 / 1;
     width: 100%;
     overflow: hidden;
-    border-radius: 10px;
-    margin-bottom: 10px;
+    border-radius: 8px;
+    margin-bottom: 6px;
     position: relative;
 }
 
@@ -130,19 +134,19 @@
 
 /* ── 카드 텍스트 ── */
 .itemName {
-    font-size: 0.875rem;
+    font-size: 0.78rem;
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     color: #111827;
 }
 
 .badgeRow {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 3px;
 }
 
 .badgeNft {
@@ -158,13 +162,13 @@
 }
 
 /* ── 스켈레톤 ── */
-.skeletonContent { padding: 12px; }
+.skeletonContent { padding: 8px; }
 
 .skeletonImage {
     aspect-ratio: 1 / 1;
     width: 100%;
-    border-radius: 10px;
-    margin-bottom: 8px;
+    border-radius: 8px;
+    margin-bottom: 6px;
 }
 
 .skeletonText {
@@ -205,8 +209,6 @@
 }
 
 .detailLabel { color: #6b7280; }
-
-.mintButton { width: 100%; margin-top: 8px; }
 
 .imagePlaceholder {
     width: 100%;

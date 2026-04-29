@@ -1044,12 +1044,75 @@ pub async fn sync_owned_nfts(state: &AppState, user_id: Uuid) -> Result<SyncOwne
         if let Some(existing) = existing_rows.first() {
             if existing.user_id != user_id {
                 tracing::warn!(
-                    "온체인 NFT 소유자와 DB 소유자가 다릅니다. mint={} db_inventory_id={} db_user_id={} current_user_id={}",
+                    "온체인 NFT 소유자와 DB 소유자가 다릅니다. 온체인 소유자 기준으로 DB 소유권을 보정합니다. mint={} db_inventory_id={} db_user_id={} current_user_id={}",
                     mint_address,
                     existing.id,
                     existing.user_id,
                     user_id
                 );
+
+                let update_url = format!(
+                    "{}/rest/v1/user_inventory?id=eq.{}",
+                    state.config.supabase_url.trim_end_matches('/'),
+                    existing.id
+                );
+                let update_res = state
+                    .http_client
+                    .patch(&update_url)
+                    .header(
+                        "Authorization",
+                        format!("Bearer {}", state.config.supabase_secret_key),
+                    )
+                    .header("apikey", &state.config.supabase_secret_key)
+                    .header("Prefer", "return=minimal")
+                    .json(&serde_json::json!({
+                        "user_id": user_id,
+                        "is_equipped": false,
+                        "minted_to_wallet": wallet_address,
+                        "collection_mint": collection_mint,
+                    }))
+                    .send()
+                    .await
+                    .context("user_inventory NFT 소유권 보정 PATCH 요청 실패")?;
+
+                if !update_res.status().is_success() {
+                    return Err(anyhow!(
+                        "user_inventory NFT 소유권 보정 PATCH 실패: {}",
+                        update_res.text().await.unwrap_or_default()
+                    ));
+                }
+
+                let listing_update_url = format!(
+                    "{}/rest/v1/market_listings?item_id=eq.{}&status=eq.active",
+                    state.config.supabase_url.trim_end_matches('/'),
+                    existing.id
+                );
+                let listing_update_res = state
+                    .http_client
+                    .patch(&listing_update_url)
+                    .header(
+                        "Authorization",
+                        format!("Bearer {}", state.config.supabase_secret_key),
+                    )
+                    .header("apikey", &state.config.supabase_secret_key)
+                    .header("Prefer", "return=minimal")
+                    .json(&serde_json::json!({
+                        "status": "sold",
+                        "sold_at": Utc::now().to_rfc3339(),
+                    }))
+                    .send()
+                    .await
+                    .context("market_listings NFT 소유권 보정 상태 PATCH 요청 실패")?;
+
+                if !listing_update_res.status().is_success() {
+                    tracing::error!(
+                        "market_listings NFT 소유권 보정 상태 PATCH 실패: {}",
+                        listing_update_res.text().await.unwrap_or_default()
+                    );
+                }
+
+                synced_count += 1;
+                continue;
             }
             skipped_count += 1;
             continue;

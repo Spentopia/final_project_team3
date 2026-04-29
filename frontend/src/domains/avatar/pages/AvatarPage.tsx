@@ -13,7 +13,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Skeleton } from "@/shared/ui/skeleton";
 
-import { getUserItems, getOwnedNfts, mintNft as mintNftApi } from "../api/avatarApi";
+import { getUserItems, getOwnedNfts } from "../api/avatarApi";
 import type { UserItemResponse, OwnedNftResponse } from "../model/types";
 import styles from "./AvatarPage.module.css";
 
@@ -125,15 +125,12 @@ export default function AvatarPage() {
     const [selectedNormal, setSelectedNormal] = useState<UserItemResponse | null>(null);
     const [selectedNft, setSelectedNft] = useState<OwnedNftResponse | null>(null);
 
-    // 민팅
-    const [minting, setMinting] = useState(false);
-
     const fetchNormalItems = useCallback(async () => {
         setNormalLoading(true);
         setNormalError(null);
         try {
             const data = await getUserItems();
-            setNormalItems(data.filter((item) => !item.is_nft));
+            setNormalItems(data.filter((item) => item.is_nft === false));
         } catch (err) {
             setNormalError(err instanceof Error ? err.message : "아이템 목록 조회 실패");
         } finally {
@@ -159,18 +156,6 @@ export default function AvatarPage() {
         fetchNormalItems();
         fetchNftItems();
     }, [fetchNormalItems, fetchNftItems]);
-
-    const handleMintNft = async () => {
-        if (!selectedNormal) return;
-        setMinting(true);
-        try {
-            await mintNftApi({ user_item_id: selectedNormal.id });
-            setSelectedNormal(null);
-            await fetchNormalItems();
-        } finally {
-            setMinting(false);
-        }
-    };
 
     const filteredNormal =
         slotFilter === "all"
@@ -288,11 +273,6 @@ export default function AvatarPage() {
                                 <span>{selectedNormal.is_equipped ? "장착중" : "미장착"}</span>
                             </div>
                         </div>
-                        {!selectedNormal.is_nft && (
-                            <Button className={styles.mintButton} onClick={handleMintNft} disabled={minting}>
-                                {minting ? "민팅 중..." : "NFT 민팅"}
-                            </Button>
-                        )}
                     </DialogContent>
                 )}
             </Dialog>
