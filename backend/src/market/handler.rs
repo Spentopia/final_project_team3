@@ -189,6 +189,49 @@ pub async fn purchase(
     }
 }
 
+// DELETE /market/listings/:listing_id
+//
+/// 판매자가 본인 리스팅을 취소한다.
+///
+/// 흐름:
+///   1. 온체인 cancel_listing 트랜잭션 완료 후 프론트가 이 API 호출
+///   2. 서비스에서 트랜잭션 검증 + market_listings.status → "cancelled"
+///
+/// # 응답
+/// 200 OK + { "message": "판매가 취소되었습니다." }
+/// 400 Bad Request: tx_signature 누락
+#[utoipa::path(
+    delete, path = "/api/market/listings/{id}",
+    tag = "마켓",
+    params(("id" = Uuid, Path, description = "listing ID")),
+    responses((status = 200, description = "판매 취소 성공")),
+    security(("bearer_auth" = []))
+)]
+pub async fn cancel_listing(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(listing_id): Path<Uuid>,
+    Json(req): Json<CancelListingRequest>,
+) -> impl IntoResponse {
+    if req.tx_signature.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            "tx_signature는 필수입니다. cancel_listing 온체인 트랜잭션 완료 후 요청해 주세요."
+                .to_string(),
+        )
+            .into_response();
+    }
+
+    match service::cancel_listing(&state, user_id, listing_id, req.tx_signature).await {
+        Ok(_) => (
+            StatusCode::OK,
+            Json(serde_json::json!({"message": "판매가 취소되었습니다."})),
+        )
+            .into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
 // 로컬 요청 DTO
 //
 // update_escrow 전용 요청 바디.
@@ -200,5 +243,12 @@ pub struct UpdateEscrowRequest {
     /// Anchor 프로그램의 seeds: ["escrow", listing_pda]
     pub escrow_address: String,
     /// list_nft 온체인 트랜잭션 서명
+    pub tx_signature: String,
+}
+
+/// DELETE /market/listings/:listing_id 요청 바디
+#[derive(Deserialize)]
+pub struct CancelListingRequest {
+    /// cancel_listing 온체인 트랜잭션 서명
     pub tx_signature: String,
 }

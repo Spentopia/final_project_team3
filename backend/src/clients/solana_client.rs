@@ -501,9 +501,8 @@ pub async fn verify_program_instruction_tx_data(
         }
     }
 
-    // 최종 finalized 확인 — Helius Enhanced는 confirmed 기준이므로
-    // RPC로 불가역 확정 여부를 한 번 더 체크한다.
-    check_signature_finalized(rpc_url, client, signature).await?;
+    // confirmed 이상이면 충분 — finalized는 20-30초 소요로 UX 저하
+    check_signature_confirmed(rpc_url, client, signature).await?;
 
     Ok(data_bytes)
 }

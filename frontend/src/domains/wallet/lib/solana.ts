@@ -7,9 +7,10 @@ import bs58 from "bs58";
 import {clusterApiUrl} from "@solana/web3.js";
 
 export function getSolanaEndpoint(): string {
+    const heliusUrl = import.meta.env.VITE_HELIUS_RPC_URL?.trim();
+    if (heliusUrl) return heliusUrl;
 
     const network = import.meta.env.VITE_SOLANA_NETWORK?.trim();
-
     if (network === 'devnet' || network === 'testnet' || network === 'mainnet-beta') {
         return clusterApiUrl(network);
     }

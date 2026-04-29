@@ -6,6 +6,7 @@ import {
     createListing as createListingApi,
     updateEscrow as updateEscrowApi,
     purchaseItem as purchaseItemApi,
+    cancelListing as cancelListingApi,
 } from "@/domains/marketplace/api/marketApi.ts";
 import type {ListingResponse, TransactionResponse} from "@/domains/marketplace/model/types.ts";
 
@@ -15,10 +16,12 @@ interface UseMarketReturn {
     listingsLoading: boolean;
     createListing: (itemId: string, priceSpt: number) => Promise<ListingResponse | null>;
     updateEscrow: (listingId: string, escrowAddress: string, txSignature: string) => Promise<boolean>;
-    purchaseItem: (listingId: string, txSignature: string)=>Promise<TransactionResponse | null>;
+    purchaseItem: (listingId: string, txSignature: string) => Promise<TransactionResponse | null>;
+    cancelListing: (listingId: string, txSignature: string) => Promise<boolean>;
     creatingListing: boolean;
     updatingEscrow: boolean;
     purchasing: boolean;
+    cancelling: boolean;
     createError: string | null;
     purchaseError: string | null;
 }
@@ -29,6 +32,7 @@ export function useMarket(): UseMarketReturn{
     const [creatingListing, setCreatingListing] = useState(false);
     const [updatingEscrow, setUpdatingEscrow] = useState(false);
     const [purchasing, setPurchasing] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
     const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
@@ -87,10 +91,10 @@ export function useMarket(): UseMarketReturn{
                         : listing
                 )
             );
-            toast.success("에스크로 주소가 저장되었습니다.");
+            toast.success("판매가 등록되었습니다.");
             return true;
         }catch (err){
-            toast.error(err instanceof Error ? err.message : "에스크로 저장 중 오류가 발생했습니다.");
+            toast.error(err instanceof Error ? err.message : "판매 등록에 실패했습니다.");
             return false;
         } finally {
             setUpdatingEscrow(false);
@@ -123,15 +127,35 @@ export function useMarket(): UseMarketReturn{
         }
     },[]);
 
+    const cancelListing = useCallback(async (
+        listingId: string,
+        txSignature: string,
+    ): Promise<boolean> => {
+        setCancelling(true);
+        try {
+            await cancelListingApi(listingId, txSignature);
+            setListings((prev) => prev.filter((l) => l.id !== listingId));
+            toast.success("판매가 취소되었습니다.");
+            return true;
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "판매 취소 중 오류가 발생했습니다.");
+            return false;
+        } finally {
+            setCancelling(false);
+        }
+    }, []);
+
     return {
         listings,
         listingsLoading,
         createListing,
         updateEscrow,
         purchaseItem,
+        cancelListing,
         creatingListing,
         updatingEscrow,
         purchasing,
+        cancelling,
         createError,
         purchaseError,
     };
