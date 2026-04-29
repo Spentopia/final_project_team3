@@ -27,20 +27,6 @@ const SLOT_LABELS: Record<string, string> = {
     glasses: "안경",
 };
 
-const RARITY_BADGE_CLASS: Record<string, string> = {
-    common: styles.rarityCommon,
-    rare: styles.rarityRare,
-    epic: styles.rarityEpic,
-    legendary: styles.rarityEpic,
-};
-
-const RARITY_LABEL: Record<string, string> = {
-    common: "일반",
-    rare: "레어",
-    epic: "에픽",
-    legendary: "전설",
-};
-
 function SkeletonCard() {
     return (
         <Card>
@@ -77,9 +63,6 @@ function NormalItemCard({ item, onClick }: NormalItemCardProps) {
                 </div>
                 <p className={styles.itemName}>{item.name}</p>
                 <div className={styles.badgeRow}>
-                    <Badge className={RARITY_BADGE_CLASS[item.rarity] ?? styles.rarityCommon}>
-                        {RARITY_LABEL[item.rarity] ?? item.rarity}
-                    </Badge>
                     <Badge variant="outline">{SLOT_LABELS[item.category] ?? item.category}</Badge>
                     {item.is_equipped && <Badge className={styles.badgeEquipped}>장착중</Badge>}
                 </div>
@@ -102,17 +85,12 @@ function NftItemCard({ nft, onClick }: NftItemCardProps) {
                     {nft.image_url ? (
                         <img src={nft.image_url} alt={nft.name} className={styles.itemImage} />
                     ) : (
-                        <div className={styles.imagePlaceholderRare}>✨</div>
+                        <div className={styles.imagePlaceholderCommon}>✨</div>
                     )}
                     <span className={styles.nftOverlay}>NFT</span>
                 </div>
                 <p className={styles.itemName}>{nft.name}</p>
                 <div className={styles.badgeRow}>
-                    {nft.rarity && (
-                        <Badge className={RARITY_BADGE_CLASS[nft.rarity] ?? styles.rarityRare}>
-                            {RARITY_LABEL[nft.rarity] ?? nft.rarity}
-                        </Badge>
-                    )}
                     {nft.category && (
                         <Badge variant="outline">{SLOT_LABELS[nft.category] ?? nft.category}</Badge>
                     )}
@@ -286,7 +264,7 @@ export default function AvatarPage() {
                         <DialogHeader>
                             <DialogTitle>{selectedNormal.name}</DialogTitle>
                             <DialogDescription>
-                                {SLOT_LABELS[selectedNormal.category] ?? selectedNormal.category} · {RARITY_LABEL[selectedNormal.rarity] ?? selectedNormal.rarity}
+                                {SLOT_LABELS[selectedNormal.category] ?? selectedNormal.category}
                             </DialogDescription>
                         </DialogHeader>
                         <div className={styles.dialogImageWrapper}>
@@ -300,12 +278,6 @@ export default function AvatarPage() {
                             <div className={styles.detailRow}>
                                 <span className={styles.detailLabel}>슬롯</span>
                                 <span>{SLOT_LABELS[selectedNormal.category] ?? selectedNormal.category}</span>
-                            </div>
-                            <div className={styles.detailRow}>
-                                <span className={styles.detailLabel}>레어리티</span>
-                                <Badge className={RARITY_BADGE_CLASS[selectedNormal.rarity] ?? styles.rarityCommon}>
-                                    {RARITY_LABEL[selectedNormal.rarity] ?? selectedNormal.rarity}
-                                </Badge>
                             </div>
                             <div className={styles.detailRow}>
                                 <span className={styles.detailLabel}>획득일</span>
@@ -332,7 +304,7 @@ export default function AvatarPage() {
                         <DialogHeader>
                             <DialogTitle>{selectedNft.name}</DialogTitle>
                             <DialogDescription>
-                                {selectedNft.category ? (SLOT_LABELS[selectedNft.category] ?? selectedNft.category) : ""} · {selectedNft.rarity ? (RARITY_LABEL[selectedNft.rarity] ?? selectedNft.rarity) : ""}
+                                {selectedNft.category ? (SLOT_LABELS[selectedNft.category] ?? selectedNft.category) : ""}
                             </DialogDescription>
                         </DialogHeader>
                         <div className={styles.dialogImageWrapper}>
@@ -347,14 +319,6 @@ export default function AvatarPage() {
                                 <span className={styles.detailLabel}>Mint 주소</span>
                                 <span className="font-mono text-xs truncate">{selectedNft.mint_address}</span>
                             </div>
-                            {selectedNft.rarity && (
-                                <div className={styles.detailRow}>
-                                    <span className={styles.detailLabel}>레어리티</span>
-                                    <Badge className={RARITY_BADGE_CLASS[selectedNft.rarity] ?? styles.rarityRare}>
-                                        {RARITY_LABEL[selectedNft.rarity] ?? selectedNft.rarity}
-                                    </Badge>
-                                </div>
-                            )}
                             {selectedNft.metadata_uri && (
                                 <div className={styles.detailRow}>
                                     <span className={styles.detailLabel}>Metadata</span>

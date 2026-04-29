@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import { syncOwnedNfts } from "@/domains/avatar/api/avatarApi";
 import { withdrawAccount } from "@/domains/auth/api/auth";
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
@@ -95,6 +96,11 @@ export default function ProfilePage() {
     notificationListener: false,
   });
   const [isSavingNotifications, setIsSavingNotifications] = useState(false);
+
+  // 마이페이지 진입 시 NFT sync
+  useEffect(() => {
+    void syncOwnedNfts().catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

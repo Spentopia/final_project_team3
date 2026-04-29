@@ -27,7 +27,6 @@ pub struct ListingResponse {
     pub item_name: String,
     pub item_image_url: String,
     pub item_category: String,
-    pub item_rarity: String,
     pub nft_mint_address: Option<String>,
     pub escrow_address: Option<String>,
     pub price_spt: i32,

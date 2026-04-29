@@ -124,6 +124,22 @@ pub async fn get_owned_nfts(
     }
 }
 
+#[utoipa::path(
+    post, path = "/api/avatar/nfts/sync",
+    tag = "아바타",
+    responses((status = 200, description = "연결된 지갑의 컬렉션 NFT를 인벤토리에 동기화")),
+    security(("bearer_auth" = []))
+)]
+pub async fn sync_owned_nfts(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+) -> impl IntoResponse {
+    match service::sync_owned_nfts(&state, user_id).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
 // GET /api/avatar/equipment
 //
 // 유저의 전체 장착 현황 조회.

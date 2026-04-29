@@ -76,25 +76,6 @@
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
 }
 
-/* 레어리티별 카드 강조 */
-.itemCardRare {
-    border-color: #93c5fd;
-    box-shadow: 0 0 0 1px #bfdbfe;
-}
-
-.itemCardRare:hover {
-    box-shadow: 0 12px 32px rgba(59, 130, 246, 0.2);
-}
-
-.itemCardEpic {
-    border-color: #c4b5fd;
-    box-shadow: 0 0 0 1px #ddd6fe;
-}
-
-.itemCardEpic:hover {
-    box-shadow: 0 12px 32px rgba(139, 92, 246, 0.25);
-}
-
 /* 장착 중: 골드 글로우 */
 .itemCardEquipped {
     border-color: #fbbf24;
@@ -121,24 +102,9 @@
     position: relative;
 }
 
-/* 레어리티별 placeholder 그라디언트 */
 .imagePlaceholderCommon {
     width: 100%; height: 100%;
     background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 2rem;
-}
-
-.imagePlaceholderRare {
-    width: 100%; height: 100%;
-    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 2rem;
-}
-
-.imagePlaceholderEpic {
-    width: 100%; height: 100%;
-    background: linear-gradient(135deg, #ede9fe, #ddd6fe);
     display: flex; align-items: center; justify-content: center;
     font-size: 2rem;
 }
@@ -177,25 +143,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-}
-
-/* ── 레어리티 배지 ── */
-.rarityCommon {
-    background: #f3f4f6;
-    color: #6b7280;
-    font-weight: 600;
-}
-
-.rarityRare {
-    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-    color: #1d4ed8;
-    font-weight: 700;
-}
-
-.rarityEpic {
-    background: linear-gradient(135deg, #ede9fe, #ddd6fe);
-    color: #7c3aed;
-    font-weight: 700;
 }
 
 .badgeNft {
@@ -314,17 +261,4 @@
 
 :global(.dark) .imagePlaceholderCommon {
     background: linear-gradient(135deg, #374151, #1f2937);
-}
-
-:global(.dark) .imagePlaceholderRare {
-    background: linear-gradient(135deg, #1e3a8a, #1e40af);
-}
-
-:global(.dark) .imagePlaceholderEpic {
-    background: linear-gradient(135deg, #4c1d95, #5b21b6);
-}
-
-:global(.dark) .rarityCommon {
-    background: #374151;
-    color: #e5e7eb;
 }
