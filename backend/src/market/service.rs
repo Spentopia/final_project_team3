@@ -537,6 +537,154 @@ pub async fn update_escrow(
     Ok(())
 }
 
+// cancel_listing
+//
+/// 판매자가 본인 리스팅을 취소한다.
+///
+/// 흐름:
+///     1. listing 조회 → seller_id 일치 / active 상태 확인
+///     2. 온체인 cancel_listing 트랜잭션 검증
+///     3. market_listings.status → "cancelled" PATCH
+pub async fn cancel_listing(
+    state: &AppState,
+    user_id: Uuid,
+    listing_id: Uuid,
+    tx_signature: String,
+) -> Result<()> {
+    #[derive(Deserialize)]
+    struct CancelListingRow {
+        seller_id: Uuid,
+        status: Option<String>,
+        escrow_address: Option<String>,
+        user_inventory: UserItemNftRow,
+        users: UserWalletRow,
+    }
+
+    let lookup_url = format!(
+        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}&select=seller_id,status,escrow_address,user_inventory!item_id(is_nft,nft_mint_address),users!seller_id(wallet_address)",
+        state.config.supabase_url.trim_end_matches('/'),
+        listing_id,
+        user_id,
+    );
+
+    let lookup_res = state
+        .http_client
+        .get(&lookup_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("market_listings 취소 조회 요청 실패")?;
+
+    if !lookup_res.status().is_success() {
+        return Err(anyhow!(
+            "market_listings 취소 조회 실패: {}",
+            lookup_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rows: Vec<CancelListingRow> = lookup_res
+        .json()
+        .await
+        .context("market_listings 취소 역직렬화 실패")?;
+    let row = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("본인 판매 등록을 찾을 수 없습니다"))?;
+
+    if row.seller_id != user_id {
+        return Err(anyhow!("본인 판매 등록만 취소할 수 있습니다"));
+    }
+    if row.status.as_deref() != Some("active") {
+        return Err(anyhow!(
+            "활성 상태의 판매글만 취소할 수 있습니다 (현재 status: {:?})",
+            row.status
+        ));
+    }
+
+    let seller_wallet = row
+        .users
+        .wallet_address
+        .ok_or_else(|| anyhow!("판매자 지갑 주소가 없습니다"))?;
+    let nft_mint = row
+        .user_inventory
+        .nft_mint_address
+        .ok_or_else(|| anyhow!("NFT mint 주소가 없습니다"))?;
+    let _escrow_address = row
+        .escrow_address
+        .ok_or_else(|| anyhow!("에스크로 주소가 없습니다"))?;
+
+    let listing_pda = solana_client::derive_listing_address(
+        &seller_wallet,
+        &nft_mint,
+        &state.config.solana_program_id,
+    )?;
+    let expected_escrow =
+        solana_client::derive_escrow_address(&listing_pda, &state.config.solana_program_id)?;
+
+    solana_client::verify_program_instruction_tx(
+        &state.config.solana_rpc_url,
+        &state.config.helius_api_key,
+        &state.http_client,
+        &tx_signature,
+        &state.config.solana_program_id,
+        "cancel_listing",
+        &[
+            seller_wallet.as_str(),
+            listing_pda.as_str(),
+            nft_mint.as_str(),
+            expected_escrow.as_str(),
+        ],
+        Some(seller_wallet.as_str()),
+        Some(&[
+            (0, seller_wallet.as_str()),
+            (1, listing_pda.as_str()),
+            (2, nft_mint.as_str()),
+            (3, expected_escrow.as_str()),
+        ]),
+    )
+    .await
+    .context("판매 취소 트랜잭션 검증 실패")?;
+
+    let patch_url = format!(
+        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}&status=eq.active",
+        state.config.supabase_url.trim_end_matches('/'),
+        listing_id,
+        user_id,
+    );
+
+    #[derive(Serialize)]
+    struct CancelPayload {
+        status: &'static str,
+    }
+
+    let patch_res = state
+        .http_client
+        .patch(&patch_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=minimal")
+        .json(&CancelPayload { status: "cancelled" })
+        .send()
+        .await
+        .context("market_listings 취소 PATCH 요청 실패")?;
+
+    if !patch_res.status().is_success() {
+        return Err(anyhow!(
+            "market_listings 취소 실패: {}",
+            patch_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    Ok(())
+}
+
 // purchase
 //
 /// 마켓 아이템을 구매한다.

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { syncOwnedNfts } from "@/domains/avatar/api/avatarApi";
+import { syncOwnedNfts, getUserItems } from "@/domains/avatar/api/avatarApi";
+import { useSptBalance } from "@/shared/hooks/useSptBalance";
 import { withdrawAccount } from "@/domains/auth/api/auth";
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
@@ -61,6 +62,9 @@ export default function ProfilePage() {
     currentStreak: 0,
   });
 
+  const { sptBalance, sptLoading } = useSptBalance(profile.walletAddress || null);
+  const [nftCount, setNftCount] = useState<number | null>(null);
+
   const originalEmailRef = useRef("");
 
   // 카메라 버튼으로 선택한 파일의 로컬 미리보기 (즉시 업로드 전용)
@@ -97,9 +101,12 @@ export default function ProfilePage() {
   });
   const [isSavingNotifications, setIsSavingNotifications] = useState(false);
 
-  // 마이페이지 진입 시 NFT sync
+  // 마이페이지 진입 시 NFT sync + 보유 NFT 수 조회
   useEffect(() => {
     void syncOwnedNfts().catch(() => {});
+    void getUserItems()
+      .then((items) => setNftCount(items.filter((i) => i.is_nft === true).length))
+      .catch(() => setNftCount(0));
   }, []);
 
   useEffect(() => {
@@ -446,12 +453,18 @@ export default function ProfilePage() {
               <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
                 <p className="mb-1 text-sm opacity-90">보유 SPT</p>
                 <p className="font-bold">
-                  {profile.sptBalance.toLocaleString("ko-KR")} SPT
+                  {!profile.walletAddress
+                    ? "—"
+                    : sptLoading
+                    ? "..."
+                    : (sptBalance ?? 0).toLocaleString("ko-KR")} SPT
                 </p>
               </div>
               <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
-                <p className="mb-1 text-sm opacity-90">보유 아바타</p>
-                <p className="font-bold">15개</p>
+                <p className="mb-1 text-sm opacity-90">보유 NFT</p>
+                <p className="font-bold">
+                  {nftCount === null ? "..." : `${nftCount}개`}
+                </p>
               </div>
               <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
                 <p className="mb-1 text-sm opacity-90">로그인 방식</p>

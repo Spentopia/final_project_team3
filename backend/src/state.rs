@@ -77,7 +77,10 @@ impl AppState {
     pub fn new(config: Config) -> Self {
         Self {
             config,
-            http_client: Client::new(),
+            http_client: Client::builder()
+                .pool_idle_timeout(std::time::Duration::from_secs(8))
+                .build()
+                .expect("reqwest Client 생성 실패"),
             nonce_store: Arc::new(DashMap::new()),
             handoff_store: Arc::new(DashMap::new()),
         }

@@ -53,9 +53,16 @@ export async function getProfileCompletionStatus(): Promise<ProfileStatus> {
   };
 }
 
+// 동시에 여러 컴포넌트가 호출해도 실제 API 요청은 1번만 나가도록 인플라이트 디듀플리케이션
+let _profileInflight: Promise<UserProfile> | null = null;
+
 export async function getUserProfile(): Promise<UserProfile> {
-  const { data } = await apiClient.get<UserProfile>("/api/user/profile");
-  return data;
+  if (_profileInflight) return _profileInflight;
+  _profileInflight = apiClient
+    .get<UserProfile>("/api/user/profile")
+    .then((res) => res.data)
+    .finally(() => { _profileInflight = null; });
+  return _profileInflight;
 }
 
 export async function getUserSettings(): Promise<UserSettings> {

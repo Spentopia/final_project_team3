@@ -265,6 +265,10 @@ pub fn create_router(state: AppState) -> Router {
             "/api/market/listings/:id/escrow",
             patch(market::handler::update_escrow),
         )
+        .route(
+            "/api/market/listings/:id",
+            delete(market::handler::cancel_listing),
+        )
         .route("/api/market/purchase", post(market::handler::purchase))
         // JWT 미들웨어: 위 모든 라우트에 적용
         .route_layer(middleware::from_fn_with_state(
