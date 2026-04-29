@@ -1895,5 +1895,6 @@ pub async fn exchange_handoff(
     Ok(Json(HandoffExchangeResponse {
         access_token: result.access_token,
         refresh_token: result.refresh_token,
+        user_id: result.user_id,
     }))
 }

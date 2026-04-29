@@ -3,7 +3,7 @@ import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import AiChatbotDialog from "@/components/chat/AiChatbotDialog";
-import { Search, Send, Eye, Heart, ChevronUp, ChevronDown, Link2, Pencil, Trash2 } from "lucide-react";
+import { Search, Send, Eye, Heart, ChevronUp, ChevronDown, Link2, Pencil, Trash2, X, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import { AxiosError } from "axios";
 import {
@@ -18,6 +18,7 @@ import {
   type ContestResponse,
   type CommunityPostResponse,
   type PostType,
+  type PostSort,
 } from "@/domains/community/api/communityApi";
 
 // ── 타입 ─────────────────────────────────────────────────────
@@ -129,6 +130,7 @@ export default function Community() {
   const [searchQuery, setSearchQuery]     = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [currentPage, setCurrentPage]     = useState(1);
+  const [sort, setSort]                   = useState<PostSort>("date");
   const [posts, setPosts]                 = useState<Post[]>([]);
   const [totalCount, setTotalCount]       = useState(0);
   const [selectedPost, setSelectedPost]   = useState<Post | null>(null);
@@ -199,7 +201,7 @@ export default function Community() {
     async function fetchPosts() {
       try {
         const data = await listCommunityPosts({
-          sort: "date",
+          sort,
           title: debouncedSearchQuery || undefined,
           page: currentPage,
           pageSize: PER_PAGE,
@@ -221,7 +223,7 @@ export default function Community() {
     return () => {
       ignore = true;
     };
-  }, [currentPage, debouncedSearchQuery]);
+  }, [currentPage, debouncedSearchQuery, sort]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -777,19 +779,42 @@ export default function Community() {
           </div>
 
           {/* 탭 바 */}
-          <div className="flex border-b border-gray-200 dark:border-gray-700">
+          <div className="flex border-b-2 border-gray-200 dark:border-gray-700">
             {TABS.map((tab) => (
-                <button
-                    key={tab.key}
-                    onClick={() => handleTabChange(tab.key)}
-                    className={`px-6 py-3.5 text-base border-b-2 -mb-px transition-colors whitespace-nowrap ${
-                        activeTab === tab.key
-                            ? "border-cyan-500 text-cyan-600 dark:text-cyan-400 font-medium"
-                            : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                    }`}
-                >
-                  {tab.label}
-                </button>
+              <button
+                key={tab.key}
+                onClick={() => handleTabChange(tab.key)}
+                className={`flex-1 text-center py-3 text-sm font-medium border-b-2 -mb-0.5 transition-colors whitespace-nowrap ${
+                  activeTab === tab.key
+                    ? "border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-100 font-bold"
+                    : "border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 정렬 */}
+          <div className="flex justify-end items-center py-3 pr-3 gap-1">
+            {(
+              [
+                { key: "date"  as PostSort, label: "최신순" },
+                { key: "likes" as PostSort, label: "추천순" },
+                { key: "views" as PostSort, label: "조회순" },
+              ] as { key: PostSort; label: string }[]
+            ).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => { setSort(key); setCurrentPage(1); }}
+                className={`text-sm px-3 py-1.5 transition-colors ${
+                  sort === key
+                    ? "text-gray-800 dark:text-gray-100 font-bold"
+                    : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                }`}
+              >
+                {sort === key ? `✓ ${label}` : label}
+              </button>
             ))}
           </div>
 
@@ -824,7 +849,7 @@ export default function Community() {
                   </span>
 
                         {/* 작성자 · 좋아요 · 날짜 · 조회수 */}
-                        <span className="grid grid-cols-[110px_60px_100px_72px] items-center text-sm text-gray-400 dark:text-gray-500 flex-shrink-0 min-w-[325px]">
+                        <span className="grid grid-cols-[150px_60px_100px_72px] items-center text-sm text-gray-400 dark:text-gray-500 flex-shrink-0 min-w-[325px]">
                           <span className="truncate text-left">{post.author}</span>
 
                           <span className="flex items-center justify-center gap-1">
@@ -867,42 +892,71 @@ export default function Community() {
         </div>
 
         {isWriteOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <Card className="max-h-[90vh] w-full max-w-3xl overflow-y-auto border-none bg-white/95 shadow-2xl backdrop-blur-xl dark:bg-gray-800/95">
-              <form onSubmit={handleWriteSubmit}>
-                <div className="border-b border-gray-100 px-8 pb-6 pt-8 dark:border-gray-700">
-                  <div className="mb-4 flex flex-wrap items-end gap-3">
-                    <label className="space-y-1.5">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">게시판</span>
-                      <select
-                        value={writeType}
-                        onChange={(event) => {
-                          const nextType = event.target.value as PostType;
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+            <div className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-lg shadow-2xl flex flex-col max-h-[90vh] border border-gray-200 dark:border-gray-700">
 
-                          if (nextType === "notice" && myRoleType !== "admin") {
-                            toast.error("운영자만 가능합니다");
-                            return;
-                          }
+              {/* 헤더 */}
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-t-lg">
+                <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">글쓰기</h2>
+                <button
+                  type="button"
+                  onClick={() => { setIsWriteOpen(false); resetWriteForm(); }}
+                  disabled={isSubmitting}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  <X className="h-4.5 w-4.5" />
+                </button>
+              </div>
 
-                          setWriteType(nextType);
-                        }}
-                        className={`h-9 min-w-[150px] rounded border-0 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-cyan-400 ${
-                          BADGE_STYLE[writeType === "request" ? "item" : writeType].bg
-                        } ${BADGE_STYLE[writeType === "request" ? "item" : writeType].text}`}
-                      >
-                        <option value="request">이거 만들어주세요</option>
-                        <option value="contest">아바타 콘테스트</option>
-                        <option value="notice">공지사항</option>
-                      </select>
-                    </label>
+              <form onSubmit={handleWriteSubmit} className="flex flex-col flex-1 min-h-0">
+                <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700/60">
 
-                    {writeType === "contest" && (
-                      <label className="min-w-0 flex-1 space-y-1.5">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">콘테스트</span>
+                  {/* 게시판 선택 */}
+                  <div className="flex min-h-[52px]">
+                    <span className="w-24 flex-shrink-0 flex items-center justify-center text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700">
+                      게시판
+                    </span>
+                    <div className="flex-1 flex items-center flex-wrap gap-2 px-4 py-3">
+                      {(
+                        [
+                          { type: "request" as PostType, label: "이거 만들어주세요", badgeKey: "item" as PostCategory },
+                          { type: "contest" as PostType, label: "아바타 콘테스트",   badgeKey: "contest" as PostCategory },
+                          ...(myRoleType === "admin"
+                            ? [{ type: "notice" as PostType, label: "공지사항", badgeKey: "notice" as PostCategory }]
+                            : []),
+                        ] as { type: PostType; label: string; badgeKey: PostCategory }[]
+                      ).map(({ type, label, badgeKey }) => {
+                        const badge = BADGE_STYLE[badgeKey];
+                        const active = writeType === type;
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setWriteType(type)}
+                            className={`px-3 py-1 rounded text-xs font-medium border transition-all ${
+                              active
+                                ? `${badge.bg} ${badge.text} border-transparent`
+                                : "bg-white dark:bg-gray-900 text-gray-400 border-gray-200 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 콘테스트 선택 */}
+                  {writeType === "contest" && (
+                    <div className="flex min-h-[52px]">
+                      <span className="w-24 flex-shrink-0 flex items-center justify-center text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700">
+                        콘테스트
+                      </span>
+                      <div className="flex-1 flex items-center px-4 py-3">
                         <select
                           value={writeContestId}
                           onChange={(event) => setWriteContestId(event.target.value)}
-                          className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                          className="h-8 w-full max-w-xs rounded border border-gray-200 bg-white px-2 text-sm text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
                         >
                           {contests.length === 0 ? (
                             <option value="">등록된 콘테스트 없음</option>
@@ -914,72 +968,91 @@ export default function Community() {
                             ))
                           )}
                         </select>
-                      </label>
-                    )}
-                  </div>
+                      </div>
+                    </div>
+                  )}
 
-                  <Input
-                    value={writeTitle}
-                    onChange={(event) => setWriteTitle(event.target.value)}
-                    placeholder="제목을 입력하세요"
-                    className="h-auto border-0 bg-transparent px-0 py-1 text-2xl font-bold leading-snug text-gray-900 shadow-none outline-none placeholder:text-gray-300 focus-visible:ring-0 dark:text-gray-100 dark:placeholder:text-gray-600"
-                  />
-
-                  <div className="mt-5 flex items-center gap-6 text-sm text-gray-400 dark:text-gray-500">
-                    <span className="font-medium text-gray-600 dark:text-gray-400">작성 중</span>
-                    <span className="flex items-center gap-1">
-                      <Heart className="h-3.5 w-3.5" />0
+                  {/* 제목 */}
+                  <div className="flex min-h-[52px]">
+                    <span className="w-24 flex-shrink-0 flex items-center justify-center text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700">
+                      제목
                     </span>
-                    <span>{formatPostDate(new Date().toISOString())}</span>
-                    <span className="flex items-center gap-1">
-                      <Eye className="h-3.5 w-3.5" />0
-                    </span>
-                  </div>
-                </div>
-
-                <div className="min-h-[260px] space-y-5 px-8 py-8">
-                  <textarea
-                    value={writeContent}
-                    onChange={(event) => setWriteContent(event.target.value)}
-                    placeholder="내용을 입력하세요"
-                    rows={10}
-                    className="w-full resize-none border-0 bg-transparent p-0 text-base leading-8 text-gray-700 outline-none placeholder:text-gray-300 focus:ring-0 dark:text-gray-300 dark:placeholder:text-gray-600"
-                  />
-
-                  <label className="block space-y-1.5 rounded-lg border border-dashed border-gray-200 bg-gray-50/70 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/40">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">이미지</span>
-                    <Input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      onChange={(event) => setWriteFile(event.target.files?.[0] ?? null)}
-                      className="h-11 bg-white text-base dark:bg-gray-900"
+                    <input
+                      type="text"
+                      value={writeTitle}
+                      onChange={(event) => setWriteTitle(event.target.value)}
+                      placeholder="제목을 입력하세요"
+                      className="flex-1 px-4 py-3.5 text-sm text-gray-900 dark:text-gray-100 bg-transparent outline-none placeholder:text-gray-300 dark:placeholder:text-gray-600"
                     />
-                  </label>
+                  </div>
+
+                  {/* 내용 */}
+                  <div className="flex flex-col">
+                    <textarea
+                      value={writeContent}
+                      onChange={(event) => setWriteContent(event.target.value)}
+                      placeholder="내용을 입력하세요"
+                      rows={13}
+                      className="w-full resize-none px-5 py-4 text-sm leading-7 text-gray-700 dark:text-gray-300 bg-transparent outline-none placeholder:text-gray-300 dark:placeholder:text-gray-600"
+                    />
+                  </div>
+
+                  {/* 첨부파일 */}
+                  <div className="flex min-h-[52px]">
+                    <span className="w-24 flex-shrink-0 flex items-center justify-center text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700">
+                      첨부파일
+                    </span>
+                    <div className="flex-1 flex items-center gap-3 px-4 py-3">
+                      <label className="flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded border border-gray-200 dark:border-gray-600 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors select-none">
+                        <Paperclip className="h-3.5 w-3.5" />
+                        이미지 첨부
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="sr-only"
+                          onChange={(event) => setWriteFile(event.target.files?.[0] ?? null)}
+                        />
+                      </label>
+                      {writeFile && (
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-xs text-cyan-600 dark:text-cyan-400 truncate max-w-[180px]">
+                            {writeFile.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setWriteFile(null)}
+                            className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                 </div>
 
-                <div className="flex justify-center gap-2 border-t border-gray-100 px-8 py-5 dark:border-gray-700">
+                {/* 하단 버튼 */}
+                <div className="flex items-center justify-end gap-2 px-5 py-3.5 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-b-lg">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      setIsWriteOpen(false);
-                      resetWriteForm();
-                    }}
+                    onClick={() => { setIsWriteOpen(false); resetWriteForm(); }}
                     disabled={isSubmitting}
-                    className="h-11 px-10 text-base"
+                    className="h-9 px-5 text-sm"
                   >
                     취소
                   </Button>
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="h-11 bg-gradient-to-r from-cyan-500 to-blue-500 px-10 text-base"
+                    className="h-9 px-5 text-sm bg-gradient-to-r from-cyan-500 to-blue-500"
                   >
-                    {isSubmitting ? "등록 중" : "등록"}
+                    {isSubmitting ? "등록 중..." : "등록"}
                   </Button>
                 </div>
               </form>
-            </Card>
+            </div>
           </div>
         )}
 
