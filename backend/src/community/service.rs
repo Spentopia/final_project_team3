@@ -14,12 +14,12 @@ use uuid::Uuid;
 
 use super::{
     dto::{
-        ChatResponse, ContestEventResponse, CreatePostRequest, PostResponse, PostSort, PostType,
-        UpdatePostRequest, UploadCommunityImageResponse,
+        ChatResponse, ContestEventResponse, CreatePostRequest, PostListResponse, PostResponse,
+        PostSort, PostType, UpdatePostRequest, UploadCommunityImageResponse,
     },
     model::{ChatbotLog, ContestEvent, Post},
 };
-use crate::state::AppState;
+use crate::{filter, state::AppState};
 
 fn to_post_response(post: Post) -> PostResponse {
     let author_nickname = post.users.as_ref().and_then(|author| author.nickname.clone());
@@ -151,6 +151,26 @@ fn validate_post_type(req: &CreatePostRequest) -> Result<()> {
             if req.contest_id.is_none() {
                 return Err(anyhow!("아바타 콘테스트 게시글에는 contest_id가 필요합니다."));
             }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_post_text(title: Option<&str>, content: Option<&str>) -> Result<()> {
+    if let Some(title) = title {
+        if !filter::check(title) {
+            return Err(anyhow!(
+                "게시글 제목에 사용할 수 없는 표현이 포함되어 있습니다."
+            ));
+        }
+    }
+
+    if let Some(content) = content {
+        if !filter::check(content) {
+            return Err(anyhow!(
+                "게시글 내용에 사용할 수 없는 표현이 포함되어 있습니다."
+            ));
         }
     }
 
@@ -362,11 +382,23 @@ pub async fn list_posts(
     state: &AppState,
     contest_id: Option<Uuid>,
     sort: PostSort,
-) -> Result<Vec<PostResponse>> {
+    title: Option<String>,
+    page: u32,
+    page_size: u32,
+) -> Result<PostListResponse> {
+    let page = page.max(1);
+    let page_size = page_size.clamp(1, 50);
+    let offset = (page - 1) * page_size;
+    let end = offset + page_size - 1;
+
     let mut filters = vec!["is_deleted=eq.false".to_string()];
 
     if let Some(id) = contest_id {
         filters.push(format!("contest_id=eq.{}", id));
+    }
+
+    if let Some(title) = normalize_optional_string(title) {
+        filters.push(format!("title=eq.{}", urlencoding::encode(&title)));
     }
 
     let order = match sort {
@@ -390,6 +422,9 @@ pub async fn list_posts(
             format!("Bearer {}", state.config.supabase_secret_key),
         )
         .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "count=exact")
+        .header("Range-Unit", "items")
+        .header("Range", format!("{}-{}", offset, end))
         .send()
         .await
         .context("posts SELECT 요청 실패")?;
@@ -399,8 +434,20 @@ pub async fn list_posts(
         return Err(anyhow!("posts SELECT 실패: {}", body));
     }
 
+    let total_count = res
+        .headers()
+        .get("content-range")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.rsplit('/').next())
+        .and_then(|value| value.parse::<i64>().ok())
+        .unwrap_or(0);
+
     let posts: Vec<Post> = res.json().await.context("posts 역직렬화 실패")?;
-    Ok(posts.into_iter().map(to_post_response).collect())
+
+    Ok(PostListResponse {
+        items: posts.into_iter().map(to_post_response).collect(),
+        total_count,
+    })
 }
 
 // ── 게시물 상세 조회 ───────────────────────────────────────────
@@ -420,6 +467,7 @@ pub async fn create_post(
     req: CreatePostRequest,
 ) -> Result<PostResponse> {
     validate_post_type(&req)?;
+    validate_post_text(Some(&req.title), req.content.as_deref())?;
 
     if matches!(req.post_type, PostType::Notice) {
         ensure_admin(state, user_id).await?;
@@ -467,12 +515,13 @@ pub async fn create_post(
     }
 
     let inserted: Vec<Post> = res.json().await.context("posts INSERT 역직렬화 실패")?;
-    let post = inserted
+    let post_id = inserted
         .into_iter()
         .next()
+        .map(|post| post.id)
         .ok_or_else(|| anyhow!("posts INSERT 결과가 비어있음"))?;
 
-    Ok(to_post_response(post))
+    get_post(state, post_id).await.map(to_post_response)
 }
 
 // ── 게시물 수정 ───────────────────────────────────────────────
@@ -486,6 +535,8 @@ pub async fn update_post(
     if req.title.is_none() && req.image_url.is_none() && req.content.is_none() {
         return Err(anyhow!("수정할 필드가 없습니다."));
     }
+
+    validate_post_text(req.title.as_deref(), req.content.as_deref())?;
 
     let post = get_post(state, post_id).await?;
     ensure_can_modify_post(state, user_id, &post).await?;
@@ -543,11 +594,13 @@ pub async fn update_post(
     }
 
     let updated: Vec<Post> = res.json().await.context("posts UPDATE 역직렬화 실패")?;
-    updated
+    let updated_post_id = updated
         .into_iter()
         .next()
-        .map(to_post_response)
-        .ok_or_else(|| anyhow!("posts UPDATE 결과가 비어있음"))
+        .map(|post| post.id)
+        .ok_or_else(|| anyhow!("posts UPDATE 결과가 비어있음"))?;
+
+    get_post(state, updated_post_id).await.map(to_post_response)
 }
 
 // ── 게시물 삭제 ───────────────────────────────────────────────

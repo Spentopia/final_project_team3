@@ -3,10 +3,12 @@ import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import AiChatbotDialog from "@/components/chat/AiChatbotDialog";
-import { MessageCircle, Search, Send, Eye, ChevronUp, ChevronDown, Link2 } from "lucide-react";
+import { Search, Send, Eye, ChevronUp, ChevronDown, Link2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { AxiosError } from "axios";
 import {
   createCommunityPost,
+  deleteCommunityPost,
   getCommunityMe,
   getCommunityPost,
   listCommunityPosts,
@@ -25,6 +27,8 @@ type TabKey = "all" | PostCategory;
 
 interface Post {
   id: string;
+  user_id: string;
+  contest_id: string | null;
   category: PostCategory;
   title: string;
   author: string;
@@ -86,9 +90,22 @@ function buildImageUrl(path: string | null | undefined): string | null {
   return `${SUPABASE_URL}/storage/v1/object/public/${COMMUNITY_BUCKET}/${path}`;
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof AxiosError) {
+    const message = error.response?.data;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  }
+
+  return fallback;
+}
+
 function toPost(post: CommunityPostResponse): Post {
   return {
     id: post.id,
+    user_id: post.user_id,
+    contest_id: post.contest_id,
     category: post.post_type === "request" ? "item" : post.post_type,
     title: post.title,
     author: post.author_nickname ?? "익명",
@@ -107,17 +124,23 @@ export default function Community() {
   const [searchQuery, setSearchQuery]     = useState("");
   const [currentPage, setCurrentPage]     = useState(1);
   const [posts, setPosts]                 = useState<Post[]>([]);
+  const [totalCount, setTotalCount]       = useState(0);
   const [selectedPost, setSelectedPost]   = useState<Post | null>(null);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [isWriteOpen, setIsWriteOpen]     = useState(false);
   const [isSubmitting, setIsSubmitting]   = useState(false);
   const [contests, setContests]           = useState<ContestResponse[]>([]);
+  const [myUserId, setMyUserId]           = useState("");
   const [myRoleType, setMyRoleType]       = useState("user");
   const [writeType, setWriteType]         = useState<PostType>("request");
   const [writeTitle, setWriteTitle]       = useState("");
   const [writeContent, setWriteContent]   = useState("");
   const [writeContestId, setWriteContestId] = useState("");
   const [writeFile, setWriteFile]         = useState<File | null>(null);
+  const [isEditOpen, setIsEditOpen]       = useState(false);
+  const [editTitle, setEditTitle]         = useState("");
+  const [editContent, setEditContent]     = useState("");
+  const [editFile, setEditFile]           = useState<File | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -126,6 +149,7 @@ export default function Community() {
       try {
         const data = await getCommunityMe();
         if (!ignore) {
+          setMyUserId(data.id);
           setMyRoleType(data.role_type ?? "user");
         }
       } catch (error) {
@@ -147,9 +171,15 @@ export default function Community() {
 
     async function fetchPosts() {
       try {
-        const data = await listCommunityPosts({ sort: "date" });
+        const data = await listCommunityPosts({
+          sort: "date",
+          title: searchQuery.trim() || undefined,
+          page: currentPage,
+          pageSize: PER_PAGE,
+        });
         if (!ignore) {
-          setPosts(data.map(toPost));
+          setPosts(data.items.map(toPost));
+          setTotalCount(data.total_count);
         }
       } catch (error) {
         if (!ignore) {
@@ -164,7 +194,7 @@ export default function Community() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [currentPage, searchQuery]);
 
   useEffect(() => {
     let ignore = false;
@@ -192,17 +222,15 @@ export default function Community() {
 
   // 필터링
   const filtered = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
     return posts.filter((p) => {
       const tabMatch    = activeTab === "all" || p.category === activeTab;
-      const searchMatch = !q || p.title.toLowerCase().includes(q);
-      return tabMatch && searchMatch;
+      return tabMatch;
     });
-  }, [activeTab, posts, searchQuery]);
+  }, [activeTab, posts]);
 
   // 페이지네이션
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-  const paginated  = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE));
+  const paginated  = filtered;
 
   // 이전글 / 다음글 (전체 목록 id 순서 기준)
   const allIds       = posts.map((p) => p.id);
@@ -311,18 +339,121 @@ export default function Community() {
         });
       }
 
-      setPosts((prev) => [toPost(created), ...prev.filter((post) => post.id !== created.id)]);
+      setPosts((prev) =>
+        [toPost(created), ...prev.filter((post) => post.id !== created.id)].slice(0, PER_PAGE)
+      );
+      setTotalCount((prev) => prev + 1);
       setCurrentPage(1);
       setActiveTab("all");
       setIsWriteOpen(false);
       resetWriteForm();
       toast.success("게시글이 등록되었습니다");
     } catch (error) {
-      toast.error("게시글 등록에 실패했습니다");
+      toast.error(getErrorMessage(error, "게시글 등록에 실패했습니다"));
       console.error("게시글 등록 실패:", error);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const openEditForm = () => {
+    if (!selectedPost) return;
+
+    setEditTitle(selectedPost.title);
+    setEditContent(selectedPost.content);
+    setEditFile(null);
+    setIsEditOpen(true);
+  };
+
+  const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!selectedPost) return;
+
+    const title = editTitle.trim();
+    const content = editContent.trim();
+
+    if (!title) {
+      toast.error("제목을 입력해주세요");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      let imagePath: string | undefined;
+
+      if (editFile) {
+        if (selectedPost.category === "contest" && !selectedPost.contest_id) {
+          toast.error("콘테스트 정보를 찾을 수 없습니다");
+          return;
+        }
+
+        const uploaded = await uploadCommunityImage({
+          file: editFile,
+          target:
+            selectedPost.category === "contest"
+              ? { postType: "contest", contestId: selectedPost.contest_id! }
+              : selectedPost.category === "notice"
+                ? { postType: "notice", postId: selectedPost.id }
+                : { postType: "request" },
+        });
+
+        imagePath = uploaded.path;
+      }
+
+      const updated = await updateCommunityPost(selectedPost.id, {
+        title,
+        content,
+        ...(imagePath ? { image_url: imagePath } : {}),
+      });
+
+      const nextPost = toPost(updated);
+      setPosts((prev) => prev.map((post) => (post.id === nextPost.id ? nextPost : post)));
+      setSelectedPost(nextPost);
+      setIsEditOpen(false);
+      setEditFile(null);
+      toast.success("게시글이 수정되었습니다");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "게시글 수정에 실패했습니다"));
+      console.error("게시글 수정 실패:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const deletePostById = async (postId: string) => {
+    setIsSubmitting(true);
+
+    try {
+      await deleteCommunityPost(postId);
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+      setTotalCount((prev) => Math.max(0, prev - 1));
+      setSelectedPost((current) => (current?.id === postId ? null : current));
+      setIsEditOpen(false);
+      toast.success("게시글이 삭제되었습니다");
+    } catch (error) {
+      toast.error("게시글 삭제에 실패했습니다");
+      console.error("게시글 삭제 실패:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeletePost = () => {
+    if (!selectedPost) return;
+
+    const postId = selectedPost.id;
+
+    toast.warning("게시글을 삭제하시겠습니까?", {
+      action: {
+        label: "삭제",
+        onClick: () => {
+          void deletePostById(postId);
+        },
+      },
+      duration: 5000,
+    });
   };
 
   // 브라우저 뒤로가기 → 목록으로
@@ -337,6 +468,9 @@ export default function Community() {
   // ── 상세 뷰 ──────────────────────────────────────────────────
   if (selectedPost) {
     const badge = BADGE_STYLE[selectedPost.category];
+    const canModifySelectedPost =
+      selectedPost.user_id === myUserId ||
+      (selectedPost.category === "notice" && myRoleType === "admin");
 
     return (
         <div className="space-y-6">
@@ -376,6 +510,27 @@ export default function Community() {
                   >
                     <Link2 className="h-3.5 w-3.5" />
                   </button>
+                  {canModifySelectedPost && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={openEditForm}
+                        className="flex items-center gap-1 hover:text-cyan-500 transition-colors"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeletePost}
+                        className="flex items-center gap-1 hover:text-red-500 transition-colors disabled:opacity-50"
+                        disabled={isSubmitting}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        삭제
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -443,6 +598,81 @@ export default function Community() {
               </Button>
             </div>
           </Card>
+
+          {isEditOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <Card className="w-full max-w-xl border-none bg-white dark:bg-gray-800 p-6 shadow-2xl">
+                <div className="mb-5">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">게시글 수정</h2>
+                </div>
+
+                <form onSubmit={handleEditSubmit} className="space-y-4">
+                  <label className="block space-y-1.5">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">제목</span>
+                    <Input
+                      value={editTitle}
+                      onChange={(event) => setEditTitle(event.target.value)}
+                      placeholder="제목을 입력하세요"
+                      className="h-11 text-base"
+                    />
+                  </label>
+
+                  <label className="block space-y-1.5">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">내용</span>
+                    <textarea
+                      value={editContent}
+                      onChange={(event) => setEditContent(event.target.value)}
+                      placeholder="내용을 입력하세요"
+                      rows={7}
+                      className="w-full resize-none rounded-md border border-gray-200 bg-white px-3 py-3 text-base text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    />
+                  </label>
+
+                  {selectedPost.image_url && (
+                    <div className="space-y-1.5">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">현재 이미지</span>
+                      <img
+                        src={selectedPost.image_url}
+                        alt="현재 게시글 이미지"
+                        className="max-h-40 rounded-md object-contain"
+                      />
+                    </div>
+                  )}
+
+                  <label className="block space-y-1.5">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">이미지 변경</span>
+                    <Input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(event) => setEditFile(event.target.files?.[0] ?? null)}
+                      className="h-11 text-base"
+                    />
+                  </label>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditOpen(false);
+                        setEditFile(null);
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="bg-gradient-to-r from-cyan-500 to-blue-500"
+                    >
+                      {isSubmitting ? "수정 중" : "수정"}
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+            </div>
+          )}
 
           <AiChatbotDialog open={isChatbotOpen} onOpenChange={setIsChatbotOpen} />
         </div>
