@@ -55,8 +55,9 @@ import { useMarket } from "../hooks/useMarket";
 // 타입도 도메인 간 참조
 import type { UserItemResponse } from "@/domains/avatar/model/types";
 import type { ListingResponse } from "../model/types";
-import { buyNftOnChain, listNftOnChain } from "../lib/marketplaceSolana";
+import { buyNftOnChain, cancelListingOnChain, listNftOnChain } from "../lib/marketplaceSolana";
 import { useSptBalance } from "@/shared/hooks/useSptBalance";
+import { getUserProfile } from "@/domains/profile/api/profile";
 
 import styles from "./MarketplacePage.module.css";
 
@@ -231,10 +232,12 @@ function CreateListingDialog({
 // ────────────────────────────────────────────────────────────
 interface ListingCardProps {
   listing: ListingResponse;
-  onBuy: () => void; // 부모에서 purchaseTarget 세팅 → AlertDialog 오픈
+  isOwn: boolean;           // 현재 로그인 유저가 판매자인지 여부
+  onBuy: () => void;        // 부모에서 purchaseTarget 세팅 → AlertDialog 오픈
+  onCancel: () => void;     // 부모에서 cancelTarget 세팅 → AlertDialog 오픈
 }
 
-function ListingCard({ listing, onBuy }: ListingCardProps) {
+function ListingCard({ listing, isOwn, onBuy, onCancel }: ListingCardProps) {
   return (
       <Card className={styles.listingCard}>
         <CardContent className={styles.cardContent}>
@@ -274,14 +277,26 @@ function ListingCard({ listing, onBuy }: ListingCardProps) {
         </CardContent>
 
         <CardFooter className={styles.cardFooter}>
-          <Button
-              className={styles.buyButton}
-              size="sm"
-              onClick={onBuy}
-              disabled={!listing.escrow_address}
-          >
-            {listing.escrow_address ? "구매" : "동기화 중"}
-          </Button>
+          {isOwn ? (
+            <Button
+                className={styles.buyButton}
+                size="sm"
+                variant="outline"
+                onClick={onCancel}
+                disabled={!listing.escrow_address}
+            >
+              판매 취소
+            </Button>
+          ) : (
+            <Button
+                className={styles.buyButton}
+                size="sm"
+                onClick={onBuy}
+                disabled={!listing.escrow_address}
+            >
+              {listing.escrow_address ? "구매" : "동기화 중"}
+            </Button>
+          )}
         </CardFooter>
       </Card>
   );
@@ -305,16 +320,25 @@ export default function MarketplacePage() {
   const { publicKey, connected, sendTransaction } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
   const { items, loading: itemsLoading, refetch: refetchItems } = useAvatarItems();
-  const { sptBalance, sptLoading, refreshSptBalance } = useSptBalance();
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const { sptBalance, sptLoading, refreshSptBalance } = useSptBalance(walletAddress);
+
+  useEffect(() => {
+    getUserProfile()
+      .then((p) => setWalletAddress(p.wallet_address))
+      .catch(() => {});
+  }, []);
   const {
     listings,
     listingsLoading,
     createListing,
     updateEscrow,
     purchaseItem,
+    cancelListing,
     creatingListing,
     updatingEscrow,
     purchasing,
+    cancelling,
   } = useMarket();
 
   // ──────────────────────────────────────────────────────────
@@ -327,36 +351,10 @@ export default function MarketplacePage() {
   // ──────────────────────────────────────────────────────────
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [purchaseTarget, setPurchaseTarget] = useState<ListingResponse | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<ListingResponse | null>(null);
   const [listingOnChain, setListingOnChain] = useState(false);
-  const [syncingOwnedNfts, setSyncingOwnedNfts] = useState(false);
-
-  useEffect(() => {
-    if (!connected || !publicKey) return;
-
-    let cancelled = false;
-    setSyncingOwnedNfts(true);
-    syncOwnedNfts()
-      .then((result) => {
-        if (cancelled) return;
-        if (result.synced_count > 0) {
-          refetchItems();
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          toast.error(error instanceof Error ? error.message : "보유 NFT 동기화에 실패했습니다.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setSyncingOwnedNfts(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [connected, publicKey, refetchItems]);
+  const [cancellingOnChain, setCancellingOnChain] = useState(false);
+  const syncingOwnedNfts = false;
 
   // ──────────────────────────────────────────────────────────
   // NFT 아이템 필터링
@@ -364,8 +362,18 @@ export default function MarketplacePage() {
   // is_nft가 boolean | null이므로 === true로 엄격하게 비교
   // ──────────────────────────────────────────────────────────
   const connectedWalletAddress = publicKey?.toBase58() ?? null;
+
+  // 이미 마켓에 등록된 내 NFT mint 주소 집합 (중복 등록 방지 + 카운트 제외용)
+  const myListedMints = new Set(
+    listings
+      .filter((l) => walletAddress && l.seller_wallet_address === walletAddress)
+      .map((l) => l.nft_mint_address)
+      .filter(Boolean),
+  );
+
   const nftItems = items.filter((item) => {
     if (item.is_nft !== true || !item.nft_mint_address) return false;
+    if (myListedMints.has(item.nft_mint_address)) return false; // 이미 판매 등록됨
     if (!connectedWalletAddress || !item.minted_to_wallet) return true;
     return item.minted_to_wallet === connectedWalletAddress;
   });
@@ -404,6 +412,7 @@ export default function MarketplacePage() {
       if (!escrowSaved) {
         toast.error("온체인 판매 등록은 완료됐지만 DB 에스크로 저장에 실패했습니다. 다시 동기화가 필요합니다.");
       }
+      void refetchItems();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "온체인 판매 등록 중 오류가 발생했습니다.");
     } finally {
@@ -456,6 +465,37 @@ export default function MarketplacePage() {
     }
   };
 
+  const handleConfirmCancel = async () => {
+    if (!cancelTarget) return;
+    if (!cancelTarget.nft_mint_address) {
+      toast.error("NFT mint 주소가 없습니다.");
+      return;
+    }
+
+    setCancellingOnChain(true);
+    try {
+      if (!walletAddress) {
+        toast.error("연동된 지갑 주소가 없습니다.");
+        return;
+      }
+      const signature = await cancelListingOnChain({
+        connection,
+        nftMintAddress: cancelTarget.nft_mint_address,
+        walletAddress,
+      });
+      const ok = await cancelListing(cancelTarget.id, signature);
+      if (ok) {
+        setCancelTarget(null);
+        void syncOwnedNfts().then(() => refetchItems()).catch(() => {});
+      }
+    } catch (error) {
+      console.error("[cancelListing]", error);
+      toast.error(error instanceof Error ? error.message : "온체인 판매 취소 중 오류가 발생했습니다.");
+    } finally {
+      setCancellingOnChain(false);
+    }
+  };
+
   return (
       <div className={styles.pageWrapper}>
 
@@ -482,7 +522,7 @@ export default function MarketplacePage() {
               <div className={styles.summaryItem}>
                 <span className={styles.summaryLabel}>내 SPT</span>
                 <strong>
-                  {!connected
+                  {!walletAddress
                     ? "—"
                     : sptLoading
                     ? "..."
@@ -523,9 +563,11 @@ export default function MarketplacePage() {
                     <ListingCard
                         key={listing.id}
                         listing={listing}
-                        // 구매 버튼 클릭 시 이 listing을 purchaseTarget으로 저장
-                        // → AlertDialog가 열리고 해당 리스팅 정보 표시
+                        isOwn={
+                          !!(walletAddress && listing.seller_wallet_address === walletAddress)
+                        }
                         onBuy={() => setPurchaseTarget(listing)}
+                        onCancel={() => setCancelTarget(listing)}
                     />
                 ))}
               </div>
@@ -600,6 +642,37 @@ export default function MarketplacePage() {
                   disabled={purchasing}
               >
                 {purchasing ? "구매 중..." : "구매 확인"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        {/* ── 판매 취소 확인 AlertDialog ── */}
+        <AlertDialog
+            open={!!cancelTarget}
+            onOpenChange={(open) => !open && setCancelTarget(null)}
+        >
+          <AlertDialogContent className={styles.marketDialogContent}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>판매 취소 확인</AlertDialogTitle>
+              <AlertDialogDescription>
+                {cancelTarget && (
+                    <>
+                      <span className={styles.purchaseItemName}>{cancelTarget.item_name}</span>
+                      {" "}판매를 취소하시겠습니까?
+                      <span className={styles.purchaseFeeNote}>
+                        NFT가 에스크로에서 회수되어 본인 지갑으로 반환됩니다.
+                      </span>
+                    </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={cancellingOnChain || cancelling}>취소</AlertDialogCancel>
+              <AlertDialogAction
+                  onClick={(e) => { e.preventDefault(); void handleConfirmCancel(); }}
+                  disabled={cancellingOnChain || cancelling}
+              >
+                {cancellingOnChain || cancelling ? "처리 중..." : "판매 취소 확인"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

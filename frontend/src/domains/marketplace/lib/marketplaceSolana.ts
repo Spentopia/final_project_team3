@@ -20,6 +20,7 @@ const PROGRAM_ID = new PublicKey(
 const SPT_DECIMALS = 1_000_000n;
 const LIST_NFT_DISCRIMINATOR = [88, 221, 93, 166, 63, 220, 106, 232];
 const BUY_NFT_DISCRIMINATOR = [96, 0, 28, 190, 49, 107, 83, 222];
+const CANCEL_LISTING_DISCRIMINATOR = [41, 183, 50, 232, 230, 233, 157, 70];
 
 function pda(seed: Buffer[], programId = PROGRAM_ID): PublicKey {
     return PublicKey.findProgramAddressSync(seed, programId)[0];
@@ -59,7 +60,7 @@ async function sendAndFinalize(
     sendTransaction: (transaction: Transaction, connection: Connection) => Promise<string>,
     transaction: Transaction,
 ): Promise<string> {
-    const latest = await connection.getLatestBlockhash("finalized");
+    const latest = await connection.getLatestBlockhash("confirmed");
     transaction.feePayer = publicKey;
     transaction.recentBlockhash = latest.blockhash;
 
@@ -70,7 +71,7 @@ async function sendAndFinalize(
             blockhash: latest.blockhash,
             lastValidBlockHeight: latest.lastValidBlockHeight,
         },
-        "finalized",
+        "confirmed",
     );
 
     if (confirmation.value.err) {
@@ -122,6 +123,101 @@ export async function listNftOnChain(params: {
         signature,
         escrowAddress: escrow.toBase58(),
     };
+}
+
+type SolanaProvider = {
+    publicKey: { toBase58(): string; toBytes(): Uint8Array };
+    signAndSendTransaction: (tx: Transaction) => Promise<{ signature: string }>;
+};
+
+// DB에 저장된 walletAddress와 publicKey가 일치하는 provider를 찾는다.
+// 여러 지갑이 설치돼 있어도 실제 연동된 지갑만 선택한다.
+function getSolanaProvider(walletAddress: string): SolanaProvider {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const win = window as any;
+    const candidates: unknown[] = [
+        win.phantom?.solana,
+        win.solflare,
+        win.backpack,
+        win.solana,
+    ];
+    const provider = candidates.find(
+        (p): p is SolanaProvider =>
+            !!p &&
+            typeof p === "object" &&
+            "publicKey" in p &&
+            (p as SolanaProvider).publicKey?.toBase58() === walletAddress,
+    );
+    if (!provider) {
+        throw new Error(
+            "연동된 지갑을 찾을 수 없습니다. 익스텐션에서 이 사이트에 지갑이 연결되어 있는지 확인해 주세요.",
+        );
+    }
+    return provider;
+}
+
+export async function cancelListingOnChain(params: {
+    connection: Connection;
+    nftMintAddress: string;
+    walletAddress: string;
+}): Promise<string> {
+    const provider = getSolanaProvider(params.walletAddress);
+    const seller = new PublicKey(provider.publicKey.toBytes());
+
+    const nftMint = new PublicKey(params.nftMintAddress);
+    const listing = listingPda(seller, nftMint);
+    const escrow = pda([Buffer.from("escrow"), listing.toBuffer()]);
+    const sellerNftAccount = getAssociatedTokenAddressSync(nftMint, seller);
+
+    const latest = await params.connection.getLatestBlockhash("confirmed");
+
+    const ix = new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: [
+            {pubkey: seller, isSigner: true, isWritable: true},                // seller
+            {pubkey: listing, isSigner: false, isWritable: true},              // listing PDA
+            {pubkey: nftMint, isSigner: false, isWritable: false},             // nft_mint
+            {pubkey: escrow, isSigner: false, isWritable: true},               // escrow_token_account
+            {pubkey: sellerNftAccount, isSigner: false, isWritable: true},     // seller_nft_account
+            {pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false},    // token_program
+            {pubkey: SystemProgram.programId, isSigner: false, isWritable: false}, // system_program
+        ],
+        data: Buffer.from(CANCEL_LISTING_DISCRIMINATOR),
+    });
+
+    const transaction = new Transaction();
+    transaction.add(ix);
+    transaction.feePayer = seller;
+    transaction.recentBlockhash = latest.blockhash;
+
+    console.log("[cancelListing] seller:", seller.toBase58());
+    console.log("[cancelListing] nftMint:", nftMint.toBase58());
+    console.log("[cancelListing] listing PDA:", listing.toBase58());
+    console.log("[cancelListing] escrow:", escrow.toBase58());
+
+    // listing PDA 존재 여부 확인
+    const listingInfo = await params.connection.getAccountInfo(listing);
+    if (!listingInfo) {
+        // escrow도 없으면 이미 온체인에서 취소/구매 완료된 케이스 → DB만 정리 필요
+        const escrowInfo = await params.connection.getAccountInfo(escrow);
+        if (!escrowInfo) {
+            throw new Error("이 리스팅은 이미 온체인에서 처리(취소 또는 구매)됐습니다. 관리자에게 DB 정리를 요청하거나 고객센터에 문의해주세요.");
+        }
+        throw new Error(`리스팅 PDA가 온체인에 존재하지 않습니다. (${listing.toBase58()})`);
+    }
+
+    const { signature } = await provider.signAndSendTransaction(transaction);
+
+    const confirmation = await params.connection.confirmTransaction(
+        { signature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+        "confirmed",
+    );
+
+    if (confirmation.value.err) {
+        throw new Error(`온체인 트랜잭션 실패: ${JSON.stringify(confirmation.value.err)}`);
+    }
+
+    return signature;
 }
 
 export async function buyNftOnChain(params: {

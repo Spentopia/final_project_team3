@@ -4,10 +4,12 @@ import { listExpenses } from "@/shared/api/expenseApi";
 
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
-import { Badge } from "@/shared/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { analyzeReport } from "@/shared/api/aiApi";
 import { useState } from "react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { useRef } from "react";
 
 import {
   BarChart,
@@ -26,12 +28,9 @@ import {
 } from "recharts";
 import {
   TrendingDown,
-  TrendingUp,
   Download,
   Share2,
   Sparkles,
-  AlertTriangle,
-  CheckCircle,
 } from "lucide-react";
 import styles from "./AnalyticsPage.module.css";
 import {
@@ -104,6 +103,7 @@ const buildWeeklyData = (transactions: Transaction[], baseDate: Date) => {
     amount: dailyTotals[index],
   }));
 };
+
 
 const buildMonthlyData = (transactions: Transaction[], year: number) => {
   const monthlyTotals = Array(12).fill(0);
@@ -240,6 +240,9 @@ const buildPaymentPatternData = (transactions: Transaction[]) => {
 
 export default function Analytics() {
   const { transactions, replaceTransactions, budgets } = useFinance();
+
+  const reportRef = useRef<HTMLDivElement>(null);
+
   const now = new Date();
 
   const thisMonthTransactions = expenseTransactionsOnly(transactions).filter((transaction) => {
@@ -253,6 +256,8 @@ export default function Analytics() {
 });
 
 const [aiReport, setAiReport] = useState<AIReport | null>(null);
+
+const [isPdfMode, setIsPdfMode] = useState(false);
 
 // 총 지출
 const totalExpense = getMonthlyExpenseTotal(transactions, now);
@@ -393,6 +398,75 @@ setAiReport(result);
   fetchAIReport();
 }, [transactions]);
 
+const handleShare = async () => {
+  const text = `
+📊 소비 분석 결과
+총 지출: ${totalExpense.toLocaleString()}원
+일 평균: ${dailyAverage.toLocaleString()}원
+예산 사용률: ${budgetUsage}%
+`;
+
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: "소비 분석 리포트",
+        text,
+        url: window.location.href,
+      });
+    } else {
+      await navigator.clipboard.writeText(text);
+console.log("복사 완료");
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const handleDownload = async () => {
+  if (!reportRef.current) return;
+
+  try {
+    setIsPdfMode(true); // 🔥 먼저 상태 변경
+
+    reportRef.current.classList.add(styles["pdf-mode"]);
+
+    // 🔥 렌더 반영 기다림
+    await new Promise((r) => setTimeout(r, 100));
+
+    const canvas = await html2canvas(reportRef.current, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+    });
+
+    reportRef.current.classList.remove(styles["pdf-mode"]);
+    setIsPdfMode(false); // 🔥 다시 원래 상태
+
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const imgWidth = 210;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    heightLeft -= 297;
+
+    while (heightLeft > 0) {
+      position = -(imgHeight - heightLeft);
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= 297;
+    }
+
+    pdf.save("소비_분석_리포트.pdf");
+  } catch (err) {
+    console.error("PDF 생성 실패", err);
+  }
+};
+
 
 
   const timePatternData = buildTimePatternData(thisMonthTransactions);
@@ -401,7 +475,7 @@ setAiReport(result);
   const paymentPatternData = buildPaymentPatternData(thisMonthTransactions);
 
   return (
-    <div className="space-y-6">
+    <div ref={reportRef} className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -409,11 +483,14 @@ setAiReport(result);
           <p className="text-gray-600 dark:text-gray-300">AI가 분석한 당신의 소비 습관을 확인해보세요</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleShare}>
             <Share2 className="mr-2 h-4 w-4" />
             공유
           </Button>
-          <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
+          <Button
+  className={isPdfMode ? "bg-blue-500 text-white" : "bg-gradient-to-r from-cyan-500 to-blue-500"}
+  onClick={handleDownload}
+>
             <Download className="mr-2 h-4 w-4" />
             리포트 다운로드
           </Button>
@@ -454,7 +531,10 @@ setAiReport(result);
           <p className="mb-1 text-sm text-gray-600">예산 사용률</p>
           <p className="mb-2 text-3xl font-bold text-gray-900">{budgetUsage}%</p>
           <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-            <div className="h-full w-[60%] bg-gradient-to-r from-cyan-500 to-blue-500"></div>
+            <div
+  className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
+  style={{ width: `${budgetUsage}%` }}
+></div>
           </div>
         </Card>
 
@@ -487,7 +567,7 @@ setAiReport(result);
                     borderRadius: "8px",
                   }}
                 />
-                <Bar dataKey="amount" fill="url(#colorGradient)" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="amount" fill={isPdfMode ? "#8884d8" : "url(#colorGradient)"} radius={[8, 8, 0, 0]} />
                 <defs>
                   <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#a855f7" />
@@ -515,12 +595,12 @@ setAiReport(result);
                   }}
                 />
                 <Line
-                  type="monotone"
-                  dataKey="amount"
-                  stroke="#a855f7"
-                  strokeWidth={3}
-                  dot={{ fill: "#a855f7", r: 6 }}
-                />
+  type="monotone"
+  dataKey="amount"
+  stroke={isPdfMode ? "#8884d8" : "#a855f7"}
+  strokeWidth={3}
+  dot={{ fill: isPdfMode ? "#8884d8" : "#a855f7", r: 6 }}
+/>
               </LineChart>
             </ResponsiveContainer>
           </Card>
@@ -528,10 +608,11 @@ setAiReport(result);
       </Tabs>
 
       {/* Category Analysis */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
+      <div className="grid gap-6 lg:grid-cols-2 items-stretch">
+        <Card className="h-full min-h-[400px] flex flex-col border-none bg-white/80 p-6 backdrop-blur-xl">
           <h3 className="mb-6 font-bold text-gray-900">카테고리별 지출</h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <div className="flex-1">
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={categoryData}
@@ -539,9 +620,9 @@ setAiReport(result);
                 cy="50%"
                 labelLine={false}
                 label={({ name, percent }) =>
-  `${CATEGORY_MAP[name]?.label ?? name} ${(percent * 100).toFixed(0)}%`
+  `${name} ${(percent * 100).toFixed(0)}%`
 }
-                outerRadius={100}
+                outerRadius="80%"
                 fill="#8884d8"
                 dataKey="value"
               >
@@ -557,9 +638,10 @@ setAiReport(result);
 />
             </PieChart>
           </ResponsiveContainer>
+          </div>
         </Card>
 
-        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
+        <Card className="h-full min-h-[400px] border-none bg-white/80 p-6 backdrop-blur-xl">
           <h3 className="mb-6 font-bold text-gray-900">카테고리 상세</h3>
           <div className="space-y-4">
             {categoryData.map((cat) => (

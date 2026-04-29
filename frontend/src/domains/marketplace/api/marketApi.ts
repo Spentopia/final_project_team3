@@ -29,13 +29,16 @@ function parseAxiosError(error: unknown, prefix: string): Error {
 
 // GET /api/market/listings
 // status=active인 판매 목록 전체 조회
+let _listingsInflight: Promise<ListingResponse[]> | null = null;
+
 export async function getListings(): Promise<ListingResponse[]> {
-    try {
-        const res = await apiClient.get<ListingResponse[]>("/api/market/listings");
-        return res.data;
-    } catch (error: unknown) {
-        throw parseAxiosError(error, "판매 목록 조회 실패");
-    }
+    if (_listingsInflight) return _listingsInflight;
+    _listingsInflight = apiClient
+        .get<ListingResponse[]>("/api/market/listings")
+        .then((res) => res.data)
+        .catch((error: unknown) => { throw parseAxiosError(error, "판매 목록 조회 실패"); })
+        .finally(() => { _listingsInflight = null; });
+    return _listingsInflight;
 }
 
 // POST /api/market/listings
@@ -69,6 +72,18 @@ export async function updateEscrow(
         return res.data;
     }catch(error: unknown){
         throw parseAxiosError(error, "에스크로 주소 저장 실패");
+    }
+}
+
+// DELETE /api/market/listings/:id
+// cancel_listing 온체인 트랜잭션 완료 후 DB 상태를 "cancelled"로 변경
+export async function cancelListing(listingId: string, txSignature: string): Promise<void> {
+    try {
+        await apiClient.delete(`/api/market/listings/${listingId}`, {
+            data: { tx_signature: txSignature },
+        });
+    } catch (error: unknown) {
+        throw parseAxiosError(error, "판매 취소 실패");
     }
 }
 

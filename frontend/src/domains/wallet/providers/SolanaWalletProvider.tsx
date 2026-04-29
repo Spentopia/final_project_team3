@@ -16,21 +16,11 @@ export function SolanaWalletProvider({children}: PropsWithChildren) {
     // 어댑터가 중복 등록되어 "Connection rejected" 충돌이 발생한다.
     const wallets = useMemo(() => [], []);
 
-    useEffect(() => {
-        // 연결/연동은 항상 사용자가 모달에서 직접 선택한 지갑으로 시작한다.
-        // dev server 재시작이나 새로고침 후 stale adapter가 복원되면 signMessage가 빠질 수 있다.
-        window.localStorage.removeItem(walletStorageKey);
-        window.localStorage.removeItem("walletName");
-    }, [walletStorageKey]);
-
     return (
         <ConnectionProvider endpoint={endpoint}>
-            {/* autoConnect=false:
-                헤더/마이페이지 연동 표시는 DB wallet_address를 기준으로 하고,
-                실제 서명 연결은 매번 지갑 모달에서 직접 선택한 지갑으로 진행한다. */}
             <WalletProvider
                 wallets={wallets}
-                autoConnect={false}
+                autoConnect={true}
                 localStorageKey={walletStorageKey}
                 onError={(error) => {
                     // 사용자 취소(rejected)나 팝업 닫기(closed/Plugin Closed)는 정상 흐름이므로 무시한다.
