@@ -167,6 +167,12 @@ export function WalletLoginButton({
                 onClick={() => { void handleClick(); }}
                 disabled={isProcessing || loginInFlightRef.current}
             >
+                <img
+                    src="/login-wallet.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute left-5.5 h-5 w-5 object-contain"
+                />
                 {(isProcessing || loginRequested) && currentProcess === 'login'
                     ? '지갑 로그인 중...'
                     : '지갑으로 로그인'}

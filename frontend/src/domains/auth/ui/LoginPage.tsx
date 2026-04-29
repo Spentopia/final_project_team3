@@ -137,23 +137,34 @@ export default function Login() {
           <div className="space-y-3">
             <Button
               type="button"
-              variant="outline"
-              className="w-full border-gray-200 bg-white text-[#191600] hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
+              className="relative h-12 w-full rounded-xl border-0 bg-[#FEE500] text-[#191600] hover:bg-[#FEE500] dark:bg-[#FEE500] dark:text-[#191600] dark:hover:bg-[#FEE500]"
               onClick={() => handleSocialLogin("kakao")}
             >
-              카카오로 로그인
+              <img
+                src="/login-kakao.png"
+                alt=""
+                aria-hidden="true"
+                className="absolute left-4 h-7 w-7 object-contain"
+              />
+              카카오 로그인
             </Button>
 
             <Button
               type="button"
               variant="outline"
-              className="w-full border-gray-200 bg-white text-gray-800 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
+              className="relative h-12 w-full rounded-xl border border-gray-200 bg-white text-gray-900 hover:bg-gray-50 dark:border-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-50"
               onClick={() => handleSocialLogin("google")}
             >
-              구글로 로그인
+              <img
+                src="/login-google.png"
+                alt=""
+                aria-hidden="true"
+                className="absolute left-5 h-5 w-5 object-contain"
+              />
+              구글 로그인
             </Button>
 
-            <WalletLoginButton className="w-full inline-flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium shadow-sm disabled:opacity-50 border-gray-200 bg-white text-gray-800 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700" />
+            <WalletLoginButton className="relative h-12 w-full rounded-xl border-0 bg-gradient-to-r from-[#111827] via-[#15152A] to-[#32145D] px-4 text-sm font-semibold text-white shadow-sm hover:from-[#0F172A] hover:via-[#17172F] hover:to-[#3B1770] disabled:opacity-50" />
           </div>
 
           {/* 이메일/비밀번호 찾기 */}
