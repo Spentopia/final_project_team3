@@ -56,7 +56,6 @@ pub struct UserItemResponse {
     pub item_id: Uuid,
     pub name: String,
     pub category: String,
-    pub rarity: String,
     pub image_url: String,
     pub visual_parts: Option<serde_json::Value>, // 장착용 이미지/모델 경로 JSON
     pub metadata_uri: Option<String>,
@@ -91,7 +90,6 @@ pub struct EquipmentSlotResponse {
     // 장착 아이템 정보 (inventory_id가 NULL이면 전부 None)
     pub name: Option<String>,
     pub category: Option<String>,
-    pub rarity: Option<String>,
     pub visual_parts: Option<serde_json::Value>,
     pub is_nft: Option<bool>,
     pub nft_mint_address: Option<String>,
@@ -105,7 +103,6 @@ pub struct OwnedNftResponse {
     pub item_id: Option<Uuid>,
     pub name: String,
     pub category: Option<String>,
-    pub rarity: Option<String>,
     pub image_url: Option<String>,
     pub metadata_uri: Option<String>,
 }
@@ -130,7 +127,6 @@ pub struct GachaResultResponse {
     pub item_id: Uuid,
     pub name: String,
     pub category: String,
-    pub rarity: String,
     pub image_url: String,
 }
 

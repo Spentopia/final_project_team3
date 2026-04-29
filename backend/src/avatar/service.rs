@@ -462,7 +462,7 @@ pub async fn get_user_items(
     //  user_items?user_id=eq.{user_id} → 본인 아이템만 필터
     //  &select=*.avatar_items(...) → avatar_items 테이블 JOIN
     let url = format!(
-        "{}/rest/v1/user_inventory?user_id=eq.{}&select=*,item_master(name,image_url,metadata_uri,category,rarity,visual_parts)",
+        "{}/rest/v1/user_inventory?user_id=eq.{}&select=*,item_master(name,image_url,metadata_uri,category,visual_parts)",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
@@ -477,7 +477,6 @@ pub async fn get_user_items(
         image_url: String,
         metadata_uri: Option<String>,
         category: String,
-        rarity: String,
         visual_parts: Option<serde_json::Value>,
     }
 
@@ -534,7 +533,6 @@ pub async fn get_user_items(
             metadata_uri: r.item_master.metadata_uri,
             slot_name: Some(r.item_master.category.clone()),
             category: r.item_master.category,
-            rarity: r.item_master.rarity,
         })
         .collect();
     Ok(items)
@@ -774,7 +772,7 @@ pub async fn get_equipment(state: &AppState, user_id: Uuid) -> Result<Vec<Equipm
     //   user_equipment.inventory_id → user_items.id (FK)
     //   user_items.item_id          → avatar_items.id (FK)
     let url = format!(
-        "{}/rest/v1/user_equipment?user_id=eq.{}&select=slot_name,inventory_id,equipped_at,is_visible,user_inventory(id,is_nft,nft_mint_address,item_master(name,category,rarity,visual_parts))",
+        "{}/rest/v1/user_equipment?user_id=eq.{}&select=slot_name,inventory_id,equipped_at,is_visible,user_inventory(id,is_nft,nft_mint_address,item_master(name,category,visual_parts))",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
@@ -783,7 +781,6 @@ pub async fn get_equipment(state: &AppState, user_id: Uuid) -> Result<Vec<Equipm
     struct AvatarItemEmbed {
         name: String,
         category: String,
-        rarity: String,
         visual_parts: Option<serde_json::Value>,
     }
 
@@ -842,10 +839,6 @@ pub async fn get_equipment(state: &AppState, user_id: Uuid) -> Result<Vec<Equipm
                     .as_ref()
                     .and_then(|i| i.item_master.as_ref())
                     .map(|a| a.category.clone()),
-                rarity: item
-                    .as_ref()
-                    .and_then(|i| i.item_master.as_ref())
-                    .map(|a| a.rarity.clone()),
                 visual_parts: item
                     .as_ref()
                     .and_then(|i| i.item_master.as_ref())
@@ -896,14 +889,13 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
             id: Uuid,
             name: String,
             category: String,
-            rarity: String,
             image_url: String,
             metadata_uri: Option<String>,
         }
 
         let avatar_item = if let Some(uri) = metadata_uri.as_deref() {
             let lookup_url = format!(
-                "{}/rest/v1/item_master?metadata_uri=eq.{}&select=id,name,category,rarity,image_url,metadata_uri&limit=1",
+                "{}/rest/v1/item_master?metadata_uri=eq.{}&select=id,name,category,image_url,metadata_uri&limit=1",
                 state.config.supabase_url.trim_end_matches('/'),
                 urlencoding::encode(uri)
             );
@@ -942,7 +934,6 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
                 .map(|item| item.name.clone())
                 .unwrap_or(fallback_name),
             category: avatar_item.as_ref().map(|item| item.category.clone()),
-            rarity: avatar_item.as_ref().map(|item| item.rarity.clone()),
             image_url: avatar_item
                 .as_ref()
                 .map(|item| Some(item.image_url.clone()))
