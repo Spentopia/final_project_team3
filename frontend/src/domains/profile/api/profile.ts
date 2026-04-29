@@ -96,10 +96,14 @@ export async function changePassword(
     currentPassword: string,
     newPassword: string,
 ): Promise<void> {
-  await apiClient.patch("/api/user/password", {
-    current_password: currentPassword,
-    new_password: newPassword,
-  });
+  try {
+    await apiClient.patch("/api/user/password", {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error, "비밀번호 변경에 실패했습니다."));
+  }
 }
 
 export async function changeEmail(newEmail: string): Promise<void> {

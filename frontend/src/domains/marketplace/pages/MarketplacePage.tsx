@@ -74,6 +74,16 @@ const categoryLabel: Record<string, string> = {
   glasses: "안경",
 };
 
+function getMarketplaceErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+  return fallback;
+}
+
 // ────────────────────────────────────────────────────────────
 // CreateListingDialog — 판매 등록 다이얼로그
 //
@@ -328,6 +338,17 @@ export default function MarketplacePage() {
       .then((p) => setWalletAddress(p.wallet_address))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const handleWalletChange = (event: Event) => {
+      const nextWalletAddress = (event as CustomEvent<{ walletAddress: string | null }>).detail
+        ?.walletAddress;
+      setWalletAddress(nextWalletAddress ?? null);
+    };
+
+    window.addEventListener("spentopia:wallet-change", handleWalletChange);
+    return () => window.removeEventListener("spentopia:wallet-change", handleWalletChange);
+  }, []);
   const {
     listings,
     listingsLoading,
@@ -355,6 +376,12 @@ export default function MarketplacePage() {
   const [listingOnChain, setListingOnChain] = useState(false);
   const [cancellingOnChain, setCancellingOnChain] = useState(false);
   const syncingOwnedNfts = false;
+  const purchaseBalanceShortage = Boolean(
+    purchaseTarget &&
+      walletAddress &&
+      !sptLoading &&
+      (sptBalance ?? 0) < purchaseTarget.price_spt,
+  );
 
   // ──────────────────────────────────────────────────────────
   // NFT 아이템 필터링
@@ -362,6 +389,26 @@ export default function MarketplacePage() {
   // is_nft가 boolean | null이므로 === true로 엄격하게 비교
   // ──────────────────────────────────────────────────────────
   const connectedWalletAddress = publicKey?.toBase58() ?? null;
+
+  const ensureLinkedWalletConnected = (actionLabel: string) => {
+    if (!walletAddress) {
+      toast.error(`${actionLabel} 하려면 먼저 계정에 지갑을 연동해 주세요.`);
+      return false;
+    }
+
+    if (!connected || !connectedWalletAddress) {
+      setWalletModalVisible(true);
+      toast.error(`${actionLabel} 하려면 연동된 지갑을 연결해 주세요.`);
+      return false;
+    }
+
+    if (connectedWalletAddress !== walletAddress) {
+      toast.error("현재 연결된 지갑이 계정에 연동된 지갑과 다릅니다. 연동된 지갑으로 다시 연결해 주세요.");
+      return false;
+    }
+
+    return true;
+  };
 
   // 이미 마켓에 등록된 내 NFT mint 주소 집합 (중복 등록 방지 + 카운트 제외용)
   const myListedMints = new Set(
@@ -383,9 +430,7 @@ export default function MarketplacePage() {
   // createListing 내부에서 성공/실패 toast 처리
   // ──────────────────────────────────────────────────────────
   const handleCreateListing = async (itemId: string, priceSpt: number) => {
-    if (!connected || !publicKey) {
-      setWalletModalVisible(true);
-      toast.error("판매 등록을 하려면 지갑을 먼저 연결해 주세요.");
+    if (!publicKey || !ensureLinkedWalletConnected("판매 등록을")) {
       return;
     }
 
@@ -414,7 +459,7 @@ export default function MarketplacePage() {
       }
       void refetchItems();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "온체인 판매 등록 중 오류가 발생했습니다.");
+      toast.error(getMarketplaceErrorMessage(error, "온체인 판매 등록 중 오류가 발생했습니다."));
     } finally {
       setListingOnChain(false);
     }
@@ -428,9 +473,7 @@ export default function MarketplacePage() {
   const handleConfirmPurchase = async () => {
     if (!purchaseTarget) return; // 타입 가드
 
-    if (!connected || !publicKey) {
-      setWalletModalVisible(true);
-      toast.error("구매하려면 지갑을 먼저 연결해 주세요.");
+    if (!publicKey || !ensureLinkedWalletConnected("구매를")) {
       return;
     }
     if (purchaseTarget.seller_wallet_address === publicKey.toBase58()) {
@@ -453,15 +496,20 @@ export default function MarketplacePage() {
         sendTransaction,
         sellerWalletAddress: purchaseTarget.seller_wallet_address,
         nftMintAddress: purchaseTarget.nft_mint_address,
+        priceSpt: purchaseTarget.price_spt,
       });
-      const result = await purchaseItem(purchaseTarget.id, signature);
+      const result = await purchaseItem(purchaseTarget.id, signature, {
+        suppressErrorToast: true,
+      });
+      setPurchaseTarget(null);
+      refreshSptBalance();
+      void syncOwnedNfts({ force: true }).then(() => refetchItems()).catch(() => {});
       if (result) {
-        setPurchaseTarget(null);
-        refreshSptBalance();
-        void syncOwnedNfts().then(() => refetchItems()).catch(() => {});
+        return;
       }
+      toast.success("온체인 구매는 완료되었습니다. 앱 인벤토리를 동기화하고 있습니다.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "온체인 구매 중 오류가 발생했습니다.");
+      toast.error(getMarketplaceErrorMessage(error, "온체인 구매 중 오류가 발생했습니다."));
     }
   };
 
@@ -469,6 +517,9 @@ export default function MarketplacePage() {
     if (!cancelTarget) return;
     if (!cancelTarget.nft_mint_address) {
       toast.error("NFT mint 주소가 없습니다.");
+      return;
+    }
+    if (!ensureLinkedWalletConnected("판매 취소를")) {
       return;
     }
 
@@ -486,11 +537,11 @@ export default function MarketplacePage() {
       const ok = await cancelListing(cancelTarget.id, signature);
       if (ok) {
         setCancelTarget(null);
-        void syncOwnedNfts().then(() => refetchItems()).catch(() => {});
+        void syncOwnedNfts({ force: true }).then(() => refetchItems()).catch(() => {});
       }
     } catch (error) {
       console.error("[cancelListing]", error);
-      toast.error(error instanceof Error ? error.message : "온체인 판매 취소 중 오류가 발생했습니다.");
+      toast.error(getMarketplaceErrorMessage(error, "온체인 판매 취소 중 오류가 발생했습니다."));
     } finally {
       setCancellingOnChain(false);
     }
@@ -615,6 +666,16 @@ export default function MarketplacePage() {
                       <span className={styles.purchaseFeeNote}>
                         수수료는 온체인 설정 기준으로 구매 시 계산됩니다.
                   </span>
+                      {walletAddress && !sptLoading && (
+                        <span className={styles.purchaseFeeNote}>
+                          현재 보유 SPT: {(sptBalance ?? 0).toLocaleString()} SPT
+                        </span>
+                      )}
+                      {purchaseBalanceShortage && (
+                        <span className={styles.purchaseFeeNote}>
+                          SPT가 부족합니다. SOL로 SPT를 구매하거나 보상으로 SPT 토큰을 획득한 뒤 다시 시도해 주세요.
+                        </span>
+                      )}
                     </>
                 )}
               </AlertDialogDescription>
@@ -639,7 +700,7 @@ export default function MarketplacePage() {
                     event.preventDefault();
                     void handleConfirmPurchase();
                   }}
-                  disabled={purchasing}
+                  disabled={purchasing || sptLoading || purchaseBalanceShortage}
               >
                 {purchasing ? "구매 중..." : "구매 확인"}
               </AlertDialogAction>
