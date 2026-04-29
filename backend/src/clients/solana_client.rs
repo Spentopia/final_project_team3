@@ -15,7 +15,7 @@ use sha2::{Digest, Sha256};
 
 // ── 고정 주소 상수 ─────────────────────────────────────────────
 const TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-const ASSOC_TOKEN_PROGRAM_ID: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bYh";
+const ASSOC_TOKEN_PROGRAM_ID: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 const SYSTEM_PROGRAM_ID: &str = "11111111111111111111111111111111";
 const METADATA_PROGRAM_ID: &str = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
 const SYSVAR_INSTRUCTIONS_ID: &str = "Sysvar1nstructions1111111111111111111111111";
@@ -716,6 +716,7 @@ fn build_mint_avatar_tx(
     user_wallet: &[u8; 32],
     avatar_mint: &[u8; 32],
     metadata: &[u8; 32],
+    master_edition: &[u8; 32],
     spt_token_authority: &[u8; 32],
     user_token_account: &[u8; 32],
     collection_mint: &[u8; 32],
@@ -736,48 +737,50 @@ fn build_mint_avatar_tx(
         *admin_pubkey,              // 0 writable signer
         *avatar_mint,               // 1 writable
         *metadata,                  // 2 writable
-        *user_token_account,        // 3 writable
-        *platform_config,           // 4 readonly
-        *user_wallet,               // 5 readonly
-        *spt_token_authority,       // 6 readonly
-        *collection_mint,           // 7 readonly
-        *collection_metadata,       // 8 readonly
-        *collection_master_edition, // 9 readonly
-        metadata_program,           // 10 readonly
-        sysvar_instructions,        // 11 readonly
-        token_program,              // 12 readonly
-        assoc_token_prog,           // 13 readonly
-        system_program,             // 14 readonly
-        *program_id,                // 15 readonly program
+        *master_edition,            // 3 writable
+        *spt_token_authority,       // 4 writable
+        *user_token_account,        // 5 writable
+        *collection_metadata,       // 6 writable
+        *platform_config,           // 7 readonly
+        *user_wallet,               // 8 readonly
+        *collection_mint,           // 9 readonly
+        *collection_master_edition, // 10 readonly
+        metadata_program,           // 11 readonly
+        sysvar_instructions,        // 12 readonly
+        token_program,              // 13 readonly
+        assoc_token_prog,           // 14 readonly
+        system_program,             // 15 readonly
+        *program_id,                // 16 readonly program
     ];
 
     let ix_accounts: &[u8] = &[
-        4,  // platform_config
+        7,  // platform_config
         0,  // admin
-        5,  // user
+        8,  // user
         1,  // avatar_mint
         2,  // metadata
-        6,  // spt_token_authority
-        3,  // user_token_account
-        7,  // collection_mint
-        8,  // collection_metadata
-        9,  // collection_master_edition
-        10, // metadata_program
-        11, // sysvar_instructions
-        12, // token_program
-        13, // associated_token_program
-        14, // system_program
+        3,  // master_edition
+        4,  // spt_token_authority
+        5,  // user_token_account
+        9,  // collection_mint
+        6,  // collection_metadata
+        10, // collection_master_edition
+        11, // metadata_program
+        12, // sysvar_instructions
+        13, // token_program
+        14, // associated_token_program
+        15, // system_program
     ];
 
     let mut msg = Vec::new();
-    msg.extend_from_slice(&[1u8, 0u8, 12u8]);
+    msg.extend_from_slice(&[1u8, 0u8, 10u8]);
     msg.extend(compact_u16(accounts.len()));
     for acc in accounts {
         msg.extend_from_slice(acc);
     }
     msg.extend_from_slice(recent_blockhash);
     msg.extend(compact_u16(1));
-    msg.push(15u8);
+    msg.push(16u8);
     msg.extend(compact_u16(ix_accounts.len()));
     msg.extend_from_slice(ix_accounts);
     msg.extend(compact_u16(ix_data.len()));
@@ -902,6 +905,15 @@ pub async fn mint_avatar_nft_to_user(
         &[b"metadata", metadata_program.as_ref(), avatar_mint.as_ref()],
         &metadata_program,
     );
+    let (master_edition, _) = find_program_address(
+        &[
+            b"metadata",
+            metadata_program.as_ref(),
+            avatar_mint.as_ref(),
+            b"edition",
+        ],
+        &metadata_program,
+    );
     let (collection_metadata, _) = find_program_address(
         &[
             b"metadata",
@@ -935,6 +947,7 @@ pub async fn mint_avatar_nft_to_user(
         &user_wallet,
         &avatar_mint,
         &metadata,
+        &master_edition,
         &spt_token_authority,
         &user_token_account,
         &collection_mint,

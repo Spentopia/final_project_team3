@@ -2,10 +2,12 @@ use crate::constants::*;
 use crate::errors::SpentopiaError;
 use crate::state::PlatformConfig;
 use anchor_lang::prelude::*;
-use anchor_spl::metadata::{set_and_verify_collection, SetAndVerifyCollection};
-use anchor_spl::token_interface::{mint_to, Mint, MintTo, TokenAccount, TokenInterface};
+use anchor_spl::metadata::{
+    set_and_verify_sized_collection_item, SetAndVerifySizedCollectionItem,
+};
+use anchor_spl::token_interface::{Mint, TokenInterface};
 use mpl_token_metadata::{
-    instructions::CreateV1CpiBuilder,
+    instructions::{CreateV1CpiBuilder, MintV1CpiBuilder},
     types::{Collection, PrintSupply, TokenStandard},
     ID as TOKEN_METADATA_ID,
 };
@@ -66,24 +68,56 @@ pub fn mint_avatar_nft_handler(
         .print_supply(PrintSupply::Zero)
         .invoke_signed(&[mint_signer_seeds, authority_signer_seeds])?;
 
-    // Step 2: 유저 ATA에 NFT 1개 민팅
-    mint_to(
-        CpiContext::new_with_signer(
+    // Step 2: 유저 ATA 생성 (avatar_mint가 이 instruction에서 init되므로 JS에서 미리 생성 불가)
+    // anchor_spl::associated_token::create는 내부적으로 AssociatedToken::id() 버그 주소를 사용하므로
+    // 직접 invoke로 하드코딩된 프로그램 ID 사용
+    let create_ata_ix = anchor_lang::solana_program::instruction::Instruction {
+        program_id: ctx.accounts.associated_token_program.key(),
+        accounts: vec![
+            anchor_lang::solana_program::instruction::AccountMeta::new(ctx.accounts.admin.key(), true),
+            anchor_lang::solana_program::instruction::AccountMeta::new(ctx.accounts.user_token_account.key(), false),
+            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.user.key(), false),
+            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.avatar_mint.key(), false),
+            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
+            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(ctx.accounts.token_program.key(), false),
+        ],
+        data: vec![],
+    };
+    anchor_lang::solana_program::program::invoke(
+        &create_ata_ix,
+        &[
+            ctx.accounts.admin.to_account_info(),
+            ctx.accounts.user_token_account.to_account_info(),
+            ctx.accounts.user.to_account_info(),
+            ctx.accounts.avatar_mint.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
-            MintTo {
-                mint: ctx.accounts.avatar_mint.to_account_info(),
-                to: ctx.accounts.user_token_account.to_account_info(),
-                authority: ctx.accounts.spt_token_authority.to_account_info(),
-            },
-            &[authority_signer_seeds],
-        ),
-        1,
+            ctx.accounts.associated_token_program.to_account_info(),
+        ],
     )?;
 
-    set_and_verify_collection(
+    // Step 3: Metaplex MintV1로 유저 ATA에 NFT 1개 민팅
+    // CreateV1 이후에는 mpl-token-metadata가 NonFungible 민팅 흐름을 관리하므로
+    // SPL Token mint_to를 직접 호출하면 mint authority 검증에서 실패한다.
+    MintV1CpiBuilder::new(&ctx.accounts.metadata_program.to_account_info())
+        .token(&ctx.accounts.user_token_account.to_account_info())
+        .token_owner(Some(&ctx.accounts.user.to_account_info()))
+        .metadata(&ctx.accounts.metadata.to_account_info())
+        .master_edition(Some(&ctx.accounts.master_edition.to_account_info()))
+        .mint(&ctx.accounts.avatar_mint.to_account_info())
+        .authority(&ctx.accounts.spt_token_authority.to_account_info())
+        .payer(&ctx.accounts.admin.to_account_info())
+        .system_program(&ctx.accounts.system_program.to_account_info())
+        .sysvar_instructions(&ctx.accounts.sysvar_instructions.to_account_info())
+        .spl_token_program(&ctx.accounts.token_program.to_account_info())
+        .spl_ata_program(&ctx.accounts.associated_token_program.to_account_info())
+        .amount(1)
+        .invoke_signed(&[authority_signer_seeds])?;
+
+    set_and_verify_sized_collection_item(
         CpiContext::new_with_signer(
             ctx.accounts.metadata_program.to_account_info(),
-            SetAndVerifyCollection {
+            SetAndVerifySizedCollectionItem {
                 metadata: ctx.accounts.metadata.to_account_info(),
                 collection_authority: ctx.accounts.spt_token_authority.to_account_info(),
                 payer: ctx.accounts.admin.to_account_info(),
@@ -158,19 +192,16 @@ pub struct MintAvatarNft<'info> {
     ///
     /// CHECK: seeds + bump 검증
     #[account(
+        mut,
         seeds = [SPT_TOKEN_AUTHORITY_SEED],
         bump = platform_config.spt_authority_bump,
     )]
     pub spt_token_authority: UncheckedAccount<'info>,
 
-    /// 유저의 NFT ATA. JS에서 미리 생성.
-    #[account(
-        mut,
-        token::mint = avatar_mint,
-        token::authority = user,
-        token::token_program = token_program,
-    )]
-    pub user_token_account: InterfaceAccount<'info, TokenAccount>,
+    /// 유저의 NFT ATA. avatar_mint가 같은 tx에서 init되므로 핸들러 내부에서 CPI로 생성.
+    /// CHECK: associated_token CPI 내부에서 검증됨
+    #[account(mut)]
+    pub user_token_account: UncheckedAccount<'info>,
 
     /// 프로젝트 전용 컬렉션 mint.
     #[account(
@@ -183,6 +214,7 @@ pub struct MintAvatarNft<'info> {
 
     /// 프로젝트 컬렉션 metadata PDA.
     /// CHECK: mpl-token-metadata CPI 내부에서 검증
+    #[account(mut)]
     pub collection_metadata: UncheckedAccount<'info>,
 
     /// 프로젝트 컬렉션 master edition PDA.
@@ -201,7 +233,7 @@ pub struct MintAvatarNft<'info> {
 
     pub token_program: Interface<'info, TokenInterface>,
     /// CHECK: 표준 SPL Associated Token Program 고정 주소
-    #[account(address = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bYh"))]
+    #[account(address = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"))]
     pub associated_token_program: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }

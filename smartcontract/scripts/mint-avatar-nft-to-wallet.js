@@ -9,7 +9,7 @@ const TOKEN_PROGRAM_ID = new PublicKey(
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 );
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
-  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bYh"
+  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
 );
 const SYSVAR_INSTRUCTIONS_PUBKEY = new PublicKey(
   "Sysvar1nstructions1111111111111111111111111"
@@ -115,7 +115,8 @@ async function main() {
   console.log("mintSeed:", mintSeed);
   console.log("avatarMint:", avatarMint.toBase58());
 
-  const userTokenAccount = await getOrCreateAta(provider, user, avatarMint);
+  const userTokenAccount = deriveAta(user, avatarMint);
+  console.log("ATA 주소:", userTokenAccount.toBase58());
 
   const tx = await program.methods
     .mintAvatarNft(mintSeed, name, symbol, uri)

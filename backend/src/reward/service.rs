@@ -287,6 +287,43 @@ async fn get_wallet_address(state: &AppState, user_id: Uuid) -> Result<Option<St
         .map(str::to_string))
 }
 
+async fn reset_weekly_reward_claim(state: &AppState, weekly_score_id: Uuid) {
+    let url = format!(
+        "{}/rest/v1/weekly_scores?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        weekly_score_id
+    );
+    match state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=minimal")
+        .json(&serde_json::json!({ "reward_granted": false }))
+        .send()
+        .await
+    {
+        Ok(res) if res.status().is_success() => {}
+        Ok(res) => {
+            tracing::error!(
+                "weekly_scores reward_granted 복구 실패: id={} body={}",
+                weekly_score_id,
+                res.text().await.unwrap_or_default()
+            );
+        }
+        Err(e) => {
+            tracing::error!(
+                "weekly_scores reward_granted 복구 요청 실패: id={} err={}",
+                weekly_score_id,
+                e
+            );
+        }
+    }
+}
+
 async fn grant_untradeable_avatar_item(
     state: &AppState,
     user_id: Uuid,
@@ -299,7 +336,10 @@ async fn grant_untradeable_avatar_item(
 
     let key = &state.config.supabase_secret_key;
     let base_url = state.config.supabase_url.trim_end_matches('/');
-    let item_url = format!("{}/rest/v1/item_master?select=id", base_url);
+    let item_url = format!(
+        "{}/rest/v1/item_master?item_type=eq.normal&drop_weight=gt.0&select=id",
+        base_url
+    );
     let item_res = state
         .http_client
         .get(&item_url)
@@ -394,7 +434,7 @@ async fn grant_nft_avatar_item(
     let key = &state.config.supabase_secret_key;
     let base_url = state.config.supabase_url.trim_end_matches('/');
     let item_url = format!(
-        "{}/rest/v1/item_master?select=id,name,image_url,metadata_uri",
+        "{}/rest/v1/item_master?item_type=eq.nft&drop_weight=gt.0&select=id,name,image_url,metadata_uri",
         base_url
     );
     let item_res = state
@@ -460,31 +500,17 @@ async fn grant_nft_avatar_item(
         return Err(anyhow!("보상 NFT 민팅 트랜잭션 확인 실패: {}", e));
     }
 
-    let user_item_url = format!("{}/rest/v1/user_inventory", base_url);
-    let user_item_res = state
-        .http_client
-        .post(&user_item_url)
-        .header("Authorization", format!("Bearer {}", key))
-        .header("apikey", key)
-        .header("Prefer", "return=minimal")
-        .json(&serde_json::json!({
-            "user_id": user_id,
-            "item_id": item.id,
-            "is_equipped": false,
-            "is_nft": true,
-            "nft_mint_address": nft_mint_address,
-            "nft_tx_signature": tx_signature,
-        }))
-        .send()
-        .await
-        .context("NFT user_items 보상 INSERT 요청 실패")?;
-
-    if !user_item_res.status().is_success() {
-        return Err(anyhow!(
-            "NFT user_items 보상 INSERT 실패: {}",
-            user_item_res.text().await.unwrap_or_default()
-        ));
-    }
+    insert_user_inventory(
+        state,
+        user_id,
+        item.id,
+        true,
+        Some(nft_mint_address),
+        Some(tx_signature),
+        Some(wallet_address.to_string()),
+    )
+    .await
+    .context("NFT user_items 보상 INSERT 실패")?;
 
     let reward_url = format!("{}/rest/v1/rewards", base_url);
     let reward_res = state
@@ -884,7 +910,7 @@ pub async fn recalculate_weekly_score(
         }
 
         if wallet_address.is_none() {
-            grant_untradeable_avatar_item(
+            if let Err(e) = grant_untradeable_avatar_item(
                 state,
                 user_id,
                 &format!(
@@ -892,7 +918,11 @@ pub async fn recalculate_weekly_score(
                     week_start, total_score
                 ),
             )
-            .await?;
+            .await
+            {
+                reset_weekly_reward_claim(state, score_row.id).await;
+                return Err(e);
+            }
             return Ok(WeeklyScoreResponse {
                 id: score_row.id,
                 week_start: score_row.week_start,
@@ -912,7 +942,7 @@ pub async fn recalculate_weekly_score(
         let today = Local::now().date_naive();
         let actual_spt = calc_halving_reward(base_spt, state.config.service_launch_date, today);
 
-        grant_nft_avatar_item(
+        if let Err(e) = grant_nft_avatar_item(
             state,
             user_id,
             &wallet_address,
@@ -922,7 +952,11 @@ pub async fn recalculate_weekly_score(
                 week_start, total_score
             ),
         )
-        .await?;
+        .await
+        {
+            reset_weekly_reward_claim(state, score_row.id).await;
+            return Err(e);
+        }
 
         // rewards INSERT
         let reward_url = format!("{}/rest/v1/rewards", base_url);
@@ -1458,6 +1492,16 @@ async fn insert_user_inventory(
         "{}/rest/v1/user_inventory",
         state.config.supabase_url.trim_end_matches('/')
     );
+    let collection_mint = if is_nft {
+        let value = state.config.solana_avatar_collection_mint.trim();
+        if value.is_empty() {
+            None
+        } else {
+            Some(value.to_string())
+        }
+    } else {
+        None
+    };
 
     let res = state
         .http_client
@@ -1476,6 +1520,7 @@ async fn insert_user_inventory(
             "nft_mint_address": nft_mint_address,
             "nft_tx_signature": nft_tx_signature,
             "minted_to_wallet": minted_to_wallet,
+            "collection_mint": collection_mint,
         }))
         .send()
         .await

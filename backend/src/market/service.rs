@@ -210,7 +210,7 @@ pub async fn create_listing(
             seller_id: user_id,
             item_id: req.item_id,
             price_spt: req.price_spt,
-            status: "active",
+            status: "pending_onchain",
         })
         .send()
         .await

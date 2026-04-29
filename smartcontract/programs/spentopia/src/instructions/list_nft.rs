@@ -98,7 +98,7 @@ pub struct ListNft<'info> {
 
     pub token_program: Interface<'info, TokenInterface>,
     /// CHECK: 표준 SPL Associated Token Program 고정 주소
-    #[account(address = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe8bYh"))]
+    #[account(address = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"))]
     pub associated_token_program: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }

@@ -179,11 +179,8 @@ export default function AvatarPage() {
 
     useEffect(() => {
         fetchNormalItems();
-    }, [fetchNormalItems]);
-
-    useEffect(() => {
-        if (mainTab === "nft") fetchNftItems();
-    }, [mainTab, fetchNftItems]);
+        fetchNftItems();
+    }, [fetchNormalItems, fetchNftItems]);
 
     const handleMintNft = async () => {
         if (!selectedNormal) return;
