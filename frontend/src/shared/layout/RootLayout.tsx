@@ -1,5 +1,7 @@
 import { Outlet } from "react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { syncOwnedNfts } from "@/domains/avatar/api/avatarApi";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { Zap } from "lucide-react";
@@ -28,6 +30,21 @@ const MAX_SCORES = {
 } as const;
 
 export default function RootLayout() {
+  const { connected, publicKey } = useWallet();
+  const syncedWalletRef = useRef<string | null>(null);
+
+  // 지갑 연결될 때 한 번만 NFT sync (로그인 후 메인, 새로고침 등)
+  useEffect(() => {
+    const walletAddr = publicKey?.toBase58() ?? null;
+    if (!connected || !walletAddr) {
+      syncedWalletRef.current = null;
+      return;
+    }
+    if (syncedWalletRef.current === walletAddr) return; // 이미 sync 완료
+    syncedWalletRef.current = walletAddr;
+    void syncOwnedNfts().catch(() => {});
+  }, [connected, publicKey]);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [isWeeklyScoreOpen, setIsWeeklyScoreOpen] = useState(false);

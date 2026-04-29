@@ -21,7 +21,7 @@ use uuid::Uuid;
 
 use super::dto::{
     EquipItemRequest, EquipmentSlotResponse, MintNftRequest, MintNftResponse, OwnedNftResponse,
-    TransferNftRequest, TransferNftResponse, UserItemResponse,
+    SyncOwnedNftsResponse, TransferNftRequest, TransferNftResponse, UserItemResponse,
 };
 use crate::clients::solana_client;
 use crate::state::AppState;
@@ -437,7 +437,7 @@ pub async fn transfer_nft(
 ///     public.user_items.item_id → public.item_master.id
 ///
 /// 쿼리 파라미터:
-///     select=*.avatar_items(name,image_url,category,rarity)
+///     select=*.avatar_items(name,image_url,category)
 ///     - *: user_items의 모든 컬럼
 ///     - avatar_items(): FK(item_id)로 연결된 avatar_items에서 지정 컬럼만 가져옴
 ///
@@ -449,8 +449,7 @@ pub async fn transfer_nft(
 ///     "avatar_items": { ← 테이블명이 그대로 키가 됨
 ///         "name": "골든 프레임",
 ///         "image_url": "https//...",
-///         "category": "frame",
-///         "rarity"': "epic
+///         "category": "frame"
 ///         }
 ///    }
 /// ]
@@ -462,7 +461,7 @@ pub async fn get_user_items(
     //  user_items?user_id=eq.{user_id} → 본인 아이템만 필터
     //  &select=*.avatar_items(...) → avatar_items 테이블 JOIN
     let url = format!(
-        "{}/rest/v1/user_inventory?user_id=eq.{}&select=*,item_master(name,image_url,metadata_uri,category,rarity,visual_parts)",
+        "{}/rest/v1/user_inventory?user_id=eq.{}&select=*,item_master(name,image_url,metadata_uri,category,visual_parts)",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
@@ -477,7 +476,6 @@ pub async fn get_user_items(
         image_url: String,
         metadata_uri: Option<String>,
         category: String,
-        rarity: String,
         visual_parts: Option<serde_json::Value>,
     }
 
@@ -534,7 +532,6 @@ pub async fn get_user_items(
             metadata_uri: r.item_master.metadata_uri,
             slot_name: Some(r.item_master.category.clone()),
             category: r.item_master.category,
-            rarity: r.item_master.rarity,
         })
         .collect();
     Ok(items)
@@ -774,7 +771,7 @@ pub async fn get_equipment(state: &AppState, user_id: Uuid) -> Result<Vec<Equipm
     //   user_equipment.inventory_id → user_items.id (FK)
     //   user_items.item_id          → avatar_items.id (FK)
     let url = format!(
-        "{}/rest/v1/user_equipment?user_id=eq.{}&select=slot_name,inventory_id,equipped_at,is_visible,user_inventory(id,is_nft,nft_mint_address,item_master(name,category,rarity,visual_parts))",
+        "{}/rest/v1/user_equipment?user_id=eq.{}&select=slot_name,inventory_id,equipped_at,is_visible,user_inventory(id,is_nft,nft_mint_address,item_master(name,category,visual_parts))",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
@@ -783,7 +780,6 @@ pub async fn get_equipment(state: &AppState, user_id: Uuid) -> Result<Vec<Equipm
     struct AvatarItemEmbed {
         name: String,
         category: String,
-        rarity: String,
         visual_parts: Option<serde_json::Value>,
     }
 
@@ -842,10 +838,6 @@ pub async fn get_equipment(state: &AppState, user_id: Uuid) -> Result<Vec<Equipm
                     .as_ref()
                     .and_then(|i| i.item_master.as_ref())
                     .map(|a| a.category.clone()),
-                rarity: item
-                    .as_ref()
-                    .and_then(|i| i.item_master.as_ref())
-                    .map(|a| a.rarity.clone()),
                 visual_parts: item
                     .as_ref()
                     .and_then(|i| i.item_master.as_ref())
@@ -896,14 +888,13 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
             id: Uuid,
             name: String,
             category: String,
-            rarity: String,
             image_url: String,
             metadata_uri: Option<String>,
         }
 
         let avatar_item = if let Some(uri) = metadata_uri.as_deref() {
             let lookup_url = format!(
-                "{}/rest/v1/item_master?metadata_uri=eq.{}&select=id,name,category,rarity,image_url,metadata_uri&limit=1",
+                "{}/rest/v1/item_master?metadata_uri=eq.{}&select=id,name,category,image_url,metadata_uri&limit=1",
                 state.config.supabase_url.trim_end_matches('/'),
                 urlencoding::encode(uri)
             );
@@ -942,7 +933,6 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
                 .map(|item| item.name.clone())
                 .unwrap_or(fallback_name),
             category: avatar_item.as_ref().map(|item| item.category.clone()),
-            rarity: avatar_item.as_ref().map(|item| item.rarity.clone()),
             image_url: avatar_item
                 .as_ref()
                 .map(|item| Some(item.image_url.clone()))
@@ -955,4 +945,238 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
     }
 
     Ok(owned)
+}
+
+pub async fn sync_owned_nfts(state: &AppState, user_id: Uuid) -> Result<SyncOwnedNftsResponse> {
+    let wallet_address = match get_user_wallet_optional(state, user_id).await? {
+        Some(wallet) => wallet,
+        None => {
+            return Ok(SyncOwnedNftsResponse {
+                synced_count: 0,
+                skipped_count: 0,
+            });
+        }
+    };
+
+    let collection_mint = state.config.solana_avatar_collection_mint.trim();
+    if collection_mint.is_empty() {
+        return Ok(SyncOwnedNftsResponse {
+            synced_count: 0,
+            skipped_count: 0,
+        });
+    }
+
+    let assets = solana_client::get_collection_assets_by_owner(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        &wallet_address,
+        collection_mint,
+    )
+    .await
+    .context("컬렉션 NFT 동기화 조회 실패")?;
+
+    #[derive(Deserialize)]
+    struct ItemMasterLookup {
+        id: Uuid,
+    }
+
+    #[derive(Deserialize)]
+    struct InventoryLookup {
+        id: Uuid,
+        user_id: Uuid,
+    }
+
+    let mut synced_count = 0usize;
+    let mut skipped_count = 0usize;
+
+    for asset in assets {
+        let mint_address = match asset["id"].as_str().filter(|v| !v.trim().is_empty()) {
+            Some(value) => value.to_string(),
+            None => {
+                skipped_count += 1;
+                continue;
+            }
+        };
+        let metadata_uri = match asset["content"]["json_uri"]
+            .as_str()
+            .filter(|v| !v.trim().is_empty())
+        {
+            Some(value) => value.to_string(),
+            None => {
+                skipped_count += 1;
+                continue;
+            }
+        };
+        let asset_name = asset["content"]["metadata"]["name"]
+            .as_str()
+            .filter(|v| !v.trim().is_empty())
+            .map(str::to_string);
+
+        let existing_url = format!(
+            "{}/rest/v1/user_inventory?nft_mint_address=eq.{}&select=id,user_id&limit=1",
+            state.config.supabase_url.trim_end_matches('/'),
+            urlencoding::encode(&mint_address)
+        );
+
+        let existing_res = state
+            .http_client
+            .get(&existing_url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", state.config.supabase_secret_key),
+            )
+            .header("apikey", &state.config.supabase_secret_key)
+            .send()
+            .await
+            .context("user_inventory NFT 기존 기록 조회 요청 실패")?;
+
+        if !existing_res.status().is_success() {
+            return Err(anyhow!(
+                "user_inventory NFT 기존 기록 조회 실패: {}",
+                existing_res.text().await.unwrap_or_default()
+            ));
+        }
+
+        let existing_rows: Vec<InventoryLookup> = existing_res
+            .json()
+            .await
+            .context("user_inventory NFT 기존 기록 역직렬화 실패")?;
+        if let Some(existing) = existing_rows.first() {
+            if existing.user_id != user_id {
+                tracing::warn!(
+                    "온체인 NFT 소유자와 DB 소유자가 다릅니다. mint={} db_inventory_id={} db_user_id={} current_user_id={}",
+                    mint_address,
+                    existing.id,
+                    existing.user_id,
+                    user_id
+                );
+            }
+            skipped_count += 1;
+            continue;
+        }
+
+        let item_by_uri_url = format!(
+            "{}/rest/v1/item_master?metadata_uri=eq.{}&select=id&limit=1",
+            state.config.supabase_url.trim_end_matches('/'),
+            urlencoding::encode(&metadata_uri)
+        );
+
+        let item_res = state
+            .http_client
+            .get(&item_by_uri_url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", state.config.supabase_secret_key),
+            )
+            .header("apikey", &state.config.supabase_secret_key)
+            .send()
+            .await
+            .context("item_master NFT metadata_uri 조회 요청 실패")?;
+
+        if !item_res.status().is_success() {
+            return Err(anyhow!(
+                "item_master NFT metadata_uri 조회 실패: {}",
+                item_res.text().await.unwrap_or_default()
+            ));
+        }
+
+        let mut item_id = item_res
+            .json::<Vec<ItemMasterLookup>>()
+            .await
+            .context("item_master NFT metadata_uri 역직렬화 실패")?
+            .into_iter()
+            .next()
+            .map(|row| row.id);
+
+        if item_id.is_none() {
+            if let Some(name) = asset_name.as_deref() {
+                let item_by_name_url = format!(
+                    "{}/rest/v1/item_master?name=eq.{}&select=id&limit=1",
+                    state.config.supabase_url.trim_end_matches('/'),
+                    urlencoding::encode(name)
+                );
+                let item_by_name_res = state
+                    .http_client
+                    .get(&item_by_name_url)
+                    .header(
+                        "Authorization",
+                        format!("Bearer {}", state.config.supabase_secret_key),
+                    )
+                    .header("apikey", &state.config.supabase_secret_key)
+                    .send()
+                    .await
+                    .context("item_master NFT name 조회 요청 실패")?;
+
+                if !item_by_name_res.status().is_success() {
+                    return Err(anyhow!(
+                        "item_master NFT name 조회 실패: {}",
+                        item_by_name_res.text().await.unwrap_or_default()
+                    ));
+                }
+
+                item_id = item_by_name_res
+                    .json::<Vec<ItemMasterLookup>>()
+                    .await
+                    .context("item_master NFT name 역직렬화 실패")?
+                    .into_iter()
+                    .next()
+                    .map(|row| row.id);
+            }
+        }
+
+        let item_id = match item_id {
+            Some(value) => value,
+            None => {
+                tracing::warn!(
+                    "온체인 NFT와 매칭되는 item_master가 없습니다. mint={} metadata_uri={} name={:?}",
+                    mint_address,
+                    metadata_uri,
+                    asset_name
+                );
+                skipped_count += 1;
+                continue;
+            }
+        };
+
+        let insert_url = format!(
+            "{}/rest/v1/user_inventory",
+            state.config.supabase_url.trim_end_matches('/')
+        );
+        let insert_res = state
+            .http_client
+            .post(&insert_url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", state.config.supabase_secret_key),
+            )
+            .header("apikey", &state.config.supabase_secret_key)
+            .header("Prefer", "return=minimal")
+            .json(&serde_json::json!({
+                "user_id": user_id,
+                "item_id": item_id,
+                "is_equipped": false,
+                "is_nft": true,
+                "nft_mint_address": mint_address,
+                "nft_tx_signature": null,
+                "minted_to_wallet": wallet_address,
+                "collection_mint": collection_mint,
+            }))
+            .send()
+            .await
+            .context("user_inventory NFT 동기화 INSERT 요청 실패")?;
+
+        if !insert_res.status().is_success() {
+            return Err(anyhow!(
+                "user_inventory NFT 동기화 INSERT 실패: {}",
+                insert_res.text().await.unwrap_or_default()
+            ));
+        }
+
+        synced_count += 1;
+    }
+
+    Ok(SyncOwnedNftsResponse {
+        synced_count,
+        skipped_count,
+    })
 }

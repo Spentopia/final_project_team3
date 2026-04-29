@@ -26,7 +26,6 @@ pub struct AvatarItem {
     pub id: Uuid,
     pub name: String,
     pub category: String, // hair / top / bottom / gloves / shoes / weapon / glasses
-    pub rarity: String,   // common / rare / epic / legendary
     pub image_url: String,
     pub visual_parts: Option<serde_json::Value>, // 장착 시 캐릭터 적용 이미지/모델 경로 JSON
     pub created_at: Option<DateTime<Utc>>,

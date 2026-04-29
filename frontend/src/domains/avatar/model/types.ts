@@ -6,12 +6,13 @@ export interface UserItemResponse {
     name: string;
     category: string; // hair / top / bottom / gloves / shoes / weapon / glasses
     slot_name: string | null;
-    rarity: string;
     image_url: string;
     metadata_uri: string | null;
     is_equipped: boolean | null;
     is_nft: boolean | null;
     nft_mint_address: string | null;
+    minted_to_wallet: string | null;
+    collection_mint: string | null;
     acquired_at: string | null;
 }
 
@@ -22,9 +23,13 @@ export interface OwnedNftResponse {
     item_id: string | null;
     name: string;
     category: string | null;
-    rarity: string | null;
     image_url: string | null;
     metadata_uri: string | null;
+}
+
+export interface SyncOwnedNftsResponse {
+    synced_count: number;
+    skipped_count: number;
 }
 
 // POST /api/avatar/mint-nft 요청 타입
@@ -55,6 +60,5 @@ export interface TransferNftResponse{
     message: string;            // 성공 메세지 (예: "NFT 전송 완료")
     nft_mint_address: string;   // 전송 완료된 mint address 확인용
 }
-
 
 
