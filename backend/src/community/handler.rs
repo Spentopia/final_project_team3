@@ -19,6 +19,9 @@ use crate::state::AppState;
 pub struct PostQuery {
     pub contest_id: Option<Uuid>,
     pub sort: Option<PostSort>,
+    pub title: Option<String>,
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
 }
 
 fn map_community_error(error: anyhow::Error) -> axum::response::Response {
@@ -53,6 +56,7 @@ fn map_community_error(error: anyhow::Error) -> axum::response::Response {
         || message.contains("파일")
         || message.contains("이미지만")
         || message.contains("지원하지 않는 post_type")
+        || message.contains("사용할 수 없는 표현")
     {
         return (StatusCode::BAD_REQUEST, message).into_response();
     }
@@ -88,7 +92,16 @@ pub async fn list_posts(
     Extension(_user_id): Extension<Uuid>,
     Query(query): Query<PostQuery>,
 ) -> impl IntoResponse {
-    match service::list_posts(&state, query.contest_id, query.sort.unwrap_or_default()).await {
+    match service::list_posts(
+        &state,
+        query.contest_id,
+        query.sort.unwrap_or_default(),
+        query.title,
+        query.page.unwrap_or(1),
+        query.page_size.unwrap_or(10),
+    )
+    .await
+    {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }

@@ -92,6 +92,12 @@ pub struct PostResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct PostListResponse {
+    pub items: Vec<PostResponse>,
+    pub total_count: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct UploadCommunityImageResponse {
     pub path: String,
 }

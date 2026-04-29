@@ -18,6 +18,11 @@ export interface CommunityPostResponse {
   created_at: string | null;
 }
 
+export interface CommunityPostListResponse {
+  items: CommunityPostResponse[];
+  total_count: number;
+}
+
 export interface ContestResponse {
   id: string;
   title: string;
@@ -50,16 +55,25 @@ export interface CommunityMeResponse {
 interface ListPostsParams {
   sort: PostSort;
   contestId?: string;
+  title?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export async function listCommunityPosts({
   sort,
   contestId,
-}: ListPostsParams): Promise<CommunityPostResponse[]> {
-  const res = await apiClient.get<CommunityPostResponse[]>("/api/posts", {
+  title,
+  page,
+  pageSize,
+}: ListPostsParams): Promise<CommunityPostListResponse> {
+  const res = await apiClient.get<CommunityPostListResponse>("/api/posts", {
     params: {
       sort,
       contest_id: contestId,
+      title,
+      page,
+      page_size: pageSize,
     },
   });
 
@@ -94,6 +108,10 @@ export async function updateCommunityPost(
 ): Promise<CommunityPostResponse> {
   const res = await apiClient.patch<CommunityPostResponse>(`/api/posts/${postId}`, payload);
   return res.data;
+}
+
+export async function deleteCommunityPost(postId: string): Promise<void> {
+  await apiClient.delete(`/api/posts/${postId}`);
 }
 
 type CommunityUploadTarget =
