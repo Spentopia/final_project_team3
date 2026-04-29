@@ -61,23 +61,28 @@ import styles from "./MarketplacePage.module.css";
 // ────────────────────────────────────────────────────────────
 // 레어리티 / 카테고리 매핑 상수
 // ────────────────────────────────────────────────────────────
-const rarityClassMap: Record<UserItemResponse["rarity"], string> = {
+const rarityClassMap: Record<string, string> = {
   common: styles.rarityCommon,
   rare: styles.rarityRare,
   epic: styles.rarityEpic,
+  legendary: styles.rarityEpic,
 };
 
-const rarityLabel: Record<UserItemResponse["rarity"], string> = {
+const rarityLabel: Record<string, string> = {
   common: "일반",
   rare: "레어",
   epic: "에픽",
+  legendary: "전설",
 };
 
-const categoryLabel: Record<UserItemResponse["category"], string> = {
-  background: "배경",
-  frame: "프레임",
-  effect: "효과",
-  motion: "모션",
+const categoryLabel: Record<string, string> = {
+  hair: "헤어",
+  top: "상의",
+  bottom: "하의",
+  gloves: "장갑",
+  shoes: "신발",
+  weapon: "무기",
+  glasses: "안경",
 };
 
 // ────────────────────────────────────────────────────────────

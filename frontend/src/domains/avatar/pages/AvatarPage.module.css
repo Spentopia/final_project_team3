@@ -101,14 +101,10 @@
     box-shadow: 0 0 0 2px #fde68a, 0 4px 16px rgba(251, 191, 36, 0.3);
 }
 
-/* NFT 아이템: 오렌지 펄스 애니메이션 */
+/* NFT 아이템: 오렌지 테두리 */
 .itemCardNft {
-    animation: nftPulse 3s ease-in-out infinite;
-}
-
-@keyframes nftPulse {
-    0%, 100% { box-shadow: 0 0 6px rgba(249, 115, 22, 0.3); }
-    50%       { box-shadow: 0 0 18px rgba(249, 115, 22, 0.6); }
+    border-color: #f97316;
+    box-shadow: 0 0 0 1px #fed7aa;
 }
 
 .cardContent {

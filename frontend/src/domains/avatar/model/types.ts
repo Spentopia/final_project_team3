@@ -1,35 +1,30 @@
-// 타입 파일의 역할:
-// - 백엔드 API 응답/요청의 "형태"를 TypeScript에게 알려주는 계약서
-// - 이 파일 하나만 보면 아바타 도메인에서 어떤 데이터가 오가는지 파악 가능
-// - interface vs type: 확장 가능성이 있을 때 interface 사용 (관례)
-//
 // GET /api/avatar/items 응답 타입
-// 백엔드 DB의 user_items 테이블 + avatar_items 테이블 JOIN 결과
-//
-export interface UserItemResponse{
-    id: string;     // user_items.id - 이 유저가 "소유한" 레코드 UUID
-    item_id: string;// avatar_items.id - 아이템 원본 UUID
-    name: string;   // 아이템 이름 (예: "별빛 배경")
-
-    // union 타입: 이 4가지 문자열 외엔 들어올 수 없음
-    // 백엔드 ENUM과 1:1 매핑되어야 함
-    category: "background" | "frame" | "effect" | "motion";
-
-    // 레어리티도 마찬가지로 3가지만 허용
-    rarity: "common" | "rare" | "epic";
-
-    image_url: string;      // S3 또는 CDN URL
-    metadata_uri: string | null;   // NFT metadata JSON URI (Pinata/IPFS)
-    unity_asset_key: string | null;// Unity Addressable/Prefab key
-
-    // null 허용: DB에서 아직 값이 없는 경우를 표현
-    // boolean | null ≠ boolean - 반드시 null 체크 필요
+// 백엔드 DB의 user_inventory + item_master JOIN 결과
+export interface UserItemResponse {
+    id: string;
+    item_id: string;
+    name: string;
+    category: string; // hair / top / bottom / gloves / shoes / weapon / glasses
+    slot_name: string | null;
+    rarity: string;
+    image_url: string;
+    metadata_uri: string | null;
     is_equipped: boolean | null;
     is_nft: boolean | null;
-    nft_mint_address: string | null;  // 온체인 mint 주소 (list_nft 등에 필요)
+    nft_mint_address: string | null;
+    acquired_at: string | null;
+}
 
-    acquired_at: string | null; // ISO 8601 형식 (예: "2024-01-15T09:30:00Z")
-                                // Date 객체가 아닌 string - 필요할 때 new Date() 변환
+// GET /api/avatar/nfts 응답 타입
+// Helius getAssetsByOwner + item_master 매칭 결과
+export interface OwnedNftResponse {
+    mint_address: string;
+    item_id: string | null;
+    name: string;
+    category: string | null;
+    rarity: string | null;
+    image_url: string | null;
+    metadata_uri: string | null;
 }
 
 // POST /api/avatar/mint-nft 요청 타입
