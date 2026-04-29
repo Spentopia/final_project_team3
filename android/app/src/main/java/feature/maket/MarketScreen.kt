@@ -19,6 +19,7 @@ import androidx.compose.material3.Button // 수정: 액션 버튼에 사용
 import androidx.compose.material3.ButtonDefaults // 수정: 버튼 색상 지정에 사용
 import androidx.compose.material3.Card // 수정: 카드 UI 구성에 사용
 import androidx.compose.material3.CardDefaults // 수정: 카드 스타일 지정에 사용
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text // 수정: 텍스트 출력에 사용
 import androidx.compose.material3.TextButton // 수정: 탭 버튼에 사용
 import androidx.compose.runtime.Composable // 기존 유지
@@ -72,7 +73,7 @@ fun MarketScreen(
                     text = "NFT 마켓플레이스", // 수정: 화면 제목을 표시
                     fontSize = 28.sp, // 수정: 제목 크기를 지정
                     fontWeight = FontWeight.Bold, // 수정: 제목을 강조
-                    color = Color(0xFF11243D) // 수정: 제목 색상을 지정
+                    color = MaterialTheme.colorScheme.onBackground // 수정: 제목 색상을 지정
                 )
 
                 Spacer(modifier = Modifier.height(4.dp)) // 수정: 제목과 설명 사이 여백을 추가
@@ -80,7 +81,7 @@ fun MarketScreen(
                 Text(
                     text = "아바타 아이템을 자유롭게 거래해보세요", // 수정: 화면 설명 문구를 표시
                     fontSize = 15.sp, // 수정: 설명 텍스트 크기를 지정
-                    color = Color(0xFF5C6B80) // 수정: 보조 텍스트 색상을 지정
+                    color = MaterialTheme.colorScheme.onSurfaceVariant // 수정: 보조 텍스트 색상을 지정
                 )
             }
 
@@ -171,7 +172,7 @@ fun MarketScreen(
                 title = "총 거래량", // 수정: 첫 번째 통계 제목을 표시
                 value = "12,345", // 수정: 첫 번째 통계 수치를 표시
                 subText = "+15% 이번 주", // 수정: 첫 번째 통계 부가 설명을 표시
-                bgColor = Color.White, // 수정: 기본 흰색 카드 배경을 적용
+                bgColor = MaterialTheme.colorScheme.surface, // 수정: 기본 흰색 카드 배경을 적용
                 subTextColor = Color(0xFF16A34A) // 수정: 상승 텍스트 색상을 적용
             )
 
@@ -179,15 +180,15 @@ fun MarketScreen(
                 title = "등록된 아이템", // 수정: 두 번째 통계 제목을 표시
                 value = "248", // 수정: 두 번째 통계 수치를 표시
                 subText = "현재 판매중", // 수정: 두 번째 통계 부가 설명을 표시
-                bgColor = Color.White, // 수정: 기본 흰색 카드 배경을 적용
-                subTextColor = Color(0xFF6B7280) // 수정: 기본 회색 설명 색상을 적용
+                bgColor = MaterialTheme.colorScheme.surface, // 수정: 기본 흰색 카드 배경을 적용
+                subTextColor = MaterialTheme.colorScheme.onSurfaceVariant // 수정: 기본 회색 설명 색상을 적용
             )
 
             MarketStatCard(
                 title = "평균 거래가", // 수정: 세 번째 통계 제목을 표시
                 value = "650 SPT", // 수정: 세 번째 통계 수치를 표시
                 subText = "+8% 상승", // 수정: 세 번째 통계 부가 설명을 표시
-                bgColor = Color.White, // 수정: 기본 흰색 카드 배경을 적용합
+                bgColor = MaterialTheme.colorScheme.surface, // 수정: 기본 흰색 카드 배경을 적용합
                 subTextColor = Color(0xFF16A34A) // 수정: 상승 텍스트 색상을 적용
             )
 
@@ -211,7 +212,7 @@ fun MarketScreen(
         Row(
             modifier = Modifier
                 .background(
-                    color = Color(0xFFF1EFEE), // 수정: 연한 회색 탭 배경을 적용합
+                    color = MaterialTheme.colorScheme.surfaceVariant, // 수정: 연한 회색 탭 배경을 적용합
                     shape = RoundedCornerShape(999.dp) // 수정: 캡슐형 탭 배경을 적용합니다.
                 )
                 .padding(4.dp), // 수정: 탭 내부 여백을 적용합니다.
@@ -300,13 +301,13 @@ private fun MarketTabButton(
         onClick = { onClick() },
         modifier = Modifier
             .background(
-                color = if (selected) Color.White else Color.Transparent,
+                color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
                 shape = RoundedCornerShape(999.dp)
             )
     ) {
         Text(
             text = text,
-            color = Color(0xFF111827),
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
@@ -340,14 +341,14 @@ private fun MarketStatCard(
             Text(
                 text = title,
                 fontSize = 15.sp,
-                color = if (gradient != null) Color.White.copy(alpha = 0.9f) else Color(0xFF6B7280),
+                color = if (gradient != null) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium
             )
 
             Text(
                 text = value,
                 fontSize = 24.sp,
-                color = if (gradient != null) Color.White else Color(0xFF111827),
+                color = if (gradient != null) Color.White else MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
             )
 
@@ -369,7 +370,7 @@ private fun FilterBox(
     Box(
         modifier = modifier
             .background(
-                color = Color(0xFFF5F7FA),
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(12.dp)
             )
             .padding(horizontal = 14.dp, vertical = 14.dp)
@@ -377,7 +378,7 @@ private fun FilterBox(
         Text(
             text = text,
             fontSize = 14.sp,
-            color = Color(0xFF6B7280)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -387,7 +388,7 @@ private fun MarketItemCard(item: MarketItemUi) {
     Card(
         modifier = Modifier.fillMaxWidth(0.47f),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
@@ -420,7 +421,7 @@ private fun MarketItemCard(item: MarketItemUi) {
                         text = item.title,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Box(
@@ -443,7 +444,7 @@ private fun MarketItemCard(item: MarketItemUi) {
                 Text(
                     text = item.seller,
                     fontSize = 14.sp,
-                    color = Color(0xFF6B7280)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Row(
@@ -455,13 +456,13 @@ private fun MarketItemCard(item: MarketItemUi) {
                         text = "🪙 ${item.price}",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Text(
                         text = item.time,
                         fontSize = 13.sp,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -485,12 +486,13 @@ private fun MarketItemCard(item: MarketItemUi) {
     }
 }
 
+@Composable
 private fun marketRarityColor(rarity: String): Color {
     return when (rarity) {
-        "일반" -> Color(0xFF6B7280)
+        "일반" -> MaterialTheme.colorScheme.onSurfaceVariant
         "레어" -> Color(0xFF3B82F6)
         "에픽" -> Color(0xFFA855F7)
         "전설" -> Color(0xFFF59E0B)
-        else -> Color(0xFF6B7280)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 }

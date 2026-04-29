@@ -27,6 +27,10 @@ val localProperties = Properties().apply {
 // 값이 없으면 빈 문자열("")이 들어갑니다.
 val googleWebClientId = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID") ?: ""
 
+// local.properties에서 백엔드 API 주소를 가져옵니다.
+// 값이 없으면 안드로이드 에뮬레이터에서 로컬 PC 백엔드에 접근하는 기본 주소를 사용합니다.
+val apiBaseUrl = localProperties.getProperty("API_BASE_URL") ?: "http://10.0.2.2:1113/"
+
 android {
     namespace = "com.ict.spentopia"
     compileSdk = 36
@@ -54,6 +58,14 @@ android {
             "String",
             "GOOGLE_WEB_CLIENT_ID",
             "\"$googleWebClientId\""
+        )
+
+        // RetrofitClient에서 사용할 백엔드 기본 주소입니다.
+        // android/local.properties에 API_BASE_URL=http://10.0.2.2:1113/ 처럼 적으면 여기로 들어옵니다.
+        buildConfigField(
+            "String",
+            "API_BASE_URL",
+            "\"$apiBaseUrl\""
         )
     }
 

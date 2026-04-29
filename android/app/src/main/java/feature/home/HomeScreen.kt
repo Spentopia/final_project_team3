@@ -3,6 +3,7 @@ package com.ict.spentopia.feature.home // 이 파일이 속한 패키지 위치�
 // 날짜 선택 다이얼로그를 위한 import입니다.
 import android.app.DatePickerDialog // 날짜 선택창 기능을 가져옴
 import android.net.Uri // 이미지 주소 같은 Uri 타입을 가져옴
+import android.widget.Toast
 
 // Activity Result 관련 import입니다.
 import androidx.activity.compose.rememberLauncherForActivityResult // 외부 앱 결과를 받는 도구를 가져옴
@@ -49,6 +50,7 @@ import androidx.compose.material3.Icon // 아이콘 표시 컴포넌트를 가�
 import androidx.compose.material3.OutlinedButton // 외곽선 버튼을 가져옴
 import androidx.compose.material3.OutlinedTextField // 외곽선 입력칸을 가져옴
 import androidx.compose.material3.OutlinedTextFieldDefaults // 입력칸 기본 스타일 도구를 가져옴
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
 import androidx.compose.material3.TextButton // 글자형 버튼을 가져옴
 
@@ -58,6 +60,7 @@ import androidx.compose.runtime.LaunchedEffect // 상태가 바뀔 때 실행할
 import androidx.compose.runtime.getValue // by 문법으로 상태를 읽게 해줌
 import androidx.compose.runtime.mutableStateOf // 화면 상태를 만드는 도구를 가져옴
 import androidx.compose.runtime.remember // 재구성돼도 값을 기억하게 해줌
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue // by 문법으로 상태를 바꾸게 해줌
 
 // UI 관련 import입니다.
@@ -90,8 +93,14 @@ import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // 선택한 솔�
 
 // Room Entity import입니다.
 import com.ict.spentopia.data.local.ExpenseEntity // DB에 저장되는 소비 데이터 타입을 가져옴
+import com.ict.spentopia.data.remote.CreateExpenseRequest
+import com.ict.spentopia.data.remote.RetrofitClient
 
 // 숫자 포맷 및 날짜 계산 관련 import입니다.
+import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.text.DecimalFormat // 숫자를 쉼표 형식으로 바꾸는 도구를 가져옴
 import java.util.Calendar // 날짜 계산용 객체를 가져옴
 import kotlin.math.abs // 절댓값 함수 가져옴
@@ -110,7 +119,9 @@ data class ExpenseItemData( // ExpenseItemData 데이터를 묶어둘 클래스 
     val amount: Int, // 이 데이터에 저장할 amount 값을 받음
     val memo: String, // 이 데이터에 저장할 memo 값을 받음
     val receiptImageName: String, // 이 데이터에 저장할 receiptImageName 값을 받음
-    val diary: String // 이 데이터에 저장할 diary 값을 받음
+    val diary: String, // 이 데이터에 저장할 diary 값을 받음
+    val serverExpenseId: String = "", // 백엔드 expenses 테이블의 UUID입니다. OCR 인증 때 다시 사용합니다.
+    val receiptVerified: Boolean = false // 서버에서 영수증 인증이 성공했는지 저장합니다.
 )
 
 // 달력에서 사용할 날짜 데이터 클래스입니다.
@@ -298,7 +309,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
     LazyColumn( // 세로로 스크롤되는 목록 UI를 시작함
         modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
             .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
-            .background(Color(0xFFF3F6FA)) // 배경색이나 그라데이션을 넣음
+            .background(MaterialTheme.colorScheme.background) // 배경색이나 그라데이션을 넣음
             .padding(horizontal = 16.dp), // 안쪽이나 바깥 여백을 줌
         verticalArrangement = Arrangement.spacedBy(16.dp) // 바로 앞 설정을 이어서 적음
     ) { // 이 블록 안의 내용이 시작됨
@@ -385,13 +396,19 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
 
                     // 수정 중이 아니면 insert, 수정 중이면 update를 호출합니다.
                     if (editingExpense == null) { // 조건이 참일 때만 아래 코드를 실행함
-                        homeViewModel.insertExpense(entity) // 바로 앞 설정을 이어서 적음
+                        homeViewModel.insertExpense(
+                            expense = entity,
+                            onSuccess = {
+                                editingExpense = null
+                            },
+                            onError = { message ->
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            }
+                        )
                     } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
                         homeViewModel.updateExpense(entity) // 바로 앞 설정을 이어서 적음
+                        editingExpense = null // 수정 저장은 로컬 DB 업데이트라 바로 수정 상태를 닫습니다.
                     } // 블록 끝
-
-                    // 저장 후 수정 상태를 초기화합니다.
-                    editingExpense = null // editingExpense 값을 이 함수로 넘김
                 },
                 onCancelEdit = { // 이 이벤트가 일어났을 때 실행할 코드를 시작함
                     editingExpense = null // 바로 앞 설정을 이어서 적음
@@ -416,7 +433,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
             Card( // 카드 모양 UI를 시작함
                 modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
                 shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
-                colors = CardDefaults.cardColors(containerColor = Color.White) // 색상 스타일을 정함
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 색상 스타일을 정함
             ) { // 이 블록 안의 내용이 시작됨
                 CalendarCard( // 카드 모양 UI를 시작함
                     currentYear = currentYear, // colors 값을 이 함수로 넘김
@@ -505,7 +522,7 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
-        colors = CardDefaults.cardColors(containerColor = Color.White) // 색상 스타일을 정함
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 색상 스타일을 정함
     ) { // 이 블록 안의 내용이 시작됨
         Row( // 가로로 배치하는 영역을 시작함
             modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
@@ -524,7 +541,7 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                     text = if (isWalletConnected) "지갑 연결됨" else "NFT 거래 및 토큰 교환 지갑", // 연결 상태에 따라 제목을 정함
                     fontSize = 16.sp, // 글자 크기를 정함
                     fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                    color = Color(0xFF1F2A37) // 색상을 정함
+                    color = MaterialTheme.colorScheme.onSurface // 색상을 정함
                 )
                 Text( // 글자를 화면에 보여주기 시작함
                     text = if (isWalletConnected) { // 조건이 참일 때 연결 정보를 보여줌
@@ -533,7 +550,7 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                         "팬텀 지갑 연결이 필요합니다" // 연결 안내 문구를 보여줌
                     },
                     fontSize = 13.sp, // 글자 크기를 정함
-                    color = if (isWalletConnected) Color(0xFF16A34A) else Color(0xFF6B7280) // 연결 여부에 따라 글자색을 정함
+                    color = if (isWalletConnected) Color(0xFF16A34A) else MaterialTheme.colorScheme.onSurfaceVariant // 연결 여부에 따라 글자색을 정함
                 )
             } // 블록 끝
 
@@ -617,7 +634,7 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
                             text = "${currentYear}년 ${currentMonth}월", // 화면에 보여줄 글자를 정함
                             fontSize = 16.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                            color = Color(0xFF1F2A37) // 색상을 정함
+                            color = MaterialTheme.colorScheme.onSurface // 색상을 정함
                         )
 
                         Spacer(modifier = Modifier.width(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -653,7 +670,7 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
                     Text( // 글자를 화면에 보여주기 시작함
                         text = "이번 달 소비 내역 · ${currentMonthExpenseCount}건", // 화면에 보여줄 글자를 정함
                         fontSize = 13.sp, // 글자 크기를 정함
-                        color = Color(0xFF6B7280) // 색상을 정함
+                        color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
                     )
                 } // 블록 끝
 
@@ -662,7 +679,7 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
                         text = "${formatAmount(currentMonthTotalExpense)}원", // 화면에 보여줄 글자를 정함
                         fontSize = 28.sp, // 글자 크기를 정함
                         fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                        color = Color(0xFF1F2A37) // 색상을 정함
+                        color = MaterialTheme.colorScheme.onSurface // 색상을 정함
                     )
                     Text( // 글자를 화면에 보여주기 시작함
                         text = changeRateText, // 화면에 보여줄 글자를 정함
@@ -783,7 +800,7 @@ private fun CalendarCard( // CalendarCard 함수 선언 시작
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
-        colors = CardDefaults.cardColors(containerColor = Color.White) // 색상 스타일을 정함
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 색상 스타일을 정함
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 세로로 배치하는 영역을 시작함
             modifier = Modifier.padding(20.dp) // 안쪽이나 바깥 여백을 줌
@@ -802,7 +819,7 @@ private fun CalendarCard( // CalendarCard 함수 선언 시작
                     text = "${currentMonth}월 ${currentYear}", // 화면에 보여줄 글자를 정함
                     fontSize = 18.sp, // 글자 크기를 정함
                     fontWeight = FontWeight.Medium, // 글자 두께를 정함
-                    color = Color(0xFF1F2A37) // 색상을 정함
+                    color = MaterialTheme.colorScheme.onSurface // 색상을 정함
                 )
 
                 CalendarArrowButton( // 눌렀을 때 동작하는 버튼을 만듦
@@ -825,7 +842,7 @@ private fun CalendarCard( // CalendarCard 함수 선언 시작
                         Text( // 글자를 화면에 보여주기 시작함
                             text = day, // 화면에 보여줄 글자를 정함
                             fontSize = 13.sp, // 글자 크기를 정함
-                            color = Color(0xFF9AA4B2) // 색상을 정함
+                            color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
                         )
                     } // 블록 끝
                 } // 블록 끝
@@ -863,7 +880,7 @@ private fun CalendarCard( // CalendarCard 함수 선언 시작
                                         modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                                             .size(30.dp) // 가로세로 크기를 한 번에 정함
                                             .background( // 배경색이나 그라데이션을 넣음
-                                                color = Color(0xFF0F172A), // 색상을 정함
+                                                color = MaterialTheme.colorScheme.onBackground, // 색상을 정함
                                                 shape = RoundedCornerShape(8.dp) // 모서리 모양을 정함
                                             ),
                                         contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
@@ -920,7 +937,7 @@ private fun CalendarArrowButton( // CalendarArrowButton 함수 선언 시작
         modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
             .size(28.dp) // 가로세로 크기를 한 번에 정함
             .background( // 배경색이나 그라데이션을 넣음
-                color = Color(0xFFF3F4F6), // 색상을 정함
+                color = MaterialTheme.colorScheme.surfaceVariant, // 색상을 정함
                 shape = RoundedCornerShape(8.dp) // 모서리 모양을 정함
             )
             .clickable { onClick() }, // 눌렀을 때 반응하도록 만듦
@@ -928,7 +945,7 @@ private fun CalendarArrowButton( // CalendarArrowButton 함수 선언 시작
     ) { // 이 블록 안의 내용이 시작됨
         Text( // 글자를 화면에 보여주기 시작함
             text = text, // 화면에 보여줄 글자를 정함
-            color = Color(0xFF6B7280), // 색상을 정함
+            color = MaterialTheme.colorScheme.onSurfaceVariant, // 색상을 정함
             fontSize = 16.sp, // 글자 크기를 정함
             fontWeight = FontWeight.Medium // 글자 두께를 정함
         )
@@ -951,7 +968,7 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
-        colors = CardDefaults.cardColors(containerColor = Color.White) // 색상 스타일을 정함
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 색상 스타일을 정함
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 세로로 배치하는 영역을 시작함
             modifier = Modifier.padding(20.dp) // 안쪽이나 바깥 여백을 줌
@@ -960,7 +977,7 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
                 text = formatDisplayDate(selectedDate), // 화면에 보여줄 글자를 정함
                 fontSize = 22.sp, // 글자 크기를 정함
                 fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                color = Color(0xFF1F2A37) // 색상을 정함
+                color = MaterialTheme.colorScheme.onSurface // 색상을 정함
             )
 
             Spacer(modifier = Modifier.height(6.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -968,7 +985,7 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
             Text( // 글자를 화면에 보여주기 시작함
                 text = "총 ${formatAmount(totalAmount)}원 · ${filteredList.count { isExpenseItem(it) }}건", // 화면에 보여줄 글자를 정함
                 fontSize = 14.sp, // 글자 크기를 정함
-                color = Color(0xFF6B7280) // 색상을 정함
+                color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
             )
 
             Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -977,7 +994,7 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
                 Text( // 글자를 화면에 보여주기 시작함
                     text = "이 날짜에는 아직 저장된 소비 내역이 없어요", // 화면에 보여줄 글자를 정함
                     fontSize = 14.sp, // 글자 크기를 정함
-                    color = Color(0xFF6B7280) // 색상을 정함
+                    color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
                 )
             } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
                 filteredList.forEachIndexed { index, item -> // 목록이나 범위를 하나씩 돌면서 처리함
@@ -1016,7 +1033,7 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
                         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
                         shape = RoundedCornerShape(16.dp), // 모서리 모양을 정함
                         colors = CardDefaults.cardColors( // 색상 스타일을 정함
-                            containerColor = Color(0xFFF7FBFE) // 배경색을 정함
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant // 배경색을 정함
                         ),
                         border = BorderStroke( // border 값을 이 함수로 넘김
                             1.dp, // border 값을 이 함수로 넘김
@@ -1038,7 +1055,7 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
                             Text( // 글자를 화면에 보여주기 시작함
                                 text = diaryText, // 화면에 보여줄 글자를 정함
                                 fontSize = 14.sp, // 글자 크기를 정함
-                                color = Color(0xFF475569) // 색상을 정함
+                                color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
                             )
                         } // 블록 끝
                     } // 블록 끝
@@ -1062,10 +1079,10 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(18.dp), // 모서리 모양을 정함
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFCFCFD)), // 색상 스타일을 정함
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), // 색상 스타일을 정함
         border = BorderStroke( // border 값을 이 함수로 넘김
             1.dp, // border 값을 이 함수로 넘김
-            Color(0xFFE5E7EB) // 사용할 색상 값을 넣음
+            MaterialTheme.colorScheme.outlineVariant // 사용할 색상 값을 넣음
         )
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 세로로 배치하는 영역을 시작함
@@ -1101,7 +1118,7 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
                         text = title, // 화면에 보여줄 글자를 정함
                         fontSize = 16.sp, // 글자 크기를 정함
                         fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                        color = Color(0xFF1F2A37) // 색상을 정함
+                        color = MaterialTheme.colorScheme.onSurface // 색상을 정함
                     )
 
                     Spacer(modifier = Modifier.height(4.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1110,7 +1127,7 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
                         Text( // 글자를 화면에 보여주기 시작함
                             text = category, // 화면에 보여줄 글자를 정함
                             fontSize = 13.sp, // 글자 크기를 정함
-                            color = Color(0xFF6B7280) // 색상을 정함
+                            color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
                         )
 
                         if (tag != null) { // 조건이 참일 때만 아래 코드를 실행함
@@ -1204,11 +1221,11 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
         colors = CardDefaults.cardColors( // 색상 스타일을 정함
-            containerColor = Color(0xFFF8FBFF) // 배경색을 정함
+            containerColor = MaterialTheme.colorScheme.surfaceVariant // 배경색을 정함
         ),
         border = BorderStroke( // border 값을 이 함수로 넘김
             1.dp, // border 값을 이 함수로 넘김
-            Color(0xFFDCEBFF) // 사용할 색상 값을 넣음
+            MaterialTheme.colorScheme.outlineVariant // 사용할 색상 값을 넣음
         )
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 세로로 배치하는 영역을 시작함
@@ -1218,7 +1235,7 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
                 text = "이번 주 성실도", // 화면에 보여줄 글자를 정함
                 fontSize = 20.sp, // 글자 크기를 정함
                 fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                color = Color(0xFF1F2A37) // 색상을 정함
+                color = MaterialTheme.colorScheme.onSurface // 색상을 정함
             )
 
             Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1226,7 +1243,7 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
             Text( // 글자를 화면에 보여주기 시작함
                 text = "소비 기록을 꾸준히 남긴 정도를 보여줘요", // 화면에 보여줄 글자를 정함
                 fontSize = 14.sp, // 글자 크기를 정함
-                color = Color(0xFF6B7280) // 색상을 정함
+                color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
             )
 
             Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1304,7 +1321,7 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
                 modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
                 shape = RoundedCornerShape(16.dp), // 모서리 모양을 정함
                 colors = CardDefaults.cardColors( // 색상 스타일을 정함
-                    containerColor = Color.White // 배경색을 정함
+                    containerColor = MaterialTheme.colorScheme.surface // 배경색을 정함
                 )
             ) { // 이 블록 안의 내용이 시작됨
                 Row( // 가로로 배치하는 영역을 시작함
@@ -1325,13 +1342,13 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
                             text = "${streakDays}일 연속 기록 중", // 화면에 보여줄 글자를 정함
                             fontSize = 15.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                            color = Color(0xFF1F2A37) // 색상을 정함
+                            color = MaterialTheme.colorScheme.onSurface // 색상을 정함
                         )
 
                         Text( // 글자를 화면에 보여주기 시작함
                             text = "오늘도 기록하면 성실도가 올라가요", // 화면에 보여줄 글자를 정함
                             fontSize = 13.sp, // 글자 크기를 정함
-                            color = Color(0xFF6B7280) // 색상을 정함
+                            color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
                         )
                     } // 블록 끝
                 } // 블록 끝
@@ -1370,7 +1387,7 @@ private fun WeekDayItem( // WeekDayItem 함수 선언 시작
         Text( // 글자를 화면에 보여주기 시작함
             text = day, // 화면에 보여줄 글자를 정함
             fontSize = 13.sp, // 글자 크기를 정함
-            color = Color(0xFF5B6573) // 색상을 정함
+            color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
         )
     } // 블록 끝
 } // 블록 끝
@@ -1385,6 +1402,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     onCancelEdit: () -> Unit // onCancelEdit 는 눌렀을 때 실행할 동작을 받음
 ) { // 이 블록 안의 내용이 시작됨
     val context = LocalContext.current // 현재 화면의 Context를 가져옴
+    val scope = rememberCoroutineScope()
     val calendar = Calendar.getInstance() // 현재 날짜/시간 정보를 가진 Calendar 객체를 만듦
 
     var formDate by remember { mutableStateOf(selectedDate) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
@@ -1394,6 +1412,10 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     var amount by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var memo by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var receiptImageName by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
+    var isReceiptVerifying by remember { mutableStateOf(false) } // OCR 인증 중인지 저장합니다.
+    var receiptVerificationMessage by remember { mutableStateOf("") } // OCR 결과 안내 문구를 저장합니다.
+    var isReceiptVerified by remember { mutableStateOf(false) } // 현재 영수증이 인증 성공했는지 저장합니다.
+    var pendingServerExpenseId by remember { mutableStateOf("") } // 새 기록 저장 전 OCR을 위해 먼저 만든 서버 UUID입니다.
     var diary by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var expanded by remember { mutableStateOf(false) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     val expenseCategoryList = listOf("식비", "교통", "쇼핑", "카페", "기타") // 소비 카테고리 목록을 만듦
@@ -1404,6 +1426,8 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     ) { uri: Uri? -> // 바로 앞 설정을 이어서 적음
         if (uri != null) { // 조건이 참일 때만 아래 코드를 실행함
             receiptImageName = uri.toString() // galleryLauncher 값을 이 함수로 넘김
+            receiptVerificationMessage = ""
+            isReceiptVerified = false
         } // 블록 끝
     } // 블록 끝
 
@@ -1414,6 +1438,8 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
             memo = editingExpense.memo // 바로 앞 설정을 이어서 적음
             receiptImageName = editingExpense.receiptImageName // 바로 앞 설정을 이어서 적음
             diary = editingExpense.diary // 바로 앞 설정을 이어서 적음
+            pendingServerExpenseId = editingExpense.serverExpenseId // 수정 중인 기록의 서버 UUID를 가져옵니다.
+            isReceiptVerified = editingExpense.receiptVerified // 기존 인증 상태를 화면에 맞춥니다.
 
             if (incomeCategoryList.contains(editingExpense.category)) { // 조건이 참일 때만 아래 코드를 실행함
                 isExpenseTab = false // 수입 탭으로 맞춤
@@ -1432,6 +1458,9 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
             amount = "" // 바로 앞 설정을 이어서 적음
             memo = "" // 바로 앞 설정을 이어서 적음
             receiptImageName = "" // 바로 앞 설정을 이어서 적음
+            pendingServerExpenseId = "" // 새 입력을 시작하면 이전 서버 UUID를 비웁니다.
+            isReceiptVerified = false // 새 입력을 시작하면 인증 상태도 초기화합니다.
+            receiptVerificationMessage = "" // 이전 OCR 결과 문구를 지웁니다.
             diary = "" // formDate 값을 이 함수로 넘김
         } // 블록 끝
 
@@ -1442,7 +1471,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
         colors = CardDefaults.cardColors( // 색상 스타일을 정함
-            containerColor = Color.White // 배경색을 정함
+            containerColor = MaterialTheme.colorScheme.surface // 배경색을 정함
         )
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 세로로 배치하는 영역을 시작함
@@ -1452,7 +1481,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 text = if (editingExpense == null) "기록 입력하기" else "기록 수정하기", // 화면에 보여줄 글자를 정함
                 fontSize = 20.sp, // 글자 크기를 정함
                 fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                color = Color(0xFF1F2A37) // 색상을 정함
+                color = MaterialTheme.colorScheme.onSurface // 색상을 정함
             )
 
             Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1463,7 +1492,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 else // color 값을 이 함수로 넘김
                     "선택한 기록을 수정할 수 있어요", // color 값을 이 함수로 넘김
                 fontSize = 14.sp, // 글자 크기를 정함
-                color = Color(0xFF6B7280) // 색상을 정함
+                color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
             )
 
             Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1549,7 +1578,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
                     Text( // 글자를 화면에 보여주기 시작함
                         text = "날짜를 선택하세요", // 화면에 보여줄 글자를 정함
-                        color = Color(0xFF9AA4B2) // 색상을 정함
+                        color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
                     )
                 },
                 singleLine = true, // 한 줄만 입력되게 함
@@ -1557,8 +1586,8 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
                     focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
                     unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
-                    focusedBorderColor = Color(0xFFDCE7F3), // 선택됐을 때 테두리 색을 정함
-                    unfocusedBorderColor = Color(0xFFDCE7F3), // 선택 안 됐을 때 테두리 색을 정함
+                    focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
                     cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
                 )
             )
@@ -1615,7 +1644,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
                     Text( // 글자를 화면에 보여주기 시작함
                         text = "예: 12000", // 화면에 보여줄 글자를 정함
-                        color = Color(0xFF9AA4B2) // 색상을 정함
+                        color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
                     )
                 },
                 singleLine = true, // 한 줄만 입력되게 함
@@ -1623,8 +1652,8 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
                     focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
                     unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
-                    focusedBorderColor = Color(0xFFDCE7F3), // 선택됐을 때 테두리 색을 정함
-                    unfocusedBorderColor = Color(0xFFDCE7F3), // 선택 안 됐을 때 테두리 색을 정함
+                    focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
                     cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
                 )
             )
@@ -1654,7 +1683,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
                         Text( // 글자를 화면에 보여주기 시작함
                             text = "카테고리를 선택하세요", // 화면에 보여줄 글자를 정함
-                            color = Color(0xFF9AA4B2) // 색상을 정함
+                            color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
                         )
                     },
                     trailingIcon = { // 입력칸 오른쪽에 붙을 아이콘 영역을 만듦
@@ -1665,8 +1694,8 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
                         focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
                         unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
-                        focusedBorderColor = Color(0xFFDCE7F3), // 선택됐을 때 테두리 색을 정함
-                        unfocusedBorderColor = Color(0xFFDCE7F3), // 선택 안 됐을 때 테두리 색을 정함
+                        focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
                         cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
                     )
                 )
@@ -1721,7 +1750,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
                     Text( // 글자를 화면에 보여주기 시작함
                         text = if (isExpenseTab) "무엇을 구매했나요?" else "수입 내용을 입력하세요", // 화면에 보여줄 글자를 정함
-                        color = Color(0xFF9AA4B2) // 색상을 정함
+                        color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
                     )
                 },
                 singleLine = true, // 한 줄만 입력되게 함
@@ -1729,8 +1758,8 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
                     focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
                     unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
-                    focusedBorderColor = Color(0xFFDCE7F3), // 선택됐을 때 테두리 색을 정함
-                    unfocusedBorderColor = Color(0xFFDCE7F3), // 선택 안 됐을 때 테두리 색을 정함
+                    focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
                     cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
                 )
             )
@@ -1753,14 +1782,14 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         galleryLauncher.launch("image/*") // 갤러리에서 이미지만 고르게 엶
                     },
                     shape = RoundedCornerShape(12.dp), // 모서리 모양을 정함
-                    border = BorderStroke(1.dp, Color(0xFFDCE7F3)), // 바로 앞 설정을 이어서 적음
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), // 바로 앞 설정을 이어서 적음
                     colors = ButtonDefaults.outlinedButtonColors( // 색상 스타일을 정함
-                        containerColor = Color.White // 배경색을 정함
+                        containerColor = MaterialTheme.colorScheme.surface // 배경색을 정함
                     )
                 ) { // 이 블록 안의 내용이 시작됨
                     Text( // 글자를 화면에 보여주기 시작함
                         text = if (receiptImageName.isBlank()) "사진 앨범에서 업로드" else "사진 변경하기", // 화면에 보여줄 글자를 정함
-                        color = Color(0xFF1F2A37), // 색상을 정함
+                        color = MaterialTheme.colorScheme.onSurface, // 색상을 정함
                         fontSize = 14.sp // 글자 크기를 정함
                     )
                 } // 블록 끝
@@ -1776,6 +1805,113 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                             .height(180.dp), // 세로 길이를 정함
                         contentScale = ContentScale.Crop // 이미지를 어떤 비율로 채울지 정함
                     )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Button(
+                        onClick = {
+                            val expectedAmount = amount.toIntOrNull()
+                            if (expectedAmount == null || expectedAmount <= 0) {
+                                Toast.makeText(context, "OCR 인증 전에 금액을 입력해주세요.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                scope.launch {
+                                    isReceiptVerifying = true
+                                    receiptVerificationMessage = ""
+                                    isReceiptVerified = false
+
+                                    try {
+                                        val currentCategory = if (isExpenseTab) selectedExpenseCategory else selectedIncomeCategory
+
+                                        // 백엔드 OCR은 expense_id가 있어야 DB의 receipt_verified까지 바꿀 수 있습니다.
+                                        // 새 기록은 아직 로컬 DB에 저장 전이라도, 여기서 먼저 서버 기록을 만들고 UUID를 받아둡니다.
+                                        val serverExpenseId = pendingServerExpenseId.ifBlank {
+                                            val remoteExpense = RetrofitClient.expenseApi.createExpense(
+                                                CreateExpenseRequest(
+                                                    date = formDate,
+                                                    amount = expectedAmount,
+                                                    category = currentCategory,
+                                                    memo = memo.takeIf { it.isNotBlank() },
+                                                    transactionType = if (isExpenseTab) "expense" else "income",
+                                                    diary = diary.takeIf { it.isNotBlank() }
+                                                )
+                                            )
+
+                                            pendingServerExpenseId = remoteExpense.id
+                                            remoteExpense.id
+                                        }
+
+                                        val imageUri = Uri.parse(receiptImageName)
+                                        val mimeType = context.contentResolver.getType(imageUri) ?: "image/jpeg"
+                                        val imageBytes = context.contentResolver.openInputStream(imageUri)?.use { input ->
+                                            input.readBytes()
+                                        }
+
+                                        if (imageBytes == null || imageBytes.isEmpty()) {
+                                            Toast.makeText(context, "영수증 이미지를 읽지 못했습니다.", Toast.LENGTH_SHORT).show()
+                                            return@launch
+                                        }
+
+                                        val imageRequestBody = imageBytes.toRequestBody(mimeType.toMediaTypeOrNull())
+                                        val imagePart = MultipartBody.Part.createFormData(
+                                            name = "image",
+                                            filename = "receipt.${mimeType.substringAfter('/', "jpg")}",
+                                            body = imageRequestBody
+                                        )
+                                        val expectedDateBody = formDate.toRequestBody("text/plain".toMediaTypeOrNull())
+                                        val expectedAmountBody = expectedAmount.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+
+                                        val response = RetrofitClient.receiptApi.verifyReceiptOcr(
+                                            expenseId = serverExpenseId,
+                                            image = imagePart,
+                                            expectedDate = expectedDateBody,
+                                            expectedAmount = expectedAmountBody
+                                        )
+
+                                        isReceiptVerified = response.verification.is_verified
+                                        receiptVerificationMessage = response.verification.reason
+
+                                        Toast.makeText(
+                                            context,
+                                            if (response.verification.is_verified) "영수증 OCR 인증 성공" else response.verification.reason,
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    } catch (e: Exception) {
+                                        receiptVerificationMessage = e.message ?: "영수증 OCR 인증에 실패했습니다."
+                                        Toast.makeText(context, receiptVerificationMessage, Toast.LENGTH_SHORT).show()
+                                    } finally {
+                                        isReceiptVerifying = false
+                                    }
+                                }
+                            }
+                        },
+                        enabled = !isReceiptVerifying,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isReceiptVerified) Color(0xFF16A34A) else Color(0xFF2F7DF6),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            text = when {
+                                isReceiptVerifying -> "OCR 인증 중..."
+                                isReceiptVerified -> "OCR 인증 완료"
+                                else -> "OCR 인증하기"
+                            },
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    if (receiptVerificationMessage.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = receiptVerificationMessage,
+                            fontSize = 13.sp,
+                            color = if (isReceiptVerified) Color(0xFF16A34A) else Color(0xFFE53935)
+                        )
+                    }
                 } // 블록 끝
 
                 Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1798,15 +1934,15 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
                         Text( // 글자를 화면에 보여주기 시작함
                             text = "오늘 소비에 대한 생각을 기록해보세요", // 화면에 보여줄 글자를 정함
-                            color = Color(0xFF9AA4B2) // 색상을 정함
+                            color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
                         )
                     },
                     shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                     colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
                         focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
                         unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
-                        focusedBorderColor = Color(0xFFDCE7F3), // 선택됐을 때 테두리 색을 정함
-                        unfocusedBorderColor = Color(0xFFDCE7F3), // 선택 안 됐을 때 테두리 색을 정함
+                        focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
                         cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
                     )
                 )
@@ -1825,14 +1961,14 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                             .weight(1f) // 남는 공간을 비율대로 차지하게 함
                             .height(54.dp), // 세로 길이를 정함
                         shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
-                        border = BorderStroke(1.dp, Color(0xFFDCE7F3)), // 바로 앞 설정을 이어서 적음
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), // 바로 앞 설정을 이어서 적음
                         colors = ButtonDefaults.outlinedButtonColors( // 색상 스타일을 정함
-                            containerColor = Color.White // 배경색을 정함
+                            containerColor = MaterialTheme.colorScheme.surface // 배경색을 정함
                         )
                     ) { // 이 블록 안의 내용이 시작됨
                         Text( // 글자를 화면에 보여주기 시작함
                             text = "취소", // 화면에 보여줄 글자를 정함
-                            color = Color(0xFF5B6573), // 색상을 정함
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, // 색상을 정함
                             fontSize = 16.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.SemiBold // 글자 두께를 정함
                         )
@@ -1852,7 +1988,9 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                     amount = amountInt, // amount 값을 이 함수로 넘김
                                     memo = memo, // memo 값을 이 함수로 넘김
                                     receiptImageName = if (isExpenseTab) receiptImageName else "", // receiptImageName 값을 이 함수로 넘김
-                                    diary = if (isExpenseTab) diary else "" // diary 값을 이 함수로 넘김
+                                    diary = if (isExpenseTab) diary else "", // diary 값을 이 함수로 넘김
+                                    serverExpenseId = pendingServerExpenseId, // OCR 때 만든 서버 UUID를 같이 저장합니다.
+                                    receiptVerified = isReceiptVerified // OCR 인증 성공 여부를 같이 저장합니다.
                                 )
 
                                 onSaveExpense(updatedExpense) // 함수를 호출해 값을 넣음
@@ -1905,7 +2043,9 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                 amount = amountInt, // amount 값을 이 함수로 넘김
                                 memo = memo, // memo 값을 이 함수로 넘김
                                 receiptImageName = if (isExpenseTab) receiptImageName else "", // receiptImageName 값을 이 함수로 넘김
-                                diary = if (isExpenseTab) diary else "" // diary 값을 이 함수로 넘김
+                                diary = if (isExpenseTab) diary else "", // diary 값을 이 함수로 넘김
+                                serverExpenseId = pendingServerExpenseId, // OCR 때 만든 서버 UUID를 같이 저장합니다.
+                                receiptVerified = isReceiptVerified // OCR 인증 성공 여부를 같이 저장합니다.
                             )
 
                             onSaveExpense(newExpense) // 함수를 호출해 값을 넣음
@@ -1983,7 +2123,7 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                             text = "보상 안내", // 화면에 보여줄 글자를 정함
                             fontSize = 15.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                            color = Color(0xFF222222) // 색상을 정함
+                            color = MaterialTheme.colorScheme.onSurface // 색상을 정함
                         )
                     } // 블록 끝
                 } // 블록 끝
@@ -2111,7 +2251,9 @@ private fun ExpenseEntity.toUiModel(): ExpenseItemData { // color 값을 이 함
         amount = amount, // amount 값을 이 함수로 넘김
         memo = memo, // memo 값을 이 함수로 넘김
         receiptImageName = receiptImageUri, // receiptImageName 값을 이 함수로 넘김
-        diary = diary // 바로 앞 설정을 이어서 적음
+        diary = diary, // 바로 앞 설정을 이어서 적음
+        serverExpenseId = serverExpenseId, // 서버 UUID를 화면 모델로 넘김
+        receiptVerified = receiptVerified // OCR 인증 상태를 화면 모델로 넘김
     )
 } // 블록 끝
 
@@ -2124,7 +2266,9 @@ private fun ExpenseItemData.toEntity(): ExpenseEntity { // diary 값을 이 함�
         amount = amount, // amount 값을 이 함수로 넘김
         memo = memo, // memo 값을 이 함수로 넘김
         diary = diary, // diary 값을 이 함수로 넘김
-        receiptImageUri = receiptImageName // receiptImageUri 값을 이 함수로 넘김
+        receiptImageUri = receiptImageName, // receiptImageUri 값을 이 함수로 넘김
+        serverExpenseId = serverExpenseId, // 백엔드 expenses UUID를 로컬 DB에도 저장함
+        receiptVerified = receiptVerified // OCR 인증 상태를 로컬 DB에도 저장함
     )
 } // 블록 끝
 
@@ -2286,11 +2430,12 @@ private fun createChangeRateText(currentAmount: Int, previousAmount: Int): Strin
     } // 블록 끝
 } // 블록 끝
 
+@Composable
 private fun getChangeRateColor(changeRateText: String): Color { // getChangeRateColor 함수 시작
     return when { // 계산한 결과를 바깥으로 돌려줌
         changeRateText.contains("↗") -> Color(0xFFE53935) // 그 값이 들어있는지 확인함
         changeRateText.contains("↘") -> Color(0xFF16A34A) // 그 값이 들어있는지 확인함
-        else -> Color(0xFF6B7280) // currentAmount 값을 이 함수로 넘김
+        else -> MaterialTheme.colorScheme.onSurfaceVariant // currentAmount 값을 이 함수로 넘김
     } // 블록 끝
 } // 블록 끝
 

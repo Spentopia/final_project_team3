@@ -21,10 +21,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -56,14 +54,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.ict.spentopia.BuildConfig
 import com.ict.spentopia.R
 import com.ict.spentopia.feature.auth.connector.PhantomDeepLinkConnector
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import kotlinx.coroutines.launch
 import android.util.Log
@@ -273,19 +271,18 @@ fun LoginScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 26.dp)
-                .padding(top = 34.dp, bottom = 20.dp),
+                .padding(horizontal = 24.dp)
+                .padding(top = 8.dp, bottom = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Image(
                 painter = painterResource(id = R.drawable.ic_spentopia_logo),
                 contentDescription = stringResource(id = R.string.spentopia_logo_content_description),
-                modifier = Modifier.size(74.dp),
+                modifier = Modifier.size(200.dp),
                 contentScale = ContentScale.Fit
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = stringResource(id = R.string.app_name),
@@ -294,7 +291,7 @@ fun LoginScreen(
                 color = Color(0xFF111827)
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
             Text(
                 text = stringResource(id = R.string.login_tagline),
@@ -302,7 +299,7 @@ fun LoginScreen(
                 color = Color(0xFF6B7280)
             )
 
-            Spacer(modifier = Modifier.height(34.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             LoginInputField(
                 title = stringResource(id = R.string.login_email_label),
@@ -312,7 +309,7 @@ fun LoginScreen(
                 keyboardType = KeyboardType.Email
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             LoginInputField(
                 title = stringResource(id = R.string.login_password_label),
@@ -344,7 +341,7 @@ fun LoginScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             GradientLoginButton(
                 text = if (isEmailLoginLoading) {
@@ -358,7 +355,7 @@ fun LoginScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -388,11 +385,11 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             OrDivider()
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             LoginOptionButton(
                 text = stringResource(id = R.string.kakao_login_button),
@@ -403,7 +400,7 @@ fun LoginScreen(
                 onClick = { startKakaoLogin() }
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             LoginOptionButton(
                 text = stringResource(id = R.string.google_login_button),
@@ -415,7 +412,7 @@ fun LoginScreen(
                 onClick = { startGoogleLogin() }
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             WalletLoginOptionButton(
                 text = stringResource(id = R.string.wallet_login_button),

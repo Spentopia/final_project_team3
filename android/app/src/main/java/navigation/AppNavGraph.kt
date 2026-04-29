@@ -4,7 +4,12 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.NotificationsNone
@@ -13,13 +18,16 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,8 +37,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -46,6 +58,7 @@ import com.ict.spentopia.feature.analysis.AnalysisScreen
 import com.ict.spentopia.feature.auth.FindEmailScreen
 import com.ict.spentopia.feature.auth.FindPasswordScreen
 import com.ict.spentopia.feature.auth.LoginScreen
+import com.ict.spentopia.feature.auth.SplashScreen
 import com.ict.spentopia.feature.auth.connector.MwaBackpackConnector
 import com.ict.spentopia.feature.auth.connector.MwaPhantomConnector
 import com.ict.spentopia.feature.auth.connector.MwaSolflareConnector
@@ -53,6 +66,7 @@ import com.ict.spentopia.feature.auth.connector.WalletConnectionResult
 import com.ict.spentopia.feature.auth.connector.WalletSignResult
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
 import com.ict.spentopia.feature.budget.BudgetScreen
+import com.ict.spentopia.feature.chatbot.ChatbotScreen
 import com.ict.spentopia.feature.community.CommunityDetailScreen
 import com.ict.spentopia.feature.community.CommunityPost
 import com.ict.spentopia.feature.community.CommunityScreen
@@ -63,6 +77,7 @@ import com.ict.spentopia.feature.market.MarketScreen
 import com.ict.spentopia.feature.mypage.ProfileAvatarScreen
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import kotlinx.coroutines.launch
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,6 +139,22 @@ fun AppNavGraph(
     )
 
     val shouldShowDrawer = currentRoute in showDrawerScreens
+
+    // 로그인 이후 화면에서만 오른쪽 하단 챗봇 버튼을 보여줍니다.
+    // splash/login/find 화면과 챗봇 화면 자체에서는 숨깁니다.
+    val showChatbotFloatingButtonScreens = setOf(
+        Route.Home.route,
+        Route.Budget.route,
+        Route.Analysis.route,
+        Route.ProfileAvatar.route,
+        Route.Market.route,
+        Route.Plaza.route,
+        Route.Community.route,
+        Route.CommunityWrite.route,
+        Route.CommunityDetail.route
+    )
+
+    val shouldShowChatbotFloatingButton = currentRoute in showChatbotFloatingButtonScreens
 
     // 인증 토큰 저장 함수
     fun saveAuthTokens(accessToken: String, refreshToken: String) {
@@ -316,7 +347,10 @@ fun AppNavGraph(
         gesturesEnabled = shouldShowDrawer,
         drawerContent = {
             if (shouldShowDrawer) {
-                ModalDrawerSheet {
+                ModalDrawerSheet(
+                    drawerContainerColor = MaterialTheme.colorScheme.surface,
+                    drawerContentColor = MaterialTheme.colorScheme.onSurface
+                ) {
                     AppDrawerContent(
                         onCloseClick = { scope.launch { drawerState.close() } },
                         onLedgerClick = {
@@ -365,32 +399,65 @@ fun AppNavGraph(
         }
     ) {
         Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
+            contentColor = MaterialTheme.colorScheme.onBackground,
             topBar = {
                 if (shouldShowDrawer) {
                     CenterAlignedTopAppBar(
-                        title = { Text("Spentopia") },
+                        title = {
+                            Text(
+                                text = "Spentopia",
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        },
                         navigationIcon = {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                Icon(Icons.Default.Menu, contentDescription = "메뉴")
+                                Icon(
+                                    Icons.Default.Menu,
+                                    contentDescription = "메뉴",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
                             }
                         },
                         actions = {
                             IconButton(onClick = { showThemeDialog = true }) {
-                                Icon(Icons.Default.Settings, contentDescription = "설정")
+                                Icon(
+                                    Icons.Default.Settings,
+                                    contentDescription = "설정",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
                             }
                             IconButton(onClick = { showNotificationDialog = true }) {
-                                Icon(Icons.Default.NotificationsNone, contentDescription = "알림")
+                                Icon(
+                                    Icons.Default.NotificationsNone,
+                                    contentDescription = "알림",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
                             }
-                        }
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            titleContentColor = MaterialTheme.colorScheme.onSurface,
+                            navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                            actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                        )
                     )
                 }
             }
         ) { innerPadding ->
-            NavHost(
-                navController = navController,
-                startDestination = Route.Login.route,
-                modifier = Modifier.padding(innerPadding)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
             ) {
+                NavHost(
+                    navController = navController,
+                    startDestination = Route.Splash.route,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                composable(Route.Splash.route) {
+                    SplashScreen(navController)
+                }
                 composable(Route.Login.route) {
                     LoginScreen(
                         onLoginClick = { moveToHome() },
@@ -477,10 +544,16 @@ fun AppNavGraph(
                     CommunityScreen(
                         posts = communityPosts,
                         onWriteClick = { navController.navigate(Route.CommunityWrite.route) },
-                        onChatClick = {},
+                        onChatClick = { navController.navigate(Route.Chatbot.route) },
                         onPostClick = { post ->
                             navController.navigate(Route.CommunityDetail.createRoute(post.id))
                         }
+                    )
+                }
+
+                composable(Route.Chatbot.route) {
+                    ChatbotScreen(
+                        onBackClick = { navController.popBackStack() }
                     )
                 }
 
@@ -541,6 +614,21 @@ fun AppNavGraph(
                     )
                 }
             }
+
+                if (shouldShowChatbotFloatingButton) {
+                    FloatingChatbotButton(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .navigationBarsPadding()
+                            .padding(end = 18.dp, bottom = 18.dp),
+                        onClick = {
+                            navController.navigate(Route.Chatbot.route) {
+                                launchSingleTop = true
+                            }
+                        }
+                    )
+                }
+            }
         }
 
         if (showThemeDialog) {
@@ -565,6 +653,39 @@ fun AppNavGraph(
                 confirmButton = {
                     TextButton(onClick = { showNotificationDialog = false }) { Text("닫기") }
                 }
+            )
+        }
+    }
+}
+
+@Composable
+private fun FloatingChatbotButton(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier.size(62.dp),
+        containerColor = Color.Transparent,
+        contentColor = Color.White
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF12C2E9),
+                            Color(0xFF8B5CF6)
+                        )
+                    ),
+                    shape = MaterialTheme.shapes.extraLarge
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "🤖",
+                color = Color.White
             )
         }
     }

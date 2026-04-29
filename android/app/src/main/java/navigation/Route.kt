@@ -9,6 +9,9 @@ package com.ict.spentopia.navigation
 
 sealed class Route(val route: String) {
 
+    // 스플래시 화면 route입니다.
+    data object Splash : Route("splash")
+
     // 로그인 화면 route입니다.
     data object Login : Route("login")
 
@@ -49,6 +52,9 @@ sealed class Route(val route: String) {
 
     // 커뮤니티 메인 화면 route입니다.
     data object Community : Route("community")
+
+    // AI 챗봇 화면 route입니다.
+    data object Chatbot : Route("chatbot")
 
     // 커뮤니티 글쓰기 화면 route입니다.
     data object CommunityWrite : Route("community_write")

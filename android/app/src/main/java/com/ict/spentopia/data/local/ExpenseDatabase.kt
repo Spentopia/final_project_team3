@@ -12,7 +12,7 @@ import androidx.room.RoomDatabase
 // Room 데이터베이스 클래스입니다.
 @Database(
     entities = [ExpenseEntity::class], // 이 DB에서 사용할 테이블(Entity) 목록입니다.
-    version = 2, // 현재 DB 버전입니다.  / / 버전 바꿀시 전에 있던 데이터들  날라감  원할시 버전 바꿔도 됌
+    version = 3, // 현재 DB 버전입니다. Entity 컬럼이 바뀌면 버전도 올려야 Room 오류가 나지 않습니다.
     exportSchema = false // 스키마 내보내기를 사용하지 않겠다는 뜻입니다.
 )
 abstract class ExpenseDatabase : RoomDatabase() {

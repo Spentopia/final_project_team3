@@ -19,7 +19,6 @@ import androidx.compose.runtime.Composable // Compose UI 함수 표시
 import androidx.compose.ui.Alignment // 정렬 기준
 import androidx.compose.ui.Modifier // UI 수정자
 import androidx.compose.ui.draw.clip // 모양대로 잘라내기
-import androidx.compose.ui.graphics.Color // 색상 사용
 import androidx.compose.ui.text.font.FontWeight // 글자 굵기 지정
 import androidx.compose.ui.unit.dp // dp 단위 사용
 
@@ -39,7 +38,7 @@ fun AppDrawerContent( // 공통 드로어 메뉴 UI 함수
         modifier = Modifier // Modifier 시작
             .fillMaxHeight() // 화면 높이 끝까지 채움
             .fillMaxWidth(0.82f) // 화면 너비의 82%만 사용
-            .background(Color.White) // 배경을 흰색으로 지정
+            .background(MaterialTheme.colorScheme.surface) // 배경을 테마 표면색으로 지정
             .padding(20.dp), // 전체 안쪽 여백 20dp
         verticalArrangement = Arrangement.Top // 위에서부터 차례대로 배치
     ) {
@@ -53,18 +52,19 @@ fun AppDrawerContent( // 공통 드로어 메뉴 UI 함수
                 Text( // 앱 이름 텍스트
                     text = "Spentopia", // 표시할 글자
                     style = MaterialTheme.typography.headlineSmall, // 큰 제목 스타일
-                    fontWeight = FontWeight.ExtraBold // 아주 굵게 표시
+                    fontWeight = FontWeight.ExtraBold, // 아주 굵게 표시
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text( // 설명 텍스트
                     text = "원하는 메뉴로 바로 이동해보세요", // 안내 문구
                     style = MaterialTheme.typography.bodyMedium, // 일반 본문 스타일
-                    color = Color.Gray // 회색 글자
+                    color = MaterialTheme.colorScheme.onSurfaceVariant // 보조 글자
                 )
             }
 
             Text( // 닫기 텍스트 버튼
                 text = "닫기", // 표시할 글자
-                color = Color(0xFF2563EB), // 파란색 글자
+                color = MaterialTheme.colorScheme.primary, // 테마 강조 글자
                 fontWeight = FontWeight.SemiBold, // 반굵게 표시
                 modifier = Modifier // 닫기 텍스트에도 Modifier를 적용
                     .clip(RoundedCornerShape(8.dp)) // 터치 영역을 살짝 둥글게 만듦
@@ -141,7 +141,7 @@ private fun DrawerMenuItem( // 드로어 안의 메뉴 한 줄 UI
             .clickable { onClick() }, // 클릭하면 onClick 실행
         shape = RoundedCornerShape(18.dp), // 카드 모양도 둥글게 설정
         tonalElevation = 1.dp, // 살짝 떠 보이는 효과
-        color = Color(0xFFF8FAFC) // 연한 회색 배경
+        color = MaterialTheme.colorScheme.surfaceVariant // 연한 회색 배경
     ) {
         Row( // 이모지와 텍스트를 가로 배치
             modifier = Modifier // Modifier 시작
@@ -152,7 +152,7 @@ private fun DrawerMenuItem( // 드로어 안의 메뉴 한 줄 UI
             Surface( // 이모지 배경 원형/둥근 사각형 역할
                 modifier = Modifier.size(38.dp), // 크기 38dp
                 shape = RoundedCornerShape(12.dp), // 둥근 모서리
-                color = Color(0xFFE2E8F0) // 연한 회색 배경
+                color = MaterialTheme.colorScheme.outlineVariant // 연한 회색 배경
             ) {
                 Row( // 이모지를 가운데 정렬하기 위한 Row
                     modifier = Modifier.fillMaxWidth(), // 가로 꽉 채움
@@ -169,7 +169,7 @@ private fun DrawerMenuItem( // 드로어 안의 메뉴 한 줄 UI
                 text = title, // 표시할 메뉴 이름
                 style = MaterialTheme.typography.titleMedium, // 중간 제목 스타일
                 fontWeight = FontWeight.SemiBold, // 약간 굵게 표시
-                color = Color(0xFF1E293B) // 진한 회색 글자
+                color = MaterialTheme.colorScheme.onSurface // 진한 회색 글자
             )
         }
     }

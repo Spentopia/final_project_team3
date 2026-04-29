@@ -9,6 +9,10 @@ import androidx.lifecycle.viewModelScope
 // 현재 프로젝트의 Room Entity import입니다.
 import com.ict.spentopia.data.local.ExpenseEntity
 
+// 백엔드 expenses 테이블에 기록을 저장하기 위한 API 모델입니다.
+import com.ict.spentopia.data.remote.CreateExpenseRequest
+import com.ict.spentopia.data.remote.RetrofitClient
+
 // Repository import입니다.
 import com.ict.spentopia.data.repository.ExpenseRepository
 
@@ -64,7 +68,9 @@ class HomeViewModel(
                         memo = entity.memo,
                         // 영수증 이미지 Uri 문자열을 그대로 화면용 모델에 넣습니다.
                         receiptImageName = entity.receiptImageUri,
-                        diary = entity.diary
+                        diary = entity.diary,
+                        serverExpenseId = entity.serverExpenseId,
+                        receiptVerified = entity.receiptVerified
                     )
                 }
             }
@@ -123,7 +129,9 @@ class HomeViewModel(
                         amount = entity.amount,
                         memo = entity.memo,
                         receiptImageName = entity.receiptImageUri,
-                        diary = entity.diary
+                        diary = entity.diary,
+                        serverExpenseId = entity.serverExpenseId,
+                        receiptVerified = entity.receiptVerified
                     )
                 }
             }
@@ -288,12 +296,45 @@ class HomeViewModel(
     // -----------------------------------------
     // 17) 소비 추가
     // -----------------------------------------
-    fun insertExpense(expense: ExpenseEntity) {
+    fun insertExpense(
+        expense: ExpenseEntity,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
         viewModelScope.launch {
-            repository.insertExpense(expense)
+            // OCR 인증과 백엔드 DB 업데이트는 서버의 UUID가 기준입니다.
+            // 이미 OCR 버튼에서 서버 기록을 만들었다면 그 UUID를 그대로 쓰고,
+            // 아직 없다면 저장 버튼을 누를 때 먼저 백엔드에 기록을 만듭니다.
+            val expenseForSave = if (expense.serverExpenseId.isBlank()) {
+                try {
+                    val remoteExpense = RetrofitClient.expenseApi.createExpense(
+                        CreateExpenseRequest(
+                            date = expense.date,
+                            amount = expense.amount,
+                            category = expense.category,
+                            memo = expense.memo.takeIf { it.isNotBlank() },
+                            transactionType = resolveTransactionType(expense.category),
+                            diary = expense.diary.takeIf { it.isNotBlank() }
+                        )
+                    )
+
+                    expense.copy(
+                        serverExpenseId = remoteExpense.id,
+                        receiptVerified = remoteExpense.receiptVerified ?: expense.receiptVerified
+                    )
+                } catch (e: Exception) {
+                    onError(e.message ?: "백엔드 DB에 기록을 저장하지 못했습니다.")
+                    return@launch
+                }
+            } else {
+                expense
+            }
+
+            repository.insertExpense(expenseForSave)
 
             // 저장한 소비 날짜 기준으로 현재 선택 날짜/월도 같이 맞춰줍니다.
-            selectDate(expense.date)
+            selectDate(expenseForSave.date)
+            onSuccess()
         }
     }
 
@@ -375,6 +416,13 @@ class HomeViewModel(
         val movedMonth = calendar.get(Calendar.MONTH) + 1
 
         return String.format("%04d-%02d", movedYear, movedMonth)
+    }
+
+    // 카테고리만 보고 백엔드에 보낼 수입/소비 타입을 정합니다.
+    // HomeScreen의 수입 카테고리 목록과 같은 기준입니다.
+    private fun resolveTransactionType(category: String): String {
+        val incomeCategories = setOf("월급", "용돈", "부수입", "환급")
+        return if (incomeCategories.contains(category)) "income" else "expense"
     }
 
     // -----------------------------------------

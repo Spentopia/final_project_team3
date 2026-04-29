@@ -31,6 +31,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -78,7 +79,7 @@ fun AnalysisScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5FAFD))
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -164,14 +165,14 @@ fun AnalysisHeaderSection(
             text = "소비 패턴 분석",
             fontSize = 28.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFF0F172A),
+            color = MaterialTheme.colorScheme.onBackground,
             lineHeight = 34.sp
         )
 
         Text(
             text = "AI가 분석한 소비 습관을 확인해보세요.",
             fontSize = 15.sp,
-            color = Color(0xFF475569),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 22.sp
         )
 
@@ -181,8 +182,8 @@ fun AnalysisHeaderSection(
             Button(
                 onClick = onShareClick,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color(0xFF111827)
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface
                 ),
                 shape = RoundedCornerShape(10.dp),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
@@ -310,14 +311,14 @@ fun WhiteSummaryCard(
             Text(
                 text = title,
                 fontSize = 13.sp,
-                color = Color(0xFF475569)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Text(
                 text = valueText,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Text(
@@ -348,14 +349,14 @@ fun BudgetUsageCard(
             Text(
                 text = "예산 사용률",
                 fontSize = 13.sp,
-                color = Color(0xFF475569)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Text(
                 text = "${percentText}%",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             LinearProgressIndicator(
@@ -364,7 +365,7 @@ fun BudgetUsageCard(
                     .fillMaxWidth()
                     .height(8.dp),
                 color = Color(0xFFD946EF),
-                trackColor = Color(0xFFE5E7EB)
+                trackColor = MaterialTheme.colorScheme.outlineVariant
             )
         }
     }
@@ -388,7 +389,7 @@ fun TopCategoryCard(
             Text(
                 text = "최대 소비 카테고리",
                 fontSize = 13.sp,
-                color = Color(0xFF475569)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Row(
@@ -404,14 +405,14 @@ fun TopCategoryCard(
                     text = categoryName,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
             Text(
                 text = "전체의 ${(ratio * 100).roundToInt()}%",
                 fontSize = 13.sp,
-                color = Color(0xFF64748B)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -427,7 +428,7 @@ fun PeriodToggleSection(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                color = Color(0xFFE5E7EB),
+                color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(999.dp)
             )
             .padding(4.dp),
@@ -463,7 +464,7 @@ fun PeriodToggleButton(
         shape = RoundedCornerShape(999.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isSelected) Color.White else Color.Transparent,
-            contentColor = Color(0xFF111827)
+            contentColor = MaterialTheme.colorScheme.onSurface
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
     ) {
@@ -493,7 +494,7 @@ fun ExpenseTrendCard(
                 text = title,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             SimpleBarChart(
@@ -510,6 +511,7 @@ fun SimpleBarChart(
 ) {
     val maxAmount = (expenseList.maxOfOrNull { it.second } ?: 1).coerceAtLeast(1)
     val yAxisSteps = listOf(0, 15000, 30000, 45000, 60000)
+    val outlineVariantColor = MaterialTheme.colorScheme.outlineVariant
 
     Column(
         modifier = Modifier.fillMaxWidth()
@@ -529,7 +531,7 @@ fun SimpleBarChart(
                     Text(
                         text = value.toString(),
                         fontSize = 10.sp,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -547,7 +549,7 @@ fun SimpleBarChart(
                     for (i in 0 until 5) {
                         val y = size.height * i / 4f
                         drawLine(
-                            color = Color(0xFFE5E7EB),
+                            color = outlineVariantColor,
                             start = Offset(0f, y),
                             end = Offset(size.width, y),
                             pathEffect = dash,
@@ -610,7 +612,7 @@ fun BarChartItem(
         Text(
             text = label,
             fontSize = 11.sp,
-            color = Color(0xFF475569)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -633,7 +635,7 @@ fun CategoryPieChartCard(
                 text = "카테고리별 지출",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Column(
@@ -695,14 +697,14 @@ fun CategoryPieChart(
             Text(
                 text = "총 지출",
                 fontSize = 12.sp,
-                color = Color(0xFF64748B)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Text(
                 text = "${formatWon(categoryList.sumOf { it.amount })}원",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -728,14 +730,14 @@ fun PieLegendItem(
         Text(
             text = item.name,
             fontSize = 14.sp,
-            color = Color(0xFF111827),
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )
 
         Text(
             text = "${(item.ratio * 100).roundToInt()}%",
             fontSize = 13.sp,
-            color = Color(0xFF64748B)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -758,7 +760,7 @@ fun CategoryDetailCard(
                 text = "카테고리 상세",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             categoryList.forEachIndexed { index, item ->
@@ -790,7 +792,7 @@ fun CategoryDetailItem(
             Text(
                 text = item.name,
                 fontSize = 15.sp,
-                color = Color(0xFF111827),
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
 
@@ -798,7 +800,7 @@ fun CategoryDetailItem(
                 text = "${formatWon(item.amount)}원",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
 
@@ -811,7 +813,7 @@ fun CategoryDetailItem(
                     .weight(1f)
                     .height(8.dp),
                 color = item.color,
-                trackColor = Color(0xFFE5E7EB)
+                trackColor = MaterialTheme.colorScheme.outlineVariant
             )
 
             Spacer(modifier = Modifier.width(8.dp))
@@ -819,7 +821,7 @@ fun CategoryDetailItem(
             Text(
                 text = "${(item.ratio * 100).roundToInt()}%",
                 fontSize = 12.sp,
-                color = Color(0xFF6B7280),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.widthIn(min = 32.dp)
             )
         }
@@ -838,7 +840,7 @@ fun AiAnalysisReportSection(
             text = "AI 소비 분석 리포트",
             fontSize = 22.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFF111827)
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         tipList.forEach { tip ->
@@ -882,7 +884,7 @@ fun AnalysisTipCard(
                     text = tip.title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
@@ -890,7 +892,7 @@ fun AnalysisTipCard(
                 text = tip.description,
                 fontSize = 14.sp,
                 lineHeight = 22.sp,
-                color = Color(0xFF475569)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -918,7 +920,7 @@ fun ConsumptionPatternCard(
                 text = "소비 패턴 분석",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Column(
@@ -928,7 +930,7 @@ fun ConsumptionPatternCard(
                     text = "시간대별 소비",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 timePatternList.forEach { item ->
@@ -943,7 +945,7 @@ fun ConsumptionPatternCard(
                     text = "요일별 소비",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 PatternCompareRow(
@@ -956,7 +958,7 @@ fun ConsumptionPatternCard(
                 Text(
                     text = weekendComment,
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -967,7 +969,7 @@ fun ConsumptionPatternCard(
                     text = "결제 방법",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 paymentPatternList.forEach { item ->
@@ -990,7 +992,7 @@ fun PatternProgressRow(
         Text(
             text = item.label,
             fontSize = 14.sp,
-            color = Color(0xFF475569),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(110.dp)
         )
 
@@ -1000,7 +1002,7 @@ fun PatternProgressRow(
                 .weight(1f)
                 .height(8.dp),
             color = Color(0xFFA855F7),
-            trackColor = Color(0xFFE5E7EB)
+            trackColor = MaterialTheme.colorScheme.outlineVariant
         )
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -1008,7 +1010,7 @@ fun PatternProgressRow(
         Text(
             text = "${(item.ratio * 100).roundToInt()}%",
             fontSize = 13.sp,
-            color = Color(0xFF111827),
+            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.widthIn(min = 34.dp)
         )
@@ -1051,7 +1053,7 @@ fun SmallCompareCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
@@ -1060,14 +1062,14 @@ fun SmallCompareCard(
             Text(
                 text = label,
                 fontSize = 13.sp,
-                color = Color(0xFF64748B)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Text(
                 text = value,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }

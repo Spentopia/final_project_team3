@@ -54,7 +54,7 @@ fun PlazaScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF3F6F8))
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -114,7 +114,7 @@ private fun PlazaHeaderSection() {
                 text = "광장",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.width(8.dp))
@@ -218,7 +218,7 @@ private fun PlazaHeroCard(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFF3F4F6),
-                        contentColor = Color(0xFF111827)
+                        contentColor = MaterialTheme.colorScheme.onSurface
                     )
                 ) {
                     Icon(
@@ -320,7 +320,7 @@ private fun PlazaOnlineUsersCard() {
                 text = "124명 접속 중",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
 
@@ -344,7 +344,7 @@ private fun PlazaOnlineUsersCard() {
 private fun PlazaTipsCard() {
     SectionCard(
         title = "광장 이용 팁",
-        containerColor = Color(0xFFF7F2FF)
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
     ) {
         TipText("WASD 키로 아바타를 움직일 수 있어요")
         Spacer(modifier = Modifier.height(10.dp))
@@ -365,7 +365,7 @@ private fun PlazaUpcomingCard() {
             text = "곧 추가될 기능",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF111827),
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(start = 4.dp)
         )
 
@@ -469,7 +469,7 @@ private fun SectionCard(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -505,13 +505,13 @@ private fun FeatureRow(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF4B5563)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -527,13 +527,13 @@ private fun RequirementText(
             text = label,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF111827)
+            color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFF4B5563)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -566,14 +566,14 @@ private fun OnlineUserRow(
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF111827)
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         Box(
             modifier = Modifier
                 .border(
                     width = 1.dp,
-                    color = Color(0xFFE5E7EB),
+                    color = MaterialTheme.colorScheme.outlineVariant,
                     shape = RoundedCornerShape(999.dp)
                 )
                 .padding(horizontal = 10.dp, vertical = 6.dp)
@@ -581,7 +581,7 @@ private fun OnlineUserRow(
             Text(
                 text = status,
                 style = MaterialTheme.typography.labelMedium,
-                color = Color(0xFF374151)
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -592,7 +592,7 @@ private fun TipText(text: String) {
     Text(
         text = "• $text",
         style = MaterialTheme.typography.bodyLarge,
-        color = Color(0xFF374151)
+        color = MaterialTheme.colorScheme.onSurface
     )
 }
 
@@ -631,7 +631,7 @@ private fun UpcomingItem(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -639,7 +639,7 @@ private fun UpcomingItem(
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF4B5563)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

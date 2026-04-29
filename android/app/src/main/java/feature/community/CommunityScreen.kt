@@ -38,6 +38,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 
 // Compose 상태 관련 import입니다.
@@ -163,7 +164,7 @@ fun CommunityScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F6FA)),
+            .background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(
             start = 16.dp,
             end = 16.dp,
@@ -228,7 +229,7 @@ private fun EmptyPostCard() {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
@@ -376,7 +377,7 @@ private fun CommunityAiCard(
                 onClick = onChatClick,
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = Color(0xFF1F1F1F)
                 ),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
@@ -427,7 +428,7 @@ private fun CommunityCategoryChipRow(
                     text = category.label,
                     fontSize = 12.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = Color(0xFF222222)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -450,7 +451,7 @@ private fun CommunityPostCard(
             },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -479,7 +480,7 @@ private fun CommunityPostCard(
                 Text(
                     text = post.timeText,
                     fontSize = 12.sp,
-                    color = Color(0xFF9AA1AE)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 

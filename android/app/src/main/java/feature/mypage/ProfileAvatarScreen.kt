@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer // 수정: 여백 추가를 위
 import androidx.compose.foundation.layout.fillMaxWidth // 수정: 전체 너비 사용을 위해 사용
 import androidx.compose.foundation.layout.padding // 수정: 내부 여백 적용을 위해 사용
 import androidx.compose.foundation.shape.RoundedCornerShape // 수정: 둥근 탭 모양 적용을 위해 사용
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text // 수정: 탭 텍스트 표시를 위해 사용
 import androidx.compose.runtime.Composable // 기존 유지
 import androidx.compose.runtime.getValue // 수정: state 위임 사용
@@ -102,14 +103,14 @@ private fun ProfileTabButton(
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp)) // 수정: 탭 버튼 둥근 모양 적용
             .background(
-                if (selected) Color.White else Color.Transparent // 수정: 선택 탭만 흰색 배경 표시
+                if (selected) MaterialTheme.colorScheme.surface else Color.Transparent // 수정: 선택 탭만 흰색 배경 표시
             )
     ) {
         Text(
             text = text, // 수정: 탭 이름 표시
             fontSize = 14.sp, // 수정: 탭 폰트 크기 지정
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, // 수정: 선택 탭 강조
-            color = if (selected) Color(0xFF11243D) else Color(0xFF6B7280) // 수정: 선택 여부에 따른 텍스트 색상 변경
+            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant // 수정: 선택 여부에 따른 텍스트 색상 변경
         )
     }
 }

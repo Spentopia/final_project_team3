@@ -5,6 +5,9 @@ package com.ict.spentopia.data.remote
 // -> SharedPreferences에서 토큰을 읽기 위해 필요함
 import android.content.Context
 
+// BuildConfig에 등록한 API_BASE_URL을 사용합니다.
+import com.ict.spentopia.BuildConfig
+
 // AuthInterceptor 가져옴
 // -> access_token을 Authorization 헤더에 자동으로 붙이는 역할
 import com.ict.spentopia.data.network.AuthInterceptor
@@ -47,7 +50,9 @@ object RetrofitClient {
     //
     // 중요:
     // baseUrl은 보통 마지막에 / 가 있어야 함
-    private const val BASE_URL = "http://10.0.2.2:1113/"  // 서버 넣기
+    private val BASE_URL = BuildConfig.API_BASE_URL.let { url ->
+        if (url.endsWith("/")) url else "$url/"
+    }
 
     // appContext 변수 만듦
     // -> AuthInterceptor에서 SharedPreferences를 읽기 위해 사용함
@@ -156,5 +161,32 @@ object RetrofitClient {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(AuthApi::class.java)
+    }
+
+    val receiptApi: ReceiptApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(ReceiptApi::class.java)
+    }
+
+    val expenseApi: ExpenseApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(ExpenseApi::class.java)
+    }
+
+    val chatApi: ChatApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(ChatApi::class.java)
     }
 }

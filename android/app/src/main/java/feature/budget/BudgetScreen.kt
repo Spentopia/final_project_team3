@@ -132,7 +132,7 @@ fun BudgetScreen(
     // 화면 전체 배경
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFFF5FAFD)
+        color = MaterialTheme.colorScheme.background
     ) {
         Box(
             modifier = Modifier.fillMaxSize()
@@ -250,7 +250,7 @@ private fun BudgetTopSection() {
             text = "예산 설정",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFF0F172A)
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -268,7 +268,7 @@ private fun BudgetTopSection() {
                 text = "직접 설정해보세요",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF0F172A)
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
     }
@@ -294,7 +294,7 @@ private fun SectionHeader(
             text = title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF0F172A)
+            color = MaterialTheme.colorScheme.onBackground
         )
     }
 }
@@ -322,7 +322,7 @@ private fun BudgetPlanCard(
                 text = plan.title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -330,7 +330,7 @@ private fun BudgetPlanCard(
             Text(
                 text = plan.description,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF475569)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -339,7 +339,7 @@ private fun BudgetPlanCard(
                 label = "월 예산",
                 value = formatWon(plan.monthlyBudget),
                 containerColor = Color(0xFFF7EEF9),
-                valueColor = Color(0xFF111827)
+                valueColor = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -366,8 +366,8 @@ private fun BudgetPlanCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color(0xFF111827)
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface
                 ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
             ) {
@@ -403,7 +403,7 @@ private fun InfoValueCard(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
-            color = Color(0xFF374151)
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         Text(
@@ -448,7 +448,7 @@ private fun BudgetLineItem(
         Text(
             text = formatWon(amount),
             style = MaterialTheme.typography.bodyLarge,
-            color = Color(0xFF374151)
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -489,7 +489,7 @@ private fun CustomBudgetSettingCard(
                 valueRange = 100000f..5000000f,
                 steps = 0,
                 icon = null,
-                valueColor = Color(0xFF111827),
+                valueColor = MaterialTheme.colorScheme.onSurface,
                 onValueChange = onMonthlyIncomeChange
             )
 
@@ -509,7 +509,7 @@ private fun CustomBudgetSettingCard(
             Spacer(modifier = Modifier.height(10.dp))
 
             // 상단 공통 항목과 카테고리 항목을 시각적으로 분리
-            HorizontalDivider(color = Color(0xFFE5E7EB))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             Spacer(modifier = Modifier.height(18.dp))
 
@@ -520,7 +520,7 @@ private fun CustomBudgetSettingCard(
                 valueRange = 0f..10000000f,
                 steps = 0,
                 icon = Icons.Default.Restaurant,
-                valueColor = Color(0xFF111827),
+                valueColor = MaterialTheme.colorScheme.onSurface,
                 onValueChange = onFoodBudgetChange
             )
 
@@ -533,7 +533,7 @@ private fun CustomBudgetSettingCard(
                 valueRange = 0f..10000000f,
                 steps = 0,
                 icon = Icons.Default.Subway,
-                valueColor = Color(0xFF111827),
+                valueColor = MaterialTheme.colorScheme.onSurface,
                 onValueChange = onTransportBudgetChange
             )
 
@@ -546,7 +546,7 @@ private fun CustomBudgetSettingCard(
                 valueRange = 0f..10000000f,
                 steps = 0,
                 icon = Icons.Default.Home,
-                valueColor = Color(0xFF111827),
+                valueColor = MaterialTheme.colorScheme.onSurface,
                 onValueChange = onLivingBudgetChange
             )
 
@@ -559,7 +559,7 @@ private fun CustomBudgetSettingCard(
                 valueRange = 0f..10000000f,
                 steps = 0,
                 icon = Icons.Default.FavoriteBorder,
-                valueColor = Color(0xFF111827),
+                valueColor = MaterialTheme.colorScheme.onSurface,
                 onValueChange = onHobbyBudgetChange
             )
 
@@ -593,7 +593,7 @@ private fun BudgetSliderItem(
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
     icon: ImageVector? = null,
-    valueColor: Color = Color(0xFF111827),
+    valueColor: Color = Color.Unspecified,
     onValueChange: (Int) -> Unit
 ) {
     // 슬라이더 현재 위치 상태
@@ -617,7 +617,7 @@ private fun BudgetSliderItem(
                     Icon(
                         imageVector = icon,
                         contentDescription = title,
-                        tint = Color(0xFF64748B)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -627,7 +627,7 @@ private fun BudgetSliderItem(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF374151)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
@@ -667,11 +667,11 @@ private fun BudgetSliderItem(
                 activeTrackColor = Color(0xFF020226),
 
                 // 비어있는 구간 색상
-                inactiveTrackColor = Color(0xFFE5E7EB),
+                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant,
 
                 // 점 표시를 눈에 띄지 않게 트랙 색과 동일하게 설정
                 activeTickColor = Color(0xFF020226),
-                inactiveTickColor = Color(0xFFE5E7EB)
+                inactiveTickColor = MaterialTheme.colorScheme.outlineVariant
             )
         )
 
@@ -685,13 +685,13 @@ private fun BudgetSliderItem(
             Text(
                 text = formatWonWithoutSuffix(valueRange.start.toInt()),
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF6B7280)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Text(
                 text = formatWonWithoutSuffix(valueRange.endInclusive.toInt()),
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF6B7280)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -858,7 +858,7 @@ private fun BudgetAnalysisCard(
                 text = "AI 분석",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(18.dp))

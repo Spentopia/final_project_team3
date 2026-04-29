@@ -34,6 +34,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -65,7 +66,7 @@ fun CommunityWriteScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F6FA))
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -120,7 +121,7 @@ private fun CommunityWriteTopSection(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
@@ -139,7 +140,7 @@ private fun CommunityWriteTopSection(
                         text = "커뮤니티 글쓰기",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E2430)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Spacer(modifier = Modifier.height(6.dp))
@@ -183,7 +184,7 @@ private fun CommunityWriteCategoryCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
@@ -194,7 +195,7 @@ private fun CommunityWriteCategoryCard(
                 text = "카테고리 선택",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E2430)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -226,7 +227,7 @@ private fun CommunityWriteCategoryCard(
                             text = category.label,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = Color(0xFF232933)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -244,7 +245,7 @@ private fun CommunityWriteTitleCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
@@ -255,7 +256,7 @@ private fun CommunityWriteTitleCard(
                 text = "제목",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E2430)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -267,14 +268,14 @@ private fun CommunityWriteTitleCard(
                 placeholder = {
                     Text(
                         text = "제목을 입력하세요",
-                        color = Color(0xFF9AA1AE)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFFE24BB4),
-                    unfocusedBorderColor = Color(0xFFD7DCE5),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     focusedTextColor = Color(0xFF1E2430),
                     unfocusedTextColor = Color(0xFF1E2430),
                     focusedContainerColor = Color.White,
@@ -294,7 +295,7 @@ private fun CommunityWriteContentCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
@@ -305,7 +306,7 @@ private fun CommunityWriteContentCard(
                 text = "내용",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E2430)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -319,14 +320,14 @@ private fun CommunityWriteContentCard(
                 placeholder = {
                     Text(
                         text = "내용을 입력하세요",
-                        color = Color(0xFF9AA1AE)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 shape = RoundedCornerShape(14.dp),
                 minLines = 8,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFFE24BB4),
-                    unfocusedBorderColor = Color(0xFFD7DCE5),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     focusedTextColor = Color(0xFF1E2430),
                     unfocusedTextColor = Color(0xFF1E2430),
                     focusedContainerColor = Color.White,

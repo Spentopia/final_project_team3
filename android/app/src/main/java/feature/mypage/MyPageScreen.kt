@@ -24,6 +24,7 @@ import androidx.compose.material3.CardDefaults // 카드 스타일
 import androidx.compose.material3.OutlinedTextField // 입력창 UI
 import androidx.compose.material3.Switch // 스위치 UI
 import androidx.compose.material3.SwitchDefaults // 스위치 색상
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text // 텍스트 출력
 import androidx.compose.material3.TextButton // 탭 버튼
 import androidx.compose.runtime.Composable // 컴포저블 함수
@@ -75,7 +76,7 @@ fun MyPageScreen(
         Row(
             modifier = Modifier
                 .background(
-                    color = Color(0xFFF1EFEE), // 탭 배경색
+                    color = MaterialTheme.colorScheme.surfaceVariant, // 탭 배경색
                     shape = RoundedCornerShape(999.dp) // 캡슐형 모양
                 )
                 .padding(4.dp), // 내부 여백
@@ -167,13 +168,13 @@ private fun MyPageTopTabButton(
         onClick = { onClick() }, // 클릭 시 동작 실행
         modifier = Modifier
             .background(
-                color = if (selected) Color.White else Color.Transparent, // 선택 시 흰색 배경
+                color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent, // 선택 시 흰색 배경
                 shape = RoundedCornerShape(999.dp) // 캡슐형 모양
             )
     ) {
         Text(
             text = text, // 탭 텍스트 출력
-            color = Color(0xFF111827), // 탭 글자색
+            color = MaterialTheme.colorScheme.onSurface, // 탭 글자색
             fontSize = 13.sp, // 탭 글자 크기
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium // 선택 탭 강조
         )
@@ -331,7 +332,7 @@ private fun ProfileStatBox(
             .padding(bottom = 10.dp), // 하단 간격
         shape = RoundedCornerShape(14.dp), // 둥근 박스
         colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.12f) // 반투명 배경
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.12f) // 반투명 배경
         )
     ) {
         Column(
@@ -364,7 +365,7 @@ private fun MemberInfoCard(
     Card(
         modifier = Modifier.fillMaxWidth(), // 카드 전체 너비 사용
         shape = RoundedCornerShape(18.dp), // 둥근 카드
-        colors = CardDefaults.cardColors(containerColor = Color.White) // 흰색 배경
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 흰색 배경
     ) {
         Column(
             modifier = Modifier.padding(16.dp), // 카드 내부 여백
@@ -379,13 +380,13 @@ private fun MemberInfoCard(
                     text = "회원 정보", // 카드 제목
                     fontSize = 18.sp, // 제목 크기
                     fontWeight = FontWeight.Bold, // 제목 강조
-                    color = Color(0xFF111827) // 제목 색상
+                    color = MaterialTheme.colorScheme.onSurface // 제목 색상
                 )
 
                 Box(
                     modifier = Modifier
                         .background(
-                            color = Color(0xFFF8FAFC), // 버튼 배경색
+                            color = MaterialTheme.colorScheme.surfaceVariant, // 버튼 배경색
                             shape = RoundedCornerShape(10.dp) // 둥근 버튼
                         )
                         .clickable {
@@ -397,7 +398,7 @@ private fun MemberInfoCard(
                         text = if (uiState.isEditMode) "💾 저장" else "✏️ 수정", // 버튼 문구
                         fontSize = 13.sp, // 버튼 글자 크기
                         fontWeight = FontWeight.SemiBold, // 버튼 글자 강조
-                        color = Color(0xFF374151) // 버튼 글자색
+                        color = MaterialTheme.colorScheme.onSurface // 버튼 글자색
                     )
                 }
             }
@@ -475,7 +476,7 @@ private fun MemberField(
             text = label, // 라벨 출력
             fontSize = 14.sp, // 라벨 크기
             fontWeight = FontWeight.SemiBold, // 라벨 강조
-            color = Color(0xFF374151) // 라벨 색상
+            color = MaterialTheme.colorScheme.onSurface // 라벨 색상
         )
 
         Spacer(modifier = Modifier.height(6.dp)) // 라벨과 입력창 사이 여백
@@ -484,7 +485,7 @@ private fun MemberField(
             modifier = Modifier
                 .fillMaxWidth() // 입력창 전체 너비 사용
                 .background(
-                    color = Color(0xFFF5F7FA), // 입력창 배경
+                    color = MaterialTheme.colorScheme.surfaceVariant, // 입력창 배경
                     shape = RoundedCornerShape(12.dp) // 둥근 입력창
                 )
                 .padding(horizontal = 14.dp, vertical = 12.dp) // 입력창 내부 여백
@@ -492,7 +493,7 @@ private fun MemberField(
             Text(
                 text = value, // 값 출력
                 fontSize = 15.sp, // 값 크기
-                color = Color(0xFF9CA3AF) // 비활성 느낌 색상
+                color = MaterialTheme.colorScheme.onSurfaceVariant // 비활성 느낌 색상
             )
         }
     }
@@ -510,7 +511,7 @@ private fun EditableField(
             text = label, // 라벨 출력
             fontSize = 14.sp, // 라벨 크기
             fontWeight = FontWeight.SemiBold, // 라벨 강조
-            color = Color(0xFF374151) // 라벨 색상
+            color = MaterialTheme.colorScheme.onSurface // 라벨 색상
         )
 
         Spacer(modifier = Modifier.height(6.dp)) // 라벨과 입력창 사이 여백
@@ -533,7 +534,7 @@ private fun SocialAccountCard(
     Card(
         modifier = Modifier.fillMaxWidth(), // 카드 전체 너비 사용
         shape = RoundedCornerShape(18.dp), // 둥근 카드
-        colors = CardDefaults.cardColors(containerColor = Color.White) // 흰색 배경
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 흰색 배경
     ) {
         Column(
             modifier = Modifier.padding(16.dp), // 카드 내부 여백
@@ -543,7 +544,7 @@ private fun SocialAccountCard(
                 text = "소셜 계정 연동", // 카드 제목
                 fontSize = 18.sp, // 제목 크기
                 fontWeight = FontWeight.Bold, // 제목 강조
-                color = Color(0xFF111827) // 제목 색상
+                color = MaterialTheme.colorScheme.onSurface // 제목 색상
             )
 
             uiState.socialAccounts.forEach { account -> // 소셜 목록 반복
@@ -565,7 +566,7 @@ private fun SocialAccountRow(
     Card(
         modifier = Modifier.fillMaxWidth(), // 행 카드 전체 너비 사용
         shape = RoundedCornerShape(14.dp), // 둥근 카드
-        colors = CardDefaults.cardColors(containerColor = Color.White), // 흰색 배경
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), // 흰색 배경
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp) // 살짝 떠 있는 느낌
     ) {
         Row(
@@ -585,7 +586,6 @@ private fun SocialAccountRow(
                         .background(
                             color = when (serviceName) { // 서비스별 배경색
                                 "카카오" -> Color(0xFFF7C600) // 카카오 색상
-                                "네이버" -> Color(0xFF03C75A) // 네이버 색상
                                 else -> Color(0xFF4285F4) // 구글 색상
                             },
                             shape = RoundedCornerShape(999.dp) // 원형
@@ -604,13 +604,13 @@ private fun SocialAccountRow(
                         text = serviceName, // 서비스 이름 출력
                         fontSize = 16.sp, // 이름 크기
                         fontWeight = FontWeight.Bold, // 이름 강조
-                        color = Color(0xFF111827) // 이름 색상
+                        color = MaterialTheme.colorScheme.onSurface // 이름 색상
                     )
 
                     Text(
                         text = if (connected) "연동됨" else "미연동", // 상태 텍스트
                         fontSize = 12.sp, // 상태 크기
-                        color = Color(0xFF6B7280) // 상태 색상
+                        color = MaterialTheme.colorScheme.onSurfaceVariant // 상태 색상
                     )
                 }
             }
@@ -625,7 +625,7 @@ private fun SocialAccountRow(
             ) {
                 Text(
                     text = if (connected) "연동됨" else "연동", // 버튼 텍스트
-                    color = if (connected) Color.White else Color(0xFF111827), // 버튼 글자색
+                    color = if (connected) Color.White else MaterialTheme.colorScheme.onSurface, // 버튼 글자색
                     fontSize = 12.sp, // 버튼 글자 크기
                     fontWeight = FontWeight.Bold // 버튼 글자 강조
                 )
@@ -646,7 +646,7 @@ private fun NotificationTabContent(
     Card(
         modifier = Modifier.fillMaxWidth(), // 카드 전체 너비 사용
         shape = RoundedCornerShape(18.dp), // 둥근 카드
-        colors = CardDefaults.cardColors(containerColor = Color.White) // 흰색 배경
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 흰색 배경
     ) {
         Column(
             modifier = Modifier.padding(16.dp), // 카드 내부 여백
@@ -656,7 +656,7 @@ private fun NotificationTabContent(
                 text = "알림 설정", // 카드 제목
                 fontSize = 18.sp, // 제목 크기
                 fontWeight = FontWeight.Bold, // 제목 강조
-                color = Color(0xFF111827) // 제목 색상
+                color = MaterialTheme.colorScheme.onSurface // 제목 색상
             )
 
             NotificationToggleRow(
@@ -718,13 +718,13 @@ private fun NotificationToggleRow(
                     text = title, // 제목 출력
                     fontSize = 16.sp, // 제목 크기
                     fontWeight = FontWeight.SemiBold, // 제목 강조
-                    color = Color(0xFF111827) // 제목 색상
+                    color = MaterialTheme.colorScheme.onSurface // 제목 색상
                 )
 
                 Text(
                     text = desc, // 설명 출력
                     fontSize = 13.sp, // 설명 크기
-                    color = Color(0xFF6B7280) // 설명 색상
+                    color = MaterialTheme.colorScheme.onSurfaceVariant // 설명 색상
                 )
             }
         }
@@ -734,9 +734,9 @@ private fun NotificationToggleRow(
             onCheckedChange = { onCheckedChange(it) }, // 상태 변경 전달
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White, // 켜짐 썸 색
-                checkedTrackColor = Color(0xFF111827), // 켜짐 트랙 색
+                checkedTrackColor = MaterialTheme.colorScheme.primary, // 켜짐 트랙 색
                 uncheckedThumbColor = Color.White, // 꺼짐 썸 색
-                uncheckedTrackColor = Color(0xFFD1D5DB) // 꺼짐 트랙 색
+                uncheckedTrackColor = MaterialTheme.colorScheme.outlineVariant // 꺼짐 트랙 색
             )
         )
     }
@@ -757,7 +757,7 @@ private fun WalletTabContent(
         Card(
             modifier = Modifier.fillMaxWidth(), // 카드 전체 너비 사용
             shape = RoundedCornerShape(18.dp), // 둥근 카드
-            colors = CardDefaults.cardColors(containerColor = Color.White) // 흰색 배경
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 흰색 배경
         ) {
             Column(
                 modifier = Modifier.padding(16.dp), // 카드 내부 여백
@@ -768,7 +768,7 @@ private fun WalletTabContent(
                     text = "지갑 관리", // 카드 제목
                     fontSize = 18.sp, // 제목 크기
                     fontWeight = FontWeight.Bold, // 제목 강조
-                    color = Color(0xFF111827), // 제목 색상
+                    color = MaterialTheme.colorScheme.onSurface, // 제목 색상
                     modifier = Modifier.fillMaxWidth() // 전체 너비 사용
                 )
 
@@ -778,7 +778,7 @@ private fun WalletTabContent(
                             .fillMaxWidth() // 전체 너비 사용
                             .border(
                                 width = 1.dp, // 테두리 두께
-                                color = Color(0xFFD1D5DB), // 테두리 색상
+                                color = MaterialTheme.colorScheme.outlineVariant, // 테두리 색상
                                 shape = RoundedCornerShape(14.dp) // 둥근 테두리
                             )
                             .padding(horizontal = 20.dp, vertical = 24.dp), // 내부 여백
@@ -797,13 +797,13 @@ private fun WalletTabContent(
                                 text = "지갑이 연결되지 않았어요", // 안내 문구
                                 fontSize = 20.sp, // 문구 크기
                                 fontWeight = FontWeight.Bold, // 문구 강조
-                                color = Color(0xFF111827) // 문구 색상
+                                color = MaterialTheme.colorScheme.onSurface // 문구 색상
                             )
 
                             Text(
                                 text = "지갑을 연결하면 NFT 거래와\n블록체인 기능을 이용할 수 있어요", // 설명 문구
                                 fontSize = 14.sp, // 설명 크기
-                                color = Color(0xFF6B7280) // 설명 색상
+                                color = MaterialTheme.colorScheme.onSurfaceVariant // 설명 색상
                             )
 
                             Box(
@@ -836,7 +836,7 @@ private fun WalletTabContent(
                         modifier = Modifier
                             .fillMaxWidth() // 전체 너비 사용
                             .background(
-                                color = Color(0xFFF8FAFC), // 박스 배경색
+                                color = MaterialTheme.colorScheme.surfaceVariant, // 박스 배경색
                                 shape = RoundedCornerShape(14.dp) // 둥근 박스
                             )
                             .padding(16.dp) // 내부 여백
@@ -847,7 +847,7 @@ private fun WalletTabContent(
                             Text(
                                 text = "연결된 지갑", // 제목
                                 fontSize = 14.sp, // 제목 크기
-                                color = Color(0xFF6B7280), // 제목 색상
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, // 제목 색상
                                 fontWeight = FontWeight.Medium // 제목 강조
                             )
 
@@ -855,13 +855,13 @@ private fun WalletTabContent(
                                 text = walletProvider, // 수정: 실제 지갑 종류 표시
                                 fontSize = 18.sp, // 지갑 종류 크기
                                 fontWeight = FontWeight.Bold, // 지갑 종류 강조
-                                color = Color(0xFF111827) // 지갑 종류 색상
+                                color = MaterialTheme.colorScheme.onSurface // 지갑 종류 색상
                             )
 
                             Text(
                                 text = formatWalletAddress(walletAddress), // 수정: 실제 지갑 주소 표시
                                 fontSize = 13.sp, // 주소 크기
-                                color = Color(0xFF6B7280) // 주소 색상
+                                color = MaterialTheme.colorScheme.onSurfaceVariant // 주소 색상
                             )
                         }
                     }
@@ -872,7 +872,7 @@ private fun WalletTabContent(
         Card(
             modifier = Modifier.fillMaxWidth(), // 혜택 카드 전체 너비 사용
             shape = RoundedCornerShape(18.dp), // 둥근 카드
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF4FBFF)) // 연한 하늘색 배경
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant) // 연한 하늘색 배경
         ) {
             Column(
                 modifier = Modifier.padding(16.dp), // 카드 내부 여백
@@ -882,7 +882,7 @@ private fun WalletTabContent(
                     text = "💡 지갑 연결 혜택", // 카드 제목
                     fontSize = 18.sp, // 제목 크기
                     fontWeight = FontWeight.Bold, // 제목 강조
-                    color = Color(0xFF374151) // 제목 색상
+                    color = MaterialTheme.colorScheme.onSurface // 제목 색상
                 )
 
                 WalletBenefitText(text = "• NFT로 아바타 아이템 발행") // 혜택 문구
@@ -902,7 +902,7 @@ private fun WalletBenefitText(
     Text(
         text = text, // 문구 출력
         fontSize = 14.sp, // 글자 크기
-        color = Color(0xFF374151), // 글자 색상
+        color = MaterialTheme.colorScheme.onSurface, // 글자 색상
         fontWeight = FontWeight.Medium // 글자 강조
     )
 }

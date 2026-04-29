@@ -42,6 +42,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -148,7 +149,7 @@ fun CommunityDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F6FA))
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -286,7 +287,7 @@ private fun CommunityDetailNotFoundScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F6FA))
+            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -294,7 +295,7 @@ private fun CommunityDetailNotFoundScreen(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color.White
+                containerColor = MaterialTheme.colorScheme.surface
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
         ) {
@@ -305,7 +306,7 @@ private fun CommunityDetailNotFoundScreen(
                     text = "게시글을 찾을 수 없어요",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E2430)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -350,7 +351,7 @@ private fun CommunityDetailTopSection(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
@@ -369,7 +370,7 @@ private fun CommunityDetailTopSection(
                         text = if (isEditMode) "게시글 수정" else "게시글 상세",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E2430)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Spacer(modifier = Modifier.height(6.dp))
@@ -439,7 +440,7 @@ private fun CommunityDetailContentCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -461,7 +462,7 @@ private fun CommunityDetailContentCard(
                 Text(
                     text = post.timeText,
                     fontSize = 12.sp,
-                    color = Color(0xFF9AA1AE)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -511,7 +512,7 @@ private fun CommunityDetailEditCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -523,14 +524,14 @@ private fun CommunityDetailEditCard(
                 text = "게시글 수정",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E2430)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Text(
                 text = "카테고리",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF232933)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Row(
@@ -560,7 +561,7 @@ private fun CommunityDetailEditCard(
                             text = category.label,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = Color(0xFF232933)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -570,7 +571,7 @@ private fun CommunityDetailEditCard(
                 text = "제목",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF232933)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             OutlinedTextField(
@@ -580,14 +581,14 @@ private fun CommunityDetailEditCard(
                 placeholder = {
                     Text(
                         text = "제목을 입력하세요",
-                        color = Color(0xFF9AA1AE)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFFE24BB4),
-                    unfocusedBorderColor = Color(0xFFD7DCE5),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     focusedTextColor = Color(0xFF1E2430),
                     unfocusedTextColor = Color(0xFF1E2430),
                     focusedContainerColor = Color.White,
@@ -599,7 +600,7 @@ private fun CommunityDetailEditCard(
                 text = "내용",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF232933)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             OutlinedTextField(
@@ -611,14 +612,14 @@ private fun CommunityDetailEditCard(
                 placeholder = {
                     Text(
                         text = "내용을 입력하세요",
-                        color = Color(0xFF9AA1AE)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 shape = RoundedCornerShape(14.dp),
                 minLines = 8,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFFE24BB4),
-                    unfocusedBorderColor = Color(0xFFD7DCE5),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     focusedTextColor = Color(0xFF1E2430),
                     unfocusedTextColor = Color(0xFF1E2430),
                     focusedContainerColor = Color.White,
@@ -646,7 +647,7 @@ private fun CommunityDetailActionCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
@@ -781,7 +782,7 @@ private fun CommunityCommentSection(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
@@ -793,7 +794,7 @@ private fun CommunityCommentSection(
                 text = "댓글",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E2430)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             if (comments.isEmpty()) {
@@ -833,13 +834,13 @@ private fun CommunityCommentSection(
                 placeholder = {
                     Text(
                         text = "댓글을 입력하세요",
-                        color = Color(0xFF9AA1AE)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFFE24BB4),
-                    unfocusedBorderColor = Color(0xFFD7DCE5),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     focusedTextColor = Color(0xFF1E2430),
                     unfocusedTextColor = Color(0xFF1E2430),
                     focusedContainerColor = Color.White,
@@ -918,7 +919,7 @@ private fun CommunityCommentItem(
                 Text(
                     text = comment.timeText,
                     fontSize = 11.sp,
-                    color = Color(0xFF9AA1AE)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -965,7 +966,7 @@ private fun CommunityCommentItem(
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFFE24BB4),
-                            unfocusedBorderColor = Color(0xFFD7DCE5),
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                             focusedTextColor = Color(0xFF1E2430),
                             unfocusedTextColor = Color(0xFF1E2430),
                             focusedContainerColor = Color.White,

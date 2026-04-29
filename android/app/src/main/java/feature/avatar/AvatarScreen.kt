@@ -20,6 +20,7 @@ import androidx.compose.material3.Button // 수정: 액션 버튼에 사용
 import androidx.compose.material3.ButtonDefaults // 수정: 버튼 색상에 사용
 import androidx.compose.material3.Card // 수정: 카드 UI에 사용
 import androidx.compose.material3.CardDefaults // 수정: 카드 스타일에 사용
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text // 수정: 텍스트 출력에 사용
 import androidx.compose.runtime.Composable // 기존 유지
 import androidx.compose.runtime.collectAsState // 수정: 상태 구독에 사용
@@ -58,7 +59,7 @@ fun AvatarScreen(
                     text = uiState.screenTitle, // 수정: 제목 연결
                     fontSize = 28.sp, // 수정: 제목 크기
                     fontWeight = FontWeight.Bold, // 수정: 제목 강조
-                    color = Color(0xFF11243D) // 수정: 제목 색상
+                    color = MaterialTheme.colorScheme.onBackground // 수정: 제목 색상
                 )
 
                 Spacer(modifier = Modifier.height(4.dp)) // 수정: 여백 추가
@@ -66,7 +67,7 @@ fun AvatarScreen(
                 Text(
                     text = uiState.ownedItemText, // 수정: 보유 수 연결
                     fontSize = 15.sp, // 수정: 텍스트 크기
-                    color = Color(0xFF5C6B80) // 수정: 보조 색상
+                    color = MaterialTheme.colorScheme.onSurfaceVariant // 수정: 보조 색상
                 )
             }
         }
@@ -130,7 +131,7 @@ fun AvatarScreen(
                     modifier = Modifier.fillMaxWidth(), // 수정: 전체 너비
                     shape = RoundedCornerShape(18.dp), // 수정: 둥근 박스
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White.copy(alpha = 0.15f) // 수정: 반투명 배경
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.15f) // 수정: 반투명 배경
                     )
                 ) {
                     Column(
@@ -157,7 +158,7 @@ fun AvatarScreen(
                     modifier = Modifier.fillMaxWidth(), // 수정: 전체 너비
                     shape = RoundedCornerShape(16.dp), // 수정: 둥근 카드
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White.copy(alpha = 0.14f) // 수정: 반투명 배경
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.14f) // 수정: 반투명 배경
                     )
                 ) {
                     Column(
@@ -185,7 +186,7 @@ fun AvatarScreen(
                     modifier = Modifier.fillMaxWidth(), // 수정: 전체 너비
                     shape = RoundedCornerShape(16.dp), // 수정: 둥근 카드
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White.copy(alpha = 0.12f) // 수정: 반투명 배경
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.12f) // 수정: 반투명 배경
                     )
                 ) {
                     Column(
@@ -262,7 +263,7 @@ fun AvatarScreen(
         Card(
             modifier = Modifier.fillMaxWidth(), // 수정: 전체 너비
             shape = RoundedCornerShape(18.dp), // 수정: 둥근 카드
-            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.92f)) // 수정: 카드 배경
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)) // 수정: 카드 배경
         ) {
             Column(
                 modifier = Modifier.padding(16.dp), // 수정: 내부 여백
@@ -272,7 +273,7 @@ fun AvatarScreen(
                     text = "컬렉션 진행도", // 수정: 카드 제목
                     fontSize = 22.sp, // 수정: 제목 크기
                     fontWeight = FontWeight.Bold, // 수정: 제목 강조
-                    color = Color(0xFF111827) // 수정: 제목 색상
+                    color = MaterialTheme.colorScheme.onSurface // 수정: 제목 색상
                 )
 
                 FlowRow(
@@ -307,7 +308,7 @@ fun AvatarScreen(
                     text = "✨ 아이템 획득 방법", // 수정: 카드 제목
                     fontSize = 22.sp, // 수정: 제목 크기
                     fontWeight = FontWeight.Bold, // 수정: 제목 강조
-                    color = Color(0xFF111827) // 수정: 제목 색상
+                    color = MaterialTheme.colorScheme.onSurface // 수정: 제목 색상
                 )
 
                 FlowRow(
@@ -343,7 +344,7 @@ private fun AvatarActionButton(
         shape = RoundedCornerShape(10.dp), // 수정: 둥근 버튼
         colors = ButtonDefaults.buttonColors(
             containerColor = if (highlighted) Color(0xFFEC4899) else Color.White, // 수정: 배경 색상
-            contentColor = if (highlighted) Color.White else Color(0xFF111827) // 수정: 글자 색상
+            contentColor = if (highlighted) Color.White else MaterialTheme.colorScheme.onSurface // 수정: 글자 색상
         )
     ) {
         Text(
@@ -393,7 +394,7 @@ private fun AvatarCategoryChip(
             )
             .border(
                 width = if (selected) 1.5.dp else 0.dp, // 수정: 선택 테두리
-                color = if (selected) Color(0xFFE5E7EB) else Color.Transparent, // 수정: 테두리 색상
+                color = if (selected) MaterialTheme.colorScheme.outlineVariant else Color.Transparent, // 수정: 테두리 색상
                 shape = RoundedCornerShape(999.dp) // 수정: 둥근 테두리
             )
             .clickable(onClick = onClick) // 수정: 클릭 처리
@@ -401,7 +402,7 @@ private fun AvatarCategoryChip(
     ) {
         Text(
             text = text, // 수정: 칩 텍스트
-            color = Color(0xFF111827), // 수정: 텍스트 색상
+            color = MaterialTheme.colorScheme.onSurface, // 수정: 텍스트 색상
             fontSize = 13.sp, // 수정: 텍스트 크기
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium // 수정: 선택 강조
         )
@@ -423,7 +424,7 @@ private fun AvatarItemSection(
         text = title, // 수정: 섹션 제목
         fontSize = 22.sp, // 수정: 제목 크기
         fontWeight = FontWeight.Bold, // 수정: 제목 강조
-        color = Color(0xFF111827) // 수정: 제목 색상
+        color = MaterialTheme.colorScheme.onSurface // 수정: 제목 색상
     )
 
     Spacer(modifier = Modifier.height(12.dp)) // 수정: 여백 추가
@@ -467,7 +468,7 @@ private fun AvatarItemCard(
             ),
         shape = RoundedCornerShape(14.dp), // 수정: 둥근 카드
         colors = CardDefaults.cardColors(
-            containerColor = if (item.locked) Color(0xFFD1D5DB) else Color.White // 수정: 배경 색상
+            containerColor = if (item.locked) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.surface // 수정: 배경 색상
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp) // 수정: 그림자
     ) {
@@ -485,7 +486,7 @@ private fun AvatarItemCard(
                 text = item.name, // 수정: 이름 출력
                 fontSize = 14.sp, // 수정: 이름 크기
                 fontWeight = FontWeight.Medium, // 수정: 이름 강조
-                color = Color(0xFF374151) // 수정: 이름 색상
+                color = MaterialTheme.colorScheme.onSurface // 수정: 이름 색상
             )
 
             Box(
@@ -515,24 +516,26 @@ private fun AvatarItemCard(
 }
 
 // 수정: 희귀도 색상
+@Composable
 private fun rarityColor(rarity: String): Color {
     return when (rarity) {
-        "일반" -> Color(0xFF6B7280) // 수정: 일반 색상
+        "일반" -> MaterialTheme.colorScheme.onSurfaceVariant // 수정: 일반 색상
         "레어" -> Color(0xFF3B82F6) // 수정: 레어 색상
         "에픽" -> Color(0xFFA855F7) // 수정: 에픽 색상
         "전설" -> Color(0xFFEAB308) // 수정: 전설 색상
-        else -> Color(0xFF6B7280) // 수정: 기본 색상
+        else -> MaterialTheme.colorScheme.onSurfaceVariant // 수정: 기본 색상
     }
 }
 
 // 수정: 진행 색상
+@Composable
 private fun progressColor(title: String): Color {
     return when (title) {
-        "일반" -> Color(0xFF6B7280) // 수정: 일반 색상
+        "일반" -> MaterialTheme.colorScheme.onSurfaceVariant // 수정: 일반 색상
         "레어" -> Color(0xFF3B82F6) // 수정: 레어 색상
         "에픽" -> Color(0xFFA855F7) // 수정: 에픽 색상
         "전설" -> Color(0xFFEAB308) // 수정: 전설 색상
-        else -> Color(0xFF6B7280) // 수정: 기본 색상
+        else -> MaterialTheme.colorScheme.onSurfaceVariant // 수정: 기본 색상
     }
 }
 
@@ -573,7 +576,7 @@ private fun CollectionProgressCard(
                     text = title, // 수정: 제목 출력
                     fontSize = 16.sp, // 수정: 제목 크기
                     fontWeight = FontWeight.Bold, // 수정: 제목 강조
-                    color = Color(0xFF111827) // 수정: 제목 색상
+                    color = MaterialTheme.colorScheme.onSurface // 수정: 제목 색상
                 )
 
                 Text(
@@ -617,7 +620,7 @@ private fun MethodInfoCard(
     Card(
         modifier = Modifier.fillMaxWidth(0.47f), // 수정: 카드 너비
         shape = RoundedCornerShape(14.dp), // 수정: 둥근 카드
-        colors = CardDefaults.cardColors(containerColor = Color.White) // 수정: 카드 배경
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 수정: 카드 배경
     ) {
         Column(
             modifier = Modifier.padding(16.dp), // 수정: 내부 여백
@@ -632,13 +635,13 @@ private fun MethodInfoCard(
                 text = title, // 수정: 제목 출력
                 fontSize = 18.sp, // 수정: 제목 크기
                 fontWeight = FontWeight.Bold, // 수정: 제목 강조
-                color = Color(0xFF111827) // 수정: 제목 색상
+                color = MaterialTheme.colorScheme.onSurface // 수정: 제목 색상
             )
 
             Text(
                 text = desc, // 수정: 설명 출력
                 fontSize = 14.sp, // 수정: 설명 크기
-                color = Color(0xFF4B5563) // 수정: 설명 색상
+                color = MaterialTheme.colorScheme.onSurfaceVariant // 수정: 설명 색상
             )
         }
     }

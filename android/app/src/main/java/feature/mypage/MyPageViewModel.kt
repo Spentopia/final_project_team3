@@ -30,10 +30,6 @@ class MyPageViewModel : ViewModel() { // 마이페이지 ViewModel 시작
                     serviceName = "카카오", // 서비스 이름
                     connected = true // 연동 여부
                 ), // 카카오 끝
-                SocialAccountUi( // 네이버 연동 상태
-                    serviceName = "네이버", // 서비스 이름
-                    connected = false // 연동 여부
-                ), // 네이버 끝
                 SocialAccountUi( // 구글 연동 상태
                     serviceName = "구글", // 서비스 이름
                     connected = true // 연동 여부
