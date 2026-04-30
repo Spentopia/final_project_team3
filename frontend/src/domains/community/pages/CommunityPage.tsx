@@ -23,7 +23,7 @@ import {
 
 // ── 타입 ─────────────────────────────────────────────────────
 
-type PostCategory = "notice" | "contest" | "item" | "tip";
+type PostCategory = "notice" | "contest" | "item" | "free";
 type TabKey = "all" | PostCategory;
 
 interface Post {
@@ -49,7 +49,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "notice",  label: "공지사항" },
   { key: "contest", label: "아바타 콘테스트" },
   { key: "item",    label: "이거 만들어주세요" },
-  { key: "tip",     label: "절약 꿀팁" },
+  { key: "free",    label: "자유" },
 ];
 
 // ── 뱃지 스타일 ───────────────────────────────────────────────
@@ -58,7 +58,7 @@ const BADGE_STYLE: Record<PostCategory, { bg: string; text: string; label: strin
   notice:  { bg: "bg-sky-100 dark:bg-sky-900/40",       text: "text-sky-700 dark:text-sky-300",       label: "공지" },
   contest: { bg: "bg-yellow-100 dark:bg-yellow-900/40", text: "text-yellow-800 dark:text-yellow-300", label: "콘테스트" },
   item:    { bg: "bg-purple-100 dark:bg-purple-900/40", text: "text-purple-800 dark:text-purple-300", label: "아이템 요청" },
-  tip:     { bg: "bg-rose-100 dark:bg-rose-900/40",     text: "text-rose-700 dark:text-rose-300",     label: "꿀팁" },
+  free:    { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-300", label: "자유" },
 };
 
 const PER_PAGE = 10;
@@ -202,6 +202,7 @@ export default function Community() {
       try {
         const data = await listCommunityPosts({
           sort,
+          postType: activeTab === "all" ? undefined : activeTab === "item" ? "request" : activeTab,
           title: debouncedSearchQuery || undefined,
           page: currentPage,
           pageSize: PER_PAGE,
@@ -223,7 +224,7 @@ export default function Community() {
     return () => {
       ignore = true;
     };
-  }, [currentPage, debouncedSearchQuery, sort]);
+  }, [activeTab, currentPage, debouncedSearchQuery, sort]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -374,7 +375,7 @@ export default function Community() {
             target:
               writeType === "contest"
                 ? { postType: "contest", contestId: writeContestId }
-                : { postType: "request" },
+                : { postType: writeType },
           });
           imagePath = uploaded.path;
         }
@@ -445,7 +446,9 @@ export default function Community() {
               ? { postType: "contest", contestId: selectedPost.contest_id! }
               : selectedPost.category === "notice"
                 ? { postType: "notice", postId: selectedPost.id }
-                : { postType: "request" },
+                : selectedPost.category === "free"
+                  ? { postType: "free" }
+                  : { postType: "request" },
         });
 
         imagePath = uploaded.path;
@@ -921,6 +924,7 @@ export default function Community() {
                         [
                           { type: "request" as PostType, label: "이거 만들어주세요", badgeKey: "item" as PostCategory },
                           { type: "contest" as PostType, label: "아바타 콘테스트",   badgeKey: "contest" as PostCategory },
+                          { type: "free" as PostType, label: "자유", badgeKey: "free" as PostCategory },
                           ...(myRoleType === "admin"
                             ? [{ type: "notice" as PostType, label: "공지사항", badgeKey: "notice" as PostCategory }]
                             : []),

@@ -1,7 +1,7 @@
 import { apiClient } from "@/shared/api/client.ts";
 
 export type PostSort = "date" | "likes" | "views";
-export type PostType = "notice" | "request" | "contest";
+export type PostType = "notice" | "request" | "contest" | "free";
 
 export interface CommunityPostResponse {
   id: string;
@@ -55,6 +55,7 @@ export interface CommunityMeResponse {
 
 interface ListPostsParams {
   sort: PostSort;
+  postType?: PostType;
   contestId?: string;
   title?: string;
   page?: number;
@@ -63,6 +64,7 @@ interface ListPostsParams {
 
 export async function listCommunityPosts({
   sort,
+  postType,
   contestId,
   title,
   page,
@@ -71,6 +73,7 @@ export async function listCommunityPosts({
   const res = await apiClient.get<CommunityPostListResponse>("/api/posts", {
     params: {
       sort,
+      post_type: postType,
       contest_id: contestId,
       title,
       page,
@@ -126,6 +129,9 @@ type CommunityUploadTarget =
     }
   | {
       postType: "request";
+    }
+  | {
+      postType: "free";
     };
 
 interface UploadCommunityImageParams {
