@@ -48,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -55,6 +56,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavy
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 
 // 예산 설정 화면
 @Composable
@@ -664,13 +668,13 @@ private fun BudgetSliderItem(
                 thumbColor = Color.White,
 
                 // 채워진 구간 색상
-                activeTrackColor = Color(0xFF020226),
+                activeTrackColor = SpentopiaGlowPurple,
 
                 // 비어있는 구간 색상
                 inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant,
 
                 // 점 표시를 눈에 띄지 않게 트랙 색과 동일하게 설정
-                activeTickColor = Color(0xFF020226),
+                activeTickColor = SpentopiaGlowPurple,
                 inactiveTickColor = MaterialTheme.colorScheme.outlineVariant
             )
         )
@@ -713,7 +717,14 @@ private fun BudgetSummaryCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 10.dp,
+                shape = RoundedCornerShape(22.dp),
+                ambientColor = SpentopiaGlowPurple.copy(alpha = 0.18f),
+                spotColor = SpentopiaGlowPurple.copy(alpha = 0.22f)
+            ),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
@@ -721,11 +732,13 @@ private fun BudgetSummaryCard(
             modifier = Modifier
                 .background(
                     brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFFA44CF6),
-                            Color(0xFFE83A9E)
-                        )
+                        colors = SpentopiaWalletGradientColors
                     ),
+                    shape = RoundedCornerShape(22.dp)
+                )
+                .border(
+                    width = 1.dp,
+                    color = SpentopiaGlowPurple.copy(alpha = 0.45f),
                     shape = RoundedCornerShape(22.dp)
                 )
                 .padding(18.dp)

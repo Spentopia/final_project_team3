@@ -95,6 +95,11 @@ import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // 선택한 솔�
 import com.ict.spentopia.data.local.ExpenseEntity // DB에 저장되는 소비 데이터 타입을 가져옴
 import com.ict.spentopia.data.remote.CreateExpenseRequest
 import com.ict.spentopia.data.remote.RetrofitClient
+import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavy
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 
 // 숫자 포맷 및 날짜 계산 관련 import입니다.
 import kotlinx.coroutines.launch
@@ -198,6 +203,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
 
     // 소비 기록이 존재하는 날짜 목록을 Set으로 관리합니다.
     val expenseDateSet by homeViewModel.expenseDateSet.collectAsStateWithLifecycle() // Flow 값을 화면에서 바로 쓸 수 있는 상태로 받음
+    val verifiedExpenseDateSet by homeViewModel.verifiedExpenseDateSet.collectAsStateWithLifecycle()
 
     // 현재 선택된 연-월 문자열에서 연도와 월을 분리합니다.
     // selectedYearMonth는 "yyyy-MM" 형식이므로 substring으로 안전하게 꺼냅니다.
@@ -382,7 +388,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
 
         item { // 리스트 안에 들어갈 한 칸을 시작함
             WeeklyScoreCard( // 카드 모양 UI를 시작함
-                expenseDateSet = expenseDateSet // onDeleteExpense 값을 이 함수로 넘김
+                expenseDateSet = verifiedExpenseDateSet // onDeleteExpense 값을 이 함수로 넘김
             )
         } // 블록 끝
 
@@ -568,13 +574,14 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                     modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                         .background( // 배경색이나 그라데이션을 넣음
                             brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                                colors = listOf( // 값 여러 개를 묶은 목록을 만듦
-                                    Color(0xFFB980FF), // contentPadding 값을 이 함수로 넘김
-                                    Color(0xFF8B5CF6), // 바로 앞 설정을 이어서 적음
-                                    Color(0xFF5B4BFF) // 사용할 색상 값을 넣음
-                                )
+                                colors = SpentopiaWalletGradientColors
                             ),
                             shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = SpentopiaGlowPurple.copy(alpha = 0.45f),
+                            shape = RoundedCornerShape(14.dp)
                         )
                         .padding(horizontal = 14.dp, vertical = 10.dp), // 안쪽이나 바깥 여백을 줌
                     contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
@@ -652,7 +659,7 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
                             Icon( // 아이콘을 화면에 보여줌
                                 imageVector = Icons.Filled.CalendarMonth, // 어떤 아이콘을 쓸지 정함
                                 contentDescription = "calendar", // 접근성용 설명 글을 넣음
-                                tint = Color(0xFF5B4BFF), // tint 값을 이 함수로 넘김
+                                tint = SpentopiaMutedPurple, // tint 값을 이 함수로 넘김
                                 modifier = Modifier.size(18.dp) // 가로세로 크기를 한 번에 정함
                             )
                         } // 블록 끝
@@ -897,7 +904,7 @@ private fun CalendarCard( // CalendarCard 함수 선언 시작
                                         text = dateItem.dayText, // 화면에 보여줄 글자를 정함
                                         color = when { // 색상을 정함
                                             !dateItem.isCurrentMonth -> Color(0xFF9AA4B2) // 바로 앞 설정을 이어서 적음
-                                            isToday -> Color(0xFF2F7DF6) // 바로 앞 설정을 이어서 적음
+                                            isToday -> SpentopiaMutedPurple // 바로 앞 설정을 이어서 적음
                                             else -> Color(0xFF1F2A37) // color 값을 이 함수로 넘김
                                         },
                                         fontSize = 14.sp, // 글자 크기를 정함
@@ -912,7 +919,7 @@ private fun CalendarCard( // CalendarCard 함수 선언 시작
                                         modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                                             .size(4.dp) // 가로세로 크기를 한 번에 정함
                                             .background( // 배경색이나 그라데이션을 넣음
-                                                color = if (isSelected) Color.White else Color(0xFF2F7DF6), // 색상을 정함
+                                                color = if (isSelected) Color.White else SpentopiaMutedPurple, // 색상을 정함
                                                 shape = CircleShape // 모서리 모양을 정함
                                             )
                                     )
@@ -1007,10 +1014,10 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
                         } else { // 지출 항목이면 기존처럼 금액만 표시함
                             "${formatAmount(item.amount)}원" // 지출 금액 표시
                         }, // amount 값을 이 함수로 넘김
-                        tag = when { // 바로 앞 설정을 이어서 적음
-                            item.receiptImageName.isNotBlank() -> "영수증" // 이 조건이면 오른쪽 값을 선택함
-                            item.memo.isNotBlank() -> "메모" // 이 조건이면 오른쪽 값을 선택함
-                            else -> null // tag 값을 이 함수로 넘김
+                        tag = if (isExpenseItem(item)) {
+                            if (item.receiptVerified) "인증됨" else "미인증"
+                        } else {
+                            null
                         },
                         iconColors = getCategoryColors(item.category), // iconColors 값을 이 함수로 넘김
                         onEditClick = { // onEditClick 값을 이 함수로 넘김
@@ -1136,7 +1143,11 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
                             Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
                                 modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                                     .background( // 배경색이나 그라데이션을 넣음
-                                        color = Color(0xFFEFFCF3), // 색상을 정함
+                                    color = when (tag) {
+                                        "인증됨" -> Color(0xFFEFFCF3)
+                                        "미인증" -> Color(0xFFFFF7ED)
+                                        else -> MaterialTheme.colorScheme.surfaceVariant
+                                    },
                                         shape = RoundedCornerShape(20.dp) // 모서리 모양을 정함
                                     )
                                     .padding(horizontal = 8.dp, vertical = 4.dp), // 안쪽이나 바깥 여백을 줌
@@ -1145,7 +1156,11 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
                                 Text( // 글자를 화면에 보여주기 시작함
                                     text = tag, // 화면에 보여줄 글자를 정함
                                     fontSize = 11.sp, // 글자 크기를 정함
-                                    color = Color(0xFF16A34A), // 색상을 정함
+                                    color = when (tag) {
+                                        "인증됨" -> Color(0xFF16A34A)
+                                        "미인증" -> Color(0xFFC2410C)
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
                                     fontWeight = FontWeight.Medium // 글자 두께를 정함
                                 )
                             } // 블록 끝
@@ -1174,7 +1189,7 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
                 ) { // 이 블록 안의 내용이 시작됨
                     Text( // 글자를 화면에 보여주기 시작함
                         text = "수정", // 화면에 보여줄 글자를 정함
-                        color = Color(0xFF2F7DF6), // 색상을 정함
+                        color = SpentopiaMutedPurple, // 색상을 정함
                         fontSize = 13.sp, // 글자 크기를 정함
                         fontWeight = FontWeight.SemiBold // 글자 두께를 정함
                     )
@@ -1241,7 +1256,7 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
             Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
             Text( // 글자를 화면에 보여주기 시작함
-                text = "소비 기록을 꾸준히 남긴 정도를 보여줘요", // 화면에 보여줄 글자를 정함
+                text = "영수증 인증 완료 기록만 성실도에 반영돼요", // 화면에 보여줄 글자를 정함
                 fontSize = 14.sp, // 글자 크기를 정함
                 color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
             )
@@ -1258,7 +1273,7 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
                         text = "${weeklyScore}%", // 화면에 보여줄 글자를 정함
                         fontSize = 34.sp, // 글자 크기를 정함
                         fontWeight = FontWeight.ExtraBold, // 글자 두께를 정함
-                        color = Color(0xFF2F7DF6) // 색상을 정함
+                        color = SpentopiaMutedPurple // 색상을 정함
                     )
 
                     Spacer(modifier = Modifier.height(4.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1278,7 +1293,7 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
                             brush = Brush.radialGradient( // 가운데서 퍼지는 그라데이션을 만듦
                                 colors = listOf( // 값 여러 개를 묶은 목록을 만듦
                                     Color(0xFFBFE0FF), // fontWeight 값을 이 함수로 넘김
-                                    Color(0xFF2F7DF6) // 사용할 색상 값을 넣음
+                                    SpentopiaMutedPurple // 사용할 색상 값을 넣음
                                 )
                             ),
                             shape = RoundedCornerShape(100.dp) // 모서리 모양을 정함
@@ -1346,7 +1361,7 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
                         )
 
                         Text( // 글자를 화면에 보여주기 시작함
-                            text = "오늘도 기록하면 성실도가 올라가요", // 화면에 보여줄 글자를 정함
+                            text = "오늘 영수증을 인증하면 성실도가 올라가요", // 화면에 보여줄 글자를 정함
                             fontSize = 13.sp, // 글자 크기를 정함
                             color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
                         )
@@ -1369,7 +1384,7 @@ private fun WeekDayItem( // WeekDayItem 함수 선언 시작
             modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                 .size(36.dp) // 가로세로 크기를 한 번에 정함
                 .background( // 배경색이나 그라데이션을 넣음
-                    color = if (checked) Color(0xFF2F7DF6) else Color(0xFFE5EAF2), // 색상을 정함
+                    color = if (checked) SpentopiaMutedPurple else Color(0xFFE5EAF2), // 색상을 정함
                     shape = RoundedCornerShape(100.dp) // 모서리 모양을 정함
                 ),
             contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
@@ -1512,7 +1527,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                         .weight(1f) // 남는 공간을 비율대로 차지하게 함
                         .background( // 배경색이나 그라데이션을 넣음
-                            color = if (isExpenseTab) Color(0xFF2F7DF6) else Color.Transparent, // 색상을 정함
+                            color = if (isExpenseTab) SpentopiaMutedPurple else Color.Transparent, // 색상을 정함
                             shape = RoundedCornerShape(12.dp) // 모서리 모양을 정함
                         )
                         .clickable { // 눌렀을 때 반응하도록 만듦
@@ -1588,7 +1603,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
                     focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
-                    cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
+                    cursorColor = SpentopiaMutedPurple // 커서 색을 정함
                 )
             )
 
@@ -1620,7 +1635,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
             ) { // 이 블록 안의 내용이 시작됨
                 Text( // 글자를 화면에 보여주기 시작함
                     text = "날짜 선택하기", // 화면에 보여줄 글자를 정함
-                    color = Color(0xFF2F7DF6), // 색상을 정함
+                    color = SpentopiaMutedPurple, // 색상을 정함
                     fontSize = 14.sp, // 글자 크기를 정함
                     fontWeight = FontWeight.Medium // 글자 두께를 정함
                 )
@@ -1654,7 +1669,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
                     focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
-                    cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
+                    cursorColor = SpentopiaMutedPurple // 커서 색을 정함
                 )
             )
 
@@ -1696,7 +1711,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
                         focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
-                        cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
+                        cursorColor = SpentopiaMutedPurple // 커서 색을 정함
                     )
                 )
 
@@ -1760,7 +1775,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
                     focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
-                    cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
+                    cursorColor = SpentopiaMutedPurple // 커서 색을 정함
                 )
             )
 
@@ -1812,7 +1827,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         onClick = {
                             val expectedAmount = amount.toIntOrNull()
                             if (expectedAmount == null || expectedAmount <= 0) {
-                                Toast.makeText(context, "OCR 인증 전에 금액을 입력해주세요.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "영수증 인증 전에 금액을 입력해주세요.", Toast.LENGTH_SHORT).show()
                             } else {
                                 scope.launch {
                                     isReceiptVerifying = true
@@ -1868,15 +1883,30 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                         )
 
                                         isReceiptVerified = response.verification.is_verified
-                                        receiptVerificationMessage = response.verification.reason
+                                        if (response.verification.is_verified) {
+                                            response.ocr.receipt_date?.let { formDate = it }
+                                            response.ocr.total_amount?.let { amount = it.toString() }
+                                        }
+                                        val merchantText = response.ocr.merchant_name?.takeIf { it.isNotBlank() }
+                                        receiptVerificationMessage = if (response.verification.is_verified) {
+                                            listOfNotNull(
+                                                "영수증 인증 완료!",
+                                                "영수증 인증 완료 시 보상이 지급됩니다.",
+                                                merchantText?.let { "상호명: $it" },
+                                                response.ocr.receipt_date?.let { "결제일: $it" },
+                                                response.ocr.total_amount?.let { "총 금액: ${formatAmount(it)}원" }
+                                            ).joinToString("\n")
+                                        } else {
+                                            response.verification.reason
+                                        }
 
                                         Toast.makeText(
                                             context,
-                                            if (response.verification.is_verified) "영수증 OCR 인증 성공" else response.verification.reason,
+                                            if (response.verification.is_verified) "영수증 인증 완료!" else response.verification.reason,
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     } catch (e: Exception) {
-                                        receiptVerificationMessage = e.message ?: "영수증 OCR 인증에 실패했습니다."
+                                        receiptVerificationMessage = e.message ?: "영수증 인증에 실패했습니다."
                                         Toast.makeText(context, receiptVerificationMessage, Toast.LENGTH_SHORT).show()
                                     } finally {
                                         isReceiptVerifying = false
@@ -1888,15 +1918,15 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isReceiptVerified) Color(0xFF16A34A) else Color(0xFF2F7DF6),
+                            containerColor = if (isReceiptVerified) Color(0xFF16A34A) else SpentopiaMutedPurple,
                             contentColor = Color.White
                         )
                     ) {
                         Text(
                             text = when {
-                                isReceiptVerifying -> "OCR 인증 중..."
-                                isReceiptVerified -> "OCR 인증 완료"
-                                else -> "OCR 인증하기"
+                                isReceiptVerifying -> "영수증 인증 중..."
+                                isReceiptVerified -> "영수증 인증 완료!"
+                                else -> "영수증 인증하기"
                             },
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
@@ -1943,7 +1973,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
                         focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
-                        cursorColor = Color(0xFF2F7DF6) // 커서 색을 정함
+                    cursorColor = SpentopiaMutedPurple // 커서 색을 정함
                     )
                 )
             } // 블록 끝
@@ -2010,10 +2040,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                 .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
                                 .background( // 배경색이나 그라데이션을 넣음
                                     brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                                        colors = listOf( // 값 여러 개를 묶은 목록을 만듦
-                                            if (isExpenseTab) Color(0xFF16B8D9) else Color(0xFF22C55E), // 시작 색상을 정함
-                                            if (isExpenseTab) Color(0xFF2F7DF6) else Color(0xFF16A34A) // 끝 색상을 정함
-                                        )
+                                        colors = if (isExpenseTab) SpentopiaWalletGradientColors else listOf(Color(0xFF22C55E), Color(0xFF16A34A))
                                     ),
                                     shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                                 ),
@@ -2065,10 +2092,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                             .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
                             .background( // 배경색이나 그라데이션을 넣음
                                 brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                                    colors = listOf( // 값 여러 개를 묶은 목록을 만듦
-                                        if (isExpenseTab) Color(0xFF16B8D9) else Color(0xFF22C55E), // 시작 색상을 정함
-                                        if (isExpenseTab) Color(0xFF2F7DF6) else Color(0xFF16A34A) // 끝 색상을 정함
-                                    )
+                                    colors = if (isExpenseTab) SpentopiaWalletGradientColors else listOf(Color(0xFF22C55E), Color(0xFF16A34A))
                                 ),
                                 shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                             ),
@@ -2093,7 +2117,11 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(20.dp), // 모서리 모양을 정함
         colors = CardDefaults.cardColors( // 색상 스타일을 정함
-            containerColor = Color(0xFFF4EEDB) // 배경색을 정함
+            containerColor = Color.White // 배경색을 정함
+        ),
+        border = BorderStroke(
+            1.dp,
+            SpentopiaGlowPurple.copy(alpha = 0.22f)
         )
     ) { // 이 블록 안의 내용이 시작됨
         Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
@@ -2123,7 +2151,7 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                             text = "보상 안내", // 화면에 보여줄 글자를 정함
                             fontSize = 15.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                            color = MaterialTheme.colorScheme.onSurface // 색상을 정함
+                            color = SpentopiaNavyPurple // 색상을 정함
                         )
                     } // 블록 끝
                 } // 블록 끝
@@ -2131,22 +2159,22 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                 Spacer(modifier = Modifier.height(14.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
                 RewardPointRow( // 가로로 배치하는 영역을 시작함
-                    title = "기본 기록", // color 값을 이 함수로 넘김
-                    point = "+10 SPT" // point 값을 이 함수로 넘김
+                    title = "직접 입력", // color 값을 이 함수로 넘김
+                    point = "기록/예산 반영" // point 값을 이 함수로 넘김
                 )
 
                 Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
                 RewardPointRow( // 가로로 배치하는 영역을 시작함
-                    title = "영수증 인증", // point 값을 이 함수로 넘김
-                    point = "+20 SPT" // point 값을 이 함수로 넘김
+                    title = "영수증 인증 완료", // point 값을 이 함수로 넘김
+                    point = "보상 지급" // point 값을 이 함수로 넘김
                 )
 
                 Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
                 RewardPointRow( // 가로로 배치하는 영역을 시작함
-                    title = "일기 작성", // point 값을 이 함수로 넘김
-                    point = "+15 SPT" // point 값을 이 함수로 넘김
+                    title = "미션/성실도", // point 값을 이 함수로 넘김
+                    point = "인증 기록만 반영" // point 값을 이 함수로 넘김
                 )
 
                 Spacer(modifier = Modifier.height(14.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -2154,9 +2182,13 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                 Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
                     modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                         .fillMaxWidth() // 가로 너비를 꽉 채움
+                        .background(
+                            color = Color(0xFFEDEBFF),
+                            shape = RoundedCornerShape(10.dp)
+                        )
                         .border( // 테두리를 그림
                             width = 1.5.dp, // point 값을 이 함수로 넘김
-                            color = Color(0xFFF0C244), // 색상을 정함
+                            color = SpentopiaGlowPurple.copy(alpha = 0.30f), // 색상을 정함
                             shape = RoundedCornerShape(10.dp) // 모서리 모양을 정함
                         )
                         .padding(vertical = 8.dp, horizontal = 10.dp), // 안쪽이나 바깥 여백을 줌
@@ -2169,13 +2201,13 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                             text = "주간 성실도 90점 이상 시", // 화면에 보여줄 글자를 정함
                             fontSize = 12.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                            color = Color(0xFF8A4B00) // 색상을 정함
+                            color = SpentopiaNavyPurple // 색상을 정함
                         )
 
                         Text( // 글자를 화면에 보여주기 시작함
-                            text = "랜덤 아바타 + 보너스 SPT!", // 화면에 보여줄 글자를 정함
+                            text = "영수증 인증 완료 시 보상이 지급됩니다.", // 화면에 보여줄 글자를 정함
                             fontSize = 11.sp, // 글자 크기를 정함
-                            color = Color(0xFFB06A00) // 색상을 정함
+                            color = SpentopiaMutedPurple // 색상을 정함
                         )
                     } // 블록 끝
                 } // 블록 끝
@@ -2225,14 +2257,14 @@ private fun RewardPointRow( // RewardPointRow 함수 선언 시작
         Text( // 글자를 화면에 보여주기 시작함
             text = title, // 화면에 보여줄 글자를 정함
             fontSize = 13.sp, // 글자 크기를 정함
-            color = Color(0xFF444444) // 색상을 정함
+            color = SpentopiaNavy // 색상을 정함
         )
 
         Text( // 글자를 화면에 보여주기 시작함
             text = point, // 화면에 보여줄 글자를 정함
             fontSize = 13.sp, // 글자 크기를 정함
             fontWeight = FontWeight.Bold, // 글자 두께를 정함
-            color = Color(0xFFE67E22) // 색상을 정함
+            color = SpentopiaMutedPurple // 색상을 정함
         )
     } // 블록 끝
 } // 블록 끝

@@ -216,6 +216,23 @@ class HomeViewModel(
                 initialValue = emptySet()
             )
 
+    // 성실도/보상용 날짜 Set입니다.
+    // 직접 입력 기록은 제외하고 OCR 인증 완료된 소비만 반영합니다.
+    val verifiedExpenseDateSet: StateFlow<Set<String>> =
+        repository
+            .getAllExpenses()
+            .map { expenseList ->
+                expenseList
+                    .filter { expense -> expense.receiptVerified }
+                    .map { expense -> expense.date }
+                    .toSet()
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptySet()
+            )
+
     // -----------------------------------------
     // 11) 월 이동 - 이전 달
     // -----------------------------------------

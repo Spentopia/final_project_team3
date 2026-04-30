@@ -44,6 +44,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel // ViewModel 연결
 import coil.compose.AsyncImage // 이미지 출력
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog // 수정: 솔라나 지갑 선택 다이얼로그
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // 수정: 선택한 솔라나 지갑 종류
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavy
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 
 // 기존 주석 유지
 // 마이페이지 화면
@@ -218,10 +222,7 @@ private fun ProfileHeaderCard(
             modifier = Modifier
                 .background(
                     brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF14B8D4), // 시작 색
-                            Color(0xFF3B82F6) // 끝 색
-                        )
+                        colors = SpentopiaWalletGradientColors
                     ),
                     shape = RoundedCornerShape(20.dp) // 둥근 그라데이션
                 )
@@ -810,10 +811,7 @@ private fun WalletTabContent(
                                 modifier = Modifier
                                     .background(
                                         brush = Brush.linearGradient(
-                                            colors = listOf(
-                                                Color(0xFF06B6D4), // 시작 색
-                                                Color(0xFF2563EB) // 끝 색
-                                            )
+                                            colors = SpentopiaWalletGradientColors
                                         ),
                                         shape = RoundedCornerShape(12.dp) // 둥근 버튼
                                     )

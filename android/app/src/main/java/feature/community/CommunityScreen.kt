@@ -14,6 +14,7 @@ package com.ict.spentopia.feature.community
 
 // Compose Foundation 관련 import입니다.
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,6 +60,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavy
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 
 // ------------------------------------------------------------
 // 커뮤니티 카테고리 enum 클래스입니다.
@@ -293,16 +299,26 @@ private fun CommunityTopHeader(
             onClick = onWriteClick,
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFE24BB4),
+                containerColor = Color.Transparent,
                 contentColor = Color.White
             ),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            contentPadding = PaddingValues(0.dp)
         ) {
-            Text(
-                text = "글쓰기",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Box(
+                modifier = Modifier
+                    .background(
+                        brush = spentopiaCommunityGradient(),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "글쓰기",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
     }
 }
@@ -320,6 +336,7 @@ private fun CommunityAiCard(
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent
         ),
+        border = BorderStroke(1.dp, SpentopiaGlowPurple.copy(alpha = 0.35f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -327,10 +344,7 @@ private fun CommunityAiCard(
                 .fillMaxWidth()
                 .background(
                     brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color(0xFFA34CF6),
-                            Color(0xFFE93AA5)
-                        )
+                        colors = spentopiaCommunityGradientColors()
                     )
                 )
                 .padding(horizontal = 16.dp, vertical = 16.dp),
@@ -390,6 +404,14 @@ private fun CommunityAiCard(
             }
         }
     }
+}
+
+private fun spentopiaCommunityGradientColors(): List<Color> {
+    return SpentopiaWalletGradientColors
+}
+
+private fun spentopiaCommunityGradient(): Brush {
+    return Brush.horizontalGradient(spentopiaCommunityGradientColors())
 }
 
 // ------------------------------------------------------------

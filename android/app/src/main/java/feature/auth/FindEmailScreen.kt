@@ -3,6 +3,7 @@ package com.ict.spentopia.feature.auth
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -31,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -40,6 +44,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ict.spentopia.R
+import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavy
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 import kotlinx.coroutines.launch
 
 @Composable
@@ -105,7 +114,7 @@ fun FindEmailScreen(
             Image(
                 painter = painterResource(id = R.drawable.ic_spentopia_logo),
                 contentDescription = stringResource(id = R.string.spentopia_logo_content_description),
-                modifier = Modifier.size(74.dp),
+                modifier = Modifier.size(96.dp),
                 contentScale = ContentScale.Fit
             )
 
@@ -157,9 +166,9 @@ fun FindEmailScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White,
-                    focusedBorderColor = Color(0xFFE0E5EC),
+                    focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.45f),
                     unfocusedBorderColor = Color(0xFFE0E5EC),
-                    cursorColor = Color(0xFF2F7DF6)
+                    cursorColor = SpentopiaMutedPurple
                 )
             )
 
@@ -196,12 +205,20 @@ fun AuthGradientButton(
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+
     Button(
         onClick = onClick,
         enabled = enabled,
+        interactionSource = interactionSource,
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp),
+            .height(52.dp)
+            .graphicsLayer {
+                scaleX = if (pressed) 0.985f else 1f
+                scaleY = if (pressed) 0.985f else 1f
+            },
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         contentPadding = PaddingValues(0.dp)
@@ -211,15 +228,19 @@ fun AuthGradientButton(
                 .fillMaxSize()
                 .background(
                     brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color(0xFF17BEDA),
-                            Color(0xFF2F7DF6)
-                        )
+                        colors = SpentopiaWalletGradientColors
                     ),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .border(
+                    width = 1.dp,
+                    color = SpentopiaGlowPurple.copy(alpha = if (pressed) 0.65f else 0.45f),
                     shape = RoundedCornerShape(16.dp)
                 ),
             contentAlignment = Alignment.Center
         ) {
+            StaticButtonShine(shape = RoundedCornerShape(16.dp), pressed = pressed)
+
             Text(
                 text = text,
                 color = Color.White,
@@ -228,4 +249,25 @@ fun AuthGradientButton(
             )
         }
     }
+}
+
+@Composable
+private fun StaticButtonShine(
+    shape: RoundedCornerShape,
+    pressed: Boolean
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.White.copy(alpha = if (pressed) 0.24f else 0.14f),
+                        Color.Transparent
+                    )
+                ),
+                shape = shape
+            )
+    )
 }

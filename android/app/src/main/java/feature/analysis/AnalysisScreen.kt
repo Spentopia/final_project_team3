@@ -38,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -48,6 +49,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 import kotlin.math.roundToInt
 
 // 소비분석 메인 화면
@@ -206,7 +211,7 @@ fun AnalysisHeaderSection(
             Button(
                 onClick = onDownloadClick,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFD946EF),
+                    containerColor = SpentopiaMutedPurple,
                     contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(10.dp),
@@ -257,7 +262,14 @@ fun GradientSummaryCard(
     subText: String
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(18.dp),
+                ambientColor = SpentopiaGlowPurple.copy(alpha = 0.14f),
+                spotColor = SpentopiaGlowPurple.copy(alpha = 0.18f)
+            ),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
@@ -266,11 +278,14 @@ fun GradientSummaryCard(
                 .fillMaxWidth()
                 .background(
                     brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color(0xFF8B5CF6),
-                            Color(0xFFD946EF)
-                        )
-                    )
+                        colors = SpentopiaWalletGradientColors
+                    ),
+                    shape = RoundedCornerShape(18.dp)
+                )
+                .border(
+                    width = 1.dp,
+                    color = SpentopiaGlowPurple.copy(alpha = 0.35f),
+                    shape = RoundedCornerShape(18.dp)
                 )
                 .padding(18.dp)
         ) {
@@ -372,7 +387,7 @@ fun BudgetUsageCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp),
-                color = Color(0xFFD946EF),
+                color = SpentopiaMutedPurple,
                 trackColor = MaterialTheme.colorScheme.outlineVariant
             )
         }
@@ -606,10 +621,7 @@ fun BarChartItem(
                 .width(16.dp)
                 .background(
                     brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF8B5CF6),
-                            Color(0xFFD946EF)
-                        )
+                        colors = SpentopiaWalletGradientColors
                     ),
                     shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
                 )
@@ -866,7 +878,7 @@ fun AiAnalysisReportSection(
                 enabled = !isLoading && totalExpense > 0,
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2F7DF6),
+                    containerColor = SpentopiaMutedPurple,
                     contentColor = Color.White,
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1097,7 +1109,7 @@ fun PatternProgressRow(
             modifier = Modifier
                 .weight(1f)
                 .height(8.dp),
-            color = Color(0xFFA855F7),
+            color = SpentopiaMutedPurple,
             trackColor = MaterialTheme.colorScheme.outlineVariant
         )
 

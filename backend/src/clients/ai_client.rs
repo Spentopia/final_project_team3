@@ -159,6 +159,7 @@ pub struct ReceiptOcrResult {
 
 #[derive(Deserialize, Serialize)]
 pub struct ReceiptOcrData {
+    pub merchant_name: Option<String>,
     pub receipt_date: Option<String>,
     pub total_amount: Option<i32>,
     pub raw_text: String,
@@ -177,6 +178,7 @@ pub struct ReceiptOcrVerification {
     pub is_verified: bool,
     pub date_matched: bool,
     pub amount_matched: bool,
+    pub is_recent_receipt: Option<bool>,
     pub reason: String,
 }
 

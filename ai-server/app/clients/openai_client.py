@@ -83,12 +83,13 @@ class OpenAIClient:
         data_url = f"data:{mime_type};base64,{image_base64}"
 
         # 영수증 OCR은 필요한 필드가 명확하므로
-        # 날짜와 총액만 추출하도록 범위를 강하게 좁힌다.
+        # 상호명, 결제일, 총액만 추출하도록 범위를 강하게 좁힌다.
         prompt = """
-영수증 이미지에서 날짜와 결제 총액만 추출해줘.
+영수증 이미지에서 상호명, 결제 날짜, 결제 총액만 추출해줘.
 
 규칙:
-- 상호명, 품목, 카테고리는 추출하지 않는다.
+- 품목, 카테고리는 추출하지 않는다.
+- 상호명은 영수증의 매장명/가맹점명을 반환한다.
 - 날짜는 실제 결제일만 추출한다.
 - 날짜는 YYYY-MM-DD 형식으로 반환한다.
 - 총액은 최종 결제 금액만 숫자로 반환한다.
@@ -97,6 +98,7 @@ class OpenAIClient:
 
 반환 형식:
 {
+  "merchant_name": "상호명 또는 null",
   "receipt_date": "YYYY-MM-DD 또는 null",
   "total_amount": 0 또는 null,
   "raw_text": "날짜/금액 판단에 사용한 짧은 근거 텍스트",
@@ -111,7 +113,7 @@ class OpenAIClient:
                 model=VISION_MODEL,
                 response_format={"type": "json_object"},
                 messages=[
-                    {"role": "system", "content": "너는 영수증 OCR 전용 AI다. 날짜와 총액만 정확히 추출한다."},
+                    {"role": "system", "content": "너는 영수증 OCR 전용 AI다. 상호명, 결제 날짜, 총액만 정확히 추출한다."},
                     {
                         "role": "user",
                         "content": [
@@ -131,6 +133,7 @@ class OpenAIClient:
             # OCR 실패도 응답 스키마를 최대한 유지하면
             # 서비스 레이어와 프론트가 예외 처리하기 쉬워진다.
             return {
+                "merchant_name": None,
                 "receipt_date": None,
                 "total_amount": None,
                 "raw_text": "",

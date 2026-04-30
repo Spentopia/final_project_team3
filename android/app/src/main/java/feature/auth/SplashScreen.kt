@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.ict.spentopia.R
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
 import kotlinx.coroutines.delay
 @Composable
 fun SplashScreen(navController: NavController) {
@@ -133,7 +135,7 @@ fun SplashScreen(navController: NavController) {
                     brush = Brush.radialGradient(
                         colors = listOf(
                             Color(0x886D28D9),
-                            Color(0x442F80ED),
+                            Color(0x331E1B4B),
                             Color.Transparent
                         )
                     ),
@@ -154,7 +156,7 @@ fun SplashScreen(navController: NavController) {
         Text(
             text = "✧",
             fontSize = 18.sp,
-            color = Color(0xFF12C2E9),
+            color = SpentopiaNavyPurple,
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(x = 124.dp, y = (-96).dp)
@@ -164,7 +166,7 @@ fun SplashScreen(navController: NavController) {
         Text(
             text = "✦",
             fontSize = 14.sp,
-            color = Color(0xFFB388FF),
+            color = Color(0xFF6366A8),
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(x = (-138).dp, y = 24.dp)
@@ -174,7 +176,7 @@ fun SplashScreen(navController: NavController) {
         Text(
             text = "✧",
             fontSize = 16.sp,
-            color = Color(0xFF8B5CF6),
+            color = SpentopiaMutedPurple,
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(x = 132.dp, y = 38.dp)

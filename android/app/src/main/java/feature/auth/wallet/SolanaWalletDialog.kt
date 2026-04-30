@@ -16,11 +16,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 
 enum class SolanaWalletType(
     val title: String,
@@ -95,7 +95,7 @@ fun SolanaWalletDialog(
                 ) {
                     Text(
                         text = "닫기",
-                        color = Color(0xFF2563EB),
+                        color = SpentopiaMutedPurple,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.clickable { onDismiss() }
@@ -146,7 +146,7 @@ private fun WalletOptionItem(
 
             Text(
                 text = "연결",
-                color = Color(0xFF2563EB),
+                color = SpentopiaMutedPurple,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.clickable { onClick() }

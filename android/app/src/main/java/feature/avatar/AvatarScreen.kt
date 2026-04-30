@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight // 수정: 텍스트 강조에 �
 import androidx.compose.ui.unit.dp // 기존 유지
 import androidx.compose.ui.unit.sp // 수정: 폰트 크기에 사용
 import androidx.lifecycle.viewmodel.compose.viewModel // 수정: 뷰모델 연결에 사용
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
 
 // 기존 주석 유지
 // 내 아바타 화면
@@ -343,7 +345,7 @@ private fun AvatarActionButton(
         modifier = modifier, // 수정: modifier 연결
         shape = RoundedCornerShape(10.dp), // 수정: 둥근 버튼
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (highlighted) Color(0xFFEC4899) else Color.White, // 수정: 배경 색상
+            containerColor = if (highlighted) SpentopiaMutedPurple else Color.White, // 수정: 배경 색상
             contentColor = if (highlighted) Color.White else MaterialTheme.colorScheme.onSurface // 수정: 글자 색상
         )
     ) {
@@ -455,7 +457,7 @@ private fun AvatarItemCard(
                 if (item.selected) {
                     Modifier.border(
                         width = 1.5.dp, // 수정: 선택 테두리
-                        color = Color(0xFFA855F7), // 수정: 테두리 색상
+                        color = SpentopiaMutedPurple, // 수정: 테두리 색상
                         shape = RoundedCornerShape(14.dp) // 수정: 둥근 테두리
                     )
                 } else {
@@ -520,8 +522,8 @@ private fun AvatarItemCard(
 private fun rarityColor(rarity: String): Color {
     return when (rarity) {
         "일반" -> MaterialTheme.colorScheme.onSurfaceVariant // 수정: 일반 색상
-        "레어" -> Color(0xFF3B82F6) // 수정: 레어 색상
-        "에픽" -> Color(0xFFA855F7) // 수정: 에픽 색상
+        "레어" -> SpentopiaNavyPurple // 수정: 레어 색상
+        "에픽" -> SpentopiaMutedPurple // 수정: 에픽 색상
         "전설" -> Color(0xFFEAB308) // 수정: 전설 색상
         else -> MaterialTheme.colorScheme.onSurfaceVariant // 수정: 기본 색상
     }
@@ -532,8 +534,8 @@ private fun rarityColor(rarity: String): Color {
 private fun progressColor(title: String): Color {
     return when (title) {
         "일반" -> MaterialTheme.colorScheme.onSurfaceVariant // 수정: 일반 색상
-        "레어" -> Color(0xFF3B82F6) // 수정: 레어 색상
-        "에픽" -> Color(0xFFA855F7) // 수정: 에픽 색상
+        "레어" -> SpentopiaNavyPurple // 수정: 레어 색상
+        "에픽" -> SpentopiaMutedPurple // 수정: 에픽 색상
         "전설" -> Color(0xFFEAB308) // 수정: 전설 색상
         else -> MaterialTheme.colorScheme.onSurfaceVariant // 수정: 기본 색상
     }

@@ -404,11 +404,11 @@ class AnalysisViewModel(
     private fun getCategoryColor(category: String): Color {
         return when (category) {
             "식비" -> Color(0xFFFF7A00)
-            "교통" -> Color(0xFF4D8DFF)
+            "교통" -> Color(0xFF334155)
             "쇼핑" -> Color(0xFFE84AA8)
-            "카페" -> Color(0xFFA14CFF)
-            "여가" -> Color(0xFF7C3AED)
-            "생활비" -> Color(0xFF06B6D4)
+            "카페" -> Color(0xFF1E1B4B)
+            "여가" -> Color(0xFF312E81)
+            "생활비" -> Color(0xFF475569)
             else -> Color(0xFF6B7280)
         }
     }

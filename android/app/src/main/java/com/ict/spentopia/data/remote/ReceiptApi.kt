@@ -14,6 +14,7 @@ data class ReceiptOcrResponse(
 )
 
 data class ReceiptOcrData(
+    val merchant_name: String?,
     val receipt_date: String?,
     val total_amount: Int?,
     val raw_text: String?,
@@ -30,6 +31,7 @@ data class ReceiptOcrVerification(
     val is_verified: Boolean,
     val date_matched: Boolean,
     val amount_matched: Boolean,
+    val is_recent_receipt: Boolean?,
     val reason: String
 )
 

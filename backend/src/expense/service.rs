@@ -88,25 +88,9 @@ pub async fn create_expense(
         .next()
         .ok_or_else(|| anyhow!("expenses INSERT 결과가 비어있음"))?;
 
-    let response = to_web_response(expense);
-
-    // fire-and-forget: 스트릭 + 성실도 점수 재계산
-    // 실패해도 소비 저장 응답에 영향 없음
-    let state_clone = state.clone();
-    let uid = user_id;
-    let date = req.date;
-    tokio::spawn(async move {
-        if let Err(e) = crate::reward::service::update_streak(&state_clone, uid, date).await {
-            tracing::warn!("스트릭 업데이트 실패: {}", e);
-        }
-        if let Err(e) =
-            crate::reward::service::recalculate_weekly_score(&state_clone, uid, date).await
-        {
-            tracing::warn!("성실도 점수 재계산 실패: {}", e);
-        }
-    });
-
-    Ok(response)
+    // 직접 입력은 소비/예산/분석용 기록만 생성한다.
+    // 보상, 스트릭, 성실도, 미션은 OCR 인증 성공 후 receipt_verified=true인 기록만 반영한다.
+    Ok(to_web_response(expense))
 }
 
 pub async fn list_expenses(state: &AppState, user_id: Uuid) -> Result<Vec<ExpenseWebResponse>> {
@@ -463,6 +447,8 @@ pub async fn update_receipt_verified(
     state: &AppState,
     user_id: Uuid,
     expense_id: Uuid,
+    receipt_date: chrono::NaiveDate,
+    receipt_amount: i32,
 ) -> Result<()> {
     let url = format!(
         "{}/rest/v1/expenses?id=eq.{}&user_id=eq.{}",
@@ -480,7 +466,11 @@ pub async fn update_receipt_verified(
         )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=representation")
-        .json(&serde_json::json!({ "receipt_verified": true }))
+        .json(&serde_json::json!({
+            "receipt_verified": true,
+            "expense_date": receipt_date,
+            "amount": receipt_amount
+        }))
         .send()
         .await
         .context("expenses receipt_verified UPDATE 요청 실패")?;
