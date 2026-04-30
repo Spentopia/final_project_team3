@@ -105,6 +105,31 @@ pub struct UploadCommunityImageResponse {
     pub path: String,
 }
 
+// ── 댓글 요청/응답 ───────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CommentResponse {
+    pub id: Uuid,
+    pub post_id: Uuid,
+    pub user_id: Uuid,
+    pub author_nickname: Option<String>,
+    pub author_profile_image: Option<String>,
+    pub author_profile_image_url: Option<String>,
+    pub content: String,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CreateCommentRequest {
+    pub content: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UpdateCommentRequest {
+    pub content: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ChatRequest {
     pub message: String,
