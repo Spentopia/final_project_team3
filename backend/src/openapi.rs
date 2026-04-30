@@ -72,6 +72,10 @@ use crate::wallet;
         crate::community::handler::update_post,
         crate::community::handler::delete_post,
         crate::community::handler::vote_post,
+        crate::community::handler::list_comments,
+        crate::community::handler::create_comment,
+        crate::community::handler::update_comment,
+        crate::community::handler::delete_comment,
 
         // ── 알림 ──────────────────────────────────────────────
         crate::notification::handler::list_notifications,
@@ -158,6 +162,9 @@ use crate::wallet;
             community::dto::UpdatePostRequest,
             community::dto::PostResponse,
             community::dto::UploadCommunityImageResponse,
+            community::dto::CommentResponse,
+            community::dto::CreateCommentRequest,
+            community::dto::UpdateCommentRequest,
 
 
             // ── notification DTO ──────────────────────────────

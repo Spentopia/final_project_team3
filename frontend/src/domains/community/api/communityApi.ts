@@ -53,6 +53,18 @@ export interface CommunityMeResponse {
   role_type: "user" | "admin" | string;
 }
 
+export interface CommentResponse {
+  id: string;
+  post_id: string;
+  user_id: string;
+  author_nickname: string | null;
+  author_profile_image: string | null;
+  author_profile_image_url: string | null;
+  content: string;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 interface ListPostsParams {
   sort: PostSort;
   postType?: PostType;
@@ -116,6 +128,35 @@ export async function updateCommunityPost(
 
 export async function deleteCommunityPost(postId: string): Promise<void> {
   await apiClient.delete(`/api/posts/${postId}`);
+}
+
+export async function listComments(postId: string): Promise<CommentResponse[]> {
+  const res = await apiClient.get<CommentResponse[]>(`/api/posts/${postId}/comments`);
+  return res.data;
+}
+
+export async function createComment(
+  postId: string,
+  content: string
+): Promise<CommentResponse> {
+  const res = await apiClient.post<CommentResponse>(`/api/posts/${postId}/comments`, {
+    content,
+  });
+  return res.data;
+}
+
+export async function updateComment(
+  commentId: string,
+  content: string
+): Promise<CommentResponse> {
+  const res = await apiClient.patch<CommentResponse>(`/api/comments/${commentId}`, {
+    content,
+  });
+  return res.data;
+}
+
+export async function deleteComment(commentId: string): Promise<void> {
+  await apiClient.delete(`/api/comments/${commentId}`);
 }
 
 type CommunityUploadTarget =
