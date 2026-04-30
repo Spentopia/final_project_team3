@@ -111,6 +111,11 @@ pub struct UploadCommunityImageResponse {
 pub struct CommentResponse {
     pub id: Uuid,
     pub post_id: Uuid,
+    
+    // null이면 일반 댓글
+    // 값이 있으면 해당 댓글의 대댓글
+    pub parent_id: Option<Uuid>,
+    
     pub user_id: Uuid,
     pub author_nickname: Option<String>,
     pub author_profile_image: Option<String>,
@@ -123,6 +128,7 @@ pub struct CommentResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreateCommentRequest {
     pub content: String,
+    pub parent_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

@@ -117,6 +117,7 @@ async fn to_comment_response(state: &AppState, comment: Comment) -> CommentRespo
     CommentResponse {
         id: comment.id,
         post_id: comment.post_id,
+        parent_id: comment.parent_id,
         user_id: comment.user_id,
         author_nickname,
         author_profile_image,
@@ -939,6 +940,25 @@ pub async fn create_comment(
     }
 
     let content = validate_comment_content(&req.content)?;
+
+    // 4. parent_id가 있으면 대댓글 작성임
+    // DB 트리거에서도 검사하지만, 백엔드에서도 한 번 더 검사해서
+    // 클라이언트에게 더 명확한 에러를 줄 수 있게 함
+    if let Some(parent_id) = req.parent_id {
+        let parent = get_comment(state, parent_id).await?;
+
+        // 부모 댓글과 현재 댓글은 같은 게시글에 속해야 함
+        if parent.post_id != post_id {
+            return Err(anyhow!("대댓글은 같은 게시글의 댓글에만 작성할 수 있습니다"));
+        }
+
+        // parent.parent_id가 Some이면 부모도 이미 대댓글 이라는 뜻
+        if parent.parent_id.is_some() {
+            return Err(anyhow!("대댓글에는 다시 대댓글을 작성할 수 없습니다."));
+        }
+
+    }
+
     let url = format!(
         "{}/rest/v1/comments",
         state.config.supabase_url.trim_end_matches('/'),
@@ -955,6 +975,7 @@ pub async fn create_comment(
         .header("Prefer", "return=representation")
         .json(&serde_json::json!({
             "post_id": post_id,
+            "parent_id": req.parent_id,
             "user_id": user_id,
             "content": content,
         }))
@@ -1028,15 +1049,28 @@ pub async fn update_comment(
 }
 
 pub async fn delete_comment(state: &AppState, user_id: Uuid, comment_id: Uuid) -> Result<()> {
+    // 1. 삭제 대상 댓글 조회
     let comment = get_comment(state, comment_id).await?;
 
+    // 2. 본인 댓글만 삭제 가능
+    // 중요:
+    // 여기서 먼저 부모 댓글 소유자 검사를 통과한 뒤,
+    // 그 다음에 자식 대댓글까지 같이 숨김 처리한다.
     if comment.user_id != user_id {
         return Err(anyhow!("본인 댓글만 삭제할 수 있습니다."));
     }
 
+    // 3. 댓글 soft delete
+    // 부모 댓글이면 parent_id = comment_id인 대댓글도 같이 숨김 처리
+    //
+    // 이유:
+    // 실제 DELETE가 아니라 is_deleted = true로 숨기는 구조라서
+    // DB의 on delete cascade는 동작하지 않음.
+    // 따라서 백엔드에서 직접 자식 대댓글까지 업데이트해야 함.
     let url = format!(
-        "{}/rest/v1/comments?id=eq.{}",
+        "{}/rest/v1/comments?or=(id.eq.{},parent_id.eq.{})",
         state.config.supabase_url.trim_end_matches('/'),
+        comment_id,
         comment_id,
     );
 
