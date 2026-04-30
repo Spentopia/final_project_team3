@@ -1,7 +1,7 @@
 import { apiClient } from "@/shared/api/client.ts";
 
 export type PostSort = "date" | "likes" | "views";
-export type PostType = "notice" | "request" | "contest";
+export type PostType = "notice" | "request" | "contest" | "free";
 
 export interface CommunityPostResponse {
   id: string;
@@ -53,8 +53,21 @@ export interface CommunityMeResponse {
   role_type: "user" | "admin" | string;
 }
 
+export interface CommentResponse {
+  id: string;
+  post_id: string;
+  user_id: string;
+  author_nickname: string | null;
+  author_profile_image: string | null;
+  author_profile_image_url: string | null;
+  content: string;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 interface ListPostsParams {
   sort: PostSort;
+  postType?: PostType;
   contestId?: string;
   title?: string;
   page?: number;
@@ -63,6 +76,7 @@ interface ListPostsParams {
 
 export async function listCommunityPosts({
   sort,
+  postType,
   contestId,
   title,
   page,
@@ -71,6 +85,7 @@ export async function listCommunityPosts({
   const res = await apiClient.get<CommunityPostListResponse>("/api/posts", {
     params: {
       sort,
+      post_type: postType,
       contest_id: contestId,
       title,
       page,
@@ -115,6 +130,35 @@ export async function deleteCommunityPost(postId: string): Promise<void> {
   await apiClient.delete(`/api/posts/${postId}`);
 }
 
+export async function listComments(postId: string): Promise<CommentResponse[]> {
+  const res = await apiClient.get<CommentResponse[]>(`/api/posts/${postId}/comments`);
+  return res.data;
+}
+
+export async function createComment(
+  postId: string,
+  content: string
+): Promise<CommentResponse> {
+  const res = await apiClient.post<CommentResponse>(`/api/posts/${postId}/comments`, {
+    content,
+  });
+  return res.data;
+}
+
+export async function updateComment(
+  commentId: string,
+  content: string
+): Promise<CommentResponse> {
+  const res = await apiClient.patch<CommentResponse>(`/api/comments/${commentId}`, {
+    content,
+  });
+  return res.data;
+}
+
+export async function deleteComment(commentId: string): Promise<void> {
+  await apiClient.delete(`/api/comments/${commentId}`);
+}
+
 type CommunityUploadTarget =
   | {
       postType: "contest";
@@ -126,6 +170,9 @@ type CommunityUploadTarget =
     }
   | {
       postType: "request";
+    }
+  | {
+      postType: "free";
     };
 
 interface UploadCommunityImageParams {

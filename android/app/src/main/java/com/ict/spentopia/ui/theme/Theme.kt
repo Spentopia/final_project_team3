@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext // 현재 Compose 환경의 Context를 가져올 때 사용하는 객체
 
 private val DarkColorScheme = darkColorScheme( // 이 파일 안에서만 사용하는 다크모드용 색상 테마를 생성
-    primary = Purple80, // 기본(대표) 색상을 Purple80로 설정
+    primary = Color(0xFFA5B4FC), // 기본(대표) 색상을 차분한 네이비-퍼플로 설정
     secondary = PurpleGrey80, // 보조 색상을 PurpleGrey80로 설정
     tertiary = Pink80, // 세 번째 강조 색상을 Pink80로 설정
     background = Color(0xFF0B1020),
@@ -29,16 +29,19 @@ private val DarkColorScheme = darkColorScheme( // 이 파일 안에서만 사용
 ) // 다크모드 색상 세트 생성 끝
 
 private val LightColorScheme = lightColorScheme( // 이 파일 안에서만 사용하는 라이트모드용 색상 테마를 생성
-    primary = Purple40, // 기본(대표) 색상을 Purple40으로 설정
+    primary = SpentopiaGlowPurple, // 기본 포인트는 지갑 로그인 버튼의 퍼플 라인과 맞춥니다.
     secondary = PurpleGrey40, // 보조 색상을 PurpleGrey40으로 설정
     tertiary = Pink40, // 세 번째 강조 색상을 Pink40으로 설정
-    background = Color(0xFFF5FAFD),
-    onBackground = Color(0xFF111827),
+    background = Color(0xFFF7F9FC),
+    onBackground = SpentopiaText,
     surface = Color.White,
-    onSurface = Color(0xFF111827),
+    onSurface = SpentopiaText,
     surfaceVariant = Color(0xFFF1F5F9),
-    onSurfaceVariant = Color(0xFF64748B),
-    outlineVariant = Color(0xFFE2E8F0)
+    onSurfaceVariant = SpentopiaTextMuted,
+    primaryContainer = SpentopiaSoftPurple,
+    onPrimaryContainer = SpentopiaNavyPurple,
+    outline = Color(0xFFCBD5E1),
+    outlineVariant = SpentopiaSurfaceLine
 
     /* Other default colors to override // 필요하면 아래 기본 색상들도 직접 덮어써서 바꿀 수 있다는 예시 주석 시작
     background = Color(0xFFFFFBFE), // 앱의 전체 배경색을 지정하는 예시

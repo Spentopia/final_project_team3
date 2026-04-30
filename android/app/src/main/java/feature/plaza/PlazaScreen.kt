@@ -44,6 +44,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavy
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 
 @Composable
 fun PlazaScreen(
@@ -162,10 +166,7 @@ private fun PlazaHeroCard(
                 .fillMaxWidth()
                 .background(
                     brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFFA855F7),
-                            Color(0xFFEC4899)
-                        )
+                        colors = SpentopiaWalletGradientColors
                     ),
                     shape = RoundedCornerShape(20.dp)
                 )
@@ -244,7 +245,7 @@ private fun PlazaFeatureCard() {
                 Icon(
                     imageVector = Icons.Outlined.Groups,
                     contentDescription = null,
-                    tint = Color(0xFF9333EA)
+                    tint = SpentopiaMutedPurple
                 )
             },
             iconBg = Color(0xFFF3E8FF),
@@ -259,7 +260,7 @@ private fun PlazaFeatureCard() {
                 Icon(
                     imageVector = Icons.Outlined.Extension,
                     contentDescription = null,
-                    tint = Color(0xFFEC4899)
+                    tint = SpentopiaMutedPurple
                 )
             },
             iconBg = Color(0xFFFCE7F3),
@@ -376,7 +377,7 @@ private fun PlazaUpcomingCard() {
                 Icon(
                     imageVector = Icons.Outlined.Star,
                     contentDescription = null,
-                    tint = Color(0xFF9333EA)
+                    tint = SpentopiaMutedPurple
                 )
             },
             title = "미니게임",
@@ -392,7 +393,7 @@ private fun PlazaUpcomingCard() {
                 Icon(
                     imageVector = Icons.Outlined.Groups,
                     contentDescription = null,
-                    tint = Color(0xFFEC4899)
+                    tint = SpentopiaMutedPurple
                 )
             },
             title = "길드 시스템",

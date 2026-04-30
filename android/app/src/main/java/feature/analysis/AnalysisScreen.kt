@@ -38,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -48,6 +49,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 import kotlin.math.roundToInt
 
 // 소비분석 메인 화면
@@ -69,6 +74,7 @@ fun AnalysisScreen(
         trendExpenseList = trendExpenseList,
         categoryList = uiState.categoryList,
         tipList = uiState.tipList,
+        aiAnalysisText = uiState.aiAnalysisText,
         timePatternList = uiState.timePatternList,
         weekdayAverageText = uiState.weekdayAverageText,
         weekendAverageText = uiState.weekendAverageText,
@@ -137,7 +143,14 @@ fun AnalysisScreen(
         )
 
         AiAnalysisReportSection(
-            tipList = uiState.tipList
+            tipList = uiState.tipList,
+            totalExpense = uiState.totalExpense,
+            aiAnalysisText = uiState.aiAnalysisText,
+            isLoading = uiState.isAiAnalysisLoading,
+            errorMessage = uiState.aiAnalysisError,
+            onRequestAiAnalysis = {
+                viewModel.requestAiAnalysisReport()
+            }
         )
 
         ConsumptionPatternCard(
@@ -198,7 +211,7 @@ fun AnalysisHeaderSection(
             Button(
                 onClick = onDownloadClick,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFD946EF),
+                    containerColor = SpentopiaMutedPurple,
                     contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(10.dp),
@@ -249,7 +262,14 @@ fun GradientSummaryCard(
     subText: String
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(18.dp),
+                ambientColor = SpentopiaGlowPurple.copy(alpha = 0.14f),
+                spotColor = SpentopiaGlowPurple.copy(alpha = 0.18f)
+            ),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
@@ -258,11 +278,14 @@ fun GradientSummaryCard(
                 .fillMaxWidth()
                 .background(
                     brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color(0xFF8B5CF6),
-                            Color(0xFFD946EF)
-                        )
-                    )
+                        colors = SpentopiaWalletGradientColors
+                    ),
+                    shape = RoundedCornerShape(18.dp)
+                )
+                .border(
+                    width = 1.dp,
+                    color = SpentopiaGlowPurple.copy(alpha = 0.35f),
+                    shape = RoundedCornerShape(18.dp)
                 )
                 .padding(18.dp)
         ) {
@@ -364,7 +387,7 @@ fun BudgetUsageCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp),
-                color = Color(0xFFD946EF),
+                color = SpentopiaMutedPurple,
                 trackColor = MaterialTheme.colorScheme.outlineVariant
             )
         }
@@ -598,10 +621,7 @@ fun BarChartItem(
                 .width(16.dp)
                 .background(
                     brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF8B5CF6),
-                            Color(0xFFD946EF)
-                        )
+                        colors = SpentopiaWalletGradientColors
                     ),
                     shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
                 )
@@ -831,20 +851,108 @@ fun CategoryDetailItem(
 // AI 리포트 섹션
 @Composable
 fun AiAnalysisReportSection(
-    tipList: List<AnalysisTipUiModel>
+    tipList: List<AnalysisTipUiModel>,
+    totalExpense: Int,
+    aiAnalysisText: String,
+    isLoading: Boolean,
+    errorMessage: String,
+    onRequestAiAnalysis: () -> Unit
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "AI 소비 분석 리포트",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onSurface
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "AI 소비 분석 리포트",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Button(
+                onClick = onRequestAiAnalysis,
+                enabled = !isLoading && totalExpense > 0,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = SpentopiaMutedPurple,
+                    contentColor = Color.White,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            ) {
+                Text(
+                    text = if (isLoading) "분석 중" else "AI 분석",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        AiGeneratedReportCard(
+            totalExpense = totalExpense,
+            aiAnalysisText = aiAnalysisText,
+            isLoading = isLoading,
+            errorMessage = errorMessage
         )
 
         tipList.forEach { tip ->
             AnalysisTipCard(tip = tip)
+        }
+    }
+}
+
+@Composable
+fun AiGeneratedReportCard(
+    totalExpense: Int,
+    aiAnalysisText: String,
+    isLoading: Boolean,
+    errorMessage: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "AI 소비 코멘트",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            val message = when {
+                totalExpense <= 0 -> "아직 분석할 소비 데이터가 없습니다. Home 화면에서 소비 기록을 먼저 입력해주세요."
+                isLoading -> "AI가 이번 기간의 소비 기록을 분석하고 있습니다."
+                errorMessage.isNotBlank() -> errorMessage
+                aiAnalysisText.isNotBlank() -> aiAnalysisText
+                else -> "AI 분석 버튼을 누르면 이번 기간의 소비 데이터를 바탕으로 맞춤 리포트를 생성합니다."
+            }
+
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                lineHeight = 22.sp,
+                color = if (errorMessage.isNotBlank()) {
+                    Color(0xFFE53935)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
         }
     }
 }
@@ -1001,7 +1109,7 @@ fun PatternProgressRow(
             modifier = Modifier
                 .weight(1f)
                 .height(8.dp),
-            color = Color(0xFFA855F7),
+            color = SpentopiaMutedPurple,
             trackColor = MaterialTheme.colorScheme.outlineVariant
         )
 
@@ -1131,6 +1239,7 @@ fun buildAnalysisReportText(
     trendExpenseList: List<Pair<String, Int>>,
     categoryList: List<CategorySpendUiModel>,
     tipList: List<AnalysisTipUiModel>,
+    aiAnalysisText: String,
     timePatternList: List<PatternProgressUiModel>,
     weekdayAverageText: String,
     weekendAverageText: String,
@@ -1176,6 +1285,9 @@ fun buildAnalysisReportText(
 
         5. AI 소비 분석
         $tipText
+
+        5-1. AI 소비 코멘트
+        ${aiAnalysisText.ifBlank { "아직 AI 소비 리포트를 생성하지 않았습니다." }}
 
         6. 시간대별 소비
         $timePatternText

@@ -5,6 +5,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ict.spentopia.data.local.ExpenseDatabase
+import com.ict.spentopia.data.remote.GenerateReportRequest
+import com.ict.spentopia.data.remote.RetrofitClient
 import com.ict.spentopia.data.repository.ExpenseRepository
 import com.ict.spentopia.feature.budget.BudgetDataStore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,7 +14,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
 
 // 카테고리별 지출 데이터 클래스
 // 도넛 차트, 카테고리 상세 리스트에서 함께 사용
@@ -94,6 +99,15 @@ data class AnalysisUiState(
     // AI 분석 리포트 데이터
     val tipList: List<AnalysisTipUiModel> = emptyList(),
 
+    // 백엔드 AI 리포트 문장입니다.
+    val aiAnalysisText: String = "",
+
+    // AI 리포트 요청 중인지 표시합니다.
+    val isAiAnalysisLoading: Boolean = false,
+
+    // AI 리포트 실패 메시지입니다.
+    val aiAnalysisError: String = "",
+
     // 시간대별 소비 패턴 데이터
     val timePatternList: List<PatternProgressUiModel> = emptyList(),
 
@@ -146,6 +160,62 @@ class AnalysisViewModel(
             _uiState.value.weeklyExpenseList
         } else {
             _uiState.value.monthlyExpenseList
+        }
+    }
+
+    // 백엔드 /api/reports를 호출해 소비분석 AI 리포트를 생성합니다.
+    // 실제 AI 분석 로직은 Android가 만들지 않고, 백엔드가 AI 서버를 호출합니다.
+    fun requestAiAnalysisReport() {
+        val currentState = _uiState.value
+
+        if (currentState.totalExpense <= 0) {
+            _uiState.value = currentState.copy(
+                aiAnalysisText = "",
+                aiAnalysisError = "분석할 소비 데이터가 없습니다."
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isAiAnalysisLoading = true,
+                aiAnalysisError = ""
+            )
+
+            try {
+                val periodRange = createReportPeriodRange(_uiState.value.selectedPeriod)
+                val report = RetrofitClient.reportApi.generateReport(
+                    GenerateReportRequest(
+                        report_type = if (_uiState.value.selectedPeriod == "주간") "weekly" else "monthly",
+                        start_date = periodRange.first,
+                        end_date = periodRange.second
+                    )
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    aiAnalysisText = report.ai_analysis.orEmpty(),
+                    isAiAnalysisLoading = false,
+                    aiAnalysisError = if (report.ai_analysis.isNullOrBlank()) {
+                        "AI 분석 결과가 비어 있습니다."
+                    } else {
+                        ""
+                    }
+                )
+            } catch (e: HttpException) {
+                _uiState.value = _uiState.value.copy(
+                    isAiAnalysisLoading = false,
+                    aiAnalysisError = when (e.code()) {
+                        401 -> "로그인이 만료되었습니다. 다시 로그인해주세요."
+                        500, 502 -> "AI 분석 서버 응답을 불러오지 못했습니다."
+                        else -> "AI 분석 요청에 실패했습니다. (${e.code()})"
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isAiAnalysisLoading = false,
+                    aiAnalysisError = e.message ?: "AI 분석 요청에 실패했습니다."
+                )
+            }
         }
     }
 
@@ -263,6 +333,9 @@ class AnalysisViewModel(
                     monthlyExpenseList = monthlyExpenseList,
                     categoryList = categoryList,
                     tipList = tipList,
+                    aiAnalysisText = _uiState.value.aiAnalysisText,
+                    isAiAnalysisLoading = _uiState.value.isAiAnalysisLoading,
+                    aiAnalysisError = _uiState.value.aiAnalysisError,
                     timePatternList = timePatternList,
                     weekdayAverageText = weekdayAverageText,
                     weekendAverageText = weekendAverageText,
@@ -311,15 +384,31 @@ class AnalysisViewModel(
         return String.format("%04d-%02d", year, month)
     }
 
+    // AI 리포트 생성에 사용할 기간입니다.
+    // 주간 선택 시 최근 7일, 월간 선택 시 이번 달 1일~오늘을 보냅니다.
+    private fun createReportPeriodRange(period: String): Pair<String, String> {
+        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val end = Calendar.getInstance()
+        val start = Calendar.getInstance()
+
+        if (period == "주간") {
+            start.add(Calendar.DAY_OF_MONTH, -6)
+        } else {
+            start.set(Calendar.DAY_OF_MONTH, 1)
+        }
+
+        return formatter.format(start.time) to formatter.format(end.time)
+    }
+
     // 카테고리별 색상 반환 함수입니다.
     private fun getCategoryColor(category: String): Color {
         return when (category) {
             "식비" -> Color(0xFFFF7A00)
-            "교통" -> Color(0xFF4D8DFF)
+            "교통" -> Color(0xFF334155)
             "쇼핑" -> Color(0xFFE84AA8)
-            "카페" -> Color(0xFFA14CFF)
-            "여가" -> Color(0xFF7C3AED)
-            "생활비" -> Color(0xFF06B6D4)
+            "카페" -> Color(0xFF1E1B4B)
+            "여가" -> Color(0xFF312E81)
+            "생활비" -> Color(0xFF475569)
             else -> Color(0xFF6B7280)
         }
     }

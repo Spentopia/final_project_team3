@@ -58,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 
 @Composable
 fun CommunityDetailScreen(
@@ -323,7 +324,7 @@ private fun CommunityDetailNotFoundScreen(
                     onClick = onBackClick,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE24BB4),
+                        containerColor = SpentopiaMutedPurple,
                         contentColor = Color.White
                     )
                 ) {
@@ -394,7 +395,7 @@ private fun CommunityDetailTopSection(
                         onClick = onEditModeToggle,
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE24BB4),
+                            containerColor = SpentopiaMutedPurple,
                             contentColor = Color.White
                         ),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
@@ -587,7 +588,7 @@ private fun CommunityDetailEditCard(
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFE24BB4),
+                    focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f),
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     focusedTextColor = Color(0xFF1E2430),
                     unfocusedTextColor = Color(0xFF1E2430),
@@ -618,7 +619,7 @@ private fun CommunityDetailEditCard(
                 shape = RoundedCornerShape(14.dp),
                 minLines = 8,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFE24BB4),
+                    focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f),
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     focusedTextColor = Color(0xFF1E2430),
                     unfocusedTextColor = Color(0xFF1E2430),
@@ -679,7 +680,7 @@ private fun CommunityDetailActionCard(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (post.isLiked) Color(0xFFE24BB4) else Color(0xFFEDEFF4),
+                            containerColor = if (post.isLiked) SpentopiaMutedPurple else Color(0xFFEDEFF4),
                             contentColor = if (post.isLiked) Color.White else Color(0xFF2B313B)
                         ),
                         contentPadding = PaddingValues(vertical = 14.dp)
@@ -696,7 +697,7 @@ private fun CommunityDetailActionCard(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE24BB4),
+                            containerColor = SpentopiaMutedPurple,
                             contentColor = Color.White
                         ),
                         contentPadding = PaddingValues(vertical = 14.dp)
@@ -719,9 +720,9 @@ private fun CommunityDetailActionCard(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE24BB4),
+                            containerColor = SpentopiaMutedPurple,
                             contentColor = Color.White,
-                            disabledContainerColor = Color(0xFFF3B8D9),
+                            disabledContainerColor = MaterialTheme.colorScheme.outlineVariant,
                             disabledContentColor = Color.White
                         ),
                         contentPadding = PaddingValues(vertical = 14.dp)
@@ -839,7 +840,7 @@ private fun CommunityCommentSection(
                 },
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFE24BB4),
+                    focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f),
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     focusedTextColor = Color(0xFF1E2430),
                     unfocusedTextColor = Color(0xFF1E2430),
@@ -854,9 +855,9 @@ private fun CommunityCommentSection(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE24BB4),
+                    containerColor = SpentopiaMutedPurple,
                     contentColor = Color.White,
-                    disabledContainerColor = Color(0xFFF3B8D9),
+                    disabledContainerColor = MaterialTheme.colorScheme.outlineVariant,
                     disabledContentColor = Color.White
                 ),
                 contentPadding = PaddingValues(vertical = 14.dp)
@@ -965,7 +966,7 @@ private fun CommunityCommentItem(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFE24BB4),
+                            focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f),
                             unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                             focusedTextColor = Color(0xFF1E2430),
                             unfocusedTextColor = Color(0xFF1E2430),

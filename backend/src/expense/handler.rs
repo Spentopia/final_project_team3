@@ -6,7 +6,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use chrono::Local;
+use chrono::NaiveDate;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -155,8 +155,41 @@ pub async fn verify_receipt_ocr(
             // OCR 인증 성공 + expense_id 있으면 서버에서 receipt_verified = true 업데이트
             if res.verification.is_verified {
                 if let Some(expense_id) = expense_id {
+                    let receipt_date = match res
+                        .ocr
+                        .receipt_date
+                        .as_deref()
+                        .and_then(|raw| NaiveDate::parse_from_str(raw, "%Y-%m-%d").ok())
+                    {
+                        Some(date) => date,
+                        None => {
+                            return (
+                                StatusCode::BAD_REQUEST,
+                                "영수증 결제 날짜를 확인할 수 없습니다".to_string(),
+                            )
+                                .into_response();
+                        }
+                    };
+                    let receipt_amount = match res.ocr.total_amount {
+                        Some(amount) if amount > 0 => amount,
+                        _ => {
+                            return (
+                                StatusCode::BAD_REQUEST,
+                                "영수증 총 금액을 확인할 수 없습니다".to_string(),
+                            )
+                                .into_response();
+                        }
+                    };
+
                     if let Err(e) =
-                        service::update_receipt_verified(&state, user_id, expense_id).await
+                        service::update_receipt_verified(
+                            &state,
+                            user_id,
+                            expense_id,
+                            receipt_date,
+                            receipt_amount,
+                        )
+                        .await
                     {
                         return (
                             StatusCode::INTERNAL_SERVER_ERROR,
@@ -176,12 +209,17 @@ pub async fn verify_receipt_ocr(
                     }
 
                     let state_clone = state.clone();
-                    let today = Local::now().date_naive();
                     tokio::spawn(async move {
+                        if let Err(e) =
+                            crate::reward::service::update_streak(&state_clone, user_id, receipt_date)
+                                .await
+                        {
+                            tracing::warn!("영수증 인증 후 스트릭 업데이트 실패: {}", e);
+                        }
                         if let Err(e) = crate::reward::service::recalculate_weekly_score(
                             &state_clone,
                             user_id,
-                            today,
+                            receipt_date,
                         )
                         .await
                         {

@@ -713,25 +713,29 @@ pub async fn recalculate_weekly_score(
 
     let expenses: Vec<ExpenseRow> = exp_res.json().await.context("expenses 역직렬화 실패")?;
 
+    // 보상/성실도/미션 점수는 OCR 인증 완료된 실제 소비만 반영한다.
+    let verified_expenses: Vec<&ExpenseRow> = expenses
+        .iter()
+        .filter(|e| e.receipt_verified == Some(true))
+        .collect();
+
     // ── 3. record_days_score ──
     // 소비 기록이 있는 날의 집합 (중복 제거)
     // HashSet 대신 Vec + dedup 로도 가능하지만 HashSet이 더 직관적
     let record_dates: std::collections::HashSet<NaiveDate> =
-        expenses.iter().map(|e| e.expense_date).collect();
+        verified_expenses.iter().map(|e| e.expense_date).collect();
     let record_days_score = calc_record_days_score(record_dates.len());
 
     // ── 4. receipt_score ──
     // receipt_verified == true인 건수 × 2, 상한 25
-    let verified_count = expenses
-        .iter()
-        .filter(|e| e.receipt_verified == Some(true))
-        .count() as i32;
+    let verified_count = verified_expenses.len() as i32;
     let receipt_score = (verified_count * 2).min(25);
 
     // ── 5. diary_score ──
     // one_line_diary가 Some이고 비어있지 않은 날 수
     let diary_dates: std::collections::HashSet<NaiveDate> = expenses
         .iter()
+        .filter(|e| e.receipt_verified == Some(true))
         .filter(|e| e.one_line_diary.as_deref().map_or(false, |s| !s.is_empty()))
         .map(|e| e.expense_date)
         .collect();
@@ -772,7 +776,7 @@ pub async fn recalculate_weekly_score(
                     // 주간 예산 = 월 예산 / 4 (정수 나눗셈)
                     let weekly_budget = b.total_budget / 4;
                     // 해당 주 실제 지출 합계
-                    let weekly_spent: i32 = expenses.iter().map(|e| e.amount).sum();
+                    let weekly_spent: i32 = verified_expenses.iter().map(|e| e.amount).sum();
 
                     if weekly_budget <= 0 {
                         // 예산이 0 이하면 설정 안 한 것으로 간주

@@ -21,11 +21,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -42,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -62,9 +69,21 @@ import com.ict.spentopia.R
 import com.ict.spentopia.feature.auth.connector.PhantomDeepLinkConnector
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
+import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
+import com.ict.spentopia.ui.theme.SpentopiaIconMuted
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavy
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import kotlinx.coroutines.launch
 import android.util.Log
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.CircleShape
 
 @Composable
 fun LoginScreen(
@@ -306,7 +325,10 @@ fun LoginScreen(
                 value = email,
                 onValueChange = { email = it },
                 placeholder = stringResource(id = R.string.login_email_placeholder),
-                keyboardType = KeyboardType.Email
+                keyboardType = KeyboardType.Email,
+                leadingIcon = {
+                    ShimmerLeadingIcon(imageVector = Icons.Outlined.Email)
+                }
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -321,6 +343,9 @@ fun LoginScreen(
                     VisualTransformation.None
                 } else {
                     PasswordVisualTransformation()
+                },
+                leadingIcon = {
+                    ShimmerLeadingIcon(imageVector = Icons.Outlined.Lock)
                 },
                 trailingIcon = {
                     IconButton(
@@ -545,6 +570,7 @@ private fun LoginInputField(
     placeholder: String,
     keyboardType: KeyboardType,
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    leadingIcon: @Composable (() -> Unit)? = null,
     trailingIcon: @Composable (() -> Unit)? = null
 ) {
     Column(
@@ -570,14 +596,15 @@ private fun LoginInputField(
             singleLine = true,
             visualTransformation = visualTransformation,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            leadingIcon = leadingIcon,
             trailingIcon = trailingIcon,
             shape = RoundedCornerShape(14.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = Color.White,
                 unfocusedContainerColor = Color.White,
-                focusedBorderColor = Color(0xFFE0E5EC),
+                focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.45f),
                 unfocusedBorderColor = Color(0xFFE0E5EC),
-                cursorColor = Color(0xFF2F7DF6)
+                cursorColor = SpentopiaMutedPurple
             )
         )
     }
@@ -589,12 +616,20 @@ private fun GradientLoginButton(
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+
     Button(
         onClick = onClick,
         enabled = enabled,
+        interactionSource = interactionSource,
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp),
+            .height(52.dp)
+            .graphicsLayer {
+                scaleX = if (pressed) 0.985f else 1f
+                scaleY = if (pressed) 0.985f else 1f
+            },
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         contentPadding = PaddingValues(0.dp)
@@ -604,12 +639,21 @@ private fun GradientLoginButton(
                 .fillMaxSize()
                 .background(
                     brush = Brush.horizontalGradient(
-                        colors = listOf(Color(0xFF17BEDA), Color(0xFF2F7DF6))
+                        colors = SpentopiaWalletGradientColors
                     ),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .border(
+                    border = BorderStroke(1.dp, SpentopiaGlowPurple.copy(alpha = 0.45f)),
                     shape = RoundedCornerShape(16.dp)
                 ),
             contentAlignment = Alignment.Center
         ) {
+            StaticButtonShine(
+                shape = RoundedCornerShape(16.dp),
+                pressed = pressed
+            )
+
             Text(
                 text = text,
                 color = Color.White,
@@ -630,9 +674,13 @@ private fun LoginOptionButton(
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+
     Button(
         onClick = onClick,
         enabled = enabled,
+        interactionSource = interactionSource,
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp)
@@ -647,28 +695,38 @@ private fun LoginOptionButton(
         ),
         contentPadding = PaddingValues(horizontal = 20.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(id = iconRes),
-                contentDescription = text,
-                modifier = Modifier.size(25.dp),
-                contentScale = ContentScale.Fit
+            StaticButtonShine(
+                shape = RoundedCornerShape(15.dp),
+                pressed = pressed
             )
-            Box(
-                modifier = Modifier.weight(1f),
-                contentAlignment = Alignment.Center
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = text,
-                    color = textColor,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
+                Image(
+                    painter = painterResource(id = iconRes),
+                    contentDescription = text,
+                    modifier = Modifier.size(25.dp),
+                    contentScale = ContentScale.Fit
                 )
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = text,
+                        color = textColor,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.size(25.dp))
             }
-            Spacer(modifier = Modifier.size(25.dp))
         }
     }
 }
@@ -737,6 +795,65 @@ private fun WalletLoginOptionButton(
                 Spacer(modifier = Modifier.size(27.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun StaticButtonShine(
+    shape: RoundedCornerShape,
+    pressed: Boolean = false
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.White.copy(alpha = if (pressed) 0.26f else 0.16f),
+                        Color.Transparent
+                    )
+                ),
+                shape = shape
+            )
+    )
+}
+
+@Composable
+private fun ShimmerLeadingIcon(
+    imageVector: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    val transition = rememberInfiniteTransition(label = "login-icon-shimmer")
+    val shimmerAlpha by transition.animateFloat(
+        initialValue = 0.18f,
+        targetValue = 0.42f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "icon-glow"
+    )
+
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .background(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        SpentopiaGlowPurple.copy(alpha = shimmerAlpha),
+                        SpentopiaMutedPurple.copy(alpha = shimmerAlpha * 0.55f),
+                        Color.Transparent
+                    )
+                ),
+                shape = CircleShape
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = imageVector,
+            contentDescription = null,
+            tint = SpentopiaIconMuted
+        )
     }
 }
 

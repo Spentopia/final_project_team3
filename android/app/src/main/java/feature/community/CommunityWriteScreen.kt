@@ -48,6 +48,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Brush
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavy
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 
 @Composable
 fun CommunityWriteScreen(
@@ -274,7 +279,7 @@ private fun CommunityWriteTitleCard(
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFE24BB4),
+                    focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f),
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     focusedTextColor = Color(0xFF1E2430),
                     unfocusedTextColor = Color(0xFF1E2430),
@@ -326,7 +331,7 @@ private fun CommunityWriteContentCard(
                 shape = RoundedCornerShape(14.dp),
                 minLines = 8,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFE24BB4),
+                    focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f),
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     focusedTextColor = Color(0xFF1E2430),
                     unfocusedTextColor = Color(0xFF1E2430),
@@ -349,18 +354,40 @@ private fun CommunityWriteSubmitSection(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFFE24BB4),
+            containerColor = Color.Transparent,
             contentColor = Color.White,
-            disabledContainerColor = Color(0xFFF3B8D9),
+            disabledContainerColor = MaterialTheme.colorScheme.outlineVariant,
             disabledContentColor = Color.White
         ),
-        contentPadding = PaddingValues(vertical = 14.dp)
+        contentPadding = PaddingValues(0.dp)
     ) {
-        Text(
-            text = "등록하기",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = if (isEnabled) {
+                        Brush.horizontalGradient(
+                            SpentopiaWalletGradientColors
+                        )
+                    } else {
+                        Brush.horizontalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.outlineVariant,
+                                MaterialTheme.colorScheme.outlineVariant
+                            )
+                        )
+                    },
+                    shape = RoundedCornerShape(14.dp)
+                )
+                .padding(vertical = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "등록하기",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 

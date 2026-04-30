@@ -31,6 +31,11 @@ val googleWebClientId = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID") ?: "
 // 값이 없으면 안드로이드 에뮬레이터에서 로컬 PC 백엔드에 접근하는 기본 주소를 사용합니다.
 val apiBaseUrl = localProperties.getProperty("API_BASE_URL") ?: "http://10.0.2.2:1113/"
 
+// Android WebView에서 열 NFT 마켓 웹 URL입니다.
+// 로컬 에뮬레이터에서는 localhost 대신 10.0.2.2를 사용합니다.
+val nftMarketWebViewUrl =
+    localProperties.getProperty("NFT_MARKET_WEBVIEW_URL") ?: "http://10.0.2.2:5173/marketplace"
+
 android {
     namespace = "com.ict.spentopia"
     compileSdk = 36
@@ -66,6 +71,14 @@ android {
             "String",
             "API_BASE_URL",
             "\"$apiBaseUrl\""
+        )
+
+        // MarketScreen WebView에서 로드할 NFT 마켓 웹 페이지 주소입니다.
+        // android/local.properties에 NFT_MARKET_WEBVIEW_URL=http://10.0.2.2:5173/marketplace 처럼 설정할 수 있습니다.
+        buildConfigField(
+            "String",
+            "NFT_MARKET_WEBVIEW_URL",
+            "\"$nftMarketWebViewUrl\""
         )
     }
 

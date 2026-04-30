@@ -49,6 +49,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ict.spentopia.data.remote.ChatRequest
 import com.ict.spentopia.data.remote.RetrofitClient
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavy
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 
@@ -170,7 +174,7 @@ fun ChatbotScreen(
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
-                            color = Color(0xFF12C2E9)
+                            color = SpentopiaMutedPurple
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
@@ -201,7 +205,7 @@ private fun ChatbotHeader(
             .fillMaxWidth()
             .background(
                 brush = Brush.horizontalGradient(
-                    colors = listOf(Color(0xFF12C2E9), Color(0xFF2F7DF6))
+                    colors = SpentopiaWalletGradientColors
                 )
             )
             .padding(horizontal = 12.dp, vertical = 14.dp),
@@ -261,7 +265,7 @@ private fun ChatMessageBubble(
                 bottomStart = if (isUser) 16.dp else 4.dp,
                 bottomEnd = if (isUser) 4.dp else 16.dp
             ),
-            color = if (isUser) Color(0xFF2F7DF6) else MaterialTheme.colorScheme.surface,
+            color = if (isUser) SpentopiaMutedPurple else MaterialTheme.colorScheme.surface,
             tonalElevation = 1.dp,
             shadowElevation = 0.dp
         ) {
@@ -306,11 +310,11 @@ private fun ChatInputBar(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.background,
                 unfocusedContainerColor = MaterialTheme.colorScheme.background,
-                focusedBorderColor = Color(0xFF12C2E9),
+                focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f),
                 unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                 focusedTextColor = MaterialTheme.colorScheme.onBackground,
                 unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                cursorColor = Color(0xFF12C2E9)
+                cursorColor = SpentopiaMutedPurple
             )
         )
 
@@ -322,7 +326,7 @@ private fun ChatInputBar(
             modifier = Modifier.size(54.dp),
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF2F7DF6),
+                containerColor = SpentopiaMutedPurple,
                 contentColor = Color.White,
                 disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant

@@ -25,6 +25,12 @@ pub struct PostAuthor {
     pub profile_image: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommentAuthor {
+    pub nickname: Option<String>,
+    pub profile_image: Option<String>,
+}
+
 // public.posts 테이블
 // 커뮤니티 게시물 (콘테스트 참가 / 일반)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,6 +49,21 @@ pub struct Post {
     pub deleted_at: Option<DateTime<Utc>>,
     pub view_count: i32,
     pub users: Option<PostAuthor>,
+}
+
+// public.comments 테이블
+// 커뮤니티 게시물 댓글
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Comment {
+    pub id: Uuid,
+    pub post_id: Uuid,
+    pub user_id: Uuid,
+    pub content: String,
+    pub is_deleted: bool,
+    pub deleted_at: Option<DateTime<Utc>>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+    pub users: Option<CommentAuthor>,
 }
 
 // public.votes 테이블

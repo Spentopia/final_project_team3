@@ -39,6 +39,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -75,6 +76,10 @@ import com.ict.spentopia.feature.community.getInitialCommunityPosts
 import com.ict.spentopia.feature.home.HomeScreen
 import com.ict.spentopia.feature.market.MarketScreen
 import com.ict.spentopia.feature.mypage.ProfileAvatarScreen
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
+import com.ict.spentopia.ui.theme.SpentopiaNavy
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import kotlinx.coroutines.launch
 
@@ -534,7 +539,8 @@ fun AppNavGraph(
                         isWalletConnected = walletConnected,
                         walletAddress = walletAddress,
                         walletProvider = walletProvider,
-                        onWalletConnectClick = { walletType -> startWalletReconnect(walletType) }
+                        onWalletConnectClick = { walletType -> startWalletReconnect(walletType) },
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
 
@@ -665,7 +671,14 @@ private fun FloatingChatbotButton(
 ) {
     FloatingActionButton(
         onClick = onClick,
-        modifier = modifier.size(62.dp),
+        modifier = modifier
+            .shadow(
+                elevation = 12.dp,
+                shape = MaterialTheme.shapes.extraLarge,
+                ambientColor = SpentopiaMutedPurple.copy(alpha = 0.18f),
+                spotColor = SpentopiaMutedPurple.copy(alpha = 0.25f)
+            )
+            .size(62.dp),
         containerColor = Color.Transparent,
         contentColor = Color.White
     ) {
@@ -674,10 +687,7 @@ private fun FloatingChatbotButton(
                 .fillMaxSize()
                 .background(
                     brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF12C2E9),
-                            Color(0xFF8B5CF6)
-                        )
+                        colors = SpentopiaWalletGradientColors
                     ),
                     shape = MaterialTheme.shapes.extraLarge
                 ),

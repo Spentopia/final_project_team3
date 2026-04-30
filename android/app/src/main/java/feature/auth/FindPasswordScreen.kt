@@ -36,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ict.spentopia.R
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import kotlinx.coroutines.launch
 
 @Composable
@@ -101,7 +102,7 @@ fun FindPasswordScreen(
             Image(
                 painter = painterResource(id = R.drawable.ic_spentopia_logo),
                 contentDescription = stringResource(id = R.string.spentopia_logo_content_description),
-                modifier = Modifier.size(74.dp),
+                modifier = Modifier.size(96.dp),
                 contentScale = ContentScale.Fit
             )
 
@@ -153,9 +154,9 @@ fun FindPasswordScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White,
-                    focusedBorderColor = Color(0xFFE0E5EC),
+                    focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.45f),
                     unfocusedBorderColor = Color(0xFFE0E5EC),
-                    cursorColor = Color(0xFF2F7DF6)
+                    cursorColor = SpentopiaMutedPurple
                 )
             )
 

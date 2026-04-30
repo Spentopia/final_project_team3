@@ -14,10 +14,11 @@ use uuid::Uuid;
 
 use super::{
     dto::{
-        ChatResponse, ContestEventResponse, CreatePostRequest, PostListResponse, PostResponse,
-        PostSort, PostType, UpdatePostRequest, UploadCommunityImageResponse,
+        ChatResponse, CommentResponse, ContestEventResponse, CreateCommentRequest,
+        CreatePostRequest, PostListResponse, PostResponse, PostSort, PostType,
+        UpdateCommentRequest, UpdatePostRequest, UploadCommunityImageResponse,
     },
-    model::{ChatbotLog, ContestEvent, Post},
+    model::{ChatbotLog, Comment, ContestEvent, Post},
 };
 use crate::{filter, state::AppState};
 
@@ -102,6 +103,30 @@ async fn to_post_response(state: &AppState, post: Post) -> PostResponse {
     }
 }
 
+async fn to_comment_response(state: &AppState, comment: Comment) -> CommentResponse {
+    let author_nickname = comment.users.as_ref().and_then(|author| author.nickname.clone());
+    let author_profile_image = comment
+        .users
+        .as_ref()
+        .and_then(|author| author.profile_image.clone());
+    let author_profile_image_url = match author_profile_image.as_deref() {
+        Some(path) => create_profile_image_signed_url(state, path).await.ok(),
+        None => None,
+    };
+
+    CommentResponse {
+        id: comment.id,
+        post_id: comment.post_id,
+        user_id: comment.user_id,
+        author_nickname,
+        author_profile_image,
+        author_profile_image_url,
+        content: comment.content,
+        created_at: comment.created_at,
+        updated_at: comment.updated_at,
+    }
+}
+
 async fn ensure_admin(state: &AppState, user_id: Uuid) -> Result<()> {
     let role = crate::auth::service::get_user_role(state, user_id).await?;
     if role.as_deref() != Some("admin") {
@@ -139,6 +164,37 @@ async fn get_post(state: &AppState, post_id: Uuid) -> Result<Post> {
         .into_iter()
         .next()
         .ok_or_else(|| anyhow!("게시물을 찾을 수 없습니다."))
+}
+
+async fn get_comment(state: &AppState, comment_id: Uuid) -> Result<Comment> {
+    let url = format!(
+        "{}/rest/v1/comments?id=eq.{}&is_deleted=eq.false&select=*,users!comments_user_id_fkey(nickname,profile_image)&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        comment_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("comments 단건 SELECT 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("comments 단건 SELECT 실패: {}", body));
+    }
+
+    let comments: Vec<Comment> = res.json().await.context("comments 단건 역직렬화 실패")?;
+    comments
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("댓글을 찾을 수 없습니다."))
 }
 
 async fn increment_post_view_count(state: &AppState, post_id: Uuid) -> Result<i32> {
@@ -205,6 +261,11 @@ fn validate_post_type(req: &CreatePostRequest) -> Result<()> {
                 ));
             }
         }
+        PostType::Free => {
+            if req.contest_id.is_some() {
+                return Err(anyhow!("자유 게시글에는 contest_id를 넣을 수 없습니다."));
+            }
+        }
         PostType::Contest => {
             if req.contest_id.is_none() {
                 return Err(anyhow!("아바타 콘테스트 게시글에는 contest_id가 필요합니다."));
@@ -235,6 +296,20 @@ fn validate_post_text(title: Option<&str>, content: Option<&str>) -> Result<()> 
     Ok(())
 }
 
+fn validate_comment_content(content: &str) -> Result<String> {
+    let content = content.trim();
+
+    if content.is_empty() {
+        return Err(anyhow!("댓글 내용은 비어 있을 수 없습니다."));
+    }
+
+    if !filter::check(content) {
+        return Err(anyhow!("댓글 내용에 사용할 수 없는 표현이 포함되어 있습니다."));
+    }
+
+    Ok(content.to_string())
+}
+
 const CHOSEONG_COMPAT: [char; 19] = [
     'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ',
     'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ',
@@ -255,7 +330,16 @@ fn contains_choseong_query(value: &str) -> bool {
 }
 
 fn title_matches_choseong(title: &str, query: &str) -> bool {
-    let title_choseong: String = title.chars().filter_map(hangul_choseong).collect();
+    let title_choseong: String = title
+        .chars()
+        .filter_map(|ch| {
+            if CHOSEONG_COMPAT.contains(&ch) {
+                Some(ch)
+            } else {
+                hangul_choseong(ch)
+            }
+        })
+        .collect();
     title_choseong.contains(query)
 }
 
@@ -298,6 +382,7 @@ fn build_upload_path(
             Ok(format!("notices/{}/{}.{}", post_id, file_id, extension))
         }
         "request" => Ok(format!("requests/{}/{}.{}", user_id, file_id, extension)),
+        "free" => Ok(format!("free/{}/{}.{}", user_id, file_id, extension)),
         _ => Err(anyhow!("지원하지 않는 post_type입니다.")),
     }
 }
@@ -463,6 +548,7 @@ pub async fn list_contests(state: &AppState) -> Result<Vec<ContestEventResponse>
 pub async fn list_posts(
     state: &AppState,
     contest_id: Option<Uuid>,
+    post_type: Option<PostType>,
     sort: PostSort,
     title: Option<String>,
     page: u32,
@@ -482,6 +568,10 @@ pub async fn list_posts(
 
     if let Some(id) = contest_id {
         filters.push(format!("contest_id=eq.{}", id));
+    }
+
+    if let Some(post_type) = post_type {
+        filters.push(format!("post_type=eq.{}", post_type.as_str()));
     }
 
     if let Some(title) = search_title.as_deref() {
@@ -793,6 +883,185 @@ pub async fn vote_post(state: &AppState, user_id: Uuid, post_id: Uuid) -> Result
         let body = res.text().await.unwrap_or_default();
         return Err(anyhow!("votes INSERT 실패: {}", body));
     }
+    Ok(())
+}
+
+// ── 댓글 ─────────────────────────────────────────────────────
+
+pub async fn list_comments(state: &AppState, post_id: Uuid) -> Result<Vec<CommentResponse>> {
+    let post = get_post(state, post_id).await?;
+    if post.post_type == "notice" {
+        return Err(anyhow!("공지사항에는 댓글을 사용할 수 없습니다."));
+    }
+
+    let url = format!(
+        "{}/rest/v1/comments?post_id=eq.{}&is_deleted=eq.false&select=*,users!comments_user_id_fkey(nickname,profile_image)&order=created_at.asc",
+        state.config.supabase_url.trim_end_matches('/'),
+        post_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("comments SELECT 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("comments SELECT 실패: {}", body));
+    }
+
+    let comments: Vec<Comment> = res.json().await.context("comments 역직렬화 실패")?;
+    let mut items = Vec::with_capacity(comments.len());
+
+    for comment in comments {
+        items.push(to_comment_response(state, comment).await);
+    }
+
+    Ok(items)
+}
+
+pub async fn create_comment(
+    state: &AppState,
+    user_id: Uuid,
+    post_id: Uuid,
+    req: CreateCommentRequest,
+) -> Result<CommentResponse> {
+    let post = get_post(state, post_id).await?;
+    if post.post_type == "notice" {
+        return Err(anyhow!("공지사항에는 댓글을 작성할 수 없습니다."));
+    }
+
+    let content = validate_comment_content(&req.content)?;
+    let url = format!(
+        "{}/rest/v1/comments",
+        state.config.supabase_url.trim_end_matches('/'),
+    );
+
+    let res = state
+        .http_client
+        .post(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=representation")
+        .json(&serde_json::json!({
+            "post_id": post_id,
+            "user_id": user_id,
+            "content": content,
+        }))
+        .send()
+        .await
+        .context("comments INSERT 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("comments INSERT 실패: {}", body));
+    }
+
+    let inserted: Vec<Comment> = res.json().await.context("comments INSERT 역직렬화 실패")?;
+    let comment_id = inserted
+        .into_iter()
+        .next()
+        .map(|comment| comment.id)
+        .ok_or_else(|| anyhow!("comments INSERT 결과가 비어있음"))?;
+
+    let comment = get_comment(state, comment_id).await?;
+    Ok(to_comment_response(state, comment).await)
+}
+
+pub async fn update_comment(
+    state: &AppState,
+    user_id: Uuid,
+    comment_id: Uuid,
+    req: UpdateCommentRequest,
+) -> Result<CommentResponse> {
+    let comment = get_comment(state, comment_id).await?;
+
+    if comment.user_id != user_id {
+        return Err(anyhow!("본인 댓글만 수정할 수 있습니다."));
+    }
+
+    let content = validate_comment_content(&req.content)?;
+    let url = format!(
+        "{}/rest/v1/comments?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        comment_id,
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=representation")
+        .json(&serde_json::json!({ "content": content }))
+        .send()
+        .await
+        .context("comments UPDATE 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("comments UPDATE 실패: {}", body));
+    }
+
+    let updated: Vec<Comment> = res.json().await.context("comments UPDATE 역직렬화 실패")?;
+    let updated_id = updated
+        .into_iter()
+        .next()
+        .map(|comment| comment.id)
+        .ok_or_else(|| anyhow!("comments UPDATE 결과가 비어있음"))?;
+
+    let comment = get_comment(state, updated_id).await?;
+    Ok(to_comment_response(state, comment).await)
+}
+
+pub async fn delete_comment(state: &AppState, user_id: Uuid, comment_id: Uuid) -> Result<()> {
+    let comment = get_comment(state, comment_id).await?;
+
+    if comment.user_id != user_id {
+        return Err(anyhow!("본인 댓글만 삭제할 수 있습니다."));
+    }
+
+    let url = format!(
+        "{}/rest/v1/comments?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        comment_id,
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=minimal")
+        .json(&serde_json::json!({
+            "is_deleted": true,
+            "deleted_at": Utc::now(),
+        }))
+        .send()
+        .await
+        .context("comments DELETE 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("comments DELETE 실패: {}", body));
+    }
+
     Ok(())
 }
 

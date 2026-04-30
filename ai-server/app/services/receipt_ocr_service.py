@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 
 from app.clients.openai_client import OpenAIClient
@@ -14,18 +14,20 @@ class ReceiptOcrService:
         # 2) 모델 응답은 문자열/null 형태일 수 있으므로
         #    서비스 레이어에서 비교 가능한 타입으로 정규화한다.
         receipt_date = ReceiptOcrService._parse_date(ocr_result.get("receipt_date"))
-        user_date = ReceiptOcrService._parse_date(expected_date)
         receipt_amount = ReceiptOcrService._parse_amount(ocr_result.get("total_amount"))
 
-        # 3) 날짜/금액이 모두 정확히 일치할 때만 인증 성공으로 본다.
-        date_matched = receipt_date is not None and user_date is not None and receipt_date == user_date
-        amount_matched = receipt_amount is not None and receipt_amount == expected_amount
-        is_verified = date_matched and amount_matched
+        # 3) 인증은 사용자가 입력한 날짜/금액과의 일치가 아니라
+        #    영수증 자체에서 결제일/총액이 추출되고, 결제일이 최근 7일 이내인지로 판단한다.
+        has_receipt_date = receipt_date is not None
+        has_total_amount = receipt_amount is not None
+        is_recent_receipt = ReceiptOcrService._is_recent_receipt_date(receipt_date)
+        is_verified = has_receipt_date and has_total_amount and is_recent_receipt
 
         # 4) 프론트가 그대로 렌더링할 수 있도록
         #    OCR 원본 결과, 기대값, 최종 판정 결과를 한 응답에 묶어 반환한다.
         return {
             "ocr": {
+                "merchant_name": ocr_result.get("merchant_name"),
                 "receipt_date": receipt_date.isoformat() if receipt_date else None,
                 "total_amount": receipt_amount,
                 "raw_text": ocr_result.get("raw_text", ""),
@@ -33,14 +35,19 @@ class ReceiptOcrService:
                 "error": ocr_result.get("error"),
             },
             "expected": {
-                "date": user_date.isoformat() if user_date else expected_date,
+                "date": expected_date,
                 "amount": expected_amount,
             },
             "verification": {
                 "is_verified": is_verified,
-                "date_matched": date_matched,
-                "amount_matched": amount_matched,
-                "reason": ReceiptOcrService._build_reason(date_matched, amount_matched),
+                "date_matched": has_receipt_date,
+                "amount_matched": has_total_amount,
+                "is_recent_receipt": is_recent_receipt,
+                "reason": ReceiptOcrService._build_reason(
+                    has_receipt_date,
+                    has_total_amount,
+                    is_recent_receipt,
+                ),
             },
         }
 
@@ -69,13 +76,24 @@ class ReceiptOcrService:
             return None
 
     @staticmethod
-    def _build_reason(date_matched: bool, amount_matched: bool):
+    def _is_recent_receipt_date(receipt_date):
+        if receipt_date is None:
+            return False
+
+        today = date.today()
+        earliest_allowed_date = today - timedelta(days=7)
+        return earliest_allowed_date <= receipt_date <= today
+
+    @staticmethod
+    def _build_reason(has_receipt_date: bool, has_total_amount: bool, is_recent_receipt: bool):
         # 프론트에서 토스트/상세 문구로 바로 쓰기 쉽게
         # 실패 원인을 사람이 읽는 문장으로 만들어 준다.
-        if date_matched and amount_matched:
-            return "영수증 날짜와 금액이 모두 정확히 일치합니다."
-        if not date_matched and not amount_matched:
-            return "영수증 날짜와 금액이 모두 일치하지 않습니다."
-        if not date_matched:
-            return "영수증 날짜가 입력한 날짜와 정확히 일치하지 않습니다."
-        return "영수증 금액이 입력한 금액과 정확히 일치하지 않습니다."
+        if has_receipt_date and has_total_amount and is_recent_receipt:
+            return "영수증 인증 완료 시 보상이 지급됩니다."
+        if not has_receipt_date and not has_total_amount:
+            return "영수증에서 결제 날짜와 총 금액을 추출하지 못했습니다."
+        if not has_receipt_date:
+            return "영수증에서 결제 날짜를 추출하지 못했습니다."
+        if not has_total_amount:
+            return "영수증에서 총 금액을 추출하지 못했습니다."
+        return "최근 7일 이내 영수증만 인증할 수 있습니다."

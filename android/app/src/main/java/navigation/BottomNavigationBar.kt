@@ -5,6 +5,8 @@ import androidx.compose.material3.NavigationBar
 
 // 하단 메뉴 한 칸씩 만드는 아이템
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.MaterialTheme
 
 // 메뉴 이름을 글자로 보여주기 위한 Text
 import androidx.compose.material3.Text
@@ -37,7 +39,9 @@ fun BottomNavigationBar(navController: NavController) {
     val currentRoute = navBackStackEntry.value?.destination?.route
 
     // 하단 네비게이션 바 영역
-    NavigationBar {
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
 
         // 메뉴 목록을 하나씩 꺼내서 하단 버튼으로 만듦
         items.forEach { item ->
@@ -57,7 +61,14 @@ fun BottomNavigationBar(navController: NavController) {
                 // 아이콘 자리 대신 글자 라벨 표시
                 icon = {
                     Text(getBottomMenuLabel(item))
-                }
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
         }
     }

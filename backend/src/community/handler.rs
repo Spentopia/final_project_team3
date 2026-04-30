@@ -10,7 +10,10 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use super::{
-    dto::{ChatRequest, CreatePostRequest, PostSort, UpdatePostRequest},
+    dto::{
+        ChatRequest, CreateCommentRequest, CreatePostRequest, PostSort, PostType,
+        UpdateCommentRequest, UpdatePostRequest,
+    },
     service,
 };
 use crate::state::AppState;
@@ -18,6 +21,7 @@ use crate::state::AppState;
 #[derive(Deserialize)]
 pub struct PostQuery {
     pub contest_id: Option<Uuid>,
+    pub post_type: Option<PostType>,
     pub sort: Option<PostSort>,
     pub title: Option<String>,
     pub page: Option<u32>,
@@ -27,7 +31,11 @@ pub struct PostQuery {
 fn map_community_error(error: anyhow::Error) -> axum::response::Response {
     let message = error.to_string();
 
-    if message.contains("권한") || message.contains("본인 게시글") || message.contains("관리자") {
+    if message.contains("권한")
+        || message.contains("본인 게시글")
+        || message.contains("본인 댓글")
+        || message.contains("관리자")
+    {
         return (StatusCode::FORBIDDEN, message).into_response();
     }
 
@@ -57,6 +65,8 @@ fn map_community_error(error: anyhow::Error) -> axum::response::Response {
         || message.contains("이미지만")
         || message.contains("지원하지 않는 post_type")
         || message.contains("사용할 수 없는 표현")
+        || message.contains("댓글 내용")
+        || message.contains("공지사항에는 댓글")
     {
         return (StatusCode::BAD_REQUEST, message).into_response();
     }
@@ -95,6 +105,7 @@ pub async fn list_posts(
     match service::list_posts(
         &state,
         query.contest_id,
+        query.post_type,
         query.sort.unwrap_or_default(),
         query.title,
         query.page.unwrap_or(1),
@@ -222,6 +233,82 @@ pub async fn vote_post(
             }
             map_community_error(e)
         }
+    }
+}
+
+#[utoipa::path(
+    get, path = "/api/posts/{id}/comments",
+    tag = "커뮤니티",
+    params(("id" = Uuid, Path, description = "게시물 ID")),
+    responses((status = 200, description = "댓글 목록 조회 성공"), (status = 400, description = "공지사항 댓글 불가")),
+    security(("bearer_auth" = []))
+)]
+pub async fn list_comments(
+    State(state): State<AppState>,
+    Extension(_user_id): Extension<Uuid>,
+    Path(post_id): Path<Uuid>,
+) -> impl IntoResponse {
+    match service::list_comments(&state, post_id).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_community_error(e),
+    }
+}
+
+#[utoipa::path(
+    post, path = "/api/posts/{id}/comments",
+    tag = "커뮤니티",
+    params(("id" = Uuid, Path, description = "게시물 ID")),
+    request_body = CreateCommentRequest,
+    responses((status = 201, description = "댓글 작성 성공"), (status = 400, description = "잘못된 요청")),
+    security(("bearer_auth" = []))
+)]
+pub async fn create_comment(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(post_id): Path<Uuid>,
+    Json(req): Json<CreateCommentRequest>,
+) -> impl IntoResponse {
+    match service::create_comment(&state, user_id, post_id, req).await {
+        Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
+        Err(e) => map_community_error(e),
+    }
+}
+
+#[utoipa::path(
+    patch, path = "/api/comments/{id}",
+    tag = "커뮤니티",
+    params(("id" = Uuid, Path, description = "댓글 ID")),
+    request_body = UpdateCommentRequest,
+    responses((status = 200, description = "댓글 수정 성공"), (status = 403, description = "권한 없음")),
+    security(("bearer_auth" = []))
+)]
+pub async fn update_comment(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(comment_id): Path<Uuid>,
+    Json(req): Json<UpdateCommentRequest>,
+) -> impl IntoResponse {
+    match service::update_comment(&state, user_id, comment_id, req).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_community_error(e),
+    }
+}
+
+#[utoipa::path(
+    delete, path = "/api/comments/{id}",
+    tag = "커뮤니티",
+    params(("id" = Uuid, Path, description = "댓글 ID")),
+    responses((status = 204, description = "댓글 삭제 성공"), (status = 403, description = "권한 없음")),
+    security(("bearer_auth" = []))
+)]
+pub async fn delete_comment(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(comment_id): Path<Uuid>,
+) -> impl IntoResponse {
+    match service::delete_comment(&state, user_id, comment_id).await {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => map_community_error(e),
     }
 }
 
