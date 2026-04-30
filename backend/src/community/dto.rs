@@ -14,6 +14,7 @@ pub enum PostType {
     Notice,
     Request,
     Contest,
+    Free,
 }
 
 impl PostType {
@@ -22,6 +23,7 @@ impl PostType {
             PostType::Notice => "notice",
             PostType::Request => "request",
             PostType::Contest => "contest",
+            PostType::Free => "free",
         }
     }
 }

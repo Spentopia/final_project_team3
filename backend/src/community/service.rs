@@ -205,6 +205,11 @@ fn validate_post_type(req: &CreatePostRequest) -> Result<()> {
                 ));
             }
         }
+        PostType::Free => {
+            if req.contest_id.is_some() {
+                return Err(anyhow!("자유 게시글에는 contest_id를 넣을 수 없습니다."));
+            }
+        }
         PostType::Contest => {
             if req.contest_id.is_none() {
                 return Err(anyhow!("아바타 콘테스트 게시글에는 contest_id가 필요합니다."));
@@ -255,7 +260,16 @@ fn contains_choseong_query(value: &str) -> bool {
 }
 
 fn title_matches_choseong(title: &str, query: &str) -> bool {
-    let title_choseong: String = title.chars().filter_map(hangul_choseong).collect();
+    let title_choseong: String = title
+        .chars()
+        .filter_map(|ch| {
+            if CHOSEONG_COMPAT.contains(&ch) {
+                Some(ch)
+            } else {
+                hangul_choseong(ch)
+            }
+        })
+        .collect();
     title_choseong.contains(query)
 }
 
@@ -298,6 +312,7 @@ fn build_upload_path(
             Ok(format!("notices/{}/{}.{}", post_id, file_id, extension))
         }
         "request" => Ok(format!("requests/{}/{}.{}", user_id, file_id, extension)),
+        "free" => Ok(format!("free/{}/{}.{}", user_id, file_id, extension)),
         _ => Err(anyhow!("지원하지 않는 post_type입니다.")),
     }
 }
@@ -463,6 +478,7 @@ pub async fn list_contests(state: &AppState) -> Result<Vec<ContestEventResponse>
 pub async fn list_posts(
     state: &AppState,
     contest_id: Option<Uuid>,
+    post_type: Option<PostType>,
     sort: PostSort,
     title: Option<String>,
     page: u32,
@@ -482,6 +498,10 @@ pub async fn list_posts(
 
     if let Some(id) = contest_id {
         filters.push(format!("contest_id=eq.{}", id));
+    }
+
+    if let Some(post_type) = post_type {
+        filters.push(format!("post_type=eq.{}", post_type.as_str()));
     }
 
     if let Some(title) = search_title.as_deref() {

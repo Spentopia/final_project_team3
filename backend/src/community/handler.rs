@@ -10,7 +10,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use super::{
-    dto::{ChatRequest, CreatePostRequest, PostSort, UpdatePostRequest},
+    dto::{ChatRequest, CreatePostRequest, PostSort, PostType, UpdatePostRequest},
     service,
 };
 use crate::state::AppState;
@@ -18,6 +18,7 @@ use crate::state::AppState;
 #[derive(Deserialize)]
 pub struct PostQuery {
     pub contest_id: Option<Uuid>,
+    pub post_type: Option<PostType>,
     pub sort: Option<PostSort>,
     pub title: Option<String>,
     pub page: Option<u32>,
@@ -95,6 +96,7 @@ pub async fn list_posts(
     match service::list_posts(
         &state,
         query.contest_id,
+        query.post_type,
         query.sort.unwrap_or_default(),
         query.title,
         query.page.unwrap_or(1),
