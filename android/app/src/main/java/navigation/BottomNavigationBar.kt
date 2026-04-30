@@ -23,7 +23,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 @Composable
 fun BottomNavigationBar(navController: NavController) {
 
-    // 하단 바에 보여줄 메뉴 목록
+    // 하단 탭 진입점
     val items = listOf(
         Route.Home,
         Route.Budget,
@@ -32,7 +32,7 @@ fun BottomNavigationBar(navController: NavController) {
         Route.MyPage
     )
 
-    // 현재 네비게이션 상태 가져옴
+    // 현재 탭 상태 읽음
     val navBackStackEntry = navController.currentBackStackEntryAsState()
 
     // 현재 보고 있는 화면 route 저장

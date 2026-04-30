@@ -1,6 +1,7 @@
 package com.ict.spentopia.feature.budget
 
-// 예산 설정 화면에서 사용하는 데이터 클래스
+// 예산 설정 저장 데이터 클래스임
+// 월수입/지출목표 저장용
 data class BudgetSettingsData(
 
     // 월 수입

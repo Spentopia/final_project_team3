@@ -1,5 +1,8 @@
 package com.ict.spentopia.feature.avatar
 
+// 아바타 화면임
+// 아바타 목록/구매/보유/선택 영역
+
 import androidx.compose.foundation.background // 수정: 카드 배경에 사용
 import androidx.compose.foundation.border // 수정: 선택 테두리에 사용
 import androidx.compose.foundation.clickable // 수정: 클릭 처리에 사용

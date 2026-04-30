@@ -1,5 +1,8 @@
 package com.ict.spentopia.feature.mypage // 마이페이지 패키지
 
+// 마이페이지 화면임
+// 프로필/아바타/설정/테마 관리
+
 import android.net.Uri // 이미지 uri
 import androidx.activity.compose.rememberLauncherForActivityResult // 갤러리 런처
 import androidx.activity.result.contract.ActivityResultContracts // 갤러리 계약

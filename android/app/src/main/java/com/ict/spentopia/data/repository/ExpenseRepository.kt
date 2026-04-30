@@ -4,7 +4,8 @@ import com.ict.spentopia.data.local.ExpenseDao
 import com.ict.spentopia.data.local.ExpenseEntity
 import kotlinx.coroutines.flow.Flow
 
-// 소비 기록 DB에 접근하는 Repository 클래스
+// 소비 기록 DB 접근 Repository임
+// ViewModel-DAO 사이 중간층
 class ExpenseRepository(
     // ExpenseDao를 주입받아서 DB 작업에 사용
     private val expenseDao: ExpenseDao

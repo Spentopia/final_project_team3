@@ -62,7 +62,8 @@ import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 
-// 예산 설정 화면
+// 예산 설정 화면임
+// AI 추천 플랜/직접 조절/저장 흐름
 @Composable
 fun BudgetScreen(
     // ViewModel을 연결해서 화면 상태를 가져옴
@@ -90,7 +91,8 @@ fun BudgetScreen(
     // 월 수입 - 총 지출 - 저축 목표
     val remainingAmount = budgetState.monthlyIncome - totalExpense - budgetState.savingGoal
 
-    // AI 추천 플랜 샘플 데이터
+    // AI 추천 플랜 샘플 데이터임
+    // 서버 추천 전 예시값
     val aiPlanList = listOf(
         BudgetPlanUiData(
             title = "월 50만원 생활 플랜",

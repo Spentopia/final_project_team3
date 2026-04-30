@@ -57,7 +57,8 @@ import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 import kotlin.math.roundToInt
 
-// 소비분석 메인 화면
+// 소비분석 메인 화면임
+// 요약/비중/AI리포트/공유/다운로드 한 화면
 @Composable
 fun AnalysisScreen(
     viewModel: AnalysisViewModel = viewModel()
@@ -92,6 +93,7 @@ fun AnalysisScreen(
             .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // 상단 제목 + 공유/다운로드
         AnalysisHeaderSection(
             onShareClick = {
                 shareAnalysisReport(context, reportText)
@@ -113,6 +115,7 @@ fun AnalysisScreen(
             }
         )
 
+        // 이번 달 핵심 수치 먼저 보여줌
         SummaryCardSection(
             totalExpense = uiState.totalExpense,
             averageDailyExpense = uiState.averageDailyExpense,
@@ -144,6 +147,7 @@ fun AnalysisScreen(
             categoryList = uiState.categoryList
         )
 
+        // AI 분석 리포트 영역
         AiAnalysisReportSection(
             tipList = uiState.tipList,
             totalExpense = uiState.totalExpense,

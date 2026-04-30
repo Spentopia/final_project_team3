@@ -1,5 +1,8 @@
 package com.example.spentopia.feature.plaza
 
+// 광장 화면임
+// 이벤트/길드/미니게임 허브
+
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background

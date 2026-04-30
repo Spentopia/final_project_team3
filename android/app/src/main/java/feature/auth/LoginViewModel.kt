@@ -29,6 +29,8 @@ class LoginViewModel(
     application: Application
 ) : AndroidViewModel(application) {
 
+    // 로그인 로직 담당 VM임
+    // 인증/토큰교환/저장 분리용
     private val walletRepository: WalletRepository =
         WalletRepositoryImpl(application)
 
@@ -50,9 +52,8 @@ class LoginViewModel(
     private val _walletNonceError = MutableStateFlow<String?>(null)
     val walletNonceError: StateFlow<String?> = _walletNonceError
 
-    // ===============================
-    // 이메일 로그인
-    // ===============================
+    // 이메일 로그인 흐름
+    // Supabase -> 우리 서버 -> 토큰 저장
     fun emailLogin(
         email: String,
         password: String,
@@ -67,6 +68,7 @@ class LoginViewModel(
                     this.password = password
                 }
 
+                // Supabase 세션 토큰 꺼냄
                 val session =
                     SupabaseClient.client.auth.currentSessionOrNull()
 
@@ -81,7 +83,7 @@ class LoginViewModel(
                     )
                 )
 
-                // 토큰 저장
+                // 로그인 유지 토큰 저장
                 val prefs = getApplication<Application>()
                     .getSharedPreferences(
                         "auth_prefs",
@@ -102,9 +104,8 @@ class LoginViewModel(
         }
     }
 
-    // ===============================
-    // 구글 로그인
-    // ===============================
+    // 구글 로그인도 같은 구조임
+    // 외부 인증 후 우리 서버 토큰으로 바꿈
     fun googleLogin(
         idToken: String,
         onSuccess: () -> Unit = {},
@@ -117,6 +118,7 @@ class LoginViewModel(
                     return@launch
                 }
 
+                // Google idToken 전달함
                 SupabaseClient.client.auth.signInWith(IDToken) {
                     this.idToken = idToken
                     provider = Google
@@ -155,6 +157,7 @@ class LoginViewModel(
         }
     }
 
+    // 카카오 시작 URL 먼저 받음
     fun getKakaoLoginUrl(
         onSuccess: (KakaoStartResponse) -> Unit = {},
         onError: (String) -> Unit = {}
@@ -171,6 +174,7 @@ class LoginViewModel(
         }
     }
 
+    // 카카오 code/state로 최종 토큰 받음
     fun kakaoLogin(
         code: String,
         state: String,
@@ -203,6 +207,7 @@ class LoginViewModel(
         }
     }
 
+    // 지갑 세션은 일반 토큰과 별도임
     fun saveWalletSession(
         walletAddress: String,
         walletProvider: String,
@@ -230,6 +235,7 @@ class LoginViewModel(
         }
     }
 
+    // 지갑 로그인은 nonce -> 서명 -> 검증 순서임
     fun walletLoginApp(
         walletAddress: String,
         nonce: String,

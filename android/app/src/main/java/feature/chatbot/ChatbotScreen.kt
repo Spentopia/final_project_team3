@@ -1,5 +1,8 @@
 package com.ict.spentopia.feature.chatbot
 
+// AI 챗봇 화면임
+// 질문/답변 주고받는 대화형 UI
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

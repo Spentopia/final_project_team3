@@ -36,6 +36,9 @@ class HomeViewModel(
     private val repository: ExpenseRepository
 ) : ViewModel() {
 
+    // HomeViewModel은 화면이 바로 쓰기 쉬운 형태로 데이터를 가공합니다.
+    // UI는 DB를 직접 다루지 않고, 여기서 정리된 StateFlow만 구독하면 됩니다.
+
     // -----------------------------------------
     // 1) 전체 소비 목록(Entity)
     // -----------------------------------------
@@ -52,8 +55,7 @@ class HomeViewModel(
     // -----------------------------------------
     // 2) 전체 소비 목록(UI용)
     // -----------------------------------------
-    // HomeScreen에서는 이 값을 바로 구독하면 됩니다.
-    // 즉, Entity -> ExpenseItemData 변환을 ViewModel에서 미리 처리합니다.
+    // 화면에서는 Entity 대신 UI용 모델을 사용해 렌더링합니다.
     val expenseUiList: StateFlow<List<ExpenseItemData>> =
         repository
             .getAllExpenses()
@@ -99,8 +101,7 @@ class HomeViewModel(
     // -----------------------------------------
     // 5) 현재 선택된 월의 소비 목록(Entity)
     // -----------------------------------------
-    // DAO의 getExpensesByMonth()를 그대로 사용해서
-    // 현재 선택한 연-월의 소비 데이터만 가져옵니다.
+    // 선택된 월이 바뀔 때마다 해당 월의 데이터만 다시 가져옵니다.
     val monthlyExpenseEntityList: StateFlow<List<ExpenseEntity>> =
         selectedYearMonth
             .flatMapLatest { yearMonth ->
@@ -201,7 +202,7 @@ class HomeViewModel(
     // -----------------------------------------
     // 10) 소비 기록이 있는 날짜 Set
     // -----------------------------------------
-    // 달력 점 표시 등에 사용할 수 있도록 날짜 Set 형태로 만듭니다.
+    // 달력 점 표시나 날짜 선택 상태 계산에 사용합니다.
     val expenseDateSet: StateFlow<Set<String>> =
         repository
             .getAllExpenses()

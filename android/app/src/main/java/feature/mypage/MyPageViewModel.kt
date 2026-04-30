@@ -1,5 +1,8 @@
 package com.ict.spentopia.feature.mypage // 마이페이지 패키지
 
+// 마이페이지 더미 상태 VM임
+// 실제 계정 API 붙으면 이쪽만 바꾸면 됨
+
 import androidx.compose.runtime.getValue // 상태 읽기
 import androidx.compose.runtime.mutableStateOf // 상태 저장
 import androidx.compose.runtime.setValue // 상태 변경

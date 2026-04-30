@@ -3,7 +3,8 @@ package com.ict.spentopia.data.local
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-// 소비 기록 테이블 Entity
+// 소비 기록 테이블 Entity임
+// 홈/분석/보상 로직 공통 데이터
 @Entity(tableName = "expenses")
 data class ExpenseEntity(
 

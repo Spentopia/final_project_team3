@@ -19,6 +19,8 @@ import com.ict.spentopia.ui.theme.SpentopiaTheme
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import java.security.MessageDigest
 
+// 앱 진입점임
+// package/SHA1 확인 후 네트워크/지갑 초기화하고 NavGraph 진입
 class MainActivity : ComponentActivity() {
 
     companion object {
@@ -51,13 +53,15 @@ class MainActivity : ComponentActivity() {
         // =====================================================
         logRuntimeSha1()
 
-        // 네트워크 요청 준비를 위해 가장 먼저 실행
+        // 네트워크 준비 먼저 함
+        // RetrofitClient.init() 선행 필요함
         RetrofitClient.init(applicationContext)
         SupabaseClient.client
         walletActivityResultSender = ActivityResultSender(this)
 
         handleCallbackIntent(intent)
 
+        // 테마 선택값 저장됨
         val themePrefs = applicationContext.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
         setContent {

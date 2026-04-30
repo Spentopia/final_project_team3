@@ -96,6 +96,8 @@ fun AppNavGraph(
     isDarkTheme: Boolean,
     onThemeChange: (Boolean) -> Unit
 ) {
+    // 앱 화면 전환 중심임
+    // 로그인/지갑/테마/드로어/플로팅 버튼 연결
     val context = LocalContext.current
     val navController = rememberNavController()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -104,7 +106,7 @@ fun AppNavGraph(
     var showThemeDialog by remember { mutableStateOf(false) }
     var showNotificationDialog by remember { mutableStateOf(false) }
 
-    // SharedPreferences 초기화
+    // SharedPreferences는 토큰/지갑/강제로그아웃 저장용
     val prefs = remember {
         context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
     }
@@ -162,7 +164,8 @@ fun AppNavGraph(
 
     val shouldShowChatbotFloatingButton = currentRoute in showChatbotFloatingButtonScreens
 
-    // 인증 토큰 저장 함수
+    // 서버 로그인 토큰 저장
+    // AuthInterceptor가 읽어서 Authorization 붙임
     fun saveAuthTokens(accessToken: String, refreshToken: String) {
         prefs.edit()
             .putString("access_token", accessToken)
@@ -170,6 +173,7 @@ fun AppNavGraph(
             .apply()
     }
 
+    // 지갑 정보는 토큰이랑 별도
     fun saveWalletInfo(walletAddress: String, walletProvider: String) {
         prefs.edit()
             .putBoolean("wallet_connected", true)
@@ -178,6 +182,7 @@ fun AppNavGraph(
             .apply()
     }
 
+    // 지갑만 해제할 때 씀
     fun clearWalletInfo() {
         prefs.edit()
             .remove("wallet_connected")
@@ -186,6 +191,8 @@ fun AppNavGraph(
             .apply()
     }
 
+    // 지갑 해제 흐름
+    // nonce -> 서명 -> unlink
     fun startWalletUnlink() {
         val currentWalletAddress = walletAddress
         val accessToken = prefs.getString("access_token", "") ?: ""
@@ -241,6 +248,8 @@ fun AppNavGraph(
         }
     }
 
+    // 같은 지갑 재연결 흐름
+    // 지갑 타입별 connector 다름
     fun startWalletReconnect(walletType: SolanaWalletType) {
         val accessToken = prefs.getString("access_token", "") ?: ""
 
@@ -314,6 +323,8 @@ fun AppNavGraph(
         }
     }
 
+    // 로그아웃 시 인증 정보만 초기화
+    // 테마 설정은 유지함
     fun clearAuthState() {
         prefs.edit()
             .remove("access_token")

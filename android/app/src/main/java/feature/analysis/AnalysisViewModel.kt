@@ -19,8 +19,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-// 카테고리별 지출 데이터 클래스
-// 도넛 차트, 카테고리 상세 리스트에서 함께 사용
+// 카테고리별 지출 데이터 클래스임
+// 도넛 차트/상세 리스트용
 data class CategorySpendUiModel(
 
     // 카테고리 이름
@@ -37,7 +37,8 @@ data class CategorySpendUiModel(
     val color: Color
 )
 
-// AI 분석 카드 데이터 클래스
+// AI 분석 카드 데이터 클래스임
+// 짧은 안내 카드용
 data class AnalysisTipUiModel(
 
     // 카드 제목
@@ -53,7 +54,8 @@ data class AnalysisTipUiModel(
     val borderColor: Color
 )
 
-// 소비 패턴 진행률 데이터 클래스
+// 소비 패턴 진행률 데이터 클래스임
+// 비율 표시용
 data class PatternProgressUiModel(
 
     // 항목 이름
@@ -64,7 +66,8 @@ data class PatternProgressUiModel(
     val ratio: Float
 )
 
-// 분석 화면 전체 상태를 담는 데이터 클래스
+// 분석 화면 전체 상태임
+// 화면 값 한 번에 묶음
 data class AnalysisUiState(
 
     // 현재 선택된 기간
@@ -124,23 +127,27 @@ data class AnalysisUiState(
     val paymentPatternList: List<PatternProgressUiModel> = emptyList()
 )
 
-// 분석 화면 ViewModel
+// 분석 화면 VM임
+// Room 데이터 + 예산 + AI 요청 연결
 class AnalysisViewModel(
     application: Application
 ) : AndroidViewModel(application) {
 
-    // Room Repository 생성입니다.
+    // Room Repository 생성
+    // 로컬 소비 데이터 읽음
     private val repository = ExpenseRepository(
         ExpenseDatabase.getDatabase(application).expenseDao()
     )
 
-    // BudgetDataStore 생성입니다.
+    // BudgetDataStore 생성
+    // 예산 사용률 계산용
     private val budgetDataStore = BudgetDataStore(application)
 
-    // 내부에서 수정 가능한 상태입니다.
+    // 내부 수정 상태
+    // UI는 구독만 함
     private val _uiState = MutableStateFlow(AnalysisUiState())
 
-    // 외부에서는 읽기만 가능하도록 공개합니다.
+    // 외부 읽기 전용
     val uiState: StateFlow<AnalysisUiState> = _uiState.asStateFlow()
 
     init {
@@ -163,8 +170,8 @@ class AnalysisViewModel(
         }
     }
 
-    // 백엔드 /api/reports를 호출해 소비분석 AI 리포트를 생성합니다.
-    // 실제 AI 분석 로직은 Android가 만들지 않고, 백엔드가 AI 서버를 호출합니다.
+    // 백엔드 /api/reports 호출함
+    // AI 로직은 서버쪽임
     fun requestAiAnalysisReport() {
         val currentState = _uiState.value
 

@@ -7,7 +7,8 @@ import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
-// 소비 기록 DB 접근용 DAO
+// 소비 기록 DB 접근용 DAO입니다.
+// Room이 실제 SQL 쿼리를 실행하는 진입점입니다.
 @Dao
 interface ExpenseDao {
 

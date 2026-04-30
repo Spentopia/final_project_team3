@@ -1,5 +1,8 @@
 package com.ict.spentopia.feature.market
 
+// NFT 마켓 화면임
+// 더미 UI 대신 WebView 래퍼
+
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap

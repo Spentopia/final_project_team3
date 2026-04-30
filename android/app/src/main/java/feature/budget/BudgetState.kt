@@ -1,6 +1,7 @@
 package com.ict.spentopia.feature.budget
 
-// 예산 관련 값을 한 번에 담는 데이터 클래스
+// 예산 값 묶음 데이터 클래스임
+// 화면/추천플랜/저장 로직 공용
 data class BudgetState(
 
     // 월 수입

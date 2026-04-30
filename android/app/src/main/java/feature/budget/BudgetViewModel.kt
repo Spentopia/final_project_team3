@@ -8,18 +8,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-// 예산 설정 상태 관리 ViewModel
-// 화면에서 수정되는 값과 저장/불러오기를 담당
+// 예산 설정 상태 관리 VM임
+// 수정값/불러오기/저장완료 상태 맡음
 class BudgetViewModel(application: Application) : AndroidViewModel(application) {
 
     // DataStore 인스턴스 생성
+    // 예산 설정 저장용임
     private val budgetDataStore = BudgetDataStore(application)
 
-    // 현재 화면에서 사용하는 예산 설정 상태
+    // 현재 화면 예산 상태
     private val _budgetState = MutableStateFlow(BudgetSettingsData())
     val budgetState: StateFlow<BudgetSettingsData> = _budgetState.asStateFlow()
 
-    // 저장 완료 여부를 화면에 알려주기 위한 상태
+    // 저장 완료 여부 상태
     private val _saveSuccess = MutableStateFlow(false)
     val saveSuccess: StateFlow<Boolean> = _saveSuccess.asStateFlow()
 
@@ -27,7 +28,8 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         loadBudgetSettings()
     }
 
-    // 저장된 값 불러오기
+    // 저장값 불러옴
+    // DataStore flow 계속 구독함
     private fun loadBudgetSettings() {
         viewModelScope.launch {
             budgetDataStore.budgetSettingsFlow.collect { savedSettings ->
@@ -79,6 +81,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // 현재 설정 저장
+    // 슬라이더/추천 플랜 저장용
     fun saveBudgetSettings() {
         viewModelScope.launch {
             budgetDataStore.saveBudgetSettings(_budgetState.value)

@@ -1,5 +1,8 @@
 package com.ict.spentopia.feature.ledger
 
+// 가계부 화면임
+// 현재는 자리표시용 구조
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize

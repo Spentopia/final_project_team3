@@ -15,8 +15,8 @@ sealed class Route(val route: String) {
     // 로그인 화면 route입니다.
     data object Login : Route("login")
 
-    // --- 추가된 부분: 이메일/비밀번호 찾기 ---
-    // 이메일 찾기 화면 route입니다.
+    // 로그인 보조 route임
+    // 계정 찾기/비번 재설정용
     data object FindEmail : Route("find_email")
 
     // 비밀번호 찾기 화면 route입니다.
@@ -32,7 +32,7 @@ sealed class Route(val route: String) {
     // 마이페이지 화면 route입니다.
     data object MyPage : Route("mypage")
 
-    // 수정  : 마이 페이지 + 내 아바타 통합 화면 route 추가
+    // 마이페이지+내아바타 통합 route
     data object ProfileAvatar : Route("profile_avatar")
 
     // 예산 설정 화면 route입니다.

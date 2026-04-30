@@ -1,5 +1,8 @@
 package com.ict.spentopia.feature.auth
 
+// 로그인 화면임
+// 이메일/비번, Google/Kakao, 지갑 로그인 한 화면
+
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast

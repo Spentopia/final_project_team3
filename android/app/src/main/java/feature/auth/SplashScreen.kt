@@ -1,5 +1,8 @@
 package com.ict.spentopia.feature.auth
 
+// 스플래시 화면임
+// 앱 시작 전 브랜딩 역할
+
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
