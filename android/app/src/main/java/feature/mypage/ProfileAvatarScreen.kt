@@ -15,8 +15,11 @@ import androidx.compose.runtime.getValue // 수정: state 위임 사용
 import androidx.compose.runtime.mutableStateOf // 수정: 현재 선택 탭 상태 저장
 import androidx.compose.runtime.remember // 수정: Compose 상태 유지
 import androidx.compose.runtime.setValue // 수정: state 위임 사용
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Modifier // 기존 유지
 import androidx.compose.ui.draw.clip // 수정: 둥근 모양 클리핑 적용을 위해 사용
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color // 수정: 색상 적용을 위해 사용
 import androidx.compose.ui.text.font.FontWeight // 수정: 선택 탭 강조를 위해 사용
 import androidx.compose.ui.unit.dp // 기존 유지
@@ -96,15 +99,23 @@ private fun ProfileTabButton(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+
     androidx.compose.material3.TextButton(
         onClick = {
             onClick() // 수정: 탭 클릭 이벤트 실행
         },
+        interactionSource = interactionSource,
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp)) // 수정: 탭 버튼 둥근 모양 적용
             .background(
                 if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
             )
+            .graphicsLayer {
+                scaleX = if (pressed) 0.985f else 1f
+                scaleY = if (pressed) 0.985f else 1f
+            }
     ) {
         Text(
             text = text, // 수정: 탭 이름 표시

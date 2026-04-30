@@ -7,6 +7,8 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -218,12 +223,20 @@ private fun PlazaHeroCard(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                val enterInteractionSource = remember { MutableInteractionSource() }
+                val enterPressed by enterInteractionSource.collectIsPressedAsState()
                 Button(
                     onClick = onEnterClick,
-                    modifier = Modifier.fillMaxWidth(),
+                    interactionSource = enterInteractionSource,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                    contentPadding = PaddingValues(0.dp)
+                    contentPadding = PaddingValues(0.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            scaleX = if (enterPressed) 0.985f else 1f
+                            scaleY = if (enterPressed) 0.985f else 1f
+                        }
                 ) {
                     Box(
                         modifier = Modifier

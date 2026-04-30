@@ -47,9 +47,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -371,8 +374,11 @@ private fun BudgetPlanCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            val applyInteractionSource = remember { MutableInteractionSource() }
+            val applyPressed by applyInteractionSource.collectIsPressedAsState()
             Button(
                 onClick = onApplyClick,
+                interactionSource = applyInteractionSource,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -384,6 +390,10 @@ private fun BudgetPlanCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .graphicsLayer {
+                            scaleX = if (applyPressed) 0.985f else 1f
+                            scaleY = if (applyPressed) 0.985f else 1f
+                        }
                         .background(
                             brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
                             shape = RoundedCornerShape(12.dp)
@@ -590,8 +600,11 @@ private fun CustomBudgetSettingCard(
             Spacer(modifier = Modifier.height(26.dp))
 
             // 설정 저장 버튼
+            val saveInteractionSource = remember { MutableInteractionSource() }
+            val savePressed by saveInteractionSource.collectIsPressedAsState()
             Button(
                 onClick = onSaveClick,
+                interactionSource = saveInteractionSource,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -602,6 +615,10 @@ private fun CustomBudgetSettingCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .graphicsLayer {
+                            scaleX = if (savePressed) 0.985f else 1f
+                            scaleY = if (savePressed) 0.985f else 1f
+                        }
                         .background(
                             brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
                             shape = RoundedCornerShape(14.dp)

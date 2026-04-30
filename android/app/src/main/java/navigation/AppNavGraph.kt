@@ -37,11 +37,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
@@ -686,8 +689,12 @@ private fun FloatingChatbotButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+
     FloatingActionButton(
         onClick = onClick,
+        interactionSource = interactionSource,
         modifier = modifier
             .shadow(
                 elevation = 12.dp,
@@ -695,6 +702,10 @@ private fun FloatingChatbotButton(
                 ambientColor = SpentopiaMutedPurple.copy(alpha = 0.18f),
                 spotColor = SpentopiaMutedPurple.copy(alpha = 0.25f)
             )
+            .graphicsLayer {
+                scaleX = if (pressed) 0.965f else 1f
+                scaleY = if (pressed) 0.965f else 1f
+            }
             .size(62.dp),
         containerColor = Color.Transparent,
         contentColor = Color.White

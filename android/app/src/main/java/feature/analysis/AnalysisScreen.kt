@@ -37,6 +37,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -45,6 +48,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -198,12 +202,20 @@ fun AnalysisHeaderSection(
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            val shareInteractionSource = remember { MutableInteractionSource() }
+            val sharePressed by shareInteractionSource.collectIsPressedAsState()
             Button(
                 onClick = onShareClick,
+                interactionSource = shareInteractionSource,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                 shape = RoundedCornerShape(10.dp),
                 contentPadding = PaddingValues(0.dp),
-                modifier = Modifier.height(40.dp)
+                modifier = Modifier
+                    .height(40.dp)
+                    .graphicsLayer {
+                        scaleX = if (sharePressed) 0.985f else 1f
+                        scaleY = if (sharePressed) 0.985f else 1f
+                    }
             ) {
                 Box(
                     modifier = Modifier
@@ -222,12 +234,20 @@ fun AnalysisHeaderSection(
                 }
             }
 
+            val downloadInteractionSource = remember { MutableInteractionSource() }
+            val downloadPressed by downloadInteractionSource.collectIsPressedAsState()
             Button(
                 onClick = onDownloadClick,
+                interactionSource = downloadInteractionSource,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                 shape = RoundedCornerShape(10.dp),
                 contentPadding = PaddingValues(0.dp),
-                modifier = Modifier.height(40.dp)
+                modifier = Modifier
+                    .height(40.dp)
+                    .graphicsLayer {
+                        scaleX = if (downloadPressed) 0.985f else 1f
+                        scaleY = if (downloadPressed) 0.985f else 1f
+                    }
             ) {
                 Box(
                     modifier = Modifier
@@ -504,9 +524,17 @@ fun PeriodToggleButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
     Button(
         onClick = onClick,
-        modifier = modifier.height(40.dp),
+        interactionSource = interactionSource,
+        modifier = modifier
+            .height(40.dp)
+            .graphicsLayer {
+                scaleX = if (pressed) 0.985f else 1f
+                scaleY = if (pressed) 0.985f else 1f
+            },
         shape = RoundedCornerShape(999.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,

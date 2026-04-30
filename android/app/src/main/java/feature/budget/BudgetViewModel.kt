@@ -82,10 +82,11 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
 
     // 현재 설정 저장
     // 슬라이더/추천 플랜 저장용
-    fun saveBudgetSettings() {
-        viewModelScope.launch {
-            budgetDataStore.saveBudgetSettings(_budgetState.value)
-            _saveSuccess.value = true
+    fun saveBudgetSettings() { // 함수 선언
+        viewModelScope.launch { //비동기 작업 시작 저장 작업 시간이 걸릴수 있으니  앱화면 멈추지 않게 따로 실행
+            budgetDataStore.saveBudgetSettings(_budgetState.value) // 실제  현재 예상 상태 저장
+            //_ budgetState.value 지금 화면이나 ViewModeldl  들고 있는 예산 설정 값이고 그값을 budgetDataStore 에 저장함
+            _saveSuccess.value = true// 저장이 끝나면 저장 성공 상태를 true 로 바꾸는 부분
         }
     }
 

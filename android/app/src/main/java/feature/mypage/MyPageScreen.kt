@@ -35,8 +35,11 @@ import androidx.compose.runtime.getValue // 수정: state 위임 사용
 import androidx.compose.runtime.mutableStateOf // 수정: 지갑 선택 다이얼로그 상태 저장
 import androidx.compose.runtime.remember // 수정: Compose 상태 유지
 import androidx.compose.runtime.setValue // 수정: state 위임 사용
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Alignment // 정렬 기준
 import androidx.compose.ui.Modifier // UI 수정자
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush // 그라데이션 배경
 import androidx.compose.ui.graphics.Color // 색상
 import androidx.compose.ui.layout.ContentScale // 이미지 비율
@@ -172,13 +175,21 @@ private fun MyPageTopTabButton(
     selected: Boolean, // 선택 여부
     onClick: () -> Unit // 클릭 이벤트
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+
     TextButton(
         onClick = { onClick() }, // 클릭 시 동작 실행
+        interactionSource = interactionSource,
         modifier = Modifier
             .background(
                 color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                 shape = RoundedCornerShape(999.dp) // 캡슐형 모양
             )
+            .graphicsLayer {
+                scaleX = if (pressed) 0.985f else 1f
+                scaleY = if (pressed) 0.985f else 1f
+            }
     ) {
         Text(
             text = text, // 탭 텍스트 출력

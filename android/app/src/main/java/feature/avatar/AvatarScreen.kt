@@ -28,9 +28,13 @@ import androidx.compose.material3.Text // 수정: 텍스트 출력에 사용
 import androidx.compose.runtime.Composable // 기존 유지
 import androidx.compose.runtime.collectAsState // 수정: 상태 구독에 사용
 import androidx.compose.runtime.getValue // 수정: 상태 위임에 사용
+import androidx.compose.runtime.remember // 수정: 눌림 상태 기억에 사용
 import androidx.compose.ui.Alignment // 수정: 정렬에 사용
 import androidx.compose.ui.Modifier // 기존 유지
 import androidx.compose.ui.graphics.Brush // 수정: 그라데이션에 사용
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color // 수정: 색상 지정에 사용
 import androidx.compose.ui.text.font.FontWeight // 수정: 텍스트 강조에 사용
 import androidx.compose.ui.unit.dp // 기존 유지
@@ -343,9 +347,16 @@ private fun AvatarActionButton(
     highlighted: Boolean = false,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+
     Button(
         onClick = onClick, // 수정: 클릭 처리
-        modifier = modifier, // 수정: modifier 연결
+        interactionSource = interactionSource,
+        modifier = modifier.graphicsLayer {
+            scaleX = if (pressed) 0.985f else 1f
+            scaleY = if (pressed) 0.985f else 1f
+        }, // 수정: modifier 연결
         shape = RoundedCornerShape(10.dp), // 수정: 둥근 버튼
         colors = ButtonDefaults.buttonColors(
             containerColor = if (highlighted) SpentopiaMutedPurple else Color.White, // 수정: 배경 색상

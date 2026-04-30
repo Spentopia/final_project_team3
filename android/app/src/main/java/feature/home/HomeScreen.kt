@@ -1436,6 +1436,17 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     val formAccentTextColor = colorScheme.onPrimary
     val formAccentContainerColor = colorScheme.primaryContainer
     val formAccentContainerTextColor = colorScheme.onPrimaryContainer
+    val isDark = isSystemInDarkTheme()
+    val expenseCompleteGradient = if (isDark) {
+        listOf(
+            Color(0xFF7C3AED),
+            Color(0xFF6D28D9),
+            Color(0xFF2F80ED),
+            Color(0xFF12C2E9)
+        )
+    } else {
+        SpentopiaActionGradientColors
+    }
 
     var formDate by remember { mutableStateOf(selectedDate) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var isExpenseTab by remember { mutableStateOf(true) } // 입력 탭 상태를 보관함
@@ -2091,7 +2102,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                 .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
                                     .background( // 배경색이나 그라데이션을 넣음
                                         brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                                        colors = if (isExpenseTab) SpentopiaActionGradientColors else listOf(Color(0xFF22C55E), Color(0xFF16A34A))
+                                        colors = if (isExpenseTab) expenseCompleteGradient else listOf(Color(0xFF22C55E), Color(0xFF16A34A))
                                         ),
                                         shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                                     ),
@@ -2138,12 +2149,12 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     ),
                     contentPadding = PaddingValues(0.dp) // 버튼 안쪽 여백을 정함
                 ) { // 이 블록 안의 내용이 시작됨
-                    Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
-                        modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
-                            .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
-                                .background( // 배경색이나 그라데이션을 넣음
-                                    brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                                    colors = if (isExpenseTab) SpentopiaActionGradientColors else listOf(Color(0xFF22C55E), Color(0xFF16A34A))
+                        Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                            modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                                .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
+                                    .background( // 배경색이나 그라데이션을 넣음
+                                        brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
+                                    colors = if (isExpenseTab) expenseCompleteGradient else listOf(Color(0xFF22C55E), Color(0xFF16A34A))
                                     ),
                                     shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                                 ),

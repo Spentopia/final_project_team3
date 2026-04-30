@@ -588,10 +588,10 @@ private fun SplashLikeLogoSection() {
         label = "logo-scale"
     )
     val sparkleAlpha by transition.animateFloat(
-        initialValue = 0.22f,
-        targetValue = 0.68f,
+        initialValue = 0.28f,
+        targetValue = 0.82f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1400),
+            animation = tween(durationMillis = 1200),
             repeatMode = RepeatMode.Reverse
         ),
         label = "sparkle-alpha"
@@ -605,16 +605,16 @@ private fun SplashLikeLogoSection() {
         Box(
             modifier = Modifier
                 .size(200.dp)
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            Color(0xFF7C3AED).copy(alpha = 0.30f),
-                            Color(0xFF2F80ED).copy(alpha = 0.16f),
-                            Color.Transparent
-                        )
-                    ),
-                    shape = CircleShape
-                )
+            .background(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0xFF7C3AED).copy(alpha = 0.42f),
+                        Color(0xFF2F80ED).copy(alpha = 0.24f),
+                        Color.Transparent
+                    )
+                ),
+                shape = CircleShape
+            )
         )
 
         Text(
@@ -627,27 +627,43 @@ private fun SplashLikeLogoSection() {
         )
         Text(
             text = "✧",
-            fontSize = 16.sp,
-            color = Color.White.copy(alpha = sparkleAlpha * 0.85f),
+            fontSize = 18.sp,
+            color = Color.White.copy(alpha = sparkleAlpha * 0.95f),
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(end = 22.dp, top = 44.dp)
         )
         Text(
             text = "✦",
-            fontSize = 18.sp,
-            color = Color.White.copy(alpha = sparkleAlpha * 0.75f),
+            fontSize = 19.sp,
+            color = Color.White.copy(alpha = sparkleAlpha * 0.82f),
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = 28.dp, bottom = 32.dp)
         )
         Text(
             text = "✧",
-            fontSize = 15.sp,
-            color = Color.White.copy(alpha = sparkleAlpha * 0.7f),
+            fontSize = 16.sp,
+            color = Color.White.copy(alpha = sparkleAlpha * 0.78f),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 30.dp, bottom = 44.dp)
+        )
+        Text(
+            text = "✦",
+            fontSize = 14.sp,
+            color = Color(0xFFD8B4FE).copy(alpha = sparkleAlpha * 0.85f),
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 16.dp, top = 12.dp)
+        )
+        Text(
+            text = "✧",
+            fontSize = 13.sp,
+            color = Color(0xFFC7D2FE).copy(alpha = sparkleAlpha * 0.8f),
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 16.dp, top = 4.dp)
         )
 
         Image(
@@ -800,6 +816,10 @@ private fun LoginOptionButton(
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp)
+            .graphicsLayer {
+                scaleX = if (pressed) 0.985f else 1f
+                scaleY = if (pressed) 0.985f else 1f
+            }
             .border(
                 border = BorderStroke(1.dp, borderColor),
                 shape = RoundedCornerShape(15.dp)
@@ -915,14 +935,25 @@ private fun StaticButtonShine(
     shape: RoundedCornerShape,
     pressed: Boolean = false
 ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.linearGradient(
+    val transition = rememberInfiniteTransition(label = "button-shine")
+    val shineAlpha by transition.animateFloat(
+        initialValue = if (pressed) 0.30f else 0.18f,
+        targetValue = if (pressed) 0.46f else 0.28f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1400),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shine-alpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.linearGradient(
                     colors = listOf(
                         Color.Transparent,
-                        Color.White.copy(alpha = if (pressed) 0.26f else 0.16f),
+                        Color.White.copy(alpha = shineAlpha),
                         Color.Transparent
                     )
                 ),
@@ -937,10 +968,10 @@ private fun ShimmerLeadingIcon(
 ) {
     val transition = rememberInfiniteTransition(label = "login-icon-shimmer")
     val shimmerAlpha by transition.animateFloat(
-        initialValue = 0.18f,
-        targetValue = 0.42f,
+        initialValue = 0.24f,
+        targetValue = 0.56f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500),
+            animation = tween(durationMillis = 1200),
             repeatMode = RepeatMode.Reverse
         ),
         label = "icon-glow"

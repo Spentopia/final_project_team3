@@ -16,6 +16,8 @@ package com.ict.spentopia.feature.community
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +54,7 @@ import androidx.compose.runtime.setValue
 // UI 스타일 관련 import입니다.
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -296,13 +299,20 @@ private fun CommunityTopHeader(
 
         Spacer(modifier = Modifier.width(12.dp))
 
+        val writeInteractionSource = remember { MutableInteractionSource() }
+        val writePressed by writeInteractionSource.collectIsPressedAsState()
         Button(
             onClick = onWriteClick,
+            interactionSource = writeInteractionSource,
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
             ),
-            contentPadding = PaddingValues(0.dp)
+            contentPadding = PaddingValues(0.dp),
+            modifier = Modifier.graphicsLayer {
+                scaleX = if (writePressed) 0.985f else 1f
+                scaleY = if (writePressed) 0.985f else 1f
+            }
         ) {
             Box(
                 modifier = Modifier
@@ -388,11 +398,18 @@ private fun CommunityAiCard(
 
             Spacer(modifier = Modifier.width(8.dp))
 
+            val chatInteractionSource = remember { MutableInteractionSource() }
+            val chatPressed by chatInteractionSource.collectIsPressedAsState()
             Button(
                 onClick = onChatClick,
+                interactionSource = chatInteractionSource,
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                contentPadding = PaddingValues(0.dp)
+                contentPadding = PaddingValues(0.dp),
+                modifier = Modifier.graphicsLayer {
+                    scaleX = if (chatPressed) 0.985f else 1f
+                    scaleY = if (chatPressed) 0.985f else 1f
+                }
             ) {
                 Box(
                     modifier = Modifier

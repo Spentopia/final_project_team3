@@ -110,6 +110,26 @@ fun SplashScreen(navController: NavController) {
         label = "sparkleAlpha5"
     )
 
+    val sparkleAlpha6 by infiniteTransition.animateFloat(
+        initialValue = 0.30f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "sparkleAlpha6"
+    )
+
+    val sparkleAlpha7 by infiniteTransition.animateFloat(
+        initialValue = 0.18f,
+        targetValue = 0.82f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1320),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "sparkleAlpha7"
+    )
+
     LaunchedEffect(Unit) {
         delay(2000)
         navController.navigate("login") {
@@ -137,8 +157,8 @@ fun SplashScreen(navController: NavController) {
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            Color(0x886D28D9),
-                            Color(0x331E1B4B),
+                            Color(0xAA7C3AED),
+                            Color(0x441E1B4B),
                             Color.Transparent
                         )
                     ),
@@ -186,14 +206,34 @@ fun SplashScreen(navController: NavController) {
                 .graphicsLayer { this.alpha = sparkleAlpha4 }
         )
 
+            Text(
+                text = "✦",
+                fontSize = 12.sp,
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(x = 72.dp, y = (-142).dp)
+                    .graphicsLayer { this.alpha = sparkleAlpha5 }
+            )
+
         Text(
-            text = "✦",
-            fontSize = 12.sp,
+            text = "✧",
+            fontSize = 22.sp,
             color = Color.White,
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = 72.dp, y = (-142).dp)
-                .graphicsLayer { this.alpha = sparkleAlpha5 }
+                .offset(x = (-92).dp, y = (-148).dp)
+                .graphicsLayer { this.alpha = sparkleAlpha6 }
+        )
+
+        Text(
+            text = "✦",
+            fontSize = 17.sp,
+            color = Color(0xFFD8B4FE),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .offset(x = 110.dp, y = 118.dp)
+                .graphicsLayer { this.alpha = sparkleAlpha7 }
         )
 
         Column(
