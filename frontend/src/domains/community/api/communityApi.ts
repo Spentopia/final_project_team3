@@ -56,6 +56,7 @@ export interface CommunityMeResponse {
 export interface CommentResponse {
   id: string;
   post_id: string;
+  parent_id : string | null;
   user_id: string;
   author_nickname: string | null;
   author_profile_image: string | null;
@@ -137,10 +138,12 @@ export async function listComments(postId: string): Promise<CommentResponse[]> {
 
 export async function createComment(
   postId: string,
-  content: string
+  content: string,
+  parentId?: string | null
 ): Promise<CommentResponse> {
   const res = await apiClient.post<CommentResponse>(`/api/posts/${postId}/comments`, {
     content,
+    parent_id: parentId ?? null
   });
   return res.data;
 }

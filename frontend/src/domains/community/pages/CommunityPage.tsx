@@ -60,6 +60,7 @@ interface Post {
 interface Comment {
   id: string;
   post_id: string;
+  parent_id: string | null;
   user_id: string;
   author: string;
   authorProfileImageUrl: string | null;
@@ -153,6 +154,7 @@ function toComment(comment: CommentResponse): Comment {
   return {
     id: comment.id,
     post_id: comment.post_id,
+    parent_id: comment.parent_id,
     user_id: comment.user_id,
     author: comment.author_nickname ?? "익명",
     authorProfileImageUrl: comment.author_profile_image_url,
@@ -195,6 +197,13 @@ export default function Community() {
   const [editingCommentContent, setEditingCommentContent] = useState("");
   const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
   const [commentDeleteTarget, setCommentDeleteTarget] = useState<Comment | null>(null);
+
+  // 대댓글 상태
+  // replyingToCommentId: 현재 어느 댓글에 답글을 달고 있는지 저장
+  // replyContent: 대댓글 입력값
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState("");
+
 
   const readPostsStorageKey = myUserId
     ? `${COMMUNITY_READ_POSTS_KEY_PREFIX}:${myUserId}`
@@ -311,6 +320,8 @@ export default function Community() {
       setEditingCommentId(null);
       setEditingCommentContent("");
       setCommentDeleteTarget(null);
+      setReplyingToCommentId(null);
+      setReplyContent("");
       return;
     }
 
@@ -414,6 +425,11 @@ export default function Community() {
       return;
     }
 
+    if (!content) {
+      toast.error("내용을 입력해주세요");
+      return;
+    }
+
     if (writeType === "notice" && myRoleType !== "admin") {
       toast.error("운영자만 가능합니다");
       return;
@@ -435,7 +451,7 @@ export default function Community() {
           title,
           contest_id: null,
           image_url: null,
-          content: content || null,
+          content,
         });
 
         if (writeFile) {
@@ -464,7 +480,7 @@ export default function Community() {
           title,
           contest_id: writeType === "contest" ? writeContestId : null,
           image_url: imagePath,
-          content: content || null,
+          content,
         });
       }
 
@@ -504,6 +520,11 @@ export default function Community() {
 
     if (!title) {
       toast.error("제목을 입력해주세요");
+      return;
+    }
+
+    if (!content) {
+      toast.error("내용을 입력해주세요");
       return;
     }
 
@@ -614,9 +635,37 @@ export default function Community() {
     }
   };
 
+  const handleCreateReply = async (parentCommentId: string) => {
+    if (!selectedPost || selectedPost.category === "notice") return;
+
+    const content = replyContent.trim();
+
+    if (!content) {
+      toast.error("답글을 입력해주세요");
+      return;
+    }
+
+    setIsCommentSubmitting(true);
+
+    try {
+      const created = await createComment(selectedPost.id, content, parentCommentId);
+      setComments((prev) => [...prev, toComment(created)]);
+      setReplyContent("");
+      setReplyingToCommentId(null);
+      toast.success("답글이 등록되었습니다");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "답글 등록에 실패했습니다"));
+      console.error("답글 등록 실패:", error);
+    } finally {
+      setIsCommentSubmitting(false);
+    }
+  };
+
   const openEditComment = (comment: Comment) => {
     setEditingCommentId(comment.id);
     setEditingCommentContent(comment.content);
+    setReplyingToCommentId(null);
+    setReplyContent("");
   };
 
   const handleUpdateComment = async (commentId: string) => {
@@ -651,11 +700,23 @@ export default function Community() {
 
     try {
       await deleteComment(commentId);
-      setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+
+      // 백엔드에서 부모 댓글 삭제 시 자식 대댓글도 soft delete 처리하므로
+      // 프론트에서도 부모 댓글과 그 자식 대댓글을 같이 제거
+      setComments((prev) =>
+          prev.filter((comment) => comment.id !== commentId && comment.parent_id !== commentId)
+      );
+
       if (editingCommentId === commentId) {
         setEditingCommentId(null);
         setEditingCommentContent("");
       }
+
+      if (replyingToCommentId === commentId) {
+        setReplyingToCommentId(null);
+        setReplyContent("");
+      }
+
       setCommentDeleteTarget(null);
       toast.success("댓글이 삭제되었습니다");
     } catch (error) {
@@ -679,8 +740,21 @@ export default function Community() {
   if (selectedPost) {
     const badge = BADGE_STYLE[selectedPost.category];
     const canModifySelectedPost =
-      selectedPost.user_id === myUserId ||
-      (selectedPost.category === "notice" && myRoleType === "admin");
+        selectedPost.user_id === myUserId ||
+        (selectedPost.category === "notice" && myRoleType === "admin");
+
+    // 일반 댓글만 먼저 렌더링
+    const rootComments = comments.filter((comment) => !comment.parent_id);
+
+    // parent_id 기준으로 대댓글 묶기
+    const repliesByParentId = comments.reduce<Record<string, Comment[]>>((acc, comment) => {
+      if (!comment.parent_id) return acc;
+
+      acc[comment.parent_id] ??= [];
+      acc[comment.parent_id].push(comment);
+
+      return acc;
+    }, {});
 
     return (
         <div className="space-y-6">
@@ -801,98 +875,255 @@ export default function Community() {
 
                 <div className="space-y-4">
                   {comments.length === 0 ? (
-                    <p className="text-sm text-gray-400 dark:text-gray-500">
-                      아직 댓글이 없습니다
-                    </p>
+                      <p className="text-sm text-gray-400 dark:text-gray-500">아직 댓글이 없습니다</p>
                   ) : (
-                    comments.map((comment) => (
-                      <div
-                        key={comment.id}
-                        className="border-b border-gray-100 pb-4 last:border-b-0 dark:border-gray-700"
-                      >
-                        <div className="mb-2 flex items-center justify-between gap-3">
-                          <div className="flex min-w-0 items-center gap-2">
-                            {comment.authorProfileImageUrl ? (
-                              <img
-                                src={comment.authorProfileImageUrl}
-                                alt={comment.author}
-                                className="h-6 w-6 rounded-full object-cover"
-                              />
-                            ) : (
-                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-300">
-                                {comment.author.slice(0, 1)}
-                              </span>
-                            )}
-                            <span className="truncate text-sm font-medium text-gray-700 dark:text-gray-300">
-                              {comment.author}
+                      rootComments.map((comment) => (
+                          <div
+                              key={comment.id}
+                              className="border-b border-gray-100 pb-4 last:border-b-0 dark:border-gray-700"
+                          >
+                            <div className="mb-2 flex items-center justify-between gap-3">
+                              <div className="flex min-w-0 items-center gap-2">
+                                {comment.authorProfileImageUrl ? (
+                                    <img
+                                        src={comment.authorProfileImageUrl}
+                                        alt={comment.author}
+                                        className="h-6 w-6 rounded-full object-cover"
+                                    />
+                                ) : (
+                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+                              {comment.author.slice(0, 1)}
                             </span>
-                            <span className="text-xs text-gray-400 dark:text-gray-500">
-                              {comment.date}
-                            </span>
-                          </div>
+                                )}
 
-                          {comment.user_id === myUserId && (
-                            <div className="flex flex-shrink-0 items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
-                              <button
-                                type="button"
-                                onClick={() => openEditComment(comment)}
-                                className="hover:text-cyan-500 transition-colors"
-                                disabled={isCommentSubmitting}
-                              >
-                                수정
-                              </button>
-                              <span className="text-gray-300 dark:text-gray-600">|</span>
-                              <button
-                                type="button"
-                                onClick={() => setCommentDeleteTarget(comment)}
-                                className="hover:text-red-500 transition-colors"
-                                disabled={isCommentSubmitting}
-                              >
-                                삭제
-                              </button>
+                                <span className="truncate text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {comment.author}
+                          </span>
+
+                                {comment.user_id === selectedPost.user_id && (
+                                    <span className="rounded bg-cyan-50 px-1.5 py-0.5 text-[10px] font-medium text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-300">
+                                          작성자
+                                        </span>
+                                )}
+
+                                <span className="text-xs text-gray-400 dark:text-gray-500">
+                            {comment.date}
+                          </span>
+                              </div>
+
+                              {comment.user_id === myUserId && (
+                                  <div className="flex flex-shrink-0 items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+                                    <button
+                                        type="button"
+                                        onClick={() => openEditComment(comment)}
+                                        className="hover:text-cyan-500 transition-colors"
+                                        disabled={isCommentSubmitting}
+                                    >
+                                      수정
+                                    </button>
+
+                                    <span className="text-gray-300 dark:text-gray-600">|</span>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setCommentDeleteTarget(comment)}
+                                        className="hover:text-red-500 transition-colors"
+                                        disabled={isCommentSubmitting}
+                                    >
+                                      삭제
+                                    </button>
+                                  </div>
+                              )}
                             </div>
-                          )}
-                        </div>
 
-                        {editingCommentId === comment.id ? (
-                          <div className="space-y-2">
-                            <textarea
+                            {editingCommentId === comment.id ? (
+                                <div className="space-y-2">
+                          <textarea
                               value={editingCommentContent}
                               onChange={(event) => setEditingCommentContent(event.target.value)}
                               rows={3}
                               className="w-full resize-none rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                               disabled={isCommentSubmitting}
-                            />
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setEditingCommentId(null);
-                                  setEditingCommentContent("");
-                                }}
-                                disabled={isCommentSubmitting}
-                              >
-                                취소
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                disabled={isCommentSubmitting}
-                                onClick={() => void handleUpdateComment(comment.id)}
-                              >
-                                저장
-                              </Button>
+                          />
+
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          setEditingCommentId(null);
+                                          setEditingCommentContent("");
+                                        }}
+                                        disabled={isCommentSubmitting}
+                                    >
+                                      취소
+                                    </Button>
+
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        disabled={isCommentSubmitting}
+                                        onClick={() => void handleUpdateComment(comment.id)}
+                                    >
+                                      저장
+                                    </Button>
+                                  </div>
+                                </div>
+                            ) : (
+                                <>
+                                  <p className="whitespace-pre-wrap text-sm leading-6 text-gray-700 dark:text-gray-300">
+                                    {comment.content}
+                                  </p>
+
+                                  <button
+                                      type="button"
+                                      onClick={() => {
+                                        setReplyingToCommentId(comment.id);
+                                        setReplyContent("");
+                                        setEditingCommentId(null);
+                                        setEditingCommentContent("");
+                                      }}
+                                      className="mt-2 text-xs text-gray-400 hover:text-cyan-500"
+                                      disabled={isCommentSubmitting}
+                                  >
+                                    답글
+                                  </button>
+                                </>
+                            )}
+
+                            {replyingToCommentId === comment.id && (
+                                <div className="mt-3 ml-8 flex gap-2">
+                                  <Input
+                                      value={replyContent}
+                                      onChange={(event) => setReplyContent(event.target.value)}
+                                      placeholder="답글을 입력하세요"
+                                      className="h-9 text-sm"
+                                      disabled={isCommentSubmitting}
+                                  />
+
+                                  <Button
+                                      type="button"
+                                      size="sm"
+                                      disabled={isCommentSubmitting}
+                                      onClick={() => void handleCreateReply(comment.id)}
+                                  >
+                                    등록
+                                  </Button>
+
+                                  <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={isCommentSubmitting}
+                                      onClick={() => {
+                                        setReplyingToCommentId(null);
+                                        setReplyContent("");
+                                      }}
+                                  >
+                                    취소
+                                  </Button>
+                                </div>
+                            )}
+
+                            <div className="mt-4 ml-8 space-y-4">
+                              {(repliesByParentId[comment.id] ?? []).map((reply) => (
+                                  <div
+                                      key={reply.id}
+                                      className="border-l-2 border-gray-100 pl-4 dark:border-gray-700"
+                                  >
+                                    <div className="mb-2 flex items-center justify-between gap-3">
+                                      <div className="flex min-w-0 items-center gap-2">
+                                        {reply.authorProfileImageUrl ? (
+                                            <img
+                                                src={reply.authorProfileImageUrl}
+                                                alt={reply.author}
+                                                className="h-6 w-6 rounded-full object-cover"
+                                            />
+                                        ) : (
+                                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+                                    {reply.author.slice(0, 1)}
+                                  </span>
+                                        )}
+
+                                        <span className="truncate text-sm font-medium text-gray-700 dark:text-gray-300">
+                                  {reply.author}
+                                </span>
+
+                                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                                  {reply.date}
+                                </span>
+                                      </div>
+
+                                      {reply.user_id === myUserId && (
+                                          <div className="flex flex-shrink-0 items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+                                            <button
+                                                type="button"
+                                                onClick={() => openEditComment(reply)}
+                                                className="hover:text-cyan-500 transition-colors"
+                                                disabled={isCommentSubmitting}
+                                            >
+                                              수정
+                                            </button>
+
+                                            <span className="text-gray-300 dark:text-gray-600">|</span>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => setCommentDeleteTarget(reply)}
+                                                className="hover:text-red-500 transition-colors"
+                                                disabled={isCommentSubmitting}
+                                            >
+                                              삭제
+                                            </button>
+                                          </div>
+                                      )}
+                                    </div>
+
+                                    {editingCommentId === reply.id ? (
+                                        <div className="space-y-2">
+                                <textarea
+                                    value={editingCommentContent}
+                                    onChange={(event) => setEditingCommentContent(event.target.value)}
+                                    rows={3}
+                                    className="w-full resize-none rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                                    disabled={isCommentSubmitting}
+                                />
+
+                                          <div className="flex justify-end gap-2">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                  setEditingCommentId(null);
+                                                  setEditingCommentContent("");
+                                                }}
+                                                disabled={isCommentSubmitting}
+                                            >
+                                              취소
+                                            </Button>
+
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                disabled={isCommentSubmitting}
+                                                onClick={() => void handleUpdateComment(reply.id)}
+                                            >
+                                              저장
+                                            </Button>
+                                          </div>
+                                        </div>
+                                    ) : (
+                                        <p className="whitespace-pre-wrap text-sm leading-6 text-gray-700 dark:text-gray-300">
+                                          {reply.content}
+                                        </p>
+                                    )}
+                                  </div>
+                              ))}
                             </div>
                           </div>
-                        ) : (
-                          <p className="whitespace-pre-wrap text-sm leading-6 text-gray-700 dark:text-gray-300">
-                            {comment.content}
-                          </p>
-                        )}
-                      </div>
-                    ))
+                      ))
                   )}
                 </div>
               </div>
@@ -1155,13 +1386,14 @@ export default function Community() {
 
                         {/* 제목 */}
                         <span className="flex-1 flex items-center gap-2 min-w-0">
-                    <span className="text-base text-gray-900 dark:text-gray-100 truncate">
-                      {post.title}
-                    </span>
+                            <span className="text-base text-gray-900 dark:text-gray-100 truncate">
+                              {post.title}
+                            </span>
+
+                          {/* 주황색 점 */}
                           {post.isNew && post.user_id !== myUserId && !readPostIds.has(post.id) && (
                               <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0 inline-block" />
-                          )}
-                  </span>
+                          )}</span>
 
                         {/* 작성자 · 좋아요 · 날짜 · 조회수 */}
                         <span className="grid grid-cols-[150px_60px_100px_72px] items-center text-sm text-gray-400 dark:text-gray-500 flex-shrink-0 min-w-[325px]">
