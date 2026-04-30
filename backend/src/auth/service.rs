@@ -95,6 +95,7 @@ pub struct LoginIssueResult {
     pub access_token: String,
     pub refresh_token: String,
     pub is_new_user: bool,
+    pub user_id: Uuid,
 }
 
 /// refresh rotation 성공 시 반환할 내부 결과
@@ -152,6 +153,7 @@ pub async fn issue_login_tokens(
         access_token: pair.access_token,
         refresh_token: pair.refresh_token,
         is_new_user,
+        user_id,
     })
 }
 

@@ -58,10 +58,29 @@ export async function getOwnedNfts(): Promise<OwnedNftResponse[]> {
     }
 }
 
-export async function syncOwnedNfts(): Promise<SyncOwnedNftsResponse> {
+let _syncOwnedNftsInflight: Promise<SyncOwnedNftsResponse> | null = null;
+let _lastSyncOwnedNftsAt = 0;
+const SYNC_OWNED_NFTS_COOLDOWN_MS = 30_000;
+
+export async function syncOwnedNfts(options: { force?: boolean } = {}): Promise<SyncOwnedNftsResponse> {
+    if (_syncOwnedNftsInflight) return _syncOwnedNftsInflight;
+
+    const now = Date.now();
+    if (!options.force && now - _lastSyncOwnedNftsAt < SYNC_OWNED_NFTS_COOLDOWN_MS) {
+        return { synced_count: 0, skipped_count: 0 };
+    }
+
     try {
-        const res = await apiClient.post<SyncOwnedNftsResponse>("/api/avatar/nfts/sync");
-        return res.data;
+        _syncOwnedNftsInflight = apiClient
+            .post<SyncOwnedNftsResponse>("/api/avatar/nfts/sync")
+            .then((res) => {
+                _lastSyncOwnedNftsAt = Date.now();
+                return res.data;
+            })
+            .finally(() => {
+                _syncOwnedNftsInflight = null;
+            });
+        return await _syncOwnedNftsInflight;
     } catch (error: unknown) {
         if (error && typeof error === "object" && "response" in error) {
             const axiosError = error as { response?: { status?: number; data?: unknown } };

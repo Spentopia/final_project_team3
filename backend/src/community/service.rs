@@ -21,18 +21,76 @@ use super::{
 };
 use crate::{filter, state::AppState};
 
-fn to_post_response(post: Post) -> PostResponse {
+async fn create_profile_image_signed_url(state: &AppState, path: &str) -> Result<String> {
+    let path = path.trim();
+    if path.is_empty() {
+        return Err(anyhow!("프로필 이미지 path가 비어 있습니다"));
+    }
+
+    let url = format!(
+        "{}/storage/v1/object/sign/{}/{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        state.config.supabase_profile_image_bucket,
+        path,
+    );
+
+    let res = state
+        .http_client
+        .post(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .json(&serde_json::json!({ "expiresIn": 60 * 60 * 24 }))
+        .send()
+        .await
+        .context("작성자 프로필 이미지 signed URL 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("작성자 프로필 이미지 signed URL 실패: {}", body));
+    }
+
+    let body: Value = res
+        .json()
+        .await
+        .context("작성자 프로필 이미지 signed URL 응답 파싱 실패")?;
+
+    let signed_url = body
+        .get("signedURL")
+        .or_else(|| body.get("signed_url"))
+        .and_then(|value| value.as_str())
+        .ok_or_else(|| anyhow!("작성자 프로필 이미지 signed URL 응답이 비어 있습니다"))?;
+
+    if signed_url.starts_with("http") {
+        Ok(signed_url.to_string())
+    } else {
+        Ok(format!(
+            "{}/storage/v1{}",
+            state.config.supabase_url.trim_end_matches('/'),
+            signed_url
+        ))
+    }
+}
+
+async fn to_post_response(state: &AppState, post: Post) -> PostResponse {
     let author_nickname = post.users.as_ref().and_then(|author| author.nickname.clone());
     let author_profile_image = post
         .users
         .as_ref()
         .and_then(|author| author.profile_image.clone());
+    let author_profile_image_url = match author_profile_image.as_deref() {
+        Some(path) => create_profile_image_signed_url(state, path).await.ok(),
+        None => None,
+    };
 
     PostResponse {
         id: post.id,
         user_id: post.user_id,
         author_nickname,
         author_profile_image,
+        author_profile_image_url,
         contest_id: post.contest_id,
         post_type: post.post_type,
         title: post.title,
@@ -499,10 +557,12 @@ pub async fn list_posts(
             .collect();
     }
 
-    Ok(PostListResponse {
-        items: posts.into_iter().map(to_post_response).collect(),
-        total_count,
-    })
+    let mut items = Vec::with_capacity(posts.len());
+    for post in posts {
+        items.push(to_post_response(state, post).await);
+    }
+
+    Ok(PostListResponse { items, total_count })
 }
 
 // ── 게시물 상세 조회 ───────────────────────────────────────────
@@ -512,7 +572,7 @@ pub async fn get_post_detail(state: &AppState, post_id: Uuid) -> Result<PostResp
     let next_view_count = increment_post_view_count(state, post_id).await?;
     post.view_count = next_view_count;
 
-    Ok(to_post_response(post))
+    Ok(to_post_response(state, post).await)
 }
 // ── 게시물 생성 ───────────────────────────────────────────────
 
@@ -576,7 +636,8 @@ pub async fn create_post(
         .map(|post| post.id)
         .ok_or_else(|| anyhow!("posts INSERT 결과가 비어있음"))?;
 
-    get_post(state, post_id).await.map(to_post_response)
+    let post = get_post(state, post_id).await?;
+    Ok(to_post_response(state, post).await)
 }
 
 // ── 게시물 수정 ───────────────────────────────────────────────
@@ -655,7 +716,8 @@ pub async fn update_post(
         .map(|post| post.id)
         .ok_or_else(|| anyhow!("posts UPDATE 결과가 비어있음"))?;
 
-    get_post(state, updated_post_id).await.map(to_post_response)
+    let post = get_post(state, updated_post_id).await?;
+    Ok(to_post_response(state, post).await)
 }
 
 // ── 게시물 삭제 ───────────────────────────────────────────────

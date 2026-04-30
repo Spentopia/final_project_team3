@@ -1,5 +1,6 @@
 import {
     ASSOCIATED_TOKEN_PROGRAM_ID,
+    ACCOUNT_SIZE,
     TOKEN_PROGRAM_ID,
     getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
@@ -43,6 +44,70 @@ function priceToBaseUnits(priceSpt: number): bigint {
     return BigInt(priceSpt) * SPT_DECIMALS;
 }
 
+async function assertBuyerCanPaySpt(
+    connection: Connection,
+    buyerSptAccount: PublicKey,
+    requiredBaseUnits: bigint,
+): Promise<void> {
+    const accountInfo = await connection.getAccountInfo(buyerSptAccount);
+    if (!accountInfo) {
+        throw new Error(
+            "SPT가 부족합니다. SOL로 SPT를 구매하거나 보상으로 SPT 토큰을 획득한 뒤 다시 시도해 주세요.",
+        );
+    }
+
+    const balance = await connection.getTokenAccountBalance(buyerSptAccount);
+    const currentBaseUnits = BigInt(balance.value.amount);
+    if (currentBaseUnits < requiredBaseUnits) {
+        throw new Error(
+            "SPT가 부족합니다. SOL로 SPT를 구매하거나 보상으로 SPT 토큰을 획득한 뒤 다시 시도해 주세요.",
+        );
+    }
+}
+
+async function assertBuyerCanPayAccountRent(params: {
+    connection: Connection;
+    buyer: PublicKey;
+    sellerSptAccount: PublicKey;
+    buyerNftAccount: PublicKey;
+}): Promise<void> {
+    const [sellerSptAccountInfo, buyerNftAccountInfo, buyerSolBalance, tokenAccountRent] =
+        await Promise.all([
+            params.connection.getAccountInfo(params.sellerSptAccount),
+            params.connection.getAccountInfo(params.buyerNftAccount),
+            params.connection.getBalance(params.buyer),
+            params.connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE),
+        ]);
+
+    const missingTokenAccounts =
+        (sellerSptAccountInfo ? 0 : 1) + (buyerNftAccountInfo ? 0 : 1);
+    const feeReserveLamports = 20_000;
+    const requiredLamports = missingTokenAccounts * tokenAccountRent + feeReserveLamports;
+
+    if (buyerSolBalance < requiredLamports) {
+        throw new Error(
+            "가스비가 부족합니다. 소량의 SOL을 보유해야 구매가 가능합니다.",
+        );
+    }
+}
+
+function summarizeSimulationLogs(logs: string[] | null | undefined): string {
+    if (!logs?.length) return "시뮬레이션 로그 없음";
+    return logs.slice(-8).join(" / ");
+}
+
+async function assertTransactionSimulationSucceeds(
+    connection: Connection,
+    transaction: Transaction,
+): Promise<void> {
+    const simulation = await connection.simulateTransaction(transaction);
+
+    if (simulation.value.err) {
+        console.error("[marketplaceSolana] transaction simulation failed", simulation.value);
+        throw new Error(`온체인 시뮬레이션 실패: ${summarizeSimulationLogs(simulation.value.logs)}`);
+    }
+}
+
 function listingPda(seller: PublicKey, nftMint: PublicKey): PublicKey {
     return pda([Buffer.from("listing"), seller.toBuffer(), nftMint.toBuffer()]);
 }
@@ -63,6 +128,8 @@ async function sendAndFinalize(
     const latest = await connection.getLatestBlockhash("confirmed");
     transaction.feePayer = publicKey;
     transaction.recentBlockhash = latest.blockhash;
+
+    await assertTransactionSimulationSucceeds(connection, transaction);
 
     const signature = await sendTransaction(transaction, connection);
     const confirmation = await connection.confirmTransaction(
@@ -226,6 +293,7 @@ export async function buyNftOnChain(params: {
     sendTransaction: (transaction: Transaction, connection: Connection) => Promise<string>;
     sellerWalletAddress: string;
     nftMintAddress: string;
+    priceSpt: number;
 }): Promise<string> {
     const seller = new PublicKey(params.sellerWalletAddress);
     const nftMint = new PublicKey(params.nftMintAddress);
@@ -236,6 +304,15 @@ export async function buyNftOnChain(params: {
     const buyerSptAccount = getAssociatedTokenAddressSync(sptTokenMint, params.publicKey);
     const sellerSptAccount = getAssociatedTokenAddressSync(sptTokenMint, seller);
     const buyerNftAccount = getAssociatedTokenAddressSync(nftMint, params.publicKey);
+    const priceBaseUnits = priceToBaseUnits(params.priceSpt);
+
+    await assertBuyerCanPaySpt(params.connection, buyerSptAccount, priceBaseUnits);
+    await assertBuyerCanPayAccountRent({
+        connection: params.connection,
+        buyer: params.publicKey,
+        sellerSptAccount,
+        buyerNftAccount,
+    });
 
     const ix = new TransactionInstruction({
         programId: PROGRAM_ID,

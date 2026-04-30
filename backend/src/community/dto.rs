@@ -81,6 +81,7 @@ pub struct PostResponse {
     pub user_id: Uuid,
     pub author_nickname: Option<String>,
     pub author_profile_image: Option<String>,
+    pub author_profile_image_url: Option<String>,
     pub contest_id: Option<Uuid>,
     pub post_type: String,
     pub title: String,

@@ -23,6 +23,7 @@
 
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 // ── Supabase 토큰 교환 ───────────────────────────────────────
 //
@@ -245,4 +246,6 @@ pub struct HandoffExchangeRequest {
 pub struct HandoffExchangeResponse {
     pub access_token: String,
     pub refresh_token: String,
+    pub user_id: Uuid,
+    pub nickname: Option<String>,
 }

@@ -1890,10 +1890,43 @@ pub async fn exchange_handoff(
             (status, msg)
         })?;
 
-    // ── 3) 응답 ─────────────────────────────────────────────
+    // ── 3) 닉네임 조회 ──────────────────────────────────────
+    let nickname = fetch_nickname_by_user_id(&state, result.user_id).await;
+
+    // ── 4) 응답 ─────────────────────────────────────────────
     // 유니티는 앱 방식이므로 access+refresh 둘 다 body로 반환
     Ok(Json(HandoffExchangeResponse {
         access_token: result.access_token,
         refresh_token: result.refresh_token,
+        user_id: result.user_id,
+        nickname: nickname,
     }))
+}
+
+async fn fetch_nickname_by_user_id(state: &AppState, user_id: uuid::Uuid) -> Option<String> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=nickname&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    #[derive(serde::Deserialize)]
+    struct Row {
+        nickname: Option<String>,
+    }
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .ok()?;
+
+    let rows: Vec<Row> = res.json().await.ok()?;
+    rows.into_iter().next()?.nickname
 }
