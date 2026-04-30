@@ -57,6 +57,7 @@ pub struct Post {
 pub struct Comment {
     pub id: Uuid,
     pub post_id: Uuid,
+    pub parent_id: Option<Uuid>,
     pub user_id: Uuid,
     pub content: String,
     pub is_deleted: bool,
