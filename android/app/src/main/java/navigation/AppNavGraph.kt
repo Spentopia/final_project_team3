@@ -53,6 +53,7 @@ import androidx.navigation.navArgument
 import com.example.spentopia.feature.plaza.PlazaScreen
 import com.ict.spentopia.data.remote.NonceRequest
 import com.ict.spentopia.data.remote.RetrofitClient
+import com.ict.spentopia.data.remote.RefreshTokenRequest
 import com.ict.spentopia.data.remote.WalletLinkRequest
 import com.ict.spentopia.data.remote.WalletUnlinkRequest
 import com.ict.spentopia.feature.analysis.AnalysisScreen
@@ -389,7 +390,12 @@ fun AppNavGraph(
                         onLogoutClick = {
                             scope.launch {
                                 try {
-                                    RetrofitClient.walletApi.logout()
+                                    val refreshToken = prefs.getString("refresh_token", "") ?: ""
+                                    RetrofitClient.walletApi.logout(
+                                        request = RefreshTokenRequest(
+                                            refresh_token = refreshToken
+                                        )
+                                    )
                                 } catch (e: Exception) {
                                     Log.e("Spentopia", "로그아웃 API 실패", e)
                                 } finally {

@@ -49,6 +49,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Brush
+import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
@@ -153,7 +154,7 @@ private fun CommunityWriteTopSection(
                     Text(
                         text = "다른 사용자들과 공유하고 싶은 이야기를 자유롭게 작성해보세요.",
                         fontSize = 13.sp,
-                        color = Color(0xFF6E7684),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 19.sp
                     )
                 }
@@ -164,8 +165,8 @@ private fun CommunityWriteTopSection(
                     onClick = onBackClick,
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFEDEFF4),
-                        contentColor = Color(0xFF2B313B)
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface
                     ),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
@@ -216,11 +217,7 @@ private fun CommunityWriteCategoryCard(
                         modifier = Modifier
                             .widthIn(min = 88.dp)
                             .background(
-                                color = if (isSelected) {
-                                    Color(0xFFF0F1F5)
-                                } else {
-                                    Color(0xFFFDFDFD)
-                                },
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
                                 shape = RoundedCornerShape(999.dp)
                             )
                             .clickable {
@@ -279,12 +276,14 @@ private fun CommunityWriteTitleCard(
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f),
+                    focusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                    focusedTextColor = Color(0xFF1E2430),
-                    unfocusedTextColor = Color(0xFF1E2430),
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             )
         }
@@ -331,12 +330,14 @@ private fun CommunityWriteContentCard(
                 shape = RoundedCornerShape(14.dp),
                 minLines = 8,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f),
+                    focusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                    focusedTextColor = Color(0xFF1E2430),
-                    unfocusedTextColor = Color(0xFF1E2430),
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             )
         }
@@ -357,7 +358,7 @@ private fun CommunityWriteSubmitSection(
             containerColor = Color.Transparent,
             contentColor = Color.White,
             disabledContainerColor = MaterialTheme.colorScheme.outlineVariant,
-            disabledContentColor = Color.White
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         ),
         contentPadding = PaddingValues(0.dp)
     ) {
@@ -366,9 +367,7 @@ private fun CommunityWriteSubmitSection(
                 .fillMaxWidth()
                 .background(
                     brush = if (isEnabled) {
-                        Brush.horizontalGradient(
-                            SpentopiaWalletGradientColors
-                        )
+                        Brush.horizontalGradient(SpentopiaActionGradientColors)
                     } else {
                         Brush.horizontalGradient(
                             listOf(
@@ -385,7 +384,8 @@ private fun CommunityWriteSubmitSection(
             Text(
                 text = "등록하기",
                 fontSize = 15.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = if (isEnabled) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

@@ -61,6 +61,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
+import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
@@ -246,7 +247,7 @@ private fun EmptyPostCard() {
                 text = "아직 게시글이 없어요",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF20242C)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -254,7 +255,7 @@ private fun EmptyPostCard() {
             Text(
                 text = "첫 번째 글을 작성해서 커뮤니티를 시작해보세요.",
                 fontSize = 13.sp,
-                color = Color(0xFF6E7684),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 19.sp
             )
         }
@@ -280,7 +281,7 @@ private fun CommunityTopHeader(
                 text = "커뮤니티",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111111)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -288,7 +289,7 @@ private fun CommunityTopHeader(
             Text(
                 text = "다른 사용자들과 소통하고 경험을 나눠보세요",
                 fontSize = 12.sp,
-                color = Color(0xFF6F7785),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 18.sp
             )
         }
@@ -300,14 +301,13 @@ private fun CommunityTopHeader(
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
-                contentColor = Color.White
             ),
             contentPadding = PaddingValues(0.dp)
         ) {
             Box(
                 modifier = Modifier
                     .background(
-                        brush = spentopiaCommunityGradient(),
+                        brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
                         shape = RoundedCornerShape(10.dp)
                     )
                     .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -316,7 +316,8 @@ private fun CommunityTopHeader(
                 Text(
                     text = "글쓰기",
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
                 )
             }
         }
@@ -390,17 +391,25 @@ private fun CommunityAiCard(
             Button(
                 onClick = onChatClick,
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = Color(0xFF1F1F1F)
-                ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues(0.dp)
             ) {
-                Text(
-                    text = "채팅 시작",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Box(
+                    modifier = Modifier
+                        .background(
+                            brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "채팅 시작",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
             }
         }
     }
@@ -434,13 +443,7 @@ private fun CommunityCategoryChipRow(
                 modifier = Modifier
                     .widthIn(min = 80.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(
-                        if (isSelected) {
-                            Color(0xFFF0F1F5)
-                        } else {
-                            Color.White
-                        }
-                    )
+                    .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
                     .clickable {
                         onCategorySelected(index)
                     }
@@ -450,7 +453,7 @@ private fun CommunityCategoryChipRow(
                     text = category.label,
                     fontSize = 12.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -488,14 +491,14 @@ private fun CommunityPostCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(999.dp))
-                        .background(Color(0xFFE9EEF9))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = "최신글",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF4A7AE8)
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
 
@@ -508,25 +511,25 @@ private fun CommunityPostCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = post.title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF20242C),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+                Text(
+                    text = post.title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            Text(
-                text = post.content,
-                fontSize = 14.sp,
-                color = Color(0xFF6E7684),
-                lineHeight = 20.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
+                Text(
+                    text = post.content,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 20.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
 
             Spacer(modifier = Modifier.height(18.dp))
 
@@ -539,7 +542,7 @@ private fun CommunityPostCard(
                     text = post.tagText,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF3B3F47)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Row(
@@ -565,16 +568,16 @@ private fun CommunityPostCard(
 private fun SmallCountChip(
     text: String
 ) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(Color(0xFFF1F3F7))
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Text(
             text = text,
             fontSize = 12.sp,
-            color = Color(0xFF6D7480)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

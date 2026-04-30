@@ -59,7 +59,7 @@ fun MarketScreen(
     val accessToken = remember {
         prefs.getString("access_token", "") ?: ""
     }
-    val baseUrl = BuildConfig.NFT_MARKET_WEBVIEW_URL.trim()
+    val baseUrl = "http://10.0.2.2:5173/"//테스트
     val marketUrl = remember(baseUrl, accessToken, walletAddress, walletProvider, isWalletConnected) {
         buildMarketWebViewUrl(
             baseUrl = baseUrl,
@@ -154,15 +154,15 @@ fun MarketScreen(
                             override fun onReceivedError(
                                 view: WebView?,
                                 request: WebResourceRequest?,
-                            error: WebResourceError?
-                        ) {
-                            if (request?.isForMainFrame == true) {
-                                Log.e(
-                                    MARKET_WEBVIEW_TAG,
-                                    "onReceivedError url=${request.url} code=${error?.errorCode} description=${error?.description}"
-                                )
-                                isLoading = false
-                                errorMessage = error?.description?.toString()
+                                error: WebResourceError?
+                            ) {
+                                if (request?.isForMainFrame == true) {
+                                    Log.e(
+                                        MARKET_WEBVIEW_TAG,
+                                        "onReceivedError url=${request.url} code=${error?.errorCode} description=${error?.description}"
+                                    )
+                                    isLoading = false
+                                    errorMessage = error?.description?.toString()
                                         ?: "NFT 마켓을 불러오지 못했습니다."
                                 }
                             }
@@ -171,14 +171,14 @@ fun MarketScreen(
                                 view: WebView?,
                                 request: WebResourceRequest?,
                                 errorResponse: WebResourceResponse?
-                        ) {
-                            if (request?.isForMainFrame == true && errorResponse != null) {
-                                Log.e(
-                                    MARKET_WEBVIEW_TAG,
-                                    "onReceivedHttpError url=${request.url} status=${errorResponse.statusCode} reason=${errorResponse.reasonPhrase}"
-                                )
-                                isLoading = false
-                                errorMessage = "NFT 마켓 응답 오류 (${errorResponse.statusCode})"
+                            ) {
+                                if (request?.isForMainFrame == true && errorResponse != null) {
+                                    Log.e(
+                                        MARKET_WEBVIEW_TAG,
+                                        "onReceivedHttpError url=${request.url} status=${errorResponse.statusCode} reason=${errorResponse.reasonPhrase}"
+                                    )
+                                    isLoading = false
+                                    errorMessage = "NFT 마켓 응답 오류 (${errorResponse.statusCode})"
                                 }
                             }
                         }
@@ -270,7 +270,9 @@ private fun WebView.configureMarketWebView() {
     settings.loadWithOverviewMode = true
     settings.textZoom = 100
     settings.cacheMode = WebSettings.LOAD_DEFAULT
-    settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+    settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+    settings.allowFileAccess = true
+    settings.allowContentAccess = true
 }
 
 private fun buildMarketWebViewUrl(
@@ -320,22 +322,28 @@ private fun WebView.injectMarketSession(
     isWalletConnected: Boolean
 ) {
     val script = """
-        (function() {
-          window.localStorage.setItem('spentopia_webview', 'android');
-          window.localStorage.setItem('spentopia_app_access_token', ${JSONObject.quote(accessToken)});
-          window.localStorage.setItem('spentopia_wallet_connected', ${JSONObject.quote(isWalletConnected.toString())});
-          window.localStorage.setItem('spentopia_wallet_address', ${JSONObject.quote(walletAddress)});
-          window.localStorage.setItem('spentopia_wallet_provider', ${JSONObject.quote(walletProvider)});
-          window.dispatchEvent(new CustomEvent('spentopiaAndroidSession', {
-            detail: {
-              accessToken: ${JSONObject.quote(accessToken)},
-              walletAddress: ${JSONObject.quote(walletAddress)},
-              walletProvider: ${JSONObject.quote(walletProvider)},
-              walletConnected: $isWalletConnected
-            }
-          }));
-        })();
-    """.trimIndent()
+    (function() {
+      try {
+        window.localStorage.setItem('spentopia_webview', 'android');
+        window.localStorage.setItem('spentopia_app_access_token', ${JSONObject.quote(accessToken)});
+        window.localStorage.setItem('spentopia_wallet_connected', ${JSONObject.quote(isWalletConnected.toString())});
+        window.localStorage.setItem('spentopia_wallet_address', ${JSONObject.quote(walletAddress)});
+        window.localStorage.setItem('spentopia_wallet_provider', ${JSONObject.quote(walletProvider)});
+      } catch (e) {
+        console.error('localStorage set failed', e);
+      }
+
+      window.dispatchEvent(new CustomEvent('spentopiaAndroidSession', {
+        detail: {
+          accessToken: ${JSONObject.quote(accessToken)},
+          walletAddress: ${JSONObject.quote(walletAddress)},
+          walletProvider: ${JSONObject.quote(walletProvider)},
+          walletConnected: $isWalletConnected
+        }
+      }));
+    })();
+""".trimIndent()
+
     Log.d(MARKET_WEBVIEW_TAG, "injectMarketSession tokenPresent=${accessToken.isNotBlank()}")
     evaluateJavascript(script, null)
 }

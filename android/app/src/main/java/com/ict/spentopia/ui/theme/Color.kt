@@ -10,6 +10,7 @@ val SpentopiaGradientMiddle = Color(0xFF111827)
 val SpentopiaGradientPurple = Color(0xFF1E1B4B)
 val SpentopiaGradientEnd = Color(0xFF2D1847)
 val SpentopiaGlowPurple = Color(0xFF7C3AED)
+val SpentopiaGlowBlue = Color(0xFF2F80ED)
 val SpentopiaSoftPurple = Color(0xFFEDEBFF)
 val SpentopiaSurfaceLine = Color(0xFFE2E8F0)
 val SpentopiaText = Color(0xFF111827)
@@ -21,6 +22,7 @@ val SpentopiaWalletGradientColors = listOf(
     SpentopiaGradientPurple,
     SpentopiaGradientEnd
 )
+val SpentopiaActionGradientColors = SpentopiaWalletGradientColors
 
 val Purple80 = Color(0xFFC7D2FE) //이 파일이 속한 패키지  선언
 val PurpleGrey80 = Color(0xFFCBD5E1) // jetpack Compose에서 Color 클래스 가져옴

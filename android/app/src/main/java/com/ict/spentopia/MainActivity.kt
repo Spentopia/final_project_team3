@@ -10,7 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.ict.spentopia.data.remote.RetrofitClient
 import com.ict.spentopia.data.remote.SupabaseClient
@@ -21,6 +21,11 @@ import java.security.MessageDigest
 
 class MainActivity : ComponentActivity() {
 
+    companion object {
+        private const val PREFS_NAME = "auth_prefs"
+        private const val KEY_THEME_IS_DARK = "theme_is_dark"
+    }
+
     private lateinit var walletActivityResultSender: ActivityResultSender
 
     var walletCallbackUri by mutableStateOf<Uri?>(null)
@@ -30,7 +35,9 @@ class MainActivity : ComponentActivity() {
     private set
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        Log.e("Spentopia", "APP_NEW_BUILD_RUNNING")
+        if (BuildConfig.DEBUG) {
+            Log.d("Spentopia", "APP_NEW_BUILD_RUNNING")
+        }
         super.onCreate(savedInstanceState)
 
         // =====================================================
@@ -51,10 +58,12 @@ class MainActivity : ComponentActivity() {
 
         handleCallbackIntent(intent)
 
+        val themePrefs = applicationContext.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+
         setContent {
-            // 앱이 실행 중일 때 다크모드/라이트모드 선택 상태를 기억합니다.
-            var isDarkTheme by rememberSaveable {
-                mutableStateOf(false)
+            // 앱 재실행 후에도 유지되도록 SharedPreferences에서 읽은 초기값을 사용합니다.
+            var isDarkTheme by remember {
+                mutableStateOf(themePrefs.getBoolean(KEY_THEME_IS_DARK, false))
             }
 
             SpentopiaTheme(
@@ -73,6 +82,9 @@ class MainActivity : ComponentActivity() {
                     isDarkTheme = isDarkTheme,
                     onThemeChange = { newIsDarkTheme ->
                         isDarkTheme = newIsDarkTheme
+                        themePrefs.edit()
+                            .putBoolean(KEY_THEME_IS_DARK, newIsDarkTheme)
+                            .apply()
                     }
                 )
             }
@@ -130,8 +142,10 @@ class MainActivity : ComponentActivity() {
                 val sha1 = messageDigest.digest(signature.toByteArray())
                     .joinToString(":") { "%02X".format(it) }
 
-                Log.e("Spentopia", "RUNTIME packageName=$packageName")
-                Log.e("Spentopia", "RUNTIME SHA1=$sha1")
+                if (BuildConfig.DEBUG) {
+                    Log.d("Spentopia", "RUNTIME packageName=$packageName")
+                    Log.d("Spentopia", "RUNTIME SHA1=$sha1")
+                }
             }
         } catch (e: Exception) {
             Log.e("Spentopia", "RUNTIME SHA1 확인 실패", e)

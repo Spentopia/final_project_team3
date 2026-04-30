@@ -25,9 +25,12 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -36,7 +39,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -74,6 +77,7 @@ import com.ict.spentopia.ui.theme.SpentopiaIconMuted
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import kotlinx.coroutines.launch
@@ -100,6 +104,7 @@ fun LoginScreen(
     onFindPasswordClick: () -> Unit = {},
     onWalletConnected: (String, String, String, String) -> Unit = { _, _, _, _ -> }
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -270,7 +275,9 @@ fun LoginScreen(
     }
 
     fun startGoogleLogin() {
-        Log.e("Spentopia", "WEB_ID=${BuildConfig.GOOGLE_WEB_CLIENT_ID}")
+        if (BuildConfig.DEBUG) {
+            Log.d("Spentopia", "WEB_ID=${BuildConfig.GOOGLE_WEB_CLIENT_ID}")
+        }
 
         if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isBlank()) {
             Toast.makeText(context, context.getString(R.string.google_web_client_id_missing), Toast.LENGTH_SHORT).show()
@@ -281,10 +288,26 @@ fun LoginScreen(
         googleSignInLauncher.launch(googleSignInClient.signInIntent)
     }
 
+    val isDarkTheme = colorScheme.surface == Color(0xFF111827)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF3F8FC))
+            .background(
+                brush = if (isDarkTheme) {
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF090B16),
+                            Color(0xFF111827),
+                            Color(0xFF24103F)
+                        )
+                    )
+                } else {
+                    Brush.verticalGradient(
+                        colors = listOf(colorScheme.background, colorScheme.background)
+                    )
+                }
+            )
             .imePadding()
     ) {
         Column(
@@ -294,12 +317,16 @@ fun LoginScreen(
                 .padding(top = 8.dp, bottom = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.ic_spentopia_logo),
-                contentDescription = stringResource(id = R.string.spentopia_logo_content_description),
-                modifier = Modifier.size(200.dp),
-                contentScale = ContentScale.Fit
-            )
+            if (isDarkTheme) {
+                SplashLikeLogoSection()
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_spentopia_logo),
+                    contentDescription = stringResource(id = R.string.spentopia_logo_content_description),
+                    modifier = Modifier.size(200.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
 
             Spacer(modifier = Modifier.height(4.dp))
 
@@ -307,7 +334,7 @@ fun LoginScreen(
                 text = stringResource(id = R.string.app_name),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(3.dp))
@@ -315,7 +342,7 @@ fun LoginScreen(
             Text(
                 text = stringResource(id = R.string.login_tagline),
                 fontSize = 14.sp,
-                color = Color(0xFF6B7280)
+                color = colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -353,14 +380,18 @@ fun LoginScreen(
                             passwordVisible = !passwordVisible
                         }
                     ) {
-                        Text(
-                            text = if (passwordVisible) {
+                        Icon(
+                            imageVector = if (passwordVisible) {
+                                Icons.Outlined.VisibilityOff
+                            } else {
+                                Icons.Outlined.Visibility
+                            },
+                            contentDescription = if (passwordVisible) {
                                 stringResource(id = R.string.login_password_hide)
                             } else {
                                 stringResource(id = R.string.login_password_show)
                             },
-                            fontSize = 12.sp,
-                            color = Color(0xFF6B7280)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -379,36 +410,6 @@ fun LoginScreen(
                     startEmailLogin()
                 }
             )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(onClick = onFindEmailClick) {
-                    Text(
-                        text = stringResource(id = R.string.find_email),
-                        fontSize = 13.sp,
-                        color = Color(0xFF8A94A6)
-                    )
-                }
-
-                Text(
-                    text = "|",
-                    fontSize = 13.sp,
-                    color = Color(0xFFC4CBD6)
-                )
-
-                TextButton(onClick = onFindPasswordClick) {
-                    Text(
-                        text = stringResource(id = R.string.find_password),
-                        fontSize = 13.sp,
-                        color = Color(0xFF8A94A6)
-                    )
-                }
-            }
 
             Spacer(modifier = Modifier.height(4.dp))
 
@@ -563,6 +564,105 @@ fun LoginScreen(
 }
 
 @Composable
+private fun SplashLikeLogoSection() {
+    val transition = rememberInfiniteTransition(label = "login-splash-logo")
+    val logoAlpha by transition.animateFloat(
+        initialValue = 0.65f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1800),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "logo-alpha"
+    )
+    val logoScale by transition.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.04f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2200),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "logo-scale"
+    )
+    val sparkleAlpha by transition.animateFloat(
+        initialValue = 0.22f,
+        targetValue = 0.68f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1400),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "sparkle-alpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .size(220.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(200.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFF7C3AED).copy(alpha = 0.30f),
+                            Color(0xFF2F80ED).copy(alpha = 0.16f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+
+        Text(
+            text = "✦",
+            fontSize = 20.sp,
+            color = Color.White.copy(alpha = sparkleAlpha),
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 18.dp, top = 26.dp)
+        )
+        Text(
+            text = "✧",
+            fontSize = 16.sp,
+            color = Color.White.copy(alpha = sparkleAlpha * 0.85f),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = 22.dp, top = 44.dp)
+        )
+        Text(
+            text = "✦",
+            fontSize = 18.sp,
+            color = Color.White.copy(alpha = sparkleAlpha * 0.75f),
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 28.dp, bottom = 32.dp)
+        )
+        Text(
+            text = "✧",
+            fontSize = 15.sp,
+            color = Color.White.copy(alpha = sparkleAlpha * 0.7f),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 30.dp, bottom = 44.dp)
+        )
+
+        Image(
+            painter = painterResource(id = R.drawable.ic_spentopia_logo),
+            contentDescription = null,
+            modifier = Modifier
+                .size(200.dp)
+                .graphicsLayer {
+                    alpha = logoAlpha
+                    scaleX = logoScale
+                    scaleY = logoScale
+                },
+            contentScale = ContentScale.Fit
+        )
+    }
+}
+
+@Composable
 private fun LoginInputField(
     title: String,
     value: String,
@@ -581,7 +681,7 @@ private fun LoginInputField(
             text = title,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF1F2937)
+            color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(7.dp))
         OutlinedTextField(
@@ -591,7 +691,7 @@ private fun LoginInputField(
                 .fillMaxWidth()
                 .height(54.dp),
             placeholder = {
-                Text(text = placeholder, fontSize = 14.sp, color = Color(0xFF8B95A1))
+                Text(text = placeholder, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             },
             singleLine = true,
             visualTransformation = visualTransformation,
@@ -600,11 +700,15 @@ private fun LoginInputField(
             trailingIcon = trailingIcon,
             shape = RoundedCornerShape(14.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.45f),
-                unfocusedBorderColor = Color(0xFFE0E5EC),
-                cursorColor = SpentopiaMutedPurple
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                cursorColor = MaterialTheme.colorScheme.primary
             )
         )
     }
@@ -637,14 +741,23 @@ private fun GradientLoginButton(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .graphicsLayer {
+                    alpha = if (enabled) 1f else 0.55f
+                }
+                .shadow(
+                    elevation = if (enabled) 10.dp else 0.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    ambientColor = Color(0xFF7C3AED).copy(alpha = 0.32f),
+                    spotColor = Color(0xFF2F80ED).copy(alpha = 0.22f)
+                )
                 .background(
                     brush = Brush.horizontalGradient(
-                        colors = SpentopiaWalletGradientColors
+                        colors = SpentopiaActionGradientColors
                     ),
                     shape = RoundedCornerShape(16.dp)
                 )
                 .border(
-                    border = BorderStroke(1.dp, SpentopiaGlowPurple.copy(alpha = 0.45f)),
+                    border = BorderStroke(1.dp, SpentopiaGlowPurple.copy(alpha = 0.38f)),
                     shape = RoundedCornerShape(16.dp)
                 ),
             contentAlignment = Alignment.Center
@@ -756,16 +869,12 @@ private fun WalletLoginOptionButton(
                 .fillMaxSize()
                 .background(
                     brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color(0xFF111827),
-                            Color(0xFF1B2942),
-                            Color(0xFF2D1847)
-                        )
+                        colors = SpentopiaWalletGradientColors
                     ),
                     shape = RoundedCornerShape(15.dp)
                 )
                 .border(
-                    border = BorderStroke(1.dp, Color(0xFF7C3AED)),
+                    border = BorderStroke(1.dp, SpentopiaGlowPurple),
                     shape = RoundedCornerShape(15.dp)
                 )
                 .padding(horizontal = 20.dp),
@@ -803,11 +912,11 @@ private fun StaticButtonShine(
     shape: RoundedCornerShape,
     pressed: Boolean = false
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.linearGradient(
                     colors = listOf(
                         Color.Transparent,
                         Color.White.copy(alpha = if (pressed) 0.26f else 0.16f),

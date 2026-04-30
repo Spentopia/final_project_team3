@@ -48,7 +48,7 @@ fun ProfileAvatarScreen(
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(999.dp)) // 수정: 캡슐형 탭 배경 적용
-                .background(Color(0xFFEAECEF)) // 수정: 연한 회색 탭 배경 적용
+                .background(MaterialTheme.colorScheme.surfaceVariant) // 수정: 테마 기반 탭 배경 적용
                 .padding(4.dp), // 수정: 탭 내부 패딩 적용
             horizontalArrangement = Arrangement.spacedBy(6.dp) // 수정: 탭 간격 지정
         ) {
@@ -103,14 +103,14 @@ private fun ProfileTabButton(
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp)) // 수정: 탭 버튼 둥근 모양 적용
             .background(
-                if (selected) MaterialTheme.colorScheme.surface else Color.Transparent // 수정: 선택 탭만 흰색 배경 표시
+                if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
             )
     ) {
         Text(
             text = text, // 수정: 탭 이름 표시
             fontSize = 14.sp, // 수정: 탭 폰트 크기 지정
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, // 수정: 선택 탭 강조
-            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant // 수정: 선택 여부에 따른 텍스트 색상 변경
+            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

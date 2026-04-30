@@ -47,6 +47,7 @@ import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // 수정: 선택�
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 
 // 기존 주석 유지
@@ -172,13 +173,13 @@ private fun MyPageTopTabButton(
         onClick = { onClick() }, // 클릭 시 동작 실행
         modifier = Modifier
             .background(
-                color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent, // 선택 시 흰색 배경
+                color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                 shape = RoundedCornerShape(999.dp) // 캡슐형 모양
             )
     ) {
         Text(
             text = text, // 탭 텍스트 출력
-            color = MaterialTheme.colorScheme.onSurface, // 탭 글자색
+            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 13.sp, // 탭 글자 크기
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium // 선택 탭 강조
         )
@@ -266,7 +267,7 @@ private fun ProfileHeaderCard(
                     modifier = Modifier
                         .align(Alignment.BottomEnd) // 오른쪽 아래 배치
                         .background(
-                            color = Color.White, // 흰색 배경
+                            color = MaterialTheme.colorScheme.surface, // 배경
                             shape = CircleShape // 원형 배지
                         )
                         .padding(8.dp) // 배지 여백
@@ -293,7 +294,7 @@ private fun ProfileHeaderCard(
                 text = uiState.profileSummary.realName, // 실명 출력
                 fontSize = 14.sp, // 실명 크기
                 fontWeight = FontWeight.SemiBold, // 실명 강조
-                color = Color.White.copy(alpha = 0.9f) // 반투명 흰색
+                color = Color.White.copy(alpha = 0.92f) // 반투명 흰색
             )
 
             Spacer(modifier = Modifier.height(20.dp)) // 프로필 정보와 통계 카드 사이 여백
@@ -327,22 +328,22 @@ private fun ProfileStatBox(
     title: String, // 제목
     value: String // 값
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth() // 전체 너비 사용
-            .padding(bottom = 10.dp), // 하단 간격
-        shape = RoundedCornerShape(14.dp), // 둥근 박스
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.12f) // 반투명 배경
-        )
-    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth() // 전체 너비 사용
+                .padding(bottom = 10.dp), // 하단 간격
+            shape = RoundedCornerShape(14.dp), // 둥근 박스
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f) // 반투명 배경
+            )
+        ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp) // 내부 여백
         ) {
             Text(
                 text = title, // 제목 출력
                 fontSize = 14.sp, // 제목 크기
-                color = Color.White.copy(alpha = 0.88f) // 반투명 흰색
+                color = MaterialTheme.colorScheme.onSurfaceVariant // 반투명 흰색
             )
 
             Spacer(modifier = Modifier.height(6.dp)) // 제목과 값 사이 여백
@@ -351,7 +352,7 @@ private fun ProfileStatBox(
                 text = value, // 값 출력
                 fontSize = 18.sp, // 값 크기
                 fontWeight = FontWeight.Bold, // 값 강조
-                color = Color.White // 흰색 글자
+                color = MaterialTheme.colorScheme.onSurface // 흰색 글자
             )
         }
     }
@@ -387,7 +388,7 @@ private fun MemberInfoCard(
                 Box(
                     modifier = Modifier
                         .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant, // 버튼 배경색
+                            color = MaterialTheme.colorScheme.primaryContainer, // 버튼 배경색
                             shape = RoundedCornerShape(10.dp) // 둥근 버튼
                         )
                         .clickable {
@@ -399,7 +400,7 @@ private fun MemberInfoCard(
                         text = if (uiState.isEditMode) "💾 저장" else "✏️ 수정", // 버튼 문구
                         fontSize = 13.sp, // 버튼 글자 크기
                         fontWeight = FontWeight.SemiBold, // 버튼 글자 강조
-                        color = MaterialTheme.colorScheme.onSurface // 버튼 글자색
+                        color = MaterialTheme.colorScheme.onPrimaryContainer // 버튼 글자색
                     )
                 }
             }

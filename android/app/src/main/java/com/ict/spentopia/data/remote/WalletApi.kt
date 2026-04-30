@@ -13,6 +13,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.HTTP
 import retrofit2.http.Header
+import retrofit2.http.Headers
 import retrofit2.http.POST
 
 
@@ -371,10 +372,13 @@ interface WalletApi {
     // -> DELETE 요청이지만 body도 함께 보낸다는 뜻
 
 
-    //api 로그아웃 추가
+    // 앱 로그아웃 API
+    // 서버는 RefreshRequest JSON body를 기대합니다.
+    @Headers("Content-Type: application/json")
     @POST("/auth/app/logout")
     suspend fun logout(
-        @Header("X-Client-Type") clientType: String = "app"
+        @Header("X-Client-Type") clientType: String = "app",
+        @Body request: RefreshTokenRequest
     )
     @HTTP(method = "DELETE", path = "/wallet/unlink", hasBody = true)
 

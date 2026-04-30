@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -44,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
@@ -126,7 +128,7 @@ private fun PlazaHeaderSection() {
             Box(
                 modifier = Modifier
                     .background(
-                        color = Color(0xFFFFB020),
+                        color = MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(999.dp)
                     )
                     .padding(horizontal = 10.dp, vertical = 4.dp)
@@ -135,7 +137,7 @@ private fun PlazaHeaderSection() {
                     text = "PC 전용",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
         }
@@ -145,7 +147,7 @@ private fun PlazaHeaderSection() {
         Text(
             text = "아바타와 함께 다른 유저들을 만나보세요",
             style = MaterialTheme.typography.bodyLarge,
-            color = Color(0xFF475467)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -217,20 +219,33 @@ private fun PlazaHeroCard(
                     onClick = onEnterClick,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF3F4F6),
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    contentPadding = PaddingValues(0.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.PlayArrow,
-                        contentDescription = null
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "광장 입장하기",
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.PlayArrow,
+                                contentDescription = null,
+                                tint = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "광장 입장하기",
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -245,10 +260,10 @@ private fun PlazaFeatureCard() {
                 Icon(
                     imageVector = Icons.Outlined.Groups,
                     contentDescription = null,
-                    tint = SpentopiaMutedPurple
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
-            iconBg = Color(0xFFF3E8FF),
+            iconBg = MaterialTheme.colorScheme.surfaceVariant,
             title = "아바타 이동 & 채팅",
             description = "내 아바타를 움직이며 다른 유저들과 실시간 채팅을 즐겨보세요"
         )
@@ -260,10 +275,10 @@ private fun PlazaFeatureCard() {
                 Icon(
                     imageVector = Icons.Outlined.Extension,
                     contentDescription = null,
-                    tint = SpentopiaMutedPurple
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
-            iconBg = Color(0xFFFCE7F3),
+            iconBg = MaterialTheme.colorScheme.surfaceVariant,
             title = "커스터마이징 반영",
             description = "내 아바타에 적용한 모든 아이템이 3D로 표현돼요"
         )
@@ -275,10 +290,10 @@ private fun PlazaFeatureCard() {
                 Icon(
                     imageVector = Icons.Outlined.EmojiEvents,
                     contentDescription = null,
-                    tint = Color(0xFFD97706)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
-            iconBg = Color(0xFFFEF3C7),
+            iconBg = MaterialTheme.colorScheme.surfaceVariant,
             title = "프리미엄 공간",
             description = "특별한 칭호와 전용 부스를 획득할 수 있어요"
         )
@@ -377,13 +392,13 @@ private fun PlazaUpcomingCard() {
                 Icon(
                     imageVector = Icons.Outlined.Star,
                     contentDescription = null,
-                    tint = SpentopiaMutedPurple
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             },
             title = "미니게임",
             description = "다양한 미니게임으로 SPT 획득",
-            borderColor = Color(0xFFD8B4FE),
-            backgroundColor = Color(0xFFFAF5FF)
+            borderColor = MaterialTheme.colorScheme.outlineVariant,
+            backgroundColor = MaterialTheme.colorScheme.surface
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -393,13 +408,13 @@ private fun PlazaUpcomingCard() {
                 Icon(
                     imageVector = Icons.Outlined.Groups,
                     contentDescription = null,
-                    tint = SpentopiaMutedPurple
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             },
             title = "길드 시스템",
             description = "친구들과 길드를 만들어보세요",
-            borderColor = Color(0xFFF9A8D4),
-            backgroundColor = Color(0xFFFDF2F8)
+            borderColor = MaterialTheme.colorScheme.outlineVariant,
+            backgroundColor = MaterialTheme.colorScheme.surface
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -409,24 +424,24 @@ private fun PlazaUpcomingCard() {
                 Icon(
                     imageVector = Icons.Outlined.Campaign,
                     contentDescription = null,
-                    tint = Color(0xFFD97706)
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             },
             title = "이벤트 홀",
             description = "특별 이벤트 전용 공간",
-            borderColor = Color(0xFFFCD34D),
-            backgroundColor = Color(0xFFFFFBEB)
+            borderColor = MaterialTheme.colorScheme.outlineVariant,
+            backgroundColor = MaterialTheme.colorScheme.surface
         )
     }
 }
 
 @Composable
 private fun MobileNoticeCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFEFF6FF)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Row(
@@ -443,7 +458,7 @@ private fun MobileNoticeCard() {
             Text(
                 text = "모바일에서는 광장 기능을 이용할 수 없습니다.\nPC 환경에서 이용해주세요.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF1D4ED8),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -453,14 +468,14 @@ private fun MobileNoticeCard() {
 @Composable
 private fun SectionCard(
     title: String,
-    containerColor: Color = Color(0xFFF8FAFC),
+    containerColor: Color? = null,
     content: @Composable () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = containerColor
+            containerColor = containerColor ?: MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
@@ -549,7 +564,7 @@ private fun OnlineUserRow(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                color = Color(0xFFF9FAFB),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
                 shape = RoundedCornerShape(14.dp)
             )
             .padding(horizontal = 14.dp, vertical = 14.dp),

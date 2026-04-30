@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.width // 너비 지정 기능을 가�
 import androidx.compose.foundation.lazy.LazyColumn // 세로 스크롤 리스트를 가져옴
 import androidx.compose.foundation.shape.CircleShape // 원 모양을 가져옴
 import androidx.compose.foundation.shape.RoundedCornerShape // 둥근 모서리 모양을 가져옴
+import androidx.compose.foundation.isSystemInDarkTheme
 
 // 아이콘 관련 import입니다.
 import androidx.compose.material.icons.Icons // 아이콘 묶음을 가져옴
@@ -96,6 +97,7 @@ import com.ict.spentopia.data.local.ExpenseEntity // DB에 저장되는 소비 �
 import com.ict.spentopia.data.remote.CreateExpenseRequest
 import com.ict.spentopia.data.remote.RetrofitClient
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
+import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
@@ -525,10 +527,13 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
     walletProvider: String, // 지갑 제공자 이름을 받음
     onWalletConnectClick: () -> Unit = {} // 버튼을 눌렀을 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isSystemInDarkTheme()
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 색상 스타일을 정함
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF1F6FA)
+        ) // 색상 스타일을 정함
     ) { // 이 블록 안의 내용이 시작됨
         Row( // 가로로 배치하는 영역을 시작함
             modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
@@ -613,10 +618,11 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
     onNextMonth: () -> Unit, // onNextMonth 는 눌렀을 때 실행할 동작을 받음
     onCalendarClick: () -> Unit // onCalendarClick 는 눌렀을 때 실행할 동작을 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isSystemInDarkTheme()
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F6FA)) // 색상 스타일을 정함
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 색상 스타일을 정함
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 세로로 배치하는 영역을 시작함
             modifier = Modifier.padding(20.dp) // 안쪽이나 바깥 여백을 줌
@@ -650,7 +656,7 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
                             modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                                 .size(30.dp) // 가로세로 크기를 한 번에 정함
                                 .background( // 배경색이나 그라데이션을 넣음
-                                    color = Color.White, // 색상을 정함
+                                    color = MaterialTheme.colorScheme.surfaceVariant, // 색상을 정함
                                     shape = RoundedCornerShape(10.dp) // 모서리 모양을 정함
                                 )
                                 .clickable { onCalendarClick() }, // 눌렀을 때 반응하도록 만듦
@@ -705,28 +711,28 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
                 SummaryMiniCard( // 카드 모양 UI를 시작함
                     title = "예산", // horizontalArrangement 값을 이 함수로 넘김
                     value = "${formatAmount(monthlyBudget)}원", // value 값을 이 함수로 넘김
-                    bgColor = Color(0xFFDDF3F7), // 배경색 값을 넘김
+                    bgColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFDDF3F7), // 배경색 값을 넘김
                     modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
                 )
 
                 SummaryMiniCard( // 카드 모양 UI를 시작함
                     title = "수입", // 수입 제목
                     value = "${formatAmount(monthlyIncome)}원", // 수입 값
-                    bgColor = Color(0xFFE8F7E8), // 배경색 값을 넘김
+                    bgColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE8F7E8), // 배경색 값을 넘김
                     modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
                 )
 
                 SummaryMiniCard( // 카드 모양 UI를 시작함
                     title = if (remainingBudget >= 0) "남은 예산" else "초과 예산", // modifier 값을 이 함수로 넘김
                     value = "${formatAmount(abs(remainingBudget))}원", // 음수를 양수로 바꿔 절댓값으로 만듦
-                    bgColor = if (remainingBudget >= 0) Color(0xFFE1EAFF) else Color(0xFFFFE3E3), // 배경색 값을 넘김
+                    bgColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else if (remainingBudget >= 0) Color(0xFFE1EAFF) else Color(0xFFFFE3E3), // 배경색 값을 넘김
                     modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
                 )
 
                 SummaryMiniCard( // 카드 모양 UI를 시작함
                     title = "사용률", // modifier 값을 이 함수로 넘김
                     value = usageRateText, // value 값을 이 함수로 넘김
-                    bgColor = Color(0xFFDFF2EC), // 배경색 값을 넘김
+                    bgColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFDFF2EC), // 배경색 값을 넘김
                     modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
                 )
             } // 블록 끝
@@ -741,6 +747,7 @@ private fun SummaryMiniCard( // SummaryMiniCard 함수 선언 시작
     bgColor: Color, // bgColor 값을 함수 밖에서 받아옴
     modifier: Modifier = Modifier // Modifier 값을 이 함수로 넘김
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isSystemInDarkTheme()
     Card( // 카드 모양 UI를 시작함
         modifier = modifier, // 이 UI의 크기·여백·배경 설정을 시작함
         shape = RoundedCornerShape(16.dp), // 모서리 모양을 정함
@@ -752,7 +759,7 @@ private fun SummaryMiniCard( // SummaryMiniCard 함수 선언 시작
             Text( // 글자를 화면에 보여주기 시작함
                 text = title, // 화면에 보여줄 글자를 정함
                 fontSize = 11.sp, // 글자 크기를 줄임
-                color = Color(0xFF315072), // 색상을 정함
+                color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF315072), // 색상을 정함
                 maxLines = 1 // 한 줄만 표시
             )
             Spacer(modifier = Modifier.height(6.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -760,7 +767,7 @@ private fun SummaryMiniCard( // SummaryMiniCard 함수 선언 시작
                 text = value, // 화면에 보여줄 글자를 정함
                 fontSize = 14.sp, // 글자 크기를 줄임
                 fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                color = Color(0xFF22406A), // 색상을 정함
+                color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF22406A), // 색상을 정함
                 lineHeight = 18.sp // 줄 높이 줄임
             )
         } // 블록 끝
@@ -1054,7 +1061,7 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
                                 text = "오늘의 소비 일기", // 화면에 보여줄 글자를 정함
                                 fontSize = 15.sp, // 글자 크기를 정함
                                 fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                                color = Color(0xFF22406A) // 색상을 정함
+                                color = MaterialTheme.colorScheme.onSurface // 색상을 정함
                             )
 
                             Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1313,7 +1320,7 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
                 text = "주간 기록", // 화면에 보여줄 글자를 정함
                 fontSize = 15.sp, // 글자 크기를 정함
                 fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                color = Color(0xFF22406A) // 색상을 정함
+                color = MaterialTheme.colorScheme.onSurface // 색상을 정함
             )
 
             Spacer(modifier = Modifier.height(14.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1419,6 +1426,16 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     val context = LocalContext.current // 현재 화면의 Context를 가져옴
     val scope = rememberCoroutineScope()
     val calendar = Calendar.getInstance() // 현재 날짜/시간 정보를 가진 Calendar 객체를 만듦
+    val colorScheme = MaterialTheme.colorScheme
+    val formCardColor = colorScheme.surface
+    val formSurfaceColor = colorScheme.surfaceVariant
+    val formBorderColor = colorScheme.outlineVariant
+    val formPrimaryTextColor = colorScheme.onSurface
+    val formSecondaryTextColor = colorScheme.onSurfaceVariant
+    val formAccentColor = colorScheme.primary
+    val formAccentTextColor = colorScheme.onPrimary
+    val formAccentContainerColor = colorScheme.primaryContainer
+    val formAccentContainerTextColor = colorScheme.onPrimaryContainer
 
     var formDate by remember { mutableStateOf(selectedDate) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var isExpenseTab by remember { mutableStateOf(true) } // 입력 탭 상태를 보관함
@@ -1486,7 +1503,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
         colors = CardDefaults.cardColors( // 색상 스타일을 정함
-            containerColor = MaterialTheme.colorScheme.surface // 배경색을 정함
+            containerColor = formCardColor // 배경색을 정함
         )
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 세로로 배치하는 영역을 시작함
@@ -1517,7 +1534,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                     .fillMaxWidth() // 가로 너비를 꽉 채움
                     .background( // 배경색이나 그라데이션을 넣음
-                        color = Color(0xFFF1F5F9), // 색상을 정함
+                        color = formSurfaceColor, // 색상을 정함
                         shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                     )
                     .padding(4.dp), // 안쪽이나 바깥 여백을 줌
@@ -1527,7 +1544,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                         .weight(1f) // 남는 공간을 비율대로 차지하게 함
                         .background( // 배경색이나 그라데이션을 넣음
-                            color = if (isExpenseTab) SpentopiaMutedPurple else Color.Transparent, // 색상을 정함
+                            color = if (isExpenseTab) formAccentContainerColor else Color.Transparent, // 색상을 정함
                             shape = RoundedCornerShape(12.dp) // 모서리 모양을 정함
                         )
                         .clickable { // 눌렀을 때 반응하도록 만듦
@@ -1539,7 +1556,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 ) { // 이 블록 안의 내용이 시작됨
                     Text( // 글자를 화면에 보여주기 시작함
                         text = "소비 입력", // 화면에 보여줄 글자를 정함
-                        color = if (isExpenseTab) Color.White else Color(0xFF64748B), // 색상을 정함
+                        color = if (isExpenseTab) formAccentContainerTextColor else formSecondaryTextColor, // 색상을 정함
                         fontSize = 14.sp, // 글자 크기를 정함
                         fontWeight = FontWeight.SemiBold // 글자 두께를 정함
                     )
@@ -1549,7 +1566,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                         .weight(1f) // 남는 공간을 비율대로 차지하게 함
                         .background( // 배경색이나 그라데이션을 넣음
-                            color = if (!isExpenseTab) Color(0xFF16A34A) else Color.Transparent, // 색상을 정함
+                            color = if (!isExpenseTab) colorScheme.secondaryContainer else Color.Transparent, // 색상을 정함
                             shape = RoundedCornerShape(12.dp) // 모서리 모양을 정함
                         )
                         .clickable { // 눌렀을 때 반응하도록 만듦
@@ -1561,7 +1578,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 ) { // 이 블록 안의 내용이 시작됨
                     Text( // 글자를 화면에 보여주기 시작함
                         text = "수입 입력", // 화면에 보여줄 글자를 정함
-                        color = if (!isExpenseTab) Color.White else Color(0xFF64748B), // 색상을 정함
+                        color = if (!isExpenseTab) colorScheme.onSecondaryContainer else formSecondaryTextColor, // 색상을 정함
                         fontSize = 14.sp, // 글자 크기를 정함
                         fontWeight = FontWeight.SemiBold // 글자 두께를 정함
                     )
@@ -1574,7 +1591,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 text = "날짜", // 화면에 보여줄 글자를 정함
                 fontSize = 15.sp, // 글자 크기를 정함
                 fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
-                color = Color(0xFF163D8F) // 색상을 정함
+                color = formPrimaryTextColor // 색상을 정함
             )
 
             Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1593,17 +1610,21 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
                     Text( // 글자를 화면에 보여주기 시작함
                         text = "날짜를 선택하세요", // 화면에 보여줄 글자를 정함
-                        color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
+                        color = formSecondaryTextColor // 색상을 정함
                     )
                 },
                 singleLine = true, // 한 줄만 입력되게 함
                 shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                 colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
-                    focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
-                    unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
-                    focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
-                    cursorColor = SpentopiaMutedPurple // 커서 색을 정함
+                    focusedContainerColor = formSurfaceColor, // 선택됐을 때 입력칸 배경색을 정함
+                    unfocusedContainerColor = formSurfaceColor, // 선택 안 됐을 때 입력칸 배경색을 정함
+                    focusedBorderColor = formBorderColor, // 선택됐을 때 테두리 색을 정함
+                    unfocusedBorderColor = formBorderColor, // 선택 안 됐을 때 테두리 색을 정함
+                    focusedTextColor = formPrimaryTextColor,
+                    unfocusedTextColor = formPrimaryTextColor,
+                    focusedPlaceholderColor = formSecondaryTextColor,
+                    unfocusedPlaceholderColor = formSecondaryTextColor,
+                    cursorColor = formAccentColor // 커서 색을 정함
                 )
             )
 
@@ -1635,7 +1656,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
             ) { // 이 블록 안의 내용이 시작됨
                 Text( // 글자를 화면에 보여주기 시작함
                     text = "날짜 선택하기", // 화면에 보여줄 글자를 정함
-                    color = SpentopiaMutedPurple, // 색상을 정함
+                    color = formAccentColor, // 색상을 정함
                     fontSize = 14.sp, // 글자 크기를 정함
                     fontWeight = FontWeight.Medium // 글자 두께를 정함
                 )
@@ -1647,7 +1668,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 text = "금액", // 화면에 보여줄 글자를 정함
                 fontSize = 15.sp, // 글자 크기를 정함
                 fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
-                color = Color(0xFF163D8F) // 색상을 정함
+                color = formPrimaryTextColor // 색상을 정함
             )
 
             Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1659,17 +1680,21 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
                     Text( // 글자를 화면에 보여주기 시작함
                         text = "예: 12000", // 화면에 보여줄 글자를 정함
-                        color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
+                        color = formSecondaryTextColor // 색상을 정함
                     )
                 },
                 singleLine = true, // 한 줄만 입력되게 함
                 shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                 colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
-                    focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
-                    unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
-                    focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
-                    cursorColor = SpentopiaMutedPurple // 커서 색을 정함
+                    focusedContainerColor = formSurfaceColor, // 선택됐을 때 입력칸 배경색을 정함
+                    unfocusedContainerColor = formSurfaceColor, // 선택 안 됐을 때 입력칸 배경색을 정함
+                    focusedBorderColor = formBorderColor, // 선택됐을 때 테두리 색을 정함
+                    unfocusedBorderColor = formBorderColor, // 선택 안 됐을 때 테두리 색을 정함
+                    focusedTextColor = formPrimaryTextColor,
+                    unfocusedTextColor = formPrimaryTextColor,
+                    focusedPlaceholderColor = formSecondaryTextColor,
+                    unfocusedPlaceholderColor = formSecondaryTextColor,
+                    cursorColor = formAccentColor // 커서 색을 정함
                 )
             )
 
@@ -1679,7 +1704,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 text = "카테고리", // 화면에 보여줄 글자를 정함
                 fontSize = 15.sp, // 글자 크기를 정함
                 fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
-                color = Color(0xFF163D8F) // 색상을 정함
+                color = formPrimaryTextColor // 색상을 정함
             )
 
             Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1698,7 +1723,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
                         Text( // 글자를 화면에 보여주기 시작함
                             text = "카테고리를 선택하세요", // 화면에 보여줄 글자를 정함
-                            color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
+                            color = formSecondaryTextColor // 색상을 정함
                         )
                     },
                     trailingIcon = { // 입력칸 오른쪽에 붙을 아이콘 영역을 만듦
@@ -1707,11 +1732,15 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     singleLine = true, // 한 줄만 입력되게 함
                     shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                     colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
-                        focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
-                        unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
-                        focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
-                        cursorColor = SpentopiaMutedPurple // 커서 색을 정함
+                        focusedContainerColor = formSurfaceColor, // 선택됐을 때 입력칸 배경색을 정함
+                        unfocusedContainerColor = formSurfaceColor, // 선택 안 됐을 때 입력칸 배경색을 정함
+                        focusedBorderColor = formBorderColor, // 선택됐을 때 테두리 색을 정함
+                        unfocusedBorderColor = formBorderColor, // 선택 안 됐을 때 테두리 색을 정함
+                        focusedTextColor = formPrimaryTextColor,
+                        unfocusedTextColor = formPrimaryTextColor,
+                        focusedPlaceholderColor = formSecondaryTextColor,
+                        unfocusedPlaceholderColor = formSecondaryTextColor,
+                        cursorColor = formAccentColor // 커서 색을 정함
                     )
                 )
 
@@ -1753,7 +1782,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 text = "메모", // 화면에 보여줄 글자를 정함
                 fontSize = 15.sp, // 글자 크기를 정함
                 fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
-                color = Color(0xFF163D8F) // 색상을 정함
+                color = formPrimaryTextColor // 색상을 정함
             )
 
             Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1765,17 +1794,21 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
                     Text( // 글자를 화면에 보여주기 시작함
                         text = if (isExpenseTab) "무엇을 구매했나요?" else "수입 내용을 입력하세요", // 화면에 보여줄 글자를 정함
-                        color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
+                        color = formSecondaryTextColor // 색상을 정함
                     )
                 },
                 singleLine = true, // 한 줄만 입력되게 함
                 shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                 colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
-                    focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
-                    unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
-                    focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
-                    cursorColor = SpentopiaMutedPurple // 커서 색을 정함
+                    focusedContainerColor = formSurfaceColor, // 선택됐을 때 입력칸 배경색을 정함
+                    unfocusedContainerColor = formSurfaceColor, // 선택 안 됐을 때 입력칸 배경색을 정함
+                    focusedBorderColor = formBorderColor, // 선택됐을 때 테두리 색을 정함
+                    unfocusedBorderColor = formBorderColor, // 선택 안 됐을 때 테두리 색을 정함
+                    focusedTextColor = formPrimaryTextColor,
+                    unfocusedTextColor = formPrimaryTextColor,
+                    focusedPlaceholderColor = formSecondaryTextColor,
+                    unfocusedPlaceholderColor = formSecondaryTextColor,
+                    cursorColor = formAccentColor // 커서 색을 정함
                 )
             )
 
@@ -1787,7 +1820,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     text = "영수증 인증 ", // 화면에 보여줄 글자를 정함
                     fontSize = 15.sp, // 글자 크기를 정함
                     fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
-                    color = Color(0xFF163D8F) // 색상을 정함
+                    color = formPrimaryTextColor // 색상을 정함
                 )
 
                 Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1797,14 +1830,14 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         galleryLauncher.launch("image/*") // 갤러리에서 이미지만 고르게 엶
                     },
                     shape = RoundedCornerShape(12.dp), // 모서리 모양을 정함
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), // 바로 앞 설정을 이어서 적음
+                    border = BorderStroke(1.dp, formBorderColor), // 바로 앞 설정을 이어서 적음
                     colors = ButtonDefaults.outlinedButtonColors( // 색상 스타일을 정함
-                        containerColor = MaterialTheme.colorScheme.surface // 배경색을 정함
+                        containerColor = formSurfaceColor // 배경색을 정함
                     )
                 ) { // 이 블록 안의 내용이 시작됨
                     Text( // 글자를 화면에 보여주기 시작함
                         text = if (receiptImageName.isBlank()) "사진 앨범에서 업로드" else "사진 변경하기", // 화면에 보여줄 글자를 정함
-                        color = MaterialTheme.colorScheme.onSurface, // 색상을 정함
+                        color = formPrimaryTextColor, // 색상을 정함
                         fontSize = 14.sp // 글자 크기를 정함
                     )
                 } // 블록 끝
@@ -1918,19 +1951,33 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isReceiptVerified) Color(0xFF16A34A) else SpentopiaMutedPurple,
-                            contentColor = Color.White
-                        )
+                            containerColor = Color.Transparent,
+                            contentColor = formAccentTextColor
+                        ),
+                        contentPadding = PaddingValues(0.dp)
                     ) {
-                        Text(
-                            text = when {
-                                isReceiptVerifying -> "영수증 인증 중..."
-                                isReceiptVerified -> "영수증 인증 완료!"
-                                else -> "영수증 인증하기"
-                            },
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = SpentopiaActionGradientColors
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = when {
+                                    isReceiptVerifying -> "영수증 인증 중..."
+                                    isReceiptVerified -> "영수증 인증 완료!"
+                                    else -> "영수증 인증하기"
+                                },
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = formAccentTextColor
+                            )
+                        }
                     }
 
                     if (receiptVerificationMessage.isNotBlank()) {
@@ -1950,7 +1997,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     text = "한줄 소비 일기 ", // 화면에 보여줄 글자를 정함
                     fontSize = 15.sp, // 글자 크기를 정함
                     fontWeight = FontWeight.SemiBold, // 글자 두께를 정함
-                    color = Color(0xFF163D8F) // 색상을 정함
+                    color = formPrimaryTextColor // 색상을 정함
                 )
 
                 Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -1964,16 +2011,20 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
                         Text( // 글자를 화면에 보여주기 시작함
                             text = "오늘 소비에 대한 생각을 기록해보세요", // 화면에 보여줄 글자를 정함
-                            color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
+                            color = formSecondaryTextColor // 색상을 정함
                         )
                     },
                     shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                     colors = OutlinedTextFieldDefaults.colors( // 색상 스타일을 정함
-                        focusedContainerColor = Color(0xFFF7FAFC), // 선택됐을 때 입력칸 배경색을 정함
-                        unfocusedContainerColor = Color(0xFFF7FAFC), // 선택 안 됐을 때 입력칸 배경색을 정함
-                        focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택됐을 때 테두리 색을 정함
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // 선택 안 됐을 때 테두리 색을 정함
-                    cursorColor = SpentopiaMutedPurple // 커서 색을 정함
+                        focusedContainerColor = formSurfaceColor, // 선택됐을 때 입력칸 배경색을 정함
+                        unfocusedContainerColor = formSurfaceColor, // 선택 안 됐을 때 입력칸 배경색을 정함
+                        focusedBorderColor = formBorderColor, // 선택됐을 때 테두리 색을 정함
+                        unfocusedBorderColor = formBorderColor, // 선택 안 됐을 때 테두리 색을 정함
+                        focusedTextColor = formPrimaryTextColor,
+                        unfocusedTextColor = formPrimaryTextColor,
+                        focusedPlaceholderColor = formSecondaryTextColor,
+                        unfocusedPlaceholderColor = formSecondaryTextColor,
+                    cursorColor = formAccentColor // 커서 색을 정함
                     )
                 )
             } // 블록 끝
@@ -2038,12 +2089,12 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
                             modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                                 .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
-                                .background( // 배경색이나 그라데이션을 넣음
-                                    brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                                        colors = if (isExpenseTab) SpentopiaWalletGradientColors else listOf(Color(0xFF22C55E), Color(0xFF16A34A))
+                                    .background( // 배경색이나 그라데이션을 넣음
+                                        brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
+                                        colors = if (isExpenseTab) SpentopiaActionGradientColors else listOf(Color(0xFF22C55E), Color(0xFF16A34A))
+                                        ),
+                                        shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                                     ),
-                                    shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
-                                ),
                             contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
                         ) { // 이 블록 안의 내용이 시작됨
                             Text( // 글자를 화면에 보여주기 시작함
@@ -2090,12 +2141,12 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
                         modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                             .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
-                            .background( // 배경색이나 그라데이션을 넣음
-                                brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                                    colors = if (isExpenseTab) SpentopiaWalletGradientColors else listOf(Color(0xFF22C55E), Color(0xFF16A34A))
+                                .background( // 배경색이나 그라데이션을 넣음
+                                    brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
+                                    colors = if (isExpenseTab) SpentopiaActionGradientColors else listOf(Color(0xFF22C55E), Color(0xFF16A34A))
+                                    ),
+                                    shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                                 ),
-                                shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
-                            ),
                         contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
                     ) { // 이 블록 안의 내용이 시작됨
                         Text( // 글자를 화면에 보여주기 시작함

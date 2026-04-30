@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Celebration
@@ -57,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
+import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 
@@ -309,11 +311,13 @@ private fun BudgetPlanCard(
     plan: BudgetPlanUiData,
     onApplyClick: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF7F8FA)
+            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF7F8FA)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
@@ -342,7 +346,7 @@ private fun BudgetPlanCard(
             InfoValueCard(
                 label = "월 예산",
                 value = formatWon(plan.monthlyBudget),
-                containerColor = Color(0xFFF7EEF9),
+                containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF7EEF9),
                 valueColor = MaterialTheme.colorScheme.onSurface
             )
 
@@ -351,8 +355,8 @@ private fun BudgetPlanCard(
             InfoValueCard(
                 label = "목표 저축",
                 value = formatWon(plan.savingGoal),
-                containerColor = Color(0xFFE9F7EE),
-                valueColor = Color(0xFF0E9F4B)
+                containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE9F7EE),
+                valueColor = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF0E9F4B)
             )
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -370,16 +374,28 @@ private fun BudgetPlanCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = Color.Transparent,
+                    contentColor = Color.White
                 ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
             ) {
-                Text(
-                    text = "이 플랜 적용하기",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "이 플랜 적용하기",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White
+                    )
+                }
             }
         }
     }
@@ -437,7 +453,7 @@ private fun BudgetLineItem(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = Color(0xFF64748B)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.width(10.dp))
@@ -445,7 +461,7 @@ private fun BudgetLineItem(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFF334155)
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
 
@@ -474,11 +490,13 @@ private fun CustomBudgetSettingCard(
     onHobbyBudgetChange: (Int) -> Unit,
     onSaveClick: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF7F8FA)
+            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF7F8FA)
         )
     ) {
         Column(
@@ -506,7 +524,7 @@ private fun CustomBudgetSettingCard(
                 valueRange = 0f..500000f,
                 steps = 0,
                 icon = null,
-                valueColor = Color(0xFF16A34A),
+                valueColor = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16A34A),
                 onValueChange = onSavingGoalChange
             )
 
@@ -575,15 +593,27 @@ private fun CustomBudgetSettingCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE83AAE),
+                    containerColor = Color.Transparent,
                     contentColor = Color.White
                 )
             ) {
-                Text(
-                    text = "설정 저장",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "설정 저장",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
         }
     }
@@ -668,13 +698,13 @@ private fun BudgetSliderItem(
                 thumbColor = Color.White,
 
                 // 채워진 구간 색상
-                activeTrackColor = SpentopiaGlowPurple,
+                activeTrackColor = SpentopiaActionGradientColors.first(),
 
                 // 비어있는 구간 색상
                 inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant,
 
                 // 점 표시를 눈에 띄지 않게 트랙 색과 동일하게 설정
-                activeTickColor = SpentopiaGlowPurple,
+                activeTickColor = SpentopiaActionGradientColors.first(),
                 inactiveTickColor = MaterialTheme.colorScheme.outlineVariant
             )
         )
@@ -709,6 +739,8 @@ private fun BudgetSummaryCard(
     savingGoal: Int,
     remainingAmount: Int
 ) {
+    val isDark = isSystemInDarkTheme()
+
     // 남는 금액이 0 이상이면 긍정 메시지, 아니면 초과 메시지 출력
     val message = if (remainingAmount >= 0) {
         "균형잡힌 예산이에요! 남은 금액: ${formatWon(remainingAmount)}"
@@ -732,7 +764,7 @@ private fun BudgetSummaryCard(
             modifier = Modifier
                 .background(
                     brush = Brush.linearGradient(
-                        colors = SpentopiaWalletGradientColors
+                        colors = if (isDark) SpentopiaActionGradientColors else SpentopiaWalletGradientColors
                     ),
                     shape = RoundedCornerShape(22.dp)
                 )
@@ -831,6 +863,8 @@ private fun BudgetAnalysisCard(
     totalExpense: Int,
     savingGoal: Int
 ) {
+    val isDark = isSystemInDarkTheme()
+
     // 식비가 전체 지출에서 차지하는 비율 계산
     val foodRatio = if (totalExpense == 0) 0 else (foodBudget * 100 / totalExpense)
 
@@ -859,7 +893,7 @@ private fun BudgetAnalysisCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF7F8FA)
+            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF7F8FA)
         )
     ) {
         Column(
@@ -897,7 +931,7 @@ private fun AnalysisTextRow(
         Icon(
             imageVector = icon,
             contentDescription = text,
-            tint = Color(0xFF6C63FF)
+            tint = MaterialTheme.colorScheme.primary
         )
 
         Spacer(modifier = Modifier.width(10.dp))
@@ -905,7 +939,7 @@ private fun AnalysisTextRow(
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge,
-            color = Color(0xFF334155)
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -916,6 +950,8 @@ private fun SavingTipCard(
     foodBudget: Int,
     transportBudget: Int
 ) {
+    val isDark = isSystemInDarkTheme()
+
     // 식비 관련 팁
     val foodTip = if (foodBudget >= 150000) {
         "식비는 외식을 줄이면 월 5만원 이상 절약 가능해요"
@@ -935,12 +971,12 @@ private fun SavingTipCard(
             .fillMaxWidth()
             .border(
                 width = 1.dp,
-                color = Color(0xFFE6DDC8),
+                color = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE6DDC8),
                 shape = RoundedCornerShape(20.dp)
             ),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF8F1DD)
+            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF8F1DD)
         )
     ) {
         Column(
@@ -954,7 +990,7 @@ private fun SavingTipCard(
                 Icon(
                     imageVector = Icons.Default.Lightbulb,
                     contentDescription = "절약 팁",
-                    tint = Color(0xFFD69E2E)
+                    tint = MaterialTheme.colorScheme.primary
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -963,7 +999,7 @@ private fun SavingTipCard(
                     text = "절약 팁",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2D3748)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
@@ -989,13 +1025,13 @@ private fun TipBullet(
         Text(
             text = "• ",
             style = MaterialTheme.typography.bodyLarge,
-            color = Color(0xFF2D3748)
+            color = MaterialTheme.colorScheme.primary
         )
 
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge,
-            color = Color(0xFF2D3748)
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }

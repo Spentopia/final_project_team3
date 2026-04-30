@@ -18,11 +18,11 @@ import com.ict.spentopia.data.network.TokenAuthenticator
 
 // OkHttpClient 가져옴
 // -> 실제로 네트워크 통신할 때 사용하는 클라이언트
+import android.util.Log
 import okhttp3.OkHttpClient
-
-// HttpLoggingInterceptor 가져옴
-// -> 요청/응답 내용을 로그로 확인할 때 씀
-import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.Interceptor
+import okhttp3.Response
+import okio.Buffer
 
 // Retrofit 가져옴
 // -> API 호출을 쉽게 만들어주는 라이브러리
@@ -73,15 +73,26 @@ object RetrofitClient {
 
     // loggingInterceptor 변수 만듦
     // -> 네트워크 요청, 응답을 로그로 출력하는 역할
-    private val loggingInterceptor = HttpLoggingInterceptor().apply {
+    private val loggingInterceptor = Interceptor { chain ->
+        val request = chain.request()
+        if (!BuildConfig.DEBUG) {
+            return@Interceptor chain.proceed(request)
+        }
 
-        // 로그를 어디까지 볼지 정하는 부분
-        //
-        // Level.BODY
-        // -> 헤더 + 바디까지 전부 출력
-        // -> 개발할 때 확인하기 좋음
-        // -> 배포할 때는 너무 자세해서 조심해야 함
-        level = HttpLoggingInterceptor.Level.BODY
+        val requestId = System.currentTimeMillis().toString(16)
+
+        logRequest(requestId, request)
+
+        val startNs = System.nanoTime()
+        val response = try {
+            chain.proceed(request)
+        } catch (e: Exception) {
+            Log.e("SpentopiaNet", "[$requestId] ${request.method} ${request.url} failed: ${e.message}")
+            throw e
+        }
+
+        logResponse(requestId, response, startNs)
+        response
     }
 
     // OkHttpClient 생성
@@ -111,6 +122,94 @@ object RetrofitClient {
 
             // 최종적으로 클라이언트 완성
             .build()
+    }
+
+    private fun logRequest(requestId: String, request: okhttp3.Request) {
+        val contentType = request.body?.contentType()?.toString()
+        Log.d("SpentopiaNet", "[$requestId] --> ${request.method} ${request.url}")
+        request.headers.names().forEach { name ->
+            val rawValue = request.header(name).orEmpty()
+            val value = if (isSensitiveHeader(name)) "***" else rawValue
+            Log.d("SpentopiaNet", "[$requestId] $name: $value")
+        }
+
+        if (request.body == null) {
+            Log.d("SpentopiaNet", "[$requestId] (no body)")
+            return
+        }
+
+        if (!isLoggableTextContentType(contentType)) {
+            Log.d("SpentopiaNet", "[$requestId] (body omitted: $contentType)")
+            return
+        }
+
+        val buffer = Buffer()
+        request.body?.writeTo(buffer)
+        val body = maskSensitiveValues(buffer.readUtf8())
+        Log.d("SpentopiaNet", "[$requestId] body=$body")
+    }
+
+    private fun logResponse(requestId: String, response: Response, startNs: Long) {
+        val tookMs = (System.nanoTime() - startNs) / 1_000_000.0
+        val contentType = response.body?.contentType()?.toString()
+        val code = response.code
+        val message = response.message
+
+        Log.d("SpentopiaNet", "[$requestId] <-- $code $message (${String.format("%.1f", tookMs)}ms) ${response.request.url}")
+        response.headers.names().forEach { name ->
+            val rawValue = response.header(name).orEmpty()
+            val value = if (isSensitiveHeader(name)) "***" else rawValue
+            Log.d("SpentopiaNet", "[$requestId] $name: $value")
+        }
+
+        if (response.body == null) {
+            Log.d("SpentopiaNet", "[$requestId] (no body)")
+            return
+        }
+
+        if (!isLoggableTextContentType(contentType)) {
+            Log.d("SpentopiaNet", "[$requestId] (body omitted: $contentType)")
+            return
+        }
+
+        val maxBytes = 32_768L
+        val peekBody = response.peekBody(maxBytes)
+        val bodyText = maskSensitiveValues(peekBody.string())
+        Log.d("SpentopiaNet", "[$requestId] body=$bodyText")
+    }
+
+    private fun isSensitiveHeader(name: String): Boolean {
+        return when (name.lowercase()) {
+            "authorization", "cookie", "set-cookie", "x-refresh-token", "x-access-token" -> true
+            else -> false
+        }
+    }
+
+    private fun isLoggableTextContentType(contentType: String?): Boolean {
+        val value = contentType?.lowercase() ?: return false
+        if (value.startsWith("image/") ||
+            value.startsWith("audio/") ||
+            value.startsWith("video/") ||
+            value.startsWith("font/") ||
+            value.startsWith("multipart/") ||
+            value.contains("octet-stream") ||
+            value.contains("zip") ||
+            value.contains("gzip") ||
+            value.contains("pdf")
+        ) {
+            return false
+        }
+
+        return value.startsWith("application/json") ||
+            value.contains("+json") ||
+            value.startsWith("text/") ||
+            value.startsWith("application/x-www-form-urlencoded")
+    }
+
+    private fun maskSensitiveValues(text: String): String {
+        return text
+            .replace(Regex("(?i)(\"?(access_token|refresh_token|token)\"?\\s*:\\s*\")([^\"]+)(\")"), "$1***$4")
+            .replace(Regex("(?i)(Authorization\\s*:\\s*Bearer\\s+)(\\S+)"), "$1***")
     }
 
     // walletApi 라는 변수 만듦
