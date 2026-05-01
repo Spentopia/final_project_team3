@@ -445,21 +445,28 @@ const handleDownload = async () => {
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF("p", "mm", "a4");
 
-    const imgWidth = 210;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+// 🔥 여백 설정
+const margin = 12;
 
-    let heightLeft = imgHeight;
-    let position = 0;
+const imgWidth = 210 - margin * 2;
+const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-    heightLeft -= 297;
+let heightLeft = imgHeight;
+let position = margin;
 
-    while (heightLeft > 0) {
-      position = -(imgHeight - heightLeft);
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= 297;
-    }
+// 첫 페이지
+pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+heightLeft -= 297 - margin * 2;
+
+// 다음 페이지들
+while (heightLeft > 0) {
+  position = margin - (imgHeight - heightLeft);
+
+  pdf.addPage();
+  pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+
+  heightLeft -= 297 - margin * 2;
+}
 
     pdf.save("소비_분석_리포트.pdf");
   } catch (err) {
@@ -667,64 +674,64 @@ const handleDownload = async () => {
         </Card>
       </div>
 
-      {/* AI Insights */}
-      <Card className="border-none bg-gradient-to-br from-purple-50 to-pink-50 p-6 backdrop-blur-xl">
-        <div className="mb-4 flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-cyan-600" />
-          <h3 className="font-bold text-gray-900">AI 소비 분석 리포트</h3>
-        </div>
-
-        {aiReport && (
-  <div className="grid gap-4 md:grid-cols-2">
-    <div className="rounded-lg border bg-white p-4">
-      <h4 className="font-bold">👍 좋은 점</h4>
-      <p className="text-sm">{aiReport.good}</p>
-    </div>
-
-    <div className="rounded-lg border bg-white p-4">
-      <h4 className="font-bold">⚠️ 주의</h4>
-      <p className="text-sm">{aiReport.warning}</p>
-    </div>
-
-    <div className="rounded-lg border bg-white p-4">
-      <h4 className="font-bold">💡 조언</h4>
-      <p className="text-sm">{aiReport.advice}</p>
-    </div>
-
-    <div className="rounded-lg border bg-white p-4">
-      <h4 className="font-bold">📈 예측</h4>
-      <p className="text-sm">{aiReport.prediction}</p>
-    </div>
+{/* AI Insights */}
+<Card className="border-none bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-800 dark:to-gray-900 p-6 backdrop-blur-xl">
+  <div className="mb-4 flex items-center gap-2">
+    <Sparkles className="h-5 w-5 text-cyan-600" />
+    <h3 className="font-bold text-gray-900 dark:text-white">AI 소비 분석 리포트</h3>
   </div>
-)}
-      </Card>
+
+  {aiReport && (
+    <div className="grid gap-4 md:grid-cols-2">
+      
+      <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
+        <h4 className="font-bold text-gray-900 dark:text-white">👍 좋은 점</h4>
+        <p className="text-sm text-gray-700 dark:text-gray-300">{aiReport.good}</p>
+      </div>
+
+      <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
+        <h4 className="font-bold text-gray-900 dark:text-white">⚠️ 주의</h4>
+        <p className="text-sm text-gray-700 dark:text-gray-300">{aiReport.warning}</p>
+      </div>
+
+      <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
+        <h4 className="font-bold text-gray-900 dark:text-white">💡 조언</h4>
+        <p className="text-sm text-gray-700 dark:text-gray-300">{aiReport.advice}</p>
+      </div>
+
+      <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
+        <h4 className="font-bold text-gray-900 dark:text-white">📈 예측</h4>
+        <p className="text-sm text-gray-700 dark:text-gray-300">{aiReport.prediction}</p>
+      </div>
+
+    </div>
+  )}
+</Card>
 
       {/* Spending Patterns */}
-      <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
-  <h3 className="mb-6 font-bold text-gray-900">소비 패턴 분석</h3>
+<Card className="border-none bg-white/80 dark:bg-gray-900 p-6 backdrop-blur-xl">
+  <h3 className="mb-6 font-bold text-gray-900 dark:text-white">소비 패턴 분석</h3>
 
   {aiReport ? (
     <div className="grid gap-6 md:grid-cols-2">
 
-      {/* 🔹 분석 */}
-      <div className="rounded-lg bg-gray-50 p-5">
-        <h4 className="mb-2 font-bold text-gray-900">📊 분석</h4>
-        <p className="text-sm text-gray-700 leading-relaxed">
+      <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-5">
+        <h4 className="mb-2 font-bold text-gray-900 dark:text-white">📊 분석</h4>
+        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
           {aiReport.pattern.replace("소비 패턴 분석:", "")}
         </p>
       </div>
 
-      {/* 🔹 개선 방안 */}
-      <div className="rounded-lg bg-gray-50 p-5">
-        <h4 className="mb-2 font-bold text-gray-900">💡 개선 방안</h4>
-        <p className="text-sm text-gray-700 leading-relaxed">
+      <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-5">
+        <h4 className="mb-2 font-bold text-gray-900 dark:text-white">💡 개선 방안</h4>
+        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
           {aiReport.improvement}
         </p>
       </div>
 
     </div>
   ) : (
-    <p className="text-sm text-gray-500">AI가 분석 중입니다...</p>
+    <p className="text-sm text-gray-500 dark:text-gray-400">AI가 분석 중입니다...</p>
   )}
 </Card>
     </div>
