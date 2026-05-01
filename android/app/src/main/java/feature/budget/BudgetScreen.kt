@@ -61,9 +61,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
-import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
+import com.ict.spentopia.ui.theme.spentopiaCtaBorderColor
+import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
+import com.ict.spentopia.ui.theme.spentopiaCtaGradientColors
 
 // 예산 설정 화면임
 // AI 추천 플랜/직접 조절/저장 흐름
@@ -317,6 +319,7 @@ private fun BudgetPlanCard(
     onApplyClick: () -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
+    val ctaContentColor = spentopiaCtaContentColor(isDark)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -383,7 +386,7 @@ private fun BudgetPlanCard(
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
-                    contentColor = Color.White
+                    contentColor = ctaContentColor
                 ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
             ) {
@@ -395,7 +398,7 @@ private fun BudgetPlanCard(
                             scaleY = if (applyPressed) 0.985f else 1f
                         }
                         .background(
-                            brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
+                            brush = Brush.horizontalGradient(spentopiaCtaGradientColors(isDark)),
                             shape = RoundedCornerShape(12.dp)
                         )
                         .padding(vertical = 12.dp),
@@ -405,7 +408,7 @@ private fun BudgetPlanCard(
                         text = "이 플랜 적용하기",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White
+                        color = ctaContentColor
                     )
                 }
             }
@@ -503,6 +506,7 @@ private fun CustomBudgetSettingCard(
     onSaveClick: () -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
+    val ctaContentColor = spentopiaCtaContentColor(isDark)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -609,7 +613,7 @@ private fun CustomBudgetSettingCard(
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
-                    contentColor = Color.White
+                    contentColor = ctaContentColor
                 )
             ) {
                 Box(
@@ -620,7 +624,7 @@ private fun CustomBudgetSettingCard(
                             scaleY = if (savePressed) 0.985f else 1f
                         }
                         .background(
-                            brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
+                            brush = Brush.horizontalGradient(spentopiaCtaGradientColors(isDark)),
                             shape = RoundedCornerShape(14.dp)
                         )
                         .padding(vertical = 12.dp),
@@ -630,7 +634,7 @@ private fun CustomBudgetSettingCard(
                         text = "설정 저장",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = ctaContentColor
                     )
                 }
             }
@@ -649,6 +653,7 @@ private fun BudgetSliderItem(
     valueColor: Color = Color.Unspecified,
     onValueChange: (Int) -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
     // 슬라이더 현재 위치 상태
     var sliderPosition by remember(value) { mutableFloatStateOf(value.toFloat()) }
 
@@ -717,13 +722,13 @@ private fun BudgetSliderItem(
                 thumbColor = Color.White,
 
                 // 채워진 구간 색상
-                activeTrackColor = SpentopiaActionGradientColors.first(),
+                activeTrackColor = if (isDark) SpentopiaGlowPurple else MaterialTheme.colorScheme.primary,
 
                 // 비어있는 구간 색상
                 inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant,
 
                 // 점 표시를 눈에 띄지 않게 트랙 색과 동일하게 설정
-                activeTickColor = SpentopiaActionGradientColors.first(),
+                activeTickColor = if (isDark) SpentopiaGlowPurple else MaterialTheme.colorScheme.primary,
                 inactiveTickColor = MaterialTheme.colorScheme.outlineVariant
             )
         )
@@ -759,6 +764,8 @@ private fun BudgetSummaryCard(
     remainingAmount: Int
 ) {
     val isDark = isSystemInDarkTheme()
+    val ctaContentColor = spentopiaCtaContentColor(isDark)
+    val ctaMutedContentColor = if (isDark) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurfaceVariant
 
     // 남는 금액이 0 이상이면 긍정 메시지, 아니면 초과 메시지 출력
     val message = if (remainingAmount >= 0) {
@@ -783,13 +790,13 @@ private fun BudgetSummaryCard(
             modifier = Modifier
                 .background(
                     brush = Brush.linearGradient(
-                        colors = if (isDark) SpentopiaActionGradientColors else SpentopiaWalletGradientColors
+                        colors = spentopiaCtaGradientColors(isDark)
                     ),
                     shape = RoundedCornerShape(22.dp)
                 )
                 .border(
                     width = 1.dp,
-                    color = SpentopiaGlowPurple.copy(alpha = 0.45f),
+                    color = spentopiaCtaBorderColor(isDark),
                     shape = RoundedCornerShape(22.dp)
                 )
                 .padding(18.dp)
@@ -799,22 +806,22 @@ private fun BudgetSummaryCard(
                     text = "예산 요약",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = ctaContentColor
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                SummaryRow("월 수입", formatWon(monthlyIncome))
-                SummaryRow("총 지출 예정", formatWon(totalExpense))
-                SummaryRow("저축 목표", formatWon(savingGoal))
+                SummaryRow("월 수입", formatWon(monthlyIncome), ctaMutedContentColor, ctaContentColor)
+                SummaryRow("총 지출 예정", formatWon(totalExpense), ctaMutedContentColor, ctaContentColor)
+                SummaryRow("저축 목표", formatWon(savingGoal), ctaMutedContentColor, ctaContentColor)
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                HorizontalDivider(color = Color.White.copy(alpha = 0.35f))
+                HorizontalDivider(color = if (isDark) Color.White.copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant)
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                SummaryRow("합계", formatWon(totalExpense + savingGoal))
+                SummaryRow("합계", formatWon(totalExpense + savingGoal), ctaMutedContentColor, ctaContentColor)
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -822,7 +829,7 @@ private fun BudgetSummaryCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            color = Color.White.copy(alpha = 0.15f),
+                            color = if (isDark) Color.White.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.72f),
                             shape = RoundedCornerShape(14.dp)
                         )
                         .padding(14.dp)
@@ -831,7 +838,7 @@ private fun BudgetSummaryCard(
                         Icon(
                             imageVector = Icons.Default.Celebration,
                             contentDescription = "요약 상태",
-                            tint = Color.White
+                            tint = ctaContentColor
                         )
 
                         Spacer(modifier = Modifier.width(8.dp))
@@ -839,7 +846,7 @@ private fun BudgetSummaryCard(
                         Text(
                             text = message,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White
+                            color = ctaContentColor
                         )
                     }
                 }
@@ -852,7 +859,9 @@ private fun BudgetSummaryCard(
 @Composable
 private fun SummaryRow(
     label: String,
-    value: String
+    value: String,
+    labelColor: Color = Color.White,
+    valueColor: Color = Color.White
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -861,14 +870,14 @@ private fun SummaryRow(
         Text(
             text = label,
             style = MaterialTheme.typography.titleMedium,
-            color = Color.White
+            color = labelColor
         )
 
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = valueColor
         )
     }
 

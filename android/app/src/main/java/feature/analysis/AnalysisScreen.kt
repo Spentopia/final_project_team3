@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,10 +56,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
-import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
+import com.ict.spentopia.ui.theme.spentopiaCtaBorderColor
+import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
+import com.ict.spentopia.ui.theme.spentopiaCtaGradientColors
 import kotlin.math.roundToInt
 
 // 소비분석 메인 화면임
@@ -181,6 +184,10 @@ fun AnalysisHeaderSection(
     onShareClick: () -> Unit,
     onDownloadClick: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+    val ctaGradient = spentopiaCtaGradientColors(isDark)
+    val ctaContentColor = spentopiaCtaContentColor(isDark)
+
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -220,7 +227,7 @@ fun AnalysisHeaderSection(
                 Box(
                     modifier = Modifier
                         .background(
-                            brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
+                            brush = Brush.horizontalGradient(ctaGradient),
                             shape = RoundedCornerShape(10.dp)
                         )
                         .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -229,7 +236,7 @@ fun AnalysisHeaderSection(
                     Text(
                         text = "공유",
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        color = ctaContentColor
                     )
                 }
             }
@@ -252,7 +259,7 @@ fun AnalysisHeaderSection(
                 Box(
                     modifier = Modifier
                         .background(
-                            brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
+                            brush = Brush.horizontalGradient(ctaGradient),
                             shape = RoundedCornerShape(10.dp)
                         )
                         .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -261,7 +268,7 @@ fun AnalysisHeaderSection(
                     Text(
                         text = "리포트 다운로드",
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        color = ctaContentColor
                     )
                 }
             }
@@ -304,6 +311,14 @@ fun GradientSummaryCard(
     valueText: String,
     subText: String
 ) {
+    val isDark = isSystemInDarkTheme()
+    val ctaContentColor = spentopiaCtaContentColor(isDark)
+    val ctaMutedContentColor = if (isDark) {
+        Color.White.copy(alpha = 0.9f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -321,13 +336,13 @@ fun GradientSummaryCard(
                 .fillMaxWidth()
                 .background(
                     brush = Brush.horizontalGradient(
-                        colors = SpentopiaActionGradientColors
+                        colors = spentopiaCtaGradientColors(isDark)
                     ),
                     shape = RoundedCornerShape(18.dp)
                 )
                 .border(
                     width = 1.dp,
-                    color = SpentopiaGlowPurple.copy(alpha = 0.35f),
+                    color = spentopiaCtaBorderColor(isDark),
                     shape = RoundedCornerShape(18.dp)
                 )
                 .padding(18.dp)
@@ -338,20 +353,20 @@ fun GradientSummaryCard(
                 Text(
                     text = title,
                     fontSize = 13.sp,
-                    color = Color.White.copy(alpha = 0.92f)
+                    color = ctaMutedContentColor
                 )
 
                 Text(
                     text = valueText,
                     fontSize = 34.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
+                    color = ctaContentColor
                 )
 
                 Text(
                     text = subText,
                     fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.88f)
+                    color = ctaMutedContentColor
                 )
             }
         }
@@ -585,7 +600,9 @@ fun SimpleBarChart(
 ) {
     val maxAmount = (expenseList.maxOfOrNull { it.second } ?: 1).coerceAtLeast(1)
     val yAxisSteps = listOf(0, 15000, 30000, 45000, 60000)
-    val outlineVariantColor = MaterialTheme.colorScheme.outlineVariant
+    val isDark = isSystemInDarkTheme()
+    val gridLineColor = if (isDark) Color(0xFF6B7280) else MaterialTheme.colorScheme.outlineVariant
+    val axisTextColor = if (isDark) Color(0xFFE5E7EB) else MaterialTheme.colorScheme.onSurfaceVariant
 
     Column(
         modifier = Modifier.fillMaxWidth()
@@ -605,7 +622,7 @@ fun SimpleBarChart(
                     Text(
                         text = value.toString(),
                         fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = axisTextColor
                     )
                 }
             }
@@ -623,11 +640,11 @@ fun SimpleBarChart(
                     for (i in 0 until 5) {
                         val y = size.height * i / 4f
                         drawLine(
-                            color = outlineVariantColor,
+                            color = gridLineColor,
                             start = Offset(0f, y),
                             end = Offset(size.width, y),
                             pathEffect = dash,
-                            strokeWidth = 1f
+                            strokeWidth = if (isDark) 1.6f else 1f
                         )
                     }
                 }
@@ -643,7 +660,8 @@ fun SimpleBarChart(
                         BarChartItem(
                             label = item.first,
                             amount = item.second,
-                            maxAmount = maxAmount
+                            maxAmount = maxAmount,
+                            isDark = isDark
                         )
                     }
                 }
@@ -657,9 +675,16 @@ fun SimpleBarChart(
 fun BarChartItem(
     label: String,
     amount: Int,
-    maxAmount: Int
+    maxAmount: Int,
+    isDark: Boolean
 ) {
     val ratio = amount.toFloat() / maxAmount.toFloat()
+    val barColors = if (isDark) {
+        listOf(Color(0xFF93C5FD), Color(0xFF38BDF8), Color(0xFF22D3EE))
+    } else {
+        SpentopiaWalletGradientColors
+    }
+    val labelColor = if (isDark) Color(0xFFF9FAFB) else MaterialTheme.colorScheme.onSurfaceVariant
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -672,7 +697,7 @@ fun BarChartItem(
                 .width(16.dp)
                 .background(
                     brush = Brush.verticalGradient(
-                        colors = SpentopiaWalletGradientColors
+                        colors = barColors
                     ),
                     shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
                 )
@@ -683,7 +708,7 @@ fun BarChartItem(
         Text(
             text = label,
             fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = labelColor
         )
     }
 }
@@ -909,6 +934,9 @@ fun AiAnalysisReportSection(
     errorMessage: String,
     onRequestAiAnalysis: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+    val ctaContentColor = spentopiaCtaContentColor(isDark)
+
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -940,7 +968,7 @@ fun AiAnalysisReportSection(
                         .background(
                             brush = Brush.horizontalGradient(
                                 if (isLoading || totalExpense > 0) {
-                                    SpentopiaActionGradientColors
+                                    spentopiaCtaGradientColors(isDark)
                                 } else {
                                     listOf(
                                         MaterialTheme.colorScheme.surfaceVariant,
@@ -957,7 +985,7 @@ fun AiAnalysisReportSection(
                         text = if (isLoading) "분석 중" else "AI 분석",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = ctaContentColor
                     )
                 }
             }

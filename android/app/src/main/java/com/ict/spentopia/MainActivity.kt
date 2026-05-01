@@ -13,7 +13,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.ict.spentopia.data.remote.RetrofitClient
-import com.ict.spentopia.data.remote.SupabaseClient
 import com.ict.spentopia.navigation.AppNavGraph
 import com.ict.spentopia.ui.theme.SpentopiaTheme
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
@@ -56,7 +55,6 @@ class MainActivity : ComponentActivity() {
         // 네트워크 준비 먼저 함
         // RetrofitClient.init() 선행 필요함
         RetrofitClient.init(applicationContext)
-        SupabaseClient.client
         walletActivityResultSender = ActivityResultSender(this)
 
         handleCallbackIntent(intent)

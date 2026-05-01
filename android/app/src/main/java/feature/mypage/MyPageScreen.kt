@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts // 갤러리 �
 import androidx.compose.foundation.background // 배경 박스 표현
 import androidx.compose.foundation.border // 테두리 표현
 import androidx.compose.foundation.clickable // 클릭 처리
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement // 정렬과 간격 처리
 import androidx.compose.foundation.layout.Box // 박스 레이아웃
 import androidx.compose.foundation.layout.Column // 세로 배치
@@ -53,8 +54,9 @@ import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // 수정: 선택�
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
-import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
-import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
+import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
+import com.ict.spentopia.ui.theme.spentopiaCtaGradientColors
+import com.ict.spentopia.ui.theme.spentopiaFeatureGradientColors
 
 // 기존 주석 유지
 // 마이페이지 화면
@@ -228,6 +230,10 @@ private fun ProfileHeaderCard(
     uiState: MyPageUiState, // 전체 상태 받기
     onProfileImageClick: () -> Unit // 이미지 클릭
 ) {
+    val isDark = isSystemInDarkTheme()
+    val headerContentColor = spentopiaCtaContentColor(isDark)
+    val headerMutedContentColor = if (isDark) Color.White.copy(alpha = 0.92f) else MaterialTheme.colorScheme.onSurfaceVariant
+
     Card(
         modifier = Modifier.fillMaxWidth(), // 카드 전체 너비 사용
         shape = RoundedCornerShape(20.dp), // 둥근 카드
@@ -237,7 +243,7 @@ private fun ProfileHeaderCard(
             modifier = Modifier
                 .background(
                     brush = Brush.linearGradient(
-                        colors = SpentopiaWalletGradientColors
+                        colors = spentopiaFeatureGradientColors(isDark)
                     ),
                     shape = RoundedCornerShape(20.dp) // 둥근 그라데이션
                 )
@@ -299,7 +305,7 @@ private fun ProfileHeaderCard(
                 text = uiState.profileSummary.nickname, // 닉네임 출력
                 fontSize = 28.sp, // 닉네임 크기
                 fontWeight = FontWeight.Bold, // 닉네임 강조
-                color = Color.White // 흰색 글자
+                color = headerContentColor // 글자색
             )
 
             Spacer(modifier = Modifier.height(4.dp)) // 닉네임과 실명 사이 여백
@@ -308,7 +314,7 @@ private fun ProfileHeaderCard(
                 text = uiState.profileSummary.realName, // 실명 출력
                 fontSize = 14.sp, // 실명 크기
                 fontWeight = FontWeight.SemiBold, // 실명 강조
-                color = Color.White.copy(alpha = 0.92f) // 반투명 흰색
+                color = headerMutedContentColor // 보조 글자색
             )
 
             Spacer(modifier = Modifier.height(20.dp)) // 프로필 정보와 통계 카드 사이 여백
@@ -767,6 +773,8 @@ private fun WalletTabContent(
     walletProvider: String, // 수정: 실제 지갑 종류
     onWalletConnectButtonClick: () -> Unit // 수정: 지갑 연결 버튼 클릭 이벤트
 ) {
+    val isDark = isSystemInDarkTheme()
+
     Column(
         verticalArrangement = Arrangement.spacedBy(14.dp) // 카드 간격
     ) {
@@ -826,7 +834,7 @@ private fun WalletTabContent(
                                 modifier = Modifier
                                     .background(
                                         brush = Brush.linearGradient(
-                                            colors = SpentopiaWalletGradientColors
+                                            colors = spentopiaCtaGradientColors(isDark)
                                         ),
                                         shape = RoundedCornerShape(12.dp) // 둥근 버튼
                                     )
@@ -837,7 +845,7 @@ private fun WalletTabContent(
                             ) {
                                 Text(
                                     text = "🔗 지갑 연결하기", // 버튼 텍스트
-                                    color = Color.White, // 버튼 글자색
+                                    color = spentopiaCtaContentColor(isDark), // 버튼 글자색
                                     fontSize = 14.sp, // 버튼 글자 크기
                                     fontWeight = FontWeight.Bold // 버튼 글자 강조
                                 )

@@ -97,11 +97,13 @@ import com.ict.spentopia.data.local.ExpenseEntity // DB에 저장되는 소비 �
 import com.ict.spentopia.data.remote.CreateExpenseRequest
 import com.ict.spentopia.data.remote.RetrofitClient
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
-import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
+import com.ict.spentopia.ui.theme.spentopiaCtaBorderColor
+import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
+import com.ict.spentopia.ui.theme.spentopiaCtaGradientColors
 
 // 숫자 포맷 및 날짜 계산 관련 import입니다.
 import kotlinx.coroutines.launch
@@ -408,6 +410,12 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                             expense = entity,
                             onSuccess = {
                                 editingExpense = null
+                                val message = if (isIncomeItem(savedExpense)) {
+                                    "수입 기록이 등록되었어요."
+                                } else {
+                                    "소비 기록이 등록되었어요."
+                                }
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                             },
                             onError = { message ->
                                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -416,6 +424,12 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                     } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
                         homeViewModel.updateExpense(entity) // 바로 앞 설정을 이어서 적음
                         editingExpense = null // 수정 저장은 로컬 DB 업데이트라 바로 수정 상태를 닫습니다.
+                        val message = if (isIncomeItem(savedExpense)) {
+                            "수입 기록이 수정되었어요."
+                        } else {
+                            "소비 기록이 수정되었어요."
+                        }
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                     } // 블록 끝
                 },
                 onCancelEdit = { // 이 이벤트가 일어났을 때 실행할 코드를 시작함
@@ -528,6 +542,7 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
     onWalletConnectClick: () -> Unit = {} // 버튼을 눌렀을 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isSystemInDarkTheme()
+    val ctaContentColor = spentopiaCtaContentColor(isDark)
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
@@ -579,13 +594,13 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                     modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                         .background( // 배경색이나 그라데이션을 넣음
                             brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                                colors = SpentopiaWalletGradientColors
+                                colors = spentopiaCtaGradientColors(isDark)
                             ),
                             shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                         )
                         .border(
                             width = 1.dp,
-                            color = SpentopiaGlowPurple.copy(alpha = 0.45f),
+                            color = spentopiaCtaBorderColor(isDark),
                             shape = RoundedCornerShape(14.dp)
                         )
                         .padding(horizontal = 14.dp, vertical = 10.dp), // 안쪽이나 바깥 여백을 줌
@@ -595,7 +610,7 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                         text = if (isWalletConnected) "연결 완료" else "지갑 연결", // 연결 상태에 따라 버튼 글자를 정함
                         fontSize = 13.sp, // 글자 크기를 정함
                         fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                        color = Color.White // 색상을 정함
+                        color = ctaContentColor // 색상을 정함
                     )
                 } // 블록 끝
             } // 블록 끝
@@ -1433,20 +1448,17 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     val formPrimaryTextColor = colorScheme.onSurface
     val formSecondaryTextColor = colorScheme.onSurfaceVariant
     val formAccentColor = colorScheme.primary
-    val formAccentTextColor = colorScheme.onPrimary
     val formAccentContainerColor = colorScheme.primaryContainer
     val formAccentContainerTextColor = colorScheme.onPrimaryContainer
     val isDark = isSystemInDarkTheme()
-    val expenseCompleteGradient = if (isDark) {
-        listOf(
-            Color(0xFF7C3AED),
-            Color(0xFF6D28D9),
-            Color(0xFF2F80ED),
-            Color(0xFF12C2E9)
-        )
+    val expenseCompleteGradient = spentopiaCtaGradientColors(isDark)
+    val expenseCompleteTextColor = spentopiaCtaContentColor(isDark)
+    val incomeCompleteGradient = if (isDark) {
+        listOf(Color(0xFF22C55E), Color(0xFF16A34A))
     } else {
-        SpentopiaActionGradientColors
+        listOf(Color(0xFFDCFCE7), Color(0xFFEFFDF4))
     }
+    val incomeCompleteTextColor = if (isDark) Color.White else Color(0xFF166534)
 
     var formDate by remember { mutableStateOf(selectedDate) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var isExpenseTab by remember { mutableStateOf(true) } // 입력 탭 상태를 보관함
@@ -1462,7 +1474,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     var diary by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var expanded by remember { mutableStateOf(false) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     val expenseCategoryList = listOf("식비", "교통", "쇼핑", "카페", "기타") // 소비 카테고리 목록을 만듦
-    val incomeCategoryList = listOf("월급", "용돈", "부수입", "환급", "기타") // 수입 카테고리 목록을 만듦
+    val incomeCategoryList = listOf("월급", "용돈", "부수입", "환급", "기타수입") // 수입 카테고리 목록을 만듦
 
     val galleryLauncher = rememberLauncherForActivityResult( // 갤러리 같은 외부 화면 결과를 받을 준비를 함
         contract = ActivityResultContracts.GetContent() // 파일이나 이미지를 하나 고르는 규칙을 씀
@@ -1963,7 +1975,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color.Transparent,
-                            contentColor = formAccentTextColor
+                            contentColor = expenseCompleteTextColor
                         ),
                         contentPadding = PaddingValues(0.dp)
                     ) {
@@ -1972,7 +1984,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                 .fillMaxSize()
                                 .background(
                                     brush = Brush.horizontalGradient(
-                                        colors = SpentopiaActionGradientColors
+                                        colors = expenseCompleteGradient
                                     ),
                                     shape = RoundedCornerShape(12.dp)
                                 ),
@@ -1986,7 +1998,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                 },
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = formAccentTextColor
+                                color = expenseCompleteTextColor
                             )
                         }
                     }
@@ -2102,7 +2114,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                 .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
                                     .background( // 배경색이나 그라데이션을 넣음
                                         brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                                        colors = if (isExpenseTab) expenseCompleteGradient else listOf(Color(0xFF22C55E), Color(0xFF16A34A))
+                                        colors = if (isExpenseTab) expenseCompleteGradient else incomeCompleteGradient
                                         ),
                                         shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                                     ),
@@ -2110,7 +2122,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         ) { // 이 블록 안의 내용이 시작됨
                             Text( // 글자를 화면에 보여주기 시작함
                                 text = if (isExpenseTab) "소비 수정 완료" else "수입 수정 완료", // 화면에 보여줄 글자를 정함
-                                color = Color.White, // 색상을 정함
+                                color = if (isExpenseTab) expenseCompleteTextColor else incomeCompleteTextColor, // 색상을 정함
                                 fontSize = 17.sp, // 글자 크기를 정함
                                 fontWeight = FontWeight.Bold // 글자 두께를 정함
                             )
@@ -2154,7 +2166,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                 .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
                                     .background( // 배경색이나 그라데이션을 넣음
                                         brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                                    colors = if (isExpenseTab) expenseCompleteGradient else listOf(Color(0xFF22C55E), Color(0xFF16A34A))
+                                    colors = if (isExpenseTab) expenseCompleteGradient else incomeCompleteGradient
                                     ),
                                     shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                                 ),
@@ -2162,7 +2174,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     ) { // 이 블록 안의 내용이 시작됨
                         Text( // 글자를 화면에 보여주기 시작함
                             text = if (isExpenseTab) "소비 입력 완료" else "수입 입력 완료", // 화면에 보여줄 글자를 정함
-                            color = Color.White, // 색상을 정함
+                            color = if (isExpenseTab) expenseCompleteTextColor else incomeCompleteTextColor, // 색상을 정함
                             fontSize = 17.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.Bold // 글자 두께를 정함
                         )

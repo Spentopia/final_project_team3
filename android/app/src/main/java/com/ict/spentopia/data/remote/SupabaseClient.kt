@@ -11,6 +11,10 @@ object SupabaseClient {
         supabaseUrl = "https://gapdntsijwgoucxhnojq.supabase.co",
         supabaseKey = "sb_publishable_gO8kXf1S7fQcgNhgouMkRw_osZfwy0e"
     ) {
-        install(Auth)
+        install(Auth) {
+            autoLoadFromStorage = false
+            autoSaveToStorage = false
+            alwaysAutoRefresh = false
+        }
     }
 }

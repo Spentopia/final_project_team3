@@ -6,6 +6,7 @@ package com.ict.spentopia.feature.avatar
 import androidx.compose.foundation.background // 수정: 카드 배경에 사용
 import androidx.compose.foundation.border // 수정: 선택 테두리에 사용
 import androidx.compose.foundation.clickable // 수정: 클릭 처리에 사용
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement // 수정: 정렬에 사용
 import androidx.compose.foundation.layout.Box // 수정: 진행바에 사용
 import androidx.compose.foundation.layout.Column // 수정: 세로 배치에 사용
@@ -42,6 +43,8 @@ import androidx.compose.ui.unit.sp // 수정: 폰트 크기에 사용
 import androidx.lifecycle.viewmodel.compose.viewModel // 수정: 뷰모델 연결에 사용
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
+import com.ict.spentopia.ui.theme.spentopiaFeatureGradientColors
 
 // 기존 주석 유지
 // 내 아바타 화면
@@ -51,6 +54,8 @@ fun AvatarScreen(
     viewModel: AvatarViewModel = viewModel() // 수정: 뷰모델 연결
 ) {
     val uiState by viewModel.uiState.collectAsState() // 수정: 상태 구독
+    val isDark = isSystemInDarkTheme()
+    val previewContentColor = spentopiaCtaContentColor(isDark)
 
     Column(
         modifier = Modifier
@@ -118,10 +123,7 @@ fun AvatarScreen(
                 modifier = Modifier
                     .background(
                         brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFFA349F5), // 수정: 시작 색상
-                                Color(0xFFE73AAE) // 수정: 끝 색상
-                            )
+                            colors = spentopiaFeatureGradientColors(isDark)
                         ),
                         shape = RoundedCornerShape(22.dp) // 수정: 둥근 배경
                     )
@@ -129,7 +131,7 @@ fun AvatarScreen(
             ) {
                 Text(
                     text = "미리보기", // 수정: 카드 제목
-                    color = Color.White, // 수정: 흰색 텍스트
+                    color = previewContentColor, // 수정: 텍스트 색상
                     fontSize = 18.sp, // 수정: 제목 크기
                     fontWeight = FontWeight.Bold // 수정: 제목 강조
                 )
@@ -204,7 +206,7 @@ fun AvatarScreen(
                     ) {
                         Text(
                             text = uiState.reward.title, // 수정: 보상 제목 연결
-                            color = Color.White, // 수정: 흰색 텍스트
+                            color = previewContentColor, // 수정: 텍스트 색상
                             fontSize = 18.sp, // 수정: 제목 크기
                             fontWeight = FontWeight.Bold // 수정: 제목 강조
                         )
@@ -214,7 +216,7 @@ fun AvatarScreen(
                                 .fillMaxWidth() // 수정: 전체 너비
                                 .height(8.dp) // 수정: 진행바 높이
                                 .background(
-                                    color = Color.White.copy(alpha = 0.25f), // 수정: 배경 색상
+                                    color = if (isDark) Color.White.copy(alpha = 0.25f) else MaterialTheme.colorScheme.outlineVariant, // 수정: 배경 색상
                                     shape = RoundedCornerShape(999.dp) // 수정: 둥근 진행바
                                 )
                         ) {
@@ -223,7 +225,7 @@ fun AvatarScreen(
                                     .fillMaxWidth(uiState.reward.progress) // 수정: 진행률 반영
                                     .height(8.dp) // 수정: 채움 높이
                                     .background(
-                                        color = Color.White, // 수정: 채움 색상
+                                        color = previewContentColor, // 수정: 채움 색상
                                         shape = RoundedCornerShape(999.dp) // 수정: 둥근 채움
                                     )
                             )
@@ -231,7 +233,7 @@ fun AvatarScreen(
 
                         Text(
                             text = uiState.reward.description, // 수정: 보상 설명 연결
-                            color = Color.White, // 수정: 흰색 텍스트
+                            color = if (isDark) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, // 수정: 텍스트 색상
                             fontSize = 13.sp // 수정: 텍스트 크기
                         )
                     }
@@ -349,6 +351,7 @@ private fun AvatarActionButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
+    val isDark = isSystemInDarkTheme()
 
     Button(
         onClick = onClick, // 수정: 클릭 처리
@@ -359,8 +362,12 @@ private fun AvatarActionButton(
         }, // 수정: modifier 연결
         shape = RoundedCornerShape(10.dp), // 수정: 둥근 버튼
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (highlighted) SpentopiaMutedPurple else Color.White, // 수정: 배경 색상
-            contentColor = if (highlighted) Color.White else MaterialTheme.colorScheme.onSurface // 수정: 글자 색상
+            containerColor = if (highlighted) {
+                if (isDark) SpentopiaMutedPurple else MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            }, // 수정: 배경 색상
+            contentColor = if (highlighted) spentopiaCtaContentColor(isDark) else MaterialTheme.colorScheme.onSurface // 수정: 글자 색상
         )
     ) {
         Text(
@@ -374,6 +381,10 @@ private fun AvatarActionButton(
 // 수정: 요약 정보 행
 @Composable
 private fun AvatarInfoRow(label: String, value: String) {
+    val isDark = isSystemInDarkTheme()
+    val contentColor = spentopiaCtaContentColor(isDark)
+    val labelColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+
     Row(
         modifier = Modifier.fillMaxWidth(), // 수정: 전체 너비
         horizontalArrangement = Arrangement.SpaceBetween, // 수정: 양끝 정렬
@@ -381,14 +392,14 @@ private fun AvatarInfoRow(label: String, value: String) {
     ) {
         Text(
             text = label, // 수정: 라벨 출력
-            color = Color.White, // 수정: 흰색 텍스트
+            color = labelColor, // 수정: 텍스트 색상
             fontSize = 14.sp, // 수정: 텍스트 크기
             fontWeight = FontWeight.SemiBold // 수정: 라벨 강조
         )
 
         Text(
             text = value, // 수정: 값 출력
-            color = Color.White, // 수정: 흰색 텍스트
+            color = contentColor, // 수정: 텍스트 색상
             fontSize = 14.sp, // 수정: 텍스트 크기
             fontWeight = FontWeight.Bold // 수정: 값 강조
         )

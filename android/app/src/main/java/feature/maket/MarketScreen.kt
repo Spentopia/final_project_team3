@@ -9,6 +9,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import android.view.ViewGroup
+import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -16,7 +17,9 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.RenderProcessGoneDetail
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -35,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ict.spentopia.BuildConfig
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
+import kotlinx.coroutines.delay
 import org.json.JSONObject
 
 private const val MARKET_WEBVIEW_TAG = "MarketWebView"
@@ -62,7 +67,7 @@ fun MarketScreen(
     val accessToken = remember {
         prefs.getString("access_token", "") ?: ""
     }
-    val baseUrl = "http://10.0.2.2:5173/"//테스트
+    val baseUrl = BuildConfig.NFT_MARKET_WEBVIEW_URL
     val marketUrl = remember(baseUrl, accessToken, walletAddress, walletProvider, isWalletConnected) {
         buildMarketWebViewUrl(
             baseUrl = baseUrl,
@@ -92,8 +97,22 @@ fun MarketScreen(
     }
 
     var webView by remember { mutableStateOf<WebView?>(null) }
+    var webViewKey by remember { mutableStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var pageReady by remember { mutableStateOf(false) }
+    var loadedMarketUrl by remember { mutableStateOf("") }
+
+    LaunchedEffect(webViewKey, marketUrl) {
+        pageReady = false
+        isLoading = true
+        loadedMarketUrl = ""
+        delay(4_000)
+        if (isLoading && errorMessage == null) {
+            Log.d(MARKET_WEBVIEW_TAG, "hide native loader by timeout url=$marketUrl")
+            isLoading = false
+        }
+    }
 
     BackHandler {
         val currentWebView = webView
@@ -111,101 +130,147 @@ fun MarketScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         if (baseUrl.isBlank()) {
             MarketWebViewError(
                 message = "NFT 마켓 주소가 설정되지 않았습니다.",
                 onRetry = {}
             )
         } else {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { viewContext ->
-                    WebView(viewContext).apply {
-                        layoutParams = ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                        configureMarketWebView()
-                        Log.d(
-                            MARKET_WEBVIEW_TAG,
-                            "settings js=${settings.javaScriptEnabled} dom=${settings.domStorageEnabled} viewport=${settings.useWideViewPort} overview=${settings.loadWithOverviewMode}"
-                        )
-                        webChromeClient = object : WebChromeClient() {
-                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                                Log.d(MARKET_WEBVIEW_TAG, "progress=$newProgress url=${view?.url}")
-                            }
-                        }
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                                Log.d(MARKET_WEBVIEW_TAG, "onPageStarted url=$url")
-                                isLoading = true
-                                errorMessage = null
-                            }
+            key(webViewKey) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { viewContext ->
+                        WebView(viewContext).apply {
+                            layoutParams = ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                            configureMarketWebView()
+                            Log.d(
+                                MARKET_WEBVIEW_TAG,
+                                "settings js=${settings.javaScriptEnabled} dom=${settings.domStorageEnabled} viewport=${settings.useWideViewPort} overview=${settings.loadWithOverviewMode}"
+                            )
+                            webChromeClient = object : WebChromeClient() {
+                                override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                    Log.d(MARKET_WEBVIEW_TAG, "progress=$newProgress url=${view?.url}")
+                                    if (newProgress >= 60) {
+                                        pageReady = true
+                                        isLoading = false
+                                        view?.injectMarketSessionIfReady(
+                                            accessToken = accessToken,
+                                            walletAddress = walletAddress,
+                                            walletProvider = walletProvider,
+                                            isWalletConnected = isWalletConnected
+                                        )
+                                    }
+                                }
 
-                            override fun onPageFinished(view: WebView?, url: String?) {
-                                Log.d(MARKET_WEBVIEW_TAG, "onPageFinished url=$url")
-                                isLoading = false
-                                view?.injectMarketSession(
-                                    accessToken = accessToken,
-                                    walletAddress = walletAddress,
-                                    walletProvider = walletProvider,
-                                    isWalletConnected = isWalletConnected
-                                )
-                            }
-
-                            override fun onReceivedError(
-                                view: WebView?,
-                                request: WebResourceRequest?,
-                                error: WebResourceError?
-                            ) {
-                                if (request?.isForMainFrame == true) {
-                                    Log.e(
+                                override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                                    Log.d(
                                         MARKET_WEBVIEW_TAG,
-                                        "onReceivedError url=${request.url} code=${error?.errorCode} description=${error?.description}"
+                                        "console ${consoleMessage?.messageLevel()} ${consoleMessage?.sourceId()}:${consoleMessage?.lineNumber()} ${consoleMessage?.message()}"
                                     )
-                                    isLoading = false
-                                    errorMessage = error?.description?.toString()
-                                        ?: "NFT 마켓을 불러오지 못했습니다."
+                                    return true
                                 }
                             }
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                                    Log.d(MARKET_WEBVIEW_TAG, "onPageStarted url=$url")
+                                    isLoading = true
+                                    pageReady = false
+                                    errorMessage = null
+                                }
 
-                            override fun onReceivedHttpError(
-                                view: WebView?,
-                                request: WebResourceRequest?,
-                                errorResponse: WebResourceResponse?
-                            ) {
-                                if (request?.isForMainFrame == true && errorResponse != null) {
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    Log.d(MARKET_WEBVIEW_TAG, "onPageFinished url=$url")
+                                    pageReady = true
+                                    isLoading = false
+                                    view?.injectMarketSessionIfReady(
+                                        accessToken = accessToken,
+                                        walletAddress = walletAddress,
+                                        walletProvider = walletProvider,
+                                        isWalletConnected = isWalletConnected
+                                    )
+                                }
+
+                                override fun onReceivedError(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                    error: WebResourceError?
+                                ) {
+                                    if (request?.isForMainFrame == true) {
+                                        Log.e(
+                                            MARKET_WEBVIEW_TAG,
+                                            "onReceivedError url=${request.url} code=${error?.errorCode} description=${error?.description}"
+                                        )
+                                        isLoading = false
+                                        errorMessage = error?.description?.toString()
+                                            ?: "NFT 마켓을 불러오지 못했습니다."
+                                    }
+                                }
+
+                                override fun onReceivedHttpError(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                    errorResponse: WebResourceResponse?
+                                ) {
+                                    if (request?.isForMainFrame == true && errorResponse != null) {
+                                        Log.e(
+                                            MARKET_WEBVIEW_TAG,
+                                            "onReceivedHttpError url=${request.url} status=${errorResponse.statusCode} reason=${errorResponse.reasonPhrase}"
+                                        )
+                                        isLoading = false
+                                        errorMessage = "NFT 마켓 응답 오류 (${errorResponse.statusCode})"
+                                    }
+                                }
+
+                                override fun onRenderProcessGone(
+                                    view: WebView?,
+                                    detail: RenderProcessGoneDetail?
+                                ): Boolean {
                                     Log.e(
                                         MARKET_WEBVIEW_TAG,
-                                        "onReceivedHttpError url=${request.url} status=${errorResponse.statusCode} reason=${errorResponse.reasonPhrase}"
+                                        "rendererGone didCrash=${detail?.didCrash()} priorityAtExit=${detail?.rendererPriorityAtExit()}"
                                     )
                                     isLoading = false
-                                    errorMessage = "NFT 마켓 응답 오류 (${errorResponse.statusCode})"
+                                    errorMessage = "NFT 마켓 화면이 비정상 종료되었습니다. 다시 시도해 주세요."
+                                    if (view == webView) {
+                                        webView = null
+                                    }
+                                    view?.destroy()
+                                    return true
                                 }
                             }
+                            webView = this
+                            loadedMarketUrl = marketUrl
+                            Log.d(MARKET_WEBVIEW_TAG, "loadUrl url=$marketUrl headers=${requestHeaders.keys}")
+                            loadUrl(marketUrl, requestHeaders)
                         }
-                        webView = this
-                        Log.d(MARKET_WEBVIEW_TAG, "loadUrl url=$marketUrl headers=${requestHeaders.keys}")
-                        loadUrl(marketUrl, requestHeaders)
+                    },
+                    update = { view ->
+                        if (loadedMarketUrl != marketUrl && marketUrl.isNotBlank()) {
+                            Log.d(MARKET_WEBVIEW_TAG, "reloadUrl loaded=$loadedMarketUrl current=${view.url} next=$marketUrl headers=${requestHeaders.keys}")
+                            isLoading = true
+                            pageReady = false
+                            errorMessage = null
+                            loadedMarketUrl = marketUrl
+                            view.loadUrl(marketUrl, requestHeaders)
+                        } else if (pageReady) {
+                            view.injectMarketSessionIfReady(
+                                accessToken = accessToken,
+                                walletAddress = walletAddress,
+                                walletProvider = walletProvider,
+                                isWalletConnected = isWalletConnected
+                            )
+                        }
                     }
-                },
-                update = { view ->
-                    if (view.url != marketUrl && marketUrl.isNotBlank()) {
-                        Log.d(MARKET_WEBVIEW_TAG, "reloadUrl current=${view.url} next=$marketUrl headers=${requestHeaders.keys}")
-                        isLoading = true
-                        errorMessage = null
-                        view.loadUrl(marketUrl, requestHeaders)
-                    } else {
-                        view.injectMarketSession(
-                            accessToken = accessToken,
-                            walletAddress = walletAddress,
-                            walletProvider = walletProvider,
-                            isWalletConnected = isWalletConnected
-                        )
-                    }
-                }
-            )
+                )
+            }
         }
 
         if (baseUrl.isNotBlank() && isLoading) {
@@ -223,7 +288,14 @@ fun MarketScreen(
                 onRetry = {
                     errorMessage = null
                     isLoading = true
-                    webView?.loadUrl(marketUrl, requestHeaders)
+                    pageReady = false
+                    val currentWebView = webView
+                    if (currentWebView == null) {
+                        webViewKey += 1
+                    } else {
+                        loadedMarketUrl = marketUrl
+                        currentWebView.loadUrl(marketUrl, requestHeaders)
+                    }
                 }
             )
         }
@@ -272,10 +344,11 @@ private fun WebView.configureMarketWebView() {
     settings.useWideViewPort = true
     settings.loadWithOverviewMode = true
     settings.textZoom = 100
-    settings.cacheMode = WebSettings.LOAD_DEFAULT
+    settings.cacheMode = WebSettings.LOAD_NO_CACHE
     settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
     settings.allowFileAccess = true
     settings.allowContentAccess = true
+    setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
 }
 
 private fun buildMarketWebViewUrl(
@@ -318,12 +391,18 @@ private fun buildMarketHeaders(
     return headers
 }
 
-private fun WebView.injectMarketSession(
+private fun WebView.injectMarketSessionIfReady(
     accessToken: String,
     walletAddress: String,
     walletProvider: String,
     isWalletConnected: Boolean
 ) {
+    val currentUrl = url.orEmpty()
+    if (!currentUrl.startsWith("http://") && !currentUrl.startsWith("https://")) {
+        Log.d(MARKET_WEBVIEW_TAG, "skip injectMarketSession url=$currentUrl")
+        return
+    }
+
     val script = """
     (function() {
       try {

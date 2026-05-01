@@ -78,8 +78,22 @@
     failedQueue = [];
   };
 
+  function resolveBackendUrl() {
+    const configuredUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:1113";
+
+    if (
+      typeof window !== "undefined" &&
+      window.location.hostname === "10.0.2.2" &&
+      configuredUrl.includes("localhost")
+    ) {
+      return configuredUrl.replace("localhost", "10.0.2.2");
+    }
+
+    return configuredUrl;
+  }
+
   export const apiClient = axios.create({
-    baseURL: import.meta.env.VITE_BACKEND_URL ?? "http://localhost:1113",
+    baseURL: resolveBackendUrl(),
     withCredentials: true, // refresh 쿠키 자동 포함
   });
 

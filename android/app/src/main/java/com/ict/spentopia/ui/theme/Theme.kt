@@ -14,38 +14,40 @@ import androidx.compose.ui.platform.LocalContext // 현재 Compose 환경의 Con
 
 private val DarkColorScheme = darkColorScheme( // 이 파일 안에서만 사용하는 다크모드용 색상 테마를 생성
     primary = SpentopiaGlowPurple, // 기본(대표) 색상을 차분한 네이비-퍼플로 설정
-    secondary = PurpleGrey80, // 보조 색상을 PurpleGrey80로 설정
-    tertiary = Pink80, // 세 번째 강조 색상을 Pink80로 설정
-    background = Color(0xFF0B1020),
-    onBackground = Color(0xFFF8FAFC),
-    surface = Color(0xFF111827),
-    onSurface = Color(0xFFF8FAFC),
-    surfaceVariant = Color(0xFF1E293B),
-    onSurfaceVariant = Color(0xFFCBD5E1),
-    outline = Color(0xFF334155),
+    secondary = SpentopiaGlowBlue, // 보조 색상을 네온 블루로 설정
+    tertiary = SpentopiaGlowCyan, // 세 번째 강조 색상을 네온 시안으로 설정
+    background = SpentopiaDarkBackground,
+    onBackground = SpentopiaDarkText,
+    surface = SpentopiaDarkSurface,
+    onSurface = SpentopiaDarkText,
+    surfaceVariant = SpentopiaDarkSurfaceVariant,
+    onSurfaceVariant = SpentopiaDarkTextMuted,
+    outline = SpentopiaDarkBorder,
     outlineVariant = Color(0xFF475569),
-    secondaryContainer = Color(0xFF1E293B),
-    onSecondaryContainer = Color(0xFFF8FAFC),
+    secondaryContainer = SpentopiaDarkSurfaceVariant,
+    onSecondaryContainer = SpentopiaDarkText,
     primaryContainer = Color(0xFF1E1B4B),
-    onPrimaryContainer = Color(0xFFF8FAFC),
-    inverseSurface = Color(0xFFF8FAFC),
-    inverseOnSurface = Color(0xFF0B1020)
+    onPrimaryContainer = SpentopiaDarkText,
+    inverseSurface = SpentopiaDarkText,
+    inverseOnSurface = SpentopiaDarkBackground
 ) // 다크모드 색상 세트 생성 끝
 
 private val LightColorScheme = lightColorScheme( // 이 파일 안에서만 사용하는 라이트모드용 색상 테마를 생성
-    primary = SpentopiaNavyPurple, // 기본 포인트를 지갑 버튼 톤에 맞춥니다.
-    secondary = SpentopiaMutedPurple, // 보조 색상은 더 짙은 퍼플로 설정
-    tertiary = Pink40, // 세 번째 강조 색상을 Pink40으로 설정
-    background = Color(0xFFF7F9FC),
-    onBackground = SpentopiaText,
-    surface = Color.White,
-    onSurface = SpentopiaText,
-    surfaceVariant = Color(0xFFF1F5F9),
-    onSurfaceVariant = SpentopiaTextMuted,
+    primary = SpentopiaGlowPurple, // 라이트모드 포인트 보라
+    secondary = SpentopiaGlowBlue, // 보조 색상은 부드러운 블루
+    tertiary = SpentopiaNavyPurple, // 세 번째 강조 색상
+    background = SpentopiaLightBackground,
+    onBackground = SpentopiaLightText,
+    surface = SpentopiaLightSurface,
+    onSurface = SpentopiaLightText,
+    surfaceVariant = SpentopiaLightSurfaceVariant,
+    onSurfaceVariant = SpentopiaLightTextMuted,
     primaryContainer = SpentopiaSoftPurple,
     onPrimaryContainer = SpentopiaNavyPurple,
-    outline = Color(0xFFCBD5E1),
-    outlineVariant = SpentopiaSurfaceLine
+    secondaryContainer = SpentopiaSoftBlue,
+    onSecondaryContainer = SpentopiaNavyPurple,
+    outline = SpentopiaLightBorder,
+    outlineVariant = SpentopiaLightBorder
 
     /* Other default colors to override // 필요하면 아래 기본 색상들도 직접 덮어써서 바꿀 수 있다는 예시 주석 시작
     background = Color(0xFFFFFBFE), // 앱의 전체 배경색을 지정하는 예시

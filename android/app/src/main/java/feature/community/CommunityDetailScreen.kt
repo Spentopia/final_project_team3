@@ -23,6 +23,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -315,7 +317,7 @@ private fun CommunityDetailNotFoundScreen(
                 Text(
                     text = "목록에서 다시 게시글을 선택해주세요.",
                     fontSize = 14.sp,
-                    color = Color(0xFF6E7684)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -383,7 +385,7 @@ private fun CommunityDetailTopSection(
                             "선택한 게시글의 상세 내용을 확인하고 좋아요와 댓글을 남길 수 있습니다."
                         },
                         fontSize = 13.sp,
-                        color = Color(0xFF6E7684),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 19.sp
                     )
                 }
@@ -414,8 +416,8 @@ private fun CommunityDetailTopSection(
                     onClick = onBackClick,
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFEDEFF4),
-                        contentColor = Color(0xFF2B313B)
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
@@ -473,7 +475,7 @@ private fun CommunityDetailContentCard(
                 text = post.title,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF20242C)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -482,7 +484,7 @@ private fun CommunityDetailContentCard(
                 text = "작성자: ${post.author}",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF3B3F47)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -491,7 +493,7 @@ private fun CommunityDetailContentCard(
                 text = post.fullContent,
                 fontSize = 15.sp,
                 lineHeight = 24.sp,
-                color = Color(0xFF4F5663)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -501,6 +503,7 @@ private fun CommunityDetailContentCard(
 // 게시글 수정 입력 카드입니다.
 // ------------------------------------------------------------
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun CommunityDetailEditCard(
     editTitle: String,
     onTitleChange: (String) -> Unit,
@@ -535,9 +538,10 @@ private fun CommunityDetailEditCard(
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 CommunityCategory.entries.forEach { category ->
                     val isSelected = category == selectedCategory
@@ -547,9 +551,9 @@ private fun CommunityDetailEditCard(
                             .widthIn(min = 88.dp)
                             .background(
                                 color = if (isSelected) {
-                                    Color(0xFFF0F1F5)
+                                    MaterialTheme.colorScheme.primaryContainer
                                 } else {
-                                    Color(0xFFFDFDFD)
+                                    MaterialTheme.colorScheme.surfaceVariant
                                 },
                                 shape = RoundedCornerShape(999.dp)
                             )
@@ -590,10 +594,10 @@ private fun CommunityDetailEditCard(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f),
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                    focusedTextColor = Color(0xFF1E2430),
-                    unfocusedTextColor = Color(0xFF1E2430),
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
                 )
             )
 
@@ -621,10 +625,10 @@ private fun CommunityDetailEditCard(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f),
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                    focusedTextColor = Color(0xFF1E2430),
-                    unfocusedTextColor = Color(0xFF1E2430),
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
                 )
             )
         }
@@ -680,8 +684,8 @@ private fun CommunityDetailActionCard(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (post.isLiked) SpentopiaMutedPurple else Color(0xFFEDEFF4),
-                            contentColor = if (post.isLiked) Color.White else Color(0xFF2B313B)
+                            containerColor = if (post.isLiked) SpentopiaMutedPurple else MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (post.isLiked) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                         ),
                         contentPadding = PaddingValues(vertical = 14.dp)
                     ) {
@@ -739,8 +743,8 @@ private fun CommunityDetailActionCard(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFEDEFF4),
-                            contentColor = Color(0xFF2B313B)
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
                         contentPadding = PaddingValues(vertical = 14.dp)
                     ) {
@@ -802,7 +806,7 @@ private fun CommunityCommentSection(
                 Text(
                     text = "아직 댓글이 없어요. 첫 댓글을 남겨보세요.",
                     fontSize = 13.sp,
-                    color = Color(0xFF6E7684)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 comments.forEach { comment ->
@@ -842,10 +846,10 @@ private fun CommunityCommentSection(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f),
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                    focusedTextColor = Color(0xFF1E2430),
-                    unfocusedTextColor = Color(0xFF1E2430),
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
                 )
             )
 
@@ -898,7 +902,7 @@ private fun CommunityCommentItem(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF8F9FC)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Column(
@@ -914,7 +918,7 @@ private fun CommunityCommentItem(
                     text = comment.author,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF20242C)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Text(
@@ -928,7 +932,7 @@ private fun CommunityCommentItem(
                 Text(
                     text = comment.content,
                     fontSize = 14.sp,
-                    color = Color(0xFF4F5663),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 20.sp
                 )
 
@@ -968,10 +972,10 @@ private fun CommunityCommentItem(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f),
                             unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                            focusedTextColor = Color(0xFF1E2430),
-                            unfocusedTextColor = Color(0xFF1E2430),
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
                         )
                     )
 
@@ -1007,14 +1011,14 @@ private fun CommunityDetailInfoChip(
     Card(
         shape = RoundedCornerShape(999.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF1F3F7)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Text(
             text = text,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
             fontSize = 12.sp,
-            color = Color(0xFF6D7480)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

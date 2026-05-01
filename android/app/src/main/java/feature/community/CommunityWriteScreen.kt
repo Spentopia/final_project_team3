@@ -13,9 +13,12 @@ package com.ict.spentopia.feature.community
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -49,11 +52,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Brush
-import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
+import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
+import com.ict.spentopia.ui.theme.spentopiaCtaGradientColors
 
 @Composable
 fun CommunityWriteScreen(
@@ -182,6 +186,7 @@ private fun CommunityWriteTopSection(
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun CommunityWriteCategoryCard(
     selectedCategory: CommunityCategory,
     onCategorySelected: (CommunityCategory) -> Unit
@@ -206,9 +211,10 @@ private fun CommunityWriteCategoryCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 CommunityCategory.entries.forEach { category ->
                     val isSelected = category == selectedCategory
@@ -349,6 +355,10 @@ private fun CommunityWriteSubmitSection(
     isEnabled: Boolean,
     onSubmitClick: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+    val enabledGradient = spentopiaCtaGradientColors(isDark)
+    val enabledContentColor = spentopiaCtaContentColor(isDark)
+
     Button(
         onClick = onSubmitClick,
         enabled = isEnabled,
@@ -367,7 +377,7 @@ private fun CommunityWriteSubmitSection(
                 .fillMaxWidth()
                 .background(
                     brush = if (isEnabled) {
-                        Brush.horizontalGradient(SpentopiaActionGradientColors)
+                        Brush.horizontalGradient(enabledGradient)
                     } else {
                         Brush.horizontalGradient(
                             listOf(
@@ -385,7 +395,7 @@ private fun CommunityWriteSubmitSection(
                 text = "등록하기",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isEnabled) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isEnabled) enabledContentColor else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -53,11 +54,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
-import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
+import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
+import com.ict.spentopia.ui.theme.spentopiaCtaGradientColors
+import com.ict.spentopia.ui.theme.spentopiaFeatureGradientColors
 
 @Composable
 fun PlazaScreen(
@@ -164,6 +166,12 @@ private fun PlazaHeaderSection() {
 private fun PlazaHeroCard(
     onEnterClick: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+    val heroContentColor = spentopiaCtaContentColor(isDark)
+    val heroMutedContentColor = if (isDark) Color.White.copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurfaceVariant
+    val iconSurfaceColor = if (isDark) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.76f)
+    val enterButtonContentColor = spentopiaCtaContentColor(isDark)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -176,7 +184,7 @@ private fun PlazaHeroCard(
                 .fillMaxWidth()
                 .background(
                     brush = Brush.verticalGradient(
-                        colors = SpentopiaWalletGradientColors
+                        colors = spentopiaFeatureGradientColors(isDark)
                     ),
                     shape = RoundedCornerShape(20.dp)
                 )
@@ -188,7 +196,7 @@ private fun PlazaHeroCard(
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.18f)
+                    color = iconSurfaceColor
                 ) {
                     Box(
                         modifier = Modifier
@@ -198,7 +206,7 @@ private fun PlazaHeroCard(
                         Icon(
                             imageVector = Icons.Outlined.Games,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = heroContentColor,
                             modifier = Modifier.size(36.dp)
                         )
                     }
@@ -210,7 +218,7 @@ private fun PlazaHeroCard(
                     text = "Unity WebGL 광장",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = heroContentColor
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -218,7 +226,7 @@ private fun PlazaHeroCard(
                 Text(
                     text = "PC 웹에서 Unity 기반의 3D 가상 공간을 체험하세요",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.95f)
+                    color = heroMutedContentColor
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -242,7 +250,7 @@ private fun PlazaHeroCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(
-                                brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
+                                brush = Brush.horizontalGradient(spentopiaCtaGradientColors(isDark)),
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .padding(vertical = 12.dp),
@@ -252,13 +260,13 @@ private fun PlazaHeroCard(
                             Icon(
                                 imageVector = Icons.Outlined.PlayArrow,
                                 contentDescription = null,
-                                tint = Color.White
+                                tint = enterButtonContentColor
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "광장 입장하기",
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.White
+                                color = enterButtonContentColor
                             )
                         }
                     }

@@ -16,11 +16,14 @@ package com.ict.spentopia.feature.community
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,6 +35,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,13 +45,19 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 
 // Compose 상태 관련 import입니다.
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
@@ -64,11 +74,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
-import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
+import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
+import com.ict.spentopia.ui.theme.spentopiaCtaGradientColors
 
 // ------------------------------------------------------------
 // 커뮤니티 카테고리 enum 클래스입니다.
@@ -78,9 +89,18 @@ import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 enum class CommunityCategory(
     val label: String
 ) {
+    NOTICE("공지사항"),
     AVATAR_CONTEST("아바타 콘테스트"),
-    FREE_BOARD("자유게시판"),
-    SAVING_TIP("절약 꿀팁")
+    REQUEST("이거 만들어주세요"),
+    FREE_BOARD("자유")
+}
+
+private enum class CommunitySortOption(
+    val label: String
+) {
+    LATEST("최신순"),
+    RECOMMENDED("추천순"),
+    VIEW("조회순")
 }
 
 // ------------------------------------------------------------
@@ -128,6 +148,7 @@ data class CommunityPost(
     val commentCount: Int,              // 댓글 개수입니다.
     val tagText: String,                // 하단 왼쪽 태그 텍스트입니다.
     val category: CommunityCategory,    // 카테고리입니다.
+    val viewCount: Int = 0,             // 조회수입니다.
     val comments: List<CommunityComment> = emptyList(), // 댓글 목록입니다.
     val isLiked: Boolean = false        // 현재 사용자의 좋아요 여부입니다.
 )
@@ -154,20 +175,49 @@ fun CommunityScreen(
     onChatClick: () -> Unit = {},
     onPostClick: (CommunityPost) -> Unit = {}
 ) {
-    // 현재 선택된 카테고리 인덱스를 저장합니다.
+    var searchQuery by remember { mutableStateOf("") }
     var selectedCategoryIndex by remember { mutableIntStateOf(0) }
+    var selectedSortOption by remember { mutableStateOf(CommunitySortOption.LATEST) }
 
-    // 카테고리 전체 목록입니다.
-    val categories = remember { CommunityCategory.entries }
+    val categoryTabs = remember {
+        listOf<Pair<String, CommunityCategory?>>(
+            "전체" to null,
+            CommunityCategory.NOTICE.label to CommunityCategory.NOTICE,
+            CommunityCategory.AVATAR_CONTEST.label to CommunityCategory.AVATAR_CONTEST,
+            CommunityCategory.REQUEST.label to CommunityCategory.REQUEST,
+            CommunityCategory.FREE_BOARD.label to CommunityCategory.FREE_BOARD
+        )
+    }
 
-    // 현재 선택된 카테고리입니다.
-    val selectedCategory = categories[selectedCategoryIndex]
+    val selectedCategory = categoryTabs[selectedCategoryIndex].second
 
-    // 선택된 카테고리에 해당하는 게시글만 화면에 보여주기 위해 필터링합니다.
-    val filteredPosts = remember(selectedCategory, posts) {
-        posts.filter { post ->
-            post.category == selectedCategory
-        }
+    val filteredPosts = remember(searchQuery, selectedCategory, selectedSortOption, posts) {
+        val normalizedQuery = searchQuery.trim()
+        posts
+            .asSequence()
+            .filter { post ->
+                selectedCategory == null || post.category == selectedCategory
+            }
+            .filter { post ->
+                normalizedQuery.isBlank() || post.title.contains(normalizedQuery, ignoreCase = true)
+            }
+            .let { sequence ->
+                when (selectedSortOption) {
+                    CommunitySortOption.LATEST -> sequence.sortedWith(
+                        compareBy<CommunityPost> { communityRecencyRank(it.timeText) }
+                            .thenByDescending { it.id }
+                    )
+                    CommunitySortOption.RECOMMENDED -> sequence.sortedWith(
+                        compareByDescending<CommunityPost> { it.likeCount }
+                            .thenByDescending { it.id }
+                    )
+                    CommunitySortOption.VIEW -> sequence.sortedWith(
+                        compareByDescending<CommunityPost> { it.viewCount }
+                            .thenByDescending { it.id }
+                    )
+                }
+            }
+            .toList()
     }
 
     // 전체 화면을 세로 스크롤 가능한 LazyColumn으로 구성합니다.
@@ -197,14 +247,27 @@ fun CommunityScreen(
             )
         }
 
-        // 카테고리 칩 영역입니다.
+        item {
+            CommunitySearchField(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it }
+            )
+        }
+
         item {
             CommunityCategoryChipRow(
-                categories = categories,
+                categoryTabs = categoryTabs,
                 selectedCategoryIndex = selectedCategoryIndex,
                 onCategorySelected = { clickedIndex ->
                     selectedCategoryIndex = clickedIndex
                 }
+            )
+        }
+
+        item {
+            CommunitySortOptionRow(
+                selectedSortOption = selectedSortOption,
+                onSortOptionSelected = { selectedSortOption = it }
             )
         }
 
@@ -272,6 +335,10 @@ private fun EmptyPostCard() {
 private fun CommunityTopHeader(
     onWriteClick: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+    val writeButtonBrush = Brush.horizontalGradient(spentopiaCtaGradientColors(isDark))
+    val writeButtonContentColor = spentopiaCtaContentColor(isDark)
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -317,7 +384,7 @@ private fun CommunityTopHeader(
             Box(
                 modifier = Modifier
                     .background(
-                        brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
+                        brush = writeButtonBrush,
                         shape = RoundedCornerShape(10.dp)
                     )
                     .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -327,7 +394,7 @@ private fun CommunityTopHeader(
                     text = "글쓰기",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    color = writeButtonContentColor
                 )
             }
         }
@@ -341,21 +408,46 @@ private fun CommunityTopHeader(
 private fun CommunityAiCard(
     onChatClick: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+    val cardGradientColors = if (isDark) {
+        spentopiaCommunityGradientColors()
+    } else {
+        listOf(
+            Color(0xFFF7F3FF),
+            Color(0xFFF1F5FF),
+            Color(0xFFEFF6FF)
+        )
+    }
+    val cardBorderColor = if (isDark) {
+        SpentopiaGlowPurple.copy(alpha = 0.35f)
+    } else {
+        Color(0xFFD8D5F2)
+    }
+    val iconBackgroundColor = if (isDark) {
+        Color.White.copy(alpha = 0.18f)
+    } else {
+        Color.White.copy(alpha = 0.78f)
+    }
+    val titleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
+    val bodyColor = if (isDark) Color.White.copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurfaceVariant
+    val chatButtonBrush = Brush.horizontalGradient(spentopiaCtaGradientColors(isDark))
+    val chatButtonContentColor = spentopiaCtaContentColor(isDark)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent
         ),
-        border = BorderStroke(1.dp, SpentopiaGlowPurple.copy(alpha = 0.35f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = BorderStroke(1.dp, cardBorderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 2.dp else 3.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
                     brush = Brush.horizontalGradient(
-                        colors = spentopiaCommunityGradientColors()
+                        colors = cardGradientColors
                     )
                 )
                 .padding(horizontal = 16.dp, vertical = 16.dp),
@@ -365,7 +457,7 @@ private fun CommunityAiCard(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.18f)),
+                    .background(iconBackgroundColor),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -383,7 +475,7 @@ private fun CommunityAiCard(
                     text = "AI 챗봇 고객센터",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = titleColor
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -391,7 +483,7 @@ private fun CommunityAiCard(
                 Text(
                     text = "내 아바타가 상황이 되어 궁금한 점을 답변해드려요!",
                     fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.95f),
+                    color = bodyColor,
                     lineHeight = 17.sp
                 )
             }
@@ -414,7 +506,7 @@ private fun CommunityAiCard(
                 Box(
                     modifier = Modifier
                         .background(
-                            brush = Brush.horizontalGradient(SpentopiaActionGradientColors),
+                            brush = chatButtonBrush,
                             shape = RoundedCornerShape(10.dp)
                         )
                         .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -424,7 +516,7 @@ private fun CommunityAiCard(
                         text = "채팅 시작",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        color = chatButtonContentColor
                     )
                 }
             }
@@ -440,20 +532,59 @@ private fun spentopiaCommunityGradient(): Brush {
     return Brush.horizontalGradient(spentopiaCommunityGradientColors())
 }
 
+@Composable
+private fun CommunitySearchField(
+    query: String,
+    onQueryChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier.fillMaxWidth(),
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Filled.Search,
+                contentDescription = "검색",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        placeholder = {
+            Text(
+                text = "제목 검색",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(16.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.65f),
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            cursorColor = SpentopiaMutedPurple
+        )
+    )
+}
+
 // ------------------------------------------------------------
 // 카테고리 칩 Row입니다.
 // ------------------------------------------------------------
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun CommunityCategoryChipRow(
-    categories: List<CommunityCategory>,
+    categoryTabs: List<Pair<String, CommunityCategory?>>,
     selectedCategoryIndex: Int,
     onCategorySelected: (Int) -> Unit
 ) {
-    Row(
+    FlowRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        categories.forEachIndexed { index, category ->
+        categoryTabs.forEachIndexed { index, _ ->
+            val tab = categoryTabs[index]
             val isSelected = index == selectedCategoryIndex
 
             Box(
@@ -467,10 +598,52 @@ private fun CommunityCategoryChipRow(
                     .padding(horizontal = 12.dp, vertical = 7.dp)
             ) {
                 Text(
-                    text = category.label,
+                    text = tab.first,
                     fontSize = 12.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                     color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CommunitySortOptionRow(
+    selectedSortOption: CommunitySortOption,
+    onSortOptionSelected: (CommunitySortOption) -> Unit
+) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(
+            items = CommunitySortOption.entries,
+            key = { option -> option.label }
+        ) { option ->
+            val isSelected = option == selectedSortOption
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        }
+                    )
+                    .clickable { onSortOptionSelected(option) }
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = if (isSelected) "✓ ${option.label}" else option.label,
+                    fontSize = 12.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 )
             }
         }
@@ -512,7 +685,7 @@ private fun CommunityPostCard(
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        text = "최신글",
+                        text = post.category.label,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -528,25 +701,25 @@ private fun CommunityPostCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = post.title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            Text(
+                text = post.title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
 
             Spacer(modifier = Modifier.height(10.dp))
 
-                Text(
-                    text = post.content,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 20.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+            Text(
+                text = post.content,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 20.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
 
             Spacer(modifier = Modifier.height(18.dp))
 
@@ -572,6 +745,10 @@ private fun CommunityPostCard(
                     SmallCountChip(
                         text = "댓글 ${post.commentCount}"
                     )
+
+                    SmallCountChip(
+                        text = "조회 ${post.viewCount}"
+                    )
                 }
             }
         }
@@ -585,15 +762,15 @@ private fun CommunityPostCard(
 private fun SmallCountChip(
     text: String
 ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 8.dp, vertical = 7.dp)
     ) {
         Text(
             text = text,
-            fontSize = 12.sp,
+            fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -610,6 +787,21 @@ private fun SmallCountChip(
 fun getInitialCommunityPosts(): List<CommunityPost> {
     return listOf(
         CommunityPost(
+            id = 7,
+            title = "커뮤니티 이용 안내",
+            content = "서로에게 도움이 되는 소비 기록, 아바타, 아이디어 이야기를 편하게 나눠주세요.",
+            fullContent = "서로에게 도움이 되는 소비 기록, 아바타, 아이디어 이야기를 편하게 나눠주세요. 비방이나 개인정보가 포함된 글은 예고 없이 삭제될 수 있습니다.",
+            author = "Spentopia",
+            timeText = "방금 전",
+            likeCount = 3,
+            commentCount = 0,
+            tagText = "공지",
+            category = CommunityCategory.NOTICE,
+            viewCount = 312,
+            comments = emptyList(),
+            isLiked = false
+        ),
+        CommunityPost(
             id = 1,
             title = "이번 달 아바타 7일 연속 기록 성공했어요!",
             content = "작은 금액은 놓칠 때도 있었지만, 그래도 소비 패턴이 조금씩 보이기 시작해서 뿌듯해요.",
@@ -620,6 +812,7 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             commentCount = 2,
             tagText = "기록초보",
             category = CommunityCategory.AVATAR_CONTEST,
+            viewCount = 128,
             comments = listOf(
                 CommunityComment(
                     id = 1,
@@ -649,6 +842,7 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             commentCount = 1,
             tagText = "미션질문",
             category = CommunityCategory.AVATAR_CONTEST,
+            viewCount = 94,
             comments = listOf(
                 CommunityComment(
                     id = 1,
@@ -671,6 +865,7 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             commentCount = 2,
             tagText = "분석해보는중",
             category = CommunityCategory.FREE_BOARD,
+            viewCount = 216,
             comments = listOf(
                 CommunityComment(
                     id = 1,
@@ -700,6 +895,7 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             commentCount = 1,
             tagText = "배달줄이기",
             category = CommunityCategory.FREE_BOARD,
+            viewCount = 173,
             comments = listOf(
                 CommunityComment(
                     id = 1,
@@ -721,7 +917,8 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             likeCount = 14,
             commentCount = 2,
             tagText = "절약실험중",
-            category = CommunityCategory.SAVING_TIP,
+            category = CommunityCategory.REQUEST,
+            viewCount = 241,
             comments = listOf(
                 CommunityComment(
                     id = 1,
@@ -750,7 +947,8 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             likeCount = 9,
             commentCount = 1,
             tagText = "식비절약",
-            category = CommunityCategory.SAVING_TIP,
+            category = CommunityCategory.REQUEST,
+            viewCount = 187,
             comments = listOf(
                 CommunityComment(
                     id = 1,
@@ -763,6 +961,23 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             isLiked = false
         )
     )
+}
+
+private fun communityRecencyRank(timeText: String): Int {
+    if (timeText.contains("방금")) return 0
+
+    val number = Regex("""\d+""")
+        .find(timeText)
+        ?.value
+        ?.toIntOrNull()
+        ?: return Int.MAX_VALUE
+
+    return when {
+        timeText.contains("분") -> number
+        timeText.contains("시간") -> number * 60
+        timeText.contains("일") -> number * 24 * 60
+        else -> Int.MAX_VALUE
+    }
 }
 
 // ------------------------------------------------------------
