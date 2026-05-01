@@ -445,21 +445,28 @@ const handleDownload = async () => {
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF("p", "mm", "a4");
 
-    const imgWidth = 210;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+// 🔥 여백 설정
+const margin = 12;
 
-    let heightLeft = imgHeight;
-    let position = 0;
+const imgWidth = 210 - margin * 2;
+const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-    heightLeft -= 297;
+let heightLeft = imgHeight;
+let position = margin;
 
-    while (heightLeft > 0) {
-      position = -(imgHeight - heightLeft);
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= 297;
-    }
+// 첫 페이지
+pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+heightLeft -= 297 - margin * 2;
+
+// 다음 페이지들
+while (heightLeft > 0) {
+  position = margin - (imgHeight - heightLeft);
+
+  pdf.addPage();
+  pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+
+  heightLeft -= 297 - margin * 2;
+}
 
     pdf.save("소비_분석_리포트.pdf");
   } catch (err) {
