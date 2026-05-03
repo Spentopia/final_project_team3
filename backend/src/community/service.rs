@@ -22,6 +22,9 @@ use super::{
 };
 use crate::{filter, state::AppState};
 
+const POST_TITLE_MAX_LENGTH: usize = 200;
+const POST_CONTENT_MAX_LENGTH: usize = 500;
+
 async fn create_profile_image_signed_url(state: &AppState, path: &str) -> Result<String> {
     let path = path.trim();
     if path.is_empty() {
@@ -75,18 +78,27 @@ async fn create_profile_image_signed_url(state: &AppState, path: &str) -> Result
     }
 }
 
-async fn to_post_response(state: &AppState, post: Post) -> PostResponse {
+async fn to_post_response(
+    state: &AppState,
+    current_user_id: Uuid,
+    post: Post,
+) -> Result<PostResponse> {
     let author_nickname = post.users.as_ref().and_then(|author| author.nickname.clone());
     let author_profile_image = post
         .users
         .as_ref()
         .and_then(|author| author.profile_image.clone());
+
     let author_profile_image_url = match author_profile_image.as_deref() {
         Some(path) => create_profile_image_signed_url(state, path).await.ok(),
         None => None,
     };
 
-    PostResponse {
+    // 현재 로그인한 사용자가 이 게시글에 이미 반응했는지 계산한다.
+    // 이 값이 있어야 새로고침 후에도 하트 색상/버튼 상태를 유지할 수 있다.
+    let is_reacted = is_reacted_by_user(state, current_user_id, post.id).await?;
+
+    Ok(PostResponse {
         id: post.id,
         user_id: post.user_id,
         author_nickname,
@@ -97,10 +109,11 @@ async fn to_post_response(state: &AppState, post: Post) -> PostResponse {
         title: post.title,
         image_url: post.image_url,
         content: post.content,
-        vote_count: post.vote_count,
+        reaction_count: post.reaction_count,
+        is_reacted,
         view_count: post.view_count,
         created_at: post.created_at,
-    }
+    })
 }
 
 async fn to_comment_response(state: &AppState, comment: Comment) -> CommentResponse {
@@ -165,6 +178,49 @@ async fn get_post(state: &AppState, post_id: Uuid) -> Result<Post> {
         .into_iter()
         .next()
         .ok_or_else(|| anyhow!("게시물을 찾을 수 없습니다."))
+}
+
+// 현재 로그인한 사용자가 특정 게시글에 이미 반응했는지 확인한다.
+//
+// reactions 테이블에는 user_id + post_id가 저장된다.
+// 해당 row가 있으면:
+// - contest: 이미 투표함
+// - free/request: 이미 좋아요 누름
+async fn is_reacted_by_user(
+    state: &AppState,
+    user_id: Uuid,
+    post_id: Uuid,
+) -> Result<bool> {
+    let url = format!(
+        "{}/rest/v1/reactions?user_id=eq.{}&post_id=eq.{}&select=id&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+        post_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("reactions SELECT 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("reactions SELECT 실패: {}", body));
+    }
+
+    let rows: Vec<Value> = res
+        .json()
+        .await
+        .context("reactions SELECT 응답 역직렬화 실패")?;
+
+    Ok(!rows.is_empty())
 }
 
 async fn get_comment(state: &AppState, comment_id: Uuid) -> Result<Comment> {
@@ -279,6 +335,16 @@ fn validate_post_type(req: &CreatePostRequest) -> Result<()> {
 
 fn validate_post_text(title: Option<&str>, content: Option<&str>) -> Result<()> {
     if let Some(title) = title {
+        let title = title.trim();
+        if title.is_empty() {
+            return Err(anyhow!("title은 비어 있을 수 없습니다."));
+        }
+        if title.chars().count() > POST_TITLE_MAX_LENGTH {
+            return Err(anyhow!(
+                "게시글 제목은 {}자 이내로 입력해주세요.",
+                POST_TITLE_MAX_LENGTH
+            ));
+        }
         if !filter::check(title) {
             return Err(anyhow!(
                 "게시글 제목에 사용할 수 없는 표현이 포함되어 있습니다."
@@ -287,6 +353,16 @@ fn validate_post_text(title: Option<&str>, content: Option<&str>) -> Result<()> 
     }
 
     if let Some(content) = content {
+        let content = content.trim();
+        if content.is_empty() {
+            return Err(anyhow!("content는 비어 있을 수 없습니다."));
+        }
+        if content.chars().count() > POST_CONTENT_MAX_LENGTH {
+            return Err(anyhow!(
+                "게시글 내용은 {}자 이내로 입력해주세요.",
+                POST_CONTENT_MAX_LENGTH
+            ));
+        }
         if !filter::check(content) {
             return Err(anyhow!(
                 "게시글 내용에 사용할 수 없는 표현이 포함되어 있습니다."
@@ -548,6 +624,7 @@ pub async fn list_contests(state: &AppState) -> Result<Vec<ContestEventResponse>
 
 pub async fn list_posts(
     state: &AppState,
+    user_id: Uuid,
     contest_id: Option<Uuid>,
     post_type: Option<PostType>,
     sort: PostSort,
@@ -560,6 +637,7 @@ pub async fn list_posts(
     let offset = (page - 1) * page_size;
     let end = offset + page_size - 1;
     let search_title = normalize_optional_string(title);
+
     let use_choseong_filter = search_title
         .as_deref()
         .map(contains_choseong_query)
@@ -583,7 +661,7 @@ pub async fn list_posts(
 
     let order = match sort {
         PostSort::Date => "created_at.desc",
-        PostSort::Likes => "vote_count.desc,created_at.desc",
+        PostSort::Likes => "reaction_count.desc,created_at.desc",
         PostSort::Views => "view_count.desc,created_at.desc",
     };
 
@@ -611,10 +689,7 @@ pub async fn list_posts(
         req.header("Range", format!("{}-{}", offset, end))
     };
 
-    let res = req
-        .send()
-        .await
-        .context("posts SELECT 요청 실패")?;
+    let res = req.send().await.context("posts SELECT 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
@@ -635,6 +710,7 @@ pub async fn list_posts(
         if let Some(title) = search_title.as_deref() {
             posts.retain(|post| title_matches_choseong(&post.title, title));
         }
+
         posts.len() as i64
     } else {
         db_total_count
@@ -649,8 +725,10 @@ pub async fn list_posts(
     }
 
     let mut items = Vec::with_capacity(posts.len());
+
     for post in posts {
-        items.push(to_post_response(state, post).await);
+        // user_id를 넘겨야 is_reacted를 계산할 수 있다.
+        items.push(to_post_response(state, user_id, post).await?);
     }
 
     Ok(PostListResponse { items, total_count })
@@ -658,13 +736,19 @@ pub async fn list_posts(
 
 // ── 게시물 상세 조회 ───────────────────────────────────────────
 
-pub async fn get_post_detail(state: &AppState, post_id: Uuid) -> Result<PostResponse> {
+pub async fn get_post_detail(
+    state: &AppState,
+    user_id: Uuid,
+    post_id: Uuid,
+) -> Result<PostResponse> {
     let mut post = get_post(state, post_id).await?;
+
     let next_view_count = increment_post_view_count(state, post_id).await?;
     post.view_count = next_view_count;
 
-    Ok(to_post_response(state, post).await)
+    to_post_response(state, user_id, post).await
 }
+
 // ── 게시물 생성 ───────────────────────────────────────────────
 
 pub async fn create_post(
@@ -728,7 +812,7 @@ pub async fn create_post(
         .ok_or_else(|| anyhow!("posts INSERT 결과가 비어있음"))?;
 
     let post = get_post(state, post_id).await?;
-    Ok(to_post_response(state, post).await)
+    to_post_response(state, user_id, post).await
 }
 
 // ── 게시물 수정 ───────────────────────────────────────────────
@@ -768,11 +852,7 @@ pub async fn update_post(
     }
 
     if let Some(content) = req.content {
-        if content.trim().is_empty() {
-            payload.insert("content".to_string(), Value::Null);
-        } else {
-            payload.insert("content".to_string(), Value::String(content));
-        }
+        payload.insert("content".to_string(), Value::String(content.trim().to_string()));
     }
 
     let url = format!(
@@ -808,7 +888,7 @@ pub async fn update_post(
         .ok_or_else(|| anyhow!("posts UPDATE 결과가 비어있음"))?;
 
     let post = get_post(state, updated_post_id).await?;
-    Ok(to_post_response(state, post).await)
+    to_post_response(state, user_id, post).await
 }
 
 // ── 게시물 삭제 ───────────────────────────────────────────────
@@ -847,16 +927,47 @@ pub async fn delete_post(state: &AppState, user_id: Uuid, post_id: Uuid) -> Resu
     Ok(())
 }
 
-// ── 게시물 투표 ───────────────────────────────────────────────
 
-pub async fn vote_post(state: &AppState, user_id: Uuid, post_id: Uuid) -> Result<()> {
+// ── 게시물 반응 (투표 / 좋아요) ─────────────────────────────
+//
+// 하나의 reactions 테이블을 사용하지만
+// post_type에 따라 의미가 달라짐.
+//
+// contest  → 투표
+// free     → 좋아요
+// request  → 좋아요
+// notice   → 반응 금지
+//
+pub async fn react_post(state: &AppState, user_id: Uuid, post_id: Uuid) -> Result<()> {
     let post = get_post(state, post_id).await?;
-    if post.post_type != "contest" {
-        return Err(anyhow!("투표는 아바타 콘테스트 게시글에만 가능합니다."));
+
+    // 2. 게시글 타입에 따른 반응 가능 여부 체크
+    //
+    // match를 쓰는 이유:
+    // - 타입별 정책을 명확하게 분리
+    // - 나중에 타입 추가될 때 안전하게 처리 가능
+    //
+    match post.post_type.as_str() {
+        // 공지사항은 반응 금지
+        "notice" => {
+            return Err(anyhow!("공지사항에는 반응할 수 없습니다."));
+        }
+
+        // 허용되는 타입들
+        // contest: 투표
+        // free/request: 좋아요
+        "contest" | "free" | "request" => {
+            // 아무것도 안 하고 통과
+        }
+
+        // 예상 못한 타입 방어 코드 (실무에서 중요)
+        _ => {
+            return Err(anyhow!("지원하지 않는 게시글 타입입니다."));
+        }
     }
 
     let url = format!(
-        "{}/rest/v1/votes",
+        "{}/rest/v1/reactions",
         state.config.supabase_url.trim_end_matches('/'),
     );
 
@@ -887,10 +998,59 @@ pub async fn vote_post(state: &AppState, user_id: Uuid, post_id: Uuid) -> Result
     Ok(())
 }
 
+// ── 게시물 반응 취소 ─────────────────────────────────────────────
+//
+// free/request 게시글의 좋아요는 취소 가능.
+// contest 게시글의 투표는 취소 불가로 유지한다.
+pub async fn unreact_post(state: &AppState, user_id: Uuid, post_id: Uuid) -> Result<()> {
+    let post = get_post(state, post_id).await?;
+
+    match post.post_type.as_str() {
+        "contest" => {
+            return Err(anyhow!("아바타 콘테스트 투표는 취소할 수 없습니다."));
+        }
+        "free" | "request" => {}
+        "notice" => {
+            return Err(anyhow!("공지사항에는 반응할 수 없습니다."));
+        }
+        _ => {
+            return Err(anyhow!("지원하지 않는 게시글 타입입니다."));
+        }
+    }
+
+    let url = format!(
+        "{}/rest/v1/reactions?user_id=eq.{}&post_id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+        post_id,
+    );
+
+    let res = state
+        .http_client
+        .delete(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Prefer", "return=minimal")
+        .send()
+        .await
+        .context("reactions DELETE 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("reactions DELETE 실패: {}", body));
+    }
+
+    Ok(())
+}
+
 // ── 댓글 ─────────────────────────────────────────────────────
 
 pub async fn list_comments(state: &AppState, post_id: Uuid) -> Result<Vec<CommentResponse>> {
     let post = get_post(state, post_id).await?;
+
     if post.post_type == "notice" {
         return Err(anyhow!("공지사항에는 댓글을 사용할 수 없습니다."));
     }
@@ -927,6 +1087,7 @@ pub async fn list_comments(state: &AppState, post_id: Uuid) -> Result<Vec<Commen
 
     Ok(items)
 }
+
 
 pub async fn create_comment(
     state: &AppState,

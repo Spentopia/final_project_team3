@@ -190,7 +190,8 @@ pub fn create_router(state: AppState) -> Router {
                 .patch(community::handler::update_post)
                 .delete(community::handler::delete_post),
         )
-        .route("/api/posts/:id/vote", post(community::handler::vote_post))
+        .route("/api/posts/:id/react", post(community::handler::react_post)
+            .delete(community::handler::unreact_post))
         .route(
             "/api/posts/:id/comments",
             get(community::handler::list_comments).post(community::handler::create_comment),

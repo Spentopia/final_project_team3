@@ -26,6 +26,8 @@ import {
   listComments,
   listCommunityPosts,
   listContests,
+  reactCommunityPost,
+  unreactCommunityPost,
   updateComment,
   updateCommunityPost,
   uploadCommunityImage,
@@ -50,8 +52,16 @@ interface Post {
   author: string;
   authorProfileImageUrl: string | null;
   date: string;
+  detailDate: string;
   isNew?: boolean;
+  // reaction_count를 화면에서는 기존처럼 likes라는 이름으로 써도 됨.
+  // contest면 투표 수, free/request면 좋아요 수.
   likes: number;
+
+  // 현재 로그인한 사용자가 이미 눌렀는지 여부.
+  // contest면 투표 완료 여부,
+  // free/request면 좋아요 여부.
+  isReacted: boolean;
   views: number;
   content: string;
   image_url?: string | null;
@@ -89,6 +99,8 @@ const BADGE_STYLE: Record<PostCategory, { bg: string; text: string; label: strin
 };
 
 const PER_PAGE = 10;
+const POST_TITLE_MAX_LENGTH = 200;
+const POST_CONTENT_MAX_LENGTH = 500;
 
 function formatPostDate(value: string | null): string {
   if (!value) return "-";
@@ -100,6 +112,20 @@ function formatPostDate(value: string | null): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}.${month}.${day}`;
+}
+
+function formatPostDateTime(value: string | null): string {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}.${month}.${day} ${hours}:${minutes}`;
 }
 
 function isNewPost(value: string | null): boolean {
@@ -125,6 +151,13 @@ function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof AxiosError) {
     const message = error.response?.data;
     if (typeof message === "string" && message.trim()) {
+      if (message.includes("value too long for type character varying(500)")) {
+        return `내용은 ${POST_CONTENT_MAX_LENGTH}자 이내로 입력해주세요`;
+      }
+      if (message.includes("value too long for type character varying(200)")) {
+        return `제목은 ${POST_TITLE_MAX_LENGTH}자 이내로 입력해주세요`;
+      }
+
       return message;
     }
   }
@@ -142,8 +175,10 @@ function toPost(post: CommunityPostResponse): Post {
     author: post.author_nickname ?? "익명",
     authorProfileImageUrl: post.author_profile_image_url,
     date: formatPostDate(post.created_at),
+    detailDate: formatPostDateTime(post.created_at),
     isNew: isNewPost(post.created_at),
-    likes: post.vote_count ?? 0,
+    likes: post.reaction_count ?? 0,
+    isReacted: post.is_reacted,
     views: post.view_count,
     content: post.content ?? "",
     image_url: buildImageUrl(post.image_url),
@@ -191,11 +226,13 @@ export default function Community() {
   const [editTitle, setEditTitle]         = useState("");
   const [editContent, setEditContent]     = useState("");
   const [editFile, setEditFile]           = useState<File | null>(null);
+  const [reactingPostId, setReactingPostId] = useState<string | null>(null);
   const [comments, setComments]           = useState<Comment[]>([]);
   const [commentContent, setCommentContent] = useState("");
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentContent, setEditingCommentContent] = useState("");
   const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
+  const [postDeleteTarget, setPostDeleteTarget] = useState<Post | null>(null);
   const [commentDeleteTarget, setCommentDeleteTarget] = useState<Comment | null>(null);
 
   // 대댓글 상태
@@ -425,8 +462,18 @@ export default function Community() {
       return;
     }
 
+    if (title.length > POST_TITLE_MAX_LENGTH) {
+      toast.error(`제목은 ${POST_TITLE_MAX_LENGTH}자 이내로 입력해주세요`);
+      return;
+    }
+
     if (!content) {
       toast.error("내용을 입력해주세요");
+      return;
+    }
+
+    if (content.length > POST_CONTENT_MAX_LENGTH) {
+      toast.error(`내용은 ${POST_CONTENT_MAX_LENGTH}자 이내로 입력해주세요`);
       return;
     }
 
@@ -523,8 +570,18 @@ export default function Community() {
       return;
     }
 
+    if (title.length > POST_TITLE_MAX_LENGTH) {
+      toast.error(`제목은 ${POST_TITLE_MAX_LENGTH}자 이내로 입력해주세요`);
+      return;
+    }
+
     if (!content) {
       toast.error("내용을 입력해주세요");
+      return;
+    }
+
+    if (content.length > POST_CONTENT_MAX_LENGTH) {
+      toast.error(`내용은 ${POST_CONTENT_MAX_LENGTH}자 이내로 입력해주세요`);
       return;
     }
 
@@ -583,6 +640,7 @@ export default function Community() {
       setTotalCount((prev) => Math.max(0, prev - 1));
       setSelectedPost((current) => (current?.id === postId ? null : current));
       setIsEditOpen(false);
+      setPostDeleteTarget(null);
       toast.success("게시글이 삭제되었습니다");
     } catch (error) {
       toast.error("게시글 삭제에 실패했습니다");
@@ -595,17 +653,79 @@ export default function Community() {
   const handleDeletePost = () => {
     if (!selectedPost) return;
 
-    const postId = selectedPost.id;
+    setPostDeleteTarget(selectedPost);
+  };
 
-    toast.warning("게시글을 삭제하시겠습니까?", {
-      action: {
-        label: "삭제",
-        onClick: () => {
-          void deletePostById(postId);
-        },
-      },
-      duration: 5000,
-    });
+  const handleReactPost = async (post: Post) => {
+    if (reactingPostId === post.id) return;
+
+    // 공지사항은 백엔드에서도 막지만,
+    // 프론트에서도 버튼 동작을 막아두면 UX가 더 좋음.
+    if (post.category === "notice") {
+      toast.error("공지사항에는 반응할 수 없습니다");
+      return;
+    }
+
+    // 콘테스트는 투표 취소 불가 정책.
+    // 이미 투표한 상태에서 다시 누르면 DELETE를 보내지 않고 막음.
+    if (post.category === "contest" && post.isReacted) {
+      toast.error("아바타 콘테스트 투표는 취소할 수 없습니다");
+      return;
+    }
+
+    setReactingPostId(post.id);
+
+    try {
+      if (post.isReacted) {
+        // free/request 좋아요 취소
+        await unreactCommunityPost(post.id);
+      } else {
+        // contest 투표 등록 또는 free/request 좋아요 등록
+        await reactCommunityPost(post.id);
+      }
+
+      const nextIsReacted = !post.isReacted;
+      const nextLikes = post.isReacted
+          ? Math.max(0, post.likes - 1)
+          : post.likes + 1;
+
+      // 목록 상태 갱신
+      setPosts((prev) =>
+          prev.map((item) =>
+              item.id === post.id
+                  ? {
+                    ...item,
+                    likes: nextLikes,
+                    isReacted: nextIsReacted,
+                  }
+                  : item
+          )
+      );
+
+      // 상세 페이지 상태 갱신
+      setSelectedPost((current) =>
+          current?.id === post.id
+              ? {
+                ...current,
+                likes: nextLikes,
+                isReacted: nextIsReacted,
+              }
+              : current
+      );
+
+      toast.success(
+          post.category === "contest"
+              ? "투표가 완료되었습니다"
+              : post.isReacted
+                  ? "좋아요를 취소했습니다"
+                  : "좋아요를 눌렀습니다"
+      );
+    } catch (error) {
+      toast.error(getErrorMessage(error, "반응 처리에 실패했습니다"));
+      console.error("게시글 반응 처리 실패:", error);
+    } finally {
+      setReactingPostId((current) => (current === post.id ? null : current));
+    }
   };
 
   const handleCreateComment = async (event: FormEvent<HTMLFormElement>) => {
@@ -775,31 +895,33 @@ export default function Community() {
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-5 leading-snug">
                 {selectedPost.title}
               </h2>
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-6 text-sm text-gray-400 dark:text-gray-500">
-                  <span className="flex items-center gap-2 font-medium text-gray-600 dark:text-gray-400">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex-shrink-0">
                     {selectedPost.authorProfileImageUrl ? (
                       <img
                         src={selectedPost.authorProfileImageUrl}
                         alt={selectedPost.author}
-                        className="h-6 w-6 rounded-full object-cover"
+                        className="h-12 w-12 rounded-full object-cover"
                       />
                     ) : (
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+                      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-200 text-base font-semibold text-gray-500 dark:bg-gray-700 dark:text-gray-300">
                         {selectedPost.author.slice(0, 1)}
                       </span>
                     )}
-                    <span>{selectedPost.author}</span>
                   </span>
-                  <span className="flex items-center gap-1">
-                    <Heart className="h-3.5 w-3.5" />
-                    {selectedPost.likes.toLocaleString()}
-                  </span>
-                  <span>{selectedPost.date}</span>
-                  <span className="flex items-center gap-1">
-                    <Eye className="h-3.5 w-3.5" />
-                    {selectedPost.views.toLocaleString()}
-                  </span>
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span className="truncate text-base font-semibold text-gray-900 dark:text-gray-100">
+                      {selectedPost.author}
+                    </span>
+                    <span className="flex items-center gap-4 text-sm text-gray-400 dark:text-gray-500">
+                      <span>{selectedPost.detailDate}</span>
+                      <span className="flex items-center gap-1">
+                        <Eye className="relative top-px h-3.5 w-3.5" />
+                        {selectedPost.views.toLocaleString()}
+                      </span>
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-gray-400 dark:text-gray-500">
                   <button
@@ -849,6 +971,45 @@ export default function Community() {
                 {selectedPost.content}
               </p>
             </div>
+
+            {selectedPost.category !== "notice" && (
+              <div className="flex justify-center px-8 py-5">
+                <button
+                    type="button"
+                    onClick={() => void handleReactPost(selectedPost)}
+                    disabled={
+                      reactingPostId === selectedPost.id ||
+                      (selectedPost.category === "contest" && selectedPost.isReacted)
+                    }
+                    className={`inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium transition-colors ${
+                        selectedPost.isReacted
+                            ? "border-red-200 bg-red-50 text-red-500 dark:border-red-900/60 dark:bg-red-950/30"
+                            : "border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-500 dark:border-gray-700 dark:text-gray-400 dark:hover:border-red-900/60"
+                    } disabled:cursor-not-allowed disabled:opacity-70`}
+                    title={
+                      selectedPost.category === "contest"
+                          ? selectedPost.isReacted
+                              ? "이미 투표했습니다"
+                              : "투표하기"
+                          : selectedPost.isReacted
+                              ? "좋아요 취소"
+                              : "좋아요"
+                    }
+                >
+                  <Heart
+                      className={`h-4 w-4 ${
+                          selectedPost.isReacted ? "fill-current" : ""
+                      }`}
+                  />
+                  <span>
+                    {selectedPost.category === "contest" ? "투표" : "좋아요"}
+                  </span>
+                  <span className="tabular-nums">
+                    {selectedPost.likes.toLocaleString()}
+                  </span>
+                </button>
+              </div>
+            )}
 
             {selectedPost.category !== "notice" && (
               <div className="border-t border-gray-100 dark:border-gray-700 px-8 py-6">
@@ -1180,6 +1341,38 @@ export default function Community() {
           </Card>
 
           <AlertDialog
+            open={postDeleteTarget !== null}
+            onOpenChange={(open) => {
+              if (!open && !isSubmitting) {
+                setPostDeleteTarget(null);
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>게시글을 삭제하시겠습니까?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  삭제한 게시글은 다시 복구할 수 없습니다.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isSubmitting}>취소</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={isSubmitting || !postDeleteTarget}
+                  onClick={() => {
+                    if (postDeleteTarget) {
+                      void deletePostById(postDeleteTarget.id);
+                    }
+                  }}
+                  className="bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40"
+                >
+                  {isSubmitting ? "삭제 중..." : "삭제"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog
             open={commentDeleteTarget !== null}
             onOpenChange={(open) => {
               if (!open && !isCommentSubmitting) {
@@ -1225,8 +1418,12 @@ export default function Community() {
                       value={editTitle}
                       onChange={(event) => setEditTitle(event.target.value)}
                       placeholder="제목을 입력하세요"
+                      maxLength={POST_TITLE_MAX_LENGTH}
                       className="h-11 text-base"
                     />
+                    <span className="block text-right text-xs text-gray-400 dark:text-gray-500">
+                      {editTitle.length}/{POST_TITLE_MAX_LENGTH}
+                    </span>
                   </label>
 
                   <label className="block space-y-1.5">
@@ -1236,9 +1433,13 @@ export default function Community() {
                       onChange={(event) => setEditContent(event.target.value)}
                       placeholder="내용을 입력하세요"
                       rows={7}
+                      maxLength={POST_CONTENT_MAX_LENGTH}
                       className="w-full resize-none rounded-md border border-gray-200 bg-white px-3 py-3 text-base text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                     />
-                  </label>
+                    <span className="block text-right text-xs text-gray-400 dark:text-gray-500">
+                      {editContent.length}/{POST_CONTENT_MAX_LENGTH}
+                    </span>
+	                  </label>
 
                   {selectedPost.image_url && (
                     <div className="space-y-1.5">
@@ -1396,21 +1597,28 @@ export default function Community() {
                           )}</span>
 
                         {/* 작성자 · 좋아요 · 날짜 · 조회수 */}
-                        <span className="grid grid-cols-[150px_60px_100px_72px] items-center text-sm text-gray-400 dark:text-gray-500 flex-shrink-0 min-w-[325px]">
-                          <span className="truncate text-left">{post.author}</span>
+                        <span className="grid h-5 grid-cols-[200px_270px] items-center text-sm text-gray-400 dark:text-gray-500 flex-shrink-0 min-w-[470px]">
+                          <span className="block h-5 truncate text-left leading-5">{post.author}</span>
 
-                          <span className="flex items-center justify-center gap-1">
-                            <Heart className="h-3.5 w-3.5" />
-                            <span className="tabular-nums">{post.likes.toLocaleString()}</span>
-                          </span>
+                          <span className="flex h-5 items-center justify-end gap-8">
+                            <span className="grid h-5 grid-cols-[16px_40px] items-center gap-1">
+                              <Heart
+                                  className={`relative top-px block h-3.5 w-3.5 ${
+                                      post.isReacted ? "fill-current text-red-500" : ""
+                                  }`}
+                              />
+                              <span className="block h-5 tabular-nums text-left leading-5">{post.likes.toLocaleString()}</span>
+                            </span>
 
-                          <span className="text-center tabular-nums">{post.date}</span>
-                            <span className="grid grid-cols-[16px_30px] items-center justify-end gap-1">
-                              <Eye className="h-3.5 w-3.5" />
-                              <span className="tabular-nums text-left">
+                            <span className="block h-5 -translate-x-2 text-center tabular-nums leading-5">{post.date}</span>
+
+                            <span className="grid h-5 grid-cols-[16px_40px] items-center gap-1">
+                              <Eye className="relative top-px block h-3.5 w-3.5" />
+                              <span className="block h-5 tabular-nums text-left leading-5">
                                 {post.views.toLocaleString()}
                               </span>
                             </span>
+                          </span>
                         </span>
                       </div>
                   );
@@ -1530,8 +1738,12 @@ export default function Community() {
                       value={writeTitle}
                       onChange={(event) => setWriteTitle(event.target.value)}
                       placeholder="제목을 입력하세요"
+                      maxLength={POST_TITLE_MAX_LENGTH}
                       className="flex-1 px-4 py-3.5 text-sm text-gray-900 dark:text-gray-100 bg-transparent outline-none placeholder:text-gray-300 dark:placeholder:text-gray-600"
                     />
+                    <span className="flex w-16 flex-shrink-0 items-center justify-end pr-4 text-xs text-gray-400 dark:text-gray-500">
+                      {writeTitle.length}/{POST_TITLE_MAX_LENGTH}
+                    </span>
                   </div>
 
                   {/* 내용 */}
@@ -1541,8 +1753,12 @@ export default function Community() {
                       onChange={(event) => setWriteContent(event.target.value)}
                       placeholder="내용을 입력하세요"
                       rows={13}
+                      maxLength={POST_CONTENT_MAX_LENGTH}
                       className="w-full resize-none px-5 py-4 text-sm leading-7 text-gray-700 dark:text-gray-300 bg-transparent outline-none placeholder:text-gray-300 dark:placeholder:text-gray-600"
                     />
+                    <span className="px-5 pb-3 text-right text-xs text-gray-400 dark:text-gray-500">
+                      {writeContent.length}/{POST_CONTENT_MAX_LENGTH}
+                    </span>
                   </div>
 
                   {/* 첨부파일 */}

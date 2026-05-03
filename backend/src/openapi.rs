@@ -71,7 +71,7 @@ use crate::wallet;
         crate::community::handler::upload_post_image,
         crate::community::handler::update_post,
         crate::community::handler::delete_post,
-        crate::community::handler::vote_post,
+        crate::community::handler::react_post,
         crate::community::handler::list_comments,
         crate::community::handler::create_comment,
         crate::community::handler::update_comment,

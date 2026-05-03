@@ -40,7 +40,7 @@ pub struct Post {
     pub contest_id: Option<Uuid>, // 일반 게시물이면 null
     pub image_url: Option<String>,
     pub content: Option<String>,
-    pub vote_count: Option<i32>,
+    pub reaction_count: Option<i32>,
     pub created_at: Option<DateTime<Utc>>,
     pub post_type: String,
     pub title: String,
@@ -67,13 +67,18 @@ pub struct Comment {
     pub users: Option<CommentAuthor>,
 }
 
-// public.votes 테이블
-// 게시물 투표 (한 번 투표하면 취소 불가)
+// public.reactions 테이블
+// 게시물 반응
+// - contest 게시글: 투표
+// - free/request 게시글: 좋아요
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Vote {
+pub struct Reaction {
     pub id: Uuid,
     pub user_id: Uuid,
     pub post_id: Uuid,
+
+    // DB 컬럼명이 아직 voted_at이면 voted_at 유지.
+    // 나중에 reacted_at으로 바꾸면 여기도 reacted_at으로 변경.
     pub voted_at: Option<DateTime<Utc>>,
 }
 
