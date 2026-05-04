@@ -13,6 +13,7 @@
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use crate::budget::dto::Plan;
 
 use crate::state::AppState;
 
@@ -113,8 +114,7 @@ pub struct BudgetPlanPayload {
 
 #[derive(Deserialize)]
 pub struct BudgetPlanResult {
-    pub plan: String,
-    pub categories: Value,
+    pub plans: Vec<Plan>,
 }
 
 pub async fn budget_plan(state: &AppState, payload: BudgetPlanPayload) -> Result<BudgetPlanResult> {
