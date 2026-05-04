@@ -8,8 +8,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,22 +42,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
-import com.ict.spentopia.ui.theme.SpentopiaNavy
-import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
-import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
-import com.ict.spentopia.ui.theme.spentopiaCtaGradientColors
-import com.ict.spentopia.ui.theme.spentopiaFeatureGradientColors
 
 @Composable
 fun PlazaScreen(
@@ -167,27 +155,23 @@ private fun PlazaHeroCard(
     onEnterClick: () -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
-    val heroContentColor = spentopiaCtaContentColor(isDark)
-    val heroMutedContentColor = if (isDark) Color.White.copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurfaceVariant
-    val iconSurfaceColor = if (isDark) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.76f)
-    val enterButtonContentColor = spentopiaCtaContentColor(isDark)
+    val heroContentColor = MaterialTheme.colorScheme.onSurface
+    val heroMutedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val iconSurfaceColor = MaterialTheme.colorScheme.primaryContainer
+    val iconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
-        )
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 1.dp else 2.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = spentopiaFeatureGradientColors(isDark)
-                    ),
-                    shape = RoundedCornerShape(20.dp)
-                )
                 .padding(horizontal = 20.dp, vertical = 28.dp)
         ) {
             Column(
@@ -206,7 +190,7 @@ private fun PlazaHeroCard(
                         Icon(
                             imageVector = Icons.Outlined.Games,
                             contentDescription = null,
-                            tint = heroContentColor,
+                            tint = iconContentColor,
                             modifier = Modifier.size(36.dp)
                         )
                     }
@@ -231,44 +215,26 @@ private fun PlazaHeroCard(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                val enterInteractionSource = remember { MutableInteractionSource() }
-                val enterPressed by enterInteractionSource.collectIsPressedAsState()
                 Button(
                     onClick = onEnterClick,
-                    interactionSource = enterInteractionSource,
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                    contentPadding = PaddingValues(0.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer {
-                            scaleX = if (enterPressed) 0.985f else 1f
-                            scaleY = if (enterPressed) 0.985f else 1f
-                        }
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    contentPadding = PaddingValues(vertical = 12.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                brush = Brush.horizontalGradient(spentopiaCtaGradientColors(isDark)),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .padding(vertical = 12.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Outlined.PlayArrow,
-                                contentDescription = null,
-                                tint = enterButtonContentColor
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "광장 입장하기",
-                                fontWeight = FontWeight.SemiBold,
-                                color = enterButtonContentColor
-                            )
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Outlined.PlayArrow,
+                            contentDescription = null
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "광장 입장하기",
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }

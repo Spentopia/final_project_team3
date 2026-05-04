@@ -32,7 +32,6 @@ import androidx.compose.runtime.getValue // 수정: 상태 위임에 사용
 import androidx.compose.runtime.remember // 수정: 눌림 상태 기억에 사용
 import androidx.compose.ui.Alignment // 수정: 정렬에 사용
 import androidx.compose.ui.Modifier // 기존 유지
-import androidx.compose.ui.graphics.Brush // 수정: 그라데이션에 사용
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.graphicsLayer
@@ -43,8 +42,6 @@ import androidx.compose.ui.unit.sp // 수정: 폰트 크기에 사용
 import androidx.lifecycle.viewmodel.compose.viewModel // 수정: 뷰모델 연결에 사용
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
-import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
-import com.ict.spentopia.ui.theme.spentopiaFeatureGradientColors
 
 // 기존 주석 유지
 // 내 아바타 화면
@@ -55,7 +52,6 @@ fun AvatarScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState() // 수정: 상태 구독
     val isDark = isSystemInDarkTheme()
-    val previewContentColor = spentopiaCtaContentColor(isDark)
 
     Column(
         modifier = Modifier
@@ -117,21 +113,15 @@ fun AvatarScreen(
         Card(
             modifier = Modifier.fillMaxWidth(), // 수정: 전체 너비
             shape = RoundedCornerShape(22.dp), // 수정: 둥근 카드
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent) // 수정: 투명 카드
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 수정: 카드 배경
         ) {
             Column(
                 modifier = Modifier
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = spentopiaFeatureGradientColors(isDark)
-                        ),
-                        shape = RoundedCornerShape(22.dp) // 수정: 둥근 배경
-                    )
                     .padding(18.dp) // 수정: 내부 여백
             ) {
                 Text(
                     text = "미리보기", // 수정: 카드 제목
-                    color = previewContentColor, // 수정: 텍스트 색상
+                    color = MaterialTheme.colorScheme.onSurface, // 수정: 텍스트 색상
                     fontSize = 18.sp, // 수정: 제목 크기
                     fontWeight = FontWeight.Bold // 수정: 제목 강조
                 )
@@ -206,7 +196,7 @@ fun AvatarScreen(
                     ) {
                         Text(
                             text = uiState.reward.title, // 수정: 보상 제목 연결
-                            color = previewContentColor, // 수정: 텍스트 색상
+                            color = MaterialTheme.colorScheme.onSurface, // 수정: 텍스트 색상
                             fontSize = 18.sp, // 수정: 제목 크기
                             fontWeight = FontWeight.Bold // 수정: 제목 강조
                         )
@@ -225,7 +215,7 @@ fun AvatarScreen(
                                     .fillMaxWidth(uiState.reward.progress) // 수정: 진행률 반영
                                     .height(8.dp) // 수정: 채움 높이
                                     .background(
-                                        color = previewContentColor, // 수정: 채움 색상
+                                        color = MaterialTheme.colorScheme.primary, // 수정: 채움 색상
                                         shape = RoundedCornerShape(999.dp) // 수정: 둥근 채움
                                     )
                             )
@@ -351,7 +341,6 @@ private fun AvatarActionButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val isDark = isSystemInDarkTheme()
 
     Button(
         onClick = onClick, // 수정: 클릭 처리
@@ -363,11 +352,11 @@ private fun AvatarActionButton(
         shape = RoundedCornerShape(10.dp), // 수정: 둥근 버튼
         colors = ButtonDefaults.buttonColors(
             containerColor = if (highlighted) {
-                if (isDark) SpentopiaMutedPurple else MaterialTheme.colorScheme.primaryContainer
+                MaterialTheme.colorScheme.primaryContainer
             } else {
                 MaterialTheme.colorScheme.surface
             }, // 수정: 배경 색상
-            contentColor = if (highlighted) spentopiaCtaContentColor(isDark) else MaterialTheme.colorScheme.onSurface // 수정: 글자 색상
+            contentColor = if (highlighted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface // 수정: 글자 색상
         )
     ) {
         Text(
@@ -381,9 +370,8 @@ private fun AvatarActionButton(
 // 수정: 요약 정보 행
 @Composable
 private fun AvatarInfoRow(label: String, value: String) {
-    val isDark = isSystemInDarkTheme()
-    val contentColor = spentopiaCtaContentColor(isDark)
-    val labelColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    val contentColor = MaterialTheme.colorScheme.onSurface
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     Row(
         modifier = Modifier.fillMaxWidth(), // 수정: 전체 너비

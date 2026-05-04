@@ -59,9 +59,6 @@ import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
-import com.ict.spentopia.ui.theme.spentopiaCtaBorderColor
-import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
-import com.ict.spentopia.ui.theme.spentopiaCtaGradientColors
 import kotlin.math.roundToInt
 
 // 소비분석 메인 화면임
@@ -184,10 +181,6 @@ fun AnalysisHeaderSection(
     onShareClick: () -> Unit,
     onDownloadClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    val ctaGradient = spentopiaCtaGradientColors(isDark)
-    val ctaContentColor = spentopiaCtaContentColor(isDark)
-
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -209,68 +202,38 @@ fun AnalysisHeaderSection(
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            val shareInteractionSource = remember { MutableInteractionSource() }
-            val sharePressed by shareInteractionSource.collectIsPressedAsState()
             Button(
                 onClick = onShareClick,
-                interactionSource = shareInteractionSource,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
                 shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(0.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
                 modifier = Modifier
                     .height(40.dp)
-                    .graphicsLayer {
-                        scaleX = if (sharePressed) 0.985f else 1f
-                        scaleY = if (sharePressed) 0.985f else 1f
-                    }
             ) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            brush = Brush.horizontalGradient(ctaGradient),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "공유",
-                        fontWeight = FontWeight.SemiBold,
-                        color = ctaContentColor
-                    )
-                }
+                Text(
+                    text = "공유",
+                    fontWeight = FontWeight.SemiBold
+                )
             }
 
-            val downloadInteractionSource = remember { MutableInteractionSource() }
-            val downloadPressed by downloadInteractionSource.collectIsPressedAsState()
             Button(
                 onClick = onDownloadClick,
-                interactionSource = downloadInteractionSource,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
                 shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(0.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
                 modifier = Modifier
                     .height(40.dp)
-                    .graphicsLayer {
-                        scaleX = if (downloadPressed) 0.985f else 1f
-                        scaleY = if (downloadPressed) 0.985f else 1f
-                    }
             ) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            brush = Brush.horizontalGradient(ctaGradient),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "리포트 다운로드",
-                        fontWeight = FontWeight.SemiBold,
-                        color = ctaContentColor
-                    )
-                }
+                Text(
+                    text = "리포트 다운로드",
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }
@@ -311,14 +274,6 @@ fun GradientSummaryCard(
     valueText: String,
     subText: String
 ) {
-    val isDark = isSystemInDarkTheme()
-    val ctaContentColor = spentopiaCtaContentColor(isDark)
-    val ctaMutedContentColor = if (isDark) {
-        Color.White.copy(alpha = 0.9f)
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -327,22 +282,16 @@ fun GradientSummaryCard(
                 shape = RoundedCornerShape(18.dp),
                 ambientColor = SpentopiaGlowPurple.copy(alpha = 0.14f),
                 spotColor = SpentopiaGlowPurple.copy(alpha = 0.18f)
-            ),
+        ),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = spentopiaCtaGradientColors(isDark)
-                    ),
-                    shape = RoundedCornerShape(18.dp)
-                )
                 .border(
                     width = 1.dp,
-                    color = spentopiaCtaBorderColor(isDark),
+                    color = MaterialTheme.colorScheme.outlineVariant,
                     shape = RoundedCornerShape(18.dp)
                 )
                 .padding(18.dp)
@@ -353,20 +302,20 @@ fun GradientSummaryCard(
                 Text(
                     text = title,
                     fontSize = 13.sp,
-                    color = ctaMutedContentColor
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
 
                 Text(
                     text = valueText,
                     fontSize = 34.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = ctaContentColor
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
 
                 Text(
                     text = subText,
                     fontSize = 12.sp,
-                    color = ctaMutedContentColor
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
         }
@@ -934,9 +883,6 @@ fun AiAnalysisReportSection(
     errorMessage: String,
     onRequestAiAnalysis: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    val ctaContentColor = spentopiaCtaContentColor(isDark)
-
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -957,37 +903,18 @@ fun AiAnalysisReportSection(
                 enabled = !isLoading && totalExpense > 0,
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 ),
-                contentPadding = PaddingValues(0.dp)
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                if (isLoading || totalExpense > 0) {
-                                    spentopiaCtaGradientColors(isDark)
-                                } else {
-                                    listOf(
-                                        MaterialTheme.colorScheme.surfaceVariant,
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                    )
-                                }
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (isLoading) "분석 중" else "AI 분석",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ctaContentColor
-                    )
-                }
+                Text(
+                    text = if (isLoading) "분석 중" else "AI 분석",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 

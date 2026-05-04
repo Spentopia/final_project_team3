@@ -100,10 +100,6 @@ import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
-import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
-import com.ict.spentopia.ui.theme.spentopiaCtaBorderColor
-import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
-import com.ict.spentopia.ui.theme.spentopiaCtaGradientColors
 
 // 숫자 포맷 및 날짜 계산 관련 import입니다.
 import kotlinx.coroutines.launch
@@ -542,7 +538,6 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
     onWalletConnectClick: () -> Unit = {} // 버튼을 눌렀을 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isSystemInDarkTheme()
-    val ctaContentColor = spentopiaCtaContentColor(isDark)
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
@@ -586,33 +581,16 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                 onClick = onWalletConnectClick, // color 값을 이 함수로 넘김
                 shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                 colors = ButtonDefaults.buttonColors( // 색상 스타일을 정함
-                    containerColor = Color.Transparent // 배경색을 정함
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ),
-                contentPadding = PaddingValues(0.dp) // 버튼 안쪽 여백을 정함
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp) // 버튼 안쪽 여백을 정함
             ) { // 이 블록 안의 내용이 시작됨
-                Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
-                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
-                        .background( // 배경색이나 그라데이션을 넣음
-                            brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                                colors = spentopiaCtaGradientColors(isDark)
-                            ),
-                            shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = spentopiaCtaBorderColor(isDark),
-                            shape = RoundedCornerShape(14.dp)
-                        )
-                        .padding(horizontal = 14.dp, vertical = 10.dp), // 안쪽이나 바깥 여백을 줌
-                    contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
-                ) { // 이 블록 안의 내용이 시작됨
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = if (isWalletConnected) "연결 완료" else "지갑 연결", // 연결 상태에 따라 버튼 글자를 정함
-                        fontSize = 13.sp, // 글자 크기를 정함
-                        fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                        color = ctaContentColor // 색상을 정함
-                    )
-                } // 블록 끝
+                Text( // 글자를 화면에 보여주기 시작함
+                    text = if (isWalletConnected) "연결 완료" else "지갑 연결", // 연결 상태에 따라 버튼 글자를 정함
+                    fontSize = 13.sp, // 글자 크기를 정함
+                    fontWeight = FontWeight.Bold // 글자 두께를 정함
+                )
             } // 블록 끝
         } // 블록 끝
     } // 블록 끝
@@ -1450,15 +1428,6 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     val formAccentColor = colorScheme.primary
     val formAccentContainerColor = colorScheme.primaryContainer
     val formAccentContainerTextColor = colorScheme.onPrimaryContainer
-    val isDark = isSystemInDarkTheme()
-    val expenseCompleteGradient = spentopiaCtaGradientColors(isDark)
-    val expenseCompleteTextColor = spentopiaCtaContentColor(isDark)
-    val incomeCompleteGradient = if (isDark) {
-        listOf(Color(0xFF22C55E), Color(0xFF16A34A))
-    } else {
-        listOf(Color(0xFFDCFCE7), Color(0xFFEFFDF4))
-    }
-    val incomeCompleteTextColor = if (isDark) Color.White else Color(0xFF166534)
 
     var formDate by remember { mutableStateOf(selectedDate) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var isExpenseTab by remember { mutableStateOf(true) } // 입력 탭 상태를 보관함
@@ -1974,8 +1943,8 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent,
-                            contentColor = expenseCompleteTextColor
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         ),
                         contentPadding = PaddingValues(0.dp)
                     ) {
@@ -1983,9 +1952,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(
-                                    brush = Brush.horizontalGradient(
-                                        colors = expenseCompleteGradient
-                                    ),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
                                     shape = RoundedCornerShape(12.dp)
                                 ),
                             contentAlignment = Alignment.Center
@@ -1998,7 +1965,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                 },
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = expenseCompleteTextColor
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
@@ -2105,24 +2072,23 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                             .height(54.dp), // 세로 길이를 정함
                         shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                         colors = ButtonDefaults.buttonColors( // 색상 스타일을 정함
-                            containerColor = Color.Transparent // 배경색을 정함
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         ),
                         contentPadding = PaddingValues(0.dp) // 버튼 안쪽 여백을 정함
                     ) { // 이 블록 안의 내용이 시작됨
                         Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
                             modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                                 .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
-                                    .background( // 배경색이나 그라데이션을 넣음
-                                        brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                                        colors = if (isExpenseTab) expenseCompleteGradient else incomeCompleteGradient
-                                        ),
-                                        shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
-                                    ),
+                                .background( // 배경색이나 그라데이션을 넣음
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
+                                ),
                             contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
                         ) { // 이 블록 안의 내용이 시작됨
                             Text( // 글자를 화면에 보여주기 시작함
                                 text = if (isExpenseTab) "소비 수정 완료" else "수입 수정 완료", // 화면에 보여줄 글자를 정함
-                                color = if (isExpenseTab) expenseCompleteTextColor else incomeCompleteTextColor, // 색상을 정함
+                                color = MaterialTheme.colorScheme.onPrimaryContainer, // 색상을 정함
                                 fontSize = 17.sp, // 글자 크기를 정함
                                 fontWeight = FontWeight.Bold // 글자 두께를 정함
                             )
@@ -2157,24 +2123,23 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         .height(54.dp), // 세로 길이를 정함
                     shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                     colors = ButtonDefaults.buttonColors( // 색상 스타일을 정함
-                        containerColor = Color.Transparent // 배경색을 정함
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
                     contentPadding = PaddingValues(0.dp) // 버튼 안쪽 여백을 정함
                 ) { // 이 블록 안의 내용이 시작됨
                         Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
                             modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                                 .fillMaxSize() // 부모가 허용하는 공간을 전부 채움
-                                    .background( // 배경색이나 그라데이션을 넣음
-                                        brush = Brush.horizontalGradient( // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                                    colors = if (isExpenseTab) expenseCompleteGradient else incomeCompleteGradient
-                                    ),
+                                .background( // 배경색이나 그라데이션을 넣음
+                                    color = MaterialTheme.colorScheme.primaryContainer,
                                     shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                                 ),
                         contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
                     ) { // 이 블록 안의 내용이 시작됨
                         Text( // 글자를 화면에 보여주기 시작함
                             text = if (isExpenseTab) "소비 입력 완료" else "수입 입력 완료", // 화면에 보여줄 글자를 정함
-                            color = if (isExpenseTab) expenseCompleteTextColor else incomeCompleteTextColor, // 색상을 정함
+                            color = MaterialTheme.colorScheme.onPrimaryContainer, // 색상을 정함
                             fontSize = 17.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.Bold // 글자 두께를 정함
                         )

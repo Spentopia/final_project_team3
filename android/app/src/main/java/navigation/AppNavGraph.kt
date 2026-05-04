@@ -42,8 +42,6 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -81,9 +79,6 @@ import com.ict.spentopia.feature.home.HomeScreen
 import com.ict.spentopia.feature.market.MarketScreen
 import com.ict.spentopia.feature.mypage.ProfileAvatarScreen
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
-import com.ict.spentopia.ui.theme.SpentopiaNavy
-import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
-import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import kotlinx.coroutines.launch
 
@@ -707,23 +702,21 @@ private fun FloatingChatbotButton(
                 scaleY = if (pressed) 0.965f else 1f
             }
             .size(62.dp),
-        containerColor = Color.Transparent,
-        contentColor = Color.White
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    brush = Brush.linearGradient(
-                        colors = SpentopiaWalletGradientColors
-                    ),
+                    color = MaterialTheme.colorScheme.primaryContainer,
                     shape = MaterialTheme.shapes.extraLarge
                 ),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "🤖",
-                color = Color.White
+                color = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
     }

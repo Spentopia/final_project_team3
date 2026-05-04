@@ -45,7 +45,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,9 +52,6 @@ import androidx.compose.ui.unit.sp
 import com.ict.spentopia.data.remote.ChatRequest
 import com.ict.spentopia.data.remote.RetrofitClient
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
-import com.ict.spentopia.ui.theme.SpentopiaNavy
-import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
-import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 
@@ -207,9 +203,7 @@ private fun ChatbotHeader(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                brush = Brush.horizontalGradient(
-                    colors = SpentopiaWalletGradientColors
-                )
+                color = MaterialTheme.colorScheme.surface
             )
             .padding(horizontal = 12.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -218,17 +212,21 @@ private fun ChatbotHeader(
             Icon(
                 imageVector = Icons.Default.ArrowBack,
                 contentDescription = "뒤로가기",
-                tint = Color.White
+                tint = MaterialTheme.colorScheme.onSurface
             )
         }
 
         Box(
             modifier = Modifier
                 .size(42.dp)
-                .background(Color.White.copy(alpha = 0.18f), CircleShape),
+                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "AI", color = Color.White, fontWeight = FontWeight.Bold)
+            Text(
+                text = "AI",
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                fontWeight = FontWeight.Bold
+            )
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -236,14 +234,14 @@ private fun ChatbotHeader(
         Column {
             Text(
                 text = "AI 챗바타 상담",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "소비 고민을 짧게 남기면 바로 답변해드려요.",
-                color = Color.White.copy(alpha = 0.88f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             )
         }

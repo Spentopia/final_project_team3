@@ -17,8 +17,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,9 +62,7 @@ import androidx.compose.runtime.setValue
 // UI 스타일 관련 import입니다.
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -75,11 +71,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
-import com.ict.spentopia.ui.theme.SpentopiaNavy
-import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
-import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
-import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
-import com.ict.spentopia.ui.theme.spentopiaCtaGradientColors
 
 // ------------------------------------------------------------
 // 커뮤니티 카테고리 enum 클래스입니다.
@@ -335,10 +326,6 @@ private fun EmptyPostCard() {
 private fun CommunityTopHeader(
     onWriteClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    val writeButtonBrush = Brush.horizontalGradient(spentopiaCtaGradientColors(isDark))
-    val writeButtonContentColor = spentopiaCtaContentColor(isDark)
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -366,37 +353,20 @@ private fun CommunityTopHeader(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        val writeInteractionSource = remember { MutableInteractionSource() }
-        val writePressed by writeInteractionSource.collectIsPressedAsState()
         Button(
             onClick = onWriteClick,
-            interactionSource = writeInteractionSource,
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ),
-            contentPadding = PaddingValues(0.dp),
-            modifier = Modifier.graphicsLayer {
-                scaleX = if (writePressed) 0.985f else 1f
-                scaleY = if (writePressed) 0.985f else 1f
-            }
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .background(
-                        brush = writeButtonBrush,
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "글쓰기",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = writeButtonContentColor
-                )
-            }
+            Text(
+                text = "글쓰기",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
@@ -409,35 +379,25 @@ private fun CommunityAiCard(
     onChatClick: () -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
-    val cardGradientColors = if (isDark) {
-        spentopiaCommunityGradientColors()
-    } else {
-        listOf(
-            Color(0xFFF7F3FF),
-            Color(0xFFF1F5FF),
-            Color(0xFFEFF6FF)
-        )
-    }
     val cardBorderColor = if (isDark) {
         SpentopiaGlowPurple.copy(alpha = 0.35f)
     } else {
-        Color(0xFFD8D5F2)
+        MaterialTheme.colorScheme.outlineVariant
     }
     val iconBackgroundColor = if (isDark) {
-        Color.White.copy(alpha = 0.18f)
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
     } else {
-        Color.White.copy(alpha = 0.78f)
+        MaterialTheme.colorScheme.primaryContainer
     }
-    val titleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
-    val bodyColor = if (isDark) Color.White.copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurfaceVariant
-    val chatButtonBrush = Brush.horizontalGradient(spentopiaCtaGradientColors(isDark))
-    val chatButtonContentColor = spentopiaCtaContentColor(isDark)
+    val iconColor = MaterialTheme.colorScheme.onPrimaryContainer
+    val titleColor = MaterialTheme.colorScheme.onSurface
+    val bodyColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         border = BorderStroke(1.dp, cardBorderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 2.dp else 3.dp)
@@ -445,11 +405,6 @@ private fun CommunityAiCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = cardGradientColors
-                    )
-                )
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -462,7 +417,8 @@ private fun CommunityAiCard(
             ) {
                 Text(
                     text = "🤖",
-                    fontSize = 22.sp
+                    fontSize = 22.sp,
+                    color = iconColor
                 )
             }
 
@@ -490,46 +446,23 @@ private fun CommunityAiCard(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            val chatInteractionSource = remember { MutableInteractionSource() }
-            val chatPressed by chatInteractionSource.collectIsPressedAsState()
             Button(
                 onClick = onChatClick,
-                interactionSource = chatInteractionSource,
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                contentPadding = PaddingValues(0.dp),
-                modifier = Modifier.graphicsLayer {
-                    scaleX = if (chatPressed) 0.985f else 1f
-                    scaleY = if (chatPressed) 0.985f else 1f
-                }
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            brush = chatButtonBrush,
-                            shape = RoundedCornerShape(10.dp)
-                        )
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "채팅 시작",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = chatButtonContentColor
-                    )
-                }
+                Text(
+                    text = "채팅 시작",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }
-}
-
-private fun spentopiaCommunityGradientColors(): List<Color> {
-    return SpentopiaWalletGradientColors
-}
-
-private fun spentopiaCommunityGradient(): Brush {
-    return Brush.horizontalGradient(spentopiaCommunityGradientColors())
 }
 
 @Composable

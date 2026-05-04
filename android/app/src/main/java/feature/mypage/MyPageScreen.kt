@@ -7,6 +7,7 @@ import android.net.Uri // 이미지 uri
 import androidx.activity.compose.rememberLauncherForActivityResult // 갤러리 런처
 import androidx.activity.result.contract.ActivityResultContracts // 갤러리 계약
 import androidx.compose.foundation.background // 배경 박스 표현
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border // 테두리 표현
 import androidx.compose.foundation.clickable // 클릭 처리
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -41,7 +42,6 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Alignment // 정렬 기준
 import androidx.compose.ui.Modifier // UI 수정자
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Brush // 그라데이션 배경
 import androidx.compose.ui.graphics.Color // 색상
 import androidx.compose.ui.layout.ContentScale // 이미지 비율
 import androidx.compose.ui.text.font.FontWeight // 글자 굵기
@@ -51,12 +51,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel // ViewModel 연결
 import coil.compose.AsyncImage // 이미지 출력
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog // 수정: 솔라나 지갑 선택 다이얼로그
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // 수정: 선택한 솔라나 지갑 종류
-import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
-import com.ict.spentopia.ui.theme.SpentopiaNavy
-import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
-import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
-import com.ict.spentopia.ui.theme.spentopiaCtaGradientColors
-import com.ict.spentopia.ui.theme.spentopiaFeatureGradientColors
 
 // 기존 주석 유지
 // 마이페이지 화면
@@ -230,23 +224,14 @@ private fun ProfileHeaderCard(
     uiState: MyPageUiState, // 전체 상태 받기
     onProfileImageClick: () -> Unit // 이미지 클릭
 ) {
-    val isDark = isSystemInDarkTheme()
-    val headerContentColor = spentopiaCtaContentColor(isDark)
-    val headerMutedContentColor = if (isDark) Color.White.copy(alpha = 0.92f) else MaterialTheme.colorScheme.onSurfaceVariant
-
     Card(
         modifier = Modifier.fillMaxWidth(), // 카드 전체 너비 사용
         shape = RoundedCornerShape(20.dp), // 둥근 카드
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent) // 내부 그라데이션 사용
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = spentopiaFeatureGradientColors(isDark)
-                    ),
-                    shape = RoundedCornerShape(20.dp) // 둥근 그라데이션
-                )
                 .padding(20.dp), // 카드 내부 여백
             horizontalAlignment = Alignment.CenterHorizontally // 중앙 정렬
         ) {
@@ -259,7 +244,7 @@ private fun ProfileHeaderCard(
                         modifier = Modifier
                             .size(92.dp) // 프로필 원 크기
                             .background(
-                                color = Color.White.copy(alpha = 0.18f), // 반투명 배경
+                                color = MaterialTheme.colorScheme.primaryContainer, // 배경
                                 shape = CircleShape // 원형
                             ),
                         contentAlignment = Alignment.Center // 중앙 정렬
@@ -276,7 +261,7 @@ private fun ProfileHeaderCard(
                         modifier = Modifier
                             .size(92.dp) // 이미지 크기
                             .background(
-                                color = Color.White.copy(alpha = 0.18f), // 배경색
+                                color = MaterialTheme.colorScheme.primaryContainer, // 배경색
                                 shape = CircleShape // 원형
                             ),
                         contentScale = ContentScale.Crop // 꽉 채우기
@@ -305,7 +290,7 @@ private fun ProfileHeaderCard(
                 text = uiState.profileSummary.nickname, // 닉네임 출력
                 fontSize = 28.sp, // 닉네임 크기
                 fontWeight = FontWeight.Bold, // 닉네임 강조
-                color = headerContentColor // 글자색
+                color = MaterialTheme.colorScheme.onSurface // 글자색
             )
 
             Spacer(modifier = Modifier.height(4.dp)) // 닉네임과 실명 사이 여백
@@ -314,7 +299,7 @@ private fun ProfileHeaderCard(
                 text = uiState.profileSummary.realName, // 실명 출력
                 fontSize = 14.sp, // 실명 크기
                 fontWeight = FontWeight.SemiBold, // 실명 강조
-                color = headerMutedContentColor // 보조 글자색
+                color = MaterialTheme.colorScheme.onSurfaceVariant // 보조 글자색
             )
 
             Spacer(modifier = Modifier.height(20.dp)) // 프로필 정보와 통계 카드 사이 여백
@@ -833,9 +818,7 @@ private fun WalletTabContent(
                             Box(
                                 modifier = Modifier
                                     .background(
-                                        brush = Brush.linearGradient(
-                                            colors = spentopiaCtaGradientColors(isDark)
-                                        ),
+                                        color = MaterialTheme.colorScheme.primaryContainer,
                                         shape = RoundedCornerShape(12.dp) // 둥근 버튼
                                     )
                                     .clickable {
@@ -845,7 +828,7 @@ private fun WalletTabContent(
                             ) {
                                 Text(
                                     text = "🔗 지갑 연결하기", // 버튼 텍스트
-                                    color = spentopiaCtaContentColor(isDark), // 버튼 글자색
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer, // 버튼 글자색
                                     fontSize = 14.sp, // 버튼 글자 크기
                                     fontWeight = FontWeight.Bold // 버튼 글자 강조
                                 )

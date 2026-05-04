@@ -754,7 +754,12 @@ private fun GradientLoginButton(
                 scaleY = if (pressed) 0.985f else 1f
             },
         shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        ),
         contentPadding = PaddingValues(0.dp)
     ) {
         Box(
@@ -766,29 +771,13 @@ private fun GradientLoginButton(
                 .shadow(
                     elevation = if (enabled) 10.dp else 0.dp,
                     shape = RoundedCornerShape(16.dp),
-                    ambientColor = Color(0xFF7C3AED).copy(alpha = 0.32f),
-                    spotColor = Color(0xFF2F80ED).copy(alpha = 0.22f)
-                )
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = SpentopiaActionGradientColors
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                )
-                .border(
-                    border = BorderStroke(1.dp, SpentopiaGlowPurple.copy(alpha = 0.38f)),
-                    shape = RoundedCornerShape(16.dp)
+                    ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 ),
             contentAlignment = Alignment.Center
         ) {
-            StaticButtonShine(
-                shape = RoundedCornerShape(16.dp),
-                pressed = pressed
-            )
-
             Text(
                 text = text,
-                color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
