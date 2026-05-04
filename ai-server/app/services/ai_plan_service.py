@@ -39,31 +39,60 @@ async def generate_ai_plans(budget: int):
     }}
     """
 
-    response = OpenAIClient.client.chat.completions.create(
-        model="gpt-4.1-mini",
-        messages=[
-            {"role": "system", "content": "너는 가계부 전문가야"},
-            {"role": "user", "content": prompt},
-        ],
-        max_tokens=800,
-        temperature=0.7,
-    )
+    models = [
+        "gpt-4o-mini",
+        "gpt-4.1-mini",
+    ]
 
-    content = response.choices[0].message.content.strip()
+    last_error = None
 
-    print("🔥 GPT 응답:", content)
-
-    try:
-        data = json.loads(content)
-    except:
+    for model in models:
         try:
-            start = content.find("{")
-            end = content.rfind("}") + 1
-            cleaned = content[start:end]
-            data = json.loads(cleaned)
-        except:
-            print("❌ JSON 파싱 실패")
-            return {"plans": []}
+            response = OpenAIClient.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "너는 가계부 전문가야"},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=800,
+                temperature=0.7,
+            )
+
+            content = response.choices[0].message.content
+
+            if content is None:
+                print("❌ GPT 응답이 비어있음")
+                return {"plans": []}
+
+            content = content.strip()
+
+            print("🔥 사용 모델:", model)
+            print("🔥 GPT 응답:", content)
+
+            try:
+                data = json.loads(content)
+            except Exception:
+                try:
+                    start = content.find("{")
+                    end = content.rfind("}") + 1
+                    cleaned = content[start:end]
+                    data = json.loads(cleaned)
+                except Exception:
+                    print("❌ JSON 파싱 실패")
+                    return {"plans": []}
+
+            # 여기까지 왔으면 성공한 거라서 다른 모델 시도 안 함
+            break
+
+        except Exception as e:
+            print(f"❌ 모델 실패: {model}")
+            print(e)
+            last_error = e
+            continue
+
+    if data is None:
+        print("❌ 모든 모델 실패:", last_error)
+        return {"plans": []}
 
     def normalize_plan(plan):
         budget = int(plan.get("budget", 0))

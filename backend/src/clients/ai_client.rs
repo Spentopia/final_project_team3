@@ -43,6 +43,7 @@ pub async fn chat(state: &AppState, payload: ChatPayload) -> Result<ChatResult> 
         state.config.ai_server_url.trim_end_matches('/'),
         CHAT_PATH
     );
+
     let res = state
         .http_client
         .post(&url)
@@ -55,6 +56,7 @@ pub async fn chat(state: &AppState, payload: ChatPayload) -> Result<ChatResult> 
         let body = res.text().await.unwrap_or_default();
         return Err(anyhow!("AI 서버 chat 실패: {}", body));
     }
+
     res.json::<ChatResult>()
         .await
         .context("AI chat 응답 역직렬화 실패")
@@ -83,6 +85,7 @@ pub async fn analyze(state: &AppState, payload: AnalyzePayload) -> Result<Analyz
         state.config.ai_server_url.trim_end_matches('/'),
         ANALYZE_PATH
     );
+
     let res = state
         .http_client
         .post(&url)
@@ -95,6 +98,7 @@ pub async fn analyze(state: &AppState, payload: AnalyzePayload) -> Result<Analyz
         let body = res.text().await.unwrap_or_default();
         return Err(anyhow!("AI 서버 analyze 실패: {}", body));
     }
+
     res.json::<AnalyzeResult>()
         .await
         .context("AI analyze 응답 역직렬화 실패")
@@ -123,6 +127,7 @@ pub async fn budget_plan(state: &AppState, payload: BudgetPlanPayload) -> Result
         state.config.ai_server_url.trim_end_matches('/'),
         BUDGET_PLAN_PATH
     );
+
     let res = state
         .http_client
         .post(&url)
@@ -135,8 +140,15 @@ pub async fn budget_plan(state: &AppState, payload: BudgetPlanPayload) -> Result
         let body = res.text().await.unwrap_or_default();
         return Err(anyhow!("AI 서버 budget-plan 실패: {}", body));
     }
-    res.json::<BudgetPlanResult>()
+
+    let body = res
+        .text()
         .await
+        .context("AI budget-plan 응답 body 읽기 실패")?;
+
+    println!("AI budget-plan 응답 원문: {}", body);
+
+    serde_json::from_str::<BudgetPlanResult>(&body)
         .context("AI budget-plan 응답 역직렬화 실패")
 }
 
@@ -231,6 +243,7 @@ pub async fn history(state: &AppState, user_id: &str) -> Result<HistoryResult> {
         HISTORY_PATH,
         user_id,
     );
+
     let res = state
         .http_client
         .get(&url)
@@ -242,6 +255,7 @@ pub async fn history(state: &AppState, user_id: &str) -> Result<HistoryResult> {
         let body = res.text().await.unwrap_or_default();
         return Err(anyhow!("AI 서버 history 실패: {}", body));
     }
+
     res.json::<HistoryResult>()
         .await
         .context("AI history 응답 역직렬화 실패")
