@@ -138,10 +138,13 @@ export const login = async (payload: LoginRequest): Promise<LoginResponse> => {
 
   const exchanged = await exchangeSupabaseToken(data.session.access_token);
 
+  authStorage.setToken(exchanged.access_token);
+
   return {
     accessToken: exchanged.access_token,
     isNewUser: exchanged.is_new_user ?? false,
   };
+
 };
 
 // 회원가입
@@ -163,7 +166,7 @@ export const signUp = async (payload: SignUpRequest, captchaToken: string): Prom
       email: normalizedEmail,
       captcha_token: captchaToken,
     });
- 
+
     // 200이 왔다는 건 이메일이 존재한다는 뜻
     if (checkRes.data?.exists) {
       throw new Error("이미 가입된 이메일입니다.");

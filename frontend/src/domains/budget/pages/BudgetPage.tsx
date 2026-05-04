@@ -179,38 +179,73 @@ export default function BudgetPage() {
   }, [selectedPlan]);
 
   useEffect(() => {
-    if (currentBudget > 0) {
-      setCustomBudget((prev) => ({
-        ...prev,
-        monthly: currentBudget,
-      }));
-    }
-  }, [currentBudget]);
+  if (currentBudget > 0 && selectedPlan === null) {
+    setCustomBudget((prev) => ({
+      ...prev,
+      monthly: currentBudget,
+    }));
+  }
+}, [currentBudget, selectedPlan]);
 
-  const handleApplyPlan = (planId: number) => {
-    const plan = aiPlans.find((p) => p.id === planId);
-    if (!plan) return;
+  const handleApplyPlan = async (planId: number) => {
+  const plan = aiPlans.find((p) => p.id === planId);
+  if (!plan) return;
 
+  try {
+    const month = selectedMonth + 1;
+
+    // 1️⃣ budget 조회
+    const res = await apiClient.get("/api/budget", {
+      params: {
+        year: selectedYear,
+        month,
+      },
+    });
+
+    const budgetId = res.data.id;
+
+    // 2️⃣ DB 업데이트 🔥
+    await apiClient.patch(`/api/budget/${budgetId}`, {
+      total_budget: plan.budget,
+      savings_goal: plan.savings,
+    });
+
+    // 3️⃣ 카테고리도 저장 (선택 but 강추)
+    await apiClient.patch(`/api/budget/${budgetId}/categories`, {
+      categories: plan.categories.map((cat) => ({
+        category:
+          cat.name === "식비"
+            ? "food"
+            : cat.name === "교통비"
+            ? "transport"
+            : cat.name === "생활비"
+            ? "living"
+            : cat.name === "여가/취미"
+            ? "leisure"
+            : "savings",
+        allocated_amount: cat.amount,
+      })),
+    });
+
+    // 4️⃣ 프론트 상태 업데이트
     setSelectedPlan(planId);
     setMonthlyBudget(monthKey, plan.budget);
+
     setCustomBudget({
       monthly: plan.budget,
       savings: plan.savings,
-      food: plan.categories.find((cat) => cat.name === "식비")?.amount ?? 0,
-      transport: plan.categories.find((cat) => cat.name === "교통비")?.amount ?? 0,
-      living: plan.categories.find((cat) => cat.name === "생활비")?.amount ?? 0,
-      leisure: plan.categories.find((cat) => cat.name === "여가/취미")?.amount ?? 0,
+      food: plan.categories.find((c) => c.name === "식비")?.amount ?? 0,
+      transport: plan.categories.find((c) => c.name === "교통비")?.amount ?? 0,
+      living: plan.categories.find((c) => c.name === "생활비")?.amount ?? 0,
+      leisure: plan.categories.find((c) => c.name === "여가/취미")?.amount ?? 0,
     });
 
-    toast.success(
-      <div>
-        <p className="font-bold">{plan.name} 적용 완료! 🎉</p>
-        <p className="text-sm">
-          {selectedMonth + 1}월 예산으로 {Number(plan.budget || 0).toLocaleString()}원이 저장되었습니다
-        </p>
-      </div>
-    );
-  };
+    toast.success("플랜이 적용되었습니다! 🚀");
+  } catch (err) {
+    console.error(err);
+    toast.error("플랜 적용 실패");
+  }
+};
 
   const [loading, setLoading] = useState(false);
 
@@ -265,7 +300,7 @@ try {
 
     // 👉 4. 프론트 형식으로 변환
     const mappedPlans: AiPlan[] = data.plans.map((p: any, idx: number) => ({
-  id: idx,
+  id: Date.now() + idx,
   name: p.name,
   budget: p.budget,
   savings: p.savings,
