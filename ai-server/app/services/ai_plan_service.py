@@ -2,17 +2,59 @@ import json
 import random
 from app.clients.openai_client import OpenAIClient
 
-def fix_budgets(plans):
-    if not plans:
-        return []
+MIN_BUDGET = 300000
+MAX_BUDGET = 1500000
+BUDGET_STEP = 100000
 
-    possible = list(range(300000, 1500001, 100000))
-    random_budgets = random.sample(possible, k=min(3, len(plans)))
+PLAN_PROFILES = [
+    {
+        "name": "기본 플랜",
+        "description": "현재 생활 패턴을 크게 해치지 않으면서 지출과 저축의 균형을 맞춘 플랜",
+        "savings_ratio": (0.15, 0.22),
+    },
+    {
+        "name": "중간 플랜",
+        "description": "조금 더 여유 있는 소비를 반영해 일상 편의와 만족도를 높인 플랜",
+        "savings_ratio": (0.10, 0.18),
+    },
+    {
+        "name": "여유 플랜",
+        "description": "여유로운 생활을 위해 취미와 생활비 비중을 넉넉하게 잡은 플랜",
+        "savings_ratio": (0.05, 0.12),
+    },
+]
 
-    for i, plan in enumerate(plans):
-        plan["budget"] = random_budgets[i]
 
-    return plans
+def round_to_step(value):
+    value = max(MIN_BUDGET, min(MAX_BUDGET, int(value)))
+    return max(MIN_BUDGET, min(MAX_BUDGET, round(value / BUDGET_STEP) * BUDGET_STEP))
+
+
+def build_budget_targets(base_budget):
+    base = round_to_step(base_budget)
+    candidates = [
+        round_to_step(base - BUDGET_STEP),
+        base,
+        round_to_step(base + BUDGET_STEP),
+    ]
+
+    unique_targets = []
+    for candidate in candidates:
+        adjusted = candidate
+        while adjusted in unique_targets and adjusted < MAX_BUDGET:
+            adjusted += BUDGET_STEP
+        while adjusted in unique_targets and adjusted > MIN_BUDGET:
+            adjusted -= BUDGET_STEP
+        if adjusted not in unique_targets:
+            unique_targets.append(adjusted)
+
+    fallback = MIN_BUDGET
+    while len(unique_targets) < 3:
+        if fallback not in unique_targets:
+            unique_targets.append(fallback)
+        fallback += BUDGET_STEP
+
+    return sorted(unique_targets[:3])
 
 async def generate_ai_plans(budget: int):
     prompt = f"""
@@ -20,6 +62,9 @@ async def generate_ai_plans(budget: int):
 
     중요:
     - budget: 300000~1500000, 100000 단위, 서로 다름
+    - 1번 플랜은 기본 플랜, 2번 플랜은 중간 플랜, 3번 플랜은 여유 플랜
+    - 기본 플랜 <= 중간 플랜 <= 여유 플랜 순서로 월 예산이 커져야 함
+    - 설명은 플랜 이름과 소비 성향이 일치해야 함
     - 한국어
     - JSON만 출력
 
@@ -94,55 +139,52 @@ async def generate_ai_plans(budget: int):
         print("❌ 모든 모델 실패:", last_error)
         return {"plans": []}
 
-    def normalize_plan(plan):
-        budget = int(plan.get("budget", 0))
+    def normalize_plan(plan, profile, target_budget):
+        budget = round_to_step(target_budget)
 
         UNIT = 10000
 
-        # 👉 1. 저축 (10~30%)
-        savings_units = int((budget / UNIT) * random.uniform(0.1, 0.3))
+        # 플랜 성격에 맞는 저축률을 고정 범위 내에서만 조정한다.
+        min_ratio, max_ratio = profile["savings_ratio"]
+        savings_units = int((budget / UNIT) * random.uniform(min_ratio, max_ratio))
         budget_units = budget // UNIT
 
         remaining_units = budget_units - savings_units
 
-        # 👉 2. 카테고리 비율
-        ratios = [
-            random.uniform(0.25, 0.35),  # 식비
-            random.uniform(0.1, 0.2),  # 교통
-            random.uniform(0.2, 0.3),  # 생활
-            random.uniform(0.15, 0.3),  # 여가
-        ]
+        if profile["name"] == "기본 플랜":
+            ratios = [0.30, 0.14, 0.31, 0.25]
+        elif profile["name"] == "중간 플랜":
+            ratios = [0.29, 0.14, 0.30, 0.27]
+        else:
+            ratios = [0.27, 0.13, 0.31, 0.29]
 
         total = sum(ratios)
         ratios = [r / total for r in ratios]
 
-        # 👉 3. 각 카테고리 unit 계산 (버림)
         food_u = int(remaining_units * ratios[0])
         transport_u = int(remaining_units * ratios[1])
         living_u = int(remaining_units * ratios[2])
-
-        # 👉 4. 마지막 카테고리 = 남은 값 몰아주기 (핵심🔥)
         used = food_u + transport_u + living_u
         leisure_u = remaining_units - used
 
         return {
-            "name": plan.get("name", "플랜"),
+            "name": profile["name"],
             "budget": budget,
             "savings": savings_units * UNIT,
             "food": food_u * UNIT,
             "transport": transport_u * UNIT,
             "living": living_u * UNIT,
             "leisure": leisure_u * UNIT,
-            "description": plan.get("description", "")
+            "description": profile["description"],
         }
 
     plans = data.get("plans", [])
-
-    # 1. budget 랜덤화
-    plans = fix_budgets(plans)
-
-    # 2. 전체 값 정리 (핵심)
-    plans = [normalize_plan(p) for p in plans]
+    target_budgets = build_budget_targets(budget)
+    source_plans = (plans + [{}, {}, {}])[:3]
+    plans = [
+        normalize_plan(source_plans[index], PLAN_PROFILES[index], target_budgets[index])
+        for index in range(3)
+    ]
 
     first_plan = plans[0] if plans else {}
 

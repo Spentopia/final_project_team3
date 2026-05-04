@@ -48,6 +48,8 @@ type AiPlan = {
   categories: PlanCategory[];
 };
 
+const PLAN_ORDER_LABELS = ["기본 플랜", "중간 플랜", "여유 플랜"] as const;
+
 type CustomBudget = {
   monthly: number;
   savings: number;
@@ -299,20 +301,26 @@ try {
     console.log("AI 응답:", data);
 
     // 👉 4. 프론트 형식으로 변환
-    const mappedPlans: AiPlan[] = data.plans.map((p: any, idx: number) => ({
-  id: Date.now() + idx,
-  name: p.name,
-  budget: p.budget,
-  savings: p.savings,
-  description: p.description,
-  categories: [
-    { name: "식비", amount: p.food },
-    { name: "교통비", amount: p.transport },
-    { name: "생활비", amount: p.living },
-    { name: "여가/취미", amount: p.leisure },
-    { name: "저축", amount: p.savings },
-  ],
-}));
+    const mappedPlans: AiPlan[] = data.plans
+      .map((p: any, idx: number) => ({
+        id: Date.now() + idx,
+        name: p.name,
+        budget: p.budget,
+        savings: p.savings,
+        description: p.description,
+        categories: [
+          { name: "식비", amount: p.food },
+          { name: "교통비", amount: p.transport },
+          { name: "생활비", amount: p.living },
+          { name: "여가/취미", amount: p.leisure },
+          { name: "저축", amount: p.savings },
+        ],
+      }))
+      .sort((a, b) => a.budget - b.budget)
+      .map((plan, idx) => ({
+        ...plan,
+        name: PLAN_ORDER_LABELS[idx] ?? plan.name,
+      }));
 
     setAiPlans(mappedPlans);
 
