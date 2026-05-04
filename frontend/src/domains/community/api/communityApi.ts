@@ -14,7 +14,10 @@ export interface CommunityPostResponse {
   title: string;
   image_url: string | null;
   content: string | null;
-  vote_count: number | null;
+  reaction_count: number | null;
+  // 현재 로그인한 사용자가 이미 반응했는지 여부.
+  // 프론트에서 버튼 상태를 바꾸기 위해 필요함.
+  is_reacted: boolean;
   view_count: number;
   created_at: string | null;
 }
@@ -129,6 +132,20 @@ export async function updateCommunityPost(
 
 export async function deleteCommunityPost(postId: string): Promise<void> {
   await apiClient.delete(`/api/posts/${postId}`);
+}
+
+// 게시글 반응 등록
+// - contest 게시글: 투표 등록
+// - free/request 게시글: 좋아요 등록
+export async function reactCommunityPost(postId: string): Promise<void> {
+  await apiClient.post(`/api/posts/${postId}/react`);
+}
+
+// 게시글 반응 취소
+// - free/request 게시글: 좋아요 취소
+// - contest 게시글: 백엔드 정책상 취소 불가
+export async function unreactCommunityPost(postId: string): Promise<void> {
+  await apiClient.delete(`/api/posts/${postId}/react`);
 }
 
 export async function listComments(postId: string): Promise<CommentResponse[]> {

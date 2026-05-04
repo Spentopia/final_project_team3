@@ -13,6 +13,7 @@
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::budget::dto::Plan;
 
 use super::{
     dto::{
@@ -353,7 +354,7 @@ pub async fn generate_ai_plan(
         vec![]
     };
 
-    // 3. AI 서버에 예산 플랜 요청 (ai_client 모듈로 중앙화)
+    // 3. AI 서버 호출
     let ai_plan = crate::clients::ai_client::budget_plan(
         state,
         crate::clients::ai_client::BudgetPlanPayload {
@@ -365,9 +366,17 @@ pub async fn generate_ai_plan(
             fixed_expenses: serde_json::to_value(&fixed_expenses).unwrap_or_default(),
         },
     )
-    .await?;
+        .await?;
 
-    // 4. budgets.ai_plan 업데이트
+    let plans = ai_plan.plans;
+
+    // ✅ 5. 첫 번째 플랜 description만 DB 저장용으로 사용
+    let summary = plans
+        .get(0)
+        .map(|p| p.description.clone())
+        .unwrap_or_else(|| "AI 추천 플랜".to_string());
+
+    // ✅ 6. DB 업데이트 (디버깅 가능하게 수정)
     #[derive(Serialize)]
     struct PatchAiPlan {
         ai_plan: String,
@@ -378,7 +387,8 @@ pub async fn generate_ai_plan(
         state.config.supabase_url.trim_end_matches('/'),
         req.budget_id,
     );
-    let _ = state
+
+    let res = state
         .http_client
         .patch(&patch_url)
         .header(
@@ -386,20 +396,25 @@ pub async fn generate_ai_plan(
             format!("Bearer {}", state.config.supabase_secret_key),
         )
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Prefer", "return=minimal")
+        // 🔥 핵심 변경 (minimal → representation)
+        .header("Prefer", "return=representation")
         .json(&PatchAiPlan {
-            ai_plan: ai_plan.plan.clone(),
+            ai_plan: summary.clone(),
         })
         .send()
         .await
         .context("budgets ai_plan 업데이트 실패")?;
 
-    let categories: Vec<BudgetCategoryItem> =
-        serde_json::from_value(ai_plan.categories).unwrap_or_default();
+    // 🔥 상태 코드 확인
+    println!("🔥 DB 저장 상태: {}", res.status());
 
+    // 🔥 응답 바디 확인
+    let body = res.text().await.unwrap_or_default();
+    println!("🔥 DB 저장 결과: {}", body);
+
+    // ✅ 7. 프론트로는 plans 그대로 내려줌
     Ok(AiPlanResponse {
-        ai_plan: ai_plan.plan,
-        categories,
+        plans,
     })
 }
 

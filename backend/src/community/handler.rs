@@ -59,6 +59,7 @@ fn map_community_error(error: anyhow::Error) -> axum::response::Response {
         || message.contains("contest_id")
         || message.contains("post_id")
         || message.contains("투표는")
+        || message.contains("반응")
         || message.contains("수정할 필드")
         || message.contains("멀티파트")
         || message.contains("파일")
@@ -67,6 +68,7 @@ fn map_community_error(error: anyhow::Error) -> axum::response::Response {
         || message.contains("사용할 수 없는 표현")
         || message.contains("댓글 내용")
         || message.contains("공지사항에는 댓글")
+        || message.contains("자 이내")
     {
         return (StatusCode::BAD_REQUEST, message).into_response();
     }
@@ -91,7 +93,8 @@ pub async fn list_contests(
 }
 
 #[utoipa::path(
-    get, path = "/api/posts",
+    get,
+    path = "/api/posts",
     tag = "커뮤니티",
     params(("contest_id" = Option<Uuid>, Query, description = "콘테스트 ID (선택)")),
     responses((status = 200, description = "게시물 목록 조회 성공")),
@@ -99,11 +102,12 @@ pub async fn list_contests(
 )]
 pub async fn list_posts(
     State(state): State<AppState>,
-    Extension(_user_id): Extension<Uuid>,
+    Extension(user_id): Extension<Uuid>,
     Query(query): Query<PostQuery>,
 ) -> impl IntoResponse {
     match service::list_posts(
         &state,
+        user_id,
         query.contest_id,
         query.post_type,
         query.sort.unwrap_or_default(),
@@ -111,7 +115,7 @@ pub async fn list_posts(
         query.page.unwrap_or(1),
         query.page_size.unwrap_or(10),
     )
-    .await
+        .await
     {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
@@ -119,28 +123,36 @@ pub async fn list_posts(
 }
 
 #[utoipa::path(
-    get, path = "/api/posts/{id}",
+    get,
+    path = "/api/posts/{id}",
     tag = "커뮤니티",
     params(("id" = Uuid, Path, description = "게시물 ID")),
-    responses((status = 200, description = "게시물 상세 조회 성공"), (status = 404, description = "게시물 없음")),
+    responses(
+        (status = 200, description = "게시물 상세 조회 성공"),
+        (status = 404, description = "게시물 없음")
+    ),
     security(("bearer_auth" = []))
 )]
 pub async fn get_post(
     State(state): State<AppState>,
-    Extension(_user_id): Extension<Uuid>,
+    Extension(user_id): Extension<Uuid>,
     Path(post_id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match service::get_post_detail(&state, post_id).await {
+    match service::get_post_detail(&state, user_id, post_id).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => map_community_error(e),
     }
 }
 
 #[utoipa::path(
-    post, path = "/api/posts",
+    post,
+    path = "/api/posts",
     tag = "커뮤니티",
     request_body = CreatePostRequest,
-    responses((status = 201, description = "게시물 생성 성공"), (status = 400, description = "잘못된 요청")),
+    responses(
+        (status = 201, description = "게시물 생성 성공"),
+        (status = 400, description = "잘못된 요청")
+    ),
     security(("bearer_auth" = []))
 )]
 pub async fn create_post(
@@ -210,29 +222,51 @@ pub async fn delete_post(
 }
 
 #[utoipa::path(
-    post, path = "/api/posts/{id}/vote",
+    post, path = "/api/posts/{id}/react",
     tag = "커뮤니티",
     params(("id" = Uuid, Path, description = "게시물 ID")),
     responses((status = 200, description = "투표 성공"), (status = 409, description = "이미 투표함")),
     security(("bearer_auth" = []))
 )]
-pub async fn vote_post(
+pub async fn react_post(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
     Path(post_id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match service::vote_post(&state, user_id, post_id).await {
+    match service::react_post(&state, user_id, post_id).await {
         Ok(_) => StatusCode::OK.into_response(),
         Err(e) => {
             if e.to_string().contains("duplicate") || e.to_string().contains("unique") {
                 return (
                     StatusCode::CONFLICT,
-                    "이미 투표한 게시물입니다.".to_string(),
+                    "이미 반응한 게시물입니다.".to_string(),
                 )
                     .into_response();
             }
             map_community_error(e)
         }
+    }
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/posts/{id}/react",
+    tag = "커뮤니티",
+    params(("id" = Uuid, Path, description = "게시물 ID")),
+    responses(
+        (status = 204, description = "반응 취소 성공"),
+        (status = 400, description = "취소할 수 없는 반응")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn unreact_post(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(post_id): Path<Uuid>,
+) -> impl IntoResponse {
+    match service::unreact_post(&state, user_id, post_id).await {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => map_community_error(e),
     }
 }
 

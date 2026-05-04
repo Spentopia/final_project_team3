@@ -7,6 +7,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Slider } from "@/shared/ui/slider";
 import { Badge } from "@/shared/ui/badge";
+import { apiClient } from "@/shared/api/client";
 import {
   Wallet,
   Target,
@@ -214,41 +215,68 @@ export default function BudgetPage() {
   const [loading, setLoading] = useState(false);
 
   const handleGenerateAiPlans = async () => {
-    setLoading(true);
+  if (!selectedPlan && !customBudget.monthly) {
+    toast.error("먼저 예산을 설정하세요!");
+    return;
+  }
+
+  setLoading(true);
   try {
-    const res = await fetch("http://localhost:8000/api/v1/ai-plans", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        budget: customBudget.monthly || 500000,
-      }),
+    // 👉 1. 현재 선택된 budget id 필요
+    // 지금 구조에서는 budget id가 없으니까
+    // → 먼저 budget을 생성 or 조회해야 함
+
+    const month = selectedMonth + 1;
+
+let budgetId;
+
+try {
+  const res = await apiClient.get("/api/budget", {
+    params: {
+      year: selectedYear,
+      month,
+    },
+  });
+
+  budgetId = res.data.id;
+} catch (err: any) {
+  if (err.response?.status === 404) {
+    const createRes = await apiClient.post("/api/budget", {
+      year: selectedYear,
+      month,
+      total_budget: customBudget.monthly || 500000,
+      savings_goal: customBudget.savings || 0,
     });
 
-    const data = await res.json();
-console.log("AI 응답:", data);
-console.log("🔥 data:", data);
+    budgetId = createRes.data.id;
+  } else {
+    throw err;
+  }
+}
 
-    const plansArray = Array.isArray(data.plans)
-  ? data.plans
-  : data.plans
-  ? [data.plans]
-  : [];
+    // 👉 3. AI 플랜 생성 요청 (핵심)
+    const aiRes = await apiClient.post(
+  `/api/budget/${budgetId}/ai-plan`
+);
 
-const mappedPlans = plansArray.map((plan: any, index: number): AiPlan => ({
-  id: Date.now() + index,
-  name: plan.name ?? "플랜",
-  budget: Number(plan.budget ?? 0),
-  savings: Number(plan.savings ?? 0),
-  description: plan.description ?? "",
+    const data = aiRes.data;
+
+    console.log("AI 응답:", data);
+
+    // 👉 4. 프론트 형식으로 변환
+    const mappedPlans: AiPlan[] = data.plans.map((p: any, idx: number) => ({
+  id: idx,
+  name: p.name,
+  budget: p.budget,
+  savings: p.savings,
+  description: p.description,
   categories: [
-  { name: "식비", amount: Number(plan.food ?? 0) },
-  { name: "교통비", amount: Number(plan.transport ?? 0) },
-  { name: "생활비", amount: Number(plan.living ?? 0) },
-  { name: "여가/취미", amount: Number(plan.leisure ?? 0) },
-  { name: "저축", amount: Number(plan.savings ?? 0) },
-],
+    { name: "식비", amount: p.food },
+    { name: "교통비", amount: p.transport },
+    { name: "생활비", amount: p.living },
+    { name: "여가/취미", amount: p.leisure },
+    { name: "저축", amount: p.savings },
+  ],
 }));
 
     setAiPlans(mappedPlans);

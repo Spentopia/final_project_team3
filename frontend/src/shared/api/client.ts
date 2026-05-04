@@ -93,7 +93,7 @@
   }
 
   export const apiClient = axios.create({
-    baseURL: resolveBackendUrl(),
+    baseURL: "http://localhost:1113",
     withCredentials: true, // refresh 쿠키 자동 포함
   });
 

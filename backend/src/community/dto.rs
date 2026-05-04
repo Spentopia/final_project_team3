@@ -89,7 +89,11 @@ pub struct PostResponse {
     pub title: String,
     pub image_url: Option<String>,
     pub content: Option<String>,
-    pub vote_count: Option<i32>,
+    pub reaction_count: Option<i32>,
+    // DB 컬럼 아님.
+    // 현재 로그인한 사용자가 이 게시글에 이미 반응했는지
+    // 백엔드가 reactions 테이블을 조회해서 계산한 응답 전용 값.
+    pub is_reacted: bool,
     pub view_count: i32,
     pub created_at: Option<DateTime<Utc>>,
 }
