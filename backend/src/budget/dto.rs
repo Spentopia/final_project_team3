@@ -63,8 +63,19 @@ pub struct GenerateAiPlanRequest {
 
 // ── AI 예산 플랜 응답 ─────────────────────────────────────────
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, Clone, utoipa::ToSchema)]
+pub struct Plan {
+    pub name: String,
+    pub budget: i32,
+    pub savings: i32,
+    pub food: i32,
+    pub transport: i32,
+    pub living: i32,
+    pub leisure: i32,
+    pub description: String,
+}
+
+#[derive(Serialize, Deserialize, utoipa::ToSchema)]
 pub struct AiPlanResponse {
-    pub ai_plan: String,
-    pub categories: Vec<BudgetCategoryItem>,
+    pub plans: Vec<Plan>,
 }

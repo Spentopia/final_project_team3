@@ -45,7 +45,7 @@ async def generate_ai_plans(budget: int):
             {"role": "system", "content": "너는 가계부 전문가야"},
             {"role": "user", "content": prompt},
         ],
-        max_tokens=300,
+        max_tokens=800,
         temperature=0.7,
     )
 
@@ -115,7 +115,19 @@ async def generate_ai_plans(budget: int):
     # 2. 전체 값 정리 (핵심)
     plans = [normalize_plan(p) for p in plans]
 
-    return {"plans": plans}
+    first_plan = plans[0] if plans else {}
+
+    categories = [
+        {"category": "food", "allocated_amount": first_plan.get("food", 0)},
+        {"category": "transport", "allocated_amount": first_plan.get("transport", 0)},
+        {"category": "living", "allocated_amount": first_plan.get("living", 0)},
+        {"category": "leisure", "allocated_amount": first_plan.get("leisure", 0)},
+        {"category": "savings", "allocated_amount": first_plan.get("savings", 0)},
+    ]
+
+    return {
+        "plans": plans
+    }
 
     # - 반드시 모든 텍스트는 한국어로 작성해라.
     # - budget은 반드시 300000 ~ 1500000 사이
