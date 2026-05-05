@@ -71,7 +71,7 @@ pub struct HandoffEntry {
 pub struct WebviewEntry {
     pub user_id: Uuid,
     /// 웹뷰 진입 후 이동할 프론트엔드 경로
-    /// 예: "/market", "/market/listing/abc123"
+    /// 예: "/marketplace", "/marketplace/listing/abc123"
     pub redirect_path: String,
     pub expires_at: SystemTime,
 }

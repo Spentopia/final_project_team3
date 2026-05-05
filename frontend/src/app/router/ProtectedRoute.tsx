@@ -51,7 +51,7 @@ function recoverAccessTokenOnce() {
 // URL fragment에서 안드로이드 웹뷰용 access token 추출
 //
 // 백엔드 /auth/webview/callback이 다음 형태로 리다이렉트:
-//   https://spentopia.com/market#access_token=xxx
+//   https://spentopia.com/marketplace#access_token=xxx
 //
 // 왜 fragment(#)인가?
 // - URL 쿼리(?)는 서버 로그, Referer 헤더, 브라우저 히스토리에 남음
@@ -99,23 +99,20 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   };
 
   const checkAuth = async (): Promise<AuthStatus> => {
-    // 1) 현재 메모리에 저장된 앱 access token 확인
-    let token = authStorage.getToken();
-
-    // ── 2) 안드로이드 웹뷰 진입 시 fragment에서 토큰 추출 ───
+    // ── 1) 안드로이드 웹뷰 진입 시 fragment에서 토큰을 최우선 추출 ───
     //
     // 백엔드 /auth/webview/callback이 검증/발급 후 다음 형태로 리다이렉트:
-    //   /market#access_token=xxx
+    //   /marketplace#access_token=xxx
     //
     // 이 시점에 refresh token은 이미 httpOnly 쿠키로 셋팅된 상태.
-    // fragment에서 access만 꺼내 메모리에 넣으면 정상 로그인 상태가 된다.
-    if (!token) {
-      const fragmentToken = consumeWebViewTokenFromHash();
-      if (fragmentToken) {
-        authStorage.setToken(fragmentToken);
-        token = fragmentToken;
-      }
+    // 기존 메모리 토큰이 있어도 새 웹뷰 진입 토큰이 있으면 새 토큰을 우선한다.
+    const fragmentToken = consumeWebViewTokenFromHash();
+    if (fragmentToken) {
+      authStorage.setToken(fragmentToken);
     }
+
+    // 2) 현재 메모리에 저장된 앱 access token 확인
+    let token = authStorage.getToken();
 
     const justLoggedIn = sessionStorage.getItem("just_logged_in") === "true";
     if (justLoggedIn) {

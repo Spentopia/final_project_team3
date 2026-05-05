@@ -171,13 +171,13 @@ pub fn cleanup_expired_webview_tokens(state: &AppState) {
 // ─────────────────────────────────────────────────────────────
 // 리다이렉트 경로 검증 (Open Redirect 방지)
 //
-// 허용:    /market, /market/listing/abc123
+// 허용:    /marketplace, /marketplace/listing/abc123
 // 차단:    //evil.com (프로토콜 상대 URL)
 // 차단:    https://evil.com (절대 URL)
 // 차단:    빈 문자열, "."로 시작
 // ─────────────────────────────────────────────────────────────
 pub fn sanitize_redirect_path(input: Option<&str>) -> String {
-    let default = "/market".to_string();
+    let default = "/marketplace".to_string();
 
     let Some(path) = input else { return default };
     let trimmed = path.trim();

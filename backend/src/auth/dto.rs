@@ -263,8 +263,8 @@ pub struct HandoffExchangeResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct WebviewIssueRequest {
     /// 웹뷰 진입 후 이동할 프론트엔드 경로
-    /// 예: "/market" / "/market/listing/abc123"
-    /// 미지정 시 백엔드가 "/market"으로 기본 처리
+    /// 예: "/marketplace" / "/marketplace/listing/abc123"
+    /// 미지정 시 백엔드가 "/marketplace"로 기본 처리
     pub redirect_path: Option<String>,
 }
 

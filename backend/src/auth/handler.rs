@@ -1931,8 +1931,13 @@ pub async fn exchange_handoff(
 pub async fn webview_issue(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
+    headers: HeaderMap,
     Json(payload): Json<WebviewIssueRequest>,
 ) -> Result<Json<WebviewIssueResponse>, (StatusCode, String)> {
+    // Android 앱 전용 진입점.
+    // 브라우저에서 직접 호출해 웹 세션을 webview token으로 감싸는 우회를 막는다.
+    ensure_app_request(&headers)?;
+
     // ── redirect_path 검증 ──────────────────────────────────
     // Open Redirect 방지를 위해 발급 시점에 미리 검증/정제
     let redirect_path = sanitize_redirect_path(payload.redirect_path.as_deref());
@@ -1957,7 +1962,7 @@ pub async fn webview_issue(
 /// 흐름:
 /// 1. webview token 검증 + 즉시 소비 (1회용)
 /// 2. service::issue_login_tokens 재사용해서 access + refresh 발급
-///    - client_type = "webview" (app/web 세션과 분리해서 추적)
+///    - client_type = "web" (프론트의 /auth/refresh 흐름과 동일하게 회전)
 /// 3. refresh token을 httpOnly 쿠키로 Set-Cookie
 ///    - 다른 핸들러들과 동일하게 cookie::Cookie 빌더 사용
 ///    - Path=/auth (다른 refresh 쿠키들과 일관)
@@ -1987,12 +1992,13 @@ pub async fn webview_callback(
         })?;
 
     // ── 2) 웹뷰용 access + refresh 발급 ─────────────────────
-    // client_type = "webview"
-    //   → 모바일 app / 웹 세션과 분리해서 웹뷰 종료/로그아웃 시 별도 관리 가능
+    // client_type = "web"
+    //   → 프론트 공용 /auth/refresh가 "web" 세션을 회전시키므로
+    //     webview도 동일 타입으로 발급해야 새로고침/만료 후 복구가 가능하다.
     //
     // is_new_user = false
     //   → webview는 이미 로그인된 유저가 진입하는 거라 항상 false
-    let tokens = service::issue_login_tokens(&state, user_id, "webview", false)
+    let tokens = service::issue_login_tokens(&state, user_id, "web", false)
         .await
         .map_err(|e| {
             tracing::error!("webview용 토큰 발급 실패: user_id={}, error={}", user_id, e);
