@@ -26,11 +26,6 @@ export const authStorage = {
     return accessToken;
   },
 
-  // access token 존재 여부
-  isLoggedIn(): boolean {
-    return !!accessToken;
-  },
-
   // 로그아웃/refresh 실패 시 메모리 비우기
   clear() {
     accessToken = null;

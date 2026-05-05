@@ -246,6 +246,33 @@ async fn main() {
         }
     });
 
+    // ─────────────────────────────────────────────────────────
+    // webview_store 주기적 정리 (백그라운드 태스크)
+    //
+    // webview token은 30초 TTL (handoff와 동일).
+    // 안드로이드 앱이 NFT 마켓 웹뷰 진입용으로 발급받은 토큰.
+    //
+    // 정상적인 경우 consume_webview_token()에서 즉시 삭제되지만,
+    // 발급만 받고 웹뷰 진입을 안 한 경우 메모리에 남는 걸 방지.
+    //
+    // 예: 사용자가 "마켓 열기" 눌렀는데 즉시 앱을 종료한 경우
+    //     → webview_token이 발급됐지만 callback 안 됨
+    //     → 30초 후 여기서 정리
+    // ─────────────────────────────────────────────────────────
+    let webview_store = state.webview_store.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+            let now = std::time::SystemTime::now();
+            let before = webview_store.len();
+            webview_store.retain(|_, entry| entry.expires_at > now);
+            let removed = before - webview_store.len();
+            if removed > 0 {
+                tracing::debug!("만료된 webview token {} 건 정리", removed);
+            }
+        }
+    });
+
     let app = route::create_router(state)
         .layer(governor_limiter)
         .layer(cors)

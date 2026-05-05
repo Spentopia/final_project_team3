@@ -55,6 +55,27 @@ pub struct HandoffEntry {
     pub expires_at: SystemTime,
 }
 
+// ─────────────────────────────────────────────────────────────
+// 안드로이드 웹뷰 진입용 일회용 교환 토큰 엔트리
+//
+// 안드로이드 앱이 NFT 마켓을 웹뷰로 띄울 때 필요.
+// 앱이 가진 access token을 URL이나 헤더로 직접 넘기면
+// Referer / 로그 / URL 히스토리에 노출되므로
+// 30초짜리 일회용 토큰으로 한 번 더 감싼다.
+//
+// handoff 패턴(유니티 exe 진입)과 거의 동일하지만
+// "발급 후 곧장 웹용 세션(httpOnly 쿠키)으로 변환"한다는 점에서 다름.
+// handoff는 access+refresh를 body로 내려주는 반면,
+// webview는 cookie에 refresh를 심고 fragment에 access를 실어 리다이렉트한다.
+// ─────────────────────────────────────────────────────────────
+pub struct WebviewEntry {
+    pub user_id: Uuid,
+    /// 웹뷰 진입 후 이동할 프론트엔드 경로
+    /// 예: "/market", "/market/listing/abc123"
+    pub redirect_path: String,
+    pub expires_at: SystemTime,
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub config: Config,
@@ -71,6 +92,8 @@ pub struct AppState {
     // 키: handoff token의 SHA-256 해시
     // 값: HandoffEntry (user_id, 만료시각, 사용 여부 등)
     pub handoff_store: Arc<DashMap<String, HandoffEntry>>,
+
+    pub webview_store: Arc<DashMap<String, WebviewEntry>>,
 }
 
 impl AppState {
@@ -83,6 +106,7 @@ impl AppState {
                 .expect("reqwest Client 생성 실패"),
             nonce_store: Arc::new(DashMap::new()),
             handoff_store: Arc::new(DashMap::new()),
+            webview_store: Arc::new(DashMap::new()),
         }
     }
 }

@@ -249,3 +249,47 @@ pub struct HandoffExchangeResponse {
     pub user_id: Uuid,
     pub nickname: Option<String>,
 }
+
+// ─────────────────────────────────────────────────────────────
+// 안드로이드 웹뷰 진입용 토큰 발급
+//
+// POST /auth/webview/issue
+// Authorization: Bearer <앱_access_token>
+//
+// 앱이 NFT 마켓 웹뷰 띄우기 직전 호출.
+// jwt_middleware가 user_id를 확인한 뒤,
+// 30초 TTL의 1회용 webview token을 발급한다.
+// ─────────────────────────────────────────────────────────────
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct WebviewIssueRequest {
+    /// 웹뷰 진입 후 이동할 프론트엔드 경로
+    /// 예: "/market" / "/market/listing/abc123"
+    /// 미지정 시 백엔드가 "/market"으로 기본 처리
+    pub redirect_path: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct WebviewIssueResponse {
+    /// 30초 후 만료되는 1회용 토큰
+    /// 앱은 이걸 받아서 즉시 webView.loadUrl 쿼리에 사용
+    pub webview_token: String,
+
+    /// 만료까지 남은 초 (참고용)
+    pub expires_in: i32,
+}
+
+// ─────────────────────────────────────────────────────────────
+// 웹뷰 콜백 쿼리 파라미터
+//
+// GET /auth/webview/callback?token=xxx
+//
+// 인증 미들웨어 없음 (webview token 자체가 인증 수단).
+// 검증 성공 시:
+// - Set-Cookie로 refresh token 셋팅 (httpOnly)
+// - Location 헤더로 프론트엔드 리다이렉트
+//   (access token은 URL fragment(#access_token=xxx)로 전달)
+// ─────────────────────────────────────────────────────────────
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct WebviewCallbackQuery {
+    pub token: String,
+}

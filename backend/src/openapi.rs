@@ -32,6 +32,8 @@ use crate::wallet;
         crate::auth::handler::kakao_login,
         crate::auth::handler::get_me,
         crate::auth::handler::complete_profile,
+        crate::auth::handler::webview_issue,
+        crate::auth::handler::webview_callback,
 
         // ── 지갑 ──────────────────────────────────────────────
         crate::wallet::handler::link_wallet,
@@ -119,6 +121,9 @@ use crate::wallet;
             auth::dto::CompleteProfileResponse,
             auth::dto::ProfileImageUrlResponse,
             auth::dto::ProfileImageUrlQuery,
+            auth::dto::WebviewIssueRequest,
+            auth::dto::WebviewIssueResponse,
+            auth::dto::WebviewCallbackQuery,
 
             // ── wallet DTO ────────────────────────────────────
             wallet::dto::LinkWalletRequest,

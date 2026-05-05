@@ -7,3 +7,4 @@ pub mod model;
 pub mod refresh_store;
 pub mod service;
 pub mod turnstile;
+pub mod webview;

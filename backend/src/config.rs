@@ -81,6 +81,8 @@ pub struct Config {
     // Unity 상자에서 아무 아이템도 나오지 않는 "꽝" 가중치.
     // item_master.drop_weight와 같은 단위로 계산한다.
     pub reward_box_miss_weight: u32,
+
+    pub frontend_origin: String,
 }
 
 impl Config {
@@ -155,6 +157,7 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse::<u32>().ok())
                 .unwrap_or(9000),
+            frontend_origin: std::env::var("FRONTEND_ORIGIN")?,
         })
     }
 }

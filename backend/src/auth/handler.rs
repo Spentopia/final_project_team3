@@ -30,10 +30,10 @@
 // - 실패 시 400 + 구체적인 에러 메시지 반환
 
 use axum::{
-    Extension, Json,
-    extract::{Multipart, Query, State},
-    http::{HeaderMap, StatusCode, header::SET_COOKIE},
-    response::IntoResponse,
+    Json,
+    extract::{Multipart, Query, State, Extension},
+    http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE},
+    response::{IntoResponse, Redirect, Response},
 };
 
 use crate::auth::handoff::{create_handoff_token, exchange_handoff_token};
@@ -49,12 +49,16 @@ use crate::auth::dto::{
     ExchangeTokenRequest, FindEmailRequest, FindEmailResponse, HandoffExchangeRequest,
     HandoffExchangeResponse, HandoffRequest, HandoffResponse, KakaoLoginRequest,
     KakaoStartResponse, NonceRequest, NonceResponse, ProfileImageUrlQuery, ProfileImageUrlResponse,
-    RefreshRequest, WalletLoginRequest, WebLoginResponse, WebRefreshResponse,
+    RefreshRequest, WalletLoginRequest, WebLoginResponse, WebRefreshResponse, WebviewCallbackQuery,
+    WebviewIssueRequest, WebviewIssueResponse,
 };
 use crate::auth::service;
 use crate::filter;
 use crate::state::AppState;
 use utoipa;
+use crate::auth::webview::{
+    consume_webview_token, create_webview_token, sanitize_redirect_path,
+};
 
 fn ensure_app_request(headers: &HeaderMap) -> Result<(), (StatusCode, String)> {
     // origin: 브라우저 cross-origin 요청 시 자동 포함
@@ -1901,6 +1905,127 @@ pub async fn exchange_handoff(
         user_id: result.user_id,
         nickname: nickname,
     }))
+}
+
+// ============================================================================
+// POST /auth/webview/issue
+// ============================================================================
+
+/// 웹뷰 진입용 1회용 토큰 발급
+///
+/// 흐름:
+/// 1. jwt_middleware가 앱의 access token 검증 → user_id 추출
+/// 2. 30초짜리 webview token 발급 → 메모리 저장
+/// 3. 토큰 원문 반환 (앱은 이걸 webView.loadUrl 쿼리에 사용)
+#[utoipa::path(
+    post,
+    path = "/auth/webview/issue",
+    tag = "auth",
+    request_body = WebviewIssueRequest,
+    responses(
+        (status = 200, description = "발급 성공", body = WebviewIssueResponse),
+        (status = 401, description = "인증되지 않음"),
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn webview_issue(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Json(payload): Json<WebviewIssueRequest>,
+) -> Result<Json<WebviewIssueResponse>, (StatusCode, String)> {
+    // ── redirect_path 검증 ──────────────────────────────────
+    // Open Redirect 방지를 위해 발급 시점에 미리 검증/정제
+    let redirect_path = sanitize_redirect_path(payload.redirect_path.as_deref());
+
+    // ── 1회용 토큰 발급 ─────────────────────────────────────
+    let token = create_webview_token(&state, user_id, &redirect_path);
+
+    Ok(Json(WebviewIssueResponse {
+        webview_token: token,
+        expires_in: 30,
+    }))
+}
+
+// ============================================================================
+// GET /auth/webview/callback
+// ============================================================================
+
+/// 웹뷰가 진입하는 엔드포인트
+///
+/// **인증 미들웨어 없음** — webview token 자체가 인증 수단.
+///
+/// 흐름:
+/// 1. webview token 검증 + 즉시 소비 (1회용)
+/// 2. service::issue_login_tokens 재사용해서 access + refresh 발급
+///    - client_type = "webview" (app/web 세션과 분리해서 추적)
+/// 3. refresh token을 httpOnly 쿠키로 Set-Cookie
+///    - 다른 핸들러들과 동일하게 cookie::Cookie 빌더 사용
+///    - Path=/auth (다른 refresh 쿠키들과 일관)
+/// 4. 프론트엔드로 302 리다이렉트
+///    - access token은 URL fragment로 전달 (Referer/로그 노출 X)
+#[utoipa::path(
+    get,
+    path = "/auth/webview/callback",
+    tag = "auth",
+    params(
+        ("token" = String, Query, description = "1회용 webview token"),
+    ),
+    responses(
+        (status = 302, description = "프론트엔드로 리다이렉트"),
+        (status = 401, description = "토큰 무효 또는 만료"),
+    ),
+)]
+pub async fn webview_callback(
+    State(state): State<AppState>,
+    Query(params): Query<WebviewCallbackQuery>,
+) -> Result<Response, (StatusCode, String)> {
+    // ── 1) webview token 검증 + 소비 ────────────────────────
+    let (user_id, redirect_path) = consume_webview_token(&state, &params.token)
+        .map_err(|e| {
+            tracing::warn!("webview callback 검증 실패: {}", e);
+            (StatusCode::UNAUTHORIZED, e.to_string())
+        })?;
+
+    // ── 2) 웹뷰용 access + refresh 발급 ─────────────────────
+    // client_type = "webview"
+    //   → 모바일 app / 웹 세션과 분리해서 웹뷰 종료/로그아웃 시 별도 관리 가능
+    //
+    // is_new_user = false
+    //   → webview는 이미 로그인된 유저가 진입하는 거라 항상 false
+    let tokens = service::issue_login_tokens(&state, user_id, "webview", false)
+        .await
+        .map_err(|e| {
+            tracing::error!("webview용 토큰 발급 실패: user_id={}, error={}", user_id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "토큰 발급에 실패했습니다.".to_string(),
+            )
+        })?;
+
+    // ── 3) refresh 쿠키 빌드 (다른 핸들러와 동일한 패턴) ────
+    // build_refresh_cookie를 그대로 재사용
+    let cookie_headers = build_refresh_cookie(&state, &tokens.refresh_token);
+
+    // ── 4) 프론트엔드 URL 조립 ───────────────────────────────
+    // access token을 URL fragment(#)로 전달
+    // - fragment는 서버에 전송되지 않음 (Referer/로그 노출 X)
+    // - 프론트는 window.location.hash에서 파싱
+    let frontend_url = format!(
+        "{}{}#access_token={}",
+        state.config.frontend_origin.trim_end_matches('/'),
+        redirect_path,
+        tokens.access_token
+    );
+
+    // ── 5) 302 리다이렉트 응답 + Set-Cookie ─────────────────
+    let mut response = Redirect::to(&frontend_url).into_response();
+
+    // build_refresh_cookie가 만든 Set-Cookie 헤더를 응답에 병합
+    for value in cookie_headers.get_all(SET_COOKIE).iter() {
+        response.headers_mut().append(SET_COOKIE, value.clone());
+    }
+
+    Ok(response)
 }
 
 async fn fetch_nickname_by_user_id(state: &AppState, user_id: uuid::Uuid) -> Option<String> {
