@@ -209,8 +209,16 @@ pub fn create_router(state: AppState) -> Router {
             get(notification::handler::list_notifications),
         )
         .route(
+            "/api/notifications/:id/read",
+            patch(notification::handler::read_notification),
+        )
+        .route(
             "/api/notifications/read",
-            post(notification::handler::mark_read),
+            patch(notification::handler::mark_read),
+        )
+        .route(
+            "/api/notifications/read-all",
+            patch(notification::handler::read_all_notifications),
         )
         // ── 결제 ──────────────────────────────────────────
         .route("/api/payments", post(payment::handler::create_payment))

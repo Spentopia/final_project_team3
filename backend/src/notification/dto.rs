@@ -11,9 +11,10 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct NotificationResponse {
     pub id: Uuid,
+    pub user_id: Uuid,
     pub notification_type: String, // budget_alert / reward / streak
     pub message: String,
-    pub is_read: Option<bool>,
+    pub is_read: bool,
     pub created_at: Option<DateTime<Utc>>,
 }
 

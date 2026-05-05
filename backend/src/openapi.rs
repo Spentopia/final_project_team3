@@ -81,7 +81,9 @@ use crate::wallet;
 
         // ── 알림 ──────────────────────────────────────────────
         crate::notification::handler::list_notifications,
+        crate::notification::handler::read_notification,
         crate::notification::handler::mark_read,
+        crate::notification::handler::read_all_notifications,
 
         // ── 결제 ──────────────────────────────────────────────
         crate::payment::handler::create_payment,
