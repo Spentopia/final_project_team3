@@ -207,6 +207,63 @@ fn calc_diary_score(days: usize) -> i32 {
 }
 
 // ────────────────────────────────────────────────────────────
+// 헬퍼: receipt_score 계산
+//
+// 영수증 인증은 건수가 아니라 인증한 날짜 수를 기준으로 계산한다.
+// 같은 날 여러 건을 인증해도 성실도 점수는 하루치만 오른다.
+// ────────────────────────────────────────────────────────────
+fn calc_receipt_score(days: usize) -> i32 {
+    match days {
+        0 => 0,
+        1 => 4,
+        2 => 7,
+        3 => 11,
+        4 => 15,
+        5 => 18,
+        6 => 22,
+        _ => 25,
+    }
+}
+
+// ────────────────────────────────────────────────────────────
+// 헬퍼: budget_score 기본점 계산
+//
+// 예산을 지켰더라도 첫날부터 15점을 모두 주지 않는다.
+// 주간 성실도 취지에 맞게 소비 기록 일수에 따라 예산 점수 한도를 점진적으로 연다.
+// ────────────────────────────────────────────────────────────
+fn calc_budget_base_score(record_days: usize) -> i32 {
+    match record_days {
+        0 => 0,
+        1 => 2,
+        2 => 4,
+        3 => 6,
+        4 => 9,
+        5 => 11,
+        6 => 13,
+        _ => 15,
+    }
+}
+
+// ────────────────────────────────────────────────────────────
+// 헬퍼: 주간 총점 상한
+//
+// 주간 100점 구조에서 하루에 과도한 점수를 얻지 못하도록
+// 활동한 날짜 수에 따라 총점 상한을 둔다.
+// ────────────────────────────────────────────────────────────
+fn calc_total_score_cap(record_days: usize) -> i32 {
+    match record_days {
+        0 => 0,
+        1 => 15,
+        2 => 30,
+        3 => 45,
+        4 => 60,
+        5 => 75,
+        6 => 90,
+        _ => 100,
+    }
+}
+
+// ────────────────────────────────────────────────────────────
 // 헬퍼: streak_score 계산
 // ────────────────────────────────────────────────────────────
 fn calc_streak_score(streak: i32) -> i32 {
@@ -654,6 +711,95 @@ pub async fn update_streak(state: &AppState, user_id: Uuid, record_date: NaiveDa
     Ok(())
 }
 
+pub async fn rebuild_streak_from_expenses(state: &AppState, user_id: Uuid) -> Result<()> {
+    #[derive(serde::Deserialize)]
+    struct ExpenseDateRow {
+        expense_date: NaiveDate,
+    }
+
+    let base_url = state.config.supabase_url.trim_end_matches('/');
+    let key = &state.config.supabase_secret_key;
+
+    let url = format!(
+        "{}/rest/v1/expenses?user_id=eq.{}&transaction_type=eq.expense&select=expense_date&order=expense_date.asc",
+        base_url, user_id
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key.as_str())
+        .send()
+        .await
+        .context("스트릭 재계산용 expenses SELECT 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "스트릭 재계산용 expenses SELECT 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rows: Vec<ExpenseDateRow> = res
+        .json()
+        .await
+        .context("스트릭 재계산용 expenses 역직렬화 실패")?;
+
+    let mut dates: Vec<NaiveDate> = rows.into_iter().map(|row| row.expense_date).collect();
+    dates.sort_unstable();
+    dates.dedup();
+
+    let mut current_streak = 0;
+    let mut longest_streak = 0;
+    let mut previous_date: Option<NaiveDate> = None;
+
+    for date in &dates {
+        current_streak = match previous_date {
+            Some(previous) if *date == previous + chrono::Duration::days(1) => current_streak + 1,
+            _ => 1,
+        };
+        longest_streak = longest_streak.max(current_streak);
+        previous_date = Some(*date);
+    }
+
+    let last_record_date = dates.last().copied();
+    if last_record_date.is_none() {
+        current_streak = 0;
+    }
+
+    let upsert_url = format!("{}/rest/v1/streaks", base_url);
+    let payload = serde_json::json!({
+        "user_id": user_id,
+        "current_streak": current_streak,
+        "longest_streak": longest_streak,
+        "last_record_date": last_record_date.map(|date| date.to_string()),
+    });
+
+    let upsert_res = state
+        .http_client
+        .post(&upsert_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key.as_str())
+        .header(
+            "Prefer",
+            "resolution=merge-duplicates,return=representation",
+        )
+        .json(&payload)
+        .send()
+        .await
+        .context("streaks 재계산 UPSERT 요청 실패")?;
+
+    if !upsert_res.status().is_success() {
+        return Err(anyhow!(
+            "streaks 재계산 UPSERT 실패: {}",
+            upsert_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    Ok(())
+}
+
 // ────────────────────────────────────────────────────────────
 // 신규 함수 2: recalculate_weekly_score
 //
@@ -683,7 +829,7 @@ pub async fn recalculate_weekly_score(
     // expense_date: week_start ≤ date ≤ week_end
     // gte = greater than or equal, lte = less than or equal (Supabase 필터 연산자)
     let exp_url = format!(
-        "{}/rest/v1/expenses?user_id=eq.{}&transaction_type=eq.expense&expense_date=gte.{}&expense_date=lte.{}&select=expense_date,one_line_diary,receipt_verified,amount",
+        "{}/rest/v1/expenses?user_id=eq.{}&transaction_type=eq.expense&expense_date=gte.{}&expense_date=lte.{}&select=expense_date,one_line_diary,receipt_verified",
         base_url, user_id, week_start, week_end
     );
     let exp_res = state
@@ -708,12 +854,12 @@ pub async fn recalculate_weekly_score(
         expense_date: NaiveDate,
         one_line_diary: Option<String>,
         receipt_verified: Option<bool>,
-        amount: i32,
     }
 
     let expenses: Vec<ExpenseRow> = exp_res.json().await.context("expenses 역직렬화 실패")?;
 
-    // 보상/성실도/미션 점수는 OCR 인증 완료된 실제 소비만 반영한다.
+    // 소비 기록/일기/예산/스트릭은 전체 소비 기록을 기준으로 계산한다.
+    // 영수증 인증 점수만 OCR 인증 완료된 소비(receipt_verified=true)를 기준으로 계산한다.
     let verified_expenses: Vec<&ExpenseRow> = expenses
         .iter()
         .filter(|e| e.receipt_verified == Some(true))
@@ -723,30 +869,37 @@ pub async fn recalculate_weekly_score(
     // 소비 기록이 있는 날의 집합 (중복 제거)
     // HashSet 대신 Vec + dedup 로도 가능하지만 HashSet이 더 직관적
     let record_dates: std::collections::HashSet<NaiveDate> =
-        verified_expenses.iter().map(|e| e.expense_date).collect();
+        expenses.iter().map(|e| e.expense_date).collect();
     let record_days_score = calc_record_days_score(record_dates.len());
 
     // ── 4. receipt_score ──
-    // receipt_verified == true인 건수 × 2, 상한 25
-    let verified_count = verified_expenses.len() as i32;
-    let receipt_score = (verified_count * 2).min(25);
+    // receipt_verified == true인 날짜 수 기준. 같은 날 여러 건은 하루치만 인정한다.
+    let receipt_dates: std::collections::HashSet<NaiveDate> =
+        verified_expenses.iter().map(|e| e.expense_date).collect();
+    let receipt_score = calc_receipt_score(receipt_dates.len());
 
     // ── 5. diary_score ──
     // one_line_diary가 Some이고 비어있지 않은 날 수
     let diary_dates: std::collections::HashSet<NaiveDate> = expenses
         .iter()
-        .filter(|e| e.receipt_verified == Some(true))
-        .filter(|e| e.one_line_diary.as_deref().map_or(false, |s| !s.is_empty()))
+        .filter(|e| {
+            e.one_line_diary
+                .as_deref()
+                .map_or(false, |s| !s.trim().is_empty())
+        })
         .map(|e| e.expense_date)
         .collect();
     let diary_score = calc_diary_score(diary_dates.len());
 
     // ── 6. budget_score ──
-    // 해당 월 budgets 조회 → 주간 예산 = total_budget / 4
-    // 주간 지출 합계와 비교
+    // 해당 월 budgets 조회 → 월 예산 진행률 기준으로 평가
+    // 예: 월 예산 * (평가일 / 해당 월 일수) = 현재까지 허용 소비
+    // 월초부터 평가일까지의 누적 소비와 비교한다.
     let budget_score = {
-        let year = week_start.year();
-        let month = week_start.month();
+        let today = Local::now().date_naive();
+        let evaluation_date = target_date.min(today);
+        let year = evaluation_date.year();
+        let month = evaluation_date.month();
 
         let budget_url = format!(
             "{}/rest/v1/budgets?user_id=eq.{}&year=eq.{}&month=eq.{}&select=total_budget&limit=1",
@@ -773,27 +926,68 @@ pub async fn recalculate_weekly_score(
             match budgets.into_iter().next() {
                 None => 0, // 예산 미설정 → 0점
                 Some(b) => {
-                    // 주간 예산 = 월 예산 / 4 (정수 나눗셈)
-                    let weekly_budget = b.total_budget / 4;
-                    // 해당 주 실제 지출 합계
-                    let weekly_spent: i32 = verified_expenses.iter().map(|e| e.amount).sum();
+                    let budget_base_score = calc_budget_base_score(record_dates.len());
+                    let month_start = evaluation_date
+                        .with_day(1)
+                        .ok_or_else(|| anyhow!("월 시작일 계산 실패"))?;
+                    let next_month_start = if month == 12 {
+                        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+                    } else {
+                        NaiveDate::from_ymd_opt(year, month + 1, 1)
+                    }
+                    .ok_or_else(|| anyhow!("다음 달 시작일 계산 실패"))?;
+                    let days_in_month = (next_month_start - month_start).num_days() as i32;
+                    let elapsed_days = evaluation_date.day() as i32;
+                    let allowed_spend =
+                        b.total_budget.saturating_mul(elapsed_days) / days_in_month.max(1);
 
-                    if weekly_budget <= 0 {
-                        // 예산이 0 이하면 설정 안 한 것으로 간주
+                    let spent_url = format!(
+                        "{}/rest/v1/expenses?user_id=eq.{}&transaction_type=eq.expense&expense_date=gte.{}&expense_date=lte.{}&select=amount",
+                        base_url, user_id, month_start, evaluation_date
+                    );
+                    let spent_res = state
+                        .http_client
+                        .get(&spent_url)
+                        .header("Authorization", format!("Bearer {}", key))
+                        .header("apikey", key.as_str())
+                        .send()
+                        .await
+                        .context("월 예산 체크용 expenses SELECT 요청 실패")?;
+
+                    if !spent_res.status().is_success() {
+                        tracing::warn!(
+                            "월 예산 체크용 expenses SELECT 실패, budget_score=0으로 처리: {}",
+                            spent_res.text().await.unwrap_or_default()
+                        );
                         0
                     } else {
-                        // 초과율 = (지출 - 예산) / 예산
-                        let over = weekly_spent - weekly_budget;
-                        if over <= 0 {
-                            15 // 초과 없음
+                        #[derive(serde::Deserialize)]
+                        struct MonthlyExpenseAmountRow {
+                            amount: i32,
+                        }
+
+                        let monthly_expenses: Vec<MonthlyExpenseAmountRow> = spent_res
+                            .json()
+                            .await
+                            .context("월 예산 체크용 expenses 역직렬화 실패")?;
+                        let monthly_spent: i32 = monthly_expenses.iter().map(|e| e.amount).sum();
+
+                        if allowed_spend <= 0 {
+                            // 평가일 기준 허용 소비가 0 이하면 예산 설정이 사실상 유효하지 않음
+                            0
                         } else {
-                            let ratio = over as f64 / weekly_budget as f64;
-                            if ratio < 0.10 {
-                                10 // 10% 미만 초과
-                            } else if ratio < 0.20 {
-                                5 // 20% 미만 초과
+                            let over = monthly_spent - allowed_spend;
+                            if over <= 0 {
+                                budget_base_score
                             } else {
-                                0 // 20% 이상 초과
+                                let ratio = over as f64 / allowed_spend as f64;
+                                if ratio < 0.10 {
+                                    budget_base_score * 2 / 3
+                                } else if ratio < 0.20 {
+                                    budget_base_score / 3
+                                } else {
+                                    0
+                                }
                             }
                         }
                     }
@@ -812,7 +1006,9 @@ pub async fn recalculate_weekly_score(
     let streak_score = calc_streak_score(streak_resp.current_streak.unwrap_or(0));
 
     // ── 8. total_score ──
-    let total_score = record_days_score + receipt_score + diary_score + budget_score + streak_score;
+    let raw_total_score =
+        record_days_score + receipt_score + diary_score + budget_score + streak_score;
+    let total_score = raw_total_score.min(calc_total_score_cap(record_dates.len()));
 
     // ── 9. weekly_scores UPSERT ──
     // unique: (user_id, week_start) → 충돌 시 모든 점수 덮어쓰기

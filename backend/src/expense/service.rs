@@ -17,6 +17,11 @@ struct LedgerRow {
     id: Uuid,
 }
 
+pub struct DeletedExpense {
+    pub date: chrono::NaiveDate,
+    pub transaction_type: String,
+}
+
 pub async fn create_expense(
     state: &AppState,
     user_id: Uuid,
@@ -88,8 +93,8 @@ pub async fn create_expense(
         .next()
         .ok_or_else(|| anyhow!("expenses INSERT 결과가 비어있음"))?;
 
-    // 직접 입력은 소비/예산/분석용 기록만 생성한다.
-    // 보상, 스트릭, 성실도, 미션은 OCR 인증 성공 후 receipt_verified=true인 기록만 반영한다.
+    // 직접 입력도 소비 기록/일기/예산/스트릭 성실도에 반영한다.
+    // 영수증 인증 점수와 상자 오픈권만 OCR 인증 성공 후 receipt_verified=true인 기록으로 반영한다.
     Ok(to_web_response(expense))
 }
 
@@ -136,8 +141,53 @@ pub async fn list_expenses(state: &AppState, user_id: Uuid) -> Result<Vec<Expens
     return Err(anyhow!("expenses SELECT 실패: {}", last_error));
 }
 
-pub async fn delete_expense(state: &AppState, user_id: Uuid, expense_id: Uuid) -> Result<()> {
+pub async fn delete_expense(
+    state: &AppState,
+    user_id: Uuid,
+    expense_id: Uuid,
+) -> Result<Option<DeletedExpense>> {
     tracing::info!(user_id = %user_id, expense_id = %expense_id, "소비 삭제 요청 수신");
+
+    #[derive(Deserialize)]
+    struct DeleteTargetRow {
+        expense_date: chrono::NaiveDate,
+        transaction_type: Option<String>,
+    }
+
+    let target_url = format!(
+        "{}/rest/v1/expenses?id=eq.{}&user_id=eq.{}&select=expense_date,transaction_type&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        expense_id,
+        user_id,
+    );
+
+    let target_res = state
+        .http_client
+        .get(&target_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("삭제 대상 expenses SELECT 요청 실패")?;
+
+    if !target_res.status().is_success() {
+        let body = target_res.text().await.unwrap_or_default();
+        return Err(anyhow!("삭제 대상 expenses SELECT 실패: {}", body));
+    }
+
+    let target = target_res
+        .json::<Vec<DeleteTargetRow>>()
+        .await
+        .context("삭제 대상 expenses SELECT 응답 파싱 실패")?
+        .into_iter()
+        .next();
+
+    let Some(target) = target else {
+        return Ok(None);
+    };
 
     let url = format!(
         "{}/rest/v1/expenses?id=eq.{}&user_id=eq.{}",
@@ -163,7 +213,12 @@ pub async fn delete_expense(state: &AppState, user_id: Uuid, expense_id: Uuid) -
         return Err(anyhow!("expenses DELETE 실패: {}", body));
     }
 
-    Ok(())
+    Ok(Some(DeletedExpense {
+        date: target.expense_date,
+        transaction_type: target
+            .transaction_type
+            .unwrap_or_else(|| "expense".to_string()),
+    }))
 }
 
 pub async fn verify_receipt_ocr(

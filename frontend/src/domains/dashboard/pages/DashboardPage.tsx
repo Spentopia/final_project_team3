@@ -289,6 +289,10 @@ export default function DashboardPage() {
 
       const savedExpense = await createExpense(payload);
 
+      if (entryType === "expense") {
+        window.dispatchEvent(new CustomEvent("spentopia:score-refresh"));
+      }
+
       // 영수증 인증 서버 반영 (receipt_verified 서버 제어)
       // 프리뷰 인증 성공 → expense_id 포함해서 OCR 재호출 → 서버가 DB 업데이트
       // 재호출 실패 시 저장된 소비를 롤백(DELETE)해서 불일치 방지
@@ -355,12 +359,17 @@ export default function DashboardPage() {
 
   const handleDeleteExpense = async (id: string) => {
   try {
+    const deleted = transactions.find((t) => String(t.id) === id);
     await deleteExpense(id);
 
     // 상태에서 제거
     replaceTransactions(
       transactions.filter((t) => String(t.id) !== id)
     );
+
+    if (deleted?.type === "expense") {
+      window.dispatchEvent(new CustomEvent("spentopia:score-refresh"));
+    }
 
     toast.success("삭제 완료");
   } catch (error) {
