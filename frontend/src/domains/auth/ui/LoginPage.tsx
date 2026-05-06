@@ -89,7 +89,7 @@ export default function Login() {
               Spentopia
             </h1>
             <p className="text-center text-gray-500 dark:text-gray-400">
-              내가 기록한 소비가 나를 만든다
+              지출을 관리하면 열리는 나만의 세계
             </p>
           </div>
 
