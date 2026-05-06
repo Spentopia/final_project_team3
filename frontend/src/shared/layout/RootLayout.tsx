@@ -66,6 +66,7 @@ export default function RootLayout() {
     const handler = () => {
       setTimeout(() => {
         void getCurrentWeeklyScore().then(setWeeklyScore).catch(() => {});
+        void getStreak().then(setStreak).catch(() => {});
       }, 800);
     };
     window.addEventListener("spentopia:score-refresh", handler);
@@ -165,8 +166,8 @@ export default function RootLayout() {
                 <span>연속 활동</span>
                 <span className="font-bold">
                   {streak?.current_streak != null
-                    ? `${streak.current_streak}일`
-                    : "0일"}
+                    ? `${streak.current_streak}일 · ${weeklyScore?.streak_score ?? 0}/${MAX_SCORES.streak}`
+                    : `0일 · 0/${MAX_SCORES.streak}`}
                 </span>
               </div>
             </div>

@@ -79,7 +79,31 @@ pub async fn create_expense(
     }
 
     match service::create_expense(&state, user_id, req).await {
-        Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
+        Ok(res) => {
+            if res.transaction_type == "expense" {
+                let state_clone = state.clone();
+                let record_date = res.date;
+                tokio::spawn(async move {
+                    if let Err(e) =
+                        crate::reward::service::update_streak(&state_clone, user_id, record_date)
+                            .await
+                    {
+                        tracing::warn!("소비 기록 후 스트릭 업데이트 실패: {}", e);
+                    }
+                    if let Err(e) = crate::reward::service::recalculate_weekly_score(
+                        &state_clone,
+                        user_id,
+                        record_date,
+                    )
+                    .await
+                    {
+                        tracing::warn!("소비 기록 후 성실도 재계산 실패: {}", e);
+                    }
+                });
+            }
+
+            (StatusCode::CREATED, Json(res)).into_response()
+        }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
@@ -103,7 +127,35 @@ pub async fn delete_expense(
     Path(expense_id): Path<Uuid>,
 ) -> impl IntoResponse {
     match service::delete_expense(&state, user_id, expense_id).await {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(deleted) => {
+            if let Some(deleted) = deleted {
+                if deleted.transaction_type == "expense" {
+                    let state_clone = state.clone();
+                    let record_date = deleted.date;
+                    tokio::spawn(async move {
+                        if let Err(e) = crate::reward::service::rebuild_streak_from_expenses(
+                            &state_clone,
+                            user_id,
+                        )
+                        .await
+                        {
+                            tracing::warn!("소비 삭제 후 스트릭 재계산 실패: {}", e);
+                        }
+                        if let Err(e) = crate::reward::service::recalculate_weekly_score(
+                            &state_clone,
+                            user_id,
+                            record_date,
+                        )
+                        .await
+                        {
+                            tracing::warn!("소비 삭제 후 성실도 재계산 실패: {}", e);
+                        }
+                    });
+                }
+            }
+
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
@@ -181,15 +233,14 @@ pub async fn verify_receipt_ocr(
                         }
                     };
 
-                    if let Err(e) =
-                        service::update_receipt_verified(
-                            &state,
-                            user_id,
-                            expense_id,
-                            receipt_date,
-                            receipt_amount,
-                        )
-                        .await
+                    if let Err(e) = service::update_receipt_verified(
+                        &state,
+                        user_id,
+                        expense_id,
+                        receipt_date,
+                        receipt_amount,
+                    )
+                    .await
                     {
                         return (
                             StatusCode::INTERNAL_SERVER_ERROR,
@@ -210,12 +261,6 @@ pub async fn verify_receipt_ocr(
 
                     let state_clone = state.clone();
                     tokio::spawn(async move {
-                        if let Err(e) =
-                            crate::reward::service::update_streak(&state_clone, user_id, receipt_date)
-                                .await
-                        {
-                            tracing::warn!("영수증 인증 후 스트릭 업데이트 실패: {}", e);
-                        }
                         if let Err(e) = crate::reward::service::recalculate_weekly_score(
                             &state_clone,
                             user_id,
