@@ -145,7 +145,7 @@ fun MarketScreen(
                 onRetry = {}
             )
         } else if (marketUrl.isBlank()) {
-            // webview token 발급을 기다리는 동안 네이티브 로더만 보여줍니다.
+            // 마켓 진입 URL을 준비하는 동안 네이티브 로더만 보여줍니다.
         } else {
             key(webViewKey) {
                 AndroidView(
