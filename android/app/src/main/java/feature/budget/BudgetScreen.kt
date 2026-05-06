@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +34,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -78,6 +80,16 @@ fun BudgetScreen(
     // 저장 성공 여부 상태를 화면에서 안전하게 구독
     val saveSuccess by viewModel.saveSuccess.collectAsStateWithLifecycle()
 
+    val saveError by viewModel.saveError.collectAsStateWithLifecycle()
+
+    val aiPlanList by viewModel.aiPlanList.collectAsStateWithLifecycle()
+
+    val isAiPlanLoading by viewModel.isAiPlanLoading.collectAsStateWithLifecycle()
+
+    val aiPlanError by viewModel.aiPlanError.collectAsStateWithLifecycle()
+
+    val budgetAiAnalysisText = aiPlanList.firstOrNull()?.description.orEmpty()
+
     // 총 지출 예정 금액 계산
     val totalExpense = budgetState.foodBudget +
             budgetState.transportBudget +
@@ -88,49 +100,18 @@ fun BudgetScreen(
     // 월 수입 - 총 지출 - 저축 목표
     val remainingAmount = budgetState.monthlyIncome - totalExpense - budgetState.savingGoal
 
-    // AI 추천 플랜 샘플 데이터임
-    // 서버 추천 전 예시값
-    val aiPlanList = listOf(
-        BudgetPlanUiData(
-            title = "월 50만원 생활 플랜",
-            description = "합리적인 소비와 저축을 위한 균형잡힌 플랜",
-            monthlyBudget = 500000,
-            savingGoal = 50000,
-            food = 150000,
-            transport = 80000,
-            living = 120000,
-            hobby = 100000,
-            saving = 50000
-        ),
-        BudgetPlanUiData(
-            title = "7년 1억 만들기",
-            description = "목표 지향적인 저축 중심 플랜",
-            monthlyBudget = 400000,
-            savingGoal = 150000,
-            food = 100000,
-            transport = 60000,
-            living = 90000,
-            hobby = 50000,
-            saving = 150000
-        ),
-        BudgetPlanUiData(
-            title = "자유로운 소비 플랜",
-            description = "현재의 삶을 즐기면서도 미래를 준비하는 플랜",
-            monthlyBudget = 700000,
-            savingGoal = 30000,
-            food = 200000,
-            transport = 100000,
-            living = 200000,
-            hobby = 170000,
-            saving = 30000
-        )
-    )
-
     // 저장 성공하면 스낵바 메시지 띄우기
     LaunchedEffect(saveSuccess) {
         if (saveSuccess) {
             snackbarHostState.showSnackbar("예산 설정이 저장되었어요.")
             viewModel.resetSaveSuccess()
+        }
+    }
+
+    LaunchedEffect(saveError) {
+        if (saveError.isNotBlank()) {
+            snackbarHostState.showSnackbar(saveError)
+            viewModel.resetSaveError()
         }
     }
 
@@ -154,24 +135,46 @@ fun BudgetScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // AI 추천 플랜 제목
-                SectionHeader(
+                // AI 추천 플랜 제목 + 수동 요청 버튼
+                AiPlanSectionHeader(
                     title = "AI 추천 플랜",
-                    icon = "✨"
+                    icon = "✨",
+                    isLoading = isAiPlanLoading,
+                    onAiRecommendClick = {
+                        viewModel.requestAiRecommendedPlans()
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 추천 플랜 목록 출력
-                aiPlanList.forEach { plan ->
-                    BudgetPlanCard(
-                        plan = plan,
-                        onApplyClick = {
-                            // 플랜 적용 버튼 누르면 ViewModel에 전달
-                            viewModel.applyPlan(plan)
+                if (isAiPlanLoading && aiPlanList.isEmpty()) {
+                    AiPlanStatusCard(
+                        message = "AI가 예산 플랜을 생성하고 있어요.",
+                        isLoading = true,
+                        onRetryClick = {}
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                } else if (aiPlanError.isNotBlank() && aiPlanList.isEmpty()) {
+                    AiPlanStatusCard(
+                        message = aiPlanError,
+                        isLoading = false,
+                        onRetryClick = {
+                            viewModel.requestAiRecommendedPlans()
                         }
                     )
                     Spacer(modifier = Modifier.height(14.dp))
+                } else {
+                    // 서버 AI 추천 플랜 목록 출력
+                    aiPlanList.forEach { plan ->
+                        BudgetPlanCard(
+                            plan = plan,
+                            onApplyClick = {
+                                // 플랜 적용 버튼 누르면 ViewModel에 전달
+                                viewModel.applyPlan(plan)
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -220,7 +223,8 @@ fun BudgetScreen(
                 BudgetAnalysisCard(
                     foodBudget = budgetState.foodBudget,
                     totalExpense = totalExpense,
-                    savingGoal = budgetState.savingGoal
+                    savingGoal = budgetState.savingGoal,
+                    aiAnalysisText = budgetAiAnalysisText
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -304,7 +308,125 @@ private fun SectionHeader(
     }
 }
 
+@Composable
+private fun AiPlanSectionHeader(
+    title: String,
+    icon: String,
+    isLoading: Boolean,
+    onAiRecommendClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = icon,
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Button(
+            onClick = onAiRecommendClick,
+            enabled = !isLoading,
+            modifier = Modifier.height(40.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+            }
+
+            Text(
+                text = if (isLoading) "추천 중" else "AI 추천",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
 // 추천 플랜 카드 UI
+@Composable
+private fun AiPlanStatusCard(
+    message: String,
+    isLoading: Boolean,
+    onRetryClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium
+            )
+
+            if (!isLoading) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Button(
+                    onClick = onRetryClick,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                ) {
+                    Text(
+                        text = "다시 요청",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun BudgetPlanCard(
     plan: BudgetPlanUiData,
@@ -833,7 +955,8 @@ private fun SummaryRow(
 private fun BudgetAnalysisCard(
     foodBudget: Int,
     totalExpense: Int,
-    savingGoal: Int
+    savingGoal: Int,
+    aiAnalysisText: String
 ) {
     val isDark = isSystemInDarkTheme()
 
@@ -882,11 +1005,16 @@ private fun BudgetAnalysisCard(
 
             Spacer(modifier = Modifier.height(18.dp))
 
+            if (aiAnalysisText.isNotBlank()) {
+                AnalysisTextRow(Icons.Default.AutoAwesome, aiAnalysisText)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             AnalysisTextRow(Icons.Default.TrendingUp, firstMessage)
             Spacer(modifier = Modifier.height(12.dp))
-            AnalysisTextRow(Icons.Default.AutoAwesome, secondMessage)
+            AnalysisTextRow(Icons.Default.VolunteerActivism, secondMessage)
             Spacer(modifier = Modifier.height(12.dp))
-            AnalysisTextRow(Icons.Default.VolunteerActivism, thirdMessage)
+            AnalysisTextRow(Icons.Default.Savings, thirdMessage)
         }
     }
 }

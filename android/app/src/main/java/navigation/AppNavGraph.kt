@@ -32,7 +32,6 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -45,7 +44,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavType
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -71,10 +71,9 @@ import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
 import com.ict.spentopia.feature.budget.BudgetScreen
 import com.ict.spentopia.feature.chatbot.ChatbotScreen
 import com.ict.spentopia.feature.community.CommunityDetailScreen
-import com.ict.spentopia.feature.community.CommunityPost
 import com.ict.spentopia.feature.community.CommunityScreen
+import com.ict.spentopia.feature.community.CommunityViewModel
 import com.ict.spentopia.feature.community.CommunityWriteScreen
-import com.ict.spentopia.feature.community.getInitialCommunityPosts
 import com.ict.spentopia.feature.home.HomeScreen
 import com.ict.spentopia.feature.market.MarketScreen
 import com.ict.spentopia.feature.mypage.ProfileAvatarScreen
@@ -126,11 +125,8 @@ fun AppNavGraph(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val communityPosts = remember {
-        mutableStateListOf<CommunityPost>().apply {
-            addAll(getInitialCommunityPosts())
-        }
-    }
+    val communityViewModel: CommunityViewModel = viewModel()
+    val communityUiState by communityViewModel.uiState.collectAsStateWithLifecycle()
 
     val showDrawerScreens = setOf(
         Route.Home.route,
@@ -562,8 +558,18 @@ fun AppNavGraph(
                 composable(Route.Plaza.route) { PlazaScreen() }
 
                 composable(Route.Community.route) {
+                    LaunchedEffect(Unit) {
+                        communityViewModel.loadPosts()
+                    }
+
                     CommunityScreen(
-                        posts = communityPosts,
+                        posts = communityUiState.posts,
+                        isLoading = communityUiState.isLoading,
+                        errorMessage = communityUiState.errorMessage,
+                        onRetryClick = {
+                            communityViewModel.clearError()
+                            communityViewModel.loadPosts()
+                        },
                         onWriteClick = { navController.navigate(Route.CommunityWrite.route) },
                         onChatClick = { navController.navigate(Route.Chatbot.route) },
                         onPostClick = { post ->
@@ -582,55 +588,51 @@ fun AppNavGraph(
                     CommunityWriteScreen(
                         onBackClick = { navController.popBackStack() },
                         onSubmitClick = { category, title, content ->
-                            val nextId = (communityPosts.maxOfOrNull { it.id } ?: 0) + 1
-                            val newPost = CommunityPost(
-                                id = nextId,
-                                title = title,
-                                content = content.take(60),
-                                fullContent = content,
-                                author = "현재사용자",
-                                timeText = "방금 전",
-                                likeCount = 0,
-                                commentCount = 0,
-                                tagText = "새글",
+                            communityViewModel.createPost(
                                 category = category,
-                                comments = emptyList(),
-                                isLiked = false
+                                title = title,
+                                content = content,
+                                onSuccess = {
+                                    navController.popBackStack()
+                                }
                             )
-                            communityPosts.add(0, newPost)
-                            navController.popBackStack()
                         }
                     )
                 }
 
                 composable(
                     route = Route.CommunityDetail.route,
-                    arguments = listOf(navArgument("postId") { type = NavType.IntType })
+                    arguments = listOf(navArgument("postId") {})
                 ) { backStackEntry ->
-                    val postId = backStackEntry.arguments?.getInt("postId") ?: -1
-                    val selectedPost = communityPosts.find { it.id == postId }
+                    val postId = backStackEntry.arguments?.getString("postId").orEmpty()
+
+                    LaunchedEffect(postId) {
+                        communityViewModel.loadPostDetail(postId)
+                    }
 
                     CommunityDetailScreen(
-                        post = selectedPost,
+                        post = communityUiState.selectedPost?.takeIf { it.id == postId },
+                        currentUserId = prefs.getString("user_id", "") ?: "",
                         onBackClick = { navController.popBackStack() },
                         onUpdateClick = { updatedPost ->
-                            val index = communityPosts.indexOfFirst { it.id == updatedPost.id }
-                            if (index != -1) communityPosts[index] = updatedPost
+                            communityViewModel.updatePost(updatedPost)
                         },
                         onDeleteClick = { deletePostId ->
-                            val index = communityPosts.indexOfFirst { it.id == deletePostId }
-                            if (index != -1) communityPosts.removeAt(index)
-                            navController.popBackStack()
+                            communityViewModel.deletePost(deletePostId) {
+                                navController.popBackStack()
+                            }
                         },
                         onToggleLikeClick = { targetPostId ->
-                            val index = communityPosts.indexOfFirst { it.id == targetPostId }
-                            if (index != -1) {
-                                val oldPost = communityPosts[index]
-                                communityPosts[index] = oldPost.copy(
-                                    isLiked = !oldPost.isLiked,
-                                    likeCount = if (oldPost.isLiked) (oldPost.likeCount - 1).coerceAtLeast(0) else oldPost.likeCount + 1
-                                )
-                            }
+                            communityViewModel.toggleLike(targetPostId)
+                        },
+                        onAddCommentClick = { targetPostId, content ->
+                            communityViewModel.addComment(targetPostId, content)
+                        },
+                        onUpdateCommentClick = { targetPostId, commentId, content ->
+                            communityViewModel.updateComment(targetPostId, commentId, content)
+                        },
+                        onDeleteCommentClick = { targetPostId, commentId ->
+                            communityViewModel.deleteComment(targetPostId, commentId)
                         }
                     )
                 }

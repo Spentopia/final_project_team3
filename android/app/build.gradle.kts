@@ -31,6 +31,10 @@ val googleWebClientId = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID") ?: "
 // 값이 없으면 안드로이드 에뮬레이터에서 로컬 PC 백엔드에 접근하는 기본 주소를 사용합니다.
 val apiBaseUrl = localProperties.getProperty("API_BASE_URL") ?: "http://10.0.2.2:1113/"
 
+// Android에서 AI 분석 서버를 직접 호출할 때 사용할 주소입니다.
+// 웹 프론트의 http://localhost:8000/api/v1/analyze/report 와 같은 서버입니다.
+val aiAnalyzeBaseUrl = localProperties.getProperty("AI_ANALYZE_BASE_URL") ?: "http://10.0.2.2:8000/"
+
 // Android WebView에서 열 NFT 마켓 웹 URL입니다.
 // 로컬 에뮬레이터에서는 localhost 대신 10.0.2.2를 사용합니다.
 val nftMarketWebViewUrl =
@@ -71,6 +75,12 @@ android {
             "String",
             "API_BASE_URL",
             "\"$apiBaseUrl\""
+        )
+
+        buildConfigField(
+            "String",
+            "AI_ANALYZE_BASE_URL",
+            "\"$aiAnalyzeBaseUrl\""
         )
 
         // MarketScreen WebView에서 로드할 NFT 마켓 웹 페이지 주소입니다.

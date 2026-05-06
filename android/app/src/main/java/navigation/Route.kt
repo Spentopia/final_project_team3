@@ -63,7 +63,7 @@ sealed class Route(val route: String) {
     // 커뮤니티 상세 화면 route입니다.
     // ------------------------------------------------------------
     data object CommunityDetail : Route("community_detail/{postId}") {
-        fun createRoute(postId: Int): String {
+        fun createRoute(postId: String): String {
             return "community_detail/$postId"
         }
     }

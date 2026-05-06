@@ -153,9 +153,8 @@ fun AnalysisScreen(
 
         // AI 분석 리포트 영역
         AiAnalysisReportSection(
-            tipList = uiState.tipList,
             totalExpense = uiState.totalExpense,
-            aiAnalysisText = uiState.aiAnalysisText,
+            aiReport = uiState.aiConsumptionReport,
             isLoading = uiState.isAiAnalysisLoading,
             errorMessage = uiState.aiAnalysisError,
             onRequestAiAnalysis = {
@@ -164,11 +163,8 @@ fun AnalysisScreen(
         )
 
         ConsumptionPatternCard(
-            timePatternList = uiState.timePatternList,
-            weekdayAverageText = uiState.weekdayAverageText,
-            weekendAverageText = uiState.weekendAverageText,
-            weekendComment = uiState.weekendComment,
-            paymentPatternList = uiState.paymentPatternList
+            aiReport = uiState.aiConsumptionReport,
+            isLoading = uiState.isAiAnalysisLoading
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -876,9 +872,8 @@ fun CategoryDetailItem(
 // AI 리포트 섹션
 @Composable
 fun AiAnalysisReportSection(
-    tipList: List<AnalysisTipUiModel>,
     totalExpense: Int,
-    aiAnalysisText: String,
+    aiReport: AiConsumptionReportUiModel?,
     isLoading: Boolean,
     errorMessage: String,
     onRequestAiAnalysis: () -> Unit
@@ -900,7 +895,7 @@ fun AiAnalysisReportSection(
 
             Button(
                 onClick = onRequestAiAnalysis,
-                enabled = !isLoading && totalExpense > 0,
+                enabled = !isLoading && totalExpense > 0 && aiReport == null,
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -911,7 +906,11 @@ fun AiAnalysisReportSection(
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 Text(
-                    text = if (isLoading) "분석 중" else "AI 분석",
+                    text = when {
+                        isLoading -> "분석 중"
+                        aiReport != null -> "분석 완료"
+                        else -> "AI 분석"
+                    },
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -920,21 +919,18 @@ fun AiAnalysisReportSection(
 
         AiGeneratedReportCard(
             totalExpense = totalExpense,
-            aiAnalysisText = aiAnalysisText,
+            aiReport = aiReport,
             isLoading = isLoading,
             errorMessage = errorMessage
         )
 
-        tipList.forEach { tip ->
-            AnalysisTipCard(tip = tip)
-        }
     }
 }
 
 @Composable
 fun AiGeneratedReportCard(
     totalExpense: Int,
-    aiAnalysisText: String,
+    aiReport: AiConsumptionReportUiModel?,
     isLoading: Boolean,
     errorMessage: String
 ) {
@@ -954,30 +950,145 @@ fun AiGeneratedReportCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = "AI 소비 코멘트",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            when {
+                totalExpense <= 0 -> {
+                    AiReportStatusText(
+                        title = "AI 소비 코멘트",
+                        message = "아직 분석할 소비 데이터가 없습니다. Home 화면에서 소비 기록을 먼저 입력해주세요."
+                    )
+                }
+                isLoading -> {
+                    AiReportStatusText(
+                        title = "AI 소비 코멘트",
+                        message = "AI가 이번 기간의 소비 기록을 분석하고 있습니다."
+                    )
+                }
+                errorMessage.isNotBlank() -> {
+                    AiReportStatusText(
+                        title = "AI 소비 코멘트",
+                        message = errorMessage,
+                        isError = true
+                    )
+                }
+                aiReport != null -> {
+                    AiReportGrid(report = aiReport)
+                }
+                else -> {
+                    AiReportStatusText(
+                        title = "AI 소비 코멘트",
+                        message = "AI 분석 버튼을 누르면 이번 기간의 소비 데이터를 바탕으로 맞춤 리포트를 생성합니다."
+                    )
+                }
+            }
+        }
+    }
+}
 
-            val message = when {
-                totalExpense <= 0 -> "아직 분석할 소비 데이터가 없습니다. Home 화면에서 소비 기록을 먼저 입력해주세요."
-                isLoading -> "AI가 이번 기간의 소비 기록을 분석하고 있습니다."
-                errorMessage.isNotBlank() -> errorMessage
-                aiAnalysisText.isNotBlank() -> aiAnalysisText
-                else -> "AI 분석 버튼을 누르면 이번 기간의 소비 데이터를 바탕으로 맞춤 리포트를 생성합니다."
+@Composable
+fun AiReportStatusText(
+    title: String,
+    message: String,
+    isError: Boolean = false
+) {
+    Text(
+        text = title,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.ExtraBold,
+        color = MaterialTheme.colorScheme.onSurface
+    )
+
+    Text(
+        text = message,
+        fontSize = 14.sp,
+        lineHeight = 22.sp,
+        color = if (isError) {
+            Color(0xFFE53935)
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    )
+}
+
+@Composable
+fun AiReportGrid(
+    report: AiConsumptionReportUiModel
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        AiReportItemCard(
+            title = "좋은 점",
+            emoji = "👍",
+            message = report.good,
+            borderColor = Color(0xFFB7E4C7)
+        )
+        AiReportItemCard(
+            title = "주의",
+            emoji = "⚠️",
+            message = report.warning,
+            borderColor = Color(0xFFFFD166)
+        )
+        AiReportItemCard(
+            title = "조언",
+            emoji = "💡",
+            message = report.advice,
+            borderColor = Color(0xFFD6C8FF)
+        )
+        AiReportItemCard(
+            title = "예측",
+            emoji = "📈",
+            message = report.prediction,
+            borderColor = Color(0xFFA7C7FF)
+        )
+    }
+}
+
+@Composable
+fun AiReportItemCard(
+    title: String,
+    emoji: String,
+    message: String,
+    borderColor: Color
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = borderColor,
+                    shape = RoundedCornerShape(14.dp)
+                )
+                .padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = emoji,
+                    fontSize = 17.sp
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
             }
 
             Text(
-                text = message,
+                text = message.ifBlank { "분석 결과가 비어 있습니다." },
                 fontSize = 14.sp,
-                lineHeight = 22.sp,
-                color = if (errorMessage.isNotBlank()) {
-                    Color(0xFFE53935)
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
+                lineHeight = 21.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -1035,11 +1146,8 @@ fun AnalysisTipCard(
 // 소비 패턴 분석 카드
 @Composable
 fun ConsumptionPatternCard(
-    timePatternList: List<PatternProgressUiModel>,
-    weekdayAverageText: String,
-    weekendAverageText: String,
-    weekendComment: String,
-    paymentPatternList: List<PatternProgressUiModel>
+    aiReport: AiConsumptionReportUiModel?,
+    isLoading: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1057,59 +1165,85 @@ fun ConsumptionPatternCard(
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "시간대별 소비",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            when {
+                isLoading -> {
+                    Text(
+                        text = "AI가 소비 패턴을 분석하고 있습니다.",
+                        fontSize = 14.sp,
+                        lineHeight = 22.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                aiReport != null -> {
+                    ConsumptionTextReportCard(
+                        title = "분석",
+                        emoji = "📊",
+                        message = aiReport.pattern
+                            .replace("소비 패턴 분석:", "")
+                            .trim()
+                            .ifBlank { "분석 결과가 비어 있습니다." }
+                    )
 
-                timePatternList.forEach { item ->
-                    PatternProgressRow(item = item)
+                    ConsumptionTextReportCard(
+                        title = "개선 방안",
+                        emoji = "💡",
+                        message = aiReport.improvement.ifBlank { "개선 방안이 비어 있습니다." }
+                    )
+                }
+                else -> {
+                    Text(
+                        text = "AI 분석 버튼을 누르면 소비 패턴 분석과 개선 방안을 확인할 수 있습니다.",
+                        fontSize = 14.sp,
+                        lineHeight = 22.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
+        }
+    }
+}
 
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+@Composable
+fun ConsumptionTextReportCard(
+    title: String,
+    emoji: String,
+    message: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "요일별 소비",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = emoji,
+                    fontSize = 17.sp
                 )
 
-                PatternCompareRow(
-                    leftLabel = "평일",
-                    leftValue = weekdayAverageText,
-                    rightLabel = "주말",
-                    rightValue = weekendAverageText
-                )
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = weekendComment,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "결제 방법",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                paymentPatternList.forEach { item ->
-                    PatternProgressRow(item = item)
-                }
-            }
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                lineHeight = 22.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

@@ -4,8 +4,13 @@ import android.app.Application
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ict.spentopia.data.local.ExpenseEntity
 import com.ict.spentopia.data.local.ExpenseDatabase
-import com.ict.spentopia.data.remote.GenerateReportRequest
+import com.ict.spentopia.data.remote.AnalyzeCategoryDataRequest
+import com.ict.spentopia.data.remote.AnalyzeMonthlyDataRequest
+import com.ict.spentopia.data.remote.AnalyzeReportRequest
+import com.ict.spentopia.data.remote.AnalyzeTransactionRequest
+import com.ict.spentopia.data.remote.AnalyzeWeeklyDataRequest
 import com.ict.spentopia.data.remote.RetrofitClient
 import com.ict.spentopia.data.repository.ExpenseRepository
 import com.ict.spentopia.feature.budget.BudgetDataStore
@@ -66,6 +71,15 @@ data class PatternProgressUiModel(
     val ratio: Float
 )
 
+data class AiConsumptionReportUiModel(
+    val good: String = "",
+    val warning: String = "",
+    val advice: String = "",
+    val prediction: String = "",
+    val pattern: String = "",
+    val improvement: String = ""
+)
+
 // 분석 화면 전체 상태임
 // 화면 값 한 번에 묶음
 data class AnalysisUiState(
@@ -104,6 +118,8 @@ data class AnalysisUiState(
 
     // 백엔드 AI 리포트 문장입니다.
     val aiAnalysisText: String = "",
+
+    val aiConsumptionReport: AiConsumptionReportUiModel? = null,
 
     // AI 리포트 요청 중인지 표시합니다.
     val isAiAnalysisLoading: Boolean = false,
@@ -150,6 +166,9 @@ class AnalysisViewModel(
     // 외부 읽기 전용
     val uiState: StateFlow<AnalysisUiState> = _uiState.asStateFlow()
 
+    private var latestExpenseOnlyList: List<ExpenseEntity> = emptyList()
+    private var latestMonthlyBudget: Int = 0
+
     init {
         observeAnalysisData()
     }
@@ -170,14 +189,17 @@ class AnalysisViewModel(
         }
     }
 
-    // 백엔드 /api/reports 호출함
-    // AI 로직은 서버쪽임
     fun requestAiAnalysisReport() {
         val currentState = _uiState.value
+
+        if (currentState.isAiAnalysisLoading || currentState.aiConsumptionReport != null) {
+            return
+        }
 
         if (currentState.totalExpense <= 0) {
             _uiState.value = currentState.copy(
                 aiAnalysisText = "",
+                aiConsumptionReport = null,
                 aiAnalysisError = "분석할 소비 데이터가 없습니다."
             )
             return
@@ -190,23 +212,24 @@ class AnalysisViewModel(
             )
 
             try {
-                val periodRange = createReportPeriodRange(_uiState.value.selectedPeriod)
-                val report = RetrofitClient.reportApi.generateReport(
-                    GenerateReportRequest(
-                        report_type = if (_uiState.value.selectedPeriod == "주간") "weekly" else "monthly",
-                        start_date = periodRange.first,
-                        end_date = periodRange.second
-                    )
+                val report = RetrofitClient.aiAnalyzeApi.analyzeReport(
+                    buildAnalyzeReportRequest(_uiState.value)
+                )
+
+                val uiReport = AiConsumptionReportUiModel(
+                    good = report.good,
+                    warning = report.warning,
+                    advice = report.advice,
+                    prediction = report.prediction,
+                    pattern = report.pattern.orEmpty(),
+                    improvement = report.improvement.orEmpty()
                 )
 
                 _uiState.value = _uiState.value.copy(
-                    aiAnalysisText = report.ai_analysis.orEmpty(),
+                    aiAnalysisText = uiReport.toReportText(),
+                    aiConsumptionReport = uiReport,
                     isAiAnalysisLoading = false,
-                    aiAnalysisError = if (report.ai_analysis.isNullOrBlank()) {
-                        "AI 분석 결과가 비어 있습니다."
-                    } else {
-                        ""
-                    }
+                    aiAnalysisError = ""
                 )
             } catch (e: HttpException) {
                 _uiState.value = _uiState.value.copy(
@@ -220,7 +243,7 @@ class AnalysisViewModel(
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isAiAnalysisLoading = false,
-                    aiAnalysisError = e.message ?: "AI 분석 요청에 실패했습니다."
+                    aiAnalysisError = "AI 분석 요청에 실패했습니다. 잠시 후 다시 시도해주세요."
                 )
             }
         }
@@ -256,6 +279,8 @@ class AnalysisViewModel(
                 // 현재 프로젝트 기준 월 예산입니다.
                 // Home과 동일하게 "월 수입 - 저축 목표"를 사용합니다.
                 val monthlyBudget = budgetSettings.monthlyIncome - budgetSettings.savingGoal
+                latestExpenseOnlyList = expenseOnlyList
+                latestMonthlyBudget = monthlyBudget
 
                 // 예산 사용률입니다.
                 // AnalysisScreen에서는 0.60f = 60% 구조를 기대하고 있으므로
@@ -341,6 +366,7 @@ class AnalysisViewModel(
                     categoryList = categoryList,
                     tipList = tipList,
                     aiAnalysisText = _uiState.value.aiAnalysisText,
+                    aiConsumptionReport = _uiState.value.aiConsumptionReport,
                     isAiAnalysisLoading = _uiState.value.isAiAnalysisLoading,
                     aiAnalysisError = _uiState.value.aiAnalysisError,
                     timePatternList = timePatternList,
@@ -405,6 +431,57 @@ class AnalysisViewModel(
         }
 
         return formatter.format(start.time) to formatter.format(end.time)
+    }
+
+    private fun buildAnalyzeReportRequest(state: AnalysisUiState): AnalyzeReportRequest {
+        val categoryData = state.categoryList.map { category ->
+            AnalyzeCategoryDataRequest(
+                name = category.name,
+                amount = category.amount.toFloat(),
+                value = (category.ratio * 100f),
+                key = category.name
+            )
+        }
+
+        return AnalyzeReportRequest(
+            transactions = latestExpenseOnlyList.map { expense ->
+                AnalyzeTransactionRequest(
+                    date = expense.date,
+                    amount = expense.amount,
+                    category = expense.category,
+                    type = "expense"
+                )
+            },
+            totalExpense = state.totalExpense.toFloat(),
+            budget = latestMonthlyBudget.toFloat(),
+            topCategory = state.topCategoryName,
+            topCategoryPercent = state.topCategoryRatio * 100f,
+            dailyAverage = state.averageDailyExpense.toFloat(),
+            expenseChangeRate = 0f,
+            budgetUsage = state.budgetUsageRate * 100f,
+            weeklyData = state.weeklyExpenseList.map { (day, amount) ->
+                AnalyzeWeeklyDataRequest(
+                    day = day,
+                    amount = amount.toFloat()
+                )
+            },
+            monthlyData = state.monthlyExpenseList.map { (month, amount) ->
+                AnalyzeMonthlyDataRequest(
+                    month = month,
+                    amount = amount.toFloat()
+                )
+            },
+            categoryData = categoryData
+        )
+    }
+
+    private fun AiConsumptionReportUiModel.toReportText(): String {
+        return listOf(
+            "좋은 점: $good",
+            "주의: $warning",
+            "조언: $advice",
+            "예측: $prediction"
+        ).joinToString("\n\n")
     }
 
     // 카테고리별 색상 반환 함수입니다.

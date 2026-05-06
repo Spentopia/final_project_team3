@@ -9,6 +9,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import android.view.ViewGroup
+import android.webkit.CookieManager
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -46,8 +47,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ict.spentopia.BuildConfig
+import com.ict.spentopia.data.remote.RetrofitClient
+import com.ict.spentopia.data.remote.WebviewIssueRequest
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
 import kotlinx.coroutines.delay
+import retrofit2.HttpException
 import org.json.JSONObject
 
 private const val MARKET_WEBVIEW_TAG = "MarketWebView"
@@ -68,27 +72,12 @@ fun MarketScreen(
         prefs.getString("access_token", "") ?: ""
     }
     val baseUrl = BuildConfig.NFT_MARKET_WEBVIEW_URL
-    val marketUrl = remember(baseUrl, accessToken, walletAddress, walletProvider, isWalletConnected) {
-        buildMarketWebViewUrl(
-            baseUrl = baseUrl,
-            accessToken = accessToken,
-            walletAddress = walletAddress,
-            walletProvider = walletProvider,
-            isWalletConnected = isWalletConnected
-        )
-    }
-    val requestHeaders = remember(accessToken, walletAddress, walletProvider, isWalletConnected) {
-        buildMarketHeaders(
-            accessToken = accessToken,
-            walletAddress = walletAddress,
-            walletProvider = walletProvider,
-            isWalletConnected = isWalletConnected
-        )
-    }
+    var marketUrl by remember { mutableStateOf("") }
+    val requestHeaders = remember { emptyMap<String, String>() }
 
-    LaunchedEffect(baseUrl, marketUrl, accessToken, walletAddress, walletProvider, isWalletConnected) {
+    LaunchedEffect(baseUrl, accessToken, walletAddress, walletProvider, isWalletConnected) {
         Log.d(MARKET_WEBVIEW_TAG, "BuildConfig.NFT_MARKET_WEBVIEW_URL=$baseUrl")
-        Log.d(MARKET_WEBVIEW_TAG, "Resolved marketUrl=$marketUrl")
+        Log.d(MARKET_WEBVIEW_TAG, "BuildConfig.API_BASE_URL=${BuildConfig.API_BASE_URL}")
         Log.d(MARKET_WEBVIEW_TAG, "accessTokenPresent=${accessToken.isNotBlank()}")
         Log.d(
             MARKET_WEBVIEW_TAG,
@@ -102,6 +91,49 @@ fun MarketScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var pageReady by remember { mutableStateOf(false) }
     var loadedMarketUrl by remember { mutableStateOf("") }
+
+    LaunchedEffect(accessToken, webViewKey) {
+        marketUrl = ""
+        pageReady = false
+        loadedMarketUrl = ""
+        errorMessage = null
+
+        if (accessToken.isBlank()) {
+            isLoading = false
+            errorMessage = "로그인 정보가 없습니다. 다시 로그인해주세요."
+            return@LaunchedEffect
+        }
+
+        isLoading = true
+
+        try {
+            Log.d(
+                MARKET_WEBVIEW_TAG,
+                "request webview token url=${buildWebviewIssueUrl()} authorizationPresent=${accessToken.isNotBlank()} xClientType=app contentType=application/json body={\"redirect_path\":\"/marketplace\"}"
+            )
+            val issueResponse = RetrofitClient.authApi.issueWebviewToken(
+                request = WebviewIssueRequest(redirect_path = "/marketplace")
+            )
+            marketUrl = buildWebviewCallbackUrl(issueResponse.webview_token)
+            Log.d(MARKET_WEBVIEW_TAG, "issued webview token expiresIn=${issueResponse.expires_in} callbackUrl=$marketUrl")
+        } catch (e: HttpException) {
+            isLoading = false
+            val errorBody = e.response()?.errorBody()?.string().orEmpty()
+            Log.e(
+                MARKET_WEBVIEW_TAG,
+                "issue webview token http error url=${buildWebviewIssueUrl()} code=${e.code()} message=${e.message()} errorBody=$errorBody",
+                e
+            )
+            errorMessage = when (e.code()) {
+                401 -> "로그인이 만료되었습니다. 다시 로그인해주세요."
+                else -> "NFT 마켓 로그인 연결에 실패했습니다. (${e.code()})"
+            }
+        } catch (e: Exception) {
+            isLoading = false
+            errorMessage = "NFT 마켓 로그인 연결에 실패했습니다."
+            Log.e(MARKET_WEBVIEW_TAG, "issue webview token failed", e)
+        }
+    }
 
     LaunchedEffect(webViewKey, marketUrl) {
         pageReady = false
@@ -140,6 +172,8 @@ fun MarketScreen(
                 message = "NFT 마켓 주소가 설정되지 않았습니다.",
                 onRetry = {}
             )
+        } else if (marketUrl.isBlank()) {
+            // webview token 발급을 기다리는 동안 네이티브 로더만 보여줍니다.
         } else {
             key(webViewKey) {
                 AndroidView(
@@ -179,8 +213,32 @@ fun MarketScreen(
                                 }
                             }
                             webViewClient = object : WebViewClient() {
+                                override fun shouldOverrideUrlLoading(
+                                    view: WebView?,
+                                    request: WebResourceRequest?
+                                ): Boolean {
+                                    val requestedUrl = request?.url ?: return false
+                                    val rewrittenUrl = rewriteLocalhostFrontendUrlIfNeeded(requestedUrl)
+                                    if (rewrittenUrl != requestedUrl.toString()) {
+                                        Log.d(MARKET_WEBVIEW_TAG, "rewrite redirect url $requestedUrl -> $rewrittenUrl")
+                                        view?.loadUrl(rewrittenUrl)
+                                        return true
+                                    }
+                                    return false
+                                }
+
                                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                                     Log.d(MARKET_WEBVIEW_TAG, "onPageStarted url=$url")
+                                    val currentUri = url?.let { Uri.parse(it) }
+                                    if (currentUri != null) {
+                                        val rewrittenUrl = rewriteLocalhostFrontendUrlIfNeeded(currentUri)
+                                        if (rewrittenUrl != url) {
+                                            Log.d(MARKET_WEBVIEW_TAG, "rewrite started url $url -> $rewrittenUrl")
+                                            view?.stopLoading()
+                                            view?.loadUrl(rewrittenUrl)
+                                            return
+                                        }
+                                    }
                                     isLoading = true
                                     pageReady = false
                                     errorMessage = null
@@ -289,13 +347,9 @@ fun MarketScreen(
                     errorMessage = null
                     isLoading = true
                     pageReady = false
-                    val currentWebView = webView
-                    if (currentWebView == null) {
-                        webViewKey += 1
-                    } else {
-                        loadedMarketUrl = marketUrl
-                        currentWebView.loadUrl(marketUrl, requestHeaders)
-                    }
+                    marketUrl = ""
+                    loadedMarketUrl = ""
+                    webViewKey += 1
                 }
             )
         }
@@ -348,47 +402,56 @@ private fun WebView.configureMarketWebView() {
     settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
     settings.allowFileAccess = true
     settings.allowContentAccess = true
+    CookieManager.getInstance().setAcceptCookie(true)
+    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
     setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
 }
 
-private fun buildMarketWebViewUrl(
-    baseUrl: String,
-    accessToken: String,
-    walletAddress: String,
-    walletProvider: String,
-    isWalletConnected: Boolean
-): String {
-    if (baseUrl.isBlank()) return ""
-
-    val builder = Uri.parse(baseUrl).buildUpon()
-        .appendQueryParameter("webview", "android")
-
-    if (accessToken.isNotBlank()) {
-        builder.appendQueryParameter("app_access_token", accessToken)
-    }
-    if (isWalletConnected && walletAddress.isNotBlank()) {
-        builder.appendQueryParameter("wallet_address", walletAddress)
-        builder.appendQueryParameter("wallet_provider", walletProvider)
+private fun buildWebviewIssueUrl(): String {
+    val backendBaseUrl = BuildConfig.API_BASE_URL.let { url ->
+        if (url.endsWith("/")) url else "$url/"
     }
 
-    return builder.build().toString()
+    return Uri.parse(backendBaseUrl)
+        .buildUpon()
+        .appendPath("auth")
+        .appendPath("webview")
+        .appendPath("issue")
+        .build()
+        .toString()
 }
 
-private fun buildMarketHeaders(
-    accessToken: String,
-    walletAddress: String,
-    walletProvider: String,
-    isWalletConnected: Boolean
-): Map<String, String> {
-    val headers = mutableMapOf<String, String>()
-    if (accessToken.isNotBlank()) {
-        headers["Authorization"] = "Bearer $accessToken"
+private fun buildWebviewCallbackUrl(webviewToken: String): String {
+    val backendBaseUrl = BuildConfig.API_BASE_URL.let { url ->
+        if (url.endsWith("/")) url else "$url/"
     }
-    if (isWalletConnected && walletAddress.isNotBlank()) {
-        headers["X-Wallet-Address"] = walletAddress
-        headers["X-Wallet-Provider"] = walletProvider
+
+    return Uri.parse(backendBaseUrl)
+        .buildUpon()
+        .appendPath("auth")
+        .appendPath("webview")
+        .appendPath("callback")
+        .appendQueryParameter("token", webviewToken)
+        .build()
+        .toString()
+}
+
+private fun rewriteLocalhostFrontendUrlIfNeeded(uri: Uri): String {
+    val frontendUri = Uri.parse(BuildConfig.NFT_MARKET_WEBVIEW_URL)
+    val shouldRewrite =
+        uri.scheme == "http" &&
+            uri.host == "localhost" &&
+            uri.port == 5173 &&
+            frontendUri.host == "10.0.2.2"
+
+    if (!shouldRewrite) {
+        return uri.toString()
     }
-    return headers
+
+    return uri.buildUpon()
+        .encodedAuthority("10.0.2.2:${uri.port}")
+        .build()
+        .toString()
 }
 
 private fun WebView.injectMarketSessionIfReady(

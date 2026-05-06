@@ -43,6 +43,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -50,6 +51,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 
 // Compose 상태 관련 import입니다.
 import androidx.compose.runtime.Composable
@@ -112,7 +114,7 @@ private enum class CommunitySortOption(
 // - "방금 전", "1시간 전" 같은 표시용 문자열입니다.
 // ------------------------------------------------------------
 data class CommunityComment(
-    val id: Int,            // 댓글 고유 ID입니다.
+    val id: String,         // 댓글 고유 ID입니다.
     val authorId: String,   // 댓글 작성자 고유 식별값입니다.
     val author: String,     // 댓글 작성자 이름입니다.
     val content: String,    // 댓글 내용입니다.
@@ -129,10 +131,11 @@ data class CommunityComment(
 // - 현재 사용자가 이 게시글에 좋아요를 눌렀는지 여부입니다.
 // ------------------------------------------------------------
 data class CommunityPost(
-    val id: Int,                        // 게시글 ID입니다.
+    val id: String,                     // 게시글 ID입니다.
     val title: String,                  // 게시글 제목입니다.
     val content: String,                // 목록에서 보여줄 짧은 미리보기 내용입니다.
     val fullContent: String,            // 상세 화면에서 보여줄 전체 내용입니다.
+    val authorId: String = "",          // 작성자 고유 ID입니다.
     val author: String,                 // 작성자 이름입니다.
     val timeText: String,               // 시간 표시 문자열입니다.
     val likeCount: Int,                 // 좋아요 개수입니다.
@@ -162,6 +165,9 @@ data class CommunityPost(
 @Composable
 fun CommunityScreen(
     posts: List<CommunityPost>,
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
+    onRetryClick: () -> Unit = {},
     onWriteClick: () -> Unit = {},
     onChatClick: () -> Unit = {},
     onPostClick: (CommunityPost) -> Unit = {}
@@ -196,15 +202,15 @@ fun CommunityScreen(
                 when (selectedSortOption) {
                     CommunitySortOption.LATEST -> sequence.sortedWith(
                         compareBy<CommunityPost> { communityRecencyRank(it.timeText) }
-                            .thenByDescending { it.id }
+                            .thenByDescending { it.timeText }
                     )
                     CommunitySortOption.RECOMMENDED -> sequence.sortedWith(
                         compareByDescending<CommunityPost> { it.likeCount }
-                            .thenByDescending { it.id }
+                            .thenByDescending { it.timeText }
                     )
                     CommunitySortOption.VIEW -> sequence.sortedWith(
                         compareByDescending<CommunityPost> { it.viewCount }
-                            .thenByDescending { it.id }
+                            .thenByDescending { it.timeText }
                     )
                 }
             }
@@ -262,8 +268,23 @@ fun CommunityScreen(
             )
         }
 
+        if (isLoading) {
+            item {
+                CommunityLoadingCard()
+            }
+        }
+
+        if (errorMessage != null) {
+            item {
+                CommunityErrorCard(
+                    message = errorMessage,
+                    onRetryClick = onRetryClick
+                )
+            }
+        }
+
         // 현재 카테고리에 게시글이 하나도 없으면 안내 카드를 보여줍니다.
-        if (filteredPosts.isEmpty()) {
+        if (!isLoading && filteredPosts.isEmpty()) {
             item {
                 EmptyPostCard()
             }
@@ -280,6 +301,66 @@ fun CommunityScreen(
                     onPostClick(post)
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun CommunityLoadingCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(22.dp))
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "게시글을 불러오는 중입니다.",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun CommunityErrorCard(
+    message: String,
+    onRetryClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = message,
+                modifier = Modifier.weight(1f),
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            TextButton(onClick = onRetryClick) {
+                Text(text = "다시 시도")
+            }
         }
     }
 }
@@ -720,7 +801,7 @@ private fun SmallCountChip(
 fun getInitialCommunityPosts(): List<CommunityPost> {
     return listOf(
         CommunityPost(
-            id = 7,
+            id = "7",
             title = "커뮤니티 이용 안내",
             content = "서로에게 도움이 되는 소비 기록, 아바타, 아이디어 이야기를 편하게 나눠주세요.",
             fullContent = "서로에게 도움이 되는 소비 기록, 아바타, 아이디어 이야기를 편하게 나눠주세요. 비방이나 개인정보가 포함된 글은 예고 없이 삭제될 수 있습니다.",
@@ -735,7 +816,7 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             isLiked = false
         ),
         CommunityPost(
-            id = 1,
+            id = "1",
             title = "이번 달 아바타 7일 연속 기록 성공했어요!",
             content = "작은 금액은 놓칠 때도 있었지만, 그래도 소비 패턴이 조금씩 보이기 시작해서 뿌듯해요.",
             fullContent = "작은 금액은 놓칠 때도 있었지만, 그래도 소비 패턴이 조금씩 보이기 시작해서 뿌듯해요. 처음에는 귀찮았는데 습관이 생기니까 훨씬 편해졌어요.",
@@ -748,14 +829,14 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             viewCount = 128,
             comments = listOf(
                 CommunityComment(
-                    id = 1,
+                    id = "1",
                     authorId = "user_a",
                     author = "절약메이트",
                     content = "와 7일 연속이면 진짜 대단해요!",
                     timeText = "50분 전"
                 ),
                 CommunityComment(
-                    id = 2,
+                    id = "2",
                     authorId = "current_user",
                     author = "현재사용자",
                     content = "저도 이번 달에는 꾸준히 기록해보려고요.",
@@ -765,7 +846,7 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             isLiked = false
         ),
         CommunityPost(
-            id = 2,
+            id = "2",
             title = "아바타 꾸미기 보상 받으려면 어떤 미션부터 하는 게 좋을까요?",
             content = "출석이랑 소비기록 중에서 어떤 걸 먼저 챙기는 게 효율적인지 궁금해요.",
             fullContent = "출석이랑 소비기록 중에서 어떤 걸 먼저 챙기는 게 효율적인지 궁금해요. 시작 단계라 어떤 순서가 좋은지 잘 모르겠어요.",
@@ -778,7 +859,7 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             viewCount = 94,
             comments = listOf(
                 CommunityComment(
-                    id = 1,
+                    id = "1",
                     authorId = "user_b",
                     author = "보상수집가",
                     content = "저는 출석부터 챙기고 기록 습관을 붙였어요.",
@@ -788,7 +869,7 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             isLiked = false
         ),
         CommunityPost(
-            id = 3,
+            id = "3",
             title = "주말 지출이 평일보다 두 배인 이유를 찾았어요",
             content = "모임, 카페, 충동구매가 한 번에 몰려 있더라고요. 이번 주부터는 주말 예산을 따로 잡아보려 합니다.",
             fullContent = "모임, 카페, 충동구매가 한 번에 몰려 있더라고요. 그래서 이번 주부터는 주말 예산을 따로 잡아보려고 합니다. 평일보다 지출이 커지는 이유가 확실히 보였어요.",
@@ -801,14 +882,14 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             viewCount = 216,
             comments = listOf(
                 CommunityComment(
-                    id = 1,
+                    id = "1",
                     authorId = "current_user",
                     author = "현재사용자",
                     content = "주말 예산 따로 잡는 방법 괜찮네요.",
                     timeText = "4시간 전"
                 ),
                 CommunityComment(
-                    id = 2,
+                    id = "2",
                     authorId = "user_c",
                     author = "카페중독탈출",
                     content = "저도 모임비 때문에 주말이 항상 문제였어요.",
@@ -818,7 +899,7 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             isLiked = true
         ),
         CommunityPost(
-            id = 4,
+            id = "4",
             title = "가계부 쓰다 보니 생각보다 배달비가 너무 크네요",
             content = "한 번 주문할 때는 얼마 안 되는 것 같았는데, 한 달 합계를 보니까 꽤 부담이 되더라고요.",
             fullContent = "한 번 주문할 때는 얼마 안 되는 것 같았는데, 한 달 합계를 보니까 꽤 부담이 되더라고요. 이번 달부터는 주 1회만 배달을 허용해보려 합니다.",
@@ -831,7 +912,7 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             viewCount = 173,
             comments = listOf(
                 CommunityComment(
-                    id = 1,
+                    id = "1",
                     authorId = "user_d",
                     author = "식비절약러",
                     content = "배달앱 삭제하고 확실히 줄었어요.",
@@ -841,7 +922,7 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             isLiked = false
         ),
         CommunityPost(
-            id = 5,
+            id = "5",
             title = "카페 지출 줄이려면 예산을 먼저 따로 빼두는 게 좋더라고요",
             content = "저는 아예 주간 간식비를 따로 정해두니까 훨씬 덜 흔들렸어요. 생각보다 효과가 꽤 컸습니다.",
             fullContent = "저는 아예 주간 간식비를 따로 정해두니까 훨씬 덜 흔들렸어요. 그냥 아껴야지 하는 것보다 실제 숫자를 정하는 게 더 효과적이었어요.",
@@ -854,14 +935,14 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             viewCount = 241,
             comments = listOf(
                 CommunityComment(
-                    id = 1,
+                    id = "1",
                     authorId = "user_e",
                     author = "예산지킴이",
                     content = "숫자로 정하는 게 진짜 중요한 것 같아요.",
                     timeText = "1시간 전"
                 ),
                 CommunityComment(
-                    id = 2,
+                    id = "2",
                     authorId = "current_user",
                     author = "현재사용자",
                     content = "저도 이번 주부터 따라해보겠습니다.",
@@ -871,7 +952,7 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             isLiked = true
         ),
         CommunityPost(
-            id = 6,
+            id = "6",
             title = "장보기 전에 냉장고 사진 찍는 습관이 은근 도움 됩니다",
             content = "이미 있는 재료를 또 사는 일이 줄어들어서 식비를 아끼는 데 꽤 효과가 있었어요.",
             fullContent = "이미 있는 재료를 또 사는 일이 줄어들어서 식비를 아끼는 데 꽤 효과가 있었어요. 특히 퇴근 후 급하게 장볼 때 중복 구매가 줄더라고요.",
@@ -884,7 +965,7 @@ fun getInitialCommunityPosts(): List<CommunityPost> {
             viewCount = 187,
             comments = listOf(
                 CommunityComment(
-                    id = 1,
+                    id = "1",
                     authorId = "user_f",
                     author = "냉장고정리왕",
                     content = "이 팁 좋네요. 저도 바로 써먹어볼게요.",

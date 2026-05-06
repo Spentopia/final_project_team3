@@ -54,6 +54,10 @@ object RetrofitClient {
         if (url.endsWith("/")) url else "$url/"
     }
 
+    private val AI_ANALYZE_BASE_URL = BuildConfig.AI_ANALYZE_BASE_URL.let { url ->
+        if (url.endsWith("/")) url else "$url/"
+    }
+
     // appContext 변수 만듦
     // -> AuthInterceptor에서 SharedPreferences를 읽기 위해 사용함
     // -> Activity Context를 오래 들고 있으면 위험하므로 applicationContext만 저장함
@@ -289,6 +293,15 @@ object RetrofitClient {
             .create(ChatApi::class.java)
     }
 
+    val communityApi: CommunityApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(CommunityApi::class.java)
+    }
+
     val reportApi: ReportApi by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
@@ -296,5 +309,23 @@ object RetrofitClient {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(ReportApi::class.java)
+    }
+
+    val budgetApi: BudgetApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(BudgetApi::class.java)
+    }
+
+    val aiAnalyzeApi: AiAnalyzeApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(AI_ANALYZE_BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(AiAnalyzeApi::class.java)
     }
 }

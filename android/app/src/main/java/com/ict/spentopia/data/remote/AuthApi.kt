@@ -33,6 +33,15 @@ data class KakaoLoginResponse(
     val is_new_user: Boolean
 )
 
+data class WebviewIssueRequest(
+    val redirect_path: String
+)
+
+data class WebviewIssueResponse(
+    val webview_token: String,
+    val expires_in: Int
+)
+
 interface AuthApi {
 
     @POST("/auth/app/exchange")   // 앱 전용 로그인 토큰
@@ -51,4 +60,10 @@ interface AuthApi {
         @Header("X-Client-Type") clientType: String = "app",
         @Body request: KakaoLoginRequest
     ): KakaoLoginResponse
+
+    @POST("/auth/webview/issue")
+    suspend fun issueWebviewToken(
+        @Header("X-Client-Type") clientType: String = "app",
+        @Body request: WebviewIssueRequest
+    ): WebviewIssueResponse
 }

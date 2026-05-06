@@ -49,7 +49,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -65,13 +64,14 @@ import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 @Composable
 fun CommunityDetailScreen(
     post: CommunityPost?,
+    currentUserId: String = "current_user",
     onBackClick: () -> Unit = {},
     onUpdateClick: (CommunityPost) -> Unit = {},
-    onDeleteClick: (Int) -> Unit = {},
-    onToggleLikeClick: (Int) -> Unit = {},
-    onAddCommentClick: (Int, String) -> Unit = { _, _ -> },
-    onUpdateCommentClick: (Int, Int, String) -> Unit = { _, _, _ -> },
-    onDeleteCommentClick: (Int, Int) -> Unit = { _, _ -> }
+    onDeleteClick: (String) -> Unit = {},
+    onToggleLikeClick: (String) -> Unit = {},
+    onAddCommentClick: (String, String) -> Unit = { _, _ -> },
+    onUpdateCommentClick: (String, String, String) -> Unit = { _, _, _ -> },
+    onDeleteCommentClick: (String, String) -> Unit = { _, _ -> }
 ) {
     // post가 null이면 안전하게 안내 화면으로 보냅니다.
     if (post == null) {
@@ -80,14 +80,6 @@ fun CommunityDetailScreen(
         )
         return
     }
-
-    // --------------------------------------------------------
-    // currentUserId:
-    // - 현재 로그인한 사용자라고 가정하는 임시 id입니다.
-    // - 아직 로그인 연동 전이라 문자열로만 고정합니다.
-    // - 나중에 실제 로그인 사용자 id로 교체하면 됩니다.
-    // --------------------------------------------------------
-    val currentUserId = "current_user"
 
     // 게시글 수정 모드 여부입니다.
     var isEditMode by remember(post.id) { mutableStateOf(false) }
@@ -108,8 +100,7 @@ fun CommunityDetailScreen(
     var commentInput by remember(post.id) { mutableStateOf("") }
 
     // 현재 수정 중인 댓글 id입니다.
-    // -1이면 수정 중인 댓글이 없다는 뜻입니다.
-    var editingCommentId by remember(post.id) { mutableIntStateOf(-1) }
+    var editingCommentId by remember(post.id) { mutableStateOf<String?>(null) }
 
     // 현재 수정 중인 댓글 내용입니다.
     var editingCommentText by remember(post.id) { mutableStateOf("") }
@@ -256,7 +247,7 @@ fun CommunityDetailScreen(
                 editingCommentText = comment.content
             },
             onCancelEditComment = {
-                editingCommentId = -1
+                editingCommentId = null
                 editingCommentText = ""
             },
             onSaveEditComment = { commentId ->
@@ -264,7 +255,7 @@ fun CommunityDetailScreen(
 
                 if (trimmedText.isNotEmpty()) {
                     onUpdateCommentClick(post.id, commentId, trimmedText)
-                    editingCommentId = -1
+                    editingCommentId = null
                     editingCommentText = ""
                 }
             },
@@ -272,7 +263,7 @@ fun CommunityDetailScreen(
                 onDeleteCommentClick(post.id, commentId)
 
                 if (editingCommentId == commentId) {
-                    editingCommentId = -1
+                    editingCommentId = null
                     editingCommentText = ""
                 }
             }
@@ -775,13 +766,13 @@ private fun CommunityCommentSection(
     commentInput: String,
     onCommentInputChange: (String) -> Unit,
     onAddCommentClick: () -> Unit,
-    editingCommentId: Int,
+    editingCommentId: String?,
     editingCommentText: String,
     onEditingCommentTextChange: (String) -> Unit,
     onStartEditComment: (CommunityComment) -> Unit,
     onCancelEditComment: () -> Unit,
-    onSaveEditComment: (Int) -> Unit,
-    onDeleteComment: (Int) -> Unit
+    onSaveEditComment: (String) -> Unit,
+    onDeleteComment: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1031,7 +1022,7 @@ private fun CommunityDetailInfoChip(
 private fun CommunityDetailScreenPreview() {
     CommunityDetailScreen(
         post = CommunityPost(
-            id = 1,
+            id = "1",
             title = "미리보기용 제목입니다",
             content = "미리보기용 짧은 내용입니다.",
             fullContent = "미리보기용 전체 내용입니다. 상세 화면에서는 전체 내용이 보이도록 구성했습니다.",
@@ -1043,14 +1034,14 @@ private fun CommunityDetailScreenPreview() {
             category = CommunityCategory.FREE_BOARD,
             comments = listOf(
                 CommunityComment(
-                    id = 1,
+                    id = "1",
                     authorId = "current_user",
                     author = "현재사용자",
                     content = "첫 번째 댓글입니다.",
                     timeText = "방금 전"
                 ),
                 CommunityComment(
-                    id = 2,
+                    id = "2",
                     authorId = "user_x",
                     author = "다른사용자",
                     content = "두 번째 댓글입니다.",
