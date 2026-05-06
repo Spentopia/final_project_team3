@@ -47,11 +47,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ict.spentopia.BuildConfig
-import com.ict.spentopia.data.remote.RetrofitClient
-import com.ict.spentopia.data.remote.WebviewIssueRequest
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
 import kotlinx.coroutines.delay
-import retrofit2.HttpException
 import org.json.JSONObject
 
 private const val MARKET_WEBVIEW_TAG = "MarketWebView"
@@ -106,33 +103,8 @@ fun MarketScreen(
 
         isLoading = true
 
-        try {
-            Log.d(
-                MARKET_WEBVIEW_TAG,
-                "request webview token url=${buildWebviewIssueUrl()} authorizationPresent=${accessToken.isNotBlank()} xClientType=app contentType=application/json body={\"redirect_path\":\"/marketplace\"}"
-            )
-            val issueResponse = RetrofitClient.authApi.issueWebviewToken(
-                request = WebviewIssueRequest(redirect_path = "/marketplace")
-            )
-            marketUrl = buildWebviewCallbackUrl(issueResponse.webview_token)
-            Log.d(MARKET_WEBVIEW_TAG, "issued webview token expiresIn=${issueResponse.expires_in} callbackUrl=$marketUrl")
-        } catch (e: HttpException) {
-            isLoading = false
-            val errorBody = e.response()?.errorBody()?.string().orEmpty()
-            Log.e(
-                MARKET_WEBVIEW_TAG,
-                "issue webview token http error url=${buildWebviewIssueUrl()} code=${e.code()} message=${e.message()} errorBody=$errorBody",
-                e
-            )
-            errorMessage = when (e.code()) {
-                401 -> "로그인이 만료되었습니다. 다시 로그인해주세요."
-                else -> "NFT 마켓 로그인 연결에 실패했습니다. (${e.code()})"
-            }
-        } catch (e: Exception) {
-            isLoading = false
-            errorMessage = "NFT 마켓 로그인 연결에 실패했습니다."
-            Log.e(MARKET_WEBVIEW_TAG, "issue webview token failed", e)
-        }
+        marketUrl = buildFrontendMarketUrlWithAccessToken(accessToken)
+        Log.d(MARKET_WEBVIEW_TAG, "load frontend market with fragment token url=${BuildConfig.NFT_MARKET_WEBVIEW_URL}")
     }
 
     LaunchedEffect(webViewKey, marketUrl) {
@@ -311,7 +283,12 @@ fun MarketScreen(
                         }
                     },
                     update = { view ->
-                        if (loadedMarketUrl != marketUrl && marketUrl.isNotBlank()) {
+                        val currentUrl = view.url.orEmpty()
+                        if (
+                            loadedMarketUrl != marketUrl &&
+                            marketUrl.isNotBlank() &&
+                            currentUrl != marketUrl
+                        ) {
                             Log.d(MARKET_WEBVIEW_TAG, "reloadUrl loaded=$loadedMarketUrl current=${view.url} next=$marketUrl headers=${requestHeaders.keys}")
                             isLoading = true
                             pageReady = false
@@ -407,31 +384,10 @@ private fun WebView.configureMarketWebView() {
     setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
 }
 
-private fun buildWebviewIssueUrl(): String {
-    val backendBaseUrl = BuildConfig.API_BASE_URL.let { url ->
-        if (url.endsWith("/")) url else "$url/"
-    }
-
-    return Uri.parse(backendBaseUrl)
+private fun buildFrontendMarketUrlWithAccessToken(accessToken: String): String {
+    return Uri.parse(BuildConfig.NFT_MARKET_WEBVIEW_URL)
         .buildUpon()
-        .appendPath("auth")
-        .appendPath("webview")
-        .appendPath("issue")
-        .build()
-        .toString()
-}
-
-private fun buildWebviewCallbackUrl(webviewToken: String): String {
-    val backendBaseUrl = BuildConfig.API_BASE_URL.let { url ->
-        if (url.endsWith("/")) url else "$url/"
-    }
-
-    return Uri.parse(backendBaseUrl)
-        .buildUpon()
-        .appendPath("auth")
-        .appendPath("webview")
-        .appendPath("callback")
-        .appendQueryParameter("token", webviewToken)
+        .encodedFragment("access_token=${Uri.encode(accessToken)}")
         .build()
         .toString()
 }
@@ -454,6 +410,16 @@ private fun rewriteLocalhostFrontendUrlIfNeeded(uri: Uri): String {
         .toString()
 }
 
+private fun isFrontendMarketUrl(url: String): Boolean {
+    val currentUri = runCatching { Uri.parse(url) }.getOrNull() ?: return false
+    val frontendUri = runCatching { Uri.parse(BuildConfig.NFT_MARKET_WEBVIEW_URL) }.getOrNull()
+        ?: return false
+
+    return currentUri.scheme == frontendUri.scheme &&
+        currentUri.host == frontendUri.host &&
+        currentUri.port == frontendUri.port
+}
+
 private fun WebView.injectMarketSessionIfReady(
     accessToken: String,
     walletAddress: String,
@@ -463,6 +429,11 @@ private fun WebView.injectMarketSessionIfReady(
     val currentUrl = url.orEmpty()
     if (!currentUrl.startsWith("http://") && !currentUrl.startsWith("https://")) {
         Log.d(MARKET_WEBVIEW_TAG, "skip injectMarketSession url=$currentUrl")
+        return
+    }
+
+    if (!isFrontendMarketUrl(currentUrl)) {
+        Log.d(MARKET_WEBVIEW_TAG, "skip injectMarketSession nonFrontendUrl=$currentUrl")
         return
     }
 

@@ -2,6 +2,7 @@ package com.ict.spentopia.feature.budget
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,17 +20,23 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Celebration
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.SentimentSatisfied
 import androidx.compose.material.icons.filled.Subway
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.VolunteerActivism
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -37,7 +44,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SnackbarHost
@@ -48,18 +57,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
+import java.util.Calendar
 
 // 예산 설정 화면임
 // AI 추천 플랜/직접 조절/저장 흐름
@@ -88,7 +103,10 @@ fun BudgetScreen(
 
     val aiPlanError by viewModel.aiPlanError.collectAsStateWithLifecycle()
 
-    val budgetAiAnalysisText = aiPlanList.firstOrNull()?.description.orEmpty()
+    val currentCalendar = remember { Calendar.getInstance() }
+    val currentYear = remember { currentCalendar.get(Calendar.YEAR) }
+    var selectedMonth by remember { mutableIntStateOf(currentCalendar.get(Calendar.MONTH) + 1) }
+    var isMonthDialogOpen by remember { mutableStateOf(false) }
 
     // 총 지출 예정 금액 계산
     val totalExpense = budgetState.foodBudget +
@@ -132,6 +150,16 @@ fun BudgetScreen(
             ) {
                 // 상단 제목 영역
                 BudgetTopSection()
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                MonthSelectorCard(
+                    year = currentYear,
+                    month = selectedMonth,
+                    onOpenClick = {
+                        isMonthDialogOpen = true
+                    }
+                )
 
                 Spacer(modifier = Modifier.height(20.dp))
 
@@ -209,6 +237,14 @@ fun BudgetScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
+                CurrentMonthlyBudgetCard(
+                    year = currentYear,
+                    month = selectedMonth,
+                    monthlyBudget = budgetState.monthlyIncome
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
                 // 예산 요약 카드
                 BudgetSummaryCard(
                     monthlyIncome = budgetState.monthlyIncome,
@@ -219,23 +255,27 @@ fun BudgetScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // AI 분석 카드
-                BudgetAnalysisCard(
-                    foodBudget = budgetState.foodBudget,
+                BudgetCommentCard(
+                    monthlyIncome = budgetState.monthlyIncome,
                     totalExpense = totalExpense,
                     savingGoal = budgetState.savingGoal,
-                    aiAnalysisText = budgetAiAnalysisText
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // 절약 팁 카드
-                SavingTipCard(
-                    foodBudget = budgetState.foodBudget,
-                    transportBudget = budgetState.transportBudget
+                    remainingAmount = remainingAmount
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            if (isMonthDialogOpen) {
+                MonthPickerDialog(
+                    selectedMonth = selectedMonth,
+                    onDismiss = {
+                        isMonthDialogOpen = false
+                    },
+                    onMonthSelected = { month ->
+                        selectedMonth = month
+                        isMonthDialogOpen = false
+                    }
+                )
             }
 
             // 하단 스낵바 출력
@@ -305,6 +345,148 @@ private fun SectionHeader(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
+    }
+}
+
+@Composable
+private fun MonthSelectorCard(
+    year: Int,
+    month: Int,
+    onOpenClick: () -> Unit
+) {
+    val isDark = isSystemInDarkTheme()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF7F8FA)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DateRange,
+                    contentDescription = "월 선택",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Text(
+                    text = "${year}년 ${month}월",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            IconButton(onClick = onOpenClick) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "월 선택 열기",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthPickerDialog(
+    selectedMonth: Int,
+    onDismiss: () -> Unit,
+    onMonthSelected: (Int) -> Unit
+) {
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(selectedMonth) {
+        listState.scrollToItem((selectedMonth - 1).coerceIn(0, 11))
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Text(
+                    text = "월 선택",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(260.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .padding(vertical = 8.dp)
+                ) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(12) { index ->
+                            val month = index + 1
+                            val selected = month == selectedMonth
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(
+                                        color = if (selected) {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        } else {
+                                            Color.Transparent
+                                        }
+                                    )
+                                    .clickable {
+                                        onMonthSelected(month)
+                                    }
+                                    .padding(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${month}월",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium,
+                                    color = if (selected) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -614,9 +796,9 @@ private fun CustomBudgetSettingCard(
                 .fillMaxWidth()
                 .padding(horizontal = 18.dp, vertical = 20.dp)
         ) {
-            // 월 수입 슬라이더
+            // 월 예산 슬라이더
             BudgetSliderItem(
-                title = "월 수입",
+                title = "월 예산",
                 value = monthlyIncome,
                 valueRange = 100000f..5000000f,
                 steps = 0,
@@ -732,21 +914,29 @@ private fun BudgetSliderItem(
     val isDark = isSystemInDarkTheme()
     // 슬라이더 현재 위치 상태
     var sliderPosition by remember(value) { mutableFloatStateOf(value.toFloat()) }
+    var inputText by remember { mutableStateOf(value.toString()) }
+    val minValue = valueRange.start.toInt()
+    val maxValue = valueRange.endInclusive.toInt()
+
+    LaunchedEffect(value) {
+        sliderPosition = value.toFloat()
+        if (inputText != value.toString()) {
+            inputText = value.toString()
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // 제목과 현재 값을 한 줄에 배치
+        // 제목과 숫자 입력 필드를 함께 배치
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 왼쪽 제목 영역
             Row(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 아이콘이 있는 항목만 아이콘 출력
                 if (icon != null) {
                     Icon(
                         imageVector = icon,
@@ -765,12 +955,35 @@ private fun BudgetSliderItem(
                 )
             }
 
-            // 오른쪽 현재 금액 출력
-            Text(
-                text = formatWon(value),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = valueColor
+            Spacer(modifier = Modifier.width(12.dp))
+
+            OutlinedTextField(
+                value = inputText,
+                onValueChange = { changedText ->
+                    val onlyDigits = changedText.filter { it.isDigit() }.take(9)
+                    inputText = onlyDigits
+
+                    val changedValue = onlyDigits.toIntOrNull()
+                    if (changedValue != null) {
+                        val clampedValue = changedValue.coerceIn(minValue, maxValue)
+                        sliderPosition = clampedValue.toFloat()
+                        onValueChange(clampedValue)
+                    }
+                },
+                modifier = Modifier.width(152.dp),
+                singleLine = true,
+                suffix = {
+                    Text(
+                        text = "원",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                textStyle = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    color = valueColor
+                )
             )
         }
 
@@ -783,10 +996,12 @@ private fun BudgetSliderItem(
             value = sliderPosition,
             onValueChange = { changedValue ->
                 // 슬라이더를 움직이는 동안 현재 위치 갱신
-                sliderPosition = changedValue
+                val clampedValue = changedValue.toInt().coerceIn(minValue, maxValue)
+                sliderPosition = clampedValue.toFloat()
+                inputText = clampedValue.toString()
 
                 // Int 값으로 변환해서 상위로 전달
-                onValueChange(changedValue.toInt())
+                onValueChange(clampedValue)
             },
             valueRange = valueRange,
 
@@ -839,6 +1054,28 @@ private fun BudgetSummaryCard(
     savingGoal: Int,
     remainingAmount: Int
 ) {
+    val categoryRatio = if (monthlyIncome <= 0) {
+        0f
+    } else {
+        (totalExpense.toFloat() / monthlyIncome.toFloat()).coerceIn(0f, 1f)
+    }
+    val categoryPercent = if (monthlyIncome <= 0) 0 else (totalExpense * 100 / monthlyIncome)
+    val progressColor = if (categoryPercent <= 100) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.error
+    }
+    val statusIcon = if (remainingAmount >= 0) {
+        Icons.Default.SentimentSatisfied
+    } else {
+        Icons.Default.Warning
+    }
+    val statusIconTint = if (remainingAmount >= 0) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.error
+    }
+
     // 남는 금액이 0 이상이면 긍정 메시지, 아니면 초과 메시지 출력
     val message = if (remainingAmount >= 0) {
         "균형잡힌 예산이에요! 남은 금액: ${formatWon(remainingAmount)}"
@@ -877,19 +1114,15 @@ private fun BudgetSummaryCard(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                SummaryRow("월 수입", formatWon(monthlyIncome), MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
-                SummaryRow("총 지출 예정", formatWon(totalExpense), MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
-                SummaryRow("저축 목표", formatWon(savingGoal), MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                SummaryRow("저장된 월 예산", formatWon(monthlyIncome), MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                SummaryRow("카테고리 합계", formatWon(totalExpense), MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                SummaryRow("목표 저축액 포함", formatWon(totalExpense + savingGoal), MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
 
                 Spacer(modifier = Modifier.height(10.dp))
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 Spacer(modifier = Modifier.height(10.dp))
-
-                SummaryRow("합계", formatWon(totalExpense + savingGoal), MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
-
-                Spacer(modifier = Modifier.height(16.dp))
 
                 Box(
                     modifier = Modifier
@@ -902,9 +1135,9 @@ private fun BudgetSummaryCard(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.Celebration,
+                            imageVector = statusIcon,
                             contentDescription = "요약 상태",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            tint = statusIconTint
                         )
 
                         Spacer(modifier = Modifier.width(8.dp))
@@ -916,6 +1149,41 @@ private fun BudgetSummaryCard(
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Text(
+                    text = "${categoryPercent}%",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.62f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(categoryRatio)
+                            .height(10.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(progressColor)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "카테고리 예산은 월 전체 예산 안에서만 배분되며, 목표 저축액은 별도로 관리됩니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.68f)
+                )
             }
         }
     }
@@ -948,6 +1216,106 @@ private fun SummaryRow(
     }
 
     Spacer(modifier = Modifier.height(10.dp))
+}
+
+@Composable
+private fun CurrentMonthlyBudgetCard(
+    year: Int,
+    month: Int,
+    monthlyBudget: Int
+) {
+    val isDark = isSystemInDarkTheme()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF7F8FA)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp)
+        ) {
+            Text(
+                text = "현재 설정된 월 예산",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "${year}년 ${month}월 기준",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = formatWon(monthlyBudget),
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun BudgetCommentCard(
+    monthlyIncome: Int,
+    totalExpense: Int,
+    savingGoal: Int,
+    remainingAmount: Int
+) {
+    val isDark = isSystemInDarkTheme()
+    val comment = when {
+        monthlyIncome <= 0 -> "월 예산을 입력하면 카테고리별 계획을 더 정확하게 맞출 수 있어요."
+        remainingAmount < 0 -> "지출과 저축 목표가 월 예산보다 ${formatWon(-remainingAmount)} 많아요. 카테고리 금액을 조금 낮춰보세요."
+        savingGoal <= 0 -> "저축 목표를 함께 잡아두면 이번 달 예산 흐름을 더 안정적으로 관리할 수 있어요."
+        totalExpense == 0 -> "카테고리 예산을 입력하면 이번 달 소비 계획을 한눈에 볼 수 있어요."
+        else -> "현재 계획은 예산 안에서 움직이고 있어요. 저장하면 이번 달 기준으로 예산 설정이 반영됩니다."
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(20.dp)
+            ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF4F6FB)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp)
+        ) {
+            Text(
+                text = "예산 설정 한마디",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = comment,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
 
 // AI 분석 카드

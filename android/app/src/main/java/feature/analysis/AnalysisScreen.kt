@@ -38,7 +38,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Alignment
@@ -47,11 +49,15 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -59,6 +65,7 @@ import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 // 소비분석 메인 화면임
@@ -140,7 +147,8 @@ fun AnalysisScreen(
 
         ExpenseTrendCard(
             title = if (uiState.selectedPeriod == "주간") "주간 소비 추이" else "월간 소비 추이",
-            expenseList = trendExpenseList
+            expenseList = trendExpenseList,
+            selectedPeriod = uiState.selectedPeriod
         )
 
         CategoryPieChartCard(
@@ -513,7 +521,8 @@ fun PeriodToggleButton(
 @Composable
 fun ExpenseTrendCard(
     title: String,
-    expenseList: List<Pair<String, Int>>
+    expenseList: List<Pair<String, Int>>,
+    selectedPeriod: String
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -531,8 +540,191 @@ fun ExpenseTrendCard(
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            SimpleBarChart(
-                expenseList = expenseList
+            if (selectedPeriod == "월간") {
+                MonthlyLineChart(
+                    expenseList = expenseList
+                )
+            } else {
+                SimpleBarChart(
+                    expenseList = expenseList
+                )
+            }
+        }
+    }
+}
+
+// 월간 소비 추이 라인 차트
+@Composable
+fun MonthlyLineChart(
+    expenseList: List<Pair<String, Int>>
+) {
+    var selectedMonthIndex by remember { mutableIntStateOf(-1) }
+    val normalizedList = remember(expenseList) {
+        val amountMap = expenseList.toMap()
+        (1..12).map { month ->
+            "${month}월" to (amountMap["${month}월"] ?: 0)
+        }
+    }
+    val maxAmount = normalizedList.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1
+    val yAxisSteps = remember(maxAmount) {
+        val topAmount = max(60000, ((maxAmount + 9999) / 10000) * 10000)
+        listOf(0, topAmount / 4, topAmount / 2, topAmount * 3 / 4, topAmount)
+    }
+    val isDark = isSystemInDarkTheme()
+    val gridLineColor = if (isDark) Color(0xFF6B7280) else MaterialTheme.colorScheme.outlineVariant
+    val axisTextColor = if (isDark) Color(0xFFE5E7EB) else MaterialTheme.colorScheme.onSurfaceVariant
+    val lineColor = if (isDark) SpentopiaGlowPurple else MaterialTheme.colorScheme.primary
+    val pointFillColor = if (isDark) Color(0xFF111827) else MaterialTheme.colorScheme.surface
+    val chartTopAmount = yAxisSteps.last().coerceAtLeast(1)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(240.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(48.dp)
+                    .height(200.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                yAxisSteps.reversed().forEach { value ->
+                    Text(
+                        text = formatCompactAmount(value),
+                        fontSize = 10.sp,
+                        color = axisTextColor
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(232.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .pointerInput(normalizedList) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull()
+                                    if (change != null && change.pressed) {
+                                        val chartWidth = size.width.toFloat().coerceAtLeast(1f)
+                                        val xRatio = (change.position.x / chartWidth).coerceIn(0f, 1f)
+                                        selectedMonthIndex = (xRatio * normalizedList.lastIndex)
+                                            .roundToInt()
+                                            .coerceIn(0, normalizedList.lastIndex)
+                                    }
+                                }
+                            }
+                        }
+                ) {
+                    Canvas(modifier = Modifier.matchParentSize()) {
+                        val dash = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
+
+                        for (i in 0 until 5) {
+                            val y = size.height * i / 4f
+                            drawLine(
+                                color = gridLineColor,
+                                start = Offset(0f, y),
+                                end = Offset(size.width, y),
+                                pathEffect = dash,
+                                strokeWidth = if (isDark) 1.6f else 1f
+                            )
+                        }
+
+                        val horizontalGap = size.width / 11f
+                        val points = normalizedList.mapIndexed { index, item ->
+                            val x = horizontalGap * index
+                            val ratio = item.second.toFloat() / chartTopAmount.toFloat()
+                            val y = size.height - (size.height * ratio.coerceIn(0f, 1f))
+                            Offset(x, y)
+                        }
+
+                        if (points.size >= 2) {
+                            val path = Path().apply {
+                                moveTo(points.first().x, points.first().y)
+                                for (index in 1 until points.size) {
+                                    val previous = points[index - 1]
+                                    val current = points[index]
+                                    val controlX = (previous.x + current.x) / 2f
+                                    cubicTo(
+                                        controlX,
+                                        previous.y,
+                                        controlX,
+                                        current.y,
+                                        current.x,
+                                        current.y
+                                    )
+                                }
+                            }
+
+                            drawPath(
+                                path = path,
+                                color = lineColor,
+                                style = Stroke(width = 5f)
+                            )
+                        }
+
+                        points.forEachIndexed { index, point ->
+                            val amount = normalizedList[index].second
+                            val selected = index == selectedMonthIndex
+                            if (amount > 0) {
+                                drawCircle(
+                                    color = lineColor.copy(alpha = 0.18f),
+                                    radius = if (selected) 17f else 12f,
+                                    center = point
+                                )
+                            }
+
+                            drawCircle(
+                                color = lineColor,
+                                radius = when {
+                                    selected -> 9f
+                                    amount > 0 -> 7f
+                                    else -> 4.5f
+                                },
+                                center = point
+                            )
+                            drawCircle(
+                                color = pointFillColor,
+                                radius = if (selected) 4.5f else if (amount > 0) 3.5f else 2.2f,
+                                center = point
+                            )
+                        }
+                    }
+
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    normalizedList.forEach { item ->
+                        Text(
+                            text = item.first,
+                            fontSize = 9.sp,
+                            color = axisTextColor
+                        )
+                    }
+                }
+            }
+        }
+
+        val selectedMonth = normalizedList.getOrNull(selectedMonthIndex)
+        if (selectedMonth != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "${selectedMonth.first} ${formatAmount(selectedMonth.second)}",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }
@@ -663,6 +855,8 @@ fun BarChartItem(
 fun CategoryPieChartCard(
     categoryList: List<CategorySpendUiModel>
 ) {
+    val totalAmount = categoryList.sumOf { it.amount }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -685,7 +879,8 @@ fun CategoryPieChartCard(
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 CategoryPieChart(
-                    categoryList = categoryList
+                    categoryList = categoryList,
+                    totalAmount = totalAmount
                 )
 
                 Column(
@@ -704,31 +899,45 @@ fun CategoryPieChartCard(
 // 도넛 차트
 @Composable
 fun CategoryPieChart(
-    categoryList: List<CategorySpendUiModel>
+    categoryList: List<CategorySpendUiModel>,
+    totalAmount: Int
 ) {
     val totalRatio = categoryList.sumOf { it.ratio.toDouble() }.toFloat().coerceAtLeast(1f)
+    val isEmpty = totalAmount <= 0 || categoryList.isEmpty()
+    val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(220.dp)
+        modifier = Modifier.size(230.dp)
     ) {
         Canvas(
-            modifier = Modifier.size(220.dp)
+            modifier = Modifier.size(230.dp)
         ) {
             var startAngle = -90f
+            val strokeWidth = 44f
 
-            categoryList.forEach { item ->
-                val sweepAngle = (item.ratio / totalRatio) * 360f
+            drawArc(
+                color = trackColor,
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
 
-                drawArc(
-                    color = item.color,
-                    startAngle = startAngle,
-                    sweepAngle = sweepAngle,
-                    useCenter = false,
-                    style = Stroke(width = 56f)
-                )
+            if (!isEmpty) {
+                categoryList.forEach { item ->
+                    val sweepAngle = (item.ratio / totalRatio) * 360f
 
-                startAngle += sweepAngle
+                    drawArc(
+                        color = item.color,
+                        startAngle = startAngle,
+                        sweepAngle = (sweepAngle - 2f).coerceAtLeast(0f),
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    )
+
+                    startAngle += sweepAngle
+                }
             }
         }
 
@@ -742,9 +951,9 @@ fun CategoryPieChart(
             )
 
             Text(
-                text = "${formatWon(categoryList.sumOf { it.amount })}원",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
+                text = "${formatWon(totalAmount)}원",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
@@ -756,8 +965,16 @@ fun CategoryPieChart(
 fun PieLegendItem(
     item: CategorySpendUiModel
 ) {
+    val percent = (item.ratio * 100).roundToInt()
+
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -776,8 +993,9 @@ fun PieLegendItem(
         )
 
         Text(
-            text = "${(item.ratio * 100).roundToInt()}%",
+            text = "${percent}%",
             fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -823,8 +1041,17 @@ fun CategoryDetailCard(
 fun CategoryDetailItem(
     item: CategorySpendUiModel
 ) {
+    val percent = (item.ratio * 100).roundToInt()
+
     Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
+                shape = RoundedCornerShape(14.dp)
+            )
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -833,6 +1060,7 @@ fun CategoryDetailItem(
             Text(
                 text = item.name,
                 fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
@@ -845,27 +1073,49 @@ fun CategoryDetailItem(
             )
         }
 
+        CategoryProgressBar(
+            ratio = item.ratio,
+            color = item.color
+        )
+
         Row(
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
         ) {
-            LinearProgressIndicator(
-                progress = { item.ratio.coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(8.dp),
-                color = item.color,
-                trackColor = MaterialTheme.colorScheme.outlineVariant
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
             Text(
-                text = "${(item.ratio * 100).roundToInt()}%",
+                text = "${percent}%",
                 fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.widthIn(min = 32.dp)
+                textAlign = TextAlign.End
             )
         }
+    }
+}
+
+@Composable
+fun CategoryProgressBar(
+    ratio: Float,
+    color: Color
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(10.dp)
+            .background(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.38f),
+                shape = RoundedCornerShape(999.dp)
+            )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(ratio.coerceIn(0f, 1f))
+                .height(10.dp)
+                .background(
+                    color = color,
+                    shape = RoundedCornerShape(999.dp)
+                )
+        )
     }
 }
 
@@ -1465,4 +1715,15 @@ fun buildAnalysisReportText(
 // 금액 포맷 함수
 fun formatWon(value: Int): String {
     return "%,d".format(value)
+}
+
+fun formatAmount(value: Int): String {
+    return "${formatWon(value)}원"
+}
+
+fun formatCompactAmount(value: Int): String {
+    return when {
+        value >= 10000 -> "${value / 10000}만"
+        else -> value.toString()
+    }
 }

@@ -329,7 +329,7 @@ class AnalysisViewModel(
                 val weeklyExpenseList = createWeeklyExpenseList(expenseOnlyList)
 
                 // 월간 그래프 데이터입니다.
-                // 이번 달 소비를 1주, 2주, 3주, 4주, 5주 단위로 묶습니다.
+                // 1월부터 12월까지 월별 소비 합계를 만듭니다.
                 val monthlyExpenseList = createMonthlyExpenseList(expenseOnlyList)
 
                 // AI 분석 카드입니다.
@@ -550,38 +550,31 @@ class AnalysisViewModel(
     }
 
     // 월간 그래프 데이터 생성 함수입니다.
-    // 이번 달 소비를 주차별로 묶어서 1주~5주 리스트를 만듭니다.
+    // 1월부터 12월까지 월별 소비 합계를 만듭니다.
     private fun createMonthlyExpenseList(
         expenseList: List<com.ict.spentopia.data.local.ExpenseEntity>
     ): List<Pair<String, Int>> {
 
-        val weekMap = linkedMapOf(
-            "1주" to 0,
-            "2주" to 0,
-            "3주" to 0,
-            "4주" to 0,
-            "5주" to 0
-        )
+        val monthMap = linkedMapOf<String, Int>().apply {
+            for (month in 1..12) {
+                put("${month}월", 0)
+            }
+        }
 
         expenseList.forEach { expense ->
             try {
-                val day = expense.date.split("-")[2].toInt()
+                val month = expense.date.split("-")[1].toInt()
+                val monthLabel = "${month}월"
 
-                val weekLabel = when (day) {
-                    in 1..7 -> "1주"
-                    in 8..14 -> "2주"
-                    in 15..21 -> "3주"
-                    in 22..28 -> "4주"
-                    else -> "5주"
+                if (month in 1..12) {
+                    monthMap[monthLabel] = (monthMap[monthLabel] ?: 0) + expense.amount
                 }
-
-                weekMap[weekLabel] = (weekMap[weekLabel] ?: 0) + expense.amount
             } catch (_: Exception) {
                 // 날짜 파싱 실패 시 그냥 넘어갑니다.
             }
         }
 
-        return weekMap.toList()
+        return monthMap.toList()
     }
 
     // 분석 팁 리스트 생성 함수입니다.

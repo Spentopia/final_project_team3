@@ -35,6 +35,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 // 아이콘 관련 import입니다.
 import androidx.compose.material.icons.Icons // 아이콘 묶음을 가져옴
 import androidx.compose.material.icons.filled.CalendarMonth // 달력 아이콘을 가져옴
+import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.ShoppingCart
 
 // Material3 관련 import입니다.
 import androidx.compose.material3.Button // 버튼 컴포넌트를 가져옴
@@ -1546,12 +1548,26 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         .padding(vertical = 12.dp), // 안쪽이나 바깥 여백을 줌
                     contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
                 ) { // 이 블록 안의 내용이 시작됨
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = "소비 입력", // 화면에 보여줄 글자를 정함
-                        color = if (isExpenseTab) formAccentContainerTextColor else formSecondaryTextColor, // 색상을 정함
-                        fontSize = 14.sp, // 글자 크기를 정함
-                        fontWeight = FontWeight.SemiBold // 글자 두께를 정함
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ShoppingCart,
+                            contentDescription = "소비 입력",
+                            modifier = Modifier.size(17.dp),
+                            tint = if (isExpenseTab) formAccentContainerTextColor else formSecondaryTextColor
+                        )
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = "소비 입력", // 화면에 보여줄 글자를 정함
+                            color = if (isExpenseTab) formAccentContainerTextColor else formSecondaryTextColor, // 색상을 정함
+                            fontSize = 14.sp, // 글자 크기를 정함
+                            fontWeight = FontWeight.SemiBold // 글자 두께를 정함
+                        )
+                    }
                 } // 블록 끝
 
                 Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
@@ -1568,12 +1584,26 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         .padding(vertical = 12.dp), // 안쪽이나 바깥 여백을 줌
                     contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
                 ) { // 이 블록 안의 내용이 시작됨
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = "수입 입력", // 화면에 보여줄 글자를 정함
-                        color = if (!isExpenseTab) colorScheme.onSecondaryContainer else formSecondaryTextColor, // 색상을 정함
-                        fontSize = 14.sp, // 글자 크기를 정함
-                        fontWeight = FontWeight.SemiBold // 글자 두께를 정함
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Savings,
+                            contentDescription = "수입 입력",
+                            modifier = Modifier.size(17.dp),
+                            tint = if (!isExpenseTab) colorScheme.onSecondaryContainer else formSecondaryTextColor
+                        )
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        Text( // 글자를 화면에 보여주기 시작함
+                            text = "수입 입력", // 화면에 보여줄 글자를 정함
+                            color = if (!isExpenseTab) colorScheme.onSecondaryContainer else formSecondaryTextColor, // 색상을 정함
+                            fontSize = 14.sp, // 글자 크기를 정함
+                            fontWeight = FontWeight.SemiBold // 글자 두께를 정함
+                        )
+                    }
                 } // 블록 끝
             } // 블록 끝
 
@@ -2198,22 +2228,20 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                 Spacer(modifier = Modifier.height(14.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
                 RewardPointRow( // 가로로 배치하는 영역을 시작함
-                    title = "직접 입력", // color 값을 이 함수로 넘김
-                    point = "기록/예산 반영" // point 값을 이 함수로 넘김
+                    title = "기본 기록" // color 값을 이 함수로 넘김
                 )
 
                 Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
                 RewardPointRow( // 가로로 배치하는 영역을 시작함
                     title = "영수증 인증 완료", // point 값을 이 함수로 넘김
-                    point = "보상 지급" // point 값을 이 함수로 넘김
+                    point = "아바타 뽑기권 지급" // point 값을 이 함수로 넘김
                 )
 
                 Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
                 RewardPointRow( // 가로로 배치하는 영역을 시작함
-                    title = "미션/성실도", // point 값을 이 함수로 넘김
-                    point = "인증 기록만 반영" // point 값을 이 함수로 넘김
+                    title = "일기 작성" // point 값을 이 함수로 넘김
                 )
 
                 Spacer(modifier = Modifier.height(14.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -2286,7 +2314,7 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun RewardPointRow( // RewardPointRow 함수 선언 시작
     title: String, // title 값을 함수 밖에서 받아옴
-    point: String // 바로 앞 설정을 이어서 적음
+    point: String = "" // 바로 앞 설정을 이어서 적음
 ) { // 이 블록 안의 내용이 시작됨
     Row( // 가로로 배치하는 영역을 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
@@ -2299,12 +2327,14 @@ private fun RewardPointRow( // RewardPointRow 함수 선언 시작
             color = SpentopiaNavy // 색상을 정함
         )
 
-        Text( // 글자를 화면에 보여주기 시작함
-            text = point, // 화면에 보여줄 글자를 정함
-            fontSize = 13.sp, // 글자 크기를 정함
-            fontWeight = FontWeight.Bold, // 글자 두께를 정함
-            color = SpentopiaMutedPurple // 색상을 정함
-        )
+        if (point.isNotBlank()) {
+            Text( // 글자를 화면에 보여주기 시작함
+                text = point, // 화면에 보여줄 글자를 정함
+                fontSize = 13.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                color = SpentopiaMutedPurple // 색상을 정함
+            )
+        }
     } // 블록 끝
 } // 블록 끝
 
