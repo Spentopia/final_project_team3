@@ -241,7 +241,30 @@ const buildPaymentPatternData = (transactions: Transaction[]) => {
 export default function Analytics() {
   const { transactions, replaceTransactions, budgets } = useFinance();
 
-  const reportRef = useRef<HTMLDivElement>(null);
+const reportRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  const fetchExpenses = async () => {
+    try {
+      const data = await listExpenses();
+
+      const formatted = data.map((item) => ({
+        id: item.id,
+        date: item.date,
+        amount: item.amount,
+        category: item.category,
+        memo: item.memo ?? "",
+        type: item.transactionType,
+      }));
+
+      replaceTransactions(formatted);
+    } catch (error) {
+      console.error("지출 불러오기 실패", error);
+    }
+  };
+
+  fetchExpenses();
+}, []);
 
   const now = new Date();
 
@@ -256,6 +279,12 @@ export default function Analytics() {
 });
 
 const [aiReport, setAiReport] = useState<AIReport | null>(null);
+
+const [patternReport, setPatternReport] = useState<AIReport | null>(null);
+
+const [isReportLoading, setIsReportLoading] = useState(false);
+
+const [isPatternLoading, setIsPatternLoading] = useState(false);
 
 const [isPdfMode, setIsPdfMode] = useState(false);
 
@@ -318,85 +347,105 @@ const topCategoryPercent = totalExpense
 const COLORS = ["#a855f7", "#ec4899", "#22c55e", "#f59e0b", "#3b82f6", "#ef4444"];
 
 const categoryData = Object.entries(categoryTotals).map(([name, amount], index) => ({
-  key: name, // 원래 key 따로 보관
-  name: CATEGORY_MAP[name]?.label ?? name, // 🔥 한국어 변환
+  key: name,
+  name: CATEGORY_MAP[name]?.label ?? name,
   amount,
   value: totalExpense ? Math.round((amount / totalExpense) * 100) : 0,
   color: COLORS[index % COLORS.length],
 }));
 
-  useEffect(() => {
-    if (transactions.length > 0) return;
+const weeklyData = buildWeeklyData(thisMonthTransactions, now);
+const monthlyData = buildMonthlyData(transactions, now.getFullYear());
 
-    let cancelled = false;
-
-    const loadExpenses = async () => {
-      try {
-        const items = await listExpenses();
-        if (cancelled) return;
-
-        replaceTransactions(
-          items.map((item) => ({
-            id: item.id,
-            date: item.date,
-            amount: item.amount,
-            category: item.category,
-            memo: item.memo ?? "",
-            type: item.transactionType,
-            receipt: item.transactionType === "expense" ? item.receiptVerified : undefined,
-            diary: item.transactionType === "expense" ? (item.diary ?? "") : undefined,
-          }))
-        );
-      } catch (error) {
-        console.error("소비 내역 조회 실패:", error);
-      }
-    };
-
-    void loadExpenses();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [transactions.length]);
-  const weeklyData = buildWeeklyData(thisMonthTransactions, now);
-  const monthlyData = buildMonthlyData(transactions, now.getFullYear());
-
-  useEffect(() => {
+const handleGenerateReport = async () => {
   if (transactions.length === 0) return;
 
-  const fetchAIReport = async () => {
-    try {
-      const payload = {
-        transactions: transactions.map((t) => ({
-          date: t.date,
-          amount: t.amount,
-          category: t.category,
-          type: t.type,
-        })),
+  try {
+    setIsReportLoading(true);
 
-        totalExpense,
-        budget: currentBudget,
-        topCategory: topCategoryName,
-        topCategoryPercent,
+    const payload = {
+      transactions: transactions.map((t) => ({
+        date: t.date,
+        amount: t.amount,
+        category: t.category,
+        type: t.type,
+      })),
 
-        dailyAverage,
-        expenseChangeRate,
-        budgetUsage,
+      totalExpense,
+      budget: currentBudget,
+      topCategory: topCategoryName,
+      topCategoryPercent,
 
-        weeklyData,
-        monthlyData,
-        categoryData,
-      };
+      dailyAverage,
+      expenseChangeRate,
+      budgetUsage,
 
-      const result = await analyzeReport(payload) as AIReport;
-setAiReport(result);
-    } catch (error) {
-      console.error("AI 리포트 실패", error);
-    }
-  };
+      weeklyData,
+      monthlyData,
+      categoryData,
+    };
 
-  fetchAIReport();
-}, [transactions]);
+    const result = await analyzeReport(payload) as AIReport;
+
+    setAiReport({
+  good: result.good,
+  warning: result.warning,
+  advice: result.advice,
+  prediction: result.prediction,
+  pattern: "",
+  improvement: "",
+});
+  } catch (error) {
+    console.error("AI 리포트 실패", error);
+  } finally {
+    setIsReportLoading(false);
+  }
+};
+
+const handleGeneratePattern = async () => {
+  if (transactions.length === 0) return;
+
+  try {
+    setIsPatternLoading(true);
+
+    const payload = {
+      transactions: transactions.map((t) => ({
+        date: t.date,
+        amount: t.amount,
+        category: t.category,
+        type: t.type,
+      })),
+
+      totalExpense,
+      budget: currentBudget,
+      topCategory: topCategoryName,
+      topCategoryPercent,
+
+      dailyAverage,
+      expenseChangeRate,
+      budgetUsage,
+
+      weeklyData,
+      monthlyData,
+      categoryData,
+    };
+
+    const result = await analyzeReport(payload) as AIReport;
+
+    setPatternReport({
+      good: "",
+      warning: "",
+      advice: "",
+      prediction: "",
+      pattern: result.pattern,
+      improvement: result.improvement,
+    });
+  } catch (error) {
+    console.error("소비 패턴 분석 실패", error);
+  } finally {
+    setIsPatternLoading(false);
+  }
+};
 
 const handleShare = async () => {
   const text = `
@@ -676,62 +725,107 @@ while (heightLeft > 0) {
 
 {/* AI Insights */}
 <Card className="border-none bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-800 dark:to-gray-900 p-6 backdrop-blur-xl">
-  <div className="mb-4 flex items-center gap-2">
-    <Sparkles className="h-5 w-5 text-cyan-600" />
-    <h3 className="font-bold text-gray-900 dark:text-white">AI 소비 분석 리포트</h3>
+
+  <div className="mb-4 flex items-center justify-between">
+    <div className="flex items-center gap-2">
+      <Sparkles className="h-5 w-5 text-cyan-600" />
+
+      <h3 className="font-bold text-gray-900 dark:text-white">
+        AI 소비 분석 리포트
+      </h3>
+    </div>
+
+    <Button
+      onClick={handleGenerateReport}
+      disabled={isReportLoading}
+      className="bg-gradient-to-r from-cyan-500 to-blue-500"
+    >
+      {isReportLoading ? "AI 분석 중..." : "AI 분석 시작"}
+    </Button>
   </div>
 
-  {aiReport && (
-    <div className="grid gap-4 md:grid-cols-2">
-      
-      <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
-        <h4 className="font-bold text-gray-900 dark:text-white">👍 좋은 점</h4>
-        <p className="text-sm text-gray-700 dark:text-gray-300">{aiReport.good}</p>
-      </div>
+  {aiReport ? (
+  <div className="grid gap-4 md:grid-cols-2">
 
-      <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
-        <h4 className="font-bold text-gray-900 dark:text-white">⚠️ 주의</h4>
-        <p className="text-sm text-gray-700 dark:text-gray-300">{aiReport.warning}</p>
-      </div>
-
-      <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
-        <h4 className="font-bold text-gray-900 dark:text-white">💡 조언</h4>
-        <p className="text-sm text-gray-700 dark:text-gray-300">{aiReport.advice}</p>
-      </div>
-
-      <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
-        <h4 className="font-bold text-gray-900 dark:text-white">📈 예측</h4>
-        <p className="text-sm text-gray-700 dark:text-gray-300">{aiReport.prediction}</p>
-      </div>
-
+    <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
+      <h4 className="font-bold text-gray-900 dark:text-white">👍 좋은 점</h4>
+      <p className="text-sm text-gray-700 dark:text-gray-300">
+        {aiReport.good}
+      </p>
     </div>
-  )}
+
+    <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
+      <h4 className="font-bold text-gray-900 dark:text-white">⚠️ 주의</h4>
+      <p className="text-sm text-gray-700 dark:text-gray-300">
+        {aiReport.warning}
+      </p>
+    </div>
+
+    <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
+      <h4 className="font-bold text-gray-900 dark:text-white">💡 조언</h4>
+      <p className="text-sm text-gray-700 dark:text-gray-300">
+        {aiReport.advice}
+      </p>
+    </div>
+
+    <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
+      <h4 className="font-bold text-gray-900 dark:text-white">📈 예측</h4>
+      <p className="text-sm text-gray-700 dark:text-gray-300">
+        {aiReport.prediction}
+      </p>
+    </div>
+
+  </div>
+) : (
+  <div className="rounded-xl border-2 border-dashed border-gray-300 p-10 text-center">
+    <p className="text-gray-500 dark:text-gray-400">
+      아직 AI 소비 분석 리포트가 생성되지 않았습니다
+    </p>
+  </div>
+)}
+
 </Card>
 
       {/* Spending Patterns */}
 <Card className="border-none bg-white/80 dark:bg-gray-900 p-6 backdrop-blur-xl">
-  <h3 className="mb-6 font-bold text-gray-900 dark:text-white">소비 패턴 분석</h3>
+  <div className="mb-6 flex items-center justify-between">
+  <h3 className="font-bold text-gray-900 dark:text-white">
+    AI 소비 패턴 분석
+  </h3>
 
-  {aiReport ? (
+  <Button
+    onClick={handleGeneratePattern}
+    disabled={isPatternLoading}
+    className="bg-gradient-to-r from-cyan-500 to-blue-500"
+  >
+    {isPatternLoading ? "AI 분석 중..." : "AI 분석 시작"}
+  </Button>
+</div>
+
+  {patternReport ? (
     <div className="grid gap-6 md:grid-cols-2">
 
       <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-5">
         <h4 className="mb-2 font-bold text-gray-900 dark:text-white">📊 분석</h4>
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-          {aiReport.pattern.replace("소비 패턴 분석:", "")}
+          {patternReport.pattern.replace("소비 패턴 분석:", "")}
         </p>
       </div>
 
       <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-5">
         <h4 className="mb-2 font-bold text-gray-900 dark:text-white">💡 개선 방안</h4>
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-          {aiReport.improvement}
+          {patternReport.improvement}
         </p>
       </div>
 
     </div>
   ) : (
-    <p className="text-sm text-gray-500 dark:text-gray-400">AI가 분석 중입니다...</p>
+    <div className="rounded-xl border-2 border-dashed border-gray-300 p-10 text-center">
+  <p className="text-gray-500 dark:text-gray-400">
+    아직 AI 소비 패턴 분석이 생성되지 않았습니다
+  </p>
+</div>
   )}
 </Card>
     </div>

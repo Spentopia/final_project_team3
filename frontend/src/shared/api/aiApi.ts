@@ -5,10 +5,33 @@ export interface AnalyzeReportRequest {
     category: string;
     type: string;
   }[];
+
   totalExpense: number;
   budget: number;
   topCategory: string;
   topCategoryPercent: number;
+
+  dailyAverage: number;
+  expenseChangeRate: number;
+  budgetUsage: number;
+
+  weeklyData: {
+    day: string;
+    amount: number;
+  }[];
+
+  monthlyData: {
+    month: string;
+    amount: number;
+  }[];
+
+  categoryData: {
+    key: string;
+    name: string;
+    amount: number;
+    value: number;
+    color: string;
+  }[];
 }
 
 export interface AnalyzeReportResponse {
@@ -16,6 +39,9 @@ export interface AnalyzeReportResponse {
   warning: string;
   advice: string;
   prediction: string;
+
+  pattern: string;
+  improvement: string;
 }
 
 export async function analyzeReport(
