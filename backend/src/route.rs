@@ -313,7 +313,7 @@ pub fn create_router(state: AppState) -> Router {
             get(admin::handler::list_content_reports))
         .route("/api/admin/content-reports/:id/resolve",
             patch(admin::handler::resolve_content_report))
-        .route("api/admin/content-reports/:id/reject",
+        .route("/api/admin/content-reports/:id/reject",
             patch(admin::handler::reject_content_report))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
