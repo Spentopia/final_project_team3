@@ -3,6 +3,40 @@ import { apiClient } from "@/shared/api/client.ts";
 export type PostSort = "date" | "likes" | "views";
 export type PostType = "notice" | "request" | "contest" | "free";
 
+// ── 신고 기능 ─────────────────────────────────────
+
+export type ContentReportTargetType =
+    | "post"
+    | "comment"
+    | "user_nickname"
+    | "user_profile";
+
+export type ContentReportReason =
+    | "abuse"
+    | "inappropriate"
+    | "spam"
+    | "other";
+
+export interface CreateContentReportRequest {
+  target_type: ContentReportTargetType;
+  target_id: string;
+  reason: ContentReportReason;
+  detail?: string | null;
+}
+
+export interface ContentReportResponse {
+  id: string;
+  reporter_id: string;
+  target_type: ContentReportTargetType;
+  target_id: string;
+  reason: ContentReportReason;
+  detail: string | null;
+  status: "pending" | "resolved" | "rejected";
+  created_at: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+}
+
 export interface CommunityPostResponse {
   id: string;
   user_id: string;
@@ -223,6 +257,18 @@ export async function uploadCommunityImage({
   const res = await apiClient.post<UploadCommunityImageResult>(
     "/api/posts/image/upload",
     formData
+  );
+
+  return res.data;
+}
+
+// 게시글/댓글/닉네임/프로필사진 신고 접수
+export async function createContentReport(
+    payload: CreateContentReportRequest
+): Promise<ContentReportResponse> {
+  const res = await apiClient.post<ContentReportResponse>(
+      "/api/content-reports",
+      payload
   );
 
   return res.data;
