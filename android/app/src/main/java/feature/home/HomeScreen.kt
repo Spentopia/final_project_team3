@@ -9,6 +9,13 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult // 외부 앱 결과를 받는 도구를 가져옴
 import androidx.activity.result.contract.ActivityResultContracts // 갤러리 열기 같은 실행 규칙을 가져옴
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+
 // Compose foundation 관련 import입니다.
 import androidx.compose.foundation.BorderStroke // 테두리 선 스타일을 가져옴
 import androidx.compose.foundation.Image // 이미지 표시 컴포넌트를 가져옴
@@ -69,6 +76,7 @@ import androidx.compose.runtime.setValue // by 문법으로 상태를 바꾸게 
 // UI 관련 import입니다.
 import androidx.compose.ui.Alignment // 정렬 기준을 가져옴
 import androidx.compose.ui.Modifier // UI 크기·색·여백 설정 도구를 가져옴
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush // 그라데이션 같은 색칠 도구를 가져옴
 import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
 import androidx.compose.ui.layout.ContentScale // 이미지 채우는 방식을 가져옴
@@ -98,7 +106,6 @@ import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // 선택한 솔�
 import com.ict.spentopia.data.local.ExpenseEntity // DB에 저장되는 소비 데이터 타입을 가져옴
 import com.ict.spentopia.data.remote.CreateExpenseRequest
 import com.ict.spentopia.data.remote.RetrofitClient
-import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
@@ -108,6 +115,7 @@ import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.HttpException
 import java.text.DecimalFormat // 숫자를 쉼표 형식으로 바꾸는 도구를 가져옴
 import java.util.Calendar // 날짜 계산용 객체를 가져옴
 import kotlin.math.abs // 절댓값 함수 가져옴
@@ -1220,6 +1228,26 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
     } // 블록 끝
 } // 블록 끝
 
+private fun resolveReceiptVerificationError(error: Exception): String {
+    if (error is HttpException) {
+        val serverMessage = error.response()?.errorBody()?.string()?.trim().orEmpty()
+        if (serverMessage.isNotBlank()) {
+            return serverMessage
+        }
+
+        return when (error.code()) {
+            400 -> "영수증 이미지, 날짜, 금액 정보를 확인해 주세요."
+            401 -> "로그인이 만료되었습니다. 다시 로그인해 주세요."
+            409 -> "이미 인증된 소비 내역입니다."
+            429 -> "오늘 영수증 인증은 최대 3건까지 가능합니다."
+            503 -> "AI 서버에 연결하지 못했습니다. 백엔드의 AI_SERVER_URL과 AI 서버 실행 상태를 확인해 주세요."
+            else -> "영수증 인증에 실패했습니다. (${error.code()})"
+        }
+    }
+
+    return error.message ?: "영수증 인증에 실패했습니다."
+}
+
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
     scoreState: WeeklyScoreUiState,
@@ -1266,9 +1294,9 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
 
                     Text( // 글자를 화면에 보여주기 시작함
                         text = "${totalScore}점", // 화면에 보여줄 글자를 정함
-                        fontSize = 34.sp, // 글자 크기를 정함
-                        fontWeight = FontWeight.ExtraBold, // 글자 두께를 정함
-                        color = SpentopiaMutedPurple // 색상을 정함
+                        fontSize = 34.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 } // 블록 끝
 
@@ -1338,7 +1366,7 @@ private fun WeeklyScoreDetailDialog(
                     text = "${totalScore}점",
                     fontSize = 36.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = SpentopiaMutedPurple
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 WeeklyScoreProgressBar(
@@ -1400,12 +1428,32 @@ private fun WeeklyScoreDetailRow(
 private fun WeeklyScoreProgressBar(
     progress: Float
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+    val waveShift by rememberInfiniteTransition().animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1600, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+    val progressBrush = Brush.linearGradient(
+        colors = listOf(
+            colorScheme.primary,
+            colorScheme.primary.copy(alpha = 0.72f),
+            colorScheme.primaryContainer,
+            colorScheme.primary
+        ),
+        start = Offset(-220f + waveShift * 260f, 0f),
+        end = Offset(260f + waveShift * 260f, 0f)
+    )
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(8.dp)
             .background(
-                color = MaterialTheme.colorScheme.outlineVariant,
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.62f),
                 shape = RoundedCornerShape(999.dp)
             )
     ) {
@@ -1414,7 +1462,7 @@ private fun WeeklyScoreProgressBar(
                 .fillMaxWidth(progress.coerceIn(0f, 1f))
                 .height(8.dp)
                 .background(
-                    color = SpentopiaMutedPurple,
+                    brush = progressBrush,
                     shape = RoundedCornerShape(999.dp)
                 )
         )
@@ -1972,7 +2020,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     } catch (e: Exception) {
-                                        receiptVerificationMessage = e.message ?: "영수증 인증에 실패했습니다."
+                                        receiptVerificationMessage = resolveReceiptVerificationError(e)
                                         Toast.makeText(context, receiptVerificationMessage, Toast.LENGTH_SHORT).show()
                                     } finally {
                                         isReceiptVerifying = false

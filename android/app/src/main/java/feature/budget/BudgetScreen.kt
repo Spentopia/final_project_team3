@@ -1318,12 +1318,20 @@ private fun BudgetCommentCard(
     remainingAmount: Int
 ) {
     val isDark = isSystemInDarkTheme()
+    val plannedAmount = totalExpense + savingGoal
+    val usedPercent = if (monthlyIncome <= 0) {
+        0
+    } else {
+        (plannedAmount * 100 / monthlyIncome).coerceAtLeast(0)
+    }
     val comment = when {
         monthlyIncome <= 0 -> "월 예산을 입력하면 카테고리별 계획을 더 정확하게 맞출 수 있어요."
-        remainingAmount < 0 -> "지출과 저축 목표가 월 예산보다 ${formatWon(-remainingAmount)} 많아요. 카테고리 금액을 조금 낮춰보세요."
-        savingGoal <= 0 -> "저축 목표를 함께 잡아두면 이번 달 예산 흐름을 더 안정적으로 관리할 수 있어요."
         totalExpense == 0 -> "카테고리 예산을 입력하면 이번 달 소비 계획을 한눈에 볼 수 있어요."
-        else -> "현재 계획은 예산 안에서 움직이고 있어요. 저장하면 이번 달 기준으로 예산 설정이 반영됩니다."
+        remainingAmount < 0 -> "월 예산보다 ${formatWon(-remainingAmount)} 초과됐어요. 카테고리 예산이나 저축 목표를 조금 낮추면 균형이 맞아요."
+        savingGoal <= 0 -> "소비 계획은 예산 안에 있어요. 남은 ${formatWon(remainingAmount)} 중 일부를 저축 목표로 잡아두면 더 안정적이에요."
+        usedPercent >= 95 -> "예산 안에 들어오긴 했지만 남은 금액이 ${formatWon(remainingAmount)}라 여유가 적어요. 변동 지출을 조금만 줄여보세요."
+        usedPercent >= 80 -> "현재 계획은 월 예산의 ${usedPercent}%를 사용해요. 남은 ${formatWon(remainingAmount)}로 비상 지출까지 관리할 수 있어요."
+        else -> "현재 계획은 여유 있게 예산 안에 있어요. 남은 ${formatWon(remainingAmount)}는 추가 저축이나 다음 달 준비금으로 돌려도 좋아요."
     }
 
     Card(

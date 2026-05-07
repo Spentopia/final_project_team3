@@ -172,6 +172,10 @@ fun MarketScreen(
                                 ViewGroup.LayoutParams.MATCH_PARENT
                             )
                             configureMarketWebView()
+                            isClickable = true
+                            isFocusable = true
+                            isFocusableInTouchMode = true
+                            requestFocus()
                             Log.d(
                                 MARKET_WEBVIEW_TAG,
                                 "settings js=${settings.javaScriptEnabled} dom=${settings.domStorageEnabled} viewport=${settings.useWideViewPort} overview=${settings.loadWithOverviewMode}"
@@ -326,7 +330,9 @@ fun MarketScreen(
 
         if (baseUrl.isNotBlank() && isLoading) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator()
