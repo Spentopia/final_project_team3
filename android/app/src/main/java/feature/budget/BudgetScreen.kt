@@ -76,6 +76,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
 import java.util.Calendar
 
+private const val MAX_BUDGET_AMOUNT = 999_999_999_999L
+
 // 예산 설정 화면임
 // AI 추천 플랜/직접 조절/저장 흐름
 @Composable
@@ -776,7 +778,7 @@ private fun InfoValueCard(
 private fun BudgetLineItem(
     icon: ImageVector,
     label: String,
-    amount: Int
+    amount: Long
 ) {
     Row(
         modifier = Modifier
@@ -812,21 +814,31 @@ private fun BudgetLineItem(
 // 직접 슬라이더로 값 조절하는 카드
 @Composable
 private fun CustomBudgetSettingCard(
-    monthlyIncome: Int,
-    savingGoal: Int,
-    foodBudget: Int,
-    transportBudget: Int,
-    livingBudget: Int,
-    hobbyBudget: Int,
-    onMonthlyIncomeChange: (Int) -> Unit,
-    onSavingGoalChange: (Int) -> Unit,
-    onFoodBudgetChange: (Int) -> Unit,
-    onTransportBudgetChange: (Int) -> Unit,
-    onLivingBudgetChange: (Int) -> Unit,
-    onHobbyBudgetChange: (Int) -> Unit,
+    monthlyIncome: Long,
+    savingGoal: Long,
+    foodBudget: Long,
+    transportBudget: Long,
+    livingBudget: Long,
+    hobbyBudget: Long,
+    onMonthlyIncomeChange: (Long) -> Unit,
+    onSavingGoalChange: (Long) -> Unit,
+    onFoodBudgetChange: (Long) -> Unit,
+    onTransportBudgetChange: (Long) -> Unit,
+    onLivingBudgetChange: (Long) -> Unit,
+    onHobbyBudgetChange: (Long) -> Unit,
     onSaveClick: () -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
+    val monthlySliderMax = dynamicBudgetMax(5000000L, monthlyIncome)
+    val savingSliderMax = dynamicBudgetMax(500000L, monthlyIncome, savingGoal)
+    val categorySliderMax = dynamicBudgetMax(
+        10000000L,
+        monthlyIncome,
+        foodBudget,
+        transportBudget,
+        livingBudget,
+        hobbyBudget
+    )
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -844,7 +856,8 @@ private fun CustomBudgetSettingCard(
             BudgetSliderItem(
                 title = "월 예산",
                 value = monthlyIncome,
-                valueRange = 100000f..5000000f,
+                minValue = 0L,
+                maxValue = monthlySliderMax,
                 steps = 0,
                 icon = null,
                 valueColor = MaterialTheme.colorScheme.onSurface,
@@ -857,7 +870,8 @@ private fun CustomBudgetSettingCard(
             BudgetSliderItem(
                 title = "저축 목표",
                 value = savingGoal,
-                valueRange = 0f..500000f,
+                minValue = 0L,
+                maxValue = savingSliderMax,
                 steps = 0,
                 icon = null,
                 valueColor = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16A34A),
@@ -875,7 +889,8 @@ private fun CustomBudgetSettingCard(
             BudgetSliderItem(
                 title = "식비",
                 value = foodBudget,
-                valueRange = 0f..10000000f,
+                minValue = 0L,
+                maxValue = categorySliderMax,
                 steps = 0,
                 icon = Icons.Default.Restaurant,
                 valueColor = MaterialTheme.colorScheme.onSurface,
@@ -888,7 +903,8 @@ private fun CustomBudgetSettingCard(
             BudgetSliderItem(
                 title = "교통비",
                 value = transportBudget,
-                valueRange = 0f..10000000f,
+                minValue = 0L,
+                maxValue = categorySliderMax,
                 steps = 0,
                 icon = Icons.Default.Subway,
                 valueColor = MaterialTheme.colorScheme.onSurface,
@@ -901,7 +917,8 @@ private fun CustomBudgetSettingCard(
             BudgetSliderItem(
                 title = "생활비",
                 value = livingBudget,
-                valueRange = 0f..10000000f,
+                minValue = 0L,
+                maxValue = categorySliderMax,
                 steps = 0,
                 icon = Icons.Default.Home,
                 valueColor = MaterialTheme.colorScheme.onSurface,
@@ -914,7 +931,8 @@ private fun CustomBudgetSettingCard(
             BudgetSliderItem(
                 title = "여가/취미",
                 value = hobbyBudget,
-                valueRange = 0f..10000000f,
+                minValue = 0L,
+                maxValue = categorySliderMax,
                 steps = 0,
                 icon = Icons.Default.FavoriteBorder,
                 valueColor = MaterialTheme.colorScheme.onSurface,
@@ -948,24 +966,30 @@ private fun CustomBudgetSettingCard(
 @Composable
 private fun BudgetSliderItem(
     title: String,
-    value: Int,
-    valueRange: ClosedFloatingPointRange<Float>,
+    value: Long,
+    minValue: Long,
+    maxValue: Long,
     steps: Int,
     icon: ImageVector? = null,
     valueColor: Color = Color.Unspecified,
-    onValueChange: (Int) -> Unit
+    onValueChange: (Long) -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
+    val safeMinValue = minValue.coerceAtLeast(0L)
+    val safeMaxValue = maxValue.coerceAtLeast(safeMinValue + 1L)
+    val sliderRange = safeMinValue.toFloat()..safeMaxValue.toFloat()
+    val normalizedValue = value.coerceIn(safeMinValue, safeMaxValue)
     // 슬라이더 현재 위치 상태
-    var sliderPosition by remember(value) { mutableFloatStateOf(value.toFloat()) }
-    var inputText by remember { mutableStateOf(value.toString()) }
-    val minValue = valueRange.start.toInt()
-    val maxValue = valueRange.endInclusive.toInt()
+    var sliderPosition by remember(normalizedValue, safeMaxValue) {
+        mutableFloatStateOf(normalizedValue.toFloat())
+    }
+    var inputText by remember { mutableStateOf(formatWonWithoutSuffix(value)) }
 
     LaunchedEffect(value) {
-        sliderPosition = value.toFloat()
-        if (inputText != value.toString()) {
-            inputText = value.toString()
+        sliderPosition = normalizedValue.toFloat()
+        val formattedValue = formatWonWithoutSuffix(value)
+        if (inputText != formattedValue) {
+            inputText = formattedValue
         }
     }
 
@@ -1004,15 +1028,17 @@ private fun BudgetSliderItem(
             OutlinedTextField(
                 value = inputText,
                 onValueChange = { changedText ->
-                    val onlyDigits = changedText.filter { it.isDigit() }.take(9)
-                    inputText = onlyDigits
+                    val onlyDigits = changedText.filter { it.isDigit() }.trimStart('0').take(15)
+                    val changedValue = onlyDigits.toLongOrNull()?.coerceAtMost(MAX_BUDGET_AMOUNT) ?: 0L
 
-                    val changedValue = onlyDigits.toIntOrNull()
-                    if (changedValue != null) {
-                        val clampedValue = changedValue.coerceIn(minValue, maxValue)
-                        sliderPosition = clampedValue.toFloat()
-                        onValueChange(clampedValue)
+                    inputText = if (changedText.isBlank() || onlyDigits.isBlank()) {
+                        ""
+                    } else {
+                        formatWonWithoutSuffix(changedValue)
                     }
+
+                    sliderPosition = changedValue.coerceIn(safeMinValue, safeMaxValue).toFloat()
+                    onValueChange(changedValue)
                 },
                 modifier = Modifier.width(152.dp),
                 singleLine = true,
@@ -1040,14 +1066,13 @@ private fun BudgetSliderItem(
             value = sliderPosition,
             onValueChange = { changedValue ->
                 // 슬라이더를 움직이는 동안 현재 위치 갱신
-                val clampedValue = changedValue.toInt().coerceIn(minValue, maxValue)
+                val clampedValue = changedValue.toLong().coerceIn(safeMinValue, safeMaxValue)
                 sliderPosition = clampedValue.toFloat()
-                inputText = clampedValue.toString()
+                inputText = formatWonWithoutSuffix(clampedValue)
 
-                // Int 값으로 변환해서 상위로 전달
                 onValueChange(clampedValue)
             },
-            valueRange = valueRange,
+            valueRange = sliderRange,
 
             // 첫 번째 스타일처럼 연속형 슬라이더로 사용
             steps = steps,
@@ -1076,13 +1101,13 @@ private fun BudgetSliderItem(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = formatWonWithoutSuffix(valueRange.start.toInt()),
+                text = formatWonWithoutSuffix(safeMinValue),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Text(
-                text = formatWonWithoutSuffix(valueRange.endInclusive.toInt()),
+                text = formatWonWithoutSuffix(safeMaxValue),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1093,17 +1118,17 @@ private fun BudgetSliderItem(
 // 예산 요약 카드
 @Composable
 private fun BudgetSummaryCard(
-    monthlyIncome: Int,
-    totalExpense: Int,
-    savingGoal: Int,
-    remainingAmount: Int
+    monthlyIncome: Long,
+    totalExpense: Long,
+    savingGoal: Long,
+    remainingAmount: Long
 ) {
     val categoryRatio = if (monthlyIncome <= 0) {
         0f
     } else {
-        (totalExpense.toFloat() / monthlyIncome.toFloat()).coerceIn(0f, 1f)
+        (totalExpense.toDouble() / monthlyIncome.toDouble()).toFloat().coerceIn(0f, 1f)
     }
-    val categoryPercent = if (monthlyIncome <= 0) 0 else (totalExpense * 100 / monthlyIncome)
+    val categoryPercent = if (monthlyIncome <= 0) 0L else (totalExpense * 100.0 / monthlyIncome).toLong()
     val progressColor = if (categoryPercent <= 100) {
         MaterialTheme.colorScheme.primary
     } else {
@@ -1266,7 +1291,7 @@ private fun SummaryRow(
 private fun CurrentMonthlyBudgetCard(
     year: Int,
     month: Int,
-    monthlyBudget: Int
+    monthlyBudget: Long
 ) {
     val isDark = isSystemInDarkTheme()
 
@@ -1312,21 +1337,21 @@ private fun CurrentMonthlyBudgetCard(
 
 @Composable
 private fun BudgetCommentCard(
-    monthlyIncome: Int,
-    totalExpense: Int,
-    savingGoal: Int,
-    remainingAmount: Int
+    monthlyIncome: Long,
+    totalExpense: Long,
+    savingGoal: Long,
+    remainingAmount: Long
 ) {
     val isDark = isSystemInDarkTheme()
     val plannedAmount = totalExpense + savingGoal
     val usedPercent = if (monthlyIncome <= 0) {
-        0
+        0L
     } else {
-        (plannedAmount * 100 / monthlyIncome).coerceAtLeast(0)
+        (plannedAmount * 100.0 / monthlyIncome).toLong().coerceAtLeast(0L)
     }
     val comment = when {
         monthlyIncome <= 0 -> "월 예산을 입력하면 카테고리별 계획을 더 정확하게 맞출 수 있어요."
-        totalExpense == 0 -> "카테고리 예산을 입력하면 이번 달 소비 계획을 한눈에 볼 수 있어요."
+        totalExpense == 0L -> "카테고리 예산을 입력하면 이번 달 소비 계획을 한눈에 볼 수 있어요."
         remainingAmount < 0 -> "월 예산보다 ${formatWon(-remainingAmount)} 초과됐어요. 카테고리 예산이나 저축 목표를 조금 낮추면 균형이 맞아요."
         savingGoal <= 0 -> "소비 계획은 예산 안에 있어요. 남은 ${formatWon(remainingAmount)} 중 일부를 저축 목표로 잡아두면 더 안정적이에요."
         usedPercent >= 95 -> "예산 안에 들어오긴 했지만 남은 금액이 ${formatWon(remainingAmount)}라 여유가 적어요. 변동 지출을 조금만 줄여보세요."
@@ -1373,15 +1398,15 @@ private fun BudgetCommentCard(
 // AI 분석 카드
 @Composable
 private fun BudgetAnalysisCard(
-    foodBudget: Int,
-    totalExpense: Int,
-    savingGoal: Int,
+    foodBudget: Long,
+    totalExpense: Long,
+    savingGoal: Long,
     aiAnalysisText: String
 ) {
     val isDark = isSystemInDarkTheme()
 
     // 식비가 전체 지출에서 차지하는 비율 계산
-    val foodRatio = if (totalExpense == 0) 0 else (foodBudget * 100 / totalExpense)
+    val foodRatio = if (totalExpense == 0L) 0L else (foodBudget * 100.0 / totalExpense).toLong()
 
     // 첫 번째 메시지
     val firstMessage = when {
@@ -1467,8 +1492,8 @@ private fun AnalysisTextRow(
 // 절약 팁 카드
 @Composable
 private fun SavingTipCard(
-    foodBudget: Int,
-    transportBudget: Int
+    foodBudget: Long,
+    transportBudget: Long
 ) {
     val isDark = isSystemInDarkTheme()
 
@@ -1560,21 +1585,29 @@ private fun TipBullet(
 data class BudgetPlanUiData(
     val title: String,
     val description: String,
-    val monthlyBudget: Int,
-    val savingGoal: Int,
-    val food: Int,
-    val transport: Int,
-    val living: Int,
-    val hobby: Int,
-    val saving: Int
+    val monthlyBudget: Long,
+    val savingGoal: Long,
+    val food: Long,
+    val transport: Long,
+    val living: Long,
+    val hobby: Long,
+    val saving: Long
 )
 
 // 숫자를 "1,000" 형태로 바꿔주는 함수
-private fun formatWonWithoutSuffix(amount: Int): String {
+private fun formatWonWithoutSuffix(amount: Long): String {
     return "%,d".format(amount)
 }
 
 // 숫자를 "1,000원" 형태로 바꿔주는 함수
-private fun formatWon(amount: Int): String {
+private fun formatWon(amount: Long): String {
     return "%,d원".format(amount)
+}
+
+private fun dynamicBudgetMax(defaultMax: Long, vararg values: Long): Long {
+    return values
+        .fold(defaultMax.coerceAtLeast(1L)) { currentMax, value ->
+            maxOf(currentMax, value.coerceAtLeast(0L))
+        }
+        .coerceAtMost(MAX_BUDGET_AMOUNT)
 }

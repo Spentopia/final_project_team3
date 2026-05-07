@@ -167,7 +167,7 @@ class AnalysisViewModel(
     val uiState: StateFlow<AnalysisUiState> = _uiState.asStateFlow()
 
     private var latestExpenseOnlyList: List<ExpenseEntity> = emptyList()
-    private var latestMonthlyBudget: Int = 0
+    private var latestMonthlyBudget: Long = 0L
 
     init {
         observeAnalysisData()
@@ -582,7 +582,7 @@ class AnalysisViewModel(
     // 실제 금액/예산/최대 카테고리 기준 문구를 만듭니다.
     private fun createAnalysisTipList(
         totalExpense: Int,
-        monthlyBudget: Int,
+        monthlyBudget: Long,
         topCategory: CategorySpendUiModel?
     ): List<AnalysisTipUiModel> {
 

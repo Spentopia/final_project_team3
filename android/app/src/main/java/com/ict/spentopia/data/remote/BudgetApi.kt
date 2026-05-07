@@ -10,18 +10,18 @@ import retrofit2.http.Query
 data class CreateBudgetRequest(
     val year: Int,
     val month: Int,
-    val total_budget: Int,
-    val savings_goal: Int?
+    val total_budget: Long,
+    val savings_goal: Long?
 )
 
 data class UpdateBudgetRequest(
-    val total_budget: Int?,
-    val savings_goal: Int?
+    val total_budget: Long?,
+    val savings_goal: Long?
 )
 
 data class BudgetCategoryItem(
     val category: String,
-    val allocated_amount: Int
+    val allocated_amount: Long
 )
 
 data class UpdateBudgetCategoriesRequest(
@@ -32,8 +32,8 @@ data class BudgetResponse(
     val id: String,
     val year: Int,
     val month: Int,
-    val total_budget: Int,
-    val savings_goal: Int?,
+    val total_budget: Long,
+    val savings_goal: Long?,
     val ai_plan: String?,
     val categories: List<BudgetCategoryItem>,
     val created_at: String?
@@ -41,12 +41,12 @@ data class BudgetResponse(
 
 data class AiBudgetPlan(
     val name: String,
-    val budget: Int,
-    val savings: Int,
-    val food: Int,
-    val transport: Int,
-    val living: Int,
-    val leisure: Int,
+    val budget: Long,
+    val savings: Long,
+    val food: Long,
+    val transport: Long,
+    val living: Long,
+    val leisure: Long,
     val description: String
 )
 

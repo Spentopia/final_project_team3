@@ -5,20 +5,20 @@ package com.ict.spentopia.feature.budget
 data class BudgetSettingsData(
 
     // 월 수입
-    val monthlyIncome: Int = 500000,
+    val monthlyIncome: Long = 500000L,
 
     // 저축 목표
-    val savingGoal: Int = 50000,
+    val savingGoal: Long = 50000L,
 
     // 식비
-    val foodBudget: Int = 150000,
+    val foodBudget: Long = 150000L,
 
     // 교통비
-    val transportBudget: Int = 80000,
+    val transportBudget: Long = 80000L,
 
     // 생활비
-    val livingBudget: Int = 120000,
+    val livingBudget: Long = 120000L,
 
     // 여가/취미비
-    val hobbyBudget: Int = 100000
+    val hobbyBudget: Long = 100000L
 )

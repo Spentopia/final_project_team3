@@ -81,6 +81,7 @@ import androidx.compose.ui.graphics.Brush // 그라데이션 같은 색칠 도�
 import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
 import androidx.compose.ui.layout.ContentScale // 이미지 채우는 방식을 가져옴
 import androidx.compose.ui.platform.LocalContext // 현재 화면 Context를 가져오는 도구를 가져옴
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight // 글자 두께 설정을 가져옴
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
@@ -106,6 +107,7 @@ import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // 선택한 솔�
 import com.ict.spentopia.data.local.ExpenseEntity // DB에 저장되는 소비 데이터 타입을 가져옴
 import com.ict.spentopia.data.remote.CreateExpenseRequest
 import com.ict.spentopia.data.remote.RetrofitClient
+import com.ict.spentopia.R
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
@@ -620,9 +622,9 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
     currentMonth: Int, // currentMonth 값을 함수 밖에서 받아옴
     currentMonthTotalExpense: Int, // currentMonthTotalExpense 값을 함수 밖에서 받아옴
     currentMonthExpenseCount: Int, // currentMonthExpenseCount 값을 함수 밖에서 받아옴
-    monthlyBudget: Int, // monthlyBudget 값을 함수 밖에서 받아옴
-    monthlyIncome: Int, // monthlyIncome 값을 함수 밖에서 받아옴
-    remainingBudget: Int, // remainingBudget 값을 함수 밖에서 받아옴
+    monthlyBudget: Long, // monthlyBudget 값을 함수 밖에서 받아옴
+    monthlyIncome: Long, // monthlyIncome 값을 함수 밖에서 받아옴
+    remainingBudget: Long, // remainingBudget 값을 함수 밖에서 받아옴
     usageRateText: String, // usageRateText 값을 함수 밖에서 받아옴
     changeRateText: String, // changeRateText 값을 함수 밖에서 받아옴
     onPrevMonth: () -> Unit, // onPrevMonth 는 눌렀을 때 실행할 동작을 받음
@@ -1271,12 +1273,25 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
         Column( // 세로로 배치하는 영역을 시작함
             modifier = Modifier.padding(20.dp) // 안쪽이나 바깥 여백을 줌
         ) { // 이 블록 안의 내용이 시작됨
-            Text( // 글자를 화면에 보여주기 시작함
-                text = "이번 주 성실도", // 화면에 보여줄 글자를 정함
-                fontSize = 20.sp, // 글자 크기를 정함
-                fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                color = MaterialTheme.colorScheme.onSurface // 색상을 정함
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_lucide_flame),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text( // 글자를 화면에 보여주기 시작함
+                    text = "이번 주 성실도", // 화면에 보여줄 글자를 정함
+                    fontSize = 20.sp, // 글자 크기를 정함
+                    fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                    color = MaterialTheme.colorScheme.onSurface // 색상을 정함
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
@@ -1377,7 +1392,12 @@ private fun WeeklyScoreDetailDialog(
                 WeeklyScoreDetailRow("영수증 인증", scoreState.receiptScore, 25)
                 WeeklyScoreDetailRow("일기 작성", scoreState.diaryScore, 20)
                 WeeklyScoreDetailRow("예산 체크", scoreState.budgetScore, 15)
-                WeeklyScoreDetailRow("연속 활동", scoreState.streakScore, 10)
+                WeeklyScoreDetailRow(
+                    label = "연속 활동",
+                    score = scoreState.streakScore,
+                    maxScore = 10,
+                    leadingValue = "${scoreState.streakScore.coerceIn(0, 10)}일"
+                )
 
                 if (scoreState.errorMessage.isNotBlank()) {
                     Text(
@@ -1395,9 +1415,14 @@ private fun WeeklyScoreDetailDialog(
 private fun WeeklyScoreDetailRow(
     label: String,
     score: Int,
-    maxScore: Int
+    maxScore: Int,
+    leadingValue: String? = null
 ) {
     val progress = if (maxScore > 0) score.toFloat() / maxScore.toFloat() else 0f
+    val scoreText = listOfNotNull(
+        leadingValue,
+        "${score.coerceAtLeast(0)} / $maxScore"
+    ).joinToString("  ")
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
@@ -1411,7 +1436,7 @@ private fun WeeklyScoreDetailRow(
             )
 
             Text(
-                text = "${score.coerceAtLeast(0)} / $maxScore",
+                text = scoreText,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -2496,6 +2521,11 @@ private fun formatAmount(amount: Int): String { // formatAmount 함수 시작
     return formatter.format(amount) // 계산한 결과를 바깥으로 돌려줌
 } // 블록 끝
 
+private fun formatAmount(amount: Long): String { // formatAmount 함수 시작
+    val formatter = DecimalFormat("#,###") // 숫자에 쉼표 형식을 적용할 준비를 함
+    return formatter.format(amount) // 계산한 결과를 바깥으로 돌려줌
+} // 블록 끝
+
 private fun formatDisplayDate(date: String): String { // formatDisplayDate 함수 시작
     return try { // 계산한 결과를 바깥으로 돌려줌
         val yearMonthDay = date.split("-") // yearMonthDay 값을 계산해서 저장함
@@ -2616,7 +2646,7 @@ private fun getChangeRateColor(changeRateText: String): Color { // getChangeRate
 // 사용률 텍스트를 만드는 함수입니다.
 // 기존에는 Int로 바로 잘라서 0.2% 같은 값이 0%가 되었기 때문에
 // 이제는 소수 1자리까지 보여주도록 문자열로 만듭니다.
-private fun createUsageRateText(currentAmount: Int, monthlyBudget: Int): String { // createUsageRateText 함수 시작
+private fun createUsageRateText(currentAmount: Int, monthlyBudget: Long): String { // createUsageRateText 함수 시작
     // 예산이 0 이하이면 나눗셈이 불가능하므로 0%로 처리합니다.
     if (monthlyBudget <= 0) { // 조건이 참일 때만 아래 코드를 실행함
         return "0%" // 계산한 결과를 바깥으로 돌려줌

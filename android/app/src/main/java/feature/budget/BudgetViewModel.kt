@@ -63,33 +63,33 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // 월 수입 변경
-    fun updateMonthlyIncome(value: Int) {
-        _budgetState.value = _budgetState.value.copy(monthlyIncome = value)
+    fun updateMonthlyIncome(value: Long) {
+        _budgetState.value = _budgetState.value.copy(monthlyIncome = value.coerceAtLeast(0L))
     }
 
     // 저축 목표 변경
-    fun updateSavingGoal(value: Int) {
-        _budgetState.value = _budgetState.value.copy(savingGoal = value)
+    fun updateSavingGoal(value: Long) {
+        _budgetState.value = _budgetState.value.copy(savingGoal = value.coerceAtLeast(0L))
     }
 
     // 식비 변경
-    fun updateFoodBudget(value: Int) {
-        _budgetState.value = _budgetState.value.copy(foodBudget = value)
+    fun updateFoodBudget(value: Long) {
+        _budgetState.value = _budgetState.value.copy(foodBudget = value.coerceAtLeast(0L))
     }
 
     // 교통비 변경
-    fun updateTransportBudget(value: Int) {
-        _budgetState.value = _budgetState.value.copy(transportBudget = value)
+    fun updateTransportBudget(value: Long) {
+        _budgetState.value = _budgetState.value.copy(transportBudget = value.coerceAtLeast(0L))
     }
 
     // 생활비 변경
-    fun updateLivingBudget(value: Int) {
-        _budgetState.value = _budgetState.value.copy(livingBudget = value)
+    fun updateLivingBudget(value: Long) {
+        _budgetState.value = _budgetState.value.copy(livingBudget = value.coerceAtLeast(0L))
     }
 
     // 여가/취미 변경
-    fun updateHobbyBudget(value: Int) {
-        _budgetState.value = _budgetState.value.copy(hobbyBudget = value)
+    fun updateHobbyBudget(value: Long) {
+        _budgetState.value = _budgetState.value.copy(hobbyBudget = value.coerceAtLeast(0L))
     }
 
     // 추천 플랜 적용
@@ -265,7 +265,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun BudgetResponse.toBudgetSettingsData(fallback: BudgetSettingsData): BudgetSettingsData {
-        fun amountOf(vararg names: String, fallbackValue: Int): Int {
+        fun amountOf(vararg names: String, fallbackValue: Long): Long {
             return categories
                 .firstOrNull { item ->
                     names.any { name -> item.category.equals(name, ignoreCase = true) }
