@@ -15,6 +15,7 @@ use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::admin;
 use crate::auth;
 use crate::avatar;
 use crate::budget;
@@ -30,6 +31,7 @@ use crate::reward;
 use crate::state::AppState;
 use crate::user;
 use crate::wallet;
+
 
 pub fn create_router(state: AppState) -> Router {
     // ── 공개 라우트 ─────────────────────────────────────────
@@ -306,6 +308,13 @@ pub fn create_router(state: AppState) -> Router {
             "/api/admin/contest/reward",
             post(reward::handler::grant_contest_reward),
         )
+        // ── 관리자 신고 관리 ─────────────────────────────
+        .route("/api/admin/content-reports",
+            get(admin::handler::list_content_reports))
+        .route("/api/admin/content-reports/:id/resolve",
+            patch(admin::handler::resolve_content_report))
+        .route("api/admin/content-reports/:id/reject",
+            patch(admin::handler::reject_content_report))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::middleware::admin_middleware,
