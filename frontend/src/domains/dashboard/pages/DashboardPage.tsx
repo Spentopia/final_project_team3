@@ -206,7 +206,7 @@ export default function DashboardPage() {
       setIsReceiptVerified(result.verification.is_verified);
 
       if (result.verification.is_verified) {
-        toast.success("영수증 정보를 자동으로 입력했고 인증도 완료됐습니다.");
+        toast.success("영수증 검증 완료!");
       } else {
         toast.error(result.verification.reason);
       }
@@ -819,31 +819,20 @@ const currentBudget = budgets[monthKey] ?? budget;
 
                   {ocrResult && (
                     <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-50 dark:text-gray-900">
-                      <p className="font-semibold">OCR 결과</p>
-                      <p>문서 유형: {ocrResult.ocr.document_type}</p>
-                      <p>상호명: {ocrResult.ocr.merchant_name ?? "없음"}</p>
-                      <p>추출 날짜: {ocrResult.ocr.receipt_date ?? "없음"}</p>
-                      <p>추출 금액: {ocrResult.ocr.total_amount ?? "없음"}</p>
-                      <p>승인번호: {ocrResult.ocr.approval_number ?? "없음"}</p>
-                      <p>인쇄 레이아웃: {ocrResult.ocr.has_printed_layout ? "예" : "아니오"}</p>
-                      <p>손글씨 의심: {ocrResult.ocr.handwriting_suspected ? "예" : "아니오"}</p>
-                      <p>근거 키워드: {ocrResult.ocr.evidence_keywords?.join(", ") || "없음"}</p>
-                      <p>근거 텍스트: {ocrResult.ocr.raw_text || "없음"}</p>
-
-                      <div className="mt-2">
-                        <p
-                          className={
-                            ocrResult.verification.is_verified
-                              ? "font-semibold text-green-600"
-                              : "font-semibold text-red-500"
-                          }
-                        >
-                          {ocrResult.verification.is_verified ? "인증 성공" : "인증 실패"}
-                        </p>
-                        <p>전표 판정 점수: {ocrResult.verification.layout_score ?? 0}</p>
-                        <p>위조 의심: {ocrResult.verification.fraud_suspected ? "예" : "아니오"}</p>
-                        <p>사유: {ocrResult.verification.reason}</p>
-                      </div>
+                      <p
+                        className={
+                          ocrResult.verification.is_verified
+                            ? "font-semibold text-green-600"
+                            : "font-semibold text-red-500"
+                        }
+                      >
+                        {ocrResult.verification.is_verified
+                          ? "영수증 검증 결과 : 성공!"
+                          : "영수증 검증 결과 : 실패"}
+                      </p>
+                      {!ocrResult.verification.is_verified && (
+                        <p className="mt-2">사유: {ocrResult.verification.reason}</p>
+                      )}
                     </div>
                   )}
                 </div>

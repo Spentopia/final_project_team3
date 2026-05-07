@@ -96,18 +96,6 @@ export default function ReceiptOcrPanel({
 
       {result && (
         <div className={styles.result}>
-          <h4>OCR 결과</h4>
-          <p>문서 유형: {result.ocr.document_type}</p>
-          <p>상호명: {result.ocr.merchant_name ?? "없음"}</p>
-          <p>추출 날짜: {result.ocr.receipt_date ?? "없음"}</p>
-          <p>추출 금액: {result.ocr.total_amount ?? "없음"}</p>
-          <p>승인번호: {result.ocr.approval_number ?? "없음"}</p>
-          <p>인쇄 레이아웃: {result.ocr.has_printed_layout ? "예" : "아니오"}</p>
-          <p>손글씨 의심: {result.ocr.handwriting_suspected ? "예" : "아니오"}</p>
-          <p>근거 키워드: {result.ocr.evidence_keywords?.join(", ") || "없음"}</p>
-          <p>근거 텍스트: {result.ocr.raw_text || "없음"}</p>
-
-          <h4 className={styles.verificationTitle}>검증 결과</h4>
           <p
             className={`${styles.verificationStatus} ${
               result.verification.is_verified
@@ -115,11 +103,13 @@ export default function ReceiptOcrPanel({
                 : styles.rejected
             }`}
           >
-            {result.verification.is_verified ? "인증 성공" : "인증 실패"}
+            {result.verification.is_verified
+              ? "영수증 검증 결과 : 성공!"
+              : "영수증 검증 결과 : 실패"}
           </p>
-          <p>전표 판정 점수: {result.verification.layout_score ?? 0}</p>
-          <p>위조 의심: {result.verification.fraud_suspected ? "예" : "아니오"}</p>
-          <p>사유: {result.verification.reason}</p>
+          {!result.verification.is_verified && (
+            <p>사유: {result.verification.reason}</p>
+          )}
         </div>
       )}
     </div>
