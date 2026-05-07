@@ -82,6 +82,23 @@ pub struct Reaction {
     pub voted_at: Option<DateTime<Utc>>,
 }
 
+// public.content_reports 테이블
+// 게시글/댓글/닉네임/프로필사진 신고 이력
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContentReport {
+    pub id: Uuid,
+    pub reporter_id: Uuid,
+    pub target_type: String,
+    pub target_id: Uuid,
+    pub reason: String,
+    pub detail: Option<String>,
+    pub status: String,
+    pub created_at: Option<DateTime<Utc>>,
+    pub reviewed_at: Option<DateTime<Utc>>,
+    pub reviewed_by: Option<Uuid>,
+}
+
+
 // public.chatbot_logs 테이블
 // AI 챗봇 상담 로그
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -4,6 +4,7 @@
 use utoipa::OpenApi;
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 
+use crate::admin;
 use crate::auth;
 use crate::avatar;
 use crate::budget;
@@ -21,6 +22,11 @@ use crate::wallet;
 #[derive(OpenApi)]
 #[openapi(
     paths(
+        // 관리자
+        crate::admin::handler::list_content_reports,
+        crate::admin::handler::resolve_content_report,
+        crate::admin::handler::reject_content_report,
+
         // ── 인증 ──────────────────────────────────────────────
         crate::auth::handler::request_nonce,
         crate::auth::handler::wallet_login,
@@ -105,6 +111,9 @@ use crate::wallet;
     ),
     components(
         schemas(
+            // admin DTO
+            admin::dto::AdminContentReportResponse,
+
             // ── auth DTO ──────────────────────────────────────
             auth::dto::NonceRequest,
             auth::dto::NonceResponse,

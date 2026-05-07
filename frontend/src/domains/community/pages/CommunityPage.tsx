@@ -34,9 +34,11 @@ import {
   type CommentResponse,
   type ContestResponse,
   type CommunityPostResponse,
+  type ContentReportTargetType,
   type PostType,
   type PostSort,
 } from "@/domains/community/api/communityApi";
+import ReportDialog from "@/components/report/ReportDialog.tsx";
 
 // ── 타입 ─────────────────────────────────────────────────────
 
@@ -240,6 +242,27 @@ export default function Community() {
   // replyContent: 대댓글 입력값
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
+
+  // 신고 모달 대상 상태
+  //
+  // null이면 신고 모달 닫힘.
+  // 값이 있으면 해당 대상에 대한 신고 모달이 열림.
+  //
+  // type:
+  // - post
+  // - comment
+  // - user_nickname
+  // - user_profile
+  //
+  // id:
+  // - post면 posts.id
+  // - comment면 comments.id
+  // - user_nickname/user_profile이면 users.id
+    const [reportTarget, setReportTarget] = useState<{
+      type: ContentReportTargetType;
+      id: string;
+      label: string;
+    } | null>(null);
 
 
   const readPostsStorageKey = myUserId
@@ -654,6 +677,23 @@ export default function Community() {
     if (!selectedPost) return;
 
     setPostDeleteTarget(selectedPost);
+  };
+
+  // 신고 모달 열기
+  //
+  // targetType과 targetId를 받아서 ReportDialog에 넘겨준다.
+  // 본인 컨텐츠 신고 방지는 백엔드에서도 한 번 더 검사하지만,
+  // 프론트에서도 버튼 자체를 안 보여주는 게 UX상 좋다.
+  const openReportDialog = (
+      type: ContentReportTargetType,
+      id: string,
+      label: string
+  ) => {
+    setReportTarget({
+      type,
+      id,
+      label,
+    });
   };
 
   const handleReactPost = async (post: Post) => {
