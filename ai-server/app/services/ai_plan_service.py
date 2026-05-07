@@ -1,206 +1,314 @@
 import json
-import random
+
 from app.clients.openai_client import OpenAIClient
 
-MIN_BUDGET = 300000
-MAX_BUDGET = 1500000
-BUDGET_STEP = 100000
+MIN_BUDGET = 0
+MAX_BUDGET = 100000000
+UNIT = 10000
 
 PLAN_PROFILES = [
     {
         "name": "기본 플랜",
-        "description": "현재 생활 패턴을 크게 해치지 않으면서 지출과 저축의 균형을 맞춘 플랜",
-        "savings_ratio": (0.15, 0.22),
+        "description": "저축을 우선 확보하고 필수 지출을 중심으로 운영하는 절약형 플랜",
+        "savings_ratio": (0.22, 0.32),
+        "category_bias": {"food": 0.24, "transport": 0.14, "living": 0.37, "leisure": 0.10},
     },
     {
         "name": "중간 플랜",
-        "description": "조금 더 여유 있는 소비를 반영해 일상 편의와 만족도를 높인 플랜",
-        "savings_ratio": (0.10, 0.18),
+        "description": "저축과 생활 만족도를 균형 있게 맞춘 플랜",
+        "savings_ratio": (0.14, 0.22),
+        "category_bias": {"food": 0.26, "transport": 0.14, "living": 0.33, "leisure": 0.15},
     },
     {
         "name": "여유 플랜",
-        "description": "여유로운 생활을 위해 취미와 생활비 비중을 넉넉하게 잡은 플랜",
-        "savings_ratio": (0.05, 0.12),
+        "description": "취미와 여가를 조금 더 넉넉히 반영한 플랜",
+        "savings_ratio": (0.08, 0.15),
+        "category_bias": {"food": 0.27, "transport": 0.14, "living": 0.31, "leisure": 0.20},
     },
 ]
 
+FIXED_EXPENSE_CATEGORY_MAP = {
+    "food": "food",
+    "meal": "food",
+    "dining": "food",
+    "transport": "transport",
+    "traffic": "transport",
+    "living": "living",
+    "utility": "living",
+    "rent": "living",
+    "housing": "living",
+    "leisure": "leisure",
+    "hobby": "leisure",
+    "entertainment": "leisure",
+}
 
-def round_to_step(value):
-    value = max(MIN_BUDGET, min(MAX_BUDGET, int(value)))
-    return max(MIN_BUDGET, min(MAX_BUDGET, round(value / BUDGET_STEP) * BUDGET_STEP))
+
+def clamp_budget(value):
+    return max(MIN_BUDGET, min(MAX_BUDGET, int(value or MIN_BUDGET)))
 
 
-def build_budget_targets(base_budget):
-    base = round_to_step(base_budget)
-    candidates = [
-        round_to_step(base - BUDGET_STEP),
-        base,
-        round_to_step(base + BUDGET_STEP),
-    ]
+def round_to_unit(value):
+    return max(0, int(round(max(0, value) / UNIT) * UNIT))
 
-    unique_targets = []
-    for candidate in candidates:
-        adjusted = candidate
-        while adjusted in unique_targets and adjusted < MAX_BUDGET:
-            adjusted += BUDGET_STEP
-        while adjusted in unique_targets and adjusted > MIN_BUDGET:
-            adjusted -= BUDGET_STEP
-        if adjusted not in unique_targets:
-            unique_targets.append(adjusted)
 
-    fallback = MIN_BUDGET
-    while len(unique_targets) < 3:
-        if fallback not in unique_targets:
-            unique_targets.append(fallback)
-        fallback += BUDGET_STEP
+def normalize_category_key(raw_category):
+    if not raw_category:
+        return "living"
+    category = str(raw_category).strip().lower()
+    return FIXED_EXPENSE_CATEGORY_MAP.get(category, "living")
 
-    return sorted(unique_targets[:3])
 
-async def generate_ai_plans(budget: int):
-    prompt = f"""
-    월 예산 {budget}원을 기준으로 3개의 플랜을 만들어라.
+def build_fixed_expense_summary(fixed_expenses):
+    category_totals = {
+        "food": 0,
+        "transport": 0,
+        "living": 0,
+        "leisure": 0,
+    }
 
-    중요:
-    - budget: 300000~1500000, 100000 단위, 서로 다름
-    - 1번 플랜은 기본 플랜, 2번 플랜은 중간 플랜, 3번 플랜은 여유 플랜
-    - 기본 플랜 <= 중간 플랜 <= 여유 플랜 순서로 월 예산이 커져야 함
-    - 설명은 플랜 이름과 소비 성향이 일치해야 함
-    - 한국어
-    - JSON만 출력
+    total = 0
+    normalized_items = []
+    for item in fixed_expenses or []:
+        amount = max(0, int(item.get("amount") or 0))
+        category = normalize_category_key(item.get("category"))
+        name = str(item.get("name") or "").strip() or "고정 지출"
+        total += amount
+        category_totals[category] += amount
+        normalized_items.append({
+            "name": name,
+            "amount": amount,
+            "category": category,
+        })
 
+    return {
+        "total": total,
+        "category_totals": category_totals,
+        "items": normalized_items,
+    }
+
+
+def build_prompt(payload, fixed_summary, total_budget):
+    savings_goal = max(0, int(payload.get("savings_goal") or 0))
+
+    return f"""
+사용자의 월 예산 데이터를 바탕으로 실제로 적용 가능한 3개의 소비 플랜을 추천해줘.
+
+사용자 입력:
+- 현재 입력 월 예산: {clamp_budget(payload.get("total_budget"))}원
+- 희망 저축액: {savings_goal}원
+- 연도: {payload.get("year")}
+- 월: {payload.get("month")}
+- 고정 지출 총합: {fixed_summary["total"]}원
+- 고정 지출 항목: {json.dumps(fixed_summary["items"], ensure_ascii=False)}
+
+규칙:
+- 3개 플랜의 budget은 모두 사용자가 입력한 월 예산과 같은 {total_budget}원으로 맞춘다.
+- 1번 플랜은 저축 우선, 2번 플랜은 균형형, 3번 플랜은 여유형이다.
+- 플랜 차이는 총예산이 아니라 저축/식비/교통비/생활비/여가취미 배분 방식에서만 드러나야 한다.
+- 각 플랜의 savings + food + transport + living + leisure 합계는 정확히 budget과 같아야 한다.
+- 사용자의 고정 지출 총합보다 생활비/교통비/식비 합산이 비현실적으로 작으면 안 된다.
+- savings는 가능하면 사용자의 희망 저축액을 반영하되, 기본 플랜 > 중간 플랜 > 여유 플랜 순으로 작아져야 한다.
+- 모든 금액은 10000원 단위 정수로 맞춘다.
+- 사용자가 입력한 월 예산이 크더라도 임의로 150만원 같은 상한으로 줄이지 않는다.
+- 한국어로 작성한다.
+- 반드시 JSON만 반환한다.
+
+반환 형식:
+{{
+  "plans": [
     {{
-      "plans": [
-        {{
-          "name": "",
-          "budget": 0,
-          "savings": 0,
-          "food": 0,
-          "transport": 0,
-          "living": 0,
-          "leisure": 0,
-          "description": ""
-        }}
-      ]
+      "name": "기본 플랜",
+      "budget": {total_budget},
+      "savings": 0,
+      "food": 0,
+      "transport": 0,
+      "living": 0,
+      "leisure": 0,
+      "description": "설명"
+    }},
+    {{
+      "name": "중간 플랜",
+      "budget": {total_budget},
+      "savings": 0,
+      "food": 0,
+      "transport": 0,
+      "living": 0,
+      "leisure": 0,
+      "description": "설명"
+    }},
+    {{
+      "name": "여유 플랜",
+      "budget": {total_budget},
+      "savings": 0,
+      "food": 0,
+      "transport": 0,
+      "living": 0,
+      "leisure": 0,
+      "description": "설명"
     }}
-    """
+  ]
+}}
+"""
 
-    models = [
-        "gpt-4o-mini",
-        "gpt-4.1-mini",
-    ]
 
+def fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index):
+    budget = clamp_budget(total_budget)
+    fixed_by_category = fixed_summary["category_totals"]
+    fixed_total = fixed_summary["total"]
+
+    min_ratio, max_ratio = profile["savings_ratio"]
+    if savings_goal > 0:
+        if plan_index == 0:
+            desired = max(savings_goal, int(budget * min_ratio))
+        elif plan_index == 1:
+            desired = max(int(savings_goal * 0.9), int(budget * min_ratio))
+        else:
+            desired = max(int(savings_goal * 0.65), int(budget * min_ratio))
+    else:
+        desired = int(budget * min_ratio)
+
+    target_savings = min(desired, int(budget * max_ratio))
+    savings = round_to_unit(target_savings)
+
+    remaining = max(0, budget - savings)
+    baseline_needs = min(remaining, fixed_total)
+
+    category_allocations = {key: 0 for key in fixed_by_category}
+    if fixed_total > 0 and baseline_needs > 0:
+        for key, amount in fixed_by_category.items():
+            proportional = baseline_needs * amount / fixed_total if fixed_total else 0
+            category_allocations[key] = round_to_unit(proportional)
+
+    remaining_after_fixed = max(0, remaining - sum(category_allocations.values()))
+    bias_total = sum(profile["category_bias"].values()) or 1
+    ordered_keys = ["food", "transport", "living", "leisure"]
+    for key in ordered_keys[:-1]:
+        ratio = profile["category_bias"][key] / bias_total
+        extra = round_to_unit(remaining_after_fixed * ratio)
+        category_allocations[key] += extra
+    category_allocations["leisure"] += max(
+        0,
+        remaining - (
+            category_allocations["food"]
+            + category_allocations["transport"]
+            + category_allocations["living"]
+            + category_allocations["leisure"]
+        ),
+    )
+
+    spent = (
+        category_allocations["food"]
+        + category_allocations["transport"]
+        + category_allocations["living"]
+        + category_allocations["leisure"]
+        + savings
+    )
+    diff = budget - spent
+    category_allocations["living"] += diff
+
+    return {
+        "name": profile["name"],
+        "budget": budget,
+        "savings": savings,
+        "food": category_allocations["food"],
+        "transport": category_allocations["transport"],
+        "living": category_allocations["living"],
+        "leisure": category_allocations["leisure"],
+        "description": profile["description"],
+    }
+
+
+def normalize_plan(raw_plan, profile, total_budget, savings_goal, fixed_summary, plan_index):
+    fallback = fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index)
+    budget = clamp_budget(total_budget)
+
+    values = {
+        "savings": round_to_unit(raw_plan.get("savings") or fallback["savings"]),
+        "food": round_to_unit(raw_plan.get("food") or fallback["food"]),
+        "transport": round_to_unit(raw_plan.get("transport") or fallback["transport"]),
+        "living": round_to_unit(raw_plan.get("living") or fallback["living"]),
+        "leisure": round_to_unit(raw_plan.get("leisure") or fallback["leisure"]),
+    }
+
+    fixed_total = fixed_summary["total"]
+    min_required = min(budget, fixed_total)
+    current_spend = values["food"] + values["transport"] + values["living"] + values["leisure"]
+    if current_spend < min_required:
+        values["living"] += min_required - current_spend
+
+    total = sum(values.values())
+    if total != budget:
+        values["living"] += budget - total
+
+    if values["living"] < 0:
+        deficit = -values["living"]
+        values["living"] = 0
+        for key in ["leisure", "food", "transport", "savings"]:
+            cut = min(values[key], deficit)
+            values[key] -= cut
+            deficit -= cut
+            if deficit == 0:
+                break
+        values["living"] += budget - sum(values.values())
+
+    return {
+        "name": profile["name"],
+        "budget": budget,
+        "savings": values["savings"],
+        "food": values["food"],
+        "transport": values["transport"],
+        "living": values["living"],
+        "leisure": values["leisure"],
+        "description": str(raw_plan.get("description") or profile["description"]).strip() or profile["description"],
+    }
+
+
+async def generate_ai_plans(payload: dict):
+    total_budget = clamp_budget(payload.get("total_budget"))
+    savings_goal = max(0, int(payload.get("savings_goal") or 0))
+    fixed_summary = build_fixed_expense_summary(payload.get("fixed_expenses") or [])
+
+    prompt = build_prompt(payload, fixed_summary, total_budget)
+    data = None
     last_error = None
 
-    for model in models:
+    for model in ["gpt-4o-mini", "gpt-4.1-mini"]:
         try:
             response = OpenAIClient.client.chat.completions.create(
                 model=model,
+                response_format={"type": "json_object"},
                 messages=[
-                    {"role": "system", "content": "너는 가계부 전문가야"},
+                    {"role": "system", "content": "너는 가계부 예산 추천 전문가다. 사용자의 실제 예산과 고정 지출을 기반으로 현실적인 월간 배분 플랜을 JSON으로만 반환한다."},
                     {"role": "user", "content": prompt},
                 ],
-                max_tokens=800,
-                temperature=0.7,
+                max_tokens=1200,
+                temperature=0.4,
             )
-
             content = response.choices[0].message.content
-
-            if content is None:
-                print("❌ GPT 응답이 비어있음")
-                return {"plans": []}
-
-            content = content.strip()
-
-            print("🔥 사용 모델:", model)
-            print("🔥 GPT 응답:", content)
-
-            try:
-                data = json.loads(content)
-            except Exception:
-                try:
-                    start = content.find("{")
-                    end = content.rfind("}") + 1
-                    cleaned = content[start:end]
-                    data = json.loads(cleaned)
-                except Exception:
-                    print("❌ JSON 파싱 실패")
-                    return {"plans": []}
-
-            # 여기까지 왔으면 성공한 거라서 다른 모델 시도 안 함
+            if not content:
+                continue
+            data = json.loads(content)
             break
-
-        except Exception as e:
-            print(f"❌ 모델 실패: {model}")
-            print(e)
-            last_error = e
+        except Exception as error:
+            last_error = error
             continue
 
     if data is None:
-        print("❌ 모든 모델 실패:", last_error)
-        return {"plans": []}
+        print("❌ AI 예산 플랜 생성 실패, fallback 사용:", last_error)
+        data = {"plans": []}
 
-    def normalize_plan(plan, profile, target_budget):
-        budget = round_to_step(target_budget)
-
-        UNIT = 10000
-
-        # 플랜 성격에 맞는 저축률을 고정 범위 내에서만 조정한다.
-        min_ratio, max_ratio = profile["savings_ratio"]
-        savings_units = int((budget / UNIT) * random.uniform(min_ratio, max_ratio))
-        budget_units = budget // UNIT
-
-        remaining_units = budget_units - savings_units
-
-        if profile["name"] == "기본 플랜":
-            ratios = [0.30, 0.14, 0.31, 0.25]
-        elif profile["name"] == "중간 플랜":
-            ratios = [0.29, 0.14, 0.30, 0.27]
-        else:
-            ratios = [0.27, 0.13, 0.31, 0.29]
-
-        total = sum(ratios)
-        ratios = [r / total for r in ratios]
-
-        food_u = int(remaining_units * ratios[0])
-        transport_u = int(remaining_units * ratios[1])
-        living_u = int(remaining_units * ratios[2])
-        used = food_u + transport_u + living_u
-        leisure_u = remaining_units - used
-
-        return {
-            "name": profile["name"],
-            "budget": budget,
-            "savings": savings_units * UNIT,
-            "food": food_u * UNIT,
-            "transport": transport_u * UNIT,
-            "living": living_u * UNIT,
-            "leisure": leisure_u * UNIT,
-            "description": profile["description"],
-        }
-
-    plans = data.get("plans", [])
-    target_budgets = build_budget_targets(budget)
-    source_plans = (plans + [{}, {}, {}])[:3]
+    raw_plans = data.get("plans", []) if isinstance(data, dict) else []
+    source_plans = (raw_plans + [{}, {}, {}])[:3]
     plans = [
-        normalize_plan(source_plans[index], PLAN_PROFILES[index], target_budgets[index])
+        normalize_plan(
+            source_plans[index],
+            PLAN_PROFILES[index],
+            total_budget,
+            savings_goal,
+            fixed_summary,
+            index,
+        )
         for index in range(3)
     ]
 
-    first_plan = plans[0] if plans else {}
-
-    categories = [
-        {"category": "food", "allocated_amount": first_plan.get("food", 0)},
-        {"category": "transport", "allocated_amount": first_plan.get("transport", 0)},
-        {"category": "living", "allocated_amount": first_plan.get("living", 0)},
-        {"category": "leisure", "allocated_amount": first_plan.get("leisure", 0)},
-        {"category": "savings", "allocated_amount": first_plan.get("savings", 0)},
-    ]
-
-    return {
-        "plans": plans
-    }
-
-    # - 반드시 모든 텍스트는 한국어로 작성해라.
-    # - budget은 반드시 300000 ~ 1500000 사이
-    # - 100000 단위로만 설정 (예: 300000, 400000, ...)
-    # - 3개의 budget은 서로 달라야 함
+    return {"plans": plans}

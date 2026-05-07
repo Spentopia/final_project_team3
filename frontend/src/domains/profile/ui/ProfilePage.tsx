@@ -39,6 +39,7 @@ type NotificationSettings = {
   alertBudget: boolean;
   alertReward: boolean;
   alertStreak: boolean;
+  socialActivityAlert: boolean;
 };
 
 export default function ProfilePage() {
@@ -99,6 +100,7 @@ export default function ProfilePage() {
     alertBudget: true,
     alertReward: true,
     alertStreak: true,
+    socialActivityAlert: true,
   });
   const [isSavingNotifications, setIsSavingNotifications] = useState(false);
 
@@ -140,6 +142,7 @@ export default function ProfilePage() {
           alertBudget: settings.alert_budget ?? true,
           alertReward: settings.alert_reward ?? true,
           alertStreak: settings.alert_streak ?? true,
+          socialActivityAlert: settings.notification_listener ?? true,
         });
 
         originalEmailRef.current = data.email ?? "";
@@ -317,11 +320,13 @@ export default function ProfilePage() {
         alert_budget: nextNotifications.alertBudget,
         alert_reward: nextNotifications.alertReward,
         alert_streak: nextNotifications.alertStreak,
+        notification_listener: nextNotifications.socialActivityAlert,
       });
       setNotifications({
         alertBudget: updated.alert_budget ?? true,
         alertReward: updated.alert_reward ?? true,
         alertStreak: updated.alert_streak ?? true,
+        socialActivityAlert: updated.notification_listener ?? true,
       });
       toast.success("알림 설정이 변경되었습니다");
     } catch (error) {
@@ -644,6 +649,25 @@ export default function ProfilePage() {
                       checked={notifications.alertStreak}
                       disabled={isSavingNotifications}
                       onCheckedChange={() => handleNotificationToggle("alertStreak")}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-start gap-3">
+                    <Bell className="mt-1 h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                    <div>
+                      <p className="font-bold text-gray-900 dark:text-gray-100">
+                        게시물/댓글/좋아요 알림
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        내가 쓴 글과 반응에 대한 커뮤니티 알림을 받아요
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                      checked={notifications.socialActivityAlert}
+                      disabled={isSavingNotifications}
+                      onCheckedChange={() => handleNotificationToggle("socialActivityAlert")}
                   />
                 </div>
 

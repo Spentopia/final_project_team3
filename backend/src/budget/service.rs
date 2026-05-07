@@ -293,6 +293,11 @@ pub async fn generate_ai_plan(
     user_id: Uuid,
     req: GenerateAiPlanRequest,
 ) -> Result<AiPlanResponse> {
+    #[derive(Deserialize)]
+    struct IncomeAmountRow {
+        amount: i32,
+    }
+
     // 1. 해당 예산 조회
     let budget_url = format!(
         "{}/rest/v1/budgets?id=eq.{}&user_id=eq.{}&select=*",
@@ -322,7 +327,52 @@ pub async fn generate_ai_plan(
         .next()
         .ok_or_else(|| anyhow!("예산을 찾을 수 없음"))?;
 
-    // 2. 고정 지출 조회
+    // 2. 해당 월 수입 합계 조회
+    let month_start = chrono::NaiveDate::from_ymd_opt(budget.year, budget.month as u32, 1)
+        .ok_or_else(|| anyhow!("월 시작일 계산 실패"))?;
+    let next_month_start = if budget.month == 12 {
+        chrono::NaiveDate::from_ymd_opt(budget.year + 1, 1, 1)
+    } else {
+        chrono::NaiveDate::from_ymd_opt(budget.year, budget.month as u32 + 1, 1)
+    }
+    .ok_or_else(|| anyhow!("다음 달 시작일 계산 실패"))?;
+
+    let income_url = format!(
+        "{}/rest/v1/expenses?user_id=eq.{}&transaction_type=eq.income&expense_date=gte.{}&expense_date=lt.{}&select=amount",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+        month_start,
+        next_month_start
+    );
+    let income_res = state
+        .http_client
+        .get(&income_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("월 수입 합계 조회 요청 실패")?;
+
+    if !income_res.status().is_success() {
+        let body = income_res.text().await.unwrap_or_default();
+        return Err(anyhow!("월 수입 합계 조회 실패: {}", body));
+    }
+
+    let income_rows: Vec<IncomeAmountRow> = income_res
+        .json()
+        .await
+        .context("월 수입 합계 역직렬화 실패")?;
+    let monthly_income_total: i32 = income_rows.into_iter().map(|row| row.amount).sum();
+    let effective_total_budget = if monthly_income_total > 0 {
+        monthly_income_total
+    } else {
+        budget.total_budget
+    };
+
+    // 3. 고정 지출 조회
     let fe_url = format!(
         "{}/rest/v1/fixed_expenses?user_id=eq.{}&is_active=eq.true&select=name,amount,category",
         state.config.supabase_url.trim_end_matches('/'),
@@ -354,12 +404,12 @@ pub async fn generate_ai_plan(
         vec![]
     };
 
-    // 3. AI 서버 호출
+    // 4. AI 서버 호출
     let ai_plan = crate::clients::ai_client::budget_plan(
         state,
         crate::clients::ai_client::BudgetPlanPayload {
             user_id: user_id.to_string(),
-            total_budget: budget.total_budget,
+            total_budget: effective_total_budget,
             savings_goal: budget.savings_goal,
             year: budget.year,
             month: budget.month,
@@ -376,9 +426,10 @@ pub async fn generate_ai_plan(
         .map(|p| p.description.clone())
         .unwrap_or_else(|| "AI 추천 플랜".to_string());
 
-    // ✅ 6. DB 업데이트 (디버깅 가능하게 수정)
+    // ✅ 6. DB 업데이트
     #[derive(Serialize)]
     struct PatchAiPlan {
+        total_budget: i32,
         ai_plan: String,
     }
 
@@ -396,9 +447,9 @@ pub async fn generate_ai_plan(
             format!("Bearer {}", state.config.supabase_secret_key),
         )
         .header("apikey", &state.config.supabase_secret_key)
-        // 🔥 핵심 변경 (minimal → representation)
         .header("Prefer", "return=representation")
         .json(&PatchAiPlan {
+            total_budget: effective_total_budget,
             ai_plan: summary.clone(),
         })
         .send()

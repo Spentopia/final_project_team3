@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  getMonthlyExpenseTotal,
   getMonthlyIncomeTotal,
 } from "@/shared/utils/finance";
 
@@ -46,6 +45,19 @@ type AiPlan = {
   savings: number;
   description: string;
   categories: PlanCategory[];
+};
+
+type AiPlanApiResponse = {
+  plans: Array<{
+    name: string;
+    budget: number;
+    savings: number;
+    food: number;
+    transport: number;
+    living: number;
+    leisure: number;
+    description: string;
+  }>;
 };
 
 const PLAN_ORDER_LABELS = ["기본 플랜", "중간 플랜", "여유 플랜"] as const;
@@ -81,64 +93,75 @@ const iconMap = {
   저축: PiggyBank,
 } as const;
 
+const createDefaultAiPlans = (monthlyBudget: number): AiPlan[] => {
+  const baseBudget = monthlyBudget > 0 ? monthlyBudget : 1000000;
+  const variants = [
+    {
+      id: 1,
+      name: "기본 플랜",
+      budget: baseBudget,
+      savingsRatio: 0.28,
+      description: "저축을 우선 확보하고 필수 지출 중심으로 운영하는 절약형 플랜",
+      categoryRatios: { food: 0.24, transport: 0.14, living: 0.32, leisure: 0.08 },
+    },
+    {
+      id: 2,
+      name: "중간 플랜",
+      budget: baseBudget,
+      savingsRatio: 0.18,
+      description: "저축과 생활 만족도를 균형 있게 맞춘 플랜",
+      categoryRatios: { food: 0.25, transport: 0.14, living: 0.29, leisure: 0.16 },
+    },
+    {
+      id: 3,
+      name: "여유 플랜",
+      budget: baseBudget,
+      savingsRatio: 0.1,
+      description: "여가와 생활비를 조금 더 넉넉히 배분한 플랜",
+      categoryRatios: { food: 0.26, transport: 0.14, living: 0.28, leisure: 0.22 },
+    },
+  ];
+
+  return variants.map((variant) => {
+    const budget = variant.budget;
+    const savings = Math.round((budget * variant.savingsRatio) / 10000) * 10000;
+    const spendable = budget - savings;
+    const food = Math.round((spendable * variant.categoryRatios.food) / 10000) * 10000;
+    const transport = Math.round((spendable * variant.categoryRatios.transport) / 10000) * 10000;
+    const living = Math.round((spendable * variant.categoryRatios.living) / 10000) * 10000;
+    const leisure = budget - savings - food - transport - living;
+
+    return {
+      id: variant.id,
+      name: variant.name,
+      budget,
+      savings,
+      description: variant.description,
+      categories: [
+        { name: "식비", amount: food },
+        { name: "교통비", amount: transport },
+        { name: "생활비", amount: living },
+        { name: "여가/취미", amount: leisure },
+        { name: "저축", amount: savings },
+      ],
+    };
+  });
+};
+
 export default function BudgetPage() {
-  const { budgets, setMonthlyBudget } = useFinance();
+  const { budgets, setMonthlyBudget, transactions } = useFinance();
 
   const [aiPlans, setAiPlans] = useState<AiPlan[]>(() => {
-  const saved = localStorage.getItem(AI_PLANS_KEY);
+    const saved = localStorage.getItem(AI_PLANS_KEY);
 
+    if (saved) {
+      try {
+        return JSON.parse(saved) as AiPlan[];
+      } catch {}
+    }
 
-  if (saved) {
-    try {
-      return JSON.parse(saved) as AiPlan[];
-    } catch {}
-  }
-
-  // fallback (처음 접속 시만)
-  return [
-  {
-    id: 1,
-    name: "월 50만원 생활 플랜",
-    budget: 500000,
-    savings: 50000,
-    description: "합리적인 소비와 저축을 위한 균형잡힌 플랜",
-    categories: [
-  { name: "식비", amount: 150000 },
-  { name: "교통비", amount: 80000 },
-  { name: "생활비", amount: 120000 },
-  { name: "여가/취미", amount: 100000 },
-  { name: "저축", amount: 50000 },
-],
-  },
-  {
-    id: 2,
-    name: "7년 1억 만들기",
-    budget: 400000,
-    savings: 150000,
-    description: "목표 지향적인 저축 중심 플랜",
-    categories: [
-      { name: "식비", amount: 100000 },
-      { name: "교통비", amount: 60000 },
-      { name: "생활비", amount: 90000 },
-      { name: "여가/취미", amount: 50000 },
-      { name: "저축", amount: 150000 },
-    ],
-  },
-  {
-    id: 3,
-    name: "자유로운 소비 플랜",
-    budget: 700000,
-    savings: 30000,
-    description: "현재의 삶을 즐기면서도 미래를 준비하는 플랜",
-    categories: [
-      { name: "식비", amount: 200000 },
-      { name: "교통비", amount: 100000 },
-      { name: "생활비", amount: 200000 },
-      { name: "여가/취미", amount: 170000 },
-      { name: "저축", amount: 30000 },
-    ],
-  },
-  ]});
+    return createDefaultAiPlans(1000000);
+  });
 
   const [customBudget, setCustomBudget] = useState<CustomBudget>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -162,7 +185,9 @@ export default function BudgetPage() {
   const [selectedYear] = useState(new Date().getFullYear());
 
   const monthKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
-  const currentBudget = budgets[monthKey] ?? 0;
+  const selectedMonthDate = new Date(selectedYear, selectedMonth, 1);
+  const monthlyIncomeBudget = getMonthlyIncomeTotal(transactions, selectedMonthDate);
+  const currentBudget = monthlyIncomeBudget || budgets[monthKey] || 0;
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(customBudget));
@@ -188,6 +213,11 @@ export default function BudgetPage() {
     }));
   }
 }, [currentBudget, selectedPlan]);
+
+  useEffect(() => {
+    if (selectedPlan !== null) return;
+    setAiPlans(createDefaultAiPlans(customBudget.monthly || currentBudget || 1000000));
+  }, [customBudget.monthly, currentBudget, selectedPlan]);
 
   const handleApplyPlan = async (planId: number) => {
   const plan = aiPlans.find((p) => p.id === planId);
@@ -252,7 +282,9 @@ export default function BudgetPage() {
   const [loading, setLoading] = useState(false);
 
   const handleGenerateAiPlans = async () => {
-  if (!selectedPlan && !customBudget.monthly) {
+  const sourceBudget = currentBudget || customBudget.monthly;
+
+  if (!selectedPlan && !sourceBudget) {
     toast.error("먼저 예산을 설정하세요!");
     return;
   }
@@ -276,12 +308,17 @@ try {
   });
 
   budgetId = res.data.id;
+
+  await apiClient.patch(`/api/budget/${budgetId}`, {
+    total_budget: sourceBudget,
+    savings_goal: customBudget.savings || 0,
+  });
 } catch (err: any) {
   if (err.response?.status === 404) {
     const createRes = await apiClient.post("/api/budget", {
       year: selectedYear,
       month,
-      total_budget: customBudget.monthly || 500000,
+      total_budget: sourceBudget || 1000000,
       savings_goal: customBudget.savings || 0,
     });
 
@@ -292,9 +329,9 @@ try {
 }
 
     // 👉 3. AI 플랜 생성 요청 (핵심)
-    const aiRes = await apiClient.post(
-  `/api/budget/${budgetId}/ai-plan`
-);
+    const aiRes = await apiClient.post<AiPlanApiResponse>(
+      `/api/budget/${budgetId}/ai-plan`
+    );
 
     const data = aiRes.data;
 
@@ -302,7 +339,7 @@ try {
 
     // 👉 4. 프론트 형식으로 변환
     const mappedPlans: AiPlan[] = data.plans
-      .map((p: any, idx: number) => ({
+      .map((p, idx) => ({
         id: Date.now() + idx,
         name: p.name,
         budget: p.budget,
@@ -316,7 +353,6 @@ try {
           { name: "저축", amount: p.savings },
         ],
       }))
-      .sort((a, b) => a.budget - b.budget)
       .map((plan, idx) => ({
         ...plan,
         name: PLAN_ORDER_LABELS[idx] ?? plan.name,
@@ -416,7 +452,7 @@ try {
           </div>
 
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            현재 선택: {selectedYear}년 {selectedMonth + 1}월 / 저장된 예산{" "}
+            현재 선택: {selectedYear}년 {selectedMonth + 1}월 / 수입 기준 월 예산{" "}
             <span className="font-semibold text-cyan-600 dark:text-cyan-400">
               {currentBudget.toLocaleString()}원
             </span>
@@ -676,7 +712,7 @@ try {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-300">저장된 월 예산</span>
+                  <span className="text-gray-600 dark:text-gray-300">수입 기준 월 예산</span>
                   <span className="font-medium text-cyan-600 dark:text-cyan-400">
                     {currentBudget.toLocaleString()}원
                   </span>
