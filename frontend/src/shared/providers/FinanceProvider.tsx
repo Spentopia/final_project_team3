@@ -32,6 +32,7 @@ export const FinanceProvider = ({ children }: { children: React.ReactNode }) => 
   useEffect(() => {
     const savedBudget = localStorage.getItem("budget");
     const savedBudgets = localStorage.getItem("budgets");
+    const savedTransactions = localStorage.getItem("transactions");
 
     if (savedBudget) {
       setBudgetState(Number(savedBudget));
@@ -47,7 +48,22 @@ export const FinanceProvider = ({ children }: { children: React.ReactNode }) => 
         localStorage.removeItem("budgets");
       }
     }
+
+    if (savedTransactions) {
+      try {
+        const parsed = JSON.parse(savedTransactions);
+        if (Array.isArray(parsed)) {
+          setTransactions(parsed);
+        }
+      } catch {
+        localStorage.removeItem("transactions");
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("transactions", JSON.stringify(transactions));
+  }, [transactions]);
 
   const setBudget = (b: number) => {
     setBudgetState(b);

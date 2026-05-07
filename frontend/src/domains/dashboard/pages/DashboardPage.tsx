@@ -433,11 +433,11 @@ export default function DashboardPage() {
 );
     const monthKey = format(selectedDate || new Date(), "yyyy-MM");
 const currentBudget = budgets[monthKey] ?? budget;
-
   const monthlyIncomeTotal = getMonthlyIncomeTotal(
   transactions,
   selectedDate || new Date()
 );
+  const effectiveMonthlyBudget = monthlyIncomeTotal || currentBudget;
 
   const recordedDates = expenses.map((expense) => expense.date);
   const selectedDateInputValue = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
@@ -472,22 +472,22 @@ const currentBudget = budgets[monthKey] ?? budget;
             <div className="rounded-lg bg-cyan-100 p-4 text-gray-900 dark:bg-cyan-100 dark:text-gray-900">
               <p className="text-sm font-medium">예산</p>
               <p className="font-bold">
-                {currentBudget.toLocaleString()}원
+                {effectiveMonthlyBudget.toLocaleString()}원
               </p>
             </div>
 
             <div className="rounded-lg bg-blue-100 p-4 text-gray-900 dark:bg-blue-100 dark:text-gray-900">
               <p className="text-sm font-medium">남은 예산</p>
               <p className="font-bold">
-                {(currentBudget - monthlyTotal).toLocaleString()}원
+                {(effectiveMonthlyBudget - monthlyTotal).toLocaleString()}원
               </p>
             </div>
 
             <div className="rounded-lg bg-teal-100 p-4 text-gray-900 dark:bg-teal-100 dark:text-gray-900">
               <p className="text-sm font-medium">사용률</p>
               <p className="font-bold">
-                {currentBudget > 0
-  ? Math.round((monthlyTotal / currentBudget) * 100)
+                {effectiveMonthlyBudget > 0
+  ? Math.round((monthlyTotal / effectiveMonthlyBudget) * 100)
   : 0}
                 %
               </p>
