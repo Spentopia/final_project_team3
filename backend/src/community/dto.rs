@@ -129,6 +129,78 @@ pub struct CommentResponse {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
+// ── 컨텐츠 신고 요청/응답 ─────────────────────────────────────
+// 신고 대상:
+// - post: 게시글
+// - comment: 댓글
+// - user_nickname: 사용자 닉네임
+// - user_profile: 사용자 프로필 사진
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ContentReportTargetType {
+    Post,
+    Comment,
+    UserNickname,
+    UserProfile,
+}
+
+impl ContentReportTargetType {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ContentReportTargetType::Post => "post",
+            ContentReportTargetType::Comment => "comment",
+            ContentReportTargetType::UserNickname => "user_nickname",
+            ContentReportTargetType::UserProfile => "user_profile",
+        }
+    }
+}
+
+// 신고 사유
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ContentReportReason {
+    Abuse,          // 욕설/비방
+    Inappropriate,  // 부적절한 표현/이미지
+    Spam,           // 광고/도배
+    Other,          // 기타
+}
+
+impl ContentReportReason {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ContentReportReason::Abuse => "abuse",
+            ContentReportReason::Inappropriate => "inappropriate",
+            ContentReportReason::Spam => "spam",
+            ContentReportReason::Other => "other",
+        }
+    }
+}
+
+// 사용자 신고 요청
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CreateContentReportRequest {
+    pub target_type: ContentReportTargetType,
+    pub target_id: Uuid,
+    pub reason: ContentReportReason,
+    pub detail: Option<String>,
+}
+
+// 신고 응답
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ContentReportResponse {
+    pub id: Uuid,
+    pub reporter_id: Uuid,
+    pub target_type: String,
+    pub target_id: Uuid,
+    pub reason: String,
+    pub detail: Option<String>,
+    pub status: String,
+    pub created_at: Option<DateTime<Utc>>,
+    pub reviewed_at: Option<DateTime<Utc>>,
+    pub reviewed_by: Option<Uuid>,
+}
+
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreateCommentRequest {
     pub content: String,

@@ -14,11 +14,12 @@ use uuid::Uuid;
 
 use super::{
     dto::{
-        ChatResponse, CommentResponse, ContestEventResponse, CreateCommentRequest,
-        CreatePostRequest, PostListResponse, PostResponse, PostSort, PostType,
+        ChatResponse, CommentResponse, ContentReportResponse, ContestEventResponse,
+        CreateCommentRequest, CreateContentReportRequest, CreatePostRequest,
+        PostListResponse, PostResponse, PostSort, PostType,
         UpdateCommentRequest, UpdatePostRequest, UploadCommunityImageResponse,
     },
-    model::{ChatbotLog, Comment, ContestEvent, Post},
+    model::{ChatbotLog, Comment, ContentReport, ContestEvent, Post},
 };
 use crate::{filter, state::AppState};
 
@@ -1311,4 +1312,186 @@ pub async fn chat_with_bot(
     Ok(ChatResponse {
         response: ai_response.response,
     })
+}
+
+// ── 컨텐츠 신고 ──────────────────────────────────────────────
+//
+// 신고 기능은 커뮤니티 도메인 안에서 처리한다.
+// 이유:
+// - 신고 대상이 게시글/댓글/사용자 닉네임/프로필사진이고,
+// - 모두 커뮤니티 화면에서 발생하는 사용자 컨텐츠이기 때문.
+//
+// 일반 사용자:
+// - POST /api/content-reports
+//
+// 관리자:
+// - GET /api/admin/content-reports
+// - PATCH /api/admin/content-reports/{id}/resolve
+// - PATCH /api/admin/content-reports/{id}/reject
+fn to_content_report_response(row: ContentReport) -> ContentReportResponse {
+    ContentReportResponse {
+        id: row.id,
+        reporter_id: row.reporter_id,
+        target_type: row.target_type,
+        target_id: row.target_id,
+        reason: row.reason,
+        detail: row.detail,
+        status: row.status,
+        created_at: row.created_at,
+        reviewed_at: row.reviewed_at,
+        reviewed_by: row.reviewed_by,
+    }
+}
+
+
+// 신고 상세 내용 정리
+// - 앞뒤 공백 제거
+// - 빈 문자열이면 None
+// - 너무 긴 내용은 500자로 제한
+fn validate_report_detail(detail: Option<String>) -> Option<String> {
+    detail.map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .map(|value| value.chars().take(500).collect())
+}
+
+
+// 사용자 존재 여부 확인
+// user_nickname / user_profile 신고에서 사용한다.
+// target_id가 users.id로 들어오기 때문.
+async fn ensure_user_exists(state: &AppState, user_id:Uuid) -> Result<Uuid> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&deleted_at=is.null&select=id&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key),)
+        .send()
+        .await
+        .context("신고 대상 사용자 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("신고 대상 사용자 조회 실패: {}", body));
+    }
+
+    let rows: Vec<Value> = res.json().await.context("신고 대상 사용자 조회 응답 파싱 실패")?;
+
+    if rows.is_empty() {
+        return Err(anyhow!("신고 대상을 찾을 수 없습니다."));
+
+    }
+
+    Ok(user_id)
+
+}
+
+// 신고 대상 존재 여부 확인 + 신고 대상의 소유자/작성자 user_id 반환
+//
+// 반환값:
+// - post: 게시글 작성자 posts.user_id
+// - comment: 댓글 작성자 comments.user_id
+// - user_nickname: 신고 대상 users.id
+// - user_profile: 신고 대상 users.id
+async fn get_report_target_owner_id(
+    state: &AppState,
+    target_type: &str,
+    target_id: Uuid,
+) -> Result<Uuid> {
+    match target_type {
+        "post" => {
+            let post = get_post(state, target_id).await?;
+            Ok(post.user_id)
+        }
+        "comment" => {
+            let comment = get_comment(state, target_id).await?;
+            Ok(comment.user_id)
+        }
+        "user_nickname" | "user_profile" => ensure_user_exists(state, target_id).await,
+        _ => Err(anyhow!("지원하지 않는 신고 대상입니다.")),
+    }
+}
+
+/// 일반 사용자: 게시글/댓글/닉네임/프로필사진 신고 접수
+/// 일반 사용자: 게시글/댓글/닉네임/프로필사진 신고 접수
+pub async fn create_content_report(
+    state: &AppState,
+    reporter_id: Uuid,
+    req: CreateContentReportRequest,
+) -> Result<ContentReportResponse> {
+    let target_type = req.target_type.as_str();
+    let reason = req.reason.as_str();
+    let detail = validate_report_detail(req.detail);
+
+    // 신고 대상이 존재하는지 확인하고,
+    // 동시에 그 대상의 작성자/소유자 user_id를 가져온다.
+    let target_owner_id = get_report_target_owner_id(state, target_type, req.target_id).await?;
+
+    // 본인 컨텐츠/프로필 신고 방지
+    //
+    // post:
+    //   본인이 쓴 게시글 신고 불가
+    //
+    // comment:
+    //   본인이 쓴 댓글 신고 불가
+    //
+    // user_nickname / user_profile:
+    //   자기 자신의 닉네임/프로필사진 신고 불가
+    if target_owner_id == reporter_id {
+        return Err(anyhow!("자기 자신의 콘텐츠는 신고할 수 없습니다."));
+    }
+
+    let url = format!(
+        "{}/rest/v1/content_reports",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let res = state
+        .http_client
+        .post(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Prefer", "return=representation")
+        .json(&serde_json::json!({
+            "reporter_id": reporter_id,
+            "target_type": target_type,
+            "target_id": req.target_id,
+            "reason": reason,
+            "detail": detail,
+            "status": "pending"
+        }))
+        .send()
+        .await
+        .context("content_reports INSERT 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+
+        // unique(reporter_id, target_type, target_id) 중복 처리
+        if body.contains("content_reports_unique_reporter_target")
+            || body.contains("duplicate key")
+        {
+            return Err(anyhow!("이미 신고한 콘텐츠입니다."));
+        }
+
+        return Err(anyhow!("content_reports INSERT 실패: {}", body));
+    }
+
+    let rows: Vec<ContentReport> = res
+        .json()
+        .await
+        .context("content_reports INSERT 응답 역직렬화 실패")?;
+
+    let report = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("신고 접수 결과가 비어 있습니다."))?;
+
+    Ok(to_content_report_response(report))
 }

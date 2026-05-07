@@ -11,8 +11,8 @@ use uuid::Uuid;
 
 use super::{
     dto::{
-        ChatRequest, CreateCommentRequest, CreatePostRequest, PostSort, PostType,
-        UpdateCommentRequest, UpdatePostRequest,
+        ChatRequest, CreateCommentRequest, CreateContentReportRequest, CreatePostRequest,
+        PostSort, PostType, UpdateCommentRequest, UpdatePostRequest,
     },
     service,
 };
@@ -69,6 +69,9 @@ fn map_community_error(error: anyhow::Error) -> axum::response::Response {
         || message.contains("댓글 내용")
         || message.contains("공지사항에는 댓글")
         || message.contains("자 이내")
+        || message.contains("이미 신고한 콘텐츠")
+        || message.contains("지원하지 않는 신고 대상")
+        || message.contains("자기 자신의 콘텐츠")
     {
         return (StatusCode::BAD_REQUEST, message).into_response();
     }
@@ -345,6 +348,33 @@ pub async fn delete_comment(
         Err(e) => map_community_error(e),
     }
 }
+
+#[utoipa::path(
+    post,
+    path = "/api/content-reports",
+    tag = "커뮤니티",
+    request_body = CreateContentReportRequest,
+    responses(
+        (status = 201, description = "신고 접수 성공"),
+        (status = 400, description = "잘못된 요청 또는 이미 신고한 콘텐츠"),
+        (status = 401, description = "인증 실패"),
+        (status = 404, description = "신고 대상 없음")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn create_content_report(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Json(req): Json<CreateContentReportRequest>,
+) -> impl IntoResponse {
+    match service::create_content_report(&state, user_id, req).await {
+        Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
+        Err(e) => map_community_error(e),
+    }
+}
+
+
+
 
 #[utoipa::path(
     post, path = "/api/chat",
