@@ -10,6 +10,7 @@ import { createBrowserRouter } from "react-router";
 import ProtectedRoute from "@/app/router/ProtectedRoute";
 import RootLayout from "@/shared/layout/RootLayout";
 import NotFoundPage from "@/shared/layout/NotFoundPage";
+import { FinanceProvider } from "@/shared/providers/FinanceProvider";
 
 import LoginPage from "@/domains/auth/ui/LoginPage";
 import SignupPage from "@/domains/auth/ui/SignupPage";
@@ -54,7 +55,9 @@ export const router = createBrowserRouter([
     path: "/",
     Component: () => (
       <ProtectedRoute>
-        <RootLayout />
+        <FinanceProvider>
+          <RootLayout />
+        </FinanceProvider>
       </ProtectedRoute>
     ),
     children: [
@@ -119,6 +122,6 @@ export const router = createBrowserRouter([
   },
   {
     path: "/receipt-test",
-    Component: ReceiptOcrTestPage ,
+    Component: ReceiptOcrTestPage,
   },
 ]);
