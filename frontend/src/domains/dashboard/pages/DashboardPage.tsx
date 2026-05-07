@@ -167,6 +167,60 @@ export default function DashboardPage() {
   const [isReceiptVerified, setIsReceiptVerified] = useState(false);
   const [ocrError, setOcrError] = useState("");
 
+  const applyOcrAutofill = (result: ReceiptOcrResponse) => {
+    if (result.ocr.receipt_date) {
+      const parsedDate = parse(result.ocr.receipt_date, "yyyy-MM-dd", new Date());
+      if (isValid(parsedDate)) {
+        setSelectedDate(parsedDate);
+      }
+    }
+
+    if (result.ocr.total_amount != null) {
+      setNewExpense((prev) => ({
+        ...prev,
+        amount: String(result.ocr.total_amount),
+      }));
+    }
+  };
+
+  const runReceiptOcr = async (file: File) => {
+    setOcrLoading(true);
+    setOcrError("");
+    setOcrResult(null);
+    setIsReceiptVerified(false);
+
+    const fallbackDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+    const fallbackAmount = newExpense.amount && !Number.isNaN(Number(newExpense.amount))
+      ? Number(newExpense.amount)
+      : 0;
+
+    try {
+      const result = await verifyReceiptOcr({
+        image: file,
+        expectedDate: fallbackDate,
+        expectedAmount: fallbackAmount,
+      });
+
+      setOcrResult(result);
+      applyOcrAutofill(result);
+      setIsReceiptVerified(result.verification.is_verified);
+
+      if (result.verification.is_verified) {
+        toast.success("영수증 정보를 자동으로 입력했고 인증도 완료됐습니다.");
+      } else {
+        toast.error(result.verification.reason);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "영수증 검증 중 오류가 발생했습니다.";
+      setOcrError(message);
+      setIsReceiptVerified(false);
+      toast.error(message);
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -215,48 +269,7 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!selectedDate) {
-      toast.error("날짜를 먼저 선택해주세요");
-      return;
-    }
-
-    if (!newExpense.amount || Number.isNaN(Number(newExpense.amount))) {
-      toast.error("금액을 먼저 입력해주세요");
-      return;
-    }
-
-    try {
-      setOcrLoading(true);
-      setOcrError("");
-      setOcrResult(null);
-      setIsReceiptVerified(false);
-
-      const expectedDate = format(selectedDate, "yyyy-MM-dd");
-      const expectedAmount = Number(newExpense.amount);
-
-      const result = await verifyReceiptOcr({
-        image: receiptFile,
-        expectedDate,
-        expectedAmount,
-      });
-
-      setOcrResult(result);
-      setIsReceiptVerified(result.verification.is_verified);
-
-      if (result.verification.is_verified) {
-        toast.success("영수증 인증 성공");
-      } else {
-        toast.error(result.verification.reason);
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "영수증 검증 중 오류가 발생했습니다.";
-      setOcrError(message);
-      setIsReceiptVerified(false);
-      toast.error(message);
-    } finally {
-      setOcrLoading(false);
-    }
+    await runReceiptOcr(receiptFile);
   };
 
   const handleAddExpense = async () => {
@@ -691,7 +704,10 @@ const currentBudget = budgets[monthKey] ?? budget;
               <Input
                 type="date"
                 value={selectedDateInputValue}
-                onChange={(e) => handleExpenseDateChange(e.target.value)}
+                onChange={(e) => {
+                  handleExpenseDateChange(e.target.value);
+                  setIsReceiptVerified(false);
+                }}
                 className="mt-1 dark:text-gray-100 dark:[color-scheme:dark]"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
@@ -760,7 +776,7 @@ const currentBudget = budgets[monthKey] ?? budget;
                         const input = document.createElement("input");
                         input.type = "file";
                         input.accept = "image/*";
-                        input.onchange = (e) => {
+                        input.onchange = async (e) => {
                           const file = (e.target as HTMLInputElement).files?.[0];
                           if (file) {
                             setReceiptFile(file);
@@ -768,6 +784,7 @@ const currentBudget = budgets[monthKey] ?? budget;
                             setOcrResult(null);
                             setOcrError("");
                             toast.success("영수증이 업로드되었습니다");
+                            await runReceiptOcr(file);
                           }
                         };
                         input.click();
@@ -803,8 +820,14 @@ const currentBudget = budgets[monthKey] ?? budget;
                   {ocrResult && (
                     <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-50 dark:text-gray-900">
                       <p className="font-semibold">OCR 결과</p>
+                      <p>문서 유형: {ocrResult.ocr.document_type}</p>
+                      <p>상호명: {ocrResult.ocr.merchant_name ?? "없음"}</p>
                       <p>추출 날짜: {ocrResult.ocr.receipt_date ?? "없음"}</p>
                       <p>추출 금액: {ocrResult.ocr.total_amount ?? "없음"}</p>
+                      <p>승인번호: {ocrResult.ocr.approval_number ?? "없음"}</p>
+                      <p>인쇄 레이아웃: {ocrResult.ocr.has_printed_layout ? "예" : "아니오"}</p>
+                      <p>손글씨 의심: {ocrResult.ocr.handwriting_suspected ? "예" : "아니오"}</p>
+                      <p>근거 키워드: {ocrResult.ocr.evidence_keywords?.join(", ") || "없음"}</p>
                       <p>근거 텍스트: {ocrResult.ocr.raw_text || "없음"}</p>
 
                       <div className="mt-2">
@@ -817,6 +840,8 @@ const currentBudget = budgets[monthKey] ?? budget;
                         >
                           {ocrResult.verification.is_verified ? "인증 성공" : "인증 실패"}
                         </p>
+                        <p>전표 판정 점수: {ocrResult.verification.layout_score ?? 0}</p>
+                        <p>위조 의심: {ocrResult.verification.fraud_suspected ? "예" : "아니오"}</p>
                         <p>사유: {ocrResult.verification.reason}</p>
                       </div>
                     </div>

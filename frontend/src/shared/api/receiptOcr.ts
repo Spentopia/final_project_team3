@@ -9,8 +9,16 @@ export interface ReceiptOcrRequest {
 
 export interface ReceiptOcrResponse {
   ocr: {
+    document_type: "receipt" | "card_slip" | "handwritten_note" | "unknown";
+    merchant_name?: string | null;
     receipt_date: string | null;
     total_amount: number | null;
+    approval_number?: string | null;
+    payment_time?: string | null;
+    has_printed_layout?: boolean;
+    handwriting_suspected?: boolean;
+    line_item_count?: number;
+    evidence_keywords?: string[];
     raw_text: string;
     confidence: number;
     error?: string | null;
@@ -23,6 +31,10 @@ export interface ReceiptOcrResponse {
     is_verified: boolean;
     date_matched: boolean;
     amount_matched: boolean;
+    is_recent_receipt?: boolean;
+    receipt_like?: boolean;
+    fraud_suspected?: boolean;
+    layout_score?: number;
     reason: string;
   };
 }

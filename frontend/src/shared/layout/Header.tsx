@@ -1,7 +1,12 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Bell, Gamepad2, Menu, Moon, Sun } from "lucide-react";
 import { ConnectWalletButton } from "@/domains/wallet/ui/ConnectWalletButton";
+import {
+  getNotifications,
+  markAllNotificationsRead,
+  type NotificationItem,
+} from "@/shared/api/notificationApi";
 import { Button } from "../ui/button";
 import {
   Sheet,
@@ -17,14 +22,84 @@ type HeaderProps = {
   onMenuClick?: () => void;
 };
 
-export default function Header({ onMenuClick }: HeaderProps) {
-  const [notifications] = useState([
-    { id: 1, text: "예산의 80%를 사용했어요!", time: "5분 전" },
-    { id: 2, text: "새로운 아바타를 획득했어요", time: "1시간 전" },
-    { id: 3, text: "7일 연속 기록 달성! 보상이 지급됐어요", time: "2시간 전" },
-  ]);
+function formatRelativeTime(createdAt: string | null) {
+  if (!createdAt) return "방금 전";
 
+  const date = new Date(createdAt);
+  const diffMs = date.getTime() - Date.now();
+
+  if (Number.isNaN(date.getTime())) return "방금 전";
+
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  const rtf = new Intl.RelativeTimeFormat("ko", { numeric: "auto" });
+
+  if (Math.abs(diffMs) < hour) {
+    return rtf.format(Math.round(diffMs / minute), "minute");
+  }
+  if (Math.abs(diffMs) < day) {
+    return rtf.format(Math.round(diffMs / hour), "hour");
+  }
+  return rtf.format(Math.round(diffMs / day), "day");
+}
+
+export default function Header({ onMenuClick }: HeaderProps) {
   const { theme, setTheme } = useTheme();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [isNotificationSheetOpen, setIsNotificationSheetOpen] = useState(false);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+  const [isMarkingRead, setIsMarkingRead] = useState(false);
+
+  const unreadCount = notifications.filter((notification) => !notification.is_read).length;
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      setIsLoadingNotifications(true);
+      const items = await getNotifications();
+      setNotifications(items);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "알림을 불러오지 못했습니다."
+      );
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      setTimeout(() => {
+        void loadNotifications();
+      }, 800);
+    };
+
+    window.addEventListener("spentopia:score-refresh", handleRefresh);
+    return () => window.removeEventListener("spentopia:score-refresh", handleRefresh);
+  }, [loadNotifications]);
+
+  const handleReadAll = async () => {
+    try {
+      setIsMarkingRead(true);
+      await markAllNotificationsRead();
+      setNotifications((prev) =>
+        prev.map((notification) => ({
+          ...notification,
+          is_read: true,
+        }))
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "알림 읽음 처리에 실패했습니다."
+      );
+    } finally {
+      setIsMarkingRead(false);
+    }
+  };
 
   // 게임 실행 버튼 클릭 시
   // 1) 백엔드에서 handoff token 발급
@@ -76,11 +151,19 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Moon className="hidden h-5 w-5 dark:block" />
           </Button>
 
-          <Sheet>
+          <Sheet
+            open={isNotificationSheetOpen}
+            onOpenChange={(open) => {
+              setIsNotificationSheetOpen(open);
+              if (open) {
+                void loadNotifications();
+              }
+            }}
+          >
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
-                {notifications.length > 0 && (
+                {unreadCount > 0 && (
                   <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
                 )}
               </Button>
@@ -88,16 +171,54 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
             <SheetContent>
               <SheetHeader>
-                <SheetTitle>알림</SheetTitle>
+                <div className="flex items-center justify-between gap-3">
+                  <SheetTitle>알림</SheetTitle>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={unreadCount === 0 || isMarkingRead}
+                    onClick={() => void handleReadAll()}
+                  >
+                    {isMarkingRead ? "처리 중..." : "모두 읽음"}
+                  </Button>
+                </div>
               </SheetHeader>
 
               <div className="mt-6 space-y-4">
-                {notifications.map((notif) => (
-                  <div key={notif.id} className="rounded border p-3">
-                    {notif.text}
-                    <div className="text-xs text-gray-400">{notif.time}</div>
+                {isLoadingNotifications && (
+                  <div className="rounded border border-border p-3 text-sm text-muted-foreground">
+                    알림을 불러오는 중입니다.
                   </div>
-                ))}
+                )}
+
+                {!isLoadingNotifications && notifications.length === 0 && (
+                  <div className="rounded border border-dashed border-border p-4 text-sm text-muted-foreground">
+                    아직 도착한 알림이 없습니다.
+                  </div>
+                )}
+
+                {!isLoadingNotifications &&
+                  notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`rounded border p-3 ${
+                        notification.is_read
+                          ? "border-border bg-transparent"
+                          : "border-luxury-gold/30 bg-luxury-gold/5"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm text-foreground">{notification.message}</p>
+                        {!notification.is_read && (
+                          <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />
+                        )}
+                      </div>
+                      <div className="mt-2 text-xs text-gray-400">
+                        {formatRelativeTime(notification.created_at)}
+                      </div>
+                    </div>
+                  ))}
               </div>
             </SheetContent>
           </Sheet>

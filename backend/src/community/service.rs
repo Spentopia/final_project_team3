@@ -83,7 +83,10 @@ async fn to_post_response(
     current_user_id: Uuid,
     post: Post,
 ) -> Result<PostResponse> {
-    let author_nickname = post.users.as_ref().and_then(|author| author.nickname.clone());
+    let author_nickname = post
+        .users
+        .as_ref()
+        .and_then(|author| author.nickname.clone());
     let author_profile_image = post
         .users
         .as_ref()
@@ -117,7 +120,10 @@ async fn to_post_response(
 }
 
 async fn to_comment_response(state: &AppState, comment: Comment) -> CommentResponse {
-    let author_nickname = comment.users.as_ref().and_then(|author| author.nickname.clone());
+    let author_nickname = comment
+        .users
+        .as_ref()
+        .and_then(|author| author.nickname.clone());
     let author_profile_image = comment
         .users
         .as_ref()
@@ -186,11 +192,7 @@ async fn get_post(state: &AppState, post_id: Uuid) -> Result<Post> {
 // 해당 row가 있으면:
 // - contest: 이미 투표함
 // - free/request: 이미 좋아요 누름
-async fn is_reacted_by_user(
-    state: &AppState,
-    user_id: Uuid,
-    post_id: Uuid,
-) -> Result<bool> {
+async fn is_reacted_by_user(state: &AppState, user_id: Uuid, post_id: Uuid) -> Result<bool> {
     let url = format!(
         "{}/rest/v1/reactions?user_id=eq.{}&post_id=eq.{}&select=id&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
@@ -325,7 +327,9 @@ fn validate_post_type(req: &CreatePostRequest) -> Result<()> {
         }
         PostType::Contest => {
             if req.contest_id.is_none() {
-                return Err(anyhow!("아바타 콘테스트 게시글에는 contest_id가 필요합니다."));
+                return Err(anyhow!(
+                    "아바타 콘테스트 게시글에는 contest_id가 필요합니다."
+                ));
             }
         }
     }
@@ -381,15 +385,17 @@ fn validate_comment_content(content: &str) -> Result<String> {
     }
 
     if !filter::check(content) {
-        return Err(anyhow!("댓글 내용에 사용할 수 없는 표현이 포함되어 있습니다."));
+        return Err(anyhow!(
+            "댓글 내용에 사용할 수 없는 표현이 포함되어 있습니다."
+        ));
     }
 
     Ok(content.to_string())
 }
 
 const CHOSEONG_COMPAT: [char; 19] = [
-    'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ',
-    'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ',
+    'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ',
+    'ㅌ', 'ㅍ', 'ㅎ',
 ];
 
 fn hangul_choseong(value: char) -> Option<char> {
@@ -847,12 +853,18 @@ pub async fn update_post(
         if image_url.is_empty() {
             payload.insert("image_url".to_string(), Value::Null);
         } else {
-            payload.insert("image_url".to_string(), Value::String(image_url.to_string()));
+            payload.insert(
+                "image_url".to_string(),
+                Value::String(image_url.to_string()),
+            );
         }
     }
 
     if let Some(content) = req.content {
-        payload.insert("content".to_string(), Value::String(content.trim().to_string()));
+        payload.insert(
+            "content".to_string(),
+            Value::String(content.trim().to_string()),
+        );
     }
 
     let url = format!(
@@ -926,7 +938,6 @@ pub async fn delete_post(state: &AppState, user_id: Uuid, post_id: Uuid) -> Resu
     }
     Ok(())
 }
-
 
 // ── 게시물 반응 (투표 / 좋아요) ─────────────────────────────
 //
@@ -1088,7 +1099,6 @@ pub async fn list_comments(state: &AppState, post_id: Uuid) -> Result<Vec<Commen
     Ok(items)
 }
 
-
 pub async fn create_comment(
     state: &AppState,
     user_id: Uuid,
@@ -1110,14 +1120,15 @@ pub async fn create_comment(
 
         // 부모 댓글과 현재 댓글은 같은 게시글에 속해야 함
         if parent.post_id != post_id {
-            return Err(anyhow!("대댓글은 같은 게시글의 댓글에만 작성할 수 있습니다"));
+            return Err(anyhow!(
+                "대댓글은 같은 게시글의 댓글에만 작성할 수 있습니다"
+            ));
         }
 
         // parent.parent_id가 Some이면 부모도 이미 대댓글 이라는 뜻
         if parent.parent_id.is_some() {
             return Err(anyhow!("대댓글에는 다시 대댓글을 작성할 수 없습니다."));
         }
-
     }
 
     let url = format!(

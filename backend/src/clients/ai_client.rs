@@ -10,10 +10,10 @@
 //  POST /api/v1/receipt/ocr → 영수증 OCR 분석
 //  GET  /api/v1/history     → 대화 이력 조회
 
+use crate::budget::dto::Plan;
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use crate::budget::dto::Plan;
 
 use crate::state::AppState;
 
@@ -148,8 +148,7 @@ pub async fn budget_plan(state: &AppState, payload: BudgetPlanPayload) -> Result
 
     println!("AI budget-plan 응답 원문: {}", body);
 
-    serde_json::from_str::<BudgetPlanResult>(&body)
-        .context("AI budget-plan 응답 역직렬화 실패")
+    serde_json::from_str::<BudgetPlanResult>(&body).context("AI budget-plan 응답 역직렬화 실패")
 }
 
 // ── 영수증 OCR ────────────────────────────────────────────────

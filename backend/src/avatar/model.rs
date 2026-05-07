@@ -50,7 +50,7 @@ pub struct UserItem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserEquipment {
     pub user_id: Uuid,
-    pub slot_name: String,          // hair / top / bottom / gloves / shoes / weapon / glasses ENUM
+    pub slot_name: String, // hair / top / bottom / gloves / shoes / weapon / glasses ENUM
     pub inventory_id: Option<Uuid>, // user_items.id 참조 (NULL = 슬롯 비어있음)
     pub equipped_at: Option<DateTime<Utc>>,
     pub is_visible: bool,

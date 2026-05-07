@@ -31,7 +31,7 @@
 
 use axum::{
     Json,
-    extract::{Multipart, Query, State, Extension},
+    extract::{Extension, Multipart, Query, State},
     http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE},
     response::{IntoResponse, Redirect, Response},
 };
@@ -43,8 +43,8 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::auth::dto::{
-    AppKakaoStartResponse, AppLoginResponse, AppRefreshResponse, CheckEmailRequest, CheckEmailResponse,
-    CheckProfileAvailabilityRequest, CheckResetPasswordEmailRequest,
+    AppKakaoStartResponse, AppLoginResponse, AppRefreshResponse, CheckEmailRequest,
+    CheckEmailResponse, CheckProfileAvailabilityRequest, CheckResetPasswordEmailRequest,
     CheckResetPasswordEmailResponse, CompleteProfileRequest, CompleteProfileResponse,
     ExchangeTokenRequest, FindEmailRequest, FindEmailResponse, HandoffExchangeRequest,
     HandoffExchangeResponse, HandoffRequest, HandoffResponse, KakaoLoginRequest,
@@ -53,12 +53,10 @@ use crate::auth::dto::{
     WebviewIssueRequest, WebviewIssueResponse,
 };
 use crate::auth::service;
+use crate::auth::webview::{consume_webview_token, create_webview_token, sanitize_redirect_path};
 use crate::filter;
 use crate::state::AppState;
 use utoipa;
-use crate::auth::webview::{
-    consume_webview_token, create_webview_token, sanitize_redirect_path,
-};
 
 fn ensure_app_request(headers: &HeaderMap) -> Result<(), (StatusCode, String)> {
     // origin: 브라우저 cross-origin 요청 시 자동 포함
@@ -320,21 +318,21 @@ pub async fn wallet_login(
         &body.signature,
         "web",
     )
-        .await
-        .map_err(|e| {
-            // service에서 올라온 에러를 여기서 로깅하고 적절한 HTTP 상태코드로 변환
-            // 에러 메시지에 따라 401(인증실패) 또는 500(서버에러) 구분
-            let msg = e.to_string();
-            if msg.contains("nonce") || msg.contains("서명") {
-                // nonce 불일치, 서명 검증 실패 → 클라이언트 잘못
-                tracing::warn!("지갑 로그인 실패 (클라이언트): {}", msg);
-                (StatusCode::UNAUTHORIZED, msg)
-            } else {
-                // Supabase API 실패 등 → 서버 잘못
-                tracing::error!("지갑 로그인 실패 (서버): {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, msg)
-            }
-        })?;
+    .await
+    .map_err(|e| {
+        // service에서 올라온 에러를 여기서 로깅하고 적절한 HTTP 상태코드로 변환
+        // 에러 메시지에 따라 401(인증실패) 또는 500(서버에러) 구분
+        let msg = e.to_string();
+        if msg.contains("nonce") || msg.contains("서명") {
+            // nonce 불일치, 서명 검증 실패 → 클라이언트 잘못
+            tracing::warn!("지갑 로그인 실패 (클라이언트): {}", msg);
+            (StatusCode::UNAUTHORIZED, msg)
+        } else {
+            // Supabase API 실패 등 → 서버 잘못
+            tracing::error!("지갑 로그인 실패 (서버): {}", msg);
+            (StatusCode::INTERNAL_SERVER_ERROR, msg)
+        }
+    })?;
 
     tracing::info!("지갑 로그인 성공: wallet={}", body.wallet_address);
 
@@ -381,20 +379,20 @@ pub async fn wallet_login_app(
         &body.signature,
         "app",
     )
-        .await
-        .map_err(|e| {
-            let msg = e.to_string();
-            if msg.contains("nonce") || msg.contains("서명") {
-                tracing::warn!("앱 지갑 로그인 실패 (클라이언트): {}", msg);
-                (StatusCode::UNAUTHORIZED, msg)
-            } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
-                tracing::warn!("앱 지갑 로그인 차단: {}", msg);
-                (StatusCode::FORBIDDEN, msg)
-            } else {
-                tracing::error!("앱 지갑 로그인 실패 (서버): {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, msg)
-            }
-        })?;
+    .await
+    .map_err(|e| {
+        let msg = e.to_string();
+        if msg.contains("nonce") || msg.contains("서명") {
+            tracing::warn!("앱 지갑 로그인 실패 (클라이언트): {}", msg);
+            (StatusCode::UNAUTHORIZED, msg)
+        } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
+            tracing::warn!("앱 지갑 로그인 차단: {}", msg);
+            (StatusCode::FORBIDDEN, msg)
+        } else {
+            tracing::error!("앱 지갑 로그인 실패 (서버): {}", msg);
+            (StatusCode::INTERNAL_SERVER_ERROR, msg)
+        }
+    })?;
 
     let body = AppLoginResponse {
         access_token: response.access_token,
@@ -1058,11 +1056,11 @@ pub async fn find_email(
         &state.config.turnstile_secret_key,
         &body.captcha_token,
     )
-        .await
-        .map_err(|e| {
-            tracing::warn!("Turnstile 검증 실패: {}", e);
-            (StatusCode::BAD_REQUEST, e.to_string())
-        })?;
+    .await
+    .map_err(|e| {
+        tracing::warn!("Turnstile 검증 실패: {}", e);
+        (StatusCode::BAD_REQUEST, e.to_string())
+    })?;
 
     // 3) 전화번호 값 검사
     if body.phone.trim().is_empty() {
@@ -1135,14 +1133,14 @@ pub async fn check_email(
         &state.config.turnstile_secret_key,
         &body.captcha_token,
     )
-        .await
-        .map_err(|e| {
-            tracing::warn!("Turnstile 검증 실패(check_email): {}", e);
-            (
-                StatusCode::BAD_REQUEST,
-                "사람 인증 검증에 실패했습니다.".to_string(),
-            )
-        })?;
+    .await
+    .map_err(|e| {
+        tracing::warn!("Turnstile 검증 실패(check_email): {}", e);
+        (
+            StatusCode::BAD_REQUEST,
+            "사람 인증 검증에 실패했습니다.".to_string(),
+        )
+    })?;
 
     // 3) 이메일 값 검사
     let email = body.email.trim().to_lowercase();
@@ -1239,14 +1237,14 @@ pub async fn check_reset_password_email(
         &state.config.turnstile_secret_key,
         &body.captcha_token,
     )
-        .await
-        .map_err(|e| {
-            tracing::warn!("Turnstile 검증 실패(check_reset_password_email): {}", e);
-            (
-                StatusCode::BAD_REQUEST,
-                "사람 인증 검증에 실패했습니다.".to_string(),
-            )
-        })?;
+    .await
+    .map_err(|e| {
+        tracing::warn!("Turnstile 검증 실패(check_reset_password_email): {}", e);
+        (
+            StatusCode::BAD_REQUEST,
+            "사람 인증 검증에 실패했습니다.".to_string(),
+        )
+    })?;
 
     // 3) 이메일 값 검사
     let email = body.email.trim().to_lowercase();
@@ -1720,7 +1718,6 @@ fn should_use_secure_cookies(state: &AppState) -> bool {
     )
 }
 
-
 // ═══════════════════════════════════════════════════════════════
 // [카카오 앱 콜백] GET /auth/kakao/callback
 // ═══════════════════════════════════════════════════════════════
@@ -1887,7 +1884,9 @@ pub async fn exchange_handoff(
             let status = match msg.as_str() {
                 "유효하지 않은 handoff token입니다."
                 | "handoff token이 만료되었습니다."
-                | "handoff token의 대상 서비스가 일치하지 않습니다." => StatusCode::UNAUTHORIZED,
+                | "handoff token의 대상 서비스가 일치하지 않습니다." => {
+                    StatusCode::UNAUTHORIZED
+                }
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             };
 
@@ -1985,11 +1984,10 @@ pub async fn webview_callback(
     Query(params): Query<WebviewCallbackQuery>,
 ) -> Result<Response, (StatusCode, String)> {
     // ── 1) webview token 검증 + 소비 ────────────────────────
-    let (user_id, redirect_path) = consume_webview_token(&state, &params.token)
-        .map_err(|e| {
-            tracing::warn!("webview callback 검증 실패: {}", e);
-            (StatusCode::UNAUTHORIZED, e.to_string())
-        })?;
+    let (user_id, redirect_path) = consume_webview_token(&state, &params.token).map_err(|e| {
+        tracing::warn!("webview callback 검증 실패: {}", e);
+        (StatusCode::UNAUTHORIZED, e.to_string())
+    })?;
 
     // ── 2) 웹뷰용 access + refresh 발급 ─────────────────────
     // client_type = "web"

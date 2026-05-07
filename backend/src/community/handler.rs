@@ -115,7 +115,7 @@ pub async fn list_posts(
         query.page.unwrap_or(1),
         query.page_size.unwrap_or(10),
     )
-        .await
+    .await
     {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),

@@ -71,11 +71,7 @@ pub fn hash_webview_token(token: &str) -> String {
 //
 // 반환: webview token 원문 (1회만 볼 수 있음)
 // ─────────────────────────────────────────────────────────────
-pub fn create_webview_token(
-    state: &AppState,
-    user_id: Uuid,
-    redirect_path: &str,
-) -> String {
+pub fn create_webview_token(state: &AppState, user_id: Uuid, redirect_path: &str) -> String {
     // 64자리 랜덤 문자열
     // handoff와 동일한 길이 (높은 엔트로피)
     let token: String = rand::thread_rng()
@@ -122,10 +118,7 @@ pub fn create_webview_token(
 // - Ok((user_id, redirect_path)): 정상
 // - Err(_): 토큰 없음, 만료, 또는 이미 사용됨
 // ─────────────────────────────────────────────────────────────
-pub fn consume_webview_token(
-    state: &AppState,
-    token: &str,
-) -> Result<(Uuid, String)> {
+pub fn consume_webview_token(state: &AppState, token: &str) -> Result<(Uuid, String)> {
     let token_hash = hash_webview_token(token);
 
     // ── 1) webview_store에서 즉시 remove()로 선점 ───────────
@@ -133,13 +126,10 @@ pub fn consume_webview_token(
     // "먼저 가져간 요청만 성공"하는 방식으로 1회용 보장.
     // 만료 검증 전에 remove가 일어나지만,
     // 30초 TTL이라 만료된 토큰이 재사용될 위험은 없음.
-    let (_, entry) = state
-        .webview_store
-        .remove(&token_hash)
-        .ok_or_else(|| {
-            tracing::warn!("webview token 없음 또는 이미 사용됨");
-            anyhow!("유효하지 않은 webview token입니다.")
-        })?;
+    let (_, entry) = state.webview_store.remove(&token_hash).ok_or_else(|| {
+        tracing::warn!("webview token 없음 또는 이미 사용됨");
+        anyhow!("유효하지 않은 webview token입니다.")
+    })?;
 
     // ── 2) 만료 체크 ────────────────────────────────────────
     if SystemTime::now() > entry.expires_at {
@@ -165,7 +155,9 @@ pub fn consume_webview_token(
 // ─────────────────────────────────────────────────────────────
 pub fn cleanup_expired_webview_tokens(state: &AppState) {
     let now = SystemTime::now();
-    state.webview_store.retain(|_, entry| entry.expires_at > now);
+    state
+        .webview_store
+        .retain(|_, entry| entry.expires_at > now);
 }
 
 // ─────────────────────────────────────────────────────────────

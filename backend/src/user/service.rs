@@ -57,7 +57,11 @@ async fn get_current_streak(state: &AppState, user_id: Uuid) -> Result<i32> {
 
     let rows: Vec<StreakRow> = res.json().await.context("streaks 역직렬화 실패")?;
 
-    Ok(rows.into_iter().next().map(|s| s.current_streak).unwrap_or(0))
+    Ok(rows
+        .into_iter()
+        .next()
+        .map(|s| s.current_streak)
+        .unwrap_or(0))
 }
 
 // ── 프로필 수정 ───────────────────────────────────────────────
@@ -138,7 +142,7 @@ pub async fn update_profile(
         .next()
         .ok_or_else(|| anyhow!("수정된 유저 정보를 찾을 수 없음"))?;
 
-    Ok(to_response(user,0))
+    Ok(to_response(user, 0))
 }
 
 async fn get_user_by_id(state: &AppState, user_id: Uuid) -> Result<User> {
