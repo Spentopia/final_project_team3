@@ -123,8 +123,7 @@ struct PublicUserProfileStatusRow {
     profile_completed: Option<bool>,
 }
 
-const APP_SIGNUP_REQUIRED_MESSAGE: &str =
-    "웹에서 회원가입 완료 후 다시 이용해 주세요.";
+const APP_SIGNUP_REQUIRED_MESSAGE: &str = "웹에서 회원가입 완료 후 다시 이용해 주세요.";
 
 // ─────────────────────────────────────────────────────────────
 // 공통 토큰 발급 + refresh session 저장
@@ -225,7 +224,7 @@ pub async fn rotate_refresh_token(
         client_type,
         &pair.refresh_token,
     )
-        .await?;
+    .await?;
 
     // 7) 기존 refresh session revoke
     //
@@ -345,8 +344,8 @@ pub async fn verify_and_login(
 
     if client_type == "app"
         && !get_public_user_profile_completed_by_user_id(state, &user_id.to_string())
-        .await?
-        .unwrap_or(false)
+            .await?
+            .unwrap_or(false)
     {
         tracing::warn!(
             "앱 지갑 로그인 차단: 회원가입 미완료 user_id={} wallet={}",
@@ -695,13 +694,9 @@ pub async fn exchange_supabase_token(
     }
 
     if client_type == "app" {
-        let completed_user_exists = has_completed_public_user_for_app_login(
-            state,
-            user_id,
-            email,
-            google_connected,
-        )
-            .await?;
+        let completed_user_exists =
+            has_completed_public_user_for_app_login(state, user_id, email, google_connected)
+                .await?;
 
         if !completed_user_exists {
             tracing::warn!(
@@ -721,7 +716,7 @@ pub async fn exchange_supabase_token(
         provider_id,
         google_connected,
     )
-        .await?;
+    .await?;
 
     let user_uuid =
         Uuid::parse_str(&resolved_user_id).context("최종 사용자 user_id UUID 파싱 실패")?;
@@ -735,7 +730,8 @@ async fn has_completed_public_user_for_app_login(
     email: Option<&str>,
     google_connected: bool,
 ) -> Result<bool> {
-    if let Some(is_completed) = get_public_user_profile_completed_by_user_id(state, user_id).await? {
+    if let Some(is_completed) = get_public_user_profile_completed_by_user_id(state, user_id).await?
+    {
         return Ok(is_completed);
     }
 
@@ -772,7 +768,10 @@ async fn get_public_user_profile_completed_by_user_id(
 
     if !resp.status().is_success() {
         let err = resp.text().await.unwrap_or_default();
-        return Err(anyhow!("앱 로그인용 public.users(user_id) 조회 실패: {}", err));
+        return Err(anyhow!(
+            "앱 로그인용 public.users(user_id) 조회 실패: {}",
+            err
+        ));
     }
 
     let rows: Vec<PublicUserProfileStatusRow> = resp
@@ -786,10 +785,7 @@ async fn get_public_user_profile_completed_by_user_id(
         .map(|row| row.profile_completed.unwrap_or(false)))
 }
 
-async fn get_public_user_profile_completed_by_email(
-    state: &AppState,
-    email: &str,
-) -> Result<bool> {
+async fn get_public_user_profile_completed_by_email(state: &AppState, email: &str) -> Result<bool> {
     let url = format!(
         "{}/rest/v1/users?email=eq.{}&deleted_at=is.null&select=profile_completed&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
@@ -810,7 +806,10 @@ async fn get_public_user_profile_completed_by_email(
 
     if !resp.status().is_success() {
         let err = resp.text().await.unwrap_or_default();
-        return Err(anyhow!("앱 로그인용 public.users(email) 조회 실패: {}", err));
+        return Err(anyhow!(
+            "앱 로그인용 public.users(email) 조회 실패: {}",
+            err
+        ));
     }
 
     let rows: Vec<PublicUserProfileStatusRow> = resp
@@ -1129,8 +1128,8 @@ pub async fn kakao_login(
 
     if client_type == "app"
         && !get_public_user_profile_completed_by_user_id(state, &user_id)
-        .await?
-        .unwrap_or(false)
+            .await?
+            .unwrap_or(false)
     {
         tracing::warn!(
             "앱 카카오 로그인 차단: 회원가입 미완료 user_id={} email={:?}",

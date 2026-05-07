@@ -670,7 +670,9 @@ pub async fn cancel_listing(
         )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=minimal")
-        .json(&CancelPayload { status: "cancelled" })
+        .json(&CancelPayload {
+            status: "cancelled",
+        })
         .send()
         .await
         .context("market_listings 취소 PATCH 요청 실패")?;

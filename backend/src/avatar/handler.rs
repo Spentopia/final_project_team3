@@ -15,7 +15,11 @@
 // JWT 미들웨어가 토큰을 검증한 뒤 Extension<Uuid>에 user_id를 삽입하므로
 // 핸들러 파라미터에서 Extension(user_id): Extension<Uuid>로 꺼내 쓴다.
 use axum::http::StatusCode;
-use axum::{Extension, Json, extract::{Path, State}, response::IntoResponse};
+use axum::{
+    Extension, Json,
+    extract::{Path, State},
+    response::IntoResponse,
+};
 use uuid::Uuid;
 
 use super::{
@@ -180,7 +184,11 @@ pub async fn equip_item(
     Json(req): Json<EquipItemRequest>,
 ) -> impl IntoResponse {
     match service::equip_item(&state, user_id, req).await {
-        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"message": "장착 완료"}))).into_response(),
+        Ok(()) => (
+            StatusCode::OK,
+            Json(serde_json::json!({"message": "장착 완료"})),
+        )
+            .into_response(),
         Err(e) => {
             let msg = e.to_string();
             if msg.contains("본인 소유가 아닙니다") {
@@ -208,7 +216,11 @@ pub async fn unequip_item(
     Path(slot_name): Path<String>,
 ) -> impl IntoResponse {
     match service::unequip_item(&state, user_id, &slot_name).await {
-        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"message": "슬롯 해제 완료"}))).into_response(),
+        Ok(()) => (
+            StatusCode::OK,
+            Json(serde_json::json!({"message": "슬롯 해제 완료"})),
+        )
+            .into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }

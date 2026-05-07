@@ -10,10 +10,10 @@
 //  백엔드가 클라이언트 역할로 AI 서버(FastAPI)를 호출한다.
 //  고정 지출 조회 → AI 서버 요청 → 응답을 budgets.ai_plan에 저장
 
+use crate::budget::dto::Plan;
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::budget::dto::Plan;
 
 use super::{
     dto::{
@@ -366,7 +366,7 @@ pub async fn generate_ai_plan(
             fixed_expenses: serde_json::to_value(&fixed_expenses).unwrap_or_default(),
         },
     )
-        .await?;
+    .await?;
 
     let plans = ai_plan.plans;
 
@@ -413,9 +413,7 @@ pub async fn generate_ai_plan(
     println!("🔥 DB 저장 결과: {}", body);
 
     // ✅ 7. 프론트로는 plans 그대로 내려줌
-    Ok(AiPlanResponse {
-        plans,
-    })
+    Ok(AiPlanResponse { plans })
 }
 
 // ── 내부 유틸 ─────────────────────────────────────────────────

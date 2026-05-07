@@ -84,6 +84,15 @@ pub async fn create_expense(
                 let state_clone = state.clone();
                 let record_date = res.date;
                 tokio::spawn(async move {
+                    if let Err(e) = crate::notification::service::notify_budget_threshold_if_needed(
+                        &state_clone,
+                        user_id,
+                        record_date,
+                    )
+                    .await
+                    {
+                        tracing::warn!("소비 기록 후 예산 알림 생성 실패: {}", e);
+                    }
                     if let Err(e) =
                         crate::reward::service::update_streak(&state_clone, user_id, record_date)
                             .await

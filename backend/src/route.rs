@@ -66,7 +66,10 @@ pub fn create_router(state: AppState) -> Router {
             post(auth::handler::kakao_login_app),
         )
         .route("/auth/kakao/callback", get(auth::handler::kakao_callback))
-        .route("/auth/webview/callback", get(auth::handler::webview_callback))
+        .route(
+            "/auth/webview/callback",
+            get(auth::handler::webview_callback),
+        )
         // ── handoff 교환 (공개) ─────────────────────────────
         // 유니티 exe가 실행 시 전달받은 handoff token을 여기로 보냄
         // JWT 없이 접근 가능 (아직 유니티에 토큰이 없으므로)
@@ -193,8 +196,10 @@ pub fn create_router(state: AppState) -> Router {
                 .patch(community::handler::update_post)
                 .delete(community::handler::delete_post),
         )
-        .route("/api/posts/:id/react", post(community::handler::react_post)
-            .delete(community::handler::unreact_post))
+        .route(
+            "/api/posts/:id/react",
+            post(community::handler::react_post).delete(community::handler::unreact_post),
+        )
         .route(
             "/api/posts/:id/comments",
             get(community::handler::list_comments).post(community::handler::create_comment),

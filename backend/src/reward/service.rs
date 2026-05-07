@@ -708,6 +708,17 @@ pub async fn update_streak(state: &AppState, user_id: Uuid, record_date: NaiveDa
         ));
     }
 
+    if let Err(e) = crate::notification::service::notify_streak_if_needed(
+        state,
+        user_id,
+        new_streak,
+        record_date,
+    )
+    .await
+    {
+        tracing::warn!("스트릭 알림 생성 실패: {}", e);
+    }
+
     Ok(())
 }
 
@@ -1123,6 +1134,16 @@ pub async fn recalculate_weekly_score(
                 reset_weekly_reward_claim(state, score_row.id).await;
                 return Err(e);
             }
+            if let Err(e) = crate::notification::service::notify_reward_granted_if_needed(
+                state,
+                user_id,
+                week_start,
+                "이번 주 성실도 보상으로 새로운 아바타를 획득했어요.",
+            )
+            .await
+            {
+                tracing::warn!("주간 보상 알림 생성 실패: {}", e);
+            }
             return Ok(WeeklyScoreResponse {
                 id: score_row.id,
                 week_start: score_row.week_start,
@@ -1228,6 +1249,20 @@ pub async fn recalculate_weekly_score(
                     e
                 );
             }
+        }
+
+        if let Err(e) = crate::notification::service::notify_reward_granted_if_needed(
+            state,
+            user_id,
+            week_start,
+            &format!(
+                "이번 주 성실도 보상으로 새로운 아바타와 {} SPT를 획득했어요.",
+                actual_spt
+            ),
+        )
+        .await
+        {
+            tracing::warn!("주간 보상 알림 생성 실패: {}", e);
         }
     }
 
