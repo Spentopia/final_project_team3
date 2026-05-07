@@ -167,6 +167,60 @@ export default function DashboardPage() {
   const [isReceiptVerified, setIsReceiptVerified] = useState(false);
   const [ocrError, setOcrError] = useState("");
 
+  const applyOcrAutofill = (result: ReceiptOcrResponse) => {
+    if (result.ocr.receipt_date) {
+      const parsedDate = parse(result.ocr.receipt_date, "yyyy-MM-dd", new Date());
+      if (isValid(parsedDate)) {
+        setSelectedDate(parsedDate);
+      }
+    }
+
+    if (result.ocr.total_amount != null) {
+      setNewExpense((prev) => ({
+        ...prev,
+        amount: String(result.ocr.total_amount),
+      }));
+    }
+  };
+
+  const runReceiptOcr = async (file: File) => {
+    setOcrLoading(true);
+    setOcrError("");
+    setOcrResult(null);
+    setIsReceiptVerified(false);
+
+    const fallbackDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+    const fallbackAmount = newExpense.amount && !Number.isNaN(Number(newExpense.amount))
+      ? Number(newExpense.amount)
+      : 0;
+
+    try {
+      const result = await verifyReceiptOcr({
+        image: file,
+        expectedDate: fallbackDate,
+        expectedAmount: fallbackAmount,
+      });
+
+      setOcrResult(result);
+      applyOcrAutofill(result);
+      setIsReceiptVerified(result.verification.is_verified);
+
+      if (result.verification.is_verified) {
+        toast.success("영수증 정보를 자동으로 입력했고 인증도 완료됐습니다.");
+      } else {
+        toast.error(result.verification.reason);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "영수증 검증 중 오류가 발생했습니다.";
+      setOcrError(message);
+      setIsReceiptVerified(false);
+      toast.error(message);
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -215,48 +269,7 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!selectedDate) {
-      toast.error("날짜를 먼저 선택해주세요");
-      return;
-    }
-
-    if (!newExpense.amount || Number.isNaN(Number(newExpense.amount))) {
-      toast.error("금액을 먼저 입력해주세요");
-      return;
-    }
-
-    try {
-      setOcrLoading(true);
-      setOcrError("");
-      setOcrResult(null);
-      setIsReceiptVerified(false);
-
-      const expectedDate = format(selectedDate, "yyyy-MM-dd");
-      const expectedAmount = Number(newExpense.amount);
-
-      const result = await verifyReceiptOcr({
-        image: receiptFile,
-        expectedDate,
-        expectedAmount,
-      });
-
-      setOcrResult(result);
-      setIsReceiptVerified(result.verification.is_verified);
-
-      if (result.verification.is_verified) {
-        toast.success("영수증 인증 성공");
-      } else {
-        toast.error(result.verification.reason);
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "영수증 검증 중 오류가 발생했습니다.";
-      setOcrError(message);
-      setIsReceiptVerified(false);
-      toast.error(message);
-    } finally {
-      setOcrLoading(false);
-    }
+    await runReceiptOcr(receiptFile);
   };
 
   const handleAddExpense = async () => {
@@ -691,7 +704,10 @@ const currentBudget = budgets[monthKey] ?? budget;
               <Input
                 type="date"
                 value={selectedDateInputValue}
-                onChange={(e) => handleExpenseDateChange(e.target.value)}
+                onChange={(e) => {
+                  handleExpenseDateChange(e.target.value);
+                  setIsReceiptVerified(false);
+                }}
                 className="mt-1 dark:text-gray-100 dark:[color-scheme:dark]"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
@@ -760,7 +776,7 @@ const currentBudget = budgets[monthKey] ?? budget;
                         const input = document.createElement("input");
                         input.type = "file";
                         input.accept = "image/*";
-                        input.onchange = (e) => {
+                        input.onchange = async (e) => {
                           const file = (e.target as HTMLInputElement).files?.[0];
                           if (file) {
                             setReceiptFile(file);
@@ -768,6 +784,7 @@ const currentBudget = budgets[monthKey] ?? budget;
                             setOcrResult(null);
                             setOcrError("");
                             toast.success("영수증이 업로드되었습니다");
+                            await runReceiptOcr(file);
                           }
                         };
                         input.click();
