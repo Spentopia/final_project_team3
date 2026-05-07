@@ -82,25 +82,41 @@ class OpenAIClient:
         image_base64 = base64.b64encode(image_bytes).decode("utf-8")
         data_url = f"data:{mime_type};base64,{image_base64}"
 
-        # 영수증 OCR은 필요한 필드가 명확하므로
-        # 상호명, 결제일, 총액만 추출하도록 범위를 강하게 좁힌다.
+        # 단순 필드 추출만으로는 손글씨 위조를 막기 어려워서
+        # 영수증/카드 승인 전표 특징과 손글씨 의심 여부까지 함께 추출한다.
         prompt = """
-영수증 이미지에서 상호명, 결제 날짜, 결제 총액만 추출해줘.
+이미지를 보고 다음 둘 중 무엇에 가까운지 판별해줘.
+- 실제 영수증 또는 카드 승인 전표
+- 손글씨 메모, 임의로 적은 종이, 영수증이 아닌 일반 문서
 
 규칙:
-- 품목, 카테고리는 추출하지 않는다.
-- 상호명은 영수증의 매장명/가맹점명을 반환한다.
+- merchant_name은 매장명/가맹점명이 읽히는 경우만 반환한다.
+- document_type은 "receipt", "card_slip", "handwritten_note", "unknown" 중 하나로 반환한다.
+- handwritten_note는 종이에 손으로 날짜/금액만 적은 경우나 영수증 형식이 없는 경우에만 사용한다.
+- 영수증/전표처럼 보여도 손글씨가 본문 대부분을 차지하면 handwriting_suspected를 true로 둔다.
 - 날짜는 실제 결제일만 추출한다.
 - 날짜는 YYYY-MM-DD 형식으로 반환한다.
 - 총액은 최종 결제 금액만 숫자로 반환한다.
+- approval_number는 승인번호/거래번호/승인코드가 보이면 반환한다.
+- payment_time은 HH:MM 또는 HH:MM:SS 형식으로 반환한다.
+- evidence_keywords는 실제 이미지에서 읽힌 영수증/전표 근거 단어만 넣는다.
+- has_printed_layout는 인쇄된 전표/영수증 레이아웃이 보이면 true로 둔다.
+- line_item_count는 품목/거래 줄 수를 대략 추정해서 숫자로 넣는다.
 - 애매하거나 읽을 수 없으면 null로 반환한다.
 - 반드시 JSON만 반환한다.
 
 반환 형식:
 {
+  "document_type": "receipt | card_slip | handwritten_note | unknown",
   "merchant_name": "상호명 또는 null",
   "receipt_date": "YYYY-MM-DD 또는 null",
   "total_amount": 0 또는 null,
+  "approval_number": "문자열 또는 null",
+  "payment_time": "HH:MM 또는 null",
+  "has_printed_layout": true,
+  "handwriting_suspected": false,
+  "line_item_count": 0,
+  "evidence_keywords": ["승인", "합계"],
   "raw_text": "날짜/금액 판단에 사용한 짧은 근거 텍스트",
   "confidence": 0.0
 }
@@ -113,7 +129,10 @@ class OpenAIClient:
                 model=VISION_MODEL,
                 response_format={"type": "json_object"},
                 messages=[
-                    {"role": "system", "content": "너는 영수증 OCR 전용 AI다. 상호명, 결제 날짜, 총액만 정확히 추출한다."},
+                    {
+                        "role": "system",
+                        "content": "너는 영수증 OCR 및 위조 방지 보조 AI다. 실제 영수증/카드 승인 전표의 특징과 손글씨 메모 여부를 구분하고, 보이는 정보만 JSON으로 반환한다.",
+                    },
                     {
                         "role": "user",
                         "content": [
@@ -133,9 +152,16 @@ class OpenAIClient:
             # OCR 실패도 응답 스키마를 최대한 유지하면
             # 서비스 레이어와 프론트가 예외 처리하기 쉬워진다.
             return {
+                "document_type": "unknown",
                 "merchant_name": None,
                 "receipt_date": None,
                 "total_amount": None,
+                "approval_number": None,
+                "payment_time": None,
+                "has_printed_layout": False,
+                "handwriting_suspected": False,
+                "line_item_count": 0,
+                "evidence_keywords": [],
                 "raw_text": "",
                 "confidence": 0.0,
                 "error": str(e),
