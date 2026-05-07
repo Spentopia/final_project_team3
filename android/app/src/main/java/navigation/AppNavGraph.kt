@@ -76,7 +76,6 @@ import com.ict.spentopia.feature.community.CommunityViewModel
 import com.ict.spentopia.feature.community.CommunityWriteScreen
 import com.ict.spentopia.feature.home.HomeScreen
 import com.ict.spentopia.feature.market.MarketScreen
-import com.ict.spentopia.feature.mypage.ProfileAvatarScreen
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import kotlinx.coroutines.launch
@@ -353,9 +352,15 @@ fun AppNavGraph(
         }
     }
 
+    LaunchedEffect(currentRoute) {
+        if (drawerState.isOpen) {
+            drawerState.close()
+        }
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = shouldShowDrawer,
+        gesturesEnabled = false,
         drawerContent = {
             if (shouldShowDrawer) {
                 ModalDrawerSheet(
@@ -537,11 +542,14 @@ fun AppNavGraph(
                 composable(Route.Analysis.route) { AnalysisScreen() }
 
                 composable(Route.ProfileAvatar.route) {
-                    ProfileAvatarScreen(
+                    MarketScreen(
                         isWalletConnected = walletConnected,
                         walletAddress = walletAddress,
                         walletProvider = walletProvider,
-                        onWalletConnectClick = { walletType -> startWalletReconnect(walletType) }
+                        onWalletConnectClick = { walletType -> startWalletReconnect(walletType) },
+                        onNavigateBack = { navController.popBackStack() },
+                        webPath = "/profile",
+                        screenTitle = "마이페이지"
                     )
                 }
 
@@ -551,7 +559,9 @@ fun AppNavGraph(
                         walletAddress = walletAddress,
                         walletProvider = walletProvider,
                         onWalletConnectClick = { walletType -> startWalletReconnect(walletType) },
-                        onNavigateBack = { navController.popBackStack() }
+                        onNavigateBack = { navController.popBackStack() },
+                        webPath = "/nft-market",
+                        screenTitle = "NFT 마켓"
                     )
                 }
 

@@ -138,12 +138,6 @@ data class CalendarDateData( // CalendarDateData 데이터를 묶어둘 클래�
     val isCurrentMonth: Boolean // 이 데이터에 저장할 isCurrentMonth 값을 받음
 )
 
-// 이번 주 성실도 계산에 사용할 데이터 클래스입니다.
-data class WeeklyRecordData( // WeeklyRecordData 데이터를 묶어둘 클래스 시작
-    val fullDate: String, // 이 데이터에 저장할 fullDate 값을 받음
-    val dayLabel: String // 이 데이터에 저장할 dayLabel 값을 받음
-)
-
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 fun HomeScreen( // HomeScreen 함수 선언 시작
     isWalletConnected: Boolean = false, // 지갑 연결 여부를 받음
@@ -205,7 +199,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
 
     // 소비 기록이 존재하는 날짜 목록을 Set으로 관리합니다.
     val expenseDateSet by homeViewModel.expenseDateSet.collectAsStateWithLifecycle() // Flow 값을 화면에서 바로 쓸 수 있는 상태로 받음
-    val verifiedExpenseDateSet by homeViewModel.verifiedExpenseDateSet.collectAsStateWithLifecycle()
+    val weeklyScoreState by homeViewModel.weeklyScoreState.collectAsStateWithLifecycle()
 
     // 현재 선택된 연-월 문자열에서 연도와 월을 분리합니다.
     // selectedYearMonth는 "yyyy-MM" 형식이므로 substring으로 안전하게 꺼냅니다.
@@ -218,6 +212,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
     var editingExpense by remember { mutableStateOf<ExpenseItemData?>(null) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var showWalletDisconnectDialog by remember { mutableStateOf(false) } // 지갑 연결 해제 팝업창을 띄울지 말지 결정하는 스위치
     var showWalletDialog by remember { mutableStateOf(false) } // 지갑 선택 팝업창을 띄울지 말지 결정하는 스위치
+    var showWeeklyScoreDialog by remember { mutableStateOf(false) }
     // (화면이 새로고침되어도 상태 유지)
 
     // 월 달력 팝업 표시 여부 상태입니다.
@@ -390,7 +385,11 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
 
         item { // 리스트 안에 들어갈 한 칸을 시작함
             WeeklyScoreCard( // 카드 모양 UI를 시작함
-                expenseDateSet = verifiedExpenseDateSet // onDeleteExpense 값을 이 함수로 넘김
+                scoreState = weeklyScoreState,
+                onClick = {
+                    showWeeklyScoreDialog = true
+                    homeViewModel.loadWeeklyScore()
+                }
             )
         } // 블록 끝
 
@@ -442,6 +441,15 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
 
         item { Spacer(modifier = Modifier.height(24.dp)) } // 리스트 안에 들어갈 한 칸을 시작함
     } // 블록 끝
+
+    if (showWeeklyScoreDialog) {
+        WeeklyScoreDetailDialog(
+            scoreState = weeklyScoreState,
+            onDismiss = {
+                showWeeklyScoreDialog = false
+            }
+        )
+    }
 
     // 월 상단에서 날짜를 빠르게 바꾸기 위한 팝업 달력입니다.
     if (showCalendarDialog) { // 조건이 참일 때만 아래 코드를 실행함
@@ -1214,28 +1222,15 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
-    expenseDateSet: Set<String> // fontWeight 값을 이 함수로 넘김
+    scoreState: WeeklyScoreUiState,
+    onClick: () -> Unit
 ) { // 이 블록 안의 내용이 시작됨
-    // 이번 주 월~일 날짜 목록을 만듭니다.
-    val weeklyRecordList = remember(expenseDateSet) { // 이 블록의 내용이 여기서 시작됨
-        generateCurrentWeekDates() // 함수를 호출해 값을 넣음
-    } // 블록 끝
-
-    // 이번 주에 기록한 날짜 수를 계산합니다.
-    val recordedDaysCount = weeklyRecordList.count { weekItem -> // recordedDaysCount 개수를 셈
-        expenseDateSet.contains(weekItem.fullDate) // 그 값이 들어있는지 확인함
-    } // 블록 끝
-
-    // 주간 성실도를 퍼센트로 계산합니다.
-    val weeklyScore = ((recordedDaysCount / 7f) * 100f).toInt() // weeklyScore 숫자 값으로 계산함
-
-    // 오늘 기준 연속 기록 일수를 계산합니다.
-    val streakDays = remember(expenseDateSet) { // 이 블록의 내용이 여기서 시작됨
-        calculateConsecutiveRecordDays(expenseDateSet) // 함수를 호출해 값을 넣음
-    } // 블록 끝
+    val totalScore = scoreState.totalScore.coerceIn(0, 100)
 
     Card( // 카드 모양 UI를 시작함
-        modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
         colors = CardDefaults.cardColors( // 색상 스타일을 정함
             containerColor = MaterialTheme.colorScheme.surfaceVariant // 배경색을 정함
@@ -1255,160 +1250,176 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
                 color = MaterialTheme.colorScheme.onSurface // 색상을 정함
             )
 
-            Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
-
-            Text( // 글자를 화면에 보여주기 시작함
-                text = "영수증 인증 완료 기록만 성실도에 반영돼요", // 화면에 보여줄 글자를 정함
-                fontSize = 14.sp, // 글자 크기를 정함
-                color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
-            )
-
-            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+            Spacer(modifier = Modifier.height(16.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
             Row( // 가로로 배치하는 영역을 시작함
                 modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
                 horizontalArrangement = Arrangement.SpaceBetween, // 가로 방향 간격과 정렬을 정함
-                verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
+                verticalAlignment = Alignment.Bottom // 세로 방향 정렬을 정함
             ) { // 이 블록 안의 내용이 시작됨
                 Column { // verticalAlignment 값을 이 함수로 넘김
+                    Text(
+                        text = "총점",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
                     Text( // 글자를 화면에 보여주기 시작함
-                        text = "${weeklyScore}%", // 화면에 보여줄 글자를 정함
+                        text = "${totalScore}점", // 화면에 보여줄 글자를 정함
                         fontSize = 34.sp, // 글자 크기를 정함
                         fontWeight = FontWeight.ExtraBold, // 글자 두께를 정함
                         color = SpentopiaMutedPurple // 색상을 정함
                     )
-
-                    Spacer(modifier = Modifier.height(4.dp)) // 컴포넌트 사이에 빈 공간을 넣음
-
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = getWeeklyScoreMessage(weeklyScore), // 화면에 보여줄 글자를 정함
-                        fontSize = 14.sp, // 글자 크기를 정함
-                        color = Color(0xFF16A34A), // 색상을 정함
-                        fontWeight = FontWeight.SemiBold // 글자 두께를 정함
-                    )
                 } // 블록 끝
 
-                Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
-                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
-                        .size(72.dp) // 가로세로 크기를 한 번에 정함
-                        .background( // 배경색이나 그라데이션을 넣음
-                            brush = Brush.radialGradient( // 가운데서 퍼지는 그라데이션을 만듦
-                                colors = listOf( // 값 여러 개를 묶은 목록을 만듦
-                                    Color(0xFFBFE0FF), // fontWeight 값을 이 함수로 넘김
-                                    SpentopiaMutedPurple // 사용할 색상 값을 넣음
-                                )
-                            ),
-                            shape = RoundedCornerShape(100.dp) // 모서리 모양을 정함
-                        ),
-                    contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
-                ) { // 이 블록 안의 내용이 시작됨
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = "🌟", // 화면에 보여줄 글자를 정함
-                        fontSize = 28.sp // 글자 크기를 정함
-                    )
-                } // 블록 끝
-            } // 블록 끝
-
-            Spacer(modifier = Modifier.height(24.dp)) // 컴포넌트 사이에 빈 공간을 넣음
-
-            Text( // 글자를 화면에 보여주기 시작함
-                text = "주간 기록", // 화면에 보여줄 글자를 정함
-                fontSize = 15.sp, // 글자 크기를 정함
-                fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                color = MaterialTheme.colorScheme.onSurface // 색상을 정함
-            )
-
-            Spacer(modifier = Modifier.height(14.dp)) // 컴포넌트 사이에 빈 공간을 넣음
-
-            Row( // 가로로 배치하는 영역을 시작함
-                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
-                horizontalArrangement = Arrangement.SpaceBetween // 가로 방향 간격과 정렬을 정함
-            ) { // 이 블록 안의 내용이 시작됨
-                weeklyRecordList.forEach { weekItem -> // 목록이나 범위를 하나씩 돌면서 처리함
-                    WeekDayItem( // horizontalArrangement 값을 이 함수로 넘김
-                        day = weekItem.dayLabel, // horizontalArrangement 값을 이 함수로 넘김
-                        checked = expenseDateSet.contains(weekItem.fullDate) // 그 값이 들어있는지 확인함
-                    )
-                } // 블록 끝
-            } // 블록 끝
-
-            Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
-
-            Card( // 카드 모양 UI를 시작함
-                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
-                shape = RoundedCornerShape(16.dp), // 모서리 모양을 정함
-                colors = CardDefaults.cardColors( // 색상 스타일을 정함
-                    containerColor = MaterialTheme.colorScheme.surface // 배경색을 정함
+                Text(
+                    text = if (scoreState.isLoading) "불러오는 중" else "상세 보기",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
                 )
-            ) { // 이 블록 안의 내용이 시작됨
-                Row( // 가로로 배치하는 영역을 시작함
-                    modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
-                        .fillMaxWidth() // 가로 너비를 꽉 채움
-                        .padding(horizontal = 16.dp, vertical = 14.dp), // 안쪽이나 바깥 여백을 줌
-                    verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
-                ) { // 이 블록 안의 내용이 시작됨
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = "🔥", // 화면에 보여줄 글자를 정함
-                        fontSize = 22.sp // 글자 크기를 정함
+            } // 블록 끝
+
+            Spacer(modifier = Modifier.height(12.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+
+            WeeklyScoreProgressBar(
+                progress = totalScore / 100f
+            )
+
+            if (scoreState.errorMessage.isNotBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = scoreState.errorMessage,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        } // 블록 끝
+    } // 블록 끝
+} // 블록 끝
+
+@Composable
+private fun WeeklyScoreDetailDialog(
+    scoreState: WeeklyScoreUiState,
+    onDismiss: () -> Unit
+) {
+    val totalScore = scoreState.totalScore.coerceIn(0, 100)
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "이번 주 성실도",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
-                    Spacer(modifier = Modifier.width(10.dp)) // 컴포넌트 사이에 빈 공간을 넣음
-
-                    Column { // fontSize 값을 이 함수로 넘김
-                        Text( // 글자를 화면에 보여주기 시작함
-                            text = "${streakDays}일 연속 기록 중", // 화면에 보여줄 글자를 정함
-                            fontSize = 15.sp, // 글자 크기를 정함
-                            fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                            color = MaterialTheme.colorScheme.onSurface // 색상을 정함
-                        )
-
-                        Text( // 글자를 화면에 보여주기 시작함
-                            text = "오늘 영수증을 인증하면 성실도가 올라가요", // 화면에 보여줄 글자를 정함
-                            fontSize = 13.sp, // 글자 크기를 정함
-                            color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
-                        )
-                    } // 블록 끝
+                    TextButton(onClick = onDismiss) {
+                        Text(text = "닫기")
+                    }
                 } // 블록 끝
-            } // 블록 끝
-        } // 블록 끝
-    } // 블록 끝
-} // 블록 끝
 
-@Composable // 이 함수가 화면 UI를 그린다는 표시
-private fun WeekDayItem( // WeekDayItem 함수 선언 시작
-    day: String, // day 값을 함수 밖에서 받아옴
-    checked: Boolean // 바로 앞 설정을 이어서 적음
-) { // 이 블록 안의 내용이 시작됨
-    Column( // 세로로 배치하는 영역을 시작함
-        horizontalAlignment = Alignment.CenterHorizontally // horizontalAlignment 값을 이 함수로 넘김
-    ) { // 이 블록 안의 내용이 시작됨
-        Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
-            modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
-                .size(36.dp) // 가로세로 크기를 한 번에 정함
-                .background( // 배경색이나 그라데이션을 넣음
-                    color = if (checked) SpentopiaMutedPurple else Color(0xFFE5EAF2), // 색상을 정함
-                    shape = RoundedCornerShape(100.dp) // 모서리 모양을 정함
-                ),
-            contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
-        ) { // 이 블록 안의 내용이 시작됨
-            Text( // 글자를 화면에 보여주기 시작함
-                text = if (checked) "✓" else "", // 화면에 보여줄 글자를 정함
-                color = Color.White, // 색상을 정함
-                fontSize = 16.sp, // 글자 크기를 정함
-                fontWeight = FontWeight.Bold // 글자 두께를 정함
+                Text(
+                    text = "${totalScore}점",
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = SpentopiaMutedPurple
+                )
+
+                WeeklyScoreProgressBar(
+                    progress = totalScore / 100f
+                )
+
+                WeeklyScoreDetailRow("소비 기록", scoreState.recordDaysScore, 30)
+                WeeklyScoreDetailRow("영수증 인증", scoreState.receiptScore, 25)
+                WeeklyScoreDetailRow("일기 작성", scoreState.diaryScore, 20)
+                WeeklyScoreDetailRow("예산 체크", scoreState.budgetScore, 15)
+                WeeklyScoreDetailRow("연속 활동", scoreState.streakScore, 10)
+
+                if (scoreState.errorMessage.isNotBlank()) {
+                    Text(
+                        text = scoreState.errorMessage,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeeklyScoreDetailRow(
+    label: String,
+    score: Int,
+    maxScore: Int
+) {
+    val progress = if (maxScore > 0) score.toFloat() / maxScore.toFloat() else 0f
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = label,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurface
             )
-        } // 블록 끝
 
-        Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+            Text(
+                text = "${score.coerceAtLeast(0)} / $maxScore",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
 
-        Text( // 글자를 화면에 보여주기 시작함
-            text = day, // 화면에 보여줄 글자를 정함
-            fontSize = 13.sp, // 글자 크기를 정함
-            color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
+        WeeklyScoreProgressBar(
+            progress = progress
         )
-    } // 블록 끝
-} // 블록 끝
+    }
+}
 
+@Composable
+private fun WeeklyScoreProgressBar(
+    progress: Float
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(8.dp)
+            .background(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(999.dp)
+            )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                .height(8.dp)
+                .background(
+                    color = SpentopiaMutedPurple,
+                    shape = RoundedCornerShape(999.dp)
+                )
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class) // 실험 기능을 쓰겠다고 표시
 @Composable // 이 함수가 화면 UI를 그린다는 표시
@@ -2182,15 +2193,21 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun RewardGuideCard() { // RewardGuideCard 함수 시작
+    val containerColor = MaterialTheme.colorScheme.surface
+    val titleColor = MaterialTheme.colorScheme.onSurface
+    val bodyColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val accentContainerColor = MaterialTheme.colorScheme.primaryContainer
+    val accentContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(20.dp), // 모서리 모양을 정함
         colors = CardDefaults.cardColors( // 색상 스타일을 정함
-            containerColor = Color.White // 배경색을 정함
+            containerColor = containerColor // 배경색을 정함
         ),
         border = BorderStroke(
             1.dp,
-            SpentopiaGlowPurple.copy(alpha = 0.22f)
+            MaterialTheme.colorScheme.outlineVariant
         )
     ) { // 이 블록 안의 내용이 시작됨
         Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
@@ -2220,7 +2237,7 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                             text = "보상 안내", // 화면에 보여줄 글자를 정함
                             fontSize = 15.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                            color = SpentopiaNavyPurple // 색상을 정함
+                            color = titleColor // 색상을 정함
                         )
                     } // 블록 끝
                 } // 블록 끝
@@ -2228,20 +2245,26 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                 Spacer(modifier = Modifier.height(14.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
                 RewardPointRow( // 가로로 배치하는 영역을 시작함
-                    title = "기본 기록" // color 값을 이 함수로 넘김
+                    title = "기본 기록", // color 값을 이 함수로 넘김
+                    titleColor = bodyColor,
+                    pointColor = MaterialTheme.colorScheme.primary
                 )
 
                 Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
                 RewardPointRow( // 가로로 배치하는 영역을 시작함
                     title = "영수증 인증 완료", // point 값을 이 함수로 넘김
-                    point = "아바타 뽑기권 지급" // point 값을 이 함수로 넘김
+                    point = "아바타 뽑기권 지급", // point 값을 이 함수로 넘김
+                    titleColor = bodyColor,
+                    pointColor = MaterialTheme.colorScheme.primary
                 )
 
                 Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
                 RewardPointRow( // 가로로 배치하는 영역을 시작함
-                    title = "일기 작성" // point 값을 이 함수로 넘김
+                    title = "일기 작성", // point 값을 이 함수로 넘김
+                    titleColor = bodyColor,
+                    pointColor = MaterialTheme.colorScheme.primary
                 )
 
                 Spacer(modifier = Modifier.height(14.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -2250,12 +2273,12 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                     modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                         .fillMaxWidth() // 가로 너비를 꽉 채움
                         .background(
-                            color = Color(0xFFEDEBFF),
+                            color = accentContainerColor,
                             shape = RoundedCornerShape(10.dp)
                         )
                         .border( // 테두리를 그림
                             width = 1.5.dp, // point 값을 이 함수로 넘김
-                            color = SpentopiaGlowPurple.copy(alpha = 0.30f), // 색상을 정함
+                            color = MaterialTheme.colorScheme.outlineVariant, // 색상을 정함
                             shape = RoundedCornerShape(10.dp) // 모서리 모양을 정함
                         )
                         .padding(vertical = 8.dp, horizontal = 10.dp), // 안쪽이나 바깥 여백을 줌
@@ -2268,13 +2291,13 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                             text = "주간 성실도 90점 이상 시", // 화면에 보여줄 글자를 정함
                             fontSize = 12.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                            color = SpentopiaNavyPurple // 색상을 정함
+                            color = accentContentColor // 색상을 정함
                         )
 
                         Text( // 글자를 화면에 보여주기 시작함
                             text = "영수증 인증 완료 시 보상이 지급됩니다.", // 화면에 보여줄 글자를 정함
                             fontSize = 11.sp, // 글자 크기를 정함
-                            color = SpentopiaMutedPurple // 색상을 정함
+                            color = accentContentColor.copy(alpha = 0.78f) // 색상을 정함
                         )
                     } // 블록 끝
                 } // 블록 끝
@@ -2286,7 +2309,7 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                     .padding(end = 10.dp, bottom = 10.dp) // 안쪽이나 바깥 여백을 줌
                     .size(52.dp) // 가로세로 크기를 한 번에 정함
                     .background( // 배경색이나 그라데이션을 넣음
-                        color = Color(0xFF2196F3), // 색상을 정함
+                        color = MaterialTheme.colorScheme.primary, // 색상을 정함
                         shape = CircleShape // 모서리 모양을 정함
                     ),
                 contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
@@ -2314,6 +2337,8 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun RewardPointRow( // RewardPointRow 함수 선언 시작
     title: String, // title 값을 함수 밖에서 받아옴
+    titleColor: Color,
+    pointColor: Color,
     point: String = "" // 바로 앞 설정을 이어서 적음
 ) { // 이 블록 안의 내용이 시작됨
     Row( // 가로로 배치하는 영역을 시작함
@@ -2324,7 +2349,7 @@ private fun RewardPointRow( // RewardPointRow 함수 선언 시작
         Text( // 글자를 화면에 보여주기 시작함
             text = title, // 화면에 보여줄 글자를 정함
             fontSize = 13.sp, // 글자 크기를 정함
-            color = SpentopiaNavy // 색상을 정함
+            color = titleColor // 색상을 정함
         )
 
         if (point.isNotBlank()) {
@@ -2332,7 +2357,7 @@ private fun RewardPointRow( // RewardPointRow 함수 선언 시작
                 text = point, // 화면에 보여줄 글자를 정함
                 fontSize = 13.sp, // 글자 크기를 정함
                 fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                color = SpentopiaMutedPurple // 색상을 정함
+                color = pointColor // 색상을 정함
             )
         }
     } // 블록 끝
@@ -2557,66 +2582,5 @@ private fun createUsageRateText(currentAmount: Int, monthlyBudget: Int): String 
         "${rate.toInt()}%" // rate 값을 이 함수로 넘김
     } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
         String.format("%.1f%%", rate) // 자릿수를 맞춘 문자열을 만듦
-    } // 블록 끝
-} // 블록 끝
-
-// 이번 주 월요일부터 일요일까지의 날짜 목록을 생성합니다.
-private fun generateCurrentWeekDates(): List<WeeklyRecordData> { // generateCurrentWeekDates 함수 시작
-    val calendar = Calendar.getInstance() // 현재 날짜/시간 정보를 가진 Calendar 객체를 만듦
-
-    while (calendar.get(Calendar.DAY_OF_WEEK) != Calendar.MONDAY) { // 이 블록의 내용이 여기서 시작됨
-        calendar.add(Calendar.DAY_OF_MONTH, -1) // 바로 앞 설정을 이어서 적음
-    } // 블록 끝
-
-    val dayLabels = listOf("월", "화", "수", "목", "금", "토", "일") // 값 여러 개를 묶은 목록을 만듦
-    val result = mutableListOf<WeeklyRecordData>() // 추가·삭제 가능한 목록을 만듦
-
-    dayLabels.forEach { label -> // 목록이나 범위를 하나씩 돌면서 처리함
-        result.add( // 바로 앞 설정을 이어서 적음
-            WeeklyRecordData( // 바로 앞 설정을 이어서 적음
-                fullDate = formatDate( // result 값을 이 함수로 넘김
-                    calendar.get(Calendar.YEAR), // result 값을 이 함수로 넘김
-                    calendar.get(Calendar.MONTH) + 1, // 바로 앞 설정을 이어서 적음
-                    calendar.get(Calendar.DAY_OF_MONTH) // 바로 앞 설정을 이어서 적음
-                ),
-                dayLabel = label // dayLabel 값을 이 함수로 넘김
-            )
-        )
-        calendar.add(Calendar.DAY_OF_MONTH, 1) // 바로 앞 설정을 이어서 적음
-    } // 블록 끝
-
-    return result // 계산한 결과를 바깥으로 돌려줌
-} // 블록 끝
-
-// 오늘 기준으로 연속 기록 일수를 계산합니다.
-private fun calculateConsecutiveRecordDays(expenseDateSet: Set<String>): Int { // calculateConsecutiveRecordDays 함수 시작
-    val calendar = Calendar.getInstance() // 현재 날짜/시간 정보를 가진 Calendar 객체를 만듦
-    var streak = 0 // streak 값을 계산해서 저장함
-
-    while (true) { // 이 블록의 내용이 여기서 시작됨
-        val currentDate = formatDate( // currentDate 날짜 문자열을 만듦
-            calendar.get(Calendar.YEAR), // calendar 값을 이 함수로 넘김
-            calendar.get(Calendar.MONTH) + 1, // 바로 앞 설정을 이어서 적음
-            calendar.get(Calendar.DAY_OF_MONTH) // 바로 앞 설정을 이어서 적음
-        )
-
-        if (expenseDateSet.contains(currentDate)) { // 조건이 참일 때만 아래 코드를 실행함
-            streak++ // 바로 앞 설정을 이어서 적음
-            calendar.add(Calendar.DAY_OF_MONTH, -1) // 바로 앞 설정을 이어서 적음
-        } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
-            break // 바로 앞 설정을 이어서 적음
-        } // 블록 끝
-    } // 블록 끝
-
-    return streak // 계산한 결과를 바깥으로 돌려줌
-} // 블록 끝
-
-// 주간 성실도 점수에 따라 문구를 계산합니다.
-private fun getWeeklyScoreMessage(score: Int): String { // getWeeklyScoreMessage 함수 시작
-    return when { // 계산한 결과를 바깥으로 돌려줌
-        score >= 90 -> "아주 잘하고 있어요!" // 이 조건이면 오른쪽 값을 선택함
-        score >= 70 -> "좋은 흐름이에요!" // 이 조건이면 오른쪽 값을 선택함
-        score >= 40 -> "조금만 더 기록해봐요!" // 이 조건이면 오른쪽 값을 선택함
-        else -> "오늘부터 다시 시작해봐요!" // 위 점수 구간이 아니면 마지막 기본 문구를 선택함
     } // 블록 끝
 } // 블록 끝

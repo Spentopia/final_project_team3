@@ -45,6 +45,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -370,6 +371,7 @@ fun BudgetUsageCard(
     usageRate: Float
 ) {
     val percentText = (usageRate * 100).roundToInt()
+    val progress = usageRate.coerceIn(0f, 1f)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -393,14 +395,33 @@ fun BudgetUsageCard(
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            LinearProgressIndicator(
-                progress = { usageRate.coerceIn(0f, 1f) },
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp),
-                color = SpentopiaMutedPurple,
-                trackColor = MaterialTheme.colorScheme.outlineVariant
-            )
+                    .height(12.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        shape = RoundedCornerShape(999.dp)
+                    )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(progress)
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    SpentopiaMutedPurple,
+                                    MaterialTheme.colorScheme.primary
+                                )
+                            )
+                        )
+                )
+            }
         }
     }
 }

@@ -320,6 +320,15 @@ object RetrofitClient {
             .create(BudgetApi::class.java)
     }
 
+    val rewardApi: RewardApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(RewardApi::class.java)
+    }
+
     val aiAnalyzeApi: AiAnalyzeApi by lazy {
         Retrofit.Builder()
             .baseUrl(AI_ANALYZE_BASE_URL)

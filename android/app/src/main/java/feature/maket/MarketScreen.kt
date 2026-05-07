@@ -47,6 +47,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ict.spentopia.BuildConfig
+import com.ict.spentopia.data.remote.RetrofitClient
+import com.ict.spentopia.data.remote.WebviewIssueRequest
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
 import kotlinx.coroutines.delay
 import org.json.JSONObject
@@ -59,7 +61,9 @@ fun MarketScreen(
     walletAddress: String = "",
     walletProvider: String = "",
     onWalletConnectClick: (SolanaWalletType) -> Unit = {},
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    webPath: String = "/nft-market",
+    screenTitle: String = "NFT 마켓"
 ) {
     val context = LocalContext.current
     val prefs = remember(context) {
@@ -72,7 +76,7 @@ fun MarketScreen(
     var marketUrl by remember { mutableStateOf("") }
     val requestHeaders = remember { emptyMap<String, String>() }
 
-    LaunchedEffect(baseUrl, accessToken, walletAddress, walletProvider, isWalletConnected) {
+    LaunchedEffect(baseUrl, accessToken, walletAddress, walletProvider, isWalletConnected, webPath) {
         Log.d(MARKET_WEBVIEW_TAG, "BuildConfig.NFT_MARKET_WEBVIEW_URL=$baseUrl")
         Log.d(MARKET_WEBVIEW_TAG, "BuildConfig.API_BASE_URL=${BuildConfig.API_BASE_URL}")
         Log.d(MARKET_WEBVIEW_TAG, "accessTokenPresent=${accessToken.isNotBlank()}")
@@ -89,7 +93,7 @@ fun MarketScreen(
     var pageReady by remember { mutableStateOf(false) }
     var loadedMarketUrl by remember { mutableStateOf("") }
 
-    LaunchedEffect(accessToken, webViewKey) {
+    LaunchedEffect(accessToken, webViewKey, webPath) {
         marketUrl = ""
         pageReady = false
         loadedMarketUrl = ""
@@ -103,14 +107,24 @@ fun MarketScreen(
 
         isLoading = true
 
-        marketUrl = buildFrontendMarketUrlWithAccessToken(accessToken)
-        Log.d(MARKET_WEBVIEW_TAG, "load frontend market with fragment token url=${BuildConfig.NFT_MARKET_WEBVIEW_URL}")
+        runCatching {
+            val redirectPath = buildFrontendWebViewRedirectPath(webPath)
+            val issuedToken = RetrofitClient.authApi
+                .issueWebviewToken(request = WebviewIssueRequest(redirect_path = redirectPath))
+                .webview_token
+
+            marketUrl = buildBackendWebViewCallbackUrl(issuedToken)
+            Log.d(MARKET_WEBVIEW_TAG, "load backend webview callback path=$redirectPath")
+        }.onFailure { error ->
+            Log.e(MARKET_WEBVIEW_TAG, "issue webview token failed", error)
+            isLoading = false
+            errorMessage = "웹뷰 로그인 정보를 발급하지 못했습니다. 다시 시도해주세요."
+        }
     }
 
     LaunchedEffect(webViewKey, marketUrl) {
         pageReady = false
         isLoading = true
-        loadedMarketUrl = ""
         delay(4_000)
         if (isLoading && errorMessage == null) {
             Log.d(MARKET_WEBVIEW_TAG, "hide native loader by timeout url=$marketUrl")
@@ -141,7 +155,8 @@ fun MarketScreen(
     ) {
         if (baseUrl.isBlank()) {
             MarketWebViewError(
-                message = "NFT 마켓 주소가 설정되지 않았습니다.",
+                title = screenTitle,
+                message = "$screenTitle 주소가 설정되지 않았습니다.",
                 onRetry = {}
             )
         } else if (marketUrl.isBlank()) {
@@ -287,7 +302,8 @@ fun MarketScreen(
                         if (
                             loadedMarketUrl != marketUrl &&
                             marketUrl.isNotBlank() &&
-                            currentUrl != marketUrl
+                            currentUrl != marketUrl &&
+                            !isFrontendMarketUrl(currentUrl)
                         ) {
                             Log.d(MARKET_WEBVIEW_TAG, "reloadUrl loaded=$loadedMarketUrl current=${view.url} next=$marketUrl headers=${requestHeaders.keys}")
                             isLoading = true
@@ -319,6 +335,7 @@ fun MarketScreen(
 
         errorMessage?.let { message ->
             MarketWebViewError(
+                title = screenTitle,
                 message = message,
                 onRetry = {
                     errorMessage = null
@@ -335,6 +352,7 @@ fun MarketScreen(
 
 @Composable
 private fun MarketWebViewError(
+    title: String,
     message: String,
     onRetry: () -> Unit
 ) {
@@ -349,7 +367,7 @@ private fun MarketWebViewError(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "NFT 마켓을 불러오지 못했습니다.",
+                text = "$title 화면을 불러오지 못했습니다.",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -384,10 +402,22 @@ private fun WebView.configureMarketWebView() {
     setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
 }
 
-private fun buildFrontendMarketUrlWithAccessToken(accessToken: String): String {
-    return Uri.parse(BuildConfig.NFT_MARKET_WEBVIEW_URL)
+private fun buildFrontendWebViewRedirectPath(webPath: String): String {
+    val normalizedPath = if (webPath.startsWith("/")) webPath else "/$webPath"
+
+    return Uri.Builder()
+        .path(normalizedPath)
+        .appendQueryParameter("webview", "true")
+        .build()
+        .toString()
+}
+
+private fun buildBackendWebViewCallbackUrl(webviewToken: String): String {
+    return Uri.parse(BuildConfig.API_BASE_URL)
         .buildUpon()
-        .encodedFragment("access_token=${Uri.encode(accessToken)}")
+        .encodedPath("/auth/webview/callback")
+        .clearQuery()
+        .appendQueryParameter("token", webviewToken)
         .build()
         .toString()
 }

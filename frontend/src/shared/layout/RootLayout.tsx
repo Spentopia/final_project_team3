@@ -1,4 +1,4 @@
-import { Outlet } from "react-router";
+import { Outlet, useSearchParams } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { syncOwnedNfts } from "@/domains/avatar/api/avatarApi";
@@ -32,6 +32,8 @@ const MAX_SCORES = {
 export default function RootLayout() {
   const { connected, publicKey } = useWallet();
   const syncedWalletRef = useRef<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const isWebView = searchParams.get("webview") === "true";
 
   // 지갑 연결될 때 한 번만 NFT sync (로그인 후 메인, 새로고침 등)
   useEffect(() => {
@@ -75,6 +77,16 @@ export default function RootLayout() {
 
   const totalScore = weeklyScore?.total_score ?? 0;
   const progressPct = Math.min(totalScore, 100);
+
+  if (isWebView) {
+    return (
+      <main className="min-h-dvh w-full overflow-x-hidden bg-background text-foreground">
+        <div className="w-full max-w-full overflow-x-hidden px-0 py-0">
+          <Outlet />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">

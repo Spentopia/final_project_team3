@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
+import AvatarPage from "@/domains/avatar/pages/AvatarPage";
 import { syncOwnedNfts, getUserItems } from "@/domains/avatar/api/avatarApi";
 import { useSptBalance } from "@/shared/hooks/useSptBalance";
 import { withdrawAccount } from "@/domains/auth/api/auth";
@@ -43,6 +44,8 @@ type NotificationSettings = {
 
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isWebView = searchParams.get("webview") === "true";
   const [isEditing, setIsEditing] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -342,7 +345,7 @@ export default function ProfilePage() {
       : "-";
 
   return (
-      <div className="space-y-6">
+      <div className={isWebView ? "w-full max-w-full space-y-6 overflow-x-hidden px-0 pb-6" : "space-y-6"}>
         {showWithdrawConfirm && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
@@ -390,7 +393,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]">
+        <div className={isWebView ? "grid gap-4" : "grid gap-6 lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]"}>
           {/* 왼쪽 프로필 카드 */}
           <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
             {/* 파일 선택 즉시 업로드 */}
@@ -785,31 +788,39 @@ export default function ProfilePage() {
             </Card>
 
             {/* 지갑 연동 */}
-            <div className="h-full">
-              <WalletSection
-                  isLoggedIn
-                  isProfileComplete={isProfileComplete}
-                  linkedWalletAddress={profile.walletAddress}
-                  onWalletLinked={(walletAddress) => {
-                    setProfile((prev) => ({ ...prev, walletAddress }));
-                    window.dispatchEvent(
-                        new CustomEvent("spentopia:wallet-change", {
-                          detail: { walletAddress },
-                        })
-                    );
-                  }}
-                  onWalletUnlinked={() => {
-                    setProfile((prev) => ({ ...prev, walletAddress: "" }));
-                    window.dispatchEvent(
-                        new CustomEvent("spentopia:wallet-change", {
-                          detail: { walletAddress: null },
-                        })
-                    );
-                  }}
-              />
-            </div>
+            {!isWebView && (
+              <div className="h-full">
+                <WalletSection
+                    isLoggedIn
+                    isProfileComplete={isProfileComplete}
+                    linkedWalletAddress={profile.walletAddress}
+                    onWalletLinked={(walletAddress) => {
+                      setProfile((prev) => ({ ...prev, walletAddress }));
+                      window.dispatchEvent(
+                          new CustomEvent("spentopia:wallet-change", {
+                            detail: { walletAddress },
+                          })
+                      );
+                    }}
+                    onWalletUnlinked={() => {
+                      setProfile((prev) => ({ ...prev, walletAddress: "" }));
+                      window.dispatchEvent(
+                          new CustomEvent("spentopia:wallet-change", {
+                            detail: { walletAddress: null },
+                          })
+                      );
+                    }}
+                />
+              </div>
+            )}
           </div>
         </div>
+
+        {isWebView && (
+          <div className="w-full max-w-full overflow-x-hidden pt-2">
+            <AvatarPage />
+          </div>
+        )}
       </div>
   );
 }

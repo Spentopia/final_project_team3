@@ -120,8 +120,14 @@ async fn main() {
     let mut allowed_origins = vec![
         HeaderValue::from_static("http://localhost:5173"),
         HeaderValue::from_static("http://127.0.0.1:5173"),
+        HeaderValue::from_static("http://10.0.2.2:5173"),
     ];
     if let Ok(origin) = config.cors_origin.parse::<HeaderValue>() {
+        if !allowed_origins.contains(&origin) {
+            allowed_origins.push(origin);
+        }
+    }
+    if let Ok(origin) = config.frontend_origin.parse::<HeaderValue>() {
         if !allowed_origins.contains(&origin) {
             allowed_origins.push(origin);
         }

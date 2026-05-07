@@ -26,15 +26,71 @@ import kotlinx.coroutines.flow.stateIn
 
 // 코루틴 실행을 위한 launch import입니다.
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 // 날짜 계산을 위한 Calendar import입니다.
 import java.util.Calendar
+
+data class WeeklyScoreUiState(
+    val totalScore: Int = 0,
+    val recordDaysScore: Int = 0,
+    val receiptScore: Int = 0,
+    val diaryScore: Int = 0,
+    val budgetScore: Int = 0,
+    val streakScore: Int = 0,
+    val isLoading: Boolean = false,
+    val errorMessage: String = ""
+)
 
 // Home 화면에서 사용할 ViewModel 클래스입니다.
 class HomeViewModel(
     // Repository를 생성자로 주입받습니다.
     private val repository: ExpenseRepository
 ) : ViewModel() {
+
+    private val _weeklyScoreState = MutableStateFlow(WeeklyScoreUiState(isLoading = true))
+    val weeklyScoreState: StateFlow<WeeklyScoreUiState> = _weeklyScoreState
+
+    init {
+        loadWeeklyScore()
+    }
+
+    fun loadWeeklyScore() {
+        viewModelScope.launch {
+            _weeklyScoreState.value = _weeklyScoreState.value.copy(
+                isLoading = true,
+                errorMessage = ""
+            )
+
+            try {
+                val score = RetrofitClient.rewardApi.getCurrentWeeklyScore()
+                _weeklyScoreState.value = WeeklyScoreUiState(
+                    totalScore = score.total_score ?: 0,
+                    recordDaysScore = score.record_days_score ?: 0,
+                    receiptScore = score.receipt_score ?: 0,
+                    diaryScore = score.diary_score ?: 0,
+                    budgetScore = score.budget_score ?: 0,
+                    streakScore = score.streak_score ?: 0,
+                    isLoading = false,
+                    errorMessage = ""
+                )
+            } catch (e: HttpException) {
+                _weeklyScoreState.value = WeeklyScoreUiState(
+                    isLoading = false,
+                    errorMessage = when (e.code()) {
+                        401 -> "로그인이 만료되었습니다."
+                        404 -> "이번 주 성실도 데이터가 아직 없습니다."
+                        else -> "성실도를 불러오지 못했습니다. (${e.code()})"
+                    }
+                )
+            } catch (_: Exception) {
+                _weeklyScoreState.value = WeeklyScoreUiState(
+                    isLoading = false,
+                    errorMessage = "성실도를 불러오지 못했습니다."
+                )
+            }
+        }
+    }
 
     // HomeViewModel은 화면이 바로 쓰기 쉬운 형태로 데이터를 가공합니다.
     // UI는 DB를 직접 다루지 않고, 여기서 정리된 StateFlow만 구독하면 됩니다.
@@ -217,23 +273,6 @@ class HomeViewModel(
                 initialValue = emptySet()
             )
 
-    // 성실도/보상용 날짜 Set입니다.
-    // 직접 입력 기록은 제외하고 OCR 인증 완료된 소비만 반영합니다.
-    val verifiedExpenseDateSet: StateFlow<Set<String>> =
-        repository
-            .getAllExpenses()
-            .map { expenseList ->
-                expenseList
-                    .filter { expense -> expense.receiptVerified }
-                    .map { expense -> expense.date }
-                    .toSet()
-            }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = emptySet()
-            )
-
     // -----------------------------------------
     // 11) 월 이동 - 이전 달
     // -----------------------------------------
@@ -352,6 +391,7 @@ class HomeViewModel(
 
             // 저장한 소비 날짜 기준으로 현재 선택 날짜/월도 같이 맞춰줍니다.
             selectDate(expenseForSave.date)
+            loadWeeklyScore()
             onSuccess()
         }
     }

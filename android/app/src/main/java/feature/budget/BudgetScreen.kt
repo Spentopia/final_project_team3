@@ -105,6 +105,7 @@ fun BudgetScreen(
 
     val currentCalendar = remember { Calendar.getInstance() }
     val currentYear = remember { currentCalendar.get(Calendar.YEAR) }
+    var selectedYear by remember { mutableIntStateOf(currentYear) }
     var selectedMonth by remember { mutableIntStateOf(currentCalendar.get(Calendar.MONTH) + 1) }
     var isMonthDialogOpen by remember { mutableStateOf(false) }
 
@@ -154,7 +155,7 @@ fun BudgetScreen(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 MonthSelectorCard(
-                    year = currentYear,
+                    year = selectedYear,
                     month = selectedMonth,
                     onOpenClick = {
                         isMonthDialogOpen = true
@@ -238,7 +239,7 @@ fun BudgetScreen(
                 Spacer(modifier = Modifier.height(18.dp))
 
                 CurrentMonthlyBudgetCard(
-                    year = currentYear,
+                    year = selectedYear,
                     month = selectedMonth,
                     monthlyBudget = budgetState.monthlyIncome
                 )
@@ -267,11 +268,13 @@ fun BudgetScreen(
 
             if (isMonthDialogOpen) {
                 MonthPickerDialog(
+                    selectedYear = selectedYear,
                     selectedMonth = selectedMonth,
                     onDismiss = {
                         isMonthDialogOpen = false
                     },
-                    onMonthSelected = { month ->
+                    onYearMonthSelected = { year, month ->
+                        selectedYear = year
                         selectedMonth = month
                         isMonthDialogOpen = false
                     }
@@ -404,11 +407,13 @@ private fun MonthSelectorCard(
 
 @Composable
 private fun MonthPickerDialog(
+    selectedYear: Int,
     selectedMonth: Int,
     onDismiss: () -> Unit,
-    onMonthSelected: (Int) -> Unit
+    onYearMonthSelected: (Int, Int) -> Unit
 ) {
     val listState = rememberLazyListState()
+    var dialogYear by remember(selectedYear) { mutableIntStateOf(selectedYear) }
 
     LaunchedEffect(selectedMonth) {
         listState.scrollToItem((selectedMonth - 1).coerceIn(0, 11))
@@ -425,12 +430,51 @@ private fun MonthPickerDialog(
                     .fillMaxWidth()
                     .padding(20.dp)
             ) {
-                Text(
-                    text = "월 선택",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "년 / 월 선택",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { dialogYear -= 1 }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            text = "이전",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Text(
+                            text = "${dialogYear}년",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Text(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { dialogYear += 1 }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            text = "다음",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -465,7 +509,7 @@ private fun MonthPickerDialog(
                                         }
                                     )
                                     .clickable {
-                                        onMonthSelected(month)
+                                        onYearMonthSelected(dialogYear, month)
                                     }
                                     .padding(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.Center,

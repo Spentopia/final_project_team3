@@ -29,7 +29,7 @@ fun BottomNavigationBar(navController: NavController) {
         Route.Budget,
         Route.Analysis,
         Route.Community,
-        Route.MyPage
+        Route.ProfileAvatar
     )
 
     // 현재 탭 상태 읽음
@@ -91,7 +91,7 @@ private fun getBottomMenuLabel(route: Route): String {
         Route.Community -> "커뮤니티"
 
         // 마이페이지 메뉴 이름
-        Route.MyPage -> "마이"
+        Route.ProfileAvatar -> "마이"
 
         // 해당 없는 경우 빈 문자열 반환
         else -> ""
