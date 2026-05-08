@@ -32,7 +32,7 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-type AuthStatus = "loading" | "logged_in" | "need_profile" | "not_logged_in";
+type AuthStatus = "loading" | "logged_in" | "need_profile" | "not_logged_in" | "forbidden";
 
 let authCheckInFlight: Promise<AuthStatus> | null = null;
 let refreshRecoveryInFlight: Promise<boolean> | null = null;
@@ -168,6 +168,21 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
     const me = res.data;
 
+    // ─────────────────────────────────────────────
+    // 관리자 페이지 접근 검사
+    //
+    // 현재 경로가 /admin 으로 시작하면
+    // role_type = admin 인지 추가 확인.
+    //
+    // 프론트 검사는 UX용.
+    // 실제 보안은 백엔드 admin_middleware가 담당.
+    // ─────────────────────────────────────────────
+    if (location.pathname.startsWith("/admin")) {
+      if (me.role_type !== "admin") {
+        return "forbidden";
+      }
+    }
+
     // 7) 프로필 완성 여부에 따라 라우팅 분기
     if (!me.profile_completed) {
       return "need_profile";
@@ -222,6 +237,16 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
     return <Navigate to="/complete-profile" replace />;
   }
+
+  // ─────────────────────────────────────────────
+  // 관리자 권한 없음
+  //
+  // 일반 사용자가 /admin 접근 시 홈으로 이동.
+  // ─────────────────────────────────────────────
+  if (status === "forbidden") {
+    return <Navigate to="/" replace />;
+  }
+
 
   return <>{children}</>;
 }

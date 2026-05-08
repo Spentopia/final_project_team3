@@ -70,6 +70,16 @@ pub struct WalletLoginRequest {
 pub struct WebLoginResponse {
     pub access_token: String,
     pub is_new_user: bool,
+    // 웹 로그인 직후 관리자 페이지 이동 판단용
+    //
+    // 값 예시:
+    // - "user"
+    // - "admin"
+    //
+    // 프론트에서는 이 값을 보고:
+    // role_type === "admin" 이면 /admin 이동
+    // 아니면 / 이동
+    pub role_type: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

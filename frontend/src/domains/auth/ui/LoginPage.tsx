@@ -13,6 +13,7 @@ import PasswordInput from "@/domains/auth/ui/PasswordInput";
 import { authStorage } from "@/shared/lib/auth";
 import { WalletLoginButton } from "@/domains/auth/ui/WalletLoginButton";
 import { useTheme } from "next-themes";
+import {apiClient} from "@/shared/api/client.ts";
 
 type SocialLoginProvider = "google" | "kakao";
 
@@ -45,6 +46,12 @@ export default function Login() {
       sessionStorage.setItem("just_logged_in", "true");
       // ✅ 실제 앱 JWT 저장
       authStorage.setToken(result.accessToken);
+
+      // 운영자면 관리자 페이지로 이동
+      if (result.roleType === "admin") {
+        navigate("/admin", { replace: true });
+        return;
+      }
 
       navigate("/", { replace: true });
     } catch (error) {

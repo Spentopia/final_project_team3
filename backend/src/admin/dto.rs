@@ -70,3 +70,29 @@ pub struct AdminContentReportResponse {
     // 나중에 팀원 관리자 계정이 늘어날 걸 대비
     pub reviewed_by: Option<Uuid>,
 }
+
+// ─────────────────────────────────────────────
+// 회원 관리 응답 DTO
+// ─────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AdminUserResponse {
+    pub id: Uuid,
+    pub email: Option<String>,
+    pub nickname: Option<String>,
+    pub phone: Option<String>,
+    pub profile_image: Option<String>,
+    pub login_provider: Option<String>,
+    pub wallet_address: Option<String>,
+    pub role_type: String,
+    pub profile_completed: bool,
+    pub is_active: bool,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+// 회원 활성/비활성 변경 요청
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct UpdateUserActiveRequest {
+    pub is_active: bool,
+}

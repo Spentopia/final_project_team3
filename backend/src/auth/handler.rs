@@ -341,6 +341,7 @@ pub async fn wallet_login(
     let body = WebLoginResponse {
         access_token: response.access_token,
         is_new_user: response.is_new_user,
+        role_type: "user".to_string(),
     };
 
     Ok((cookie_headers, Json(serde_json::to_value(body).unwrap())))
@@ -447,9 +448,28 @@ pub async fn exchange_token(
     let cookie_headers = build_refresh_cookie(&state, &issued.refresh_token);
     tracing::debug!("토큰 교환 응답: web refresh 쿠키를 Set-Cookie로 반환");
 
+    // 이메일/비밀번호 로그인에서만 실제 role_type을 본다.
+    // 운영자 계정은 DB public.users.role_type = 'admin'이어야 한다.
+    let role_type = service::get_user_role(&state, issued.user_id)
+        .await
+        .map_err(|e| {
+            tracing::error!(
+                "이메일 로그인 role_type 조회 실패: user_id={}, error={}",
+                issued.user_id,
+                e
+            );
+
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "사용자 권한 조회에 실패했습니다.".to_string(),
+            )
+        })?
+        .unwrap_or_else(|| "user".to_string());
+
     let body = WebLoginResponse {
         access_token: issued.access_token,
         is_new_user: issued.is_new_user,
+        role_type,
     };
 
     Ok((cookie_headers, Json(serde_json::to_value(body).unwrap())))
@@ -1353,6 +1373,7 @@ pub async fn kakao_login(
     let body = WebLoginResponse {
         access_token: issued.access_token,
         is_new_user: issued.is_new_user,
+        role_type: "user".to_string(),
     };
 
     Ok((merged_headers, Json(serde_json::to_value(body).unwrap())))

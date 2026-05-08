@@ -320,6 +320,14 @@ pub fn create_router(state: AppState) -> Router {
             patch(admin::handler::resolve_content_report))
         .route("/api/admin/content-reports/:id/reject",
             patch(admin::handler::reject_content_report))
+        .route(
+            "/api/admin/users",
+            get(admin::handler::list_users),
+        )
+        .route(
+            "/api/admin/users/:id/active",
+            patch(admin::handler::update_user_active),
+        )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::middleware::admin_middleware,

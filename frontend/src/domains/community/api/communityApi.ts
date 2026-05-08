@@ -36,7 +36,7 @@ export interface ContentReportResponse {
   target_id: string;
   reason: ContentReportReason;
   detail: string | null;
-  status: "pending" | "resolved" | "rejected";
+  status: ContentReportStatus;
   created_at: string | null;
   reviewed_at: string | null;
   reviewed_by: string | null;
