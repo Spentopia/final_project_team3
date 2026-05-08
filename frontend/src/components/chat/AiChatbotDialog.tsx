@@ -96,7 +96,7 @@ export default function AiChatbotDialog({ open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[720px] gap-0 overflow-hidden p-0">
-        <DialogHeader className="border-b bg-gradient-to-r from-cyan-500 to-blue-500 p-5 text-white">
+        <DialogHeader className="border-b bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 p-5 text-white">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20">
               <Bot className="h-6 w-6" />
@@ -172,7 +172,7 @@ export default function AiChatbotDialog({ open, onOpenChange }: Props) {
               />
               <Button
                 type="submit"
-                className="h-[52px] bg-gradient-to-r from-cyan-500 to-blue-500 px-4"
+                className="h-[52px] bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 px-4 text-white shadow-lg shadow-cyan-700/20"
                 disabled={loading || !input.trim()}
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

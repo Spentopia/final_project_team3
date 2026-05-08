@@ -490,7 +490,7 @@ try {
                 onClick={() => setSelectedMonth(i)}
                 className={`rounded-lg px-3 py-1 text-sm transition ${
                   selectedMonth === i
-                    ? "bg-cyan-500 text-white"
+                    ? "bg-slate-900 text-white"
                     : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
                 }`}
               >
@@ -528,8 +528,8 @@ try {
               key={plan.id}
               className={`border-2 bg-white/80 p-6 backdrop-blur-xl transition-all dark:bg-gray-800/80 ${
                 selectedPlan === plan.id
-                  ? "border-cyan-500 shadow-xl"
-                  : "border-transparent hover:border-cyan-300"
+                  ? "border-teal-500 shadow-xl"
+                  : "border-transparent hover:border-teal-300"
               }`}
             >
               <div className="mb-4">
@@ -538,7 +538,7 @@ try {
                     {plan.name}
                   </h3>
                   {selectedPlan === plan.id && (
-                    <Badge className="bg-cyan-500">적용중</Badge>
+                    <Badge className="bg-slate-900 text-white">적용중</Badge>
                   )}
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -588,7 +588,7 @@ try {
                 variant={selectedPlan === plan.id ? "default" : "outline"}
                 className={`w-full ${
                   selectedPlan === plan.id
-                    ? "bg-gradient-to-r from-cyan-500 to-blue-500"
+                    ? "bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
                     : ""
                 }`}
               >
@@ -718,7 +718,7 @@ try {
 
             <Button
               onClick={handleSaveCustomBudget}
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500"
+              className="w-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
             >
               <Wallet className="mr-2 h-4 w-4" />
               {selectedMonth + 1}월 맞춤 예산 저장
@@ -726,7 +726,7 @@ try {
           </div>
 
           <div className="space-y-4">
-            <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white">
+            <Card className="border-none bg-gradient-to-br from-slate-900 via-cyan-600 to-teal-500 p-6 text-white shadow-xl shadow-cyan-700/20">
               <p className="mb-1 text-sm opacity-90">현재 설정한 월 예산</p>
               <p className="text-3xl font-bold">
                 {Number(customBudget.monthly).toLocaleString()}원
@@ -770,7 +770,7 @@ try {
                   {Number(customBudget.monthly) > 0 && (
                     <div className="h-3 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                       <div
-                        className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                        className="h-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500"
                         style={{
                           width: `${Math.min(
                             100,

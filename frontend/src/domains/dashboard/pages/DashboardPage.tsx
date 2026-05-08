@@ -543,7 +543,7 @@ const currentBudget = budgets[monthKey] ?? budget;
               </p>
             </div>
             {selectedDateExpenses.some((e) => e.diary) && (
-              <Badge className="bg-gradient-to-r from-cyan-500 to-blue-500">
+              <Badge className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20">
                 <Zap className="mr-1 h-3 w-3" />
                 일기 작성 완료
               </Badge>
@@ -669,7 +669,7 @@ const currentBudget = budgets[monthKey] ?? budget;
                 variant={entryType === "expense" ? "default" : "ghost"}
                 className={
                   entryType === "expense"
-                    ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-600 hover:to-blue-600"
+                    ? "bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20 hover:brightness-110"
                     : "text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
                 }
                 onClick={() => {
@@ -685,7 +685,7 @@ const currentBudget = budgets[monthKey] ?? budget;
                 variant={entryType === "income" ? "default" : "ghost"}
                 className={
                   entryType === "income"
-                    ? "bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600"
+                    ? "bg-gradient-to-r from-emerald-700 to-teal-600 text-white shadow-lg shadow-emerald-700/20 hover:brightness-110"
                     : "text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
                 }
                 onClick={() => {
@@ -856,8 +856,8 @@ const currentBudget = budgets[monthKey] ?? budget;
               disabled={saveLoading}
               className={`w-full ${
                 entryType === "income"
-                  ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
-                  : "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                  ? "bg-gradient-to-r from-emerald-700 to-teal-600 text-white shadow-lg shadow-emerald-700/20 hover:brightness-110"
+                  : "bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20 hover:brightness-110"
               }`}
             >
               <Plus className="mr-2 h-4 w-4" />

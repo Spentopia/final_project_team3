@@ -344,7 +344,7 @@ export function WalletSection({
                                     void handleLinkWalletStart();
                                 }}
                                 disabled={isProcessing || linkRequested}
-                                className="bg-gradient-to-r from-cyan-500 to-blue-500"
+                                className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
                             >
                                 <LinkIcon className="mr-2 h-4 w-4" />
                                 {linkRequested || (isProcessing && currentProcess === "link")
@@ -353,7 +353,7 @@ export function WalletSection({
                             </Button>
                         </div>
 
-                        <Card className="bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-900/30 dark:to-blue-900/30 p-4">
+                        <Card className="bg-gradient-to-br from-slate-50 via-cyan-50 to-teal-50 dark:from-slate-900/40 dark:via-cyan-950/30 dark:to-teal-950/30 p-4">
                             <h4 className="mb-2 font-bold text-gray-900 dark:text-gray-100">💡 지갑 연결 혜택</h4>
                             <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
                                 <li>• NFT로 아바타 아이템 발행</li>
@@ -413,7 +413,7 @@ export function WalletSection({
                                         void handleLinkWallet();
                                     }}
                                     disabled={isProcessing || !isLoggedIn || !isProfileComplete}
-                                    className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                                    className="flex-1 bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20 hover:brightness-110"
                                 >
                                     <LinkIcon className="h-4 w-4" />
                                     {isProcessing && currentProcess === "link" ? "지갑 연동 중..." : "계정에 지갑 연동"}

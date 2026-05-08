@@ -1612,7 +1612,7 @@ export default function Community() {
                     <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="bg-gradient-to-r from-cyan-500 to-blue-500"
+                      className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
                     >
                       {isSubmitting ? "수정 중" : "수정"}
                     </Button>
@@ -1676,7 +1676,7 @@ export default function Community() {
             </div>
             <Button
                 onClick={() => setIsWriteOpen(true)}
-                className="bg-gradient-to-r from-cyan-500 to-blue-500 h-11 text-base px-5"
+                className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 h-11 px-5 text-base text-white shadow-lg shadow-cyan-700/20"
             >
               <Send className="mr-2 h-4 w-4" />
               글쓰기
@@ -1968,7 +1968,7 @@ export default function Community() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="h-9 px-5 text-sm bg-gradient-to-r from-cyan-500 to-blue-500"
+                    className="h-9 bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 px-5 text-sm text-white shadow-lg shadow-cyan-700/20"
                   >
                     {isSubmitting ? "등록 중..." : "등록"}
                   </Button>
