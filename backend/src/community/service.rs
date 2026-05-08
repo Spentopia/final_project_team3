@@ -1355,23 +1355,33 @@ fn to_content_report_response(row: ContentReport) -> ContentReportResponse {
 }
 
 
-// 신고 상세 내용 정리
-// - 앞뒤 공백 제거
-// - 빈 문자열이면 None
-// - 너무 긴 내용은 500자로 제한
-fn validate_report_detail(detail: Option<String>) -> Option<String> {
-    detail.map(|value| value.trim().to_string())
+/// 신고 상세 내용 검증
+///
+/// 정책:
+/// - 필수 입력
+/// - 앞뒤 공백 제거
+/// - 빈 문자열 불가
+/// - 최대 500자 제한
+fn validate_report_detail(detail: Option<String>) -> Result<String> {
+    let detail = detail
+        .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
-        .map(|value| value.chars().take(500).collect())
+        .ok_or_else(|| anyhow!("신고 상세 내용을 입력해주세요."))?;
+
+    Ok(detail.chars().take(500).collect())
 }
 
 
-// 사용자 존재 여부 확인
-// user_nickname / user_profile 신고에서 사용한다.
-// target_id가 users.id로 들어오기 때문.
+/// 사용자 존재 여부 확인
+///
+/// user_nickname / user_profile 신고에서 사용.
+///
+/// 정책:
+/// - users.id 존재해야 함
+/// - is_active = true 사용자만 허용
 async fn ensure_user_exists(state: &AppState, user_id:Uuid) -> Result<Uuid> {
     let url = format!(
-        "{}/rest/v1/users?id=eq.{}&deleted_at=is.null&select=id&limit=1",
+        "{}/rest/v1/users?id=eq.{}&is_active=eq.true&select=id&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         user_id
     );
@@ -1379,7 +1389,11 @@ async fn ensure_user_exists(state: &AppState, user_id:Uuid) -> Result<Uuid> {
     let res = state
         .http_client
         .get(&url)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key),)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .send()
         .await
         .context("신고 대상 사용자 조회 요청 실패")?;
@@ -1435,7 +1449,11 @@ pub async fn create_content_report(
 ) -> Result<ContentReportResponse> {
     let target_type = req.target_type.as_str();
     let reason = req.reason.as_str();
-    let detail = validate_report_detail(req.detail);
+
+    // 여기 반드시 ? 필요
+    // 안 붙이면 detail 타입이 Result<String, anyhow::Error>가 되어
+    // serde_json::json! 안에서 Serialize 불가 에러가 남
+    let detail = validate_report_detail(req.detail)?;
 
     // 신고 대상이 존재하는지 확인하고,
     // 동시에 그 대상의 작성자/소유자 user_id를 가져온다.

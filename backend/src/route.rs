@@ -210,6 +210,11 @@ pub fn create_router(state: AppState) -> Router {
             "/api/comments/:id",
             patch(community::handler::update_comment).delete(community::handler::delete_comment),
         )
+        // 신고 접수
+        .route(
+            "/api/content-reports",
+            post(community::handler::create_content_report),
+        )
         // ── 알림 ──────────────────────────────────────────
         .route(
             "/api/notifications",

@@ -72,6 +72,7 @@ fn map_community_error(error: anyhow::Error) -> axum::response::Response {
         || message.contains("이미 신고한 콘텐츠")
         || message.contains("지원하지 않는 신고 대상")
         || message.contains("자기 자신의 콘텐츠")
+        || message.contains("신고 상세 내용을 입력")
     {
         return (StatusCode::BAD_REQUEST, message).into_response();
     }

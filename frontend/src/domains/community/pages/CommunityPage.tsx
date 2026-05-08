@@ -39,6 +39,7 @@ import {
   type PostSort,
 } from "@/domains/community/api/communityApi";
 import ReportDialog from "@/components/report/ReportDialog.tsx";
+import {Siren} from "lucide-react";
 
 // ── 타입 ─────────────────────────────────────────────────────
 
@@ -243,26 +244,28 @@ export default function Community() {
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
 
-  // 신고 모달 대상 상태
+  // 신고 모달 상태
   //
-  // null이면 신고 모달 닫힘.
-  // 값이 있으면 해당 대상에 대한 신고 모달이 열림.
+  // 게시글 상세 상단의 "신고" 버튼을 누르면
+  // 아래 배열에 신고 가능한 대상들을 넣는다.
   //
-  // type:
-  // - post
-  // - comment
-  // - user_nickname
-  // - user_profile
+  // 예시:
+  // [
+  //   { type: "post", id: "...", label: "게시글" },
+  //   { type: "user_nickname", id: "...", label: "닉네임" },
+  //   { type: "user_profile", id: "...", label: "프로필 사진" },
+  // ]
   //
-  // id:
-  // - post면 posts.id
-  // - comment면 comments.id
-  // - user_nickname/user_profile이면 users.id
-    const [reportTarget, setReportTarget] = useState<{
-      type: ContentReportTargetType;
-      id: string;
-      label: string;
-    } | null>(null);
+  // 댓글 신고 버튼은 comment 하나만 넣음.
+  //
+  // null이면 모달 닫힘 상태.
+  const [reportTargets, setReportTargets] = useState<
+      {
+        type: ContentReportTargetType;
+        id: string;
+        label: string;
+      }[] | null
+  >(null);
 
 
   const readPostsStorageKey = myUserId
@@ -681,19 +684,27 @@ export default function Community() {
 
   // 신고 모달 열기
   //
-  // targetType과 targetId를 받아서 ReportDialog에 넘겨준다.
-  // 본인 컨텐츠 신고 방지는 백엔드에서도 한 번 더 검사하지만,
-  // 프론트에서도 버튼 자체를 안 보여주는 게 UX상 좋다.
+  // targets 배열을 그대로 ReportDialog에 넘긴다.
+  //
+  // 게시글 신고 버튼:
+  // [
+  //   post,
+  //   user_nickname,
+  //   user_profile
+  // ]
+  //
+  // 댓글 신고 버튼:
+  // [
+  //   comment
+  // ]
   const openReportDialog = (
-      type: ContentReportTargetType,
-      id: string,
-      label: string
+      targets: {
+        type: ContentReportTargetType;
+        id: string;
+        label: string;
+      }[]
   ) => {
-    setReportTarget({
-      type,
-      id,
-      label,
-    });
+    setReportTargets(targets);
   };
 
   const handleReactPost = async (post: Post) => {
@@ -963,7 +974,7 @@ export default function Community() {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-gray-400 dark:text-gray-500">
+                <div className="flex items-center gap-5 text-sm text-gray-400 dark:text-gray-500">
                   <button
                       onClick={() => {
                         void navigator.clipboard.writeText(window.location.href);
@@ -971,8 +982,48 @@ export default function Community() {
                       }}
                       className="flex items-center gap-1 hover:text-cyan-500 transition-colors"
                   >
-                    <Link2 className="h-3.5 w-3.5" />
+                    <Link2 className="relative top-0.5 h-5 w-5" />
                   </button>
+                  {/* 신고 버튼
+                      ------------------------------------------------
+                      게시글 상세에서만 보이는 신고 버튼.
+
+                      클릭 시 신고 대상 선택 모달이 열린다.
+
+                      신고 가능 대상:
+                      - 게시글
+                      - 작성자 닉네임
+                      - 작성자 프로필 사진
+
+                      본인 글은 신고 불가.
+                  ------------------------------------------------ */}
+                  {selectedPost.user_id !== myUserId && (
+                      <button
+                          type="button"
+                          onClick={() =>
+                              openReportDialog([
+                                {
+                                  type: "post",
+                                  id: selectedPost.id,
+                                  label: "게시글",
+                                },
+                                {
+                                  type: "user_nickname",
+                                  id: selectedPost.user_id,
+                                  label: "작성자 닉네임",
+                                },
+                                {
+                                  type: "user_profile",
+                                  id: selectedPost.user_id,
+                                  label: "작성자 프로필 사진",
+                                },
+                              ])
+                          }
+                          className="flex items-center gap-1 hover:text-red-500 transition-colors"
+                      >
+                        <Siren className="h-5 w-5"/>
+                      </button>
+                  )}
                   {canModifySelectedPost && (
                     <>
                       <button
@@ -1107,34 +1158,56 @@ export default function Community() {
                                         </span>
                                 )}
 
-                                <span className="text-xs text-gray-400 dark:text-gray-500">
+                                <span className="relative top-px text-xs text-gray-400 dark:text-gray-500">
                             {comment.date}
                           </span>
                               </div>
 
-                              {comment.user_id === myUserId && (
-                                  <div className="flex flex-shrink-0 items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+                              <div className="flex flex-shrink-0 items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+
+                                {/* 본인 댓글 */}
+                                {comment.user_id === myUserId ? (
+                                    <>
+                                      <button
+                                          type="button"
+                                          onClick={() => openEditComment(comment)}
+                                          className="hover:text-cyan-500 transition-colors"
+                                          disabled={isCommentSubmitting}
+                                      >
+                                        수정
+                                      </button>
+
+                                      <span className="text-gray-300 dark:text-gray-600">|</span>
+
+                                      <button
+                                          type="button"
+                                          onClick={() => setCommentDeleteTarget(comment)}
+                                          className="hover:text-red-500 transition-colors"
+                                          disabled={isCommentSubmitting}
+                                      >
+                                        삭제
+                                      </button>
+                                    </>
+                                ) : (
+                                    /* 남 댓글 */
                                     <button
                                         type="button"
-                                        onClick={() => openEditComment(comment)}
-                                        className="hover:text-cyan-500 transition-colors"
-                                        disabled={isCommentSubmitting}
-                                    >
-                                      수정
-                                    </button>
-
-                                    <span className="text-gray-300 dark:text-gray-600">|</span>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => setCommentDeleteTarget(comment)}
+                                        onClick={() =>
+                                            openReportDialog([
+                                              {
+                                                type: "comment",
+                                                id: comment.id,
+                                                label: "댓글",
+                                              },
+                                            ])
+                                        }
                                         className="hover:text-red-500 transition-colors"
                                         disabled={isCommentSubmitting}
                                     >
-                                      삭제
+                                      <Siren className="h-5 w-5"/>
                                     </button>
-                                  </div>
-                              )}
+                                )}
+                              </div>
                             </div>
 
                             {editingCommentId === comment.id ? (
@@ -1173,7 +1246,7 @@ export default function Community() {
                                 </div>
                             ) : (
                                 <>
-                                  <p className="whitespace-pre-wrap text-sm leading-6 text-gray-700 dark:text-gray-300">
+                                  <p className="ml-0.5 whitespace-pre-wrap text-sm leading-6 text-gray-700 dark:text-gray-300">
                                     {comment.content}
                                   </p>
 
@@ -1251,34 +1324,56 @@ export default function Community() {
                                   {reply.author}
                                 </span>
 
-                                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                                        <span className="relative top-px text-xs text-gray-400 dark:text-gray-500">
                                   {reply.date}
                                 </span>
                                       </div>
 
-                                      {reply.user_id === myUserId && (
-                                          <div className="flex flex-shrink-0 items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+                                      <div className="flex flex-shrink-0 items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+
+                                        {/* 본인 대댓글 */}
+                                        {reply.user_id === myUserId ? (
+                                            <>
+                                              <button
+                                                  type="button"
+                                                  onClick={() => openEditComment(reply)}
+                                                  className="hover:text-cyan-500 transition-colors"
+                                                  disabled={isCommentSubmitting}
+                                              >
+                                                수정
+                                              </button>
+
+                                              <span className="text-gray-300 dark:text-gray-600">|</span>
+
+                                              <button
+                                                  type="button"
+                                                  onClick={() => setCommentDeleteTarget(reply)}
+                                                  className="hover:text-red-500 transition-colors"
+                                                  disabled={isCommentSubmitting}
+                                              >
+                                                삭제
+                                              </button>
+                                            </>
+                                        ) : (
+                                            /* 남 대댓글 */
                                             <button
                                                 type="button"
-                                                onClick={() => openEditComment(reply)}
-                                                className="hover:text-cyan-500 transition-colors"
-                                                disabled={isCommentSubmitting}
-                                            >
-                                              수정
-                                            </button>
-
-                                            <span className="text-gray-300 dark:text-gray-600">|</span>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => setCommentDeleteTarget(reply)}
+                                                onClick={() =>
+                                                    openReportDialog([
+                                                      {
+                                                        type: "comment",
+                                                        id: reply.id,
+                                                        label: "댓글",
+                                                      },
+                                                    ])
+                                                }
                                                 className="hover:text-red-500 transition-colors"
                                                 disabled={isCommentSubmitting}
                                             >
-                                              삭제
+                                              <Siren className="h-5 w-5"/>
                                             </button>
-                                          </div>
-                                      )}
+                                        )}
+                                      </div>
                                     </div>
 
                                     {editingCommentId === reply.id ? (
@@ -1316,7 +1411,7 @@ export default function Community() {
                                           </div>
                                         </div>
                                     ) : (
-                                        <p className="whitespace-pre-wrap text-sm leading-6 text-gray-700 dark:text-gray-300">
+                                        <p className="ml-0.5 whitespace-pre-wrap text-sm leading-6 text-gray-700 dark:text-gray-300">
                                           {reply.content}
                                         </p>
                                     )}
@@ -1528,6 +1623,29 @@ export default function Community() {
           )}
 
           <AiChatbotDialog open={isChatbotOpen} onOpenChange={setIsChatbotOpen} />
+          {/* 신고 모달
+              ------------------------------------------------
+              reportTargets에 값이 있으면 모달 오픈.
+
+              게시글 신고:
+              - 게시글
+              - 닉네임
+              - 프로필 사진
+
+              댓글 신고:
+              - 댓글
+          ------------------------------------------------ */}
+          {reportTargets && (
+              <ReportDialog
+                  open={!!reportTargets}
+                  onOpenChange={(open) => {
+                    if (!open) {
+                      setReportTargets(null);
+                    }
+                  }}
+                  targets={reportTargets}
+              />
+          )}
         </div>
     );
   }
