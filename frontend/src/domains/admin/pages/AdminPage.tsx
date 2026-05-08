@@ -1,50 +1,38 @@
 // src/domains/admin/pages/AdminPage.tsx
 //
-// 관리자 페이지
+// 관리자 페이지 최상위 컨테이너.
 //
-// 현재 기능:
-// 1. 신고 관리
-//    - 신고 목록 조회
-//    - 신고 처리 완료
-//    - 신고 반려
-//    - 신고 상세 보기
+// 이 파일의 역할:
+// - 관리자 페이지 전체 레이아웃 조립
+// - 현재 선택된 탭 상태 관리
+// - 신고 목록 / 회원 목록 조회
+// - 신고 처리 완료 / 반려 처리
+// - 회원 활성/비활성 처리
+// - 로그아웃 처리
 //
-// 2. 회원 관리
-//    - 회원 목록 조회
-//    - 회원 검색
-//    - 회원 활성/비활성 처리
+// 하위 컴포넌트 역할:
+// - AdminSidebar: 좌측 메뉴/로그아웃 UI
+// - AdminDashboard: 요약 카드/최근 신고
+// - AdminReportsPanel: 신고 관리 테이블
+// - AdminReportDetailModal: 신고 상세 모달
+// - AdminUsersPanel: 회원 관리 테이블
 //
-// 디자인 방향:
-// - 현재 프로젝트의 Community/마이페이지 느낌 유지
-// - 카드 기반 UI
-// - dark mode 대응
-// - cyan/luxury-gold 포인트 컬러 사용
+// 실무식 분리 기준:
+// - API 호출과 상태 관리는 컨테이너(AdminPage)에 둔다.
+// - 화면 조각은 components 폴더로 분리한다.
+// - 하위 컴포넌트는 props를 받아 화면만 그린다.
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { signOut } from "@/domains/auth/api/auth";
-
-import {
-    AlertTriangle,
-    Shield,
-    Users,
-} from "lucide-react";
-
 import { toast } from "sonner";
 
-import { Card } from "@/shared/ui/card";
+import { signOut } from "@/domains/auth/api/auth";
 
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from "@/shared/ui/alert-dialog";
+import AdminSidebar from "@/domains/admin/components/AdminSidebar";
+import AdminDashboard from "@/domains/admin/components/AdminDashboard";
+import AdminReportsPanel from "@/domains/admin/components/AdminReportsPanel";
+import AdminReportDetailModal from "@/domains/admin/components/AdminReportDetailModal";
+import AdminUsersPanel from "@/domains/admin/components/AdminUsersPanel";
 
 import {
     listAdminContentReports,
@@ -54,147 +42,82 @@ import {
     updateAdminUserActive,
     type AdminContentReportResponse,
     type AdminUserResponse,
-    type ContentReportStatus,
 } from "@/domains/admin/api/adminApi";
 
-// 현재 선택 중인 탭 타입
-type AdminTab = "reports" | "users";
-
-// 신고 상태 표시 텍스트
-const REPORT_STATUS_LABEL: Record<ContentReportStatus, string> = {
-    pending: "대기중",
-    resolved: "처리완료",
-    rejected: "반려",
-};
-
-// 신고 상태별 스타일
-const REPORT_STATUS_STYLE: Record<ContentReportStatus, string> = {
-    pending:
-        "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
-
-    resolved:
-        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-
-    rejected:
-        "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
-};
-
-// 신고 대상 타입 표시 텍스트
-const TARGET_TYPE_LABEL: Record<
-    AdminContentReportResponse["target_type"],
-    string
-> = {
-    post: "게시글",
-    comment: "댓글",
-    user_nickname: "닉네임",
-    user_profile: "프로필 사진",
-};
-
-// 신고 사유 표시 텍스트
-const REASON_LABEL: Record<
-    AdminContentReportResponse["reason"],
-    string
-> = {
-    abuse: "욕설/비방",
-    inappropriate: "부적절",
-    spam: "광고/도배",
-    other: "기타",
-};
-
-// 날짜 포맷 함수
-//
-// 예:
-// 2026.05.08 15:32
-function formatDateTime(value: string | null) {
-    if (!value) return "-";
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "-";
-    }
-
-    const year = date.getFullYear();
-
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-
-    const day = String(date.getDate()).padStart(2, "0");
-
-    const hour = String(date.getHours()).padStart(2, "0");
-
-    const minute = String(date.getMinutes()).padStart(2, "0");
-
-    return `${year}.${month}.${day} ${hour}:${minute}`;
-}
-
-// UUID 너무 길어서 일부만 표시
-function shortId(id: string) {
-    return `${id.slice(0, 8)}...`;
-}
+import type {
+    AdminTab,
+    ReportStatusFilter,
+} from "@/domains/admin/types/adminViewTypes";
 
 export default function AdminPage() {
     const navigate = useNavigate();
 
-    // 관리자 로그아웃 처리 상태
+    // ─────────────────────────────────────────────
+    // 로그아웃 상태
+    // ─────────────────────────────────────────────
+    //
+    // 로그아웃 버튼 중복 클릭 방지용.
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     // ─────────────────────────────────────────────
-    // 탭 상태
+    // 현재 선택 중인 관리자 탭
     // ─────────────────────────────────────────────
-
-    const [activeTab, setActiveTab] =
-        useState<AdminTab>("reports");
+    //
+    // 처음 진입하면 대시보드를 보여준다.
+    const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
 
     // ─────────────────────────────────────────────
     // 신고 관리 상태
     // ─────────────────────────────────────────────
 
     // 신고 상태 필터
+    //
+    // all: 전체
+    // pending: 대기중
+    // resolved: 처리완료
+    // rejected: 반려
     const [reportStatus, setReportStatus] =
-        useState<ContentReportStatus | "all">("pending");
+        useState<ReportStatusFilter>("pending");
 
     // 신고 목록
-    const [reports, setReports] = useState<
-        AdminContentReportResponse[]
-    >([]);
+    const [reports, setReports] = useState<AdminContentReportResponse[]>([]);
 
     // 선택된 신고 상세
+    //
+    // null이면 상세 모달 닫힘.
+    // 값이 있으면 AdminReportDetailModal 렌더링.
     const [selectedReport, setSelectedReport] =
         useState<AdminContentReportResponse | null>(null);
 
     // 신고 목록 로딩 상태
-    const [isReportsLoading, setIsReportsLoading] =
-        useState(false);
+    const [isReportsLoading, setIsReportsLoading] = useState(false);
 
     // ─────────────────────────────────────────────
     // 회원 관리 상태
     // ─────────────────────────────────────────────
 
     // 회원 목록
-    const [users, setUsers] = useState<
-        AdminUserResponse[]
-    >([]);
+    const [users, setUsers] = useState<AdminUserResponse[]>([]);
 
     // 검색 입력값
     const [userKeyword, setUserKeyword] = useState("");
 
     // 디바운스된 검색어
-    const [debouncedUserKeyword, setDebouncedUserKeyword] =
-        useState("");
+    //
+    // 사용자가 입력할 때마다 바로 API를 호출하지 않고,
+    // 입력이 잠시 멈췄을 때만 API를 호출하기 위해 사용한다.
+    const [debouncedUserKeyword, setDebouncedUserKeyword] = useState("");
 
     // 회원 목록 로딩 상태
-    const [isUsersLoading, setIsUsersLoading] =
-        useState(false);
+    const [isUsersLoading, setIsUsersLoading] = useState(false);
 
     // ─────────────────────────────────────────────
     // 공통 처리 상태
     // ─────────────────────────────────────────────
-
-    // 현재 처리 중인 ID
     //
-    // 버튼 중복 클릭 방지용
-    const [processingId, setProcessingId] =
-        useState<string | null>(null);
+    // 신고 처리/회원 비활성화 버튼 중복 클릭 방지용.
+    // 현재 처리 중인 row id를 저장한다.
+    const [processingId, setProcessingId] = useState<string | null>(null);
 
     // ─────────────────────────────────────────────
     // 계산 값
@@ -202,9 +125,7 @@ export default function AdminPage() {
 
     // 처리 대기 신고 수
     const pendingReportCount = useMemo(() => {
-        return reports.filter(
-            (report) => report.status === "pending"
-        ).length;
+        return reports.filter((report) => report.status === "pending").length;
     }, [reports]);
 
     // 활성 회원 수
@@ -212,10 +133,18 @@ export default function AdminPage() {
         return users.filter((user) => user.is_active).length;
     }, [users]);
 
+    // 최근 신고 5개
+    const recentReports = useMemo(() => {
+        return reports.slice(0, 5);
+    }, [reports]);
+
     // ─────────────────────────────────────────────
     // 신고 목록 조회
     // ─────────────────────────────────────────────
-
+    //
+    // reportStatus가 바뀔 때마다 다시 조회한다.
+    // 대시보드에서도 최근 신고/처리 대기 수를 쓰므로
+    // AdminPage 진입 시 기본 pending 신고를 조회한다.
     useEffect(() => {
         let ignore = false;
 
@@ -223,25 +152,16 @@ export default function AdminPage() {
             setIsReportsLoading(true);
 
             try {
-                const data =
-                    await listAdminContentReports(
-                        reportStatus === "all"
-                            ? undefined
-                            : reportStatus
-                    );
+                const data = await listAdminContentReports(
+                    reportStatus === "all" ? undefined : reportStatus
+                );
 
                 if (!ignore) {
                     setReports(data);
                 }
             } catch (error) {
-                console.error(
-                    "관리자 신고 목록 조회 실패:",
-                    error
-                );
-
-                toast.error(
-                    "신고 목록을 불러오지 못했습니다."
-                );
+                console.error("관리자 신고 목록 조회 실패:", error);
+                toast.error("신고 목록을 불러오지 못했습니다.");
             } finally {
                 if (!ignore) {
                     setIsReportsLoading(false);
@@ -259,12 +179,12 @@ export default function AdminPage() {
     // ─────────────────────────────────────────────
     // 회원 검색 디바운스
     // ─────────────────────────────────────────────
-
+    //
+    // 검색어 입력마다 즉시 요청하지 않고 300ms 뒤에 반영한다.
+    // 이렇게 해야 검색 API가 과도하게 호출되지 않는다.
     useEffect(() => {
         const timer = window.setTimeout(() => {
-            setDebouncedUserKeyword(
-                userKeyword.trim()
-            );
+            setDebouncedUserKeyword(userKeyword.trim());
         }, 300);
 
         return () => {
@@ -275,7 +195,8 @@ export default function AdminPage() {
     // ─────────────────────────────────────────────
     // 회원 목록 조회
     // ─────────────────────────────────────────────
-
+    //
+    // debouncedUserKeyword가 바뀔 때마다 회원 목록을 조회한다.
     useEffect(() => {
         let ignore = false;
 
@@ -283,22 +204,14 @@ export default function AdminPage() {
             setIsUsersLoading(true);
 
             try {
-                const data = await listAdminUsers(
-                    debouncedUserKeyword
-                );
+                const data = await listAdminUsers(debouncedUserKeyword);
 
                 if (!ignore) {
                     setUsers(data);
                 }
             } catch (error) {
-                console.error(
-                    "관리자 회원 목록 조회 실패:",
-                    error
-                );
-
-                toast.error(
-                    "회원 목록을 불러오지 못했습니다."
-                );
+                console.error("관리자 회원 목록 조회 실패:", error);
+                toast.error("회원 목록을 불러오지 못했습니다.");
             } finally {
                 if (!ignore) {
                     setIsUsersLoading(false);
@@ -316,46 +229,28 @@ export default function AdminPage() {
     // ─────────────────────────────────────────────
     // 신고 처리 완료
     // ─────────────────────────────────────────────
-
-    const handleResolveReport = async (
-        reportId: string
-    ) => {
+    const handleResolveReport = async (reportId: string) => {
         if (processingId) return;
 
         setProcessingId(reportId);
 
         try {
-            const updated =
-                await resolveAdminContentReport(reportId);
+            const updated = await resolveAdminContentReport(reportId);
 
             // 목록 갱신
             setReports((prev) =>
-                prev.map((report) =>
-                    report.id === reportId
-                        ? updated
-                        : report
-                )
+                prev.map((report) => (report.id === reportId ? updated : report))
             );
 
-            // 상세 모달 열려있으면 그것도 갱신
+            // 상세 모달이 열려 있으면 상세 데이터도 갱신
             setSelectedReport((current) =>
-                current?.id === reportId
-                    ? updated
-                    : current
+                current?.id === reportId ? updated : current
             );
 
-            toast.success(
-                "신고를 처리 완료했습니다."
-            );
+            toast.success("신고를 처리 완료했습니다.");
         } catch (error) {
-            console.error(
-                "신고 처리 실패:",
-                error
-            );
-
-            toast.error(
-                "신고 처리에 실패했습니다."
-            );
+            console.error("신고 처리 실패:", error);
+            toast.error("신고 처리에 실패했습니다.");
         } finally {
             setProcessingId(null);
         }
@@ -364,44 +259,28 @@ export default function AdminPage() {
     // ─────────────────────────────────────────────
     // 신고 반려
     // ─────────────────────────────────────────────
-
-    const handleRejectReport = async (
-        reportId: string
-    ) => {
+    const handleRejectReport = async (reportId: string) => {
         if (processingId) return;
 
         setProcessingId(reportId);
 
         try {
-            const updated =
-                await rejectAdminContentReport(reportId);
+            const updated = await rejectAdminContentReport(reportId);
 
+            // 목록 갱신
             setReports((prev) =>
-                prev.map((report) =>
-                    report.id === reportId
-                        ? updated
-                        : report
-                )
+                prev.map((report) => (report.id === reportId ? updated : report))
             );
 
+            // 상세 모달이 열려 있으면 상세 데이터도 갱신
             setSelectedReport((current) =>
-                current?.id === reportId
-                    ? updated
-                    : current
+                current?.id === reportId ? updated : current
             );
 
-            toast.success(
-                "신고를 반려했습니다."
-            );
+            toast.success("신고를 반려했습니다.");
         } catch (error) {
-            console.error(
-                "신고 반려 실패:",
-                error
-            );
-
-            toast.error(
-                "신고 반려에 실패했습니다."
-            );
+            console.error("신고 반려 실패:", error);
+            toast.error("신고 반려에 실패했습니다.");
         } finally {
             setProcessingId(null);
         }
@@ -410,27 +289,17 @@ export default function AdminPage() {
     // ─────────────────────────────────────────────
     // 회원 활성/비활성 변경
     // ─────────────────────────────────────────────
-
-    const handleToggleUserActive = async (
-        user: AdminUserResponse
-    ) => {
+    const handleToggleUserActive = async (user: AdminUserResponse) => {
         if (processingId) return;
 
         setProcessingId(user.id);
 
         try {
-            const updated =
-                await updateAdminUserActive(
-                    user.id,
-                    !user.is_active
-                );
+            const updated = await updateAdminUserActive(user.id, !user.is_active);
 
+            // 목록 갱신
             setUsers((prev) =>
-                prev.map((item) =>
-                    item.id === user.id
-                        ? updated
-                        : item
-                )
+                prev.map((item) => (item.id === user.id ? updated : item))
             );
 
             toast.success(
@@ -439,14 +308,8 @@ export default function AdminPage() {
                     : "회원이 비활성화되었습니다."
             );
         } catch (error) {
-            console.error(
-                "회원 상태 변경 실패:",
-                error
-            );
-
-            toast.error(
-                "회원 상태 변경에 실패했습니다."
-            );
+            console.error("회원 상태 변경 실패:", error);
+            toast.error("회원 상태 변경에 실패했습니다.");
         } finally {
             setProcessingId(null);
         }
@@ -456,7 +319,8 @@ export default function AdminPage() {
     // 로그아웃
     // ─────────────────────────────────────────────
     //
-    // 일반 사용자 Sidebar 로그아웃과 같은 흐름.
+    // 일반 사용자 Sidebar의 로그아웃과 같은 흐름이다.
+    //
     // signOut() 내부에서:
     // 1) 백엔드 /auth/logout 호출
     // 2) Supabase session 정리
@@ -477,183 +341,88 @@ export default function AdminPage() {
     return (
         <div className="min-h-screen bg-[var(--surface)] text-foreground">
             <div className="flex min-h-screen">
+                <AdminSidebar
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
+                    isLoggingOut={isLoggingOut}
+                    onLogout={() => void handleLogout()}
+                />
 
-                {/* ───────────────────────────── */}
-                {/* 좌측 사이드바 */}
-                {/* ───────────────────────────── */}
-
-                <aside className="flex w-64 flex-col border-r border-border bg-[var(--surface-elevated)] p-5">
-
-                    <div className="mb-8">
-
-                        <div className="flex items-center gap-2">
-
-                            <Shield className="h-6 w-6 text-cyan-500" />
-
-                            <h1 className="text-xl font-extrabold">
-                                관리자
-                            </h1>
-                        </div>
-
-                        <p className="mt-2 text-xs text-muted-foreground">
-                            Spentopia 운영 관리 페이지
-                        </p>
-                    </div>
-
-                    {/* 메뉴 */}
-                    <nav className="space-y-2">
-
-                        {/* 신고 관리 */}
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setActiveTab("reports")
-                            }
-                            className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                                activeTab === "reports"
-                                    ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                                    : "text-muted-foreground hover:bg-[var(--surface-subtle)] hover:text-foreground"
-                            }`}
-                        >
-                            <AlertTriangle className="h-4 w-4" />
-                            신고 관리
-                        </button>
-
-                        {/* 회원 관리 */}
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setActiveTab("users")
-                            }
-                            className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                                activeTab === "users"
-                                    ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                                    : "text-muted-foreground hover:bg-[var(--surface-subtle)] hover:text-foreground"
-                            }`}
-                        >
-                            <Users className="h-4 w-4" />
-                            회원 관리
-                        </button>
-                    </nav>
-
-                    {/* 하단 로그아웃 */}
-                    <div className="mt-auto border-t border-border pt-4">
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <button
-                                    type="button"
-                                    disabled={isLoggingOut}
-                                    className="mt-2 w-full rounded-lg px-3 py-2 text-center transition-colors hover:bg-sidebar-accent/70 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                <span className="text-sm font-medium text-muted-foreground">
-                    로그아웃
-                </span>
-                                </button>
-                            </AlertDialogTrigger>
-
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                        로그아웃 하시겠습니까?
-                                    </AlertDialogTitle>
-
-                                    <AlertDialogDescription>
-                                        현재 관리자 계정에서 로그아웃하고 로그인 화면으로 이동합니다.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel disabled={isLoggingOut}>
-                                        취소
-                                    </AlertDialogCancel>
-
-                                    <AlertDialogAction
-                                        disabled={isLoggingOut}
-                                        onClick={() => {
-                                            void handleLogout();
-                                        }}
-                                        className="bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40"
-                                    >
-                                        {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
-                                    </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </div>
-
-                </aside>
-
-                {/* ───────────────────────────── */}
-                {/* 메인 컨텐츠 */}
-                {/* ───────────────────────────── */}
-
-                <main className="flex-1 p-8">
-
+                <main className="flex-1 overflow-y-auto p-8">
                     {/* 페이지 헤더 */}
                     <div className="mb-8">
-
                         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-luxury-gold">
                             Admin Console
                         </p>
 
                         <h2 className="mt-1 text-3xl font-extrabold">
-
-                            {activeTab === "reports"
-                                ? "신고 관리"
-                                : "회원 관리"}
-
+                            {activeTab === "dashboard" && "대시보드"}
+                            {activeTab === "reports" && "신고 관리"}
+                            {activeTab === "users" && "회원 관리"}
                         </h2>
 
                         <p className="mt-2 text-sm text-muted-foreground">
-
-                            {activeTab === "reports"
-                                ? "접수된 신고를 확인하고 처리 상태를 변경합니다."
-                                : "가입 회원을 조회하고 활성 상태를 관리합니다."}
-
+                            {activeTab === "dashboard" &&
+                                "운영에 필요한 핵심 지표를 빠르게 확인합니다."}
+                            {activeTab === "reports" &&
+                                "접수된 신고를 확인하고 처리 상태를 변경합니다."}
+                            {activeTab === "users" &&
+                                "가입 회원을 조회하고 활성 상태를 관리합니다."}
                         </p>
                     </div>
 
-                    {/* 요약 카드 */}
-                    <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                    {activeTab === "dashboard" && (
+                        <AdminDashboard
+                            pendingReportCount={pendingReportCount}
+                            totalUserCount={users.length}
+                            activeUserCount={activeUserCount}
+                            recentReports={recentReports}
+                            isReportsLoading={isReportsLoading}
+                            onTabChange={setActiveTab}
+                        />
+                    )}
 
-                        {/* 처리 대기 신고 */}
-                        <Card className="border-none bg-white/80 p-5 shadow-card dark:bg-gray-800/80">
+                    {activeTab === "reports" && (
+                        <AdminReportsPanel
+                            reports={reports}
+                            reportStatus={reportStatus}
+                            isReportsLoading={isReportsLoading}
+                            processingId={processingId}
+                            onReportStatusChange={setReportStatus}
+                            onSelectReport={setSelectedReport}
+                            onResolveReport={(reportId) =>
+                                void handleResolveReport(reportId)
+                            }
+                            onRejectReport={(reportId) =>
+                                void handleRejectReport(reportId)
+                            }
+                        />
+                    )}
 
-                            <p className="text-sm text-muted-foreground">
-                                처리 대기 신고
-                            </p>
-
-                            <p className="mt-2 text-3xl font-extrabold text-yellow-500">
-                                {pendingReportCount}
-                            </p>
-                        </Card>
-
-                        {/* 전체 회원 */}
-                        <Card className="border-none bg-white/80 p-5 shadow-card dark:bg-gray-800/80">
-
-                            <p className="text-sm text-muted-foreground">
-                                전체 회원
-                            </p>
-
-                            <p className="mt-2 text-3xl font-extrabold text-cyan-500">
-                                {users.length}
-                            </p>
-                        </Card>
-
-                        {/* 활성 회원 */}
-                        <Card className="border-none bg-white/80 p-5 shadow-card dark:bg-gray-800/80">
-
-                            <p className="text-sm text-muted-foreground">
-                                활성 회원
-                            </p>
-
-                            <p className="mt-2 text-3xl font-extrabold text-emerald-500">
-                                {activeUserCount}
-                            </p>
-                        </Card>
-                    </div>
+                    {activeTab === "users" && (
+                        <AdminUsersPanel
+                            users={users}
+                            userKeyword={userKeyword}
+                            isUsersLoading={isUsersLoading}
+                            processingId={processingId}
+                            onUserKeywordChange={setUserKeyword}
+                            onToggleUserActive={(user) =>
+                                void handleToggleUserActive(user)
+                            }
+                        />
+                    )}
                 </main>
             </div>
+
+            {selectedReport && (
+                <AdminReportDetailModal
+                    report={selectedReport}
+                    processingId={processingId}
+                    onClose={() => setSelectedReport(null)}
+                    onResolve={(reportId) => void handleResolveReport(reportId)}
+                    onReject={(reportId) => void handleRejectReport(reportId)}
+                />
+            )}
         </div>
     );
 }
