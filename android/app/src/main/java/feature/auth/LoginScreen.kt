@@ -466,27 +466,53 @@ fun LoginScreen(
         LaunchedEffect(walletCallbackUri) {
             walletCallbackUri?.let { uri ->
                 if (uri.scheme == "spentopia" && uri.host == "wallet-callback") {
+                    Log.d("Spentopia", "wallet callback=$uri")
                     when {
+                        phantomConnector.isErrorCallback(uri) -> {
+                            isWalletLoading = false
+                            pendingWalletAddress = null
+                            pendingNonce = null
+                            phantomConnector.clearPendingLogin()
+                            val message = phantomConnector.parseErrorCallback(uri)
+                            Log.e("Spentopia", "Phantom callback error=$message")
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+
                         phantomConnector.isConnectCallback(uri) -> {
                             val walletAddress = phantomConnector.parseConnectCallback(uri)
                             if (walletAddress.isNullOrBlank()) {
                                 isWalletLoading = false
+                                pendingWalletAddress = null
+                                pendingNonce = null
+                                phantomConnector.clearPendingLogin()
+                                Log.e("Spentopia", "Phantom connect callback missing wallet address")
                                 Toast.makeText(context, context.getString(R.string.wallet_address_missing), Toast.LENGTH_SHORT).show()
                                 onWalletCallbackConsumed()
                                 return@let
                             }
                             pendingWalletAddress = walletAddress
+                            Log.d("Spentopia", "Phantom connected walletAddress=$walletAddress")
                             scope.launch {
                                 try {
                                     val nonceResponse = loginViewModel.getWalletNonceOnce(walletAddress)
                                     pendingNonce = nonceResponse.nonce
+                                    phantomConnector.savePendingLogin(walletAddress, nonceResponse.nonce)
+                                    Log.d("Spentopia", "Phantom nonce issued nonce=${nonceResponse.nonce}")
                                     val opened = phantomConnector.signMessage(nonceResponse.message)
+                                    Log.d("Spentopia", "Phantom signMessage opened=$opened")
                                     if (!opened) {
                                         isWalletLoading = false
+                                        pendingWalletAddress = null
+                                        pendingNonce = null
+                                        phantomConnector.clearPendingLogin()
                                         Toast.makeText(context, "Phantom 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
                                     }
                                 } catch (e: Exception) {
                                     isWalletLoading = false
+                                    pendingWalletAddress = null
+                                    pendingNonce = null
+                                    phantomConnector.clearPendingLogin()
+                                    Log.e("Spentopia", "Phantom nonce/sign start failed", e)
                                     Toast.makeText(context, e.message ?: context.getString(R.string.wallet_nonce_failed), Toast.LENGTH_SHORT).show()
                                 }
                             }
@@ -495,16 +521,26 @@ fun LoginScreen(
                         phantomConnector.isSignCallback(uri) -> {
                             val signature = phantomConnector.parseSignCallback(uri)
                             val walletAddress = pendingWalletAddress
+                                ?: phantomConnector.getPendingWalletAddress()
                             val nonce = pendingNonce
+                                ?: phantomConnector.getPendingNonce()
 
                             if (signature.isNullOrBlank()) {
                                 isWalletLoading = false
+                                pendingWalletAddress = null
+                                pendingNonce = null
+                                phantomConnector.clearPendingLogin()
+                                Log.e("Spentopia", "Phantom sign callback missing signature")
                                 Toast.makeText(context, context.getString(R.string.wallet_signature_missing), Toast.LENGTH_SHORT).show()
                                 onWalletCallbackConsumed()
                                 return@let
                             }
                             if (walletAddress.isNullOrBlank() || nonce.isNullOrBlank()) {
                                 isWalletLoading = false
+                                pendingWalletAddress = null
+                                pendingNonce = null
+                                phantomConnector.clearPendingLogin()
+                                Log.e("Spentopia", "Phantom login state lost wallet=$walletAddress nonce=$nonce")
                                 Toast.makeText(context, context.getString(R.string.wallet_login_state_lost), Toast.LENGTH_SHORT).show()
                                 onWalletCallbackConsumed()
                                 return@let
@@ -515,9 +551,11 @@ fun LoginScreen(
                                 nonce = nonce,
                                 signature = signature,
                                 onSuccess = { response ->
+                                    Log.d("Spentopia", "Phantom walletLoginApp success accessTokenBlank=${response.access_token.isBlank()} refreshTokenBlank=${response.refresh_token.isBlank()}")
                                     isWalletLoading = false
                                     pendingWalletAddress = null
                                     pendingNonce = null
+                                    phantomConnector.clearPendingLogin()
                                     onWalletConnected(
                                         response.access_token,
                                         response.refresh_token,
@@ -526,10 +564,23 @@ fun LoginScreen(
                                     )
                                 },
                                 onError = { message ->
+                                    Log.e("Spentopia", "Phantom walletLoginApp failed=$message")
                                     isWalletLoading = false
+                                    pendingWalletAddress = null
+                                    pendingNonce = null
+                                    phantomConnector.clearPendingLogin()
                                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                                 }
                             )
+                        }
+
+                        else -> {
+                            isWalletLoading = false
+                            pendingWalletAddress = null
+                            pendingNonce = null
+                            phantomConnector.clearPendingLogin()
+                            Log.e("Spentopia", "Unknown wallet callback=$uri")
+                            Toast.makeText(context, context.getString(R.string.wallet_login_state_lost), Toast.LENGTH_SHORT).show()
                         }
                     }
                     onWalletCallbackConsumed()

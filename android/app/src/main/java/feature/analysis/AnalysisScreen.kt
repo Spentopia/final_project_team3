@@ -837,10 +837,11 @@ fun BarChartItem(
     isDark: Boolean
 ) {
     val ratio = amount.toFloat() / maxAmount.toFloat()
+    val chartColor = if (isDark) SpentopiaGlowPurple else MaterialTheme.colorScheme.primary
     val barColors = if (isDark) {
-        listOf(Color(0xFF93C5FD), Color(0xFF38BDF8), Color(0xFF22D3EE))
+        listOf(chartColor.copy(alpha = 0.92f), chartColor)
     } else {
-        SpentopiaWalletGradientColors
+        listOf(chartColor.copy(alpha = 0.72f), chartColor)
     }
     val labelColor = if (isDark) Color(0xFFF9FAFB) else MaterialTheme.colorScheme.onSurfaceVariant
 

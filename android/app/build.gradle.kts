@@ -176,6 +176,7 @@ dependencies {
     // Solana / Wallet 연동
     // =========================
     implementation("com.solanamobile:mobile-wallet-adapter-clientlib-ktx:2.0.3")
+    implementation("org.purejava:tweetnacl-java:1.1.3")
 
     // =========================
     // Coroutine
