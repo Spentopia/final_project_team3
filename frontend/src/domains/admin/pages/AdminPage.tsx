@@ -22,22 +22,29 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { LogOut } from "lucide-react";
 import { signOut } from "@/domains/auth/api/auth";
 
 import {
     AlertTriangle,
-    CheckCircle2,
     Shield,
     Users,
-    XCircle,
 } from "lucide-react";
 
 import { toast } from "sonner";
 
 import { Card } from "@/shared/ui/card";
-import { Button } from "@/shared/ui/button";
-import { Input } from "@/shared/ui/input";
+
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/shared/ui/alert-dialog";
 
 import {
     listAdminContentReports,
@@ -126,6 +133,11 @@ function shortId(id: string) {
 }
 
 export default function AdminPage() {
+    const navigate = useNavigate();
+
+    // 관리자 로그아웃 처리 상태
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+
     // ─────────────────────────────────────────────
     // 탭 상태
     // ─────────────────────────────────────────────
@@ -440,6 +452,28 @@ export default function AdminPage() {
         }
     };
 
+    // ─────────────────────────────────────────────
+    // 로그아웃
+    // ─────────────────────────────────────────────
+    //
+    // 일반 사용자 Sidebar 로그아웃과 같은 흐름.
+    // signOut() 내부에서:
+    // 1) 백엔드 /auth/logout 호출
+    // 2) Supabase session 정리
+    // 3) authStorage access token 삭제
+    // 를 처리한다.
+    const handleLogout = async () => {
+        try {
+            setIsLoggingOut(true);
+
+            await signOut();
+
+            navigate("/login", { replace: true });
+        } finally {
+            setIsLoggingOut(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[var(--surface)] text-foreground">
             <div className="flex min-h-screen">
@@ -448,7 +482,7 @@ export default function AdminPage() {
                 {/* 좌측 사이드바 */}
                 {/* ───────────────────────────── */}
 
-                <aside className="w-64 border-r border-border bg-[var(--surface-elevated)] p-5">
+                <aside className="flex w-64 flex-col border-r border-border bg-[var(--surface-elevated)] p-5">
 
                     <div className="mb-8">
 
@@ -501,6 +535,52 @@ export default function AdminPage() {
                             회원 관리
                         </button>
                     </nav>
+
+                    {/* 하단 로그아웃 */}
+                    <div className="mt-auto border-t border-border pt-4">
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <button
+                                    type="button"
+                                    disabled={isLoggingOut}
+                                    className="mt-2 w-full rounded-lg px-3 py-2 text-center transition-colors hover:bg-sidebar-accent/70 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                <span className="text-sm font-medium text-muted-foreground">
+                    로그아웃
+                </span>
+                                </button>
+                            </AlertDialogTrigger>
+
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                        로그아웃 하시겠습니까?
+                                    </AlertDialogTitle>
+
+                                    <AlertDialogDescription>
+                                        현재 관리자 계정에서 로그아웃하고 로그인 화면으로 이동합니다.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel disabled={isLoggingOut}>
+                                        취소
+                                    </AlertDialogCancel>
+
+                                    <AlertDialogAction
+                                        disabled={isLoggingOut}
+                                        onClick={() => {
+                                            void handleLogout();
+                                        }}
+                                        className="bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40"
+                                    >
+                                        {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
+
                 </aside>
 
                 {/* ───────────────────────────── */}
