@@ -63,6 +63,7 @@ export interface AuthUser {
 export interface LoginResponse {
   accessToken: string;
   isNewUser: boolean;
+  roleType: "user" | "admin";
 }
 
 // ─────────────────────────────────────────────────────────────

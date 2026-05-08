@@ -544,7 +544,7 @@ while (heightLeft > 0) {
             공유
           </Button>
           <Button
-  className={isPdfMode ? "bg-blue-500 text-white" : "bg-gradient-to-r from-cyan-500 to-blue-500"}
+  className={isPdfMode ? "bg-slate-900 text-white" : "bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"}
   onClick={handleDownload}
 >
             <Download className="mr-2 h-4 w-4" />
@@ -555,7 +555,7 @@ while (heightLeft > 0) {
 
       {/* Summary Cards */}
       <div className="grid gap-6 md:grid-cols-4">
-        <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
+        <Card className="border-none bg-gradient-to-br from-slate-900 via-cyan-600 to-teal-500 p-6 text-white shadow-xl shadow-cyan-700/20 backdrop-blur-xl">
           <p className="mb-1 text-sm opacity-90">이번 달 총 지출</p>
           <p className="mb-2 text-3xl font-bold">
   {totalExpense.toLocaleString()}원
@@ -588,7 +588,7 @@ while (heightLeft > 0) {
           <p className="mb-2 text-3xl font-bold text-gray-900">{budgetUsage}%</p>
           <div className="h-2 overflow-hidden rounded-full bg-gray-200">
             <div
-  className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
+  className="h-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500"
   style={{ width: `${budgetUsage}%` }}
 ></div>
           </div>
@@ -738,7 +738,7 @@ while (heightLeft > 0) {
     <Button
       onClick={handleGenerateReport}
       disabled={isReportLoading}
-      className="bg-gradient-to-r from-cyan-500 to-blue-500"
+      className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
     >
       {isReportLoading ? "AI 분석 중..." : "AI 분석 시작"}
     </Button>
@@ -796,7 +796,7 @@ while (heightLeft > 0) {
   <Button
     onClick={handleGeneratePattern}
     disabled={isPatternLoading}
-    className="bg-gradient-to-r from-cyan-500 to-blue-500"
+    className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
   >
     {isPatternLoading ? "AI 분석 중..." : "AI 분석 시작"}
   </Button>

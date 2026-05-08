@@ -25,3 +25,20 @@ pub struct AdminContentReport {
     pub reviewed_at: Option<DateTime<Utc>>,
     pub reviewed_by: Option<Uuid>,
 }
+
+// public.users row
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AdminUser {
+    pub id: Uuid,
+    pub email: Option<String>,
+    pub nickname: Option<String>,
+    pub phone: Option<String>,
+    pub profile_image: Option<String>,
+    pub login_provider: Option<String>,
+    pub wallet_address: Option<String>,
+    pub role_type: Option<String>,
+    pub profile_completed: Option<bool>,
+    pub is_active: Option<bool>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+}

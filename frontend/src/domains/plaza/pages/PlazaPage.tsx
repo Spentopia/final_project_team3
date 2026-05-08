@@ -16,7 +16,7 @@ export default function Plaza() {
       </div>
 
       {/* Unity WebGL Info */}
-      <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-8 text-center text-white backdrop-blur-xl">
+      <Card className="border-none bg-gradient-to-br from-slate-900 via-cyan-600 to-teal-500 p-8 text-center text-white shadow-xl shadow-cyan-700/20 backdrop-blur-xl">
         <Gamepad2 className="mx-auto mb-4 h-16 w-16" />
         <h2 className="mb-2 text-2xl font-bold">Unity WebGL 광장</h2>
         <p className="mb-6 opacity-90">

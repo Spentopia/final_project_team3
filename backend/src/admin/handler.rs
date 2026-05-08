@@ -19,11 +19,14 @@ use axum::{
     Extension, Json,
 };
 use serde::Deserialize;
-use uuid::{NonNilUuid, Uuid};
+use uuid:: Uuid;
 
 use crate::state::AppState;
 
-use super::service;
+use super::{
+    dto::UpdateUserActiveRequest,
+    service,
+};
 
 /// 관리자 신고 목록 조회 쿼리
 ///
@@ -35,6 +38,12 @@ pub struct ContentReportQuery {
     pub status: Option<String>,
 }
 
+
+#[derive(Debug, Deserialize)]
+pub struct AdminUserQuery {
+    pub keyword: Option<String>,
+}
+
 /// 관리자 도메인 공통 에러 매핑
 ///
 /// service에서 anyhow::Error로 올라온 메시지를
@@ -42,12 +51,13 @@ pub struct ContentReportQuery {
 fn map_admin_error(error: anyhow::Error) -> axum::response::Response {
     let message = error.to_string();
 
-    if message.contains("찾을 수 없습니다") {
+    if message.contains("찾을 수 없습니다") || message.contains("회원을 찾을 수 없습니다") {
         return (StatusCode::NOT_FOUND, message).into_response();
     }
 
     (StatusCode::INTERNAL_SERVER_ERROR, message).into_response()
 }
+
 
 #[utoipa::path(
     get,
@@ -120,6 +130,44 @@ pub async fn reject_content_report(
     Path(report_id): Path<Uuid>,
 ) -> impl IntoResponse {
     match service::reject_content_report(&state, admin_id, report_id).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_admin_error(e),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/admin/users",
+    tag = "관리자",
+    params(("keyword" = Option<String>, Query, description = "닉네임/이메일 검색어")),
+    responses((status = 200, description = "회원 목록 조회 성공")),
+    security(("bearer_auth" = []))
+)]
+pub async fn list_users(
+    State(state): State<AppState>,
+    Query(query): Query<AdminUserQuery>,
+) -> impl IntoResponse {
+    match service::list_users(&state, query.keyword).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_admin_error(e),
+    }
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/admin/users/{id}/active",
+    tag = "관리자",
+    request_body = UpdateUserActiveRequest,
+    params(("id" = Uuid, Path, description = "회원 ID")),
+    responses((status = 200, description = "회원 활성 상태 변경 성공")),
+    security(("bearer_auth" = []))
+)]
+pub async fn update_user_active(
+    State(state): State<AppState>,
+    Path(user_id): Path<Uuid>,
+    Json(req): Json<UpdateUserActiveRequest>,
+) -> impl IntoResponse {
+    match service::update_user_active(&state, user_id, req.is_active).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => map_admin_error(e),
     }

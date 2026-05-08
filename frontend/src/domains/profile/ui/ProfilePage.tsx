@@ -395,7 +395,7 @@ export default function ProfilePage() {
 
         <div className={isWebView ? "grid gap-4" : "grid gap-6 lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]"}>
           {/* 왼쪽 프로필 카드 */}
-          <Card className="border-none bg-gradient-to-br from-cyan-500 to-blue-500 p-6 text-white backdrop-blur-xl">
+          <Card className="border-none bg-gradient-to-br from-slate-900 via-cyan-600 to-teal-500 p-6 text-white shadow-xl shadow-cyan-700/20 backdrop-blur-xl">
             {/* 파일 선택 즉시 업로드 */}
             <input
                 ref={fileInputRef}
@@ -506,7 +506,7 @@ export default function ProfilePage() {
                       <Button
                           onClick={handleSave}
                           disabled={isSaving}
-                          className="bg-gradient-to-r from-cyan-500 to-blue-500"
+                          className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
                           size="sm"
                       >
                         <Save className="mr-2 h-4 w-4" />
@@ -768,12 +768,12 @@ export default function ProfilePage() {
                 <Button
                     onClick={handleChangePassword}
                     disabled={isChangingPassword || !isEmailUser}
-                    className="mt-1 w-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                    className="mt-1 w-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
                 >
                   {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
                 </Button>
 
-                <Card className="bg-gradient-to-br from-cyan-50 to-blue-50 p-4 dark:from-cyan-900/30 dark:to-blue-900/30">
+                <Card className="bg-gradient-to-br from-slate-50 via-cyan-50 to-teal-50 p-4 dark:from-slate-900/40 dark:via-cyan-950/30 dark:to-teal-950/30">
                   <h4 className="mb-2 font-bold text-gray-900 dark:text-gray-100">
                     💡 비밀번호 안내
                   </h4>

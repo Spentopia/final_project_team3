@@ -143,6 +143,7 @@ export const login = async (payload: LoginRequest): Promise<LoginResponse> => {
   return {
     accessToken: exchanged.access_token,
     isNewUser: exchanged.is_new_user ?? false,
+    roleType: exchanged.role_type ?? "user",
   };
 
 };
@@ -196,6 +197,7 @@ export const signUp = async (payload: SignUpRequest, captchaToken: string): Prom
     return {
       accessToken: "",
       isNewUser: true,
+      roleType: "user",
     };
   }
 
@@ -204,6 +206,7 @@ export const signUp = async (payload: SignUpRequest, captchaToken: string): Prom
   return {
     accessToken: exchanged.access_token,
     isNewUser: exchanged.is_new_user ?? true,
+    roleType: exchanged.role_type ?? "user",
   };
 };
 
@@ -375,4 +378,29 @@ export const signOut = async () => {
     authStorage.clear();
     clearWalletAdapterState();
   }
+};
+
+// 현재 로그인한 사용자 정보 조회
+//
+// 백엔드 GET /me 호출.
+// apiClient 인터셉터가 authStorage의 access token을 읽어서
+// Authorization: Bearer <access_token> 헤더를 자동으로 붙여준다.
+//
+// 사용 위치:
+// - AdminRoute에서 현재 사용자의 role_type 확인
+export type MeResponse = {
+  id: string;
+  email: string | null;
+  profile_completed: boolean;
+  login_provider: string | null;
+  nickname: string | null;
+  phone: string | null;
+  profile_image: string | null;
+  wallet_address: string | null;
+  role_type: "user" | "admin";
+};
+
+export const getMe = async (): Promise<MeResponse> => {
+  const res = await apiClient.get("/me");
+  return res.data;
 };

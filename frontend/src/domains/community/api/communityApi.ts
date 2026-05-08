@@ -17,6 +17,11 @@ export type ContentReportReason =
     | "spam"
     | "other";
 
+export type ContentReportStatus =
+  | "pending"
+  | "resolved"
+  | "rejected";
+
 export interface CreateContentReportRequest {
   target_type: ContentReportTargetType;
   target_id: string;
@@ -31,7 +36,7 @@ export interface ContentReportResponse {
   target_id: string;
   reason: ContentReportReason;
   detail: string | null;
-  status: "pending" | "resolved" | "rejected";
+  status: ContentReportStatus;
   created_at: string | null;
   reviewed_at: string | null;
   reviewed_by: string | null;

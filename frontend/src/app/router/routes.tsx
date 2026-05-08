@@ -1,10 +1,16 @@
 // app/router/routes.tsx
 //
 // 전체 프론트 라우트 정의.
-// 새로 추가되는 인증 관련 페이지:
-// - /auth/kakao/callback
-// - /signup-pending
-// - /email-confirmed
+//
+// 핵심 변경:
+// - /admin을 일반 사용자 RootLayout children에서 제거
+// - /admin을 최상위 라우트로 분리
+//
+// 이유:
+// - 기존에는 /admin도 RootLayout 안에서 렌더링되어서
+//   일반 사용자용 Header, Sidebar, 지갑 연결, 게임 시작 버튼이 같이 보였음
+// - 관리자 페이지는 별도 콘솔 화면이므로
+//   일반 사용자 레이아웃과 분리하는 게 맞음
 
 import { createBrowserRouter } from "react-router";
 import ProtectedRoute from "@/app/router/ProtectedRoute";
@@ -34,6 +40,8 @@ import PlazaPage from "@/domains/plaza/pages/PlazaPage";
 import ReceiptOcrPanel from "@/components/receipt/ReceiptOcrPanel";
 import GuidePage from "@/guide/guidePage";
 import styles from "./routes.module.css";
+
+import AdminPage from "@/domains/admin/pages/AdminPage.tsx";
 
 function ReceiptOcrTestPage() {
   return (
@@ -76,6 +84,26 @@ export const router = createBrowserRouter([
       { path: "*", Component: NotFoundPage },
     ],
   },
+
+  // ─────────────────────────────────────────────
+  // 관리자 페이지
+  //
+  // RootLayout 밖으로 분리한다.
+  // 그래서 일반 사용자용 Header / Sidebar / 게임시작 / 지갑연결이 안 뜬다.
+  //
+  // ProtectedRoute는 그대로 적용한다.
+  // ProtectedRoute 안에 이미 location.pathname.startsWith("/admin")일 때
+  // me.role_type !== "admin"이면 forbidden 처리하는 로직이 있음.
+  // ─────────────────────────────────────────────
+  {
+    path: "/admin",
+    Component: () => (
+        <ProtectedRoute>
+          <AdminPage />
+        </ProtectedRoute>
+    ),
+  },
+
   {
     path: "/login",
     Component: LoginPage,

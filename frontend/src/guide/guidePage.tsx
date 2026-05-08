@@ -75,7 +75,7 @@ function WalletAppGuide() {
             <ol className="space-y-3">
               {w.steps.map((s, i) => (
                 <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-[10px] font-bold text-white">
                     {i + 1}
                   </span>
                   {s}
@@ -137,7 +137,7 @@ function WalletWebGuide() {
             <ol className="space-y-3">
               {w.steps.map((s, i) => (
                 <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-[10px] font-bold text-white">
                     {i + 1}
                   </span>
                   {s}
@@ -213,7 +213,7 @@ export default function GuidePage() {
             <p className="text-gray-600 dark:text-gray-400">Spentopia의 모든 기능을 한눈에 확인하세요</p>
           </div>
           <div className="hidden items-center gap-2 lg:flex">
-            <Badge className="bg-gradient-to-r from-cyan-500 to-blue-500">
+            <Badge className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20">
               <BookOpen className="mr-1 h-3 w-3" />
               가이드
             </Badge>
@@ -243,7 +243,7 @@ export default function GuidePage() {
               {startSteps.map(({ icon: Icon, step, title, desc, points }) => (
                 <Card key={step} className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
                   <div className="mb-4 flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white shadow-md">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-900 via-cyan-600 to-teal-500 text-white shadow-md">
                       <Icon className="h-5 w-5" />
                     </div>
                     <div>
@@ -255,7 +255,7 @@ export default function GuidePage() {
                   <ul className="space-y-1.5">
                     {points.map((p) => (
                       <li key={p} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500" />
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500" />
                         {p}
                       </li>
                     ))}
@@ -290,7 +290,7 @@ export default function GuidePage() {
           <TabsContent value="wallet" className="mt-4 space-y-4">
             <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-slate-900 via-cyan-600 to-teal-500 text-white">
                   <Wallet className="h-5 w-5" />
                 </div>
                 <div>
@@ -307,7 +307,7 @@ export default function GuidePage() {
                     onClick={() => setWalletSub(sub)}
                     className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
                       walletSub === sub
-                        ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md"
+                        ? "bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-md"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700/60 dark:text-gray-300 dark:hover:bg-gray-700"
                     }`}
                   >
@@ -325,7 +325,7 @@ export default function GuidePage() {
           <TabsContent value="market" className="mt-4 space-y-4">
             <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-slate-900 via-cyan-600 to-teal-500 text-white">
                   <Coins className="h-5 w-5" />
                 </div>
                 <div>
@@ -361,7 +361,7 @@ export default function GuidePage() {
                     "승인 시 SPT 차감 + 아바타 지급",
                   ].map((s, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-[10px] font-bold text-white">
                         {i + 1}
                       </span>
                       {s}
@@ -387,7 +387,7 @@ export default function GuidePage() {
                     "구매 완료 시 SPT가 내 지갑으로 전송",
                   ].map((s, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-[10px] font-bold text-white">
                         {i + 1}
                       </span>
                       {s}
@@ -438,7 +438,7 @@ export default function GuidePage() {
                     "대시보드·분석에서 예산 대비 현황 확인",
                   ].map((s, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-[10px] font-bold text-white">
                         {i + 1}
                       </span>
                       {s}
@@ -460,7 +460,7 @@ export default function GuidePage() {
                     "확정 시 해당 월 예산으로 즉시 반영",
                   ].map((s, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-[10px] font-bold text-white">
                         {i + 1}
                       </span>
                       {s}
@@ -511,7 +511,7 @@ export default function GuidePage() {
                 { icon: Users,         label: "광장",    desc: "다른 유저 소비 기록 실시간 피드" },
               ].map(({ icon: Icon, label, desc }) => (
                 <Card key={label} className="border-none bg-white/80 p-5 backdrop-blur-xl dark:bg-gray-800/80">
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-slate-900 via-cyan-600 to-teal-500 text-white">
                     <Icon className="h-5 w-5" />
                   </div>
                   <p className="font-bold text-gray-900 dark:text-gray-100">{label}</p>
@@ -534,7 +534,7 @@ export default function GuidePage() {
                     "등록 즉시 피드에 노출",
                   ].map((s, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-[10px] font-bold text-white">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-[10px] font-bold text-white">
                         {i + 1}
                       </span>
                       {s}
@@ -555,7 +555,7 @@ export default function GuidePage() {
                     "좋은 소비 습관 유저에게 동기부여 받기",
                   ].map((t, i) => (
                     <li key={i} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500" />
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500" />
                       {t}
                     </li>
                   ))}

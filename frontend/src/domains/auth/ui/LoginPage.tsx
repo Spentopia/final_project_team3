@@ -13,6 +13,7 @@ import PasswordInput from "@/domains/auth/ui/PasswordInput";
 import { authStorage } from "@/shared/lib/auth";
 import { WalletLoginButton } from "@/domains/auth/ui/WalletLoginButton";
 import { useTheme } from "next-themes";
+import {apiClient} from "@/shared/api/client.ts";
 
 type SocialLoginProvider = "google" | "kakao";
 
@@ -46,6 +47,12 @@ export default function Login() {
       // ✅ 실제 앱 JWT 저장
       authStorage.setToken(result.accessToken);
 
+      // 운영자면 관리자 페이지로 이동
+      if (result.roleType === "admin") {
+        navigate("/admin", { replace: true });
+        return;
+      }
+
       navigate("/", { replace: true });
     } catch (error) {
       const message = getErrorMessage(error, "알 수 없는 오류");
@@ -66,7 +73,7 @@ export default function Login() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-400 via-blue-500 to-teal-500 dark:from-gray-950 dark:via-blue-950 dark:to-gray-900 p-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-cyan-600 to-teal-500 dark:from-gray-950 dark:via-cyan-950 dark:to-teal-950 p-4">
 
       {/* 테마 토글 — 우상단 고정 */}
       <button
@@ -120,7 +127,7 @@ export default function Login() {
 
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-600 hover:to-blue-600"
+              className="w-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20 hover:brightness-110"
             >
               로그인
             </Button>
