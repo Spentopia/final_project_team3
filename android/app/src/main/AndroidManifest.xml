@@ -26,6 +26,13 @@
                 android:scheme="https"
                 android:host="phantom.app" />
         </intent>
+
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data
+                android:scheme="https"
+                android:host="solflare.com" />
+        </intent>
     </queries>
 
     <application

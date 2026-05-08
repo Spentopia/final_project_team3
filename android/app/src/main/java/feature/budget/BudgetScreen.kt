@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -73,10 +72,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ict.spentopia.ui.theme.SpentopiaDarkBackground
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
 import java.util.Calendar
 
 private const val MAX_BUDGET_AMOUNT = 999_999_999_999L
+
+@Composable
+private fun isBudgetDarkTheme(): Boolean {
+    return MaterialTheme.colorScheme.background == SpentopiaDarkBackground
+}
 
 // 예산 설정 화면임
 // AI 추천 플랜/직접 조절/저장 흐름
@@ -359,7 +364,7 @@ private fun MonthSelectorCard(
     month: Int,
     onOpenClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = isBudgetDarkTheme()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -660,7 +665,7 @@ private fun BudgetPlanCard(
     plan: BudgetPlanUiData,
     onApplyClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = isBudgetDarkTheme()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -828,7 +833,7 @@ private fun CustomBudgetSettingCard(
     onHobbyBudgetChange: (Long) -> Unit,
     onSaveClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = isBudgetDarkTheme()
     val monthlySliderMax = dynamicBudgetMax(5000000L, monthlyIncome)
     val savingSliderMax = dynamicBudgetMax(500000L, monthlyIncome, savingGoal)
     val categorySliderMax = dynamicBudgetMax(
@@ -974,7 +979,7 @@ private fun BudgetSliderItem(
     valueColor: Color = Color.Unspecified,
     onValueChange: (Long) -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = isBudgetDarkTheme()
     val safeMinValue = minValue.coerceAtLeast(0L)
     val safeMaxValue = maxValue.coerceAtLeast(safeMinValue + 1L)
     val sliderRange = safeMinValue.toFloat()..safeMaxValue.toFloat()
@@ -1293,7 +1298,7 @@ private fun CurrentMonthlyBudgetCard(
     month: Int,
     monthlyBudget: Long
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = isBudgetDarkTheme()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1342,7 +1347,7 @@ private fun BudgetCommentCard(
     savingGoal: Long,
     remainingAmount: Long
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = isBudgetDarkTheme()
     val plannedAmount = totalExpense + savingGoal
     val usedPercent = if (monthlyIncome <= 0) {
         0L
@@ -1403,7 +1408,7 @@ private fun BudgetAnalysisCard(
     savingGoal: Long,
     aiAnalysisText: String
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = isBudgetDarkTheme()
 
     // 식비가 전체 지출에서 차지하는 비율 계산
     val foodRatio = if (totalExpense == 0L) 0L else (foodBudget * 100.0 / totalExpense).toLong()
@@ -1495,7 +1500,7 @@ private fun SavingTipCard(
     foodBudget: Long,
     transportBudget: Long
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = isBudgetDarkTheme()
 
     // 식비 관련 팁
     val foodTip = if (foodBudget >= 150000) {

@@ -10,8 +10,9 @@ class PhantomDeepLinkConnector(
 ) {
 
     private val redirectLink = "spentopia://wallet-callback"
+    private val phantomPackageName = "app.phantom.mobile"
 
-    fun connect() {
+    fun connect(): Boolean {
         val uri = Uri.parse("https://phantom.app/ul/v1/connect")
             .buildUpon()
             .appendQueryParameter("app_url", "https://spentopia.com")
@@ -19,11 +20,10 @@ class PhantomDeepLinkConnector(
             .appendQueryParameter("redirect_link", redirectLink)
             .build()
 
-        val intent = Intent(Intent.ACTION_VIEW, uri)
-        context.startActivity(intent)
+        return openPhantom(uri)
     }
 
-    fun signMessage(message: String) {
+    fun signMessage(message: String): Boolean {
         val encodedMessage = Base64.encodeToString(
             message.toByteArray(Charsets.UTF_8),
             Base64.NO_WRAP
@@ -37,8 +37,26 @@ class PhantomDeepLinkConnector(
             .appendQueryParameter("message", encodedMessage)
             .build()
 
-        val intent = Intent(Intent.ACTION_VIEW, uri)
-        context.startActivity(intent)
+        return openPhantom(uri)
+    }
+
+    private fun openPhantom(uri: Uri): Boolean {
+        val phantomIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+            setPackage(phantomPackageName)
+        }
+        val fallbackIntent = Intent(Intent.ACTION_VIEW, uri)
+
+        return try {
+            context.startActivity(phantomIntent)
+            true
+        } catch (_: Exception) {
+            try {
+                context.startActivity(fallbackIntent)
+                true
+            } catch (_: Exception) {
+                false
+            }
+        }
     }
 
     fun isConnectCallback(uri: Uri): Boolean {

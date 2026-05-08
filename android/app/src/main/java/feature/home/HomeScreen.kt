@@ -37,7 +37,6 @@ import androidx.compose.foundation.layout.width // 너비 지정 기능을 가�
 import androidx.compose.foundation.lazy.LazyColumn // 세로 스크롤 리스트를 가져옴
 import androidx.compose.foundation.shape.CircleShape // 원 모양을 가져옴
 import androidx.compose.foundation.shape.RoundedCornerShape // 둥근 모서리 모양을 가져옴
-import androidx.compose.foundation.isSystemInDarkTheme
 
 // 아이콘 관련 import입니다.
 import androidx.compose.material.icons.Icons // 아이콘 묶음을 가져옴
@@ -108,6 +107,7 @@ import com.ict.spentopia.data.local.ExpenseEntity // DB에 저장되는 소비 �
 import com.ict.spentopia.data.remote.CreateExpenseRequest
 import com.ict.spentopia.data.remote.RetrofitClient
 import com.ict.spentopia.R
+import com.ict.spentopia.ui.theme.SpentopiaDarkBackground
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
@@ -121,6 +121,11 @@ import retrofit2.HttpException
 import java.text.DecimalFormat // 숫자를 쉼표 형식으로 바꾸는 도구를 가져옴
 import java.util.Calendar // 날짜 계산용 객체를 가져옴
 import kotlin.math.abs // 절댓값 함수 가져옴
+
+@Composable
+private fun isHomeDarkTheme(): Boolean {
+    return MaterialTheme.colorScheme.background == SpentopiaDarkBackground
+}
 
 // --------------------------------------------------
 // UI에서 사용할 소비 항목 데이터 클래스입니다.
@@ -557,7 +562,7 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
     walletProvider: String, // 지갑 제공자 이름을 받음
     onWalletConnectClick: () -> Unit = {} // 버튼을 눌렀을 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
-    val isDark = isSystemInDarkTheme()
+    val isDark = isHomeDarkTheme()
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
@@ -631,7 +636,7 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
     onNextMonth: () -> Unit, // onNextMonth 는 눌렀을 때 실행할 동작을 받음
     onCalendarClick: () -> Unit // onCalendarClick 는 눌렀을 때 실행할 동작을 받음
 ) { // 이 블록 안의 내용이 시작됨
-    val isDark = isSystemInDarkTheme()
+    val isDark = isHomeDarkTheme()
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
@@ -760,7 +765,7 @@ private fun SummaryMiniCard( // SummaryMiniCard 함수 선언 시작
     bgColor: Color, // bgColor 값을 함수 밖에서 받아옴
     modifier: Modifier = Modifier // Modifier 값을 이 함수로 넘김
 ) { // 이 블록 안의 내용이 시작됨
-    val isDark = isSystemInDarkTheme()
+    val isDark = isHomeDarkTheme()
     Card( // 카드 모양 UI를 시작함
         modifier = modifier, // 이 UI의 크기·여백·배경 설정을 시작함
         shape = RoundedCornerShape(16.dp), // 모서리 모양을 정함

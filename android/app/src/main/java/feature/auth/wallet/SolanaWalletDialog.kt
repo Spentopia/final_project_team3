@@ -22,15 +22,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 
-enum class SolanaWalletType(
-    val title: String,
-    val description: String
-) {
-    PHANTOM("PHANTOM", "연결하려면 클릭"),
-    SOLFLARE("SOLFLARE", "연결하려면 클릭"),
-    BACKPACK("BACKPACK", "연결하려면 클릭")
-}
-
 @Composable
 fun SolanaWalletDialog(
     onDismiss: () -> Unit,
@@ -79,15 +70,6 @@ fun SolanaWalletDialog(
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
-
-                Text(
-                    text = "선택한 지갑과 실제로 열리는 지갑 앱은 현재 다를 수 있습니다.",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 18.sp
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

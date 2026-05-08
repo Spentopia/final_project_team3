@@ -130,13 +130,17 @@ fun LoginScreen(
         WalletLoginCoordinator(loginViewModel)
     }
 
-    val googleSignInClient = remember {
-        val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(BuildConfig.GOOGLE_WEB_CLIENT_ID)
-            .requestEmail()
-            .build()
+    val googleSignInClient = remember(BuildConfig.GOOGLE_WEB_CLIENT_ID) {
+        if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isBlank()) {
+            null
+        } else {
+            val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+                .requestEmail()
+                .build()
 
-        GoogleSignIn.getClient(context, options)
+            GoogleSignIn.getClient(context, options)
+        }
     }
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
@@ -184,7 +188,11 @@ fun LoginScreen(
                 isWalletLoading = true
                 pendingWalletAddress = null
                 pendingNonce = null
-                phantomConnector.connect()
+                val opened = phantomConnector.connect()
+                if (!opened) {
+                    isWalletLoading = false
+                    Toast.makeText(context, "Phantom 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+                }
             }
 
             else -> {
@@ -287,8 +295,10 @@ fun LoginScreen(
             return
         }
 
+        val client = googleSignInClient ?: return
+
         isGoogleLoginLoading = true
-        googleSignInLauncher.launch(googleSignInClient.signInIntent)
+        googleSignInLauncher.launch(client.signInIntent)
     }
 
     val isDarkTheme = colorScheme.surface == Color(0xFF111827)
@@ -470,7 +480,11 @@ fun LoginScreen(
                                 try {
                                     val nonceResponse = loginViewModel.getWalletNonceOnce(walletAddress)
                                     pendingNonce = nonceResponse.nonce
-                                    phantomConnector.signMessage(nonceResponse.message)
+                                    val opened = phantomConnector.signMessage(nonceResponse.message)
+                                    if (!opened) {
+                                        isWalletLoading = false
+                                        Toast.makeText(context, "Phantom 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                    }
                                 } catch (e: Exception) {
                                     isWalletLoading = false
                                     Toast.makeText(context, e.message ?: context.getString(R.string.wallet_nonce_failed), Toast.LENGTH_SHORT).show()
