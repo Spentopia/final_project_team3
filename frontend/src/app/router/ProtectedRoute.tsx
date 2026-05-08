@@ -32,7 +32,7 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-type AuthStatus = "loading" | "logged_in" | "need_profile" | "not_logged_in" | "forbidden";
+type AuthStatus = "loading" | "logged_in" | "need_profile" | "not_logged_in" | "forbidden" | "admin_redirect";
 
 let authCheckInFlight: Promise<AuthStatus> | null = null;
 let refreshRecoveryInFlight: Promise<boolean> | null = null;
@@ -169,21 +169,40 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     const me = res.data;
 
     // ─────────────────────────────────────────────
-    // 관리자 페이지 접근 검사
-    //
-    // 현재 경로가 /admin 으로 시작하면
-    // role_type = admin 인지 추가 확인.
-    //
-    // 프론트 검사는 UX용.
-    // 실제 보안은 백엔드 admin_middleware가 담당.
-    // ─────────────────────────────────────────────
+// 관리자 페이지 접근 검사
+//
+// 현재 경로가 /admin 으로 시작하면
+// role_type = admin 인지 추가 확인.
+//
+// 프론트 검사는 UX용.
+// 실제 보안은 백엔드 admin_middleware가 담당.
+// ─────────────────────────────────────────────
     if (location.pathname.startsWith("/admin")) {
       if (me.role_type !== "admin") {
         return "forbidden";
       }
+
+      // admin이 /admin에 들어온 경우는 정상 접근
+      return "logged_in";
     }
 
-    // 7) 프로필 완성 여부에 따라 라우팅 분기
+// ─────────────────────────────────────────────
+// 관리자 계정 자동 이동
+//
+// 운영자 계정은 일반 사용자 대시보드로 보내지 않고
+// 항상 관리자 페이지로 보낸다.
+//
+// 필요한 이유:
+// - access token은 메모리 저장이라 창을 닫으면 사라짐
+// - 재접속 시 refresh 쿠키로 access token을 복구함
+// - 이때 LoginPage의 roleType 분기는 실행되지 않음
+// - 따라서 ProtectedRoute에서 /me 결과를 보고 다시 /admin으로 보내야 함
+// ─────────────────────────────────────────────
+    if (me.role_type === "admin") {
+      return "admin_redirect";
+    }
+
+// 7) 프로필 완성 여부에 따라 라우팅 분기
     if (!me.profile_completed) {
       return "need_profile";
     }
@@ -230,6 +249,12 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (status === "not_logged_in") {
     return <Navigate to="/login" replace />;
   }
+
+  // 관리자 계정이 일반 사용자 경로로 들어온 경우 관리자 페이지로 이동
+  if (status === "admin_redirect") {
+    return <Navigate to="/admin" replace />;
+  }
+
 
   if (status === "need_profile") {
     if (location.pathname === "/complete-profile") {
