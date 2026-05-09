@@ -1421,6 +1421,12 @@ async fn ensure_user_exists(state: &AppState, user_id:Uuid) -> Result<Uuid> {
 // - comment: 댓글 작성자 comments.user_id
 // - user_nickname: 신고 대상 users.id
 // - user_profile: 신고 대상 users.id
+//
+// 추가 정책:
+// - post 신고 대상이 공지사항이면 신고 불가.
+// - 프론트에서 공지사항 신고 버튼을 숨겨도,
+//   사용자가 개발자도구/Postman으로 직접 API를 호출할 수 있으므로
+//   백엔드에서도 반드시 한 번 더 막아야 한다.
 async fn get_report_target_owner_id(
     state: &AppState,
     target_type: &str,
@@ -1429,13 +1435,31 @@ async fn get_report_target_owner_id(
     match target_type {
         "post" => {
             let post = get_post(state, target_id).await?;
+
+            // ─────────────────────────────────────────────
+            // 공지사항 신고 차단
+            // ─────────────────────────────────────────────
+            //
+            // 공지사항은 운영자가 작성한 공식 게시글이다.
+            // 따라서 일반 사용자가 content_reports로 신고할 수 없게 막는다.
+            //
+            // 주의:
+            // - 프론트에서 신고 버튼을 숨기는 것은 UX 처리
+            // - 백엔드 차단은 실제 보안 처리
+            if post.post_type == "notice" {
+                return Err(anyhow!("공지사항은 신고할 수 없습니다."));
+            }
+
             Ok(post.user_id)
         }
+
         "comment" => {
             let comment = get_comment(state, target_id).await?;
             Ok(comment.user_id)
         }
+
         "user_nickname" | "user_profile" => ensure_user_exists(state, target_id).await,
+
         _ => Err(anyhow!("지원하지 않는 신고 대상입니다.")),
     }
 }

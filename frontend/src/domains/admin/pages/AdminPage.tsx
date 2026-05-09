@@ -5,22 +5,14 @@
 // 이 파일의 역할:
 // - 관리자 페이지 전체 레이아웃 조립
 // - 현재 선택된 탭 상태 관리
-// - 신고 목록 / 회원 목록 조회
+// - 대시보드용 신고 목록 조회
+// - 신고 관리용 필터 신고 목록 조회
+// - 회원 목록 조회
+// - 공지사항 목록 조회
 // - 신고 처리 완료 / 반려 처리
 // - 회원 활성/비활성 처리
+// - 공지사항 작성/수정/삭제
 // - 로그아웃 처리
-//
-// 하위 컴포넌트 역할:
-// - AdminSidebar: 좌측 메뉴/로그아웃 UI
-// - AdminDashboard: 요약 카드/최근 신고
-// - AdminReportsPanel: 신고 관리 테이블
-// - AdminReportDetailModal: 신고 상세 모달
-// - AdminUsersPanel: 회원 관리 테이블
-//
-// 실무식 분리 기준:
-// - API 호출과 상태 관리는 컨테이너(AdminPage)에 둔다.
-// - 화면 조각은 components 폴더로 분리한다.
-// - 하위 컴포넌트는 props를 받아 화면만 그린다.
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
@@ -33,14 +25,20 @@ import AdminDashboard from "@/domains/admin/components/AdminDashboard";
 import AdminReportsPanel from "@/domains/admin/components/AdminReportsPanel";
 import AdminReportDetailModal from "@/domains/admin/components/AdminReportDetailModal";
 import AdminUsersPanel from "@/domains/admin/components/AdminUsersPanel";
+import AdminNoticesPanel from "@/domains/admin/components/AdminNoticesPanel";
 
 import {
+    createAdminNotice,
+    deleteAdminNotice,
     listAdminContentReports,
+    listAdminNotices,
     listAdminUsers,
     rejectAdminContentReport,
     resolveAdminContentReport,
+    updateAdminNotice,
     updateAdminUserActive,
     type AdminContentReportResponse,
+    type AdminNoticeResponse,
     type AdminUserResponse,
 } from "@/domains/admin/api/adminApi";
 
@@ -52,99 +50,83 @@ import type {
 export default function AdminPage() {
     const navigate = useNavigate();
 
-    // ─────────────────────────────────────────────
-    // 로그아웃 상태
-    // ─────────────────────────────────────────────
-    //
-    // 로그아웃 버튼 중복 클릭 방지용.
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    // ─────────────────────────────────────────────
-    // 현재 선택 중인 관리자 탭
-    // ─────────────────────────────────────────────
-    //
-    // 처음 진입하면 대시보드를 보여준다.
     const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
 
-    // ─────────────────────────────────────────────
-    // 신고 관리 상태
-    // ─────────────────────────────────────────────
+    // 대시보드용 전체 신고 목록
+    const [dashboardReports, setDashboardReports] = useState<
+        AdminContentReportResponse[]
+    >([]);
+    const [isDashboardReportsLoading, setIsDashboardReportsLoading] =
+        useState(false);
 
-    // 신고 상태 필터
-    //
-    // all: 전체
-    // pending: 대기중
-    // resolved: 처리완료
-    // rejected: 반려
+    // 신고 관리 탭용 신고 목록
     const [reportStatus, setReportStatus] =
         useState<ReportStatusFilter>("pending");
-
-    // 신고 목록
     const [reports, setReports] = useState<AdminContentReportResponse[]>([]);
-
-    // 선택된 신고 상세
-    //
-    // null이면 상세 모달 닫힘.
-    // 값이 있으면 AdminReportDetailModal 렌더링.
     const [selectedReport, setSelectedReport] =
         useState<AdminContentReportResponse | null>(null);
-
-    // 신고 목록 로딩 상태
     const [isReportsLoading, setIsReportsLoading] = useState(false);
 
-    // ─────────────────────────────────────────────
-    // 회원 관리 상태
-    // ─────────────────────────────────────────────
-
-    // 회원 목록
+    // 회원 관리
     const [users, setUsers] = useState<AdminUserResponse[]>([]);
-
-    // 검색 입력값
     const [userKeyword, setUserKeyword] = useState("");
-
-    // 디바운스된 검색어
-    //
-    // 사용자가 입력할 때마다 바로 API를 호출하지 않고,
-    // 입력이 잠시 멈췄을 때만 API를 호출하기 위해 사용한다.
     const [debouncedUserKeyword, setDebouncedUserKeyword] = useState("");
-
-    // 회원 목록 로딩 상태
     const [isUsersLoading, setIsUsersLoading] = useState(false);
 
-    // ─────────────────────────────────────────────
+    // 공지사항 관리
+    const [notices, setNotices] = useState<AdminNoticeResponse[]>([]);
+    const [isNoticesLoading, setIsNoticesLoading] = useState(false);
+
     // 공통 처리 상태
-    // ─────────────────────────────────────────────
-    //
-    // 신고 처리/회원 비활성화 버튼 중복 클릭 방지용.
-    // 현재 처리 중인 row id를 저장한다.
     const [processingId, setProcessingId] = useState<string | null>(null);
 
-    // ─────────────────────────────────────────────
-    // 계산 값
-    // ─────────────────────────────────────────────
-
-    // 처리 대기 신고 수
+    // 대시보드 계산 값
     const pendingReportCount = useMemo(() => {
-        return reports.filter((report) => report.status === "pending").length;
-    }, [reports]);
+        return dashboardReports.filter((report) => report.status === "pending")
+            .length;
+    }, [dashboardReports]);
 
-    // 활성 회원 수
     const activeUserCount = useMemo(() => {
         return users.filter((user) => user.is_active).length;
     }, [users]);
 
-    // 최근 신고 5개
     const recentReports = useMemo(() => {
-        return reports.slice(0, 5);
-    }, [reports]);
+        return dashboardReports.slice(0, 5);
+    }, [dashboardReports]);
 
-    // ─────────────────────────────────────────────
-    // 신고 목록 조회
-    // ─────────────────────────────────────────────
-    //
-    // reportStatus가 바뀔 때마다 다시 조회한다.
-    // 대시보드에서도 최근 신고/처리 대기 수를 쓰므로
-    // AdminPage 진입 시 기본 pending 신고를 조회한다.
+    // 대시보드용 전체 신고 목록 조회
+    useEffect(() => {
+        let ignore = false;
+
+        async function fetchDashboardReports() {
+            setIsDashboardReportsLoading(true);
+
+            try {
+                const data = await listAdminContentReports(undefined);
+
+                if (!ignore) {
+                    setDashboardReports(data);
+                }
+            } catch (error) {
+                console.error("관리자 대시보드 신고 목록 조회 실패:", error);
+                toast.error("대시보드 신고 정보를 불러오지 못했습니다.");
+            } finally {
+                if (!ignore) {
+                    setIsDashboardReportsLoading(false);
+                }
+            }
+        }
+
+        void fetchDashboardReports();
+
+        return () => {
+            ignore = true;
+        };
+    }, []);
+
+    // 신고 관리 탭용 신고 목록 조회
     useEffect(() => {
         let ignore = false;
 
@@ -176,12 +158,7 @@ export default function AdminPage() {
         };
     }, [reportStatus]);
 
-    // ─────────────────────────────────────────────
     // 회원 검색 디바운스
-    // ─────────────────────────────────────────────
-    //
-    // 검색어 입력마다 즉시 요청하지 않고 300ms 뒤에 반영한다.
-    // 이렇게 해야 검색 API가 과도하게 호출되지 않는다.
     useEffect(() => {
         const timer = window.setTimeout(() => {
             setDebouncedUserKeyword(userKeyword.trim());
@@ -192,11 +169,7 @@ export default function AdminPage() {
         };
     }, [userKeyword]);
 
-    // ─────────────────────────────────────────────
     // 회원 목록 조회
-    // ─────────────────────────────────────────────
-    //
-    // debouncedUserKeyword가 바뀔 때마다 회원 목록을 조회한다.
     useEffect(() => {
         let ignore = false;
 
@@ -226,9 +199,37 @@ export default function AdminPage() {
         };
     }, [debouncedUserKeyword]);
 
-    // ─────────────────────────────────────────────
+    // 공지사항 목록 조회
+    useEffect(() => {
+        let ignore = false;
+
+        async function fetchNotices() {
+            setIsNoticesLoading(true);
+
+            try {
+                const data = await listAdminNotices();
+
+                if (!ignore) {
+                    setNotices(data);
+                }
+            } catch (error) {
+                console.error("관리자 공지사항 목록 조회 실패:", error);
+                toast.error("공지사항 목록을 불러오지 못했습니다.");
+            } finally {
+                if (!ignore) {
+                    setIsNoticesLoading(false);
+                }
+            }
+        }
+
+        void fetchNotices();
+
+        return () => {
+            ignore = true;
+        };
+    }, []);
+
     // 신고 처리 완료
-    // ─────────────────────────────────────────────
     const handleResolveReport = async (reportId: string) => {
         if (processingId) return;
 
@@ -237,12 +238,14 @@ export default function AdminPage() {
         try {
             const updated = await resolveAdminContentReport(reportId);
 
-            // 목록 갱신
             setReports((prev) =>
                 prev.map((report) => (report.id === reportId ? updated : report))
             );
 
-            // 상세 모달이 열려 있으면 상세 데이터도 갱신
+            setDashboardReports((prev) =>
+                prev.map((report) => (report.id === reportId ? updated : report))
+            );
+
             setSelectedReport((current) =>
                 current?.id === reportId ? updated : current
             );
@@ -256,9 +259,7 @@ export default function AdminPage() {
         }
     };
 
-    // ─────────────────────────────────────────────
     // 신고 반려
-    // ─────────────────────────────────────────────
     const handleRejectReport = async (reportId: string) => {
         if (processingId) return;
 
@@ -267,12 +268,14 @@ export default function AdminPage() {
         try {
             const updated = await rejectAdminContentReport(reportId);
 
-            // 목록 갱신
             setReports((prev) =>
                 prev.map((report) => (report.id === reportId ? updated : report))
             );
 
-            // 상세 모달이 열려 있으면 상세 데이터도 갱신
+            setDashboardReports((prev) =>
+                prev.map((report) => (report.id === reportId ? updated : report))
+            );
+
             setSelectedReport((current) =>
                 current?.id === reportId ? updated : current
             );
@@ -286,9 +289,7 @@ export default function AdminPage() {
         }
     };
 
-    // ─────────────────────────────────────────────
     // 회원 활성/비활성 변경
-    // ─────────────────────────────────────────────
     const handleToggleUserActive = async (user: AdminUserResponse) => {
         if (processingId) return;
 
@@ -297,7 +298,6 @@ export default function AdminPage() {
         try {
             const updated = await updateAdminUserActive(user.id, !user.is_active);
 
-            // 목록 갱신
             setUsers((prev) =>
                 prev.map((item) => (item.id === user.id ? updated : item))
             );
@@ -315,17 +315,75 @@ export default function AdminPage() {
         }
     };
 
-    // ─────────────────────────────────────────────
+    // 공지사항 작성
+    const handleCreateNotice = async (params: {
+        title: string;
+        content: string;
+    }) => {
+        if (processingId) return;
+
+        setProcessingId("notice-form");
+
+        try {
+            const created = await createAdminNotice(params);
+
+            setNotices((prev) => [created, ...prev]);
+
+            toast.success("공지사항을 작성했습니다.");
+        } catch (error) {
+            console.error("공지사항 작성 실패:", error);
+            toast.error("공지사항 작성에 실패했습니다.");
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    // 공지사항 수정
+    const handleUpdateNotice = async (
+        noticeId: string,
+        params: { title: string; content: string }
+    ) => {
+        if (processingId) return;
+
+        setProcessingId("notice-form");
+
+        try {
+            const updated = await updateAdminNotice(noticeId, params);
+
+            setNotices((prev) =>
+                prev.map((notice) => (notice.id === noticeId ? updated : notice))
+            );
+
+            toast.success("공지사항을 수정했습니다.");
+        } catch (error) {
+            console.error("공지사항 수정 실패:", error);
+            toast.error("공지사항 수정에 실패했습니다.");
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    // 공지사항 삭제
+    const handleDeleteNotice = async (noticeId: string) => {
+        if (processingId) return;
+
+        setProcessingId(noticeId);
+
+        try {
+            await deleteAdminNotice(noticeId);
+
+            setNotices((prev) => prev.filter((notice) => notice.id !== noticeId));
+
+            toast.success("공지사항을 삭제했습니다.");
+        } catch (error) {
+            console.error("공지사항 삭제 실패:", error);
+            toast.error("공지사항 삭제에 실패했습니다.");
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
     // 로그아웃
-    // ─────────────────────────────────────────────
-    //
-    // 일반 사용자 Sidebar의 로그아웃과 같은 흐름이다.
-    //
-    // signOut() 내부에서:
-    // 1) 백엔드 /auth/logout 호출
-    // 2) Supabase session 정리
-    // 3) authStorage access token 삭제
-    // 를 처리한다.
     const handleLogout = async () => {
         try {
             setIsLoggingOut(true);
@@ -349,7 +407,6 @@ export default function AdminPage() {
                 />
 
                 <main className="flex-1 overflow-y-auto p-8">
-                    {/* 페이지 헤더 */}
                     <div className="mb-8">
                         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-luxury-gold">
                             Admin Console
@@ -359,6 +416,7 @@ export default function AdminPage() {
                             {activeTab === "dashboard" && "대시보드"}
                             {activeTab === "reports" && "신고 관리"}
                             {activeTab === "users" && "회원 관리"}
+                            {activeTab === "notices" && "공지사항 관리"}
                         </h2>
 
                         <p className="mt-2 text-sm text-muted-foreground">
@@ -368,6 +426,8 @@ export default function AdminPage() {
                                 "접수된 신고를 확인하고 처리 상태를 변경합니다."}
                             {activeTab === "users" &&
                                 "가입 회원을 조회하고 활성 상태를 관리합니다."}
+                            {activeTab === "notices" &&
+                                "공지사항을 작성, 수정, 삭제합니다."}
                         </p>
                     </div>
 
@@ -377,7 +437,7 @@ export default function AdminPage() {
                             totalUserCount={users.length}
                             activeUserCount={activeUserCount}
                             recentReports={recentReports}
-                            isReportsLoading={isReportsLoading}
+                            isReportsLoading={isDashboardReportsLoading}
                             onTabChange={setActiveTab}
                         />
                     )}
@@ -390,12 +450,8 @@ export default function AdminPage() {
                             processingId={processingId}
                             onReportStatusChange={setReportStatus}
                             onSelectReport={setSelectedReport}
-                            onResolveReport={(reportId) =>
-                                void handleResolveReport(reportId)
-                            }
-                            onRejectReport={(reportId) =>
-                                void handleRejectReport(reportId)
-                            }
+                            onResolveReport={(reportId) => void handleResolveReport(reportId)}
+                            onRejectReport={(reportId) => void handleRejectReport(reportId)}
                         />
                     )}
 
@@ -406,9 +462,20 @@ export default function AdminPage() {
                             isUsersLoading={isUsersLoading}
                             processingId={processingId}
                             onUserKeywordChange={setUserKeyword}
-                            onToggleUserActive={(user) =>
-                                void handleToggleUserActive(user)
+                            onToggleUserActive={(user) => void handleToggleUserActive(user)}
+                        />
+                    )}
+
+                    {activeTab === "notices" && (
+                        <AdminNoticesPanel
+                            notices={notices}
+                            isNoticesLoading={isNoticesLoading}
+                            processingId={processingId}
+                            onCreateNotice={(params) => void handleCreateNotice(params)}
+                            onUpdateNotice={(noticeId, params) =>
+                                void handleUpdateNotice(noticeId, params)
                             }
+                            onDeleteNotice={(noticeId) => void handleDeleteNotice(noticeId)}
                         />
                     )}
                 </main>

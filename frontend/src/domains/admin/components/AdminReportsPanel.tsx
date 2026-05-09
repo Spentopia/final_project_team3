@@ -16,15 +16,14 @@
 import { Card } from "@/shared/ui/card";
 
 import type {
-    AdminContentReportResponse,
-    ContentReportStatus,
-} from "@/domains/admin/api/adminApi";
+    AdminContentReportResponse} from "@/domains/admin/api/adminApi";
 
 import type { ReportStatusFilter } from "@/domains/admin/types/adminViewTypes";
 
 import {
     formatDateTime,
-    getTextValue,
+    getReporterPrimaryText,
+    getReporterSecondaryText,
     REASON_LABEL,
     REPORT_STATUS_LABEL,
     REPORT_STATUS_STYLE,
@@ -85,9 +84,7 @@ export default function AdminReportsPanel({
             <Card className="border-none bg-white/80 p-5 shadow-card dark:bg-gray-800/80">
                 <div className="mb-4 flex items-center justify-between">
                     <div>
-                        <h3 className="text-lg font-bold">
-                            신고 목록
-                        </h3>
+                        <h3 className="text-lg font-bold">신고 목록</h3>
 
                         <p className="mt-1 text-sm text-muted-foreground">
                             신고를 확인하고 처리 상태를 변경합니다.
@@ -109,7 +106,27 @@ export default function AdminReportsPanel({
 
                 {!isReportsLoading && reports.length > 0 && (
                     <div className="overflow-hidden rounded-xl border border-border">
-                        <table className="w-full text-sm">
+                        <table className="w-full table-fixed text-sm">
+                            <colgroup>
+                                {/* 상태 */}
+                                <col className="w-[110px]" />
+
+                                {/* 신고대상 */}
+                                <col className="w-[120px]" />
+
+                                {/* 신고사유 */}
+                                <col className="w-[130px]" />
+
+                                {/* 신고자 */}
+                                <col className="w-[220px]" />
+
+                                {/* 신고일 */}
+                                <col className="w-[150px]" />
+
+                                {/* 처리 버튼 */}
+                                <col className="w-[230px]" />
+                            </colgroup>
+
                             <thead className="bg-[var(--surface-subtle)] text-left text-muted-foreground">
                             <tr>
                                 <th className="px-4 py-3">상태</th>
@@ -117,71 +134,56 @@ export default function AdminReportsPanel({
                                 <th className="px-4 py-3">신고사유</th>
                                 <th className="px-4 py-3">신고자</th>
                                 <th className="px-4 py-3">신고일</th>
-                                <th className="px-4 py-3 text-right">
-                                    처리
-                                </th>
+                                <th className="px-4 py-3 text-right">처리</th>
                             </tr>
                             </thead>
 
                             <tbody>
                             {reports.map((report) => (
-                                <tr
-                                    key={report.id}
-                                    className="border-t border-border"
-                                >
+                                <tr key={report.id} className="border-t border-border">
                                     <td className="px-4 py-3">
-                                            <span
-                                                className={`rounded-full px-2 py-1 text-xs font-bold ${
-                                                    REPORT_STATUS_STYLE[
-                                                        report.status
-                                                        ]
-                                                }`}
-                                            >
-                                                {
-                                                    REPORT_STATUS_LABEL[
-                                                        report.status
-                                                        ]
-                                                }
-                                            </span>
+                      <span
+                          className={`rounded-full px-2 py-1 text-xs font-bold ${
+                              REPORT_STATUS_STYLE[report.status]
+                          }`}
+                      >
+                        {REPORT_STATUS_LABEL[report.status]}
+                      </span>
                                     </td>
 
                                     <td className="px-4 py-3">
-                                        {
-                                            TARGET_TYPE_LABEL[
-                                                report.target_type
-                                                ]
-                                        }
+                                        {TARGET_TYPE_LABEL[report.target_type]}
                                     </td>
 
                                     <td className="px-4 py-3">
                                         {REASON_LABEL[report.reason]}
                                     </td>
 
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {getTextValue(report, [
-                                            "reporter_nickname",
-                                            "reporter_email",
-                                            "reporter_id",
-                                            "user_id",
-                                        ])}
+                                    {/* 신고자 표시 */}
+                                    <td className="px-4 py-3">
+                                        <div className="flex min-w-0 flex-col">
+                        <span className="truncate font-medium text-foreground">
+                          {getReporterPrimaryText(report)}
+                        </span>
+
+                                            <span
+                                                className="truncate text-xs text-muted-foreground"
+                                                title={report.reporter_id}
+                                            >
+                          {getReporterSecondaryText(report)}
+                        </span>
+                                        </div>
                                     </td>
 
                                     <td className="px-4 py-3 text-muted-foreground">
-                                        {formatDateTime(
-                                            getTextValue(report, [
-                                                "created_at",
-                                                "createdAt",
-                                            ])
-                                        )}
+                                        {formatDateTime(report.created_at)}
                                     </td>
 
                                     <td className="px-4 py-3">
                                         <div className="flex justify-end gap-2">
                                             <button
                                                 type="button"
-                                                onClick={() =>
-                                                    onSelectReport(report)
-                                                }
+                                                onClick={() => onSelectReport(report)}
                                                 className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold transition hover:bg-[var(--surface-subtle)]"
                                             >
                                                 상세
@@ -190,16 +192,10 @@ export default function AdminReportsPanel({
                                             <button
                                                 type="button"
                                                 disabled={
-                                                    report.status !==
-                                                    "pending" ||
-                                                    processingId ===
-                                                    report.id
+                                                    report.status !== "pending" ||
+                                                    processingId === report.id
                                                 }
-                                                onClick={() =>
-                                                    onResolveReport(
-                                                        report.id
-                                                    )
-                                                }
+                                                onClick={() => onResolveReport(report.id)}
                                                 className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 처리 완료
@@ -208,16 +204,10 @@ export default function AdminReportsPanel({
                                             <button
                                                 type="button"
                                                 disabled={
-                                                    report.status !==
-                                                    "pending" ||
-                                                    processingId ===
-                                                    report.id
+                                                    report.status !== "pending" ||
+                                                    processingId === report.id
                                                 }
-                                                onClick={() =>
-                                                    onRejectReport(
-                                                        report.id
-                                                    )
-                                                }
+                                                onClick={() => onRejectReport(report.id)}
                                                 className="rounded-lg bg-gray-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 반려

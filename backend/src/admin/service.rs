@@ -6,12 +6,35 @@
 // 1. 신고 목록 조회
 // 2. 신고 처리 완료
 // 3. 신고 반려
+// 4. 회원 목록 조회
+// 5. 회원 활성/비활성 변경
+// 6. 공지사항 목록 조회
+// 7. 공지사항 생성
+// 8. 공지사항 수정
+// 9. 공지사항 삭제
 //
 // 주의:
 // - 이 파일은 service_role key로 Supabase REST API를 호출한다.
 // - 실제 관리자 권한 검사는 route.rs의 admin_routes에서
 //   admin_middleware가 먼저 수행한다.
 // - 따라서 이 service 함수들은 "이미 관리자 검증을 통과했다"는 전제로 동작한다.
+//
+// 이번 수정 핵심:
+// - 신고 목록을 public.content_reports에서 직접 조회하지 않는다.
+// - public.admin_content_reports_view를 조회한다.
+// - view에는 reporter_nickname, reporter_email이 포함되어 있다.
+// - 그래서 관리자 화면에서 신고자를 UUID가 아니라 닉네임/이메일로 표시할 수 있다.
+//
+// 실제 content_reports 컬럼:
+// - detail 사용
+// - description 사용 안 함
+// - reviewed_at / reviewed_by 사용
+
+// 공지사항 설계:
+// - 별도 notices 테이블을 만들지 않는다.
+// - posts 테이블을 재사용한다.
+// - post_type = 'notice'인 row를 공지사항으로 본다.
+// - 삭제는 물리 삭제가 아니라 is_deleted = true, deleted_at = now()로 처리한다.
 
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
@@ -19,18 +42,26 @@ use uuid::Uuid;
 
 use crate::state::AppState;
 
-use super::{dto::{AdminContentReportResponse,AdminUserResponse},
-            model::{AdminContentReport, AdminUser},};
+use super::{
+    dto::{AdminContentReportResponse, AdminNoticeResponse, AdminUserResponse,
+          CreateAdminNoticeRequest, UpdateAdminNoticeRequest,},
+    model::{AdminContentReport, AdminUser, AdminNotice},
+};
 
-/// DB 모델을 관리자 응답 DTO로 변환한다.
+/// DB/view 모델을 관리자 신고 응답 DTO로 변환한다.
 ///
 /// DB row를 그대로 내려도 되긴 하지만,
 /// 나중에 관리자 화면 전용 필드가 추가될 수 있으므로
 /// 변환 함수를 따로 둔다.
+///
+/// 현재 AdminContentReport는 admin_content_reports_view의 응답 모델이다.
+/// 그래서 reporter_nickname, reporter_email을 포함한다.
 fn to_report_response(row: AdminContentReport) -> AdminContentReportResponse {
-    AdminContentReportResponse{
+    AdminContentReportResponse {
         id: row.id,
         reporter_id: row.reporter_id,
+        reporter_nickname: row.reporter_nickname,
+        reporter_email: row.reporter_email,
         target_type: row.target_type,
         target_id: row.target_id,
         reason: row.reason,
@@ -42,6 +73,10 @@ fn to_report_response(row: AdminContentReport) -> AdminContentReportResponse {
     }
 }
 
+/// DB users row를 관리자 회원 응답 DTO로 변환한다.
+///
+/// users 테이블의 일부 컬럼은 nullable일 수 있으므로,
+/// 프론트에서 쓰기 쉬운 기본값을 지정한다.
 fn to_user_response(row: AdminUser) -> AdminUserResponse {
     AdminUserResponse {
         id: row.id,
@@ -59,6 +94,77 @@ fn to_user_response(row: AdminUser) -> AdminUserResponse {
     }
 }
 
+/// posts row를 관리자 공지사항 응답 DTO로 변환한다.
+///
+/// title/content가 Option인 이유:
+/// - DB 구조상 nullable일 가능성을 안전하게 처리하기 위함.
+/// - 관리자 화면에는 빈 문자열 fallback으로 내려준다.
+fn to_notice_response(row: AdminNotice) -> AdminNoticeResponse {
+    AdminNoticeResponse {
+        id: row.id,
+        user_id: row.user_id,
+        title: row.title.unwrap_or_default(),
+        content: row.content.unwrap_or_default(),
+        post_type: row.post_type,
+        view_count: row.view_count.unwrap_or(0),
+        is_deleted: row.is_deleted.unwrap_or(false),
+        deleted_at: row.deleted_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+    }
+}
+
+/// 관리자 신고 view에서 신고 1건 조회
+///
+/// 사용 위치:
+/// - 신고 처리 완료 후 최종 응답 반환
+/// - 신고 반려 후 최종 응답 반환
+///
+/// 왜 필요한가?
+/// PATCH /content_reports 응답은 content_reports 테이블 row만 반환한다.
+/// 즉 reporter_nickname, reporter_email이 없다.
+/// 그래서 PATCH 성공 후 admin_content_reports_view에서 다시 조회해서
+/// 프론트에 닉네임/이메일이 포함된 응답을 반환한다.
+async fn get_content_report_from_view_by_id(
+    state: &AppState,
+    report_id: Uuid,
+) -> Result<AdminContentReportResponse> {
+    let url = format!(
+        "{}/rest/v1/admin_content_reports_view?select=id,reporter_id,reporter_nickname,reporter_email,target_type,target_id,reason,detail,status,created_at,reviewed_at,reviewed_by&id=eq.{}&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        report_id
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("관리자 신고 view 단건 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 신고 view 단건 조회 실패: {}", body));
+    }
+
+    let rows: Vec<AdminContentReport> = res
+        .json()
+        .await
+        .context("관리자 신고 view 단건 조회 응답 역직렬화 실패")?;
+
+    let row = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("신고를 찾을 수 없습니다."))?;
+
+    Ok(to_report_response(row))
+}
+
 /// 관리자: 신고 목록 조회
 ///
 /// API:
@@ -74,18 +180,30 @@ fn to_user_response(row: AdminUser) -> AdminUserResponse {
 /// 반환:
 /// - 최신 신고가 먼저 보이도록 created_at desc 정렬
 /// - 관리자 페이지용으로 최대 100개 조회
+/// - reporter_nickname, reporter_email 포함
 pub async fn list_content_reports(
     state: &AppState,
     status: Option<String>,
 ) -> Result<Vec<AdminContentReportResponse>> {
-    //status가 빈 문자열이면 필터를 적용하지 않음
+    // status가 빈 문자열이면 필터를 적용하지 않음
     let status_filter = status
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty());
 
     // 기본 조회 URL
+    //
+    // 기존:
+    // /rest/v1/content_reports?select=*
+    //
+    // 변경:
+    // /rest/v1/admin_content_reports_view
+    //
+    // 이유:
+    // content_reports에는 reporter_id만 있고 닉네임/이메일이 없다.
+    // admin_content_reports_view는 users와 join되어 있어서
+    // reporter_nickname, reporter_email을 함께 내려준다.
     let mut url = format!(
-        "{}/rest/v1/content_reports?select=*&order=created_at.desc&limit=100",
+        "{}/rest/v1/admin_content_reports_view?select=id,reporter_id,reporter_nickname,reporter_email,target_type,target_id,reason,detail,status,created_at,reviewed_at,reviewed_by&order=created_at.desc&limit=100",
         state.config.supabase_url.trim_end_matches('/')
     );
 
@@ -104,17 +222,17 @@ pub async fn list_content_reports(
         )
         .send()
         .await
-        .context("관리자 content_reports SELECT 요청 실패")?;
+        .context("관리자 신고 목록 view SELECT 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
-        return Err(anyhow!("관리자 content_reports SELECT 실패: {}", body));
+        return Err(anyhow!("관리자 신고 목록 view SELECT 실패: {}", body));
     }
 
     let rows: Vec<AdminContentReport> = res
         .json()
         .await
-        .context("관리자 content_reports SELECT 응답 역직렬화 실패")?;
+        .context("관리자 신고 목록 view SELECT 응답 역직렬화 실패")?;
 
     Ok(rows.into_iter().map(to_report_response).collect())
 }
@@ -128,6 +246,15 @@ pub async fn list_content_reports(
 /// - status: resolved 또는 rejected
 /// - reviewed_at: 현재 시각
 /// - reviewed_by: 처리한 관리자 user_id
+///
+/// 중요:
+/// PATCH 대상은 실제 테이블인 content_reports다.
+/// view는 조회용으로만 사용한다.
+///
+/// 처리 후 반환:
+/// - PATCH 결과를 그대로 반환하지 않는다.
+/// - PATCH 결과에는 reporter_nickname, reporter_email이 없기 때문이다.
+/// - 그래서 PATCH 성공 후 view에서 다시 단건 조회해서 반환한다.
 async fn update_content_report_status(
     state: &AppState,
     admin_id: Uuid,
@@ -144,11 +271,14 @@ async fn update_content_report_status(
         .http_client
         .patch(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Prefer", "return=representation")
         .json(&serde_json::json!({
             "status": status,
-            "reviewed_at": Utc::now(),
+            "reviewed_at": Utc::now().to_rfc3339(),
             "reviewed_by": admin_id
         }))
         .send()
@@ -160,17 +290,9 @@ async fn update_content_report_status(
         return Err(anyhow!("관리자 신고 상태 변경 실패: {}", body));
     }
 
-    let rows: Vec<AdminContentReport> = res
-        .json()
-        .await
-        .context("관리자 신고 상태 변경 응답 파싱 실패")?;
-
-    let row = rows
-        .into_iter()
-        .next()
-        .ok_or_else(|| anyhow!("신고를 찾을 수 없습니다."))?;
-
-    Ok(to_report_response(row))
+    // PATCH가 성공했다면 최종 응답은 view에서 다시 조회한다.
+    // 그래야 reporter_nickname, reporter_email이 포함된다.
+    get_content_report_from_view_by_id(state, report_id).await
 }
 
 /// 관리자: 신고 처리 완료
@@ -210,6 +332,10 @@ pub async fn reject_content_report(
 // 회원 관리
 // ─────────────────────────────────────────────
 
+/// 관리자: 회원 목록 조회
+///
+/// keyword가 있으면 nickname 또는 email 기준으로 검색한다.
+/// 최대 100개를 최신 가입순으로 조회한다.
 pub async fn list_users(
     state: &AppState,
     keyword: Option<String>,
@@ -237,7 +363,10 @@ pub async fn list_users(
         .http_client
         .get(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .send()
         .await
         .context("관리자 회원 목록 조회 요청 실패")?;
@@ -255,6 +384,10 @@ pub async fn list_users(
     Ok(rows.into_iter().map(to_user_response).collect())
 }
 
+/// 관리자: 회원 활성/비활성 변경
+///
+/// is_active = true  -> 활성
+/// is_active = false -> 비활성
 pub async fn update_user_active(
     state: &AppState,
     user_id: Uuid,
@@ -270,11 +403,14 @@ pub async fn update_user_active(
         .http_client
         .patch(&url)
         .header("apikey", &state.config.supabase_secret_key)
-        .header("Authorization", format!("Bearer {}", state.config.supabase_secret_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
         .header("Prefer", "return=representation")
         .json(&serde_json::json!({
             "is_active": is_active,
-            "updated_at": Utc::now()
+            "updated_at": Utc::now().to_rfc3339()
         }))
         .send()
         .await
@@ -296,4 +432,252 @@ pub async fn update_user_active(
         .ok_or_else(|| anyhow!("회원을 찾을 수 없습니다."))?;
 
     Ok(to_user_response(row))
+}
+
+// ─────────────────────────────────────────────
+// 공지사항 관리
+// ─────────────────────────────────────────────
+
+/// 공지사항 제목/내용 유효성 검사
+///
+/// 관리자 공지는 빈 제목/빈 내용을 허용하지 않는다.
+/// 프론트에서도 막겠지만, 백엔드에서도 반드시 한 번 더 검증한다.
+fn validate_notice_input(title: &str, content: &str) -> Result<()> {
+    if title.trim().is_empty() {
+        return Err(anyhow!("공지 제목을 입력해 주세요."));
+    }
+
+    if content.trim().is_empty() {
+        return Err(anyhow!("공지 내용을 입력해 주세요."));
+    }
+
+    Ok(())
+}
+
+/// 관리자: 공지사항 목록 조회
+///
+/// posts 테이블에서 post_type = 'notice'이고 삭제되지 않은 글만 조회한다.
+pub async fn list_notices(state: &AppState) -> Result<Vec<AdminNoticeResponse>> {
+    let url = format!(
+        "{}/rest/v1/posts?select=id,user_id,title,content,post_type,view_count,is_deleted,deleted_at,created_at,updated_at&post_type=eq.notice&is_deleted=eq.false&order=created_at.desc&limit=100",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("관리자 공지사항 목록 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 공지사항 목록 조회 실패: {}", body));
+    }
+
+    let rows: Vec<AdminNotice> = res
+        .json()
+        .await
+        .context("관리자 공지사항 목록 응답 파싱 실패")?;
+
+    Ok(rows.into_iter().map(to_notice_response).collect())
+}
+
+/// 관리자: 공지사항 생성
+///
+/// user_id는 현재 관리자 ID로 저장한다.
+/// post_type은 프론트에서 받지 않고 백엔드에서 notice로 고정한다.
+pub async fn create_notice(
+    state: &AppState,
+    admin_id: Uuid,
+    req: CreateAdminNoticeRequest,
+) -> Result<AdminNoticeResponse> {
+    validate_notice_input(&req.title, &req.content)?;
+
+    let url = format!(
+        "{}/rest/v1/posts",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let now = Utc::now().to_rfc3339();
+
+    let payload = serde_json::json!([{
+        "user_id": admin_id,
+        "title": req.title.trim(),
+        "content": req.content.trim(),
+        "post_type": "notice",
+        "is_deleted": false,
+        "view_count": 0,
+        "created_at": now,
+        "updated_at": now
+    }]);
+
+    let res = state
+        .http_client
+        .post(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=representation")
+        .json(&payload)
+        .send()
+        .await
+        .context("관리자 공지사항 생성 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 공지사항 생성 실패: {}", body));
+    }
+
+    let rows: Vec<AdminNotice> = res
+        .json()
+        .await
+        .context("관리자 공지사항 생성 응답 파싱 실패")?;
+
+    let row = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("생성된 공지사항을 확인할 수 없습니다."))?;
+
+    Ok(to_notice_response(row))
+}
+
+/// 관리자: 공지사항 수정
+///
+/// post_type = notice인 글만 수정한다.
+/// 일반 게시글을 실수로 수정하지 않기 위해 id와 post_type을 같이 조건으로 건다.
+pub async fn update_notice(
+    state: &AppState,
+    notice_id: Uuid,
+    req: UpdateAdminNoticeRequest,
+) -> Result<AdminNoticeResponse> {
+    let mut patch = serde_json::Map::new();
+
+    if let Some(title) = req.title {
+        if title.trim().is_empty() {
+            return Err(anyhow!("공지 제목을 입력해 주세요."));
+        }
+
+        patch.insert("title".to_string(), serde_json::json!(title.trim()));
+    }
+
+    if let Some(content) = req.content {
+        if content.trim().is_empty() {
+            return Err(anyhow!("공지 내용을 입력해 주세요."));
+        }
+
+        patch.insert("content".to_string(), serde_json::json!(content.trim()));
+    }
+
+    if patch.is_empty() {
+        return Err(anyhow!("수정할 공지사항 내용이 없습니다."));
+    }
+
+    patch.insert(
+        "updated_at".to_string(),
+        serde_json::json!(Utc::now().to_rfc3339()),
+    );
+
+    let url = format!(
+        "{}/rest/v1/posts?id=eq.{}&post_type=eq.notice&is_deleted=eq.false",
+        state.config.supabase_url.trim_end_matches('/'),
+        notice_id
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=representation")
+        .json(&patch)
+        .send()
+        .await
+        .context("관리자 공지사항 수정 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 공지사항 수정 실패: {}", body));
+    }
+
+    let rows: Vec<AdminNotice> = res
+        .json()
+        .await
+        .context("관리자 공지사항 수정 응답 파싱 실패")?;
+
+    let row = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("공지사항을 찾을 수 없습니다."))?;
+
+    Ok(to_notice_response(row))
+}
+
+/// 관리자: 공지사항 삭제
+///
+/// 물리 삭제하지 않고 soft delete 처리한다.
+///
+/// 처리:
+/// - is_deleted = true
+/// - deleted_at = now()
+/// - updated_at = now()
+pub async fn delete_notice(
+    state: &AppState,
+    notice_id: Uuid,
+) -> Result<AdminNoticeResponse> {
+    let url = format!(
+        "{}/rest/v1/posts?id=eq.{}&post_type=eq.notice&is_deleted=eq.false",
+        state.config.supabase_url.trim_end_matches('/'),
+        notice_id
+    );
+
+    let now = Utc::now().to_rfc3339();
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=representation")
+        .json(&serde_json::json!({
+            "is_deleted": true,
+            "deleted_at": now,
+            "updated_at": now
+        }))
+        .send()
+        .await
+        .context("관리자 공지사항 삭제 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 공지사항 삭제 실패: {}", body));
+    }
+
+    let rows: Vec<AdminNotice> = res
+        .json()
+        .await
+        .context("관리자 공지사항 삭제 응답 파싱 실패")?;
+
+    let row = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("공지사항을 찾을 수 없습니다."))?;
+
+    Ok(to_notice_response(row))
 }

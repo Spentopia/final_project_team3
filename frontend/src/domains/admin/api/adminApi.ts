@@ -1,19 +1,15 @@
 // src/domains/admin/api/adminApi.ts
 //
-// 관리자 페이지 전용 API 모음
+// 관리자 API 호출 모음.
 //
 // 현재 포함 기능:
 // 1. 신고 관리
-//    - 신고 목록 조회
-//    - 신고 처리 완료
-//    - 신고 반려
-//
 // 2. 회원 관리
-//    - 회원 목록 조회
-//    - 회원 활성/비활성 변경
+// 3. 공지사항 관리
 //
-// 일반 사용자가 신고를 접수하는 API는
-// communityApi.ts의 createContentReport()에서 처리한다.
+// 주의:
+// - 백엔드 신고 상세 컬럼명은 description이 아니라 detail이다.
+// - 공지사항은 posts 테이블의 post_type = 'notice'를 사용한다.
 
 import {apiClient} from "@/shared/api/client.ts";
 
@@ -56,33 +52,47 @@ export type ContentReportReason =
     | "spam"
     | "other";
 
-// ─────────────────────────────────────────────
-// 신고 관리 타입
-// ─────────────────────────────────────────────
-
-export interface AdminContentReportResponse {
+// 관리자 신고 응답 타입
+//
+// 백엔드 AdminContentReportResponse와 맞춰야 한다.
+//
+// 목록에서는:
+// - reporter_nickname을 메인으로 표시
+// - reporter_email이 있으면 보조 표시
+// - 이메일이 없으면 reporter_id 일부 표시
+//
+// 상세 모달에서는:
+// - reporter_nickname
+// - reporter_email
+// - reporter_id 전체
+// 를 분리해서 보여준다.
+export type AdminContentReportResponse = {
     // 신고 ID
     id: string;
 
-    // 신고한 사용자 ID
+    // 신고자 ID
     reporter_id: string;
+
+    // 신고자 닉네임
+    // 탈퇴 유저이거나 users row join 실패 시 null 가능
+    reporter_nickname: string | null;
+
+    // 신고자 이메일
+    // 소셜 계정 정책에 따라 null 가능
+    reporter_email: string | null;
 
     // 신고 대상 타입
     target_type: ContentReportTargetType;
 
     // 신고 대상 ID
-    //
-    // target_type에 따라 의미가 달라짐:
-    // - post          → posts.id
-    // - comment       → comments.id
-    // - user_nickname → users.id
-    // - user_profile  → users.id
     target_id: string;
 
     // 신고 사유
     reason: ContentReportReason;
 
     // 신고 상세 내용
+    // DB 실제 컬럼명: detail
+    // description 아님
     detail: string | null;
 
     // 신고 처리 상태
@@ -96,7 +106,7 @@ export interface AdminContentReportResponse {
 
     // 처리한 관리자 ID
     reviewed_by: string | null;
-}
+};
 
 // ─────────────────────────────────────────────
 // 회원 관리 타입
@@ -147,6 +157,34 @@ export interface AdminUserResponse {
 }
 
 // ─────────────────────────────────────────────
+// 공지사항 관리 타입
+// ─────────────────────────────────────────────
+
+export type AdminNoticeResponse = {
+    id: string;
+    user_id: string;
+    title: string;
+    content: string;
+    post_type: "notice" | string;
+    view_count: number;
+    is_deleted: boolean;
+    deleted_at: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+};
+
+export type CreateAdminNoticeRequest = {
+    title: string;
+    content: string;
+};
+
+export type UpdateAdminNoticeRequest = {
+    title?: string;
+    content?: string;
+};
+
+
+// ─────────────────────────────────────────────
 // 신고 관리 API
 // ─────────────────────────────────────────────
 
@@ -172,36 +210,26 @@ export async function listAdminContentReports(
 }
 
 // 신고 처리 완료
-//
-// 관리자 페이지에서 "처리" 버튼을 눌렀을 때 호출.
-// 백엔드는 status = "resolved",
-// reviewed_at = 현재 시각,
-// reviewed_by = 현재 관리자 user_id 로 업데이트.
-export async function resolveAdminContentReport(
-    id: string
-): Promise<AdminContentReportResponse> {
-    const res = await apiClient.patch<AdminContentReportResponse>(
-        `/api/admin/content-reports/${id}/resolve`
+export const resolveAdminContentReport = async (
+    reportId: string
+): Promise<AdminContentReportResponse> => {
+    const res = await apiClient.patch(
+        `/api/admin/content-reports/${reportId}/resolve`
     );
 
     return res.data;
-}
+};
 
 // 신고 반려
-//
-// 관리자 페이지에서 "반려" 버튼을 눌렀을 때 호출.
-// 백엔드는 status = "rejected",
-// reviewed_at = 현재 시각,
-// reviewed_by = 현재 관리자 user_id 로 업데이트.
-export async function rejectAdminContentReport(
-    id: string
-): Promise<AdminContentReportResponse> {
-    const res = await apiClient.patch<AdminContentReportResponse>(
-        `/api/admin/content-reports/${id}/reject`
+export const rejectAdminContentReport = async (
+    reportId: string
+): Promise<AdminContentReportResponse> => {
+    const res = await apiClient.patch(
+        `/api/admin/content-reports/${reportId}/reject`
     );
 
     return res.data;
-}
+};
 
 // ─────────────────────────────────────────────
 // 회원 관리 API
@@ -252,3 +280,38 @@ export async function updateAdminUserActive(
 
     return res.data;
 }
+
+// ─────────────────────────────────────────────
+// 공지사항 관리 API
+// ─────────────────────────────────────────────
+
+export const listAdminNotices = async (): Promise<AdminNoticeResponse[]> => {
+    const res = await apiClient.get("/api/admin/notices");
+
+    return res.data;
+};
+
+export const createAdminNotice = async (
+    payload: CreateAdminNoticeRequest
+): Promise<AdminNoticeResponse> => {
+    const res = await apiClient.post("/api/admin/notices", payload);
+
+    return res.data;
+};
+
+export const updateAdminNotice = async (
+    noticeId: string,
+    payload: UpdateAdminNoticeRequest
+): Promise<AdminNoticeResponse> => {
+    const res = await apiClient.patch(`/api/admin/notices/${noticeId}`, payload);
+
+    return res.data;
+};
+
+export const deleteAdminNotice = async (
+    noticeId: string
+): Promise<AdminNoticeResponse> => {
+    const res = await apiClient.delete(`/api/admin/notices/${noticeId}`);
+
+    return res.data;
+};

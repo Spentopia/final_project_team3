@@ -28,6 +28,10 @@ use crate::wallet;
         crate::admin::handler::reject_content_report,
         crate::admin::handler::list_users,
         crate::admin::handler::update_user_active,
+        crate::admin::handler::list_notices,
+        crate::admin::handler::create_notice,
+        crate::admin::handler::update_notice,
+        crate::admin::handler::delete_notice,
 
         // ── 인증 ──────────────────────────────────────────────
         crate::auth::handler::request_nonce,
@@ -118,6 +122,9 @@ use crate::wallet;
             admin::dto::AdminContentReportResponse,
             admin::dto::AdminUserResponse,
             admin::dto::UpdateUserActiveRequest,
+            admin::dto::AdminNoticeResponse,
+            admin::dto::CreateAdminNoticeRequest,
+            admin::dto::UpdateAdminNoticeRequest,
 
             // ── auth DTO ──────────────────────────────────────
             auth::dto::NonceRequest,

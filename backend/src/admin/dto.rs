@@ -32,7 +32,23 @@ pub struct AdminContentReportResponse {
     pub id: Uuid,
 
     // 신고한 사용자 ID
+    //
+    // 상세 모달이나 운영 추적용으로 필요하다.
+    // 목록에서는 이 ID를 메인으로 보여주기보다,
+    // reporter_nickname / reporter_email을 우선 보여주는 게 좋다.
     pub reporter_id: Uuid,
+
+    // 신고자 닉네임
+    //
+    // public.users.nickname에서 가져온 값.
+    // 탈퇴 유저이거나 users row가 없으면 null일 수 있다.
+    pub reporter_nickname: Option<String>,
+
+    // 신고자 이메일
+    //
+    // public.users.email에서 가져온 값.
+    // 소셜 로그인 정책이나 임시 계정에 따라 null일 수 있다.
+    pub reporter_email: Option<String>,
 
     // 신고 대상 타입
     pub target_type: String,
@@ -55,6 +71,9 @@ pub struct AdminContentReportResponse {
     pub reason: String,
 
     // 신고자가 작성한 상세 설명
+    //
+    // 실제 DB 컬럼명은 detail이다.
+    // description이 아님.
     pub detail: Option<String>,
 
     // 신고 처리 상태
@@ -95,4 +114,78 @@ pub struct AdminUserResponse {
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct UpdateUserActiveRequest {
     pub is_active: bool,
+}
+
+// ─────────────────────────────────────────────
+// 공지사항 관리 DTO
+// ─────────────────────────────────────────────
+//
+// 공지사항은 posts 테이블을 재사용한다.
+// post_type = 'notice'인 row만 관리자 공지사항으로 본다.
+//
+// posts 주요 매핑:
+// - id
+// - user_id: 작성 관리자 ID
+// - title
+// - content
+// - post_type = 'notice'
+// - view_count
+// - is_deleted
+// - deleted_at
+// - created_at
+// - updated_at
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AdminNoticeResponse {
+    // 공지 게시글 ID
+    pub id: Uuid,
+
+    // 작성 관리자 ID
+    pub user_id: Uuid,
+
+    // 공지 제목
+    pub title: String,
+
+    // 공지 내용
+    pub content: String,
+
+    // 항상 notice여야 한다.
+    pub post_type: String,
+
+    // 조회수
+    pub view_count: i32,
+
+    // 삭제 여부
+    pub is_deleted: bool,
+
+    // 삭제 시각
+    pub deleted_at: Option<DateTime<Utc>>,
+
+    // 생성 시각
+    pub created_at: Option<DateTime<Utc>>,
+
+    // 수정 시각
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+/// 공지사항 생성 요청
+///
+/// 관리자 화면에서 공지 작성할 때 사용한다.
+/// user_id, post_type 등은 프론트에서 받지 않고 백엔드에서 강제로 세팅한다.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CreateAdminNoticeRequest {
+    pub title: String,
+    pub content: String,
+}
+
+/// 공지사항 수정 요청
+///
+/// 둘 다 Option인 이유:
+/// - 제목만 수정 가능
+/// - 내용만 수정 가능
+/// - 둘 다 수정 가능
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UpdateAdminNoticeRequest {
+    pub title: Option<String>,
+    pub content: Option<String>,
 }

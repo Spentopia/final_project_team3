@@ -68,6 +68,7 @@ fn map_community_error(error: anyhow::Error) -> axum::response::Response {
         || message.contains("사용할 수 없는 표현")
         || message.contains("댓글 내용")
         || message.contains("공지사항에는 댓글")
+        || message.contains("공지사항은 신고")
         || message.contains("자 이내")
         || message.contains("이미 신고한 콘텐츠")
         || message.contains("지원하지 않는 신고 대상")

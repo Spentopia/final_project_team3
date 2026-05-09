@@ -115,7 +115,21 @@ export default function AdminDashboard({
 
                 {!isReportsLoading && recentReports.length > 0 && (
                     <div className="overflow-hidden rounded-xl border border-border">
-                        <table className="w-full text-sm">
+                        <table className="w-full table-fixed text-sm">
+                            <colgroup>
+                                {/* 상태 */}
+                                <col className="w-[110px]" />
+
+                                {/* 대상 */}
+                                <col className="w-[130px]" />
+
+                                {/* 사유 */}
+                                <col className="w-[150px]" />
+
+                                {/* 신고일 */}
+                                <col className="w-[170px]" />
+                            </colgroup>
+
                             <thead className="bg-[var(--surface-subtle)] text-left text-muted-foreground">
                             <tr>
                                 <th className="px-4 py-3">상태</th>
@@ -148,24 +162,21 @@ export default function AdminDashboard({
                                     </td>
 
                                     <td className="px-4 py-3">
-                                        {
-                                            TARGET_TYPE_LABEL[
-                                                report.target_type
-                                                ]
-                                        }
+                                      <span className="block truncate">
+                                        {TARGET_TYPE_LABEL[report.target_type]}
+                                      </span>
                                     </td>
 
                                     <td className="px-4 py-3">
+                                      <span className="block truncate">
                                         {REASON_LABEL[report.reason]}
+                                      </span>
                                     </td>
 
                                     <td className="px-4 py-3 text-muted-foreground">
-                                        {formatDateTime(
-                                            getTextValue(report, [
-                                                "created_at",
-                                                "createdAt",
-                                            ])
-                                        )}
+                                      <span className="block truncate">
+                                        {formatDateTime(report.created_at)}
+                                      </span>
                                     </td>
                                 </tr>
                             ))}

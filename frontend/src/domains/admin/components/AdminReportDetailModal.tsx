@@ -17,7 +17,6 @@ import type { AdminContentReportResponse } from "@/domains/admin/api/adminApi";
 
 import {
     formatDateTime,
-    getTextValue,
     REASON_LABEL,
     REPORT_STATUS_LABEL,
     REPORT_STATUS_STYLE,
@@ -43,19 +42,9 @@ export default function AdminReportDetailModal({
     const isProcessing = processingId === report.id;
     const isPending = report.status === "pending";
 
-    const targetId = getTextValue(report, ["target_id"]);
-    const reporterText = getTextValue(report, [
-        "reporter_nickname",
-        "reporter_email",
-        "reporter_id",
-        "user_id",
-    ]);
-
-    const detailText = getTextValue(
-        report,
-        ["description", "content", "detail", "reason_detail"],
-        "상세 내용이 없습니다."
-    );
+    const detailText = report.detail?.trim()
+        ? report.detail
+        : "상세 내용이 없습니다.";
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -66,9 +55,7 @@ export default function AdminReportDetailModal({
                             Report Detail
                         </p>
 
-                        <h3 className="mt-1 text-xl font-extrabold">
-                            신고 상세
-                        </h3>
+                        <h3 className="mt-1 text-xl font-extrabold">신고 상세</h3>
                     </div>
 
                     <button
@@ -82,88 +69,96 @@ export default function AdminReportDetailModal({
 
                 <div className="space-y-3 text-sm">
                     <div className="flex justify-between gap-4 border-b border-border pb-2">
-                        <span className="text-muted-foreground">
-                            상태
-                        </span>
+                        <span className="text-muted-foreground">상태</span>
 
                         <span
                             className={`rounded-full px-2 py-1 text-xs font-bold ${
                                 REPORT_STATUS_STYLE[report.status]
                             }`}
                         >
-                            {REPORT_STATUS_LABEL[report.status]}
-                        </span>
+              {REPORT_STATUS_LABEL[report.status]}
+            </span>
                     </div>
 
                     <div className="flex justify-between gap-4 border-b border-border pb-2">
-                        <span className="text-muted-foreground">
-                            신고 대상
-                        </span>
+                        <span className="text-muted-foreground">신고 대상</span>
 
-                        <span>
-                            {TARGET_TYPE_LABEL[report.target_type]}
-                        </span>
+                        <span>{TARGET_TYPE_LABEL[report.target_type]}</span>
                     </div>
 
                     <div className="flex justify-between gap-4 border-b border-border pb-2">
-                        <span className="text-muted-foreground">
-                            신고 사유
-                        </span>
+                        <span className="text-muted-foreground">신고 사유</span>
 
-                        <span>
-                            {REASON_LABEL[report.reason]}
-                        </span>
+                        <span>{REASON_LABEL[report.reason]}</span>
                     </div>
 
                     <div className="flex justify-between gap-4 border-b border-border pb-2">
-                        <span className="text-muted-foreground">
-                            신고 ID
-                        </span>
+                        <span className="text-muted-foreground">신고 ID</span>
 
-                        <span title={report.id}>
-                            {shortId(report.id)}
-                        </span>
+                        <span title={report.id}>{shortId(report.id)}</span>
+                    </div>
+
+                    {/* 신고자 닉네임 */}
+                    <div className="flex justify-between gap-4 border-b border-border pb-2">
+                        <span className="text-muted-foreground">신고자 닉네임</span>
+
+                        <span>{report.reporter_nickname || "닉네임 없음"}</span>
+                    </div>
+
+                    {/* 신고자 이메일 */}
+                    <div className="flex justify-between gap-4 border-b border-border pb-2">
+                        <span className="text-muted-foreground">신고자 이메일</span>
+
+                        <span>{report.reporter_email || "이메일 없음"}</span>
+                    </div>
+
+                    {/* 신고자 ID 전체 */}
+                    <div className="flex justify-between gap-4 border-b border-border pb-2">
+                        <span className="text-muted-foreground">신고자 ID</span>
+
+                        <span className="max-w-[320px] truncate" title={report.reporter_id}>
+              {report.reporter_id}
+            </span>
+                    </div>
+
+                    {/* 신고 대상 ID 전체 */}
+                    <div className="flex justify-between gap-4 border-b border-border pb-2">
+                        <span className="text-muted-foreground">대상 ID</span>
+
+                        <span className="max-w-[320px] truncate" title={report.target_id}>
+              {report.target_id}
+            </span>
                     </div>
 
                     <div className="flex justify-between gap-4 border-b border-border pb-2">
-                        <span className="text-muted-foreground">
-                            신고자
-                        </span>
+                        <span className="text-muted-foreground">신고일</span>
 
-                        <span>
-                            {reporterText}
-                        </span>
+                        <span>{formatDateTime(report.created_at)}</span>
                     </div>
 
-                    <div className="flex justify-between gap-4 border-b border-border pb-2">
-                        <span className="text-muted-foreground">
-                            대상 ID
-                        </span>
+                    {report.reviewed_at && (
+                        <div className="flex justify-between gap-4 border-b border-border pb-2">
+                            <span className="text-muted-foreground">처리일</span>
 
-                        <span title={targetId}>
-                            {shortId(targetId)}
-                        </span>
-                    </div>
+                            <span>{formatDateTime(report.reviewed_at)}</span>
+                        </div>
+                    )}
 
-                    <div className="flex justify-between gap-4 border-b border-border pb-2">
-                        <span className="text-muted-foreground">
-                            신고일
-                        </span>
+                    {report.reviewed_by && (
+                        <div className="flex justify-between gap-4 border-b border-border pb-2">
+                            <span className="text-muted-foreground">처리 관리자 ID</span>
 
-                        <span>
-                            {formatDateTime(
-                                getTextValue(report, [
-                                    "created_at",
-                                    "createdAt",
-                                ])
-                            )}
-                        </span>
-                    </div>
+                            <span
+                                className="max-w-[320px] truncate"
+                                title={report.reviewed_by}
+                            >
+                {report.reviewed_by}
+              </span>
+                        </div>
+                    )}
 
                     <div className="rounded-xl bg-[var(--surface-subtle)] p-4">
-                        <p className="mb-2 font-semibold">
-                            신고 상세 내용
-                        </p>
+                        <p className="mb-2 font-semibold">신고 상세 내용</p>
 
                         <p className="whitespace-pre-wrap text-muted-foreground">
                             {detailText}

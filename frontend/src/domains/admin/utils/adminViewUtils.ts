@@ -152,3 +152,57 @@ export function getTextValue(
 
     return fallback;
 }
+
+// ─────────────────────────────────────────────
+// 신고자 메인 표시값
+// ─────────────────────────────────────────────
+//
+// 실무 관리자 화면에서는 UUID보다 사람이 읽을 수 있는 값이 먼저 보여야 한다.
+//
+// 우선순위:
+// 1. reporter_nickname
+// 2. reporter_email
+// 3. reporter_id 일부
+//
+// 예:
+// 김은영
+// 또는 email@example.com
+// 또는 c8e25294...
+
+export function getReporterPrimaryText(report: AdminContentReportResponse) {
+    if (report.reporter_nickname?.trim()) {
+        return report.reporter_nickname;
+    }
+
+    if (report.reporter_email?.trim()) {
+        return report.reporter_email;
+    }
+
+    return shortId(report.reporter_id);
+}
+
+// ─────────────────────────────────────────────
+// 신고자 보조 표시값
+// ─────────────────────────────────────────────
+//
+// 목록 테이블에서는 보통 이렇게 보여준다.
+//
+// 메인 줄:
+// - 닉네임
+//
+// 보조 줄:
+// - 이메일
+// - 이메일이 없으면 ID 일부
+//
+// 닉네임과 이메일이 같은 값이면 중복 표시하지 않는다.
+
+export function getReporterSecondaryText(report: AdminContentReportResponse) {
+    const nickname = report.reporter_nickname?.trim();
+    const email = report.reporter_email?.trim();
+
+    if (email && email !== nickname) {
+        return email;
+    }
+
+    return shortId(report.reporter_id);
+}

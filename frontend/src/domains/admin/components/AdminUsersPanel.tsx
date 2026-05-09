@@ -72,7 +72,33 @@ export default function AdminUsersPanel({
 
             {!isUsersLoading && users.length > 0 && (
                 <div className="overflow-hidden rounded-xl border border-border">
-                    <table className="w-full text-sm">
+                    {/*
+                        table-fixed + colgroup 사용 이유:
+                        - 헤더와 본문 셀의 너비를 고정해서 칸이 흔들리지 않게 함
+                        - 이메일처럼 긴 문자열이 있어도 다른 컬럼을 밀지 않게 함
+                        - 관리자 테이블은 정렬감이 중요하므로 자동 너비보다 고정 너비가 안정적임
+                      */}
+                    <table className="w-full table-fixed text-sm">
+                        <colgroup>
+                            {/* 닉네임 */}
+                            <col className="w-[18%]" />
+
+                            {/* 이메일 */}
+                            <col className="w-[30%]" />
+
+                            {/* 가입일 */}
+                            <col className="w-[18%]" />
+
+                            {/* 상태 */}
+                            <col className="w-[11%]" />
+
+                            {/* 역할 */}
+                            <col className="w-[10%]" />
+
+                            {/* 관리 */}
+                            <col className="w-[13%]" />
+                        </colgroup>
+
                         <thead className="bg-[var(--surface-subtle)] text-left text-muted-foreground">
                         <tr>
                             <th className="px-4 py-3">닉네임</th>
@@ -92,47 +118,60 @@ export default function AdminUsersPanel({
                                 key={user.id}
                                 className="border-t border-border"
                             >
-                                <td className="px-4 py-3 font-medium">
-                                    {getTextValue(user, ["nickname"])}
+                                {/* 닉네임 */}
+                                <td className="px-4 py-3 align-middle font-medium">
+                                    <span
+                                        className="block truncate"
+                                        title={getTextValue(user, ["nickname"])}
+                                    >
+                                      {getTextValue(user, ["nickname"])}
+                                    </span>
                                 </td>
 
-                                <td className="px-4 py-3 text-muted-foreground">
-                                    {getTextValue(user, ["email"])}
+                                {/* 이메일 */}
+                                <td className="px-4 py-3 align-middle text-muted-foreground">
+                                    <span
+                                        className="block truncate"
+                                        title={getTextValue(user, ["email"])}
+                                    >
+                                      {getTextValue(user, ["email"])}
+                                    </span>
                                 </td>
 
-                                <td className="px-4 py-3 text-muted-foreground">
-                                    {formatDateTime(
-                                        getTextValue(user, [
-                                            "created_at",
-                                            "createdAt",
-                                        ])
-                                    )}
+                                {/* 가입일 */}
+                                <td className="px-4 py-3 align-middle text-muted-foreground">
+                                    <span className="block truncate">
+                                      {formatDateTime(user.created_at)}
+                                    </span>
                                 </td>
 
-                                <td className="px-4 py-3">
-                                        <span
-                                            className={`rounded-full px-2 py-1 text-xs font-bold ${
-                                                user.is_active
-                                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                                    : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                                            }`}
-                                        >
-                                            {user.is_active ? "활성" : "비활성"}
-                                        </span>
+                                {/* 상태 */}
+                                <td className="px-4 py-3 align-middle">
+                                    <span
+                                        className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${
+                                            user.is_active
+                                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                                : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                        }`}
+                                    >
+                                      {user.is_active ? "활성" : "비활성"}
+                                    </span>
                                 </td>
 
-                                <td className="px-4 py-3 text-muted-foreground">
-                                    {getTextValue(user, ["role_type"], "user")}
+                                {/* 역할 */}
+                                <td className="px-4 py-3 align-middle text-muted-foreground">
+                                    <span className="block truncate">
+                                      {getTextValue(user, ["role_type"], "user")}
+                                    </span>
                                 </td>
 
-                                <td className="px-4 py-3">
+                                {/* 관리 */}
+                                <td className="px-4 py-3 align-middle">
                                     <div className="flex justify-end">
                                         <button
                                             type="button"
                                             disabled={processingId === user.id}
-                                            onClick={() =>
-                                                onToggleUserActive(user)
-                                            }
+                                            onClick={() => onToggleUserActive(user)}
                                             className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
                                                 user.is_active
                                                     ? "bg-gray-500 hover:bg-gray-600"
