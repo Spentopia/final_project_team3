@@ -8,12 +8,10 @@
 // - 공지사항 수정
 // - 공지사항 삭제
 //
-// 데이터 조회/API 호출은 여기서 직접 하지 않는다.
-// 상위 AdminPage가 notices 상태와 handler를 props로 내려준다.
-//
-// 이 방식은 실무에서 많이 쓰는 Container + Presentational 구조다.
-// - AdminPage: 상태/API 담당
-// - AdminNoticesPanel: 화면/UI 담당
+// 이번 수정:
+// - 작성 카드와 목록 카드 비율을 1:1로 변경
+// - 공지 목록 테이블을 부드러운 관리자 테이블 스타일로 정리
+// - 제목은 제목만 표시하고 truncate 처리
 
 import { useEffect, useState } from "react";
 
@@ -44,23 +42,14 @@ export default function AdminNoticesPanel({
                                               onUpdateNotice,
                                               onDeleteNotice,
                                           }: AdminNoticesPanelProps) {
-    // 현재 수정 중인 공지 ID
-    //
-    // null이면 새 공지 작성 모드.
-    // 값이 있으면 해당 공지 수정 모드.
     const [editingNoticeId, setEditingNoticeId] = useState<string | null>(null);
 
-    // 폼 입력값
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
 
-    // 수정 모드 여부
     const isEditing = editingNoticeId !== null;
-
-    // 수정 중인 공지 객체
     const editingNotice = notices.find((notice) => notice.id === editingNoticeId);
 
-    // editingNoticeId가 바뀔 때 폼에 기존 공지 내용을 채운다.
     useEffect(() => {
         if (!editingNotice) {
             return;
@@ -70,14 +59,12 @@ export default function AdminNoticesPanel({
         setContent(editingNotice.content);
     }, [editingNotice]);
 
-    // 폼 초기화
     const resetForm = () => {
         setEditingNoticeId(null);
         setTitle("");
         setContent("");
     };
 
-    // 작성/수정 제출
     const handleSubmit = () => {
         const normalizedTitle = title.trim();
         const normalizedContent = content.trim();
@@ -124,9 +111,7 @@ export default function AdminNoticesPanel({
 
                 <div className="space-y-4">
                     <div>
-                        <label className="mb-2 block text-sm font-semibold">
-                            제목
-                        </label>
+                        <label className="mb-2 block text-sm font-semibold">제목</label>
 
                         <Input
                             value={title}
@@ -136,9 +121,7 @@ export default function AdminNoticesPanel({
                     </div>
 
                     <div>
-                        <label className="mb-2 block text-sm font-semibold">
-                            내용
-                        </label>
+                        <label className="mb-2 block text-sm font-semibold">내용</label>
 
                         <textarea
                             value={content}
@@ -200,56 +183,55 @@ export default function AdminNoticesPanel({
                 )}
 
                 {!isNoticesLoading && notices.length > 0 && (
-                    <div className="overflow-hidden rounded-xl border border-border">
+                    <div className="overflow-hidden rounded-2xl border border-border bg-white/60 dark:bg-gray-900/20">
                         <table className="w-full table-fixed text-sm">
                             <colgroup>
-                                {/* 제목 */}
                                 <col className="w-auto" />
-
-                                {/* 작성일 */}
                                 <col className="w-[160px]" />
-
-                                {/* 조회수 */}
                                 <col className="w-[90px]" />
-
-                                {/* 관리 */}
                                 <col className="w-[150px]" />
                             </colgroup>
 
-                            <thead className="bg-[var(--surface-subtle)] text-left text-muted-foreground">
+                            <thead className="bg-[var(--surface-subtle)] text-left text-sm font-bold text-muted-foreground">
                             <tr>
-                                <th className="px-4 py-3 pl-20">제목</th>
+                                <th className="px-4 py-3">제목</th>
                                 <th className="px-4 py-3">작성일</th>
-                                <th className="px-4 py-3">조회수</th>
+                                <th className="px-4 py-3 text-right">조회수</th>
                                 <th className="px-4 py-3 text-right">관리</th>
                             </tr>
                             </thead>
 
                             <tbody>
                             {notices.map((notice) => (
-                                <tr key={notice.id} className="border-t border-border">
-                                    <td className="px-4 py-3">
-                                      <span className="block truncate font-semibold text-foreground" title={notice.title}>
-                                        {notice.title}
-                                      </span>
+                                <tr
+                                    key={notice.id}
+                                    className="border-t border-border transition-colors hover:bg-[var(--surface-subtle)]/70"
+                                >
+                                    <td className="px-4 py-3 align-middle">
+                      <span
+                          className="block truncate font-semibold text-foreground"
+                          title={notice.title}
+                      >
+                        {notice.title}
+                      </span>
                                     </td>
 
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                      <span className="block truncate">
-                                        {formatDateTime(notice.created_at)}
-                                      </span>
+                                    <td className="px-4 py-3 align-middle text-muted-foreground">
+                      <span className="block truncate">
+                        {formatDateTime(notice.created_at)}
+                      </span>
                                     </td>
 
-                                    <td className="px-4 py-3 text-right text-muted-foreground">
+                                    <td className="px-4 py-3 align-middle text-right text-muted-foreground">
                                         {notice.view_count}
                                     </td>
 
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-3 align-middle">
                                         <div className="flex justify-end gap-2">
                                             <button
                                                 type="button"
                                                 onClick={() => setEditingNoticeId(notice.id)}
-                                                className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold transition hover:bg-[var(--surface-subtle)]"
+                                                className="rounded-lg border border-border bg-white/60 px-3 py-1.5 text-xs font-semibold transition hover:bg-[var(--surface-subtle)] dark:bg-gray-800/60"
                                             >
                                                 수정
                                             </button>

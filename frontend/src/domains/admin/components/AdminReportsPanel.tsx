@@ -9,15 +9,15 @@
 // - 처리 완료 버튼
 // - 반려 버튼
 //
-// 데이터 조회/API 호출은 여기서 하지 않는다.
-// 상위 AdminPage가 상태와 handler를 props로 내려준다.
-// 이 구조가 실무에서 흔한 "Container + Presentational Component" 패턴이다.
+// 이번 수정:
+// - 관리자 테이블 느낌은 유지
+// - row hover 추가
+// - 긴 텍스트 truncate 처리
+// - 테이블 외곽을 조금 더 부드럽게 정리
 
 import { Card } from "@/shared/ui/card";
 
-import type {
-    AdminContentReportResponse} from "@/domains/admin/api/adminApi";
-
+import type { AdminContentReportResponse } from "@/domains/admin/api/adminApi";
 import type { ReportStatusFilter } from "@/domains/admin/types/adminViewTypes";
 
 import {
@@ -85,7 +85,6 @@ export default function AdminReportsPanel({
                 <div className="mb-4 flex items-center justify-between">
                     <div>
                         <h3 className="text-lg font-bold">신고 목록</h3>
-
                         <p className="mt-1 text-sm text-muted-foreground">
                             신고를 확인하고 처리 상태를 변경합니다.
                         </p>
@@ -105,45 +104,37 @@ export default function AdminReportsPanel({
                 )}
 
                 {!isReportsLoading && reports.length > 0 && (
-                    <div className="overflow-hidden rounded-xl border border-border">
+                    <div className="overflow-hidden rounded-2xl border border-border bg-white/60 dark:bg-gray-900/20">
                         <table className="w-full table-fixed text-sm">
                             <colgroup>
-                                {/* 상태 */}
                                 <col className="w-[110px]" />
-
-                                {/* 신고대상 */}
                                 <col className="w-[120px]" />
-
-                                {/* 신고사유 */}
                                 <col className="w-[130px]" />
-
-                                {/* 신고자 */}
                                 <col className="w-[220px]" />
-
-                                {/* 신고일 */}
                                 <col className="w-[150px]" />
-
-                                {/* 처리 버튼 */}
                                 <col className="w-[230px]" />
                             </colgroup>
 
-                            <thead className="bg-[var(--surface-subtle)] text-left text-muted-foreground">
+                            <thead className="bg-[var(--surface-subtle)] text-left text-sm font-bold text-muted-foreground">
                             <tr>
-                                <th className="px-4 py-3 pl-7">상태</th>
-                                <th className="px-4 py-3 pl-2.5">신고대상</th>
-                                <th className="px-4 py-3 pl-2.5">신고사유</th>
-                                <th className="px-4 py-3 pl-7">신고자</th>
-                                <th className="px-4 py-3 pl-11">신고일</th>
-                                <th className="px-4 py-3 pr-22 text-right">처리</th>
+                                <th className="px-4 py-3">상태</th>
+                                <th className="px-4 py-3">신고대상</th>
+                                <th className="px-4 py-3">신고사유</th>
+                                <th className="px-4 py-3">신고자</th>
+                                <th className="px-4 py-3">신고일</th>
+                                <th className="px-4 py-3 text-right">처리</th>
                             </tr>
                             </thead>
 
                             <tbody>
                             {reports.map((report) => (
-                                <tr key={report.id} className="border-t border-border">
-                                    <td className="px-4 py-3">
+                                <tr
+                                    key={report.id}
+                                    className="border-t border-border transition-colors hover:bg-[var(--surface-subtle)]/70"
+                                >
+                                    <td className="px-4 py-3 align-middle">
                       <span
-                          className={`rounded-full px-2 py-1 text-xs font-bold ${
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${
                               REPORT_STATUS_STYLE[report.status]
                           }`}
                       >
@@ -151,16 +142,19 @@ export default function AdminReportsPanel({
                       </span>
                                     </td>
 
-                                    <td className="px-4 py-3">
-                                        {TARGET_TYPE_LABEL[report.target_type]}
+                                    <td className="px-4 py-3 align-middle">
+                      <span className="block truncate">
+                        {TARGET_TYPE_LABEL[report.target_type]}
+                      </span>
                                     </td>
 
-                                    <td className="px-4 py-3">
-                                        {REASON_LABEL[report.reason]}
+                                    <td className="px-4 py-3 align-middle">
+                      <span className="block truncate">
+                        {REASON_LABEL[report.reason]}
+                      </span>
                                     </td>
 
-                                    {/* 신고자 표시 */}
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-3 align-middle">
                                         <div className="flex min-w-0 flex-col">
                         <span className="truncate font-medium text-foreground">
                           {getReporterPrimaryText(report)}
@@ -175,16 +169,18 @@ export default function AdminReportsPanel({
                                         </div>
                                     </td>
 
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {formatDateTime(report.created_at)}
+                                    <td className="px-4 py-3 align-middle text-muted-foreground">
+                      <span className="block truncate">
+                        {formatDateTime(report.created_at)}
+                      </span>
                                     </td>
 
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-3 align-middle">
                                         <div className="flex justify-end gap-2">
                                             <button
                                                 type="button"
                                                 onClick={() => onSelectReport(report)}
-                                                className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold transition hover:bg-[var(--surface-subtle)]"
+                                                className="rounded-lg border border-border bg-white/60 px-3 py-1.5 text-xs font-semibold transition hover:bg-[var(--surface-subtle)] dark:bg-gray-800/60"
                                             >
                                                 상세
                                             </button>

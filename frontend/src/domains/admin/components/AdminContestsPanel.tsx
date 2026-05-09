@@ -8,8 +8,10 @@
 // - 콘테스트 수정
 // - 콘테스트 상태 변경
 //
-// 삭제 기능은 1차에서 제외한다.
-// contest_events 테이블에 is_deleted/deleted_at이 없기 때문.
+// 이번 수정:
+// - 생성 카드와 목록 카드 비율을 1:1로 변경
+// - 목록은 테이블 구조 유지
+// - 테이블 row hover와 soft table 스타일 적용
 
 import { useEffect, useState } from "react";
 
@@ -296,75 +298,81 @@ export default function AdminContestsPanel({
                 )}
 
                 {!isContestsLoading && contests.length > 0 && (
-                    <div className="overflow-x-auto rounded-xl border border-border">
-                        <div className="w-max min-w-[980px] text-sm">
-                            <div
-                                className="grid items-center bg-[var(--surface-subtle)] text-muted-foreground"
-                                style={{
-                                    gridTemplateColumns:
-                                        "220px 150px 150px 90px 180px 190px",
-                                }}
-                            >
-                                <div className="px-4 py-3 font-semibold">제목</div>
-                                <div className="px-4 py-3 font-semibold">시작일</div>
-                                <div className="px-4 py-3 font-semibold">종료일</div>
-                                <div className="px-4 py-3 font-semibold">상태</div>
-                                <div className="px-4 py-3 font-semibold">보상</div>
-                                <div className="px-4 py-3 text-right font-semibold">관리</div>
-                            </div>
+                    <div className="overflow-x-auto rounded-2xl border border-border bg-white/60 dark:bg-gray-900/20">
+                        <table className="min-w-[980px] w-full table-fixed text-sm">
+                            <colgroup>
+                                <col className="w-[220px]" />
+                                <col className="w-[150px]" />
+                                <col className="w-[150px]" />
+                                <col className="w-[90px]" />
+                                <col className="w-[180px]" />
+                                <col className="w-[190px]" />
+                            </colgroup>
 
+                            <thead className="bg-[var(--surface-subtle)] text-left text-sm font-bold text-muted-foreground">
+                            <tr>
+                                <th className="px-4 py-3">제목</th>
+                                <th className="px-4 py-3">시작일</th>
+                                <th className="px-4 py-3">종료일</th>
+                                <th className="px-4 py-3">상태</th>
+                                <th className="px-4 py-3">보상</th>
+                                <th className="px-4 py-3 text-right">관리</th>
+                            </tr>
+                            </thead>
+
+                            <tbody>
                             {contests.map((contest) => {
                                 const currentStatus = contest.status as AdminContestStatus;
 
                                 return (
-                                    <div
+                                    <tr
                                         key={contest.id}
-                                        className="grid items-center border-t border-border"
-                                        style={{
-                                            gridTemplateColumns:
-                                                "220px 150px 150px 90px 180px 190px",
-                                        }}
+                                        className="border-t border-border transition-colors hover:bg-[var(--surface-subtle)]/70"
                                     >
-                                        <div className="px-4 py-3 font-medium">
-                      <span className="block truncate" title={contest.title}>
-                        {contest.title}
-                      </span>
-                                        </div>
+                                        <td className="px-4 py-3 align-middle font-medium">
+                        <span className="block truncate" title={contest.title}>
+                          {contest.title}
+                        </span>
+                                        </td>
 
-                                        <div className="px-4 py-3 text-muted-foreground">
-                                            {formatDateTime(contest.start_date)}
-                                        </div>
+                                        <td className="px-4 py-3 align-middle text-muted-foreground">
+                        <span className="block truncate">
+                          {formatDateTime(contest.start_date)}
+                        </span>
+                                        </td>
 
-                                        <div className="px-4 py-3 text-muted-foreground">
-                                            {formatDateTime(contest.end_date)}
-                                        </div>
+                                        <td className="px-4 py-3 align-middle text-muted-foreground">
+                        <span className="block truncate">
+                          {formatDateTime(contest.end_date)}
+                        </span>
+                                        </td>
 
-                                        <div className="px-4 py-3">
-                      <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${
-                              STATUS_STYLE[currentStatus] ??
-                              "bg-gray-100 text-gray-600"
-                          }`}
-                      >
-                        {STATUS_LABEL[currentStatus] ?? contest.status}
-                      </span>
-                                        </div>
+                                        <td className="px-4 py-3 align-middle">
+                        <span
+                            className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${
+                                STATUS_STYLE[currentStatus] ??
+                                "bg-gray-100 text-gray-600"
+                            }`}
+                        >
+                          {STATUS_LABEL[currentStatus] ?? contest.status}
+                        </span>
+                                        </td>
 
-                                        <div className="px-4 py-3 text-muted-foreground">
-                      <span
-                          className="block truncate"
-                          title={contest.reward_description ?? ""}
-                      >
-                        {contest.reward_description || "-"}
-                      </span>
-                                        </div>
+                                        <td className="px-4 py-3 align-middle text-muted-foreground">
+                        <span
+                            className="block truncate"
+                            title={contest.reward_description ?? ""}
+                        >
+                          {contest.reward_description || "-"}
+                        </span>
+                                        </td>
 
-                                        <div className="px-4 py-3">
+                                        <td className="px-4 py-3 align-middle">
                                             <div className="flex justify-end gap-2">
                                                 <button
                                                     type="button"
                                                     onClick={() => setEditingContestId(contest.id)}
-                                                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold transition hover:bg-[var(--surface-subtle)]"
+                                                    className="rounded-lg border border-border bg-white/60 px-3 py-1.5 text-xs font-semibold transition hover:bg-[var(--surface-subtle)] dark:bg-gray-800/60"
                                                 >
                                                     수정
                                                 </button>
@@ -395,11 +403,12 @@ export default function AdminContestsPanel({
                                                     </button>
                                                 )}
                                             </div>
-                                        </div>
-                                    </div>
+                                        </td>
+                                    </tr>
                                 );
                             })}
-                        </div>
+                            </tbody>
+                        </table>
                     </div>
                 )}
             </Card>

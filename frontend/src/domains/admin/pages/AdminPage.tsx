@@ -15,7 +15,7 @@
 // - 로그아웃 처리
 
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
 import { signOut } from "@/domains/auth/api/auth";
@@ -57,9 +57,81 @@ import type {
 export default function AdminPage() {
     const navigate = useNavigate();
 
+    // URL query parameter를 읽고/수정하기 위한 React Router hook.
+    //
+    // 예:
+    // /admin?tab=contests
+    //
+    // searchParams.get("tab")으로 현재 탭 값을 읽고,
+    // setSearchParams({ tab: "contests" })로 URL을 갱신한다.
+    const [searchParams, setSearchParams] = useSearchParams();
+
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
+    /**
+     * URL query의 tab 값을 관리자 탭 타입으로 안전하게 변환한다.
+     *
+     * 예:
+     * /admin?tab=contests → contests
+     * /admin?tab=users    → users
+     *
+     * 잘못된 값이면 dashboard로 보낸다.
+     */
+    const getInitialAdminTab = (): AdminTab => {
+        const tab = searchParams.get("tab");
+
+        if (
+            tab === "dashboard" ||
+            tab === "reports" ||
+            tab === "users" ||
+            tab === "notices" ||
+            tab === "contests"
+        ) {
+            return tab;
+        }
+
+        return "dashboard";
+    };
+
+    // activeTab은 URL query를 기준으로 초기화한다.
+    //
+    // 기존:
+    // const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
+    //
+    // 문제:
+    // 새로고침하면 항상 dashboard로 돌아감.
+    //
+    // 변경:
+    // /admin?tab=contests면 contests로 초기화.
+    const [activeTab, setActiveTab] = useState<AdminTab>(getInitialAdminTab);
+
+    /**
+     * 관리자 탭 변경 함수.
+     *
+     * 기존에는 setActiveTab만 호출해서 React 메모리에만 탭 상태가 저장됐다.
+     * 그래서 새로고침하면 activeTab 초기값인 dashboard로 돌아갔다.
+     *
+     * 이제는 URL query에도 tab 값을 저장한다.
+     *
+     * 예:
+     * setAdminTab("contests")
+     * → activeTab = "contests"
+     * → URL = /admin?tab=contests
+     *
+     * replace: true를 쓰는 이유:
+     * - 탭 클릭할 때마다 브라우저 뒤로가기 기록이 쌓이는 것을 막기 위함.
+     */
+    const setAdminTab = (tab: AdminTab) => {
+        setActiveTab(tab);
+
+        setSearchParams(
+            { tab },
+            {
+                replace: true,
+            }
+        );
+    };
+    
 
     // 대시보드용 전체 신고 목록
     const [dashboardReports, setDashboardReports] = useState<
@@ -521,7 +593,7 @@ export default function AdminPage() {
             <div className="flex min-h-screen">
                 <AdminSidebar
                     activeTab={activeTab}
-                    onTabChange={setActiveTab}
+                    onTabChange={setAdminTab}
                     isLoggingOut={isLoggingOut}
                     onLogout={() => void handleLogout()}
                 />
@@ -561,7 +633,7 @@ export default function AdminPage() {
                             activeUserCount={activeUserCount}
                             recentReports={recentReports}
                             isReportsLoading={isDashboardReportsLoading}
-                            onTabChange={setActiveTab}
+                            onTabChange={setAdminTab}
                         />
                     )}
 
