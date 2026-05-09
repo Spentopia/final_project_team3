@@ -102,11 +102,11 @@ export default function AdminUsersPanel({
                         <thead className="bg-[var(--surface-subtle)] text-left text-muted-foreground">
                         <tr>
                             <th className="px-4 py-3">닉네임</th>
-                            <th className="px-4 py-3">이메일</th>
-                            <th className="px-4 py-3">가입일</th>
-                            <th className="px-4 py-3">상태</th>
+                            <th className="px-4 py-3 pl-20">이메일</th>
+                            <th className="px-4 py-3 pl-12">가입일</th>
+                            <th className="px-4 py-3 pl-5">상태</th>
                             <th className="px-4 py-3">역할</th>
-                            <th className="px-4 py-3 text-right">
+                            <th className="px-4 py-3 pr-15 text-right">
                                 관리
                             </th>
                         </tr>

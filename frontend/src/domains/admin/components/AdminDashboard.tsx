@@ -132,10 +132,10 @@ export default function AdminDashboard({
 
                             <thead className="bg-[var(--surface-subtle)] text-left text-muted-foreground">
                             <tr>
-                                <th className="px-4 py-3">상태</th>
-                                <th className="px-4 py-3">대상</th>
+                                <th className="px-4 py-3 pl-7">상태</th>
+                                <th className="px-4 py-3 pl-4">대상</th>
                                 <th className="px-4 py-3">사유</th>
-                                <th className="px-4 py-3">신고일</th>
+                                <th className="px-4 py-3 pl-12">신고일</th>
                             </tr>
                             </thead>
 

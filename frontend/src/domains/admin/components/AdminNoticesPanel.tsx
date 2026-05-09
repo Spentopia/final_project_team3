@@ -218,7 +218,7 @@ export default function AdminNoticesPanel({
 
                             <thead className="bg-[var(--surface-subtle)] text-left text-muted-foreground">
                             <tr>
-                                <th className="px-4 py-3">제목</th>
+                                <th className="px-4 py-3 pl-20">제목</th>
                                 <th className="px-4 py-3">작성일</th>
                                 <th className="px-4 py-3">조회수</th>
                                 <th className="px-4 py-3 text-right">관리</th>

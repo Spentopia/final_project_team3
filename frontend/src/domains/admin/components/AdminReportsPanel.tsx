@@ -129,12 +129,12 @@ export default function AdminReportsPanel({
 
                             <thead className="bg-[var(--surface-subtle)] text-left text-muted-foreground">
                             <tr>
-                                <th className="px-4 py-3">상태</th>
-                                <th className="px-4 py-3">신고대상</th>
-                                <th className="px-4 py-3">신고사유</th>
-                                <th className="px-4 py-3">신고자</th>
-                                <th className="px-4 py-3">신고일</th>
-                                <th className="px-4 py-3 text-right">처리</th>
+                                <th className="px-4 py-3 pl-7">상태</th>
+                                <th className="px-4 py-3 pl-2.5">신고대상</th>
+                                <th className="px-4 py-3 pl-2.5">신고사유</th>
+                                <th className="px-4 py-3 pl-7">신고자</th>
+                                <th className="px-4 py-3 pl-11">신고일</th>
+                                <th className="px-4 py-3 pr-22 text-right">처리</th>
                             </tr>
                             </thead>
 
