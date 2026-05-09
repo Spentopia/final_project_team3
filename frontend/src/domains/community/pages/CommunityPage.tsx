@@ -131,6 +131,26 @@ function formatPostDateTime(value: string | null): string {
   return `${year}.${month}.${day} ${hours}:${minutes}`;
 }
 
+// 콘테스트 기간 표시용 날짜 포맷.
+//
+// contest_events.start_date / end_date는 ISO 문자열로 내려온다.
+// 화면에서는 2026.05.09 형태로 짧게 보여준다.
+function formatContestDate(value: string | null | undefined): string {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}.${month}.${day}`;
+}
+
 function isNewPost(value: string | null): boolean {
   if (!value) return false;
 
@@ -360,7 +380,12 @@ export default function Community() {
         const data = await listContests();
         if (!ignore) {
           setContests(data);
-          setWriteContestId((prev) => prev || data[0]?.id || "");
+
+          const defaultContest = data.find(
+              (contest) => contest.status === "active" || contest.status === "upcoming"
+          );
+
+          setWriteContestId((prev) => prev || defaultContest?.id || "");
         }
       } catch (error) {
         if (!ignore) {
@@ -411,6 +436,39 @@ export default function Community() {
       ignore = true;
     };
   }, [selectedPost?.id, selectedPost?.category]);
+
+  // 커뮤니티 상단에 보여줄 콘테스트 목록.
+//
+// 관리자 페이지에서 생성한 contest_events 중에서
+// 일반 사용자에게 보여줄 대상만 필터링한다.
+//
+// active:
+// - 현재 진행중인 콘테스트
+//
+// upcoming:
+// - 예정 콘테스트
+//
+// ended:
+// - 이미 종료된 콘테스트라서 상단 노출 대상에서 제외
+  const visibleContests = useMemo(() => {
+    return contests.filter((contest) => {
+      return contest.status === "active" || contest.status === "upcoming";
+    });
+  }, [contests]);
+
+// 상단 메인 카드에는 진행중인 콘테스트를 우선 보여준다.
+// 진행중인 콘테스트가 없으면 예정 콘테스트 하나를 보여준다.
+  const mainContest = useMemo(() => {
+    const activeContest = visibleContests.find(
+        (contest) => contest.status === "active"
+    );
+
+    if (activeContest) {
+      return activeContest;
+    }
+
+    return visibleContests[0] ?? null;
+  }, [visibleContests]);
 
   // 필터링
   const filtered = useMemo(() => {
@@ -473,8 +531,26 @@ export default function Community() {
     setWriteType("request");
     setWriteTitle("");
     setWriteContent("");
-    setWriteContestId(contests[0]?.id || "");
+    setWriteContestId(mainContest?.id || "");
     setWriteFile(null);
+  };
+
+  // 콘테스트 참가글 작성 시작.
+//
+// 관리자 페이지에서 만든 contest_events는 대회 자체이고,
+// 사용자가 올리는 참가작은 posts.post_type = "contest" 게시글이다.
+//
+// 이 버튼을 누르면:
+// 1. 글쓰기 폼을 연다.
+// 2. 게시글 타입을 contest로 바꾼다.
+// 3. contest_id를 현재 콘테스트 id로 세팅한다.
+//
+// 이후 사용자가 제목/내용/이미지를 입력하고 제출하면
+// 기존 createCommunityPost 흐름을 그대로 사용한다.
+  const handleStartContestPost = (contestId: string) => {
+    setWriteType("contest");
+    setWriteContestId(contestId);
+    setIsWriteOpen(true);
   };
 
   const handleWriteSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -557,12 +633,25 @@ export default function Community() {
         });
       }
 
+      const createdPost = toPost(created);
+
       setPosts((prev) =>
-        [toPost(created), ...prev.filter((post) => post.id !== created.id)].slice(0, PER_PAGE)
+          [createdPost, ...prev.filter((post) => post.id !== createdPost.id)].slice(
+              0,
+              PER_PAGE
+          )
       );
+
       setTotalCount((prev) => prev + 1);
       setCurrentPage(1);
-      setActiveTab("all");
+
+      // 작성한 글 타입에 맞는 탭으로 이동한다.
+      // - contest: 아바타 콘테스트 탭
+      // - request: 아이템 요청 탭
+      // - free: 자유 탭
+      // - notice: 공지사항 탭
+      setActiveTab(createdPost.category);
+
       setIsWriteOpen(false);
       resetWriteForm();
       toast.success("게시글이 등록되었습니다");
@@ -1116,8 +1205,8 @@ export default function Community() {
                     title={
                       selectedPost.category === "contest"
                           ? selectedPost.isReacted
-                              ? "이미 투표했습니다"
-                              : "투표하기"
+                              ? "이미 투표했습니다. 아바타 콘테스트 투표는 취소할 수 없습니다."
+                              : "아바타 콘테스트 투표하기"
                           : selectedPost.isReacted
                               ? "좋아요 취소"
                               : "좋아요"
@@ -1129,7 +1218,13 @@ export default function Community() {
                       }`}
                   />
                   <span>
-                    {selectedPost.category === "contest" ? "투표" : "좋아요"}
+                    {selectedPost.category === "contest"
+                        ? selectedPost.isReacted
+                            ? "투표 완료"
+                            : "투표"
+                        : selectedPost.isReacted
+                            ? "좋아요 취소"
+                            : "좋아요"}
                   </span>
                   <span className="tabular-nums">
                     {selectedPost.likes.toLocaleString()}
@@ -1719,6 +1814,80 @@ export default function Community() {
             </Button>
           </div>
 
+          {/* 아바타 콘테스트 안내 카드
+    ------------------------------------------------
+    관리자 페이지에서 생성한 contest_events를
+    커뮤니티 상단에 안내 카드로 보여준다.
+
+    주의:
+    - 이 카드는 커뮤니티 게시글 posts가 아니다.
+    - contest_events는 콘테스트 이벤트 자체다.
+    - 사용자가 참가글을 작성하면 posts.post_type = "contest"로 저장된다.
+------------------------------------------------ */}
+          {mainContest && (
+              <Card className="mb-5 overflow-hidden border-none bg-white/90 shadow-card dark:bg-gray-900/80">
+                <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+                  <div className="min-w-0">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+          <span
+              className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                  mainContest.status === "active"
+                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                      : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
+              }`}
+          >
+            {mainContest.status === "active" ? "진행중" : "예정"}
+          </span>
+
+                      <span className="text-xs font-semibold text-muted-foreground">
+            아바타 콘테스트
+          </span>
+                    </div>
+
+                    <h3 className="truncate text-lg font-extrabold text-gray-900 dark:text-gray-100">
+                      {mainContest.title}
+                    </h3>
+
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {formatContestDate(mainContest.start_date)} ~{" "}
+                      {formatContestDate(mainContest.end_date)}
+                    </p>
+
+                    {mainContest.reward_description && (
+                        <p className="mt-1 text-sm font-semibold text-cyan-600 dark:text-cyan-300">
+                          보상: {mainContest.reward_description}
+                        </p>
+                    )}
+
+                    {mainContest.description && (
+                        <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                          {mainContest.description}
+                        </p>
+                    )}
+                  </div>
+
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                        type="button"
+                        onClick={() => handleTabChange("contest")}
+                        className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-muted-foreground transition hover:bg-[var(--surface-subtle)] hover:text-foreground"
+                    >
+                      참가글 보기
+                    </button>
+
+                    <button
+                        type="button"
+                        disabled={mainContest.status !== "active"}
+                        onClick={() => handleStartContestPost(mainContest.id)}
+                        className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      참가글 작성
+                    </button>
+                  </div>
+                </div>
+              </Card>
+          )}
+
           {/* 탭 바 */}
           <div className="flex border-b-2 border-gray-200 dark:border-gray-700">
             {TABS.map((tab) => (
@@ -1795,14 +1964,20 @@ export default function Community() {
                           <span className="block h-5 truncate text-left leading-5">{post.author}</span>
 
                           <span className="flex h-5 items-center justify-end gap-8">
-                            <span className="grid h-5 grid-cols-[16px_40px] items-center gap-1">
-                              <Heart
-                                  className={`relative top-px block h-3.5 w-3.5 ${
-                                      post.isReacted ? "fill-current text-red-500" : ""
-                                  }`}
-                              />
-                              <span className="block h-5 tabular-nums text-left leading-5">{post.likes.toLocaleString()}</span>
+                            <span
+                                className="grid h-5 grid-cols-[16px_40px] items-center gap-1"
+                                title={post.category === "contest" ? "투표 수" : "좋아요 수"}
+                            >
+                            <Heart
+                                className={`relative top-px block h-3.5 w-3.5 ${
+                                    post.isReacted ? "fill-current text-red-500" : ""
+                                }`}
+                            />
+
+                            <span className="block h-5 tabular-nums text-left leading-5">
+                              {post.likes.toLocaleString()}
                             </span>
+                          </span>
 
                             <span className="block h-5 -translate-x-2 text-center tabular-nums leading-5">{post.date}</span>
 
@@ -1908,14 +2083,14 @@ export default function Community() {
                           onChange={(event) => setWriteContestId(event.target.value)}
                           className="h-8 w-full max-w-xs rounded border border-gray-200 bg-white px-2 text-sm text-gray-900 outline-none focus:border-cyan-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
                         >
-                          {contests.length === 0 ? (
-                            <option value="">등록된 콘테스트 없음</option>
+                          {visibleContests.length === 0 ? (
+                              <option value="">참가 가능한 콘테스트 없음</option>
                           ) : (
-                            contests.map((contest) => (
-                              <option key={contest.id} value={contest.id}>
-                                {contest.title}
-                              </option>
-                            ))
+                              visibleContests.map((contest) => (
+                                  <option key={contest.id} value={contest.id}>
+                                    {contest.title}
+                                  </option>
+                              ))
                           )}
                         </select>
                       </div>
