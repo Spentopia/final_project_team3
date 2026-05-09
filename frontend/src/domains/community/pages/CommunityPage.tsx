@@ -910,9 +910,39 @@ export default function Community() {
   // ── 상세 뷰 ──────────────────────────────────────────────────
   if (selectedPost) {
     const badge = BADGE_STYLE[selectedPost.category];
+
+    // ─────────────────────────────────────────────
+    // 게시글 수정/삭제 가능 여부
+    // ─────────────────────────────────────────────
+    //
+    // 일반 게시글:
+    // - 작성자 본인만 수정/삭제 가능
+    //
+    // 공지사항:
+    // - 운영자만 수정/삭제 가능
     const canModifySelectedPost =
         selectedPost.user_id === myUserId ||
         (selectedPost.category === "notice" && myRoleType === "admin");
+
+    // ─────────────────────────────────────────────
+    // 게시글 신고 가능 여부
+    // ─────────────────────────────────────────────
+    //
+    // 신고 버튼은 일반 사용자 글에만 보여준다.
+    //
+    // 막는 대상:
+    // 1. 내 글
+    //    - 본인 글 신고 불가
+    //
+    // 2. 공지사항
+    //    - 공지사항은 운영자가 작성한 공식 글이므로 신고 대상에서 제외
+    //
+    // 참고:
+    // - 댓글 영역 자체가 공지사항에서는 렌더링되지 않으므로
+    //   공지사항 댓글 신고 버튼은 현재 구조상 표시되지 않는다.
+    const canReportSelectedPost =
+        selectedPost.user_id !== myUserId &&
+        selectedPost.category !== "notice";
 
     // 일반 댓글만 먼저 렌더링
     const rootComments = comments.filter((comment) => !comment.parent_id);
@@ -985,19 +1015,25 @@ export default function Community() {
                     <Link2 className="relative top-0.5 h-5 w-5" />
                   </button>
                   {/* 신고 버튼
-                      ------------------------------------------------
-                      게시글 상세에서만 보이는 신고 버튼.
+    ------------------------------------------------
+    게시글 상세에서만 보이는 신고 버튼.
 
-                      클릭 시 신고 대상 선택 모달이 열린다.
+    클릭 시 신고 대상 선택 모달이 열린다.
 
-                      신고 가능 대상:
-                      - 게시글
-                      - 작성자 닉네임
-                      - 작성자 프로필 사진
+    신고 가능 대상:
+    - 게시글
+    - 작성자 닉네임
+    - 작성자 프로필 사진
 
-                      본인 글은 신고 불가.
-                  ------------------------------------------------ */}
-                  {selectedPost.user_id !== myUserId && (
+    신고 버튼 숨김 조건:
+    1. 내 글이면 숨김
+    2. 공지사항이면 숨김
+
+    이유:
+    - 공지사항은 운영자가 작성한 공식 게시글이므로
+      일반 사용자가 신고할 수 없게 처리한다.
+------------------------------------------------ */}
+                  {canReportSelectedPost && (
                       <button
                           type="button"
                           onClick={() =>
@@ -1021,7 +1057,7 @@ export default function Community() {
                           }
                           className="flex items-center gap-1 hover:text-red-500 transition-colors"
                       >
-                        <Siren className="h-5 w-5"/>
+                        <Siren className="h-5 w-5" />
                       </button>
                   )}
                   {canModifySelectedPost && (

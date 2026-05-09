@@ -328,6 +328,16 @@ pub fn create_router(state: AppState) -> Router {
             "/api/admin/users/:id/active",
             patch(admin::handler::update_user_active),
         )
+        .route(
+            "/api/admin/notices",
+            get(admin::handler::list_notices)
+                .post(admin::handler::create_notice),
+        )
+        .route(
+            "/api/admin/notices/:id",
+            patch(admin::handler::update_notice)
+                .delete(admin::handler::delete_notice),
+        )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::middleware::admin_middleware,
