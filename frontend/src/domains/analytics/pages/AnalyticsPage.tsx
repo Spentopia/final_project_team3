@@ -358,7 +358,7 @@ const weeklyData = buildWeeklyData(thisMonthTransactions, now);
 const monthlyData = buildMonthlyData(transactions, now.getFullYear());
 
 const handleGenerateReport = async () => {
-  if (transactions.length === 0) return;
+  if (thisMonthTransactions.length === 0) return;
 
   try {
     setIsReportLoading(true);
@@ -403,7 +403,7 @@ const handleGenerateReport = async () => {
 };
 
 const handleGeneratePattern = async () => {
-  if (transactions.length === 0) return;
+  if (thisMonthTransactions.length === 0) return;
 
   try {
     setIsPatternLoading(true);

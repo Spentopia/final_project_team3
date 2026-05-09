@@ -1,6 +1,7 @@
 from app.clients.openai_client import OpenAIClient
 from app.services.storage_service import StorageService
 from datetime import datetime
+from app.services.report_service import ReportService
 
 class AnalyzeService:
 
@@ -67,7 +68,7 @@ class AnalyzeService:
           "warning": "...",
           "advice": "...",
           "prediction": "...",
-          "pattern": "전체 소비 데이터를 기반으로 자연스럽게 서술된 분석 문단"
+          "pattern": "전체 소비 데이터를 기반으로 자연스럽게 서술된 분석 문단",
           "improvement": "소비 패턴을 기반으로 한 구체적인 개선 방안"
         }}
         """
@@ -97,7 +98,7 @@ class AnalyzeService:
 
             parsed = json.loads(content)
 
-            return {
+            result = {
                 "good": parsed.get("good", ""),
                 "warning": parsed.get("warning", ""),
                 "advice": parsed.get("advice", ""),
@@ -105,6 +106,15 @@ class AnalyzeService:
                 "pattern": parsed.get("pattern", ""),
                 "improvement": parsed.get("improvement", ""),
             }
+
+            save_data = {
+                **data,
+                **result,
+            }
+
+            ReportService.save_report(save_data)
+
+            return result
 
         except Exception as e:
             print("❌ JSON 파싱 실패:", e)
