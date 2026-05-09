@@ -189,3 +189,67 @@ pub struct UpdateAdminNoticeRequest {
     pub title: Option<String>,
     pub content: Option<String>,
 }
+
+// ─────────────────────────────────────────────
+// 아바타 콘테스트 관리 DTO
+// ─────────────────────────────────────────────
+//
+// contest_events 테이블을 관리자 화면에서 관리하기 위한 DTO.
+//
+// 상태값:
+// - upcoming: 예정
+// - active: 진행중
+// - ended: 종료
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AdminContestResponse {
+    pub id: Uuid,
+
+    // 콘테스트 제목
+    pub title: String,
+
+    // 콘테스트 설명
+    pub description: Option<String>,
+
+    // 시작일
+    pub start_date: DateTime<Utc>,
+
+    // 종료일
+    pub end_date: DateTime<Utc>,
+
+    // 상태
+    //
+    // upcoming / active / ended
+    pub status: String,
+
+    // 보상 설명
+    pub reward_description: Option<String>,
+
+    // 생성일
+    pub created_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CreateAdminContestRequest {
+    pub title: String,
+    pub description: Option<String>,
+    pub start_date: DateTime<Utc>,
+    pub end_date: DateTime<Utc>,
+    pub status: Option<String>,
+    pub reward_description: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UpdateAdminContestRequest {
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub start_date: Option<DateTime<Utc>>,
+    pub end_date: Option<DateTime<Utc>>,
+    pub status: Option<String>,
+    pub reward_description: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UpdateAdminContestStatusRequest {
+    pub status: String,
+}

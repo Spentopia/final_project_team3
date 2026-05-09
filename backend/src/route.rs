@@ -338,6 +338,19 @@ pub fn create_router(state: AppState) -> Router {
             patch(admin::handler::update_notice)
                 .delete(admin::handler::delete_notice),
         )
+        .route(
+            "/api/admin/contests",
+            get(admin::handler::list_contests)
+                .post(admin::handler::create_contest),
+        )
+        .route(
+            "/api/admin/contests/:id",
+            patch(admin::handler::update_contest),
+        )
+        .route(
+            "/api/admin/contests/:id/status",
+            patch(admin::handler::update_contest_status),
+        )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::middleware::admin_middleware,

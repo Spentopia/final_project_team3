@@ -26,18 +26,25 @@ import AdminReportsPanel from "@/domains/admin/components/AdminReportsPanel";
 import AdminReportDetailModal from "@/domains/admin/components/AdminReportDetailModal";
 import AdminUsersPanel from "@/domains/admin/components/AdminUsersPanel";
 import AdminNoticesPanel from "@/domains/admin/components/AdminNoticesPanel";
+import AdminContestsPanel from "@/domains/admin/components/AdminContestsPanel.tsx";
 
 import {
     createAdminNotice,
+    createAdminContest,
     deleteAdminNotice,
     listAdminContentReports,
+    listAdminContests,
     listAdminNotices,
     listAdminUsers,
     rejectAdminContentReport,
     resolveAdminContentReport,
+    updateAdminContest,
+    updateAdminContestStatus,
     updateAdminNotice,
     updateAdminUserActive,
     type AdminContentReportResponse,
+    type AdminContestResponse,
+    type AdminContestStatus,
     type AdminNoticeResponse,
     type AdminUserResponse,
 } from "@/domains/admin/api/adminApi";
@@ -78,6 +85,9 @@ export default function AdminPage() {
     // 공지사항 관리
     const [notices, setNotices] = useState<AdminNoticeResponse[]>([]);
     const [isNoticesLoading, setIsNoticesLoading] = useState(false);
+
+    const [contests, setContests] = useState<AdminContestResponse[]>([]);
+    const [isContestsLoading, setIsContestsLoading] = useState(false);
 
     // 공통 처리 상태
     const [processingId, setProcessingId] = useState<string | null>(null);
@@ -223,6 +233,35 @@ export default function AdminPage() {
         }
 
         void fetchNotices();
+
+        return () => {
+            ignore = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        let ignore = false;
+
+        async function fetchContests() {
+            setIsContestsLoading(true);
+
+            try {
+                const data = await listAdminContests();
+
+                if (!ignore) {
+                    setContests(data);
+                }
+            } catch (error) {
+                console.error("관리자 콘테스트 목록 조회 실패:", error);
+                toast.error("콘테스트 목록을 불러오지 못했습니다.");
+            } finally {
+                if (!ignore) {
+                    setIsContestsLoading(false);
+                }
+            }
+        }
+
+        void fetchContests();
 
         return () => {
             ignore = true;
@@ -383,6 +422,87 @@ export default function AdminPage() {
         }
     };
 
+    const handleCreateContest = async (params: {
+        title: string;
+        description: string | null;
+        start_date: string;
+        end_date: string;
+        status: AdminContestStatus;
+        reward_description: string | null;
+    }) => {
+        if (processingId) return;
+
+        setProcessingId("contest-form");
+
+        try {
+            const created = await createAdminContest(params);
+
+            setContests((prev) => [created, ...prev]);
+
+            toast.success("콘테스트를 생성했습니다.");
+        } catch (error) {
+            console.error("콘테스트 생성 실패:", error);
+            toast.error("콘테스트 생성에 실패했습니다.");
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleUpdateContest = async (
+        contestId: string,
+        params: {
+            title: string;
+            description: string | null;
+            start_date: string;
+            end_date: string;
+            status: AdminContestStatus;
+            reward_description: string | null;
+        }
+    ) => {
+        if (processingId) return;
+
+        setProcessingId("contest-form");
+
+        try {
+            const updated = await updateAdminContest(contestId, params);
+
+            setContests((prev) =>
+                prev.map((contest) => (contest.id === contestId ? updated : contest))
+            );
+
+            toast.success("콘테스트를 수정했습니다.");
+        } catch (error) {
+            console.error("콘테스트 수정 실패:", error);
+            toast.error("콘테스트 수정에 실패했습니다.");
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleUpdateContestStatus = async (
+        contestId: string,
+        status: AdminContestStatus
+    ) => {
+        if (processingId) return;
+
+        setProcessingId(contestId);
+
+        try {
+            const updated = await updateAdminContestStatus(contestId, status);
+
+            setContests((prev) =>
+                prev.map((contest) => (contest.id === contestId ? updated : contest))
+            );
+
+            toast.success("콘테스트 상태를 변경했습니다.");
+        } catch (error) {
+            console.error("콘테스트 상태 변경 실패:", error);
+            toast.error("콘테스트 상태 변경에 실패했습니다.");
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
     // 로그아웃
     const handleLogout = async () => {
         try {
@@ -417,6 +537,7 @@ export default function AdminPage() {
                             {activeTab === "reports" && "신고 관리"}
                             {activeTab === "users" && "회원 관리"}
                             {activeTab === "notices" && "공지사항 관리"}
+                            {activeTab === "contests" && "콘테스트 관리"}
                         </h2>
 
                         <p className="mt-2 text-sm text-muted-foreground">
@@ -428,6 +549,8 @@ export default function AdminPage() {
                                 "가입 회원을 조회하고 활성 상태를 관리합니다."}
                             {activeTab === "notices" &&
                                 "공지사항을 작성, 수정, 삭제합니다."}
+                            {activeTab === "contests" &&
+                                "아바타 콘테스트를 생성하고 상태를 관리합니다."}
                         </p>
                     </div>
 
@@ -476,6 +599,21 @@ export default function AdminPage() {
                                 void handleUpdateNotice(noticeId, params)
                             }
                             onDeleteNotice={(noticeId) => void handleDeleteNotice(noticeId)}
+                        />
+                    )}
+
+                    {activeTab === "contests" && (
+                        <AdminContestsPanel
+                            contests={contests}
+                            isContestsLoading={isContestsLoading}
+                            processingId={processingId}
+                            onCreateContest={(params) => void handleCreateContest(params)}
+                            onUpdateContest={(contestId, params) =>
+                                void handleUpdateContest(contestId, params)
+                            }
+                            onUpdateContestStatus={(contestId, status) =>
+                                void handleUpdateContestStatus(contestId, status)
+                            }
                         />
                     )}
                 </main>

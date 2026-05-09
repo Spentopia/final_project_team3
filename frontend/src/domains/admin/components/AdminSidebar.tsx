@@ -2,12 +2,19 @@
 //
 // 관리자 페이지 좌측 사이드바.
 //
-// 역할:
-// - 관리자 메뉴 표시
-// - 현재 선택된 탭 강조
-// - 대시보드 / 신고 관리 / 회원 관리 / 공지사항 관리 탭 변경
-// - 콘테스트 관리 준비중 표시
-// - 일반 사용자 Sidebar와 같은 디자인의 로그아웃 확인 다이얼로그 제공
+// 일반 사용자 Sidebar와 최대한 같은 시각 규칙으로 맞춘 버전.
+//
+// 맞춘 부분:
+// - aside 배경: bg-sidebar
+// - 텍스트: text-sidebar-foreground
+// - 너비: w-64
+// - 로고 영역 높이: h-16
+// - 메뉴 padding: p-4
+// - 메뉴 아이콘: h-5 w-5
+// - 메뉴 글씨: font-medium
+// - active 스타일: bg-sidebar-accent + 왼쪽 gold bar
+// - hover 스타일: hover:bg-sidebar-accent/70
+// - 로그아웃 버튼 디자인 동일 계열 유지
 
 import {
     AlertTriangle,
@@ -39,6 +46,18 @@ type AdminSidebarProps = {
     onLogout: () => void;
 };
 
+const menuItems: Array<{
+    tab: AdminTab;
+    icon: typeof BarChart3;
+    label: string;
+}> = [
+    { tab: "dashboard", icon: BarChart3, label: "대시보드" },
+    { tab: "reports", icon: AlertTriangle, label: "신고 관리" },
+    { tab: "users", icon: Users, label: "회원 관리" },
+    { tab: "notices", icon: Megaphone, label: "공지사항 관리" },
+    { tab: "contests", icon: Trophy, label: "콘테스트 관리" },
+];
+
 export default function AdminSidebar({
                                          activeTab,
                                          onTabChange,
@@ -46,12 +65,16 @@ export default function AdminSidebar({
                                          onLogout,
                                      }: AdminSidebarProps) {
     return (
-        <aside className="flex w-64 flex-col border-r border-border bg-[var(--surface-elevated)] p-5">
-            <div className="mb-8">
+        <aside className="flex min-h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[8px_0_30px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+            {/* Logo */}
+            {/* 관리자 로고 / 타이틀 */}
+            <div className="border-b border-sidebar-border px-5 py-5">
                 <div className="flex items-center gap-2">
                     <Shield className="h-6 w-6 text-cyan-500" />
 
-                    <h1 className="text-xl font-extrabold">관리자</h1>
+                    <h1 className="text-xl font-extrabold text-sidebar-foreground">
+                        관리자
+                    </h1>
                 </div>
 
                 <p className="mt-2 text-xs text-muted-foreground">
@@ -59,71 +82,32 @@ export default function AdminSidebar({
                 </p>
             </div>
 
-            <nav className="space-y-2">
-                <button
-                    type="button"
-                    onClick={() => onTabChange("dashboard")}
-                    className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                        activeTab === "dashboard"
-                            ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                            : "text-muted-foreground hover:bg-[var(--surface-subtle)] hover:text-foreground"
-                    }`}
-                >
-                    <BarChart3 className="h-4 w-4" />
-                    대시보드
-                </button>
+            {/* Navigation */}
+            <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                {menuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.tab;
 
-                <button
-                    type="button"
-                    onClick={() => onTabChange("reports")}
-                    className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                        activeTab === "reports"
-                            ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                            : "text-muted-foreground hover:bg-[var(--surface-subtle)] hover:text-foreground"
-                    }`}
-                >
-                    <AlertTriangle className="h-4 w-4" />
-                    신고 관리
-                </button>
-
-                <button
-                    type="button"
-                    onClick={() => onTabChange("users")}
-                    className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                        activeTab === "users"
-                            ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                            : "text-muted-foreground hover:bg-[var(--surface-subtle)] hover:text-foreground"
-                    }`}
-                >
-                    <Users className="h-4 w-4" />
-                    회원 관리
-                </button>
-
-                <button
-                    type="button"
-                    onClick={() => onTabChange("notices")}
-                    className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                        activeTab === "notices"
-                            ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                            : "text-muted-foreground hover:bg-[var(--surface-subtle)] hover:text-foreground"
-                    }`}
-                >
-                    <Megaphone className="h-4 w-4" />
-                    공지사항 관리
-                </button>
-
-                <button
-                    type="button"
-                    disabled
-                    className="flex w-full cursor-not-allowed items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-muted-foreground/50"
-                >
-                    <Trophy className="h-4 w-4" />
-                    콘테스트 관리
-                    <span className="ml-auto text-[10px]">준비중</span>
-                </button>
+                    return (
+                        <button
+                            key={item.tab}
+                            type="button"
+                            onClick={() => onTabChange(item.tab)}
+                            className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-all ${
+                                isActive
+                                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-card before:absolute before:left-1.5 before:top-1/2 before:h-6 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-luxury-gold"
+                                    : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+                            }`}
+                        >
+                            <Icon className="h-5 w-5" />
+                            <span className="font-medium">{item.label}</span>
+                        </button>
+                    );
+                })}
             </nav>
 
-            <div className="mt-auto border-t border-border pt-4">
+            {/* Bottom area */}
+            <div className="shrink-0 border-t border-sidebar-border p-4">
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <button

@@ -44,8 +44,9 @@ use crate::state::AppState;
 
 use super::{
     dto::{AdminContentReportResponse, AdminNoticeResponse, AdminUserResponse,
-          CreateAdminNoticeRequest, UpdateAdminNoticeRequest,},
-    model::{AdminContentReport, AdminUser, AdminNotice},
+          CreateAdminNoticeRequest, UpdateAdminNoticeRequest,AdminContestResponse,
+          CreateAdminContestRequest, UpdateAdminContestRequest, UpdateAdminContestStatusRequest},
+    model::{AdminContentReport, AdminUser, AdminNotice, AdminContest},
 };
 
 /// DB/view 모델을 관리자 신고 응답 DTO로 변환한다.
@@ -112,6 +113,53 @@ fn to_notice_response(row: AdminNotice) -> AdminNoticeResponse {
         created_at: row.created_at,
         updated_at: row.updated_at,
     }
+}
+
+/// contest_events row를 관리자 콘테스트 응답 DTO로 변환한다.
+fn to_contest_response(row: AdminContest) -> AdminContestResponse {
+    AdminContestResponse {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        status: row.status.unwrap_or_else(|| "upcoming".to_string()),
+        reward_description: row.reward_description,
+        created_at: row.created_at,
+    }
+}
+
+/// 콘테스트 상태값 검증
+///
+/// 허용 상태:
+/// - upcoming
+/// - active
+/// - ended
+fn validate_contest_status(status: &str) -> Result<()> {
+    match status {
+        "upcoming" | "active" | "ended" => Ok(()),
+        _ => Err(anyhow!("지원하지 않는 콘테스트 상태입니다.")),
+    }
+}
+
+/// 콘테스트 입력값 검증
+///
+/// 제목은 필수.
+/// 종료일은 시작일보다 이후여야 한다.
+fn validate_contest_input(
+    title: &str,
+    start_date: chrono::DateTime<Utc>,
+    end_date: chrono::DateTime<Utc>,
+) -> Result<()> {
+    if title.trim().is_empty() {
+        return Err(anyhow!("콘테스트 제목을 입력해 주세요."));
+    }
+
+    if end_date <= start_date {
+        return Err(anyhow!("콘테스트 종료일은 시작일 이후여야 합니다."));
+    }
+
+    Ok(())
 }
 
 /// 관리자 신고 view에서 신고 1건 조회
@@ -680,4 +728,257 @@ pub async fn delete_notice(
         .ok_or_else(|| anyhow!("공지사항을 찾을 수 없습니다."))?;
 
     Ok(to_notice_response(row))
+}
+
+/// 관리자: 아바타 콘테스트 목록 조회
+///
+/// 최신 생성순으로 최대 100개 조회한다.
+pub async fn list_contests(state: &AppState) -> Result<Vec<AdminContestResponse>> {
+    let url = format!(
+        "{}/rest/v1/contest_events?select=id,title,description,start_date,end_date,status,reward_description,created_at&order=created_at.desc&limit=100",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("관리자 콘테스트 목록 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 콘테스트 목록 조회 실패: {}", body));
+    }
+
+    let rows: Vec<AdminContest> = res
+        .json()
+        .await
+        .context("관리자 콘테스트 목록 응답 파싱 실패")?;
+
+    Ok(rows.into_iter().map(to_contest_response).collect())
+}
+
+/// 관리자: 아바타 콘테스트 생성
+pub async fn create_contest(
+    state: &AppState,
+    req: CreateAdminContestRequest,
+) -> Result<AdminContestResponse> {
+    validate_contest_input(&req.title, req.start_date, req.end_date)?;
+
+    let status = req.status.unwrap_or_else(|| "upcoming".to_string());
+    validate_contest_status(&status)?;
+
+    let url = format!(
+        "{}/rest/v1/contest_events",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let payload = serde_json::json!([{
+        "title": req.title.trim(),
+        "description": req.description
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty()),
+        "start_date": req.start_date.to_rfc3339(),
+        "end_date": req.end_date.to_rfc3339(),
+        "status": status,
+        "reward_description": req.reward_description
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+    }]);
+
+    let res = state
+        .http_client
+        .post(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=representation")
+        .json(&payload)
+        .send()
+        .await
+        .context("관리자 콘테스트 생성 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 콘테스트 생성 실패: {}", body));
+    }
+
+    let rows: Vec<AdminContest> = res
+        .json()
+        .await
+        .context("관리자 콘테스트 생성 응답 파싱 실패")?;
+
+    let row = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("생성된 콘테스트를 확인할 수 없습니다."))?;
+
+    Ok(to_contest_response(row))
+}
+
+/// 관리자: 아바타 콘테스트 수정
+///
+/// 일부 필드만 수정 가능.
+/// 수정할 필드가 하나도 없으면 400 처리.
+pub async fn update_contest(
+    state: &AppState,
+    contest_id: Uuid,
+    req: UpdateAdminContestRequest,
+) -> Result<AdminContestResponse> {
+    let mut patch = serde_json::Map::new();
+
+    if let Some(title) = req.title {
+        if title.trim().is_empty() {
+            return Err(anyhow!("콘테스트 제목을 입력해 주세요."));
+        }
+
+        patch.insert("title".to_string(), serde_json::json!(title.trim()));
+    }
+
+    if let Some(description) = req.description {
+        let value = description.trim().to_string();
+
+        patch.insert(
+            "description".to_string(),
+            if value.is_empty() {
+                serde_json::Value::Null
+            } else {
+                serde_json::json!(value)
+            },
+        );
+    }
+
+    if let Some(start_date) = req.start_date {
+        patch.insert(
+            "start_date".to_string(),
+            serde_json::json!(start_date.to_rfc3339()),
+        );
+    }
+
+    if let Some(end_date) = req.end_date {
+        patch.insert(
+            "end_date".to_string(),
+            serde_json::json!(end_date.to_rfc3339()),
+        );
+    }
+
+    if let Some(status) = req.status {
+        validate_contest_status(&status)?;
+        patch.insert("status".to_string(), serde_json::json!(status));
+    }
+
+    if let Some(reward_description) = req.reward_description {
+        let value = reward_description.trim().to_string();
+
+        patch.insert(
+            "reward_description".to_string(),
+            if value.is_empty() {
+                serde_json::Value::Null
+            } else {
+                serde_json::json!(value)
+            },
+        );
+    }
+
+    if patch.is_empty() {
+        return Err(anyhow!("수정할 콘테스트 내용이 없습니다."));
+    }
+
+    let url = format!(
+        "{}/rest/v1/contest_events?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        contest_id
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=representation")
+        .json(&patch)
+        .send()
+        .await
+        .context("관리자 콘테스트 수정 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 콘테스트 수정 실패: {}", body));
+    }
+
+    let rows: Vec<AdminContest> = res
+        .json()
+        .await
+        .context("관리자 콘테스트 수정 응답 파싱 실패")?;
+
+    let row = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("콘테스트를 찾을 수 없습니다."))?;
+
+    Ok(to_contest_response(row))
+}
+
+/// 관리자: 아바타 콘테스트 상태 변경
+///
+/// 빠른 상태 변경 버튼에서 사용한다.
+pub async fn update_contest_status(
+    state: &AppState,
+    contest_id: Uuid,
+    req: UpdateAdminContestStatusRequest,
+) -> Result<AdminContestResponse> {
+    validate_contest_status(&req.status)?;
+
+    let url = format!(
+        "{}/rest/v1/contest_events?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        contest_id
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=representation")
+        .json(&serde_json::json!({
+            "status": req.status
+        }))
+        .send()
+        .await
+        .context("관리자 콘테스트 상태 변경 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 콘테스트 상태 변경 실패: {}", body));
+    }
+
+    let rows: Vec<AdminContest> = res
+        .json()
+        .await
+        .context("관리자 콘테스트 상태 변경 응답 파싱 실패")?;
+
+    let row = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("콘테스트를 찾을 수 없습니다."))?;
+
+    Ok(to_contest_response(row))
 }

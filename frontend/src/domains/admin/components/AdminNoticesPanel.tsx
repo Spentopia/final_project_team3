@@ -109,7 +109,7 @@ export default function AdminNoticesPanel({
     };
 
     return (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_1fr]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             {/* 작성/수정 폼 */}
             <Card className="h-fit border-none bg-white/80 p-5 shadow-card dark:bg-gray-800/80">
                 <div className="mb-5">

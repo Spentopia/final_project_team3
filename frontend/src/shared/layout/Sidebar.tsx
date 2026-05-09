@@ -81,7 +81,7 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
       </div>
 
       {/* Navigation */}
-      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
+      <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
