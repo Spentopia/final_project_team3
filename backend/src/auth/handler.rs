@@ -29,6 +29,8 @@
 // - filter::validate_nickname() 으로 길이 + 금칙어 한번에 검사
 // - 실패 시 400 + 구체적인 에러 메시지 반환
 
+
+
 use axum::{
     Json,
     extract::{Extension, Multipart, Query, State},
@@ -318,21 +320,28 @@ pub async fn wallet_login(
         &body.signature,
         "web",
     )
-    .await
-    .map_err(|e| {
-        // service에서 올라온 에러를 여기서 로깅하고 적절한 HTTP 상태코드로 변환
-        // 에러 메시지에 따라 401(인증실패) 또는 500(서버에러) 구분
-        let msg = e.to_string();
-        if msg.contains("nonce") || msg.contains("서명") {
-            // nonce 불일치, 서명 검증 실패 → 클라이언트 잘못
-            tracing::warn!("지갑 로그인 실패 (클라이언트): {}", msg);
-            (StatusCode::UNAUTHORIZED, msg)
-        } else {
-            // Supabase API 실패 등 → 서버 잘못
-            tracing::error!("지갑 로그인 실패 (서버): {}", msg);
-            (StatusCode::INTERNAL_SERVER_ERROR, msg)
-        }
-    })?;
+        .await
+        .map_err(|e| {
+            // service에서 올라온 에러를 HTTP 상태코드로 변환
+            //
+            // 케이스 분기:
+            // - nonce/서명 관련 → 401 (인증 실패, 클라이언트 잘못)
+            // - 연동된 계정 없음 → 404 (탈퇴자 + 미연동 모두 포함)
+            //   ※ 보안상 둘을 구분해서 알려주지 않음
+            //   ※ 탈퇴자도 wallet_address가 NULL이라 자연스럽게 여기로 떨어짐
+            // - 그 외 → 500 (Supabase API 실패 등 서버 잘못)
+            let msg = e.to_string();
+            if msg.contains("nonce") || msg.contains("서명") {
+                tracing::warn!("지갑 로그인 실패 (인증): {}", msg);
+                (StatusCode::UNAUTHORIZED, msg)
+            } else if msg.contains("연동된 계정이 없습니다") {
+                tracing::info!("지갑 로그인 실패 (미연동/탈퇴): wallet={}", body.wallet_address);
+                (StatusCode::NOT_FOUND, msg)
+            } else {
+                tracing::error!("지갑 로그인 실패 (서버): {}", msg);
+                (StatusCode::INTERNAL_SERVER_ERROR, msg)
+            }
+        })?;
 
     tracing::info!("지갑 로그인 성공: wallet={}", body.wallet_address);
 
@@ -380,20 +389,33 @@ pub async fn wallet_login_app(
         &body.signature,
         "app",
     )
-    .await
-    .map_err(|e| {
-        let msg = e.to_string();
-        if msg.contains("nonce") || msg.contains("서명") {
-            tracing::warn!("앱 지갑 로그인 실패 (클라이언트): {}", msg);
-            (StatusCode::UNAUTHORIZED, msg)
-        } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
-            tracing::warn!("앱 지갑 로그인 차단: {}", msg);
-            (StatusCode::FORBIDDEN, msg)
-        } else {
-            tracing::error!("앱 지갑 로그인 실패 (서버): {}", msg);
-            (StatusCode::INTERNAL_SERVER_ERROR, msg)
-        }
-    })?;
+        .await
+        .map_err(|e| {
+            // service에서 올라온 에러를 HTTP 상태코드로 변환
+            //
+            // 케이스 분기:
+            // - nonce/서명 관련         → 401 (인증 실패)
+            // - 연동된 계정 없음         → 404 (탈퇴자 + 미연동)
+            // - 회원가입 미완료          → 403 (앱 전용 차단)
+            // - 그 외                   → 500 (서버 에러)
+            let msg = e.to_string();
+            if msg.contains("nonce") || msg.contains("서명") {
+                tracing::warn!("앱 지갑 로그인 실패 (인증): {}", msg);
+                (StatusCode::UNAUTHORIZED, msg)
+            } else if msg.contains("연동된 계정이 없습니다") {
+                tracing::info!(
+            "앱 지갑 로그인 실패 (미연동/탈퇴): wallet={}",
+            body.wallet_address
+        );
+                (StatusCode::NOT_FOUND, msg)
+            } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
+                tracing::warn!("앱 지갑 로그인 차단 (가입 미완료): {}", msg);
+                (StatusCode::FORBIDDEN, msg)
+            } else {
+                tracing::error!("앱 지갑 로그인 실패 (서버): {}", msg);
+                (StatusCode::INTERNAL_SERVER_ERROR, msg)
+            }
+        })?;
 
     let body = AppLoginResponse {
         access_token: response.access_token,
@@ -441,8 +463,15 @@ pub async fn exchange_token(
     let issued = service::exchange_supabase_token(&state, &body.access_token, "web")
         .await
         .map_err(|e| {
-            tracing::error!("토큰 교환 실패: {}", e);
-            (StatusCode::UNAUTHORIZED, e.to_string())
+            let msg = e.to_string();
+            tracing::error!("토큰 교환 실패: {}", msg);
+
+            // 탈퇴 관련 메시지는 403 (인증 자체가 무효는 아니지만 권한 없음)
+            if msg.contains("탈퇴") {
+                (StatusCode::FORBIDDEN, msg)
+            } else {
+                (StatusCode::UNAUTHORIZED, msg)
+            }
         })?;
 
     let cookie_headers = build_refresh_cookie(&state, &issued.refresh_token);
@@ -495,7 +524,9 @@ pub async fn exchange_token_app(
             let msg = e.to_string();
             tracing::error!("앱 토큰 교환 실패: {}", msg);
 
-            if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
+            if msg.contains("탈퇴") {
+                (StatusCode::FORBIDDEN, msg)
+            } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
                 (StatusCode::FORBIDDEN, msg)
             } else {
                 (StatusCode::UNAUTHORIZED, msg)
@@ -585,7 +616,7 @@ pub async fn get_me(
 // 탈퇴 처리 후 refresh 쿠키도 삭제해서 즉시 로그아웃 상태로 만듦
 pub async fn withdraw(
     State(state): State<AppState>,
-    axum::Extension(user_id): axum::Extension<uuid::Uuid>,
+   Extension(user_id):Extension<Uuid>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     service::withdraw_user(&state, user_id).await.map_err(|e| {
         tracing::error!("회원탈퇴 실패: user_id={}, error={}", user_id, e);
@@ -1212,20 +1243,35 @@ pub async fn check_email(
 
     let rows: Vec<serde_json::Value> = withdrawn_resp.json().await.unwrap_or_default();
 
+    // 케이스별 처리:
+    // 1) 이메일 없음 → 404 (가입 가능)
+    // 2) 탈퇴 X 기존 유저 → 200 exists:true (이미 가입된 이메일)
+    // 3) 탈퇴 O 쿨다운 미만 → 403 "탈퇴 후 30일 동안..."
+    // 4) 탈퇴 O 쿨다운 만료 → 403 "이미 탈퇴한 회원입니다. 다른 이메일로..." ★ 변경
+    //
+    // 정책: 같은 이메일은 영구 차단 (NFT 거래 무결성 + 5년 보관 의무)
     if let Some(row) = rows.first() {
-        if row["deleted_at"].is_string() {
-            // 탈퇴한 유저 → 재가입 차단
-            return Err((StatusCode::FORBIDDEN, "이미 탈퇴한 회원입니다.".to_string()));
+        if let Some(deleted_at_str) = row["deleted_at"].as_str() {
+            // 30일 쿨다운 체크 → 미만이면 "30일 안내" 메시지로 차단
+            match crate::auth::service::check_rejoin_cooldown(deleted_at_str) {
+                Err(e) => {
+                    // 쿨다운 미만 → 30일 안내
+                    return Err((StatusCode::FORBIDDEN, e.to_string()));
+                }
+                Ok(_) => {
+                    // 쿨다운 만료해도 같은 이메일 영구 차단
+                    return Err((
+                        StatusCode::FORBIDDEN,
+                        "이미 탈퇴한 회원입니다. 다른 이메일로 가입해 주세요.".to_string(),
+                    ));
+                }
+            }
+        } else {
+            return Ok(Json(CheckEmailResponse { exists: true }));
         }
-        // 탈퇴 안 한 기존 유저 → 이미 가입된 이메일
-        return Ok(Json(CheckEmailResponse { exists: true }));
     }
 
-    // 이메일 자체가 없음 → 가입 가능
-    Err((
-        StatusCode::NOT_FOUND,
-        "가입 가능한 이메일입니다.".to_string(),
-    ))
+    Err((StatusCode::NOT_FOUND, "가입 가능한 이메일입니다.".to_string()))
 }
 
 #[utoipa::path(
@@ -1358,9 +1404,22 @@ pub async fn kakao_login(
     let issued = service::kakao_login(&state, &body.code, "web")
         .await
         .map_err(|e| {
+            // service에서 올라온 에러를 HTTP 상태코드로 변환
+            //
+            // 케이스 분기:
+            // - 탈퇴 관련 메시지 → 403 (재가입 쿨다운 또는 탈퇴 계정)
+            //   ※ "탈퇴 후 30일 동안 재가입할 수 없습니다..."
+            //   ※ "탈퇴한 계정입니다. 새로 회원가입해 주세요."
+            // - 그 외             → 500 (카카오 API 실패, Supabase 실패 등)
             let msg = e.to_string();
-            tracing::error!("카카오 로그인 실패: {}", msg);
-            (StatusCode::INTERNAL_SERVER_ERROR, msg)
+
+            if msg.contains("탈퇴") {
+                tracing::warn!("카카오 로그인 차단 (탈퇴 관련): {}", msg);
+                (StatusCode::FORBIDDEN, msg)
+            } else {
+                tracing::error!("카카오 로그인 실패 (서버): {}", msg);
+                (StatusCode::INTERNAL_SERVER_ERROR, msg)
+            }
         })?;
 
     let mut merged_headers = build_clear_kakao_state_cookie(&state);
@@ -1397,12 +1456,22 @@ pub async fn kakao_login_app(
     let issued = service::kakao_login(&state, &body.code, "app")
         .await
         .map_err(|e| {
+            // service에서 올라온 에러를 HTTP 상태코드로 변환
+            //
+            // 케이스 분기:
+            // - 탈퇴 관련 메시지        → 403
+            // - 회원가입 미완료 (앱 전용) → 403
+            // - 그 외                   → 500
             let msg = e.to_string();
-            tracing::error!("앱 카카오 로그인 실패: {}", msg);
 
-            if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
+            if msg.contains("탈퇴") {
+                tracing::warn!("앱 카카오 로그인 차단 (탈퇴 관련): {}", msg);
+                (StatusCode::FORBIDDEN, msg)
+            } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
+                tracing::warn!("앱 카카오 로그인 차단 (가입 미완료): {}", msg);
                 (StatusCode::FORBIDDEN, msg)
             } else {
+                tracing::error!("앱 카카오 로그인 실패 (서버): {}", msg);
                 (StatusCode::INTERNAL_SERVER_ERROR, msg)
             }
         })?;

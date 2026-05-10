@@ -40,6 +40,7 @@ mod state;
 pub mod user;
 pub mod wallet;
 mod admin;
+mod jobs;
 
 use axum::http::{HeaderValue, Method, header};
 use std::net::SocketAddr;
@@ -279,6 +280,33 @@ async fn main() {
             }
         }
     });
+
+    // ─────────────────────────────────────────────────────────
+    // 회원탈퇴 라이프사이클 정리 배치 (백그라운드 태스크)
+    //
+    // 매일 KST 새벽 3시에 실행:
+    // - Phase 2 (30일 후): 쿨다운 식별자 정리
+    //   provider_id, login_provider, google_connected → null/false
+    //   → 같은 카카오/구글 계정으로 신규 가입 가능해짐
+    //
+    // - Phase 3 (5년 후): 완전 익명화
+    //   부가 데이터 hard delete + users row 익명화
+    //   거래/결제 이력은 user_id 외래키로만 유지 (5년 보관 의무)
+    //
+    // 위의 nonce/handoff/webview 정리와 다른 점:
+    // - 위 셋은 메모리 정리 (DashMap 청소)
+    // - 이건 DB 작업 (Supabase REST API 호출)
+    //
+    // 동시 실행 보호:
+    // - 단일 인스턴스 가정 (별도 락 없음)
+    // - 멀티 인스턴스 환경에선 advisory lock 추가 필요
+    //
+    // 수동 실행:
+    // - jobs::scheduler::run_now(&state).await 로 즉시 1회 실행
+    // - 관리자 페이지의 "지금 정리 실행" 버튼에서 호출 예정
+    // ─────────────────────────────────────────────────────────
+    jobs::scheduler::start(state.clone());
+    tracing::info!("회원탈퇴 정리 배치 스케줄러 등록 완료 (매일 KST 03:00)");
 
     let app = route::create_router(state)
         .layer(governor_limiter)

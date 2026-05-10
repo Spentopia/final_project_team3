@@ -45,7 +45,9 @@ export default function KakaoCallbackPage() {
       navigate("/", { replace: true });
     } catch (err: any) {
       console.error("카카오 로그인 실패:", err);
-      toast.error("로그인 링크가 만료되었거나 이미 사용되었어요. 다시 로그인해 주세요.");
+      toast.error(
+          err instanceof Error ? err.message : "카카오 로그인에 실패했습니다."
+      );
       navigate("/login", { replace: true });
     }
   };

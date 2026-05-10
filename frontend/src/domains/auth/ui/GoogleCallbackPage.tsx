@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { supabase } from "@/shared/lib/supabase";
 import { authStorage } from "@/shared/lib/auth";
+import { toast } from "sonner";
 import { apiClient } from "@/shared/api/client";
 import type { Session } from "@supabase/supabase-js";
 
@@ -122,35 +123,29 @@ export default function GoogleCallbackPage() {
     } catch (err: any) {
       if (!mountedRef.current) return;
 
+      // 백엔드 응답 메시지 추출 (axios 응답 우선)
+      // 우선순위:
+      // 1) response.data가 string (백엔드가 직접 문자열 반환)
+      // 2) response.data.message
+      // 3) Error.message
+      // 4) fallback
       const message =
-        err?.response?.data?.message ||
-        err?.response?.data ||
-        err?.message ||
-        "구글 로그인 실패";
+          err?.response?.data?.message ||
+          err?.response?.data ||
+          err?.message ||
+          "구글 로그인에 실패했습니다.";
 
-      setError(String(message));
+      // toast + 자동 리다이렉트 (카카오 콜백과 동일한 UX)
+      console.error("구글 로그인 실패:", err);
+      toast.error(String(message));
+      navigate("/login", { replace: true });
     }
   };
 
-  if (error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <p className="mb-4 text-red-500">{error}</p>
-          <button
-            onClick={() => navigate("/login")}
-            className="text-cyan-600 hover:underline"
-          >
-            로그인으로 돌아가기
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  // 처리 중 화면 (콜백 직후 잠깐 보임)
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <p className="text-gray-500">구글 로그인 처리 중...</p>
-    </div>
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-gray-500">구글 로그인 처리 중...</p>
+      </div>
   );
 }

@@ -60,7 +60,7 @@ const mapSupabaseAuthError = (message: string, fallback: string) => {
   }
 
   if (normalizedMessage.includes("user already registered")) {
-    return "이미 사용 중인 이메일이거나 가입할 수 없는 이메일입니다.";
+    return "이미 사용 중이거나 이전에 가입했던 이메일입니다. 다른 이메일로 가입해 주세요.";
   }
 
   if (normalizedMessage.includes("email not confirmed")) {
@@ -159,24 +159,42 @@ export const signUp = async (payload: SignUpRequest, captchaToken: string): Prom
   }
 
   // ── 1) 이메일 중복 확인 ────────────────────────────────────
-  // 백엔드의 /auth/check-email은 public.users에서 이메일 존재 여부를 확인
-  // 200 + { exists: true } → 이미 가입된 이메일
-  // 404 → 가입 가능한 이메일
+// 백엔드 /auth/check-email 응답:
+//   200 + { exists: true } → 이미 가입된 이메일
+//   404                    → 가입 가능
+//   403                    → 탈퇴 쿨다운 (30일 미만) 또는 가입 차단 도메인
   try {
     const checkRes = await apiClient.post("/auth/check-email", {
       email: normalizedEmail,
       captcha_token: captchaToken,
     });
 
-    // 200이 왔다는 건 이메일이 존재한다는 뜻
+    // 200 = 이미 존재
     if (checkRes.data?.exists) {
       throw new Error("이미 가입된 이메일입니다.");
     }
   } catch (error: any) {
-    // 404면 이메일이 없다는 뜻 → 정상, 회원가입 진행
-    // 그 외 에러(이미 가입된 이메일 포함)는 그대로 throw
-    if (error.response?.status !== 404) {
+    const status = error.response?.status;
+
+    // 404: 정상 (가입 가능) → 회원가입 진행
+    if (status === 404) {
+      // pass through
+    }
+    // 403: 탈퇴 쿨다운 또는 가입 차단 → 백엔드 메시지를 그대로 사용
+    else if (status === 403) {
+      throw new Error(
+          extractApiErrorMessage(error, "재가입할 수 없는 이메일입니다.")
+      );
+    }
+    // 200으로 떨어진 "이미 가입됨" Error는 그대로 throw
+    else if (error instanceof Error) {
       throw error;
+    }
+    // 그 외 네트워크/서버 오류
+    else {
+      throw new Error(
+          extractApiErrorMessage(error, "이메일 확인에 실패했습니다.")
+      );
     }
   }
 
@@ -238,9 +256,21 @@ export const redirectToKakao = async () => {
 };
 
 export const loginWithKakaocode = async (code: string, state: string) => {
-  const res = await apiClient.post("/auth/kakao/login", { code, state }, { withCredentials: true });
-
-  return res.data;
+  try {
+    const res = await apiClient.post(
+        "/auth/kakao/login",
+        { code, state },
+        { withCredentials: true }
+    );
+    return res.data;
+  } catch (error) {
+    // 백엔드 응답:
+    // 403 → 탈퇴 쿨다운 또는 탈퇴 계정
+    // 500 → 카카오/서버 에러
+    throw new Error(
+        extractApiErrorMessage(error, "카카오 로그인에 실패했습니다.")
+    );
+  }
 };
 
 // 프로필 완성
@@ -357,11 +387,18 @@ export const findEmailByPhone = async (
 // 회원탈퇴
 //
 // 처리 순서:
-// 1) 백엔드 /auth/withdraw 호출 → DB soft delete + auth.users 삭제 + 세션 revoke
+// 1) 백엔드 /auth/withdraw 호출 → DB soft delete + 세션 revoke
+//    ※ auth.users는 삭제하지 않음 (cascade로 public.users도 날아가는 것 방지)
+//    ※ 로그인 차단은 deleted_at 체크 + 30일 쿨다운으로 처리
 // 2) 로컬 access token 삭제 (메모리)
 // 3) Supabase 세션 삭제 (로컬 스토리지)
 //
 // withCredentials: true → refresh 쿠키도 같이 전송해서 백엔드에서 쿠키 삭제 처리
+//
+// 정책:
+// - 30일 동안 같은 이메일/카카오/구글로 재가입 차단
+// - 30일 후 신규 가입은 가능 (단, 기존 데이터 복구 X)
+// - 5년 후 백그라운드 배치로 완전 익명화
 export const withdrawAccount = async () => {
   await apiClient.post("/auth/withdraw", {}, { withCredentials: true });
   authStorage.clear();
