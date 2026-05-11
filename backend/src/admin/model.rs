@@ -49,6 +49,12 @@ pub struct AdminUser {
     pub role_type: Option<String>,
     pub profile_completed: Option<bool>,
     pub is_active: Option<bool>,
+    // 탈퇴 시각.
+    //
+    // public.users.deleted_at 컬럼을 그대로 받는다.
+    // Some이면 관리자 회원관리 화면에서 "탈퇴"로 표시한다.
+    pub deleted_at: Option<DateTime<Utc>>,
+
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }

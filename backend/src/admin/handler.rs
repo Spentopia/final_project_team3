@@ -74,6 +74,8 @@ fn map_admin_error(error: anyhow::Error) -> axum::response::Response {
         || message.contains("콘테스트 종료일")
         || message.contains("지원하지 않는 콘테스트 상태")
         || message.contains("수정할 콘테스트")
+        || message.contains("탈퇴한 회원은 활성/비활성")
+        || message.contains("운영자 계정은 활성/비활성")
     {
         return (StatusCode::BAD_REQUEST, message).into_response();
     }

@@ -146,8 +146,16 @@ export interface AdminUserResponse {
     // 활성 상태
     //
     // true  : 정상 활성 회원
-    // false : 비활성/정지/탈퇴 처리된 회원으로 간주
+    // false : 운영자가 비활성 처리한 회원
+    //
+    // 단, deleted_at이 있으면 "비활성"이 아니라 "탈퇴"로 표시한다.
     is_active: boolean;
+
+    // 탈퇴 시각.
+    //
+    // null이면 미탈퇴 회원.
+    // 문자열이면 탈퇴 회원.
+    deleted_at: string | null;
 
     // 가입 시각
     created_at: string | null;

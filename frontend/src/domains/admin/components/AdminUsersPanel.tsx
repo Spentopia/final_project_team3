@@ -32,6 +32,52 @@ type AdminUsersPanelProps = {
     onToggleUserActive: (user: AdminUserResponse) => void;
 };
 
+function getUserStatusLabel(user: AdminUserResponse): string {
+    if (user.deleted_at) {
+        return "탈퇴";
+    }
+
+    return user.is_active ? "활성" : "비활성";
+}
+
+function getUserStatusClassName(user: AdminUserResponse): string {
+    if (user.deleted_at) {
+        return "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300";
+    }
+
+    if (user.is_active) {
+        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300";
+    }
+
+    return "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300";
+}
+
+function canToggleUserActive(user: AdminUserResponse): boolean {
+    // 탈퇴자는 활성/비활성 변경 불가.
+    if (user.deleted_at) {
+        return false;
+    }
+
+    // 운영자 계정은 활성/비활성 변경 불가.
+    if (user.role_type === "admin") {
+        return false;
+    }
+
+    return true;
+}
+
+function getToggleDisabledReason(user: AdminUserResponse): string {
+    if (user.deleted_at) {
+        return "탈퇴한 회원은 활성/비활성 상태를 변경할 수 없습니다.";
+    }
+
+    if (user.role_type === "admin") {
+        return "운영자 계정은 활성/비활성 상태를 변경할 수 없습니다.";
+    }
+
+    return "";
+}
+
 export default function AdminUsersPanel({
                                             users,
                                             userKeyword,
@@ -132,15 +178,12 @@ export default function AdminUsersPanel({
                                 </td>
 
                                 <td className="px-4 py-3 align-middle">
-                    <span
-                        className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${
-                            user.is_active
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                        }`}
-                    >
-                      {user.is_active ? "활성" : "비활성"}
-                    </span>
+                                    <span
+                                        className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${getUserStatusClassName(user)}`}
+                                        title={user.deleted_at ? `탈퇴일: ${formatDateTime(user.deleted_at)}` : undefined}
+                                    >
+                                        {getUserStatusLabel(user)}
+                                    </span>
                                 </td>
 
                                 <td className="px-4 py-3 align-middle text-muted-foreground">
@@ -151,22 +194,31 @@ export default function AdminUsersPanel({
 
                                 <td className="px-4 py-3 align-middle">
                                     <div className="flex justify-end">
-                                        <button
-                                            type="button"
-                                            disabled={processingId === user.id}
-                                            onClick={() => onToggleUserActive(user)}
-                                            className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                                                user.is_active
-                                                    ? "bg-gray-500 hover:bg-gray-600"
-                                                    : "bg-emerald-500 hover:bg-emerald-600"
-                                            }`}
-                                        >
-                                            {processingId === user.id
-                                                ? "처리 중..."
-                                                : user.is_active
-                                                    ? "비활성화"
-                                                    : "활성화"}
-                                        </button>
+                                        {canToggleUserActive(user) ? (
+                                            <button
+                                                type="button"
+                                                disabled={processingId === user.id}
+                                                onClick={() => onToggleUserActive(user)}
+                                                className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                                    user.is_active
+                                                        ? "bg-gray-500 hover:bg-gray-600"
+                                                        : "bg-emerald-500 hover:bg-emerald-600"
+                                                }`}
+                                            >
+                                                {processingId === user.id
+                                                    ? "처리 중..."
+                                                    : user.is_active
+                                                        ? "비활성화"
+                                                        : "활성화"}
+                                            </button>
+                                        ) : (
+                                            <span
+                                                className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-400 dark:bg-gray-700 dark:text-gray-500"
+                                                title={getToggleDisabledReason(user)}
+                                            >
+                                            변경 불가
+                                        </span>
+                                        )}
                                     </div>
                                 </td>
                             </tr>

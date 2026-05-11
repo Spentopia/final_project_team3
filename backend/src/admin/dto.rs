@@ -105,7 +105,22 @@ pub struct AdminUserResponse {
     pub wallet_address: Option<String>,
     pub role_type: String,
     pub profile_completed: bool,
+
+    // 회원 활성 여부.
+    //
+    // true  = 정상 활성 회원
+    // false = 운영자가 비활성 처리한 회원
+    //
+    // 단, 탈퇴 여부는 is_active만으로 판단하지 않는다.
+    // deleted_at이 Some이면 "탈퇴" 상태로 우선 표시한다.
     pub is_active: bool,
+
+    // 탈퇴 시각.
+    //
+    // deleted_at이 Some이면 관리자 페이지에서는
+    // 활성/비활성이 아니라 "탈퇴" 상태로 보여준다.
+    pub deleted_at: Option<DateTime<Utc>>,
+
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }
