@@ -121,6 +121,34 @@ async fn to_post_response(
 }
 
 async fn to_comment_response(state: &AppState, comment: Comment) -> CommentResponse {
+    // 작성자가 탈퇴자(users.deleted_at IS NOT NULL)면 가공
+    // - 닉네임: "탈퇴한 회원"
+    // - 프로필 이미지: 기본 이미지
+    // - 내용: "[작성자가 탈퇴했습니다]"
+    //
+    // 대댓글은 그대로 표시됨 (parent_id로 연결)
+    let is_author_withdrawn = comment
+        .users
+        .as_ref()
+        .and_then(|author| author.deleted_at)
+        .is_some();
+
+    if is_author_withdrawn {
+        return CommentResponse {
+            id: comment.id,
+            post_id: comment.post_id,
+            parent_id: comment.parent_id,
+            user_id: comment.user_id,
+            author_nickname: Some("탈퇴한 회원".to_string()),
+            author_profile_image: Some("defaults/avatar.png".to_string()),
+            author_profile_image_url: None, // signed URL 발급 안 함
+            content: "[작성자가 탈퇴했습니다]".to_string(),
+            created_at: comment.created_at,
+            updated_at: comment.updated_at,
+        };
+    }
+
+    // 정상 댓글: 기존 로직 그대로
     let author_nickname = comment
         .users
         .as_ref()
@@ -157,8 +185,10 @@ async fn ensure_admin(state: &AppState, user_id: Uuid) -> Result<()> {
 }
 
 async fn get_post(state: &AppState, post_id: Uuid) -> Result<Post> {
+    // ?users.deleted_at=is.null 필터로 탈퇴자 게시글 차단
+    // 이거 하나로 게시글 상세/수정/삭제/반응/댓글 진입 다 자동으로 404 처리됨
     let url = format!(
-        "{}/rest/v1/posts?id=eq.{}&is_deleted=eq.false&select=*,users!posts_user_id_fkey(nickname,profile_image)&limit=1",
+        "{}/rest/v1/posts?id=eq.{}&is_deleted=eq.false&users.deleted_at=is.null&select=*,users!posts_user_id_fkey!inner(nickname,profile_image,deleted_at)&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         post_id,
     );
@@ -228,7 +258,7 @@ async fn is_reacted_by_user(state: &AppState, user_id: Uuid, post_id: Uuid) -> R
 
 async fn get_comment(state: &AppState, comment_id: Uuid) -> Result<Comment> {
     let url = format!(
-        "{}/rest/v1/comments?id=eq.{}&is_deleted=eq.false&select=*,users!comments_user_id_fkey(nickname,profile_image)&limit=1",
+        "{}/rest/v1/comments?id=eq.{}&is_deleted=eq.false&select=*,users!comments_user_id_fkey(nickname,profile_image,deleted_at)&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         comment_id,
     );
@@ -672,8 +702,10 @@ pub async fn list_posts(
         PostSort::Views => "view_count.desc,created_at.desc",
     };
 
+    // 탈퇴자(users.deleted_at IS NOT NULL) 게시글은 목록에서 제외
+    // !inner로 INNER JOIN 강제 + users.deleted_at=is.null 필터 적용
     let url = format!(
-        "{}/rest/v1/posts?{}&select=*,users!posts_user_id_fkey(nickname,profile_image)&order={}",
+        "{}/rest/v1/posts?{}&users.deleted_at=is.null&select=*,users!posts_user_id_fkey!inner(nickname,profile_image)&order={}",
         state.config.supabase_url.trim_end_matches('/'),
         filters.join("&"),
         order,
@@ -1067,8 +1099,11 @@ pub async fn list_comments(state: &AppState, post_id: Uuid) -> Result<Vec<Commen
         return Err(anyhow!("공지사항에는 댓글을 사용할 수 없습니다."));
     }
 
+    // 댓글은 작성자가 탈퇴해도 row는 가져온다 (대댓글 보존 위해)
+    // to_comment_response에서 작성자 정보를 가공해서 반환함
+    // users.deleted_at도 같이 select해서 가공 판단에 사용
     let url = format!(
-        "{}/rest/v1/comments?post_id=eq.{}&is_deleted=eq.false&select=*,users!comments_user_id_fkey(nickname,profile_image)&order=created_at.asc",
+        "{}/rest/v1/comments?post_id=eq.{}&is_deleted=eq.false&select=*,users!comments_user_id_fkey(nickname,profile_image,deleted_at)&order=created_at.asc",
         state.config.supabase_url.trim_end_matches('/'),
         post_id,
     );
