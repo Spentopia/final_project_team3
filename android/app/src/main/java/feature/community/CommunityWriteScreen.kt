@@ -11,9 +11,13 @@ package com.ict.spentopia.feature.community
 // 3. 바깥(AppNavGraph)에서 실제 리스트에 추가하도록 합니다.
 // ------------------------------------------------------------
 
+import android.content.Context
+import android.net.Uri
+import android.graphics.Bitmap
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,11 +30,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,23 +58,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Brush
-import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
-import com.ict.spentopia.ui.theme.SpentopiaNavy
-import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
-import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
-import com.ict.spentopia.ui.theme.spentopiaCtaContentColor
-import com.ict.spentopia.ui.theme.spentopiaCtaGradientColors
+import coil.compose.AsyncImage
+import java.io.File
+import java.io.FileOutputStream
 
 @Composable
 fun CommunityWriteScreen(
-    onBackClick: () -> Unit = {},
-    onSubmitClick: (CommunityCategory, String, String) -> Unit = { _, _, _ -> }
+    initialCategory: CommunityCategory = CommunityCategory.FREE_BOARD,
+    initialContestId: String? = null,
+    onSubmitClick: (CommunityCategory, String, String, Uri?, String?) -> Unit = { _, _, _, _, _ -> }
 ) {
+    val context = LocalContext.current
+
     // 제목 입력 상태입니다.
     var title by remember { mutableStateOf("") }
 
@@ -71,7 +84,34 @@ fun CommunityWriteScreen(
     var content by remember { mutableStateOf("") }
 
     // 선택된 카테고리 상태입니다.
-    var selectedCategory by remember { mutableStateOf(CommunityCategory.FREE_BOARD) }
+    var selectedCategory by remember(initialCategory) {
+        mutableStateOf(
+            if (initialCategory == CommunityCategory.REQUEST ||
+                initialCategory == CommunityCategory.AVATAR_CONTEST ||
+                initialCategory == CommunityCategory.FREE_BOARD
+            ) initialCategory else CommunityCategory.FREE_BOARD
+        )
+    }
+
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        selectedImageUri = uri
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap: Bitmap? ->
+        bitmap?.let {
+            selectedImageUri = saveBitmapToCacheUri(
+                context = context,
+                bitmap = it,
+                filePrefix = "community_camera"
+            )
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -81,9 +121,7 @@ fun CommunityWriteScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        CommunityWriteTopSection(
-            onBackClick = onBackClick
-        )
+        CommunityWriteTopSection()
 
         CommunityWriteCategoryCard(
             selectedCategory = selectedCategory,
@@ -106,6 +144,19 @@ fun CommunityWriteScreen(
             }
         )
 
+        CommunityWriteAttachmentCard(
+            selectedImageUri = selectedImageUri,
+            onPickImageClick = {
+                imagePickerLauncher.launch("image/*")
+            },
+            onTakePhotoClick = {
+                cameraLauncher.launch(null)
+            },
+            onRemoveImageClick = {
+                selectedImageUri = null
+            }
+        )
+
         CommunityWriteSubmitSection(
             // 빈 제목/내용이면 등록되지 않도록 아주 기본 검사를 넣습니다.
             isEnabled = title.isNotBlank() && content.isNotBlank(),
@@ -116,7 +167,13 @@ fun CommunityWriteScreen(
                 val trimmedContent = content.trim()
 
                 if (trimmedTitle.isNotEmpty() && trimmedContent.isNotEmpty()) {
-                    onSubmitClick(selectedCategory, trimmedTitle, trimmedContent)
+                    onSubmitClick(
+                        selectedCategory,
+                        trimmedTitle,
+                        trimmedContent,
+                        selectedImageUri,
+                        if (selectedCategory == CommunityCategory.AVATAR_CONTEST) initialContestId else null
+                    )
                 }
             }
         )
@@ -124,9 +181,7 @@ fun CommunityWriteScreen(
 }
 
 @Composable
-private fun CommunityWriteTopSection(
-    onBackClick: () -> Unit
-) {
+private fun CommunityWriteTopSection() {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -138,49 +193,21 @@ private fun CommunityWriteTopSection(
         Column(
             modifier = Modifier.padding(18.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = "커뮤니티 글쓰기",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+            Text(
+                text = "커뮤니티 글쓰기",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-                    Text(
-                        text = "다른 사용자들과 공유하고 싶은 이야기를 자유롭게 작성해보세요.",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 19.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Button(
-                    onClick = onBackClick,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = "뒤로가기",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
+            Text(
+                text = "다른 사용자들과 공유하고 싶은 이야기를 자유롭게 작성해보세요.",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 19.sp
+            )
         }
     }
 }
@@ -202,12 +229,23 @@ private fun CommunityWriteCategoryCard(
         Column(
             modifier = Modifier.padding(18.dp)
         ) {
-            Text(
-                text = "카테고리 선택",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Settings,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "게시판",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -216,14 +254,22 @@ private fun CommunityWriteCategoryCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                CommunityCategory.entries.forEach { category ->
+                listOf(
+                    CommunityCategory.REQUEST,
+                    CommunityCategory.AVATAR_CONTEST,
+                    CommunityCategory.FREE_BOARD
+                ).forEach { category ->
                     val isSelected = category == selectedCategory
 
                     Box(
                         modifier = Modifier
                             .widthIn(min = 88.dp)
                             .background(
-                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                color = if (isSelected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                },
                                 shape = RoundedCornerShape(999.dp)
                             )
                             .clickable {
@@ -235,7 +281,11 @@ private fun CommunityWriteCategoryCard(
                             text = category.label,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            }
                         )
                     }
                 }
@@ -351,13 +401,145 @@ private fun CommunityWriteContentCard(
 }
 
 @Composable
+private fun CommunityWriteAttachmentCard(
+    selectedImageUri: Uri?,
+    onPickImageClick: () -> Unit,
+    onTakePhotoClick: () -> Unit,
+    onRemoveImageClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp)
+        ) {
+            Text(
+                text = "첨부파일",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Button(
+                    onClick = onPickImageClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AttachFile,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "업로드",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Button(
+                    onClick = onTakePhotoClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.PhotoCamera,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "카메라",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            if (selectedImageUri != null) {
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                ) {
+                    AsyncImage(
+                        model = selectedImageUri,
+                        contentDescription = "첨부 이미지 미리보기",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(1.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Button(
+                    onClick = onRemoveImageClick,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    ),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.DeleteOutline,
+                        contentDescription = null,
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "첨부 이미지 삭제",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun CommunityWriteSubmitSection(
     isEnabled: Boolean,
     onSubmitClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    val enabledGradient = spentopiaCtaGradientColors(isDark)
-    val enabledContentColor = spentopiaCtaContentColor(isDark)
+    val colorScheme = MaterialTheme.colorScheme
+    val enabledGradient = listOf(
+        colorScheme.primary,
+        colorScheme.primary.copy(alpha = 0.72f),
+        colorScheme.primaryContainer,
+        colorScheme.primary
+    )
 
     Button(
         onClick = onSubmitClick,
@@ -395,9 +577,24 @@ private fun CommunityWriteSubmitSection(
                 text = "등록하기",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isEnabled) enabledContentColor else MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isEnabled) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+private fun saveBitmapToCacheUri(context: Context, bitmap: Bitmap, filePrefix: String): Uri? {
+    return try {
+        val cacheDir = File(context.cacheDir, "community_media").apply {
+            if (!exists()) mkdirs()
+        }
+        val file = File(cacheDir, "${filePrefix}_${System.currentTimeMillis()}.jpg")
+        FileOutputStream(file).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+        }
+        Uri.fromFile(file)
+    } catch (_: Exception) {
+        null
     }
 }
 

@@ -57,14 +57,15 @@ sealed class Route(val route: String) {
     data object Chatbot : Route("chatbot")
 
     // 커뮤니티 글쓰기 화면 route입니다.
-    data object CommunityWrite : Route("community_write")
+    data object CommunityWrite : Route("community_write?category={category}&contestId={contestId}") {
+        private const val baseRoute = "community_write"
 
-    // ------------------------------------------------------------
-    // 커뮤니티 상세 화면 route입니다.
-    // ------------------------------------------------------------
-    data object CommunityDetail : Route("community_detail/{postId}") {
-        fun createRoute(postId: String): String {
-            return "community_detail/$postId"
+        fun createRoute(category: String? = null, contestId: String? = null): String {
+            val params = buildList {
+                if (!category.isNullOrBlank()) add("category=$category")
+                if (!contestId.isNullOrBlank()) add("contestId=$contestId")
+            }
+            return if (params.isEmpty()) baseRoute else "$baseRoute?${params.joinToString("&")}"
         }
     }
 }

@@ -50,6 +50,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.spentopia.feature.plaza.PlazaScreen
 import com.ict.spentopia.data.remote.NonceRequest
@@ -70,7 +71,7 @@ import com.ict.spentopia.feature.auth.connector.WalletSignResult
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
 import com.ict.spentopia.feature.budget.BudgetScreen
 import com.ict.spentopia.feature.chatbot.ChatbotScreen
-import com.ict.spentopia.feature.community.CommunityDetailScreen
+import com.ict.spentopia.feature.community.CommunityCategory
 import com.ict.spentopia.feature.community.CommunityScreen
 import com.ict.spentopia.feature.community.CommunityViewModel
 import com.ict.spentopia.feature.community.CommunityWriteScreen
@@ -135,8 +136,7 @@ fun AppNavGraph(
         Route.Market.route,
         Route.Plaza.route,
         Route.Community.route,
-        Route.CommunityWrite.route,
-        Route.CommunityDetail.route
+        Route.CommunityWrite.route
     )
 
     val shouldShowDrawer = currentRoute in showDrawerScreens
@@ -149,10 +149,7 @@ fun AppNavGraph(
         Route.Analysis.route,
         Route.ProfileAvatar.route,
         Route.Market.route,
-        Route.Plaza.route,
-        Route.Community.route,
-        Route.CommunityWrite.route,
-        Route.CommunityDetail.route
+        Route.Plaza.route
     )
 
     val shouldShowChatbotFloatingButton = currentRoute in showChatbotFloatingButtonScreens
@@ -574,62 +571,40 @@ fun AppNavGraph(
 
                     CommunityScreen(
                         posts = communityUiState.posts,
+                        contests = communityUiState.contests,
+                        selectedPost = communityUiState.selectedPost,
+                        currentUserId = communityUiState.currentUserId,
+                        currentUserRole = communityUiState.currentUserRole,
                         isLoading = communityUiState.isLoading,
                         errorMessage = communityUiState.errorMessage,
                         onRetryClick = {
                             communityViewModel.clearError()
                             communityViewModel.loadPosts()
                         },
-                        onWriteClick = { navController.navigate(Route.CommunityWrite.route) },
-                        onChatClick = { navController.navigate(Route.Chatbot.route) },
-                        onPostClick = { post ->
-                            navController.navigate(Route.CommunityDetail.createRoute(post.id))
-                        }
-                    )
-                }
-
-                composable(Route.Chatbot.route) {
-                    ChatbotScreen(
-                        onBackClick = { navController.popBackStack() }
-                    )
-                }
-
-                composable(Route.CommunityWrite.route) {
-                    CommunityWriteScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onSubmitClick = { category, title, content ->
-                            communityViewModel.createPost(
-                                category = category,
-                                title = title,
-                                content = content,
-                                onSuccess = {
-                                    navController.popBackStack()
-                                }
+                        onWriteClick = {
+                            navController.navigate(Route.CommunityWrite.createRoute())
+                        },
+                        onContestWriteClick = { contestId ->
+                            navController.navigate(
+                                Route.CommunityWrite.createRoute(
+                                    category = "contest",
+                                    contestId = contestId
+                                )
                             )
-                        }
-                    )
-                }
-
-                composable(
-                    route = Route.CommunityDetail.route,
-                    arguments = listOf(navArgument("postId") {})
-                ) { backStackEntry ->
-                    val postId = backStackEntry.arguments?.getString("postId").orEmpty()
-
-                    LaunchedEffect(postId) {
-                        communityViewModel.loadPostDetail(postId)
-                    }
-
-                    CommunityDetailScreen(
-                        post = communityUiState.selectedPost?.takeIf { it.id == postId },
-                        currentUserId = prefs.getString("user_id", "") ?: "",
-                        onBackClick = { navController.popBackStack() },
-                        onUpdateClick = { updatedPost ->
+                        },
+                        onPostClick = { post ->
+                            communityViewModel.selectPost(post)
+                            communityViewModel.loadPostDetail(post.id)
+                        },
+                        onCloseDetailClick = {
+                            communityViewModel.clearSelectedPost()
+                        },
+                        onUpdatePostClick = { updatedPost ->
                             communityViewModel.updatePost(updatedPost)
                         },
-                        onDeleteClick = { deletePostId ->
+                        onDeletePostClick = { deletePostId ->
                             communityViewModel.deletePost(deletePostId) {
-                                navController.popBackStack()
+                                communityViewModel.clearSelectedPost()
                             }
                         },
                         onToggleLikeClick = { targetPostId ->
@@ -643,6 +618,65 @@ fun AppNavGraph(
                         },
                         onDeleteCommentClick = { targetPostId, commentId ->
                             communityViewModel.deleteComment(targetPostId, commentId)
+                        },
+                        onReportClick = { targetType, targetId, reason, detail ->
+                            communityViewModel.reportContent(targetType, targetId, reason, detail)
+                        }
+                    )
+                }
+
+                composable(Route.Chatbot.route) {
+                    ChatbotScreen(
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable(
+                    route = Route.CommunityWrite.route,
+                    arguments = listOf(
+                        navArgument("category") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        },
+                        navArgument("contestId") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        }
+                    )
+                ) { backStackEntry ->
+                    val categoryArg = backStackEntry.arguments?.getString("category")
+                    val initialCategory = when (categoryArg) {
+                        "contest" -> CommunityCategory.AVATAR_CONTEST
+                        "notice" -> CommunityCategory.NOTICE
+                        "request" -> CommunityCategory.REQUEST
+                        else -> CommunityCategory.FREE_BOARD
+                    }
+                    val contestId = backStackEntry.arguments?.getString("contestId")
+
+                    CommunityWriteScreen(
+                        initialCategory = initialCategory,
+                        initialContestId = contestId,
+                        onSubmitClick = { category, title, content, imageUri, selectedContestId ->
+                            val submitContestId = selectedContestId
+                                ?: communityUiState.contests.firstOrNull { it.status == "active" }?.id
+                                ?: communityUiState.contests.firstOrNull()?.id
+                            communityViewModel.createPost(
+                                category = category,
+                                title = title,
+                                content = content,
+                                imageUri = imageUri,
+                                contentResolver = context.contentResolver,
+                                contestId = if (category == CommunityCategory.AVATAR_CONTEST) {
+                                    submitContestId
+                                } else {
+                                    null
+                                },
+                                onSuccess = {
+                                    navController.popBackStack()
+                                }
+                            )
                         }
                     )
                 }

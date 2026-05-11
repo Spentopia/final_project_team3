@@ -1,5 +1,6 @@
 package com.ict.spentopia.feature.community
 
+import androidx.activity.compose.BackHandler
 // ------------------------------------------------------------
 // CommunityScreen.kt
 // ------------------------------------------------------------
@@ -13,8 +14,9 @@ package com.ict.spentopia.feature.community
 // ------------------------------------------------------------
 
 // Compose Foundation 관련 import입니다.
-import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -35,7 +37,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 // Material3 관련 import입니다.
@@ -55,6 +56,7 @@ import androidx.compose.material3.TextButton
 
 // Compose 상태 관련 import입니다.
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -71,7 +73,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 
 // ------------------------------------------------------------
@@ -143,8 +144,10 @@ data class CommunityPost(
     val tagText: String,                // 하단 왼쪽 태그 텍스트입니다.
     val category: CommunityCategory,    // 카테고리입니다.
     val viewCount: Int = 0,             // 조회수입니다.
+    val detailDateText: String = "",    // 상세 화면 날짜/시간 표시입니다.
     val comments: List<CommunityComment> = emptyList(), // 댓글 목록입니다.
-    val isLiked: Boolean = false        // 현재 사용자의 좋아요 여부입니다.
+    val isLiked: Boolean = false,       // 현재 사용자의 좋아요 여부입니다.
+    val imageUrl: String? = null        // 첨부 이미지 경로 또는 URL입니다.
 )
 
 // ------------------------------------------------------------
@@ -156,25 +159,36 @@ data class CommunityPost(
 // onWriteClick:
 // - 글쓰기 버튼 클릭 시 실행됩니다.
 //
-// onChatClick:
-// - AI 카드 버튼 클릭 시 실행됩니다.
-//
 // onPostClick:
 // - 게시글 카드 클릭 시 실행됩니다.
 // ------------------------------------------------------------
 @Composable
 fun CommunityScreen(
     posts: List<CommunityPost>,
+    contests: List<CommunityContest> = emptyList(),
+    selectedPost: CommunityPost? = null,
+    currentUserId: String = "",
+    currentUserRole: String = "user",
     isLoading: Boolean = false,
     errorMessage: String? = null,
     onRetryClick: () -> Unit = {},
     onWriteClick: () -> Unit = {},
-    onChatClick: () -> Unit = {},
-    onPostClick: (CommunityPost) -> Unit = {}
+    onContestWriteClick: (String?) -> Unit = {},
+    onPostClick: (CommunityPost) -> Unit = {},
+    onCloseDetailClick: () -> Unit = {},
+    onUpdatePostClick: (CommunityPost) -> Unit = {},
+    onDeletePostClick: (String) -> Unit = {},
+    onToggleLikeClick: (String) -> Unit = {},
+    onAddCommentClick: (String, String) -> Unit = { _, _ -> },
+    onUpdateCommentClick: (String, String, String) -> Unit = { _, _, _ -> },
+    onDeleteCommentClick: (String, String) -> Unit = { _, _ -> },
+    onReportClick: (String, String, String, String) -> Unit = { _, _, _, _ -> }
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategoryIndex by remember { mutableIntStateOf(0) }
     var selectedSortOption by remember { mutableStateOf(CommunitySortOption.LATEST) }
+    var currentPage by remember { mutableIntStateOf(1) }
+    val pageSize = 10
 
     val categoryTabs = remember {
         listOf<Pair<String, CommunityCategory?>>(
@@ -187,6 +201,11 @@ fun CommunityScreen(
     }
 
     val selectedCategory = categoryTabs[selectedCategoryIndex].second
+    val activeContest = remember(contests) {
+        contests.firstOrNull { it.status == "active" }
+            ?: contests.firstOrNull { it.title == "5월 아바타 콘테스트" }
+            ?: contests.firstOrNull()
+    }
 
     val filteredPosts = remember(searchQuery, selectedCategory, selectedSortOption, posts) {
         val normalizedQuery = searchQuery.trim()
@@ -216,6 +235,42 @@ fun CommunityScreen(
             }
             .toList()
     }
+    val totalPages = ((filteredPosts.size + pageSize - 1) / pageSize).coerceAtLeast(1)
+    val safeCurrentPage = currentPage.coerceIn(1, totalPages)
+    val pagedPosts = filteredPosts
+        .drop((safeCurrentPage - 1) * pageSize)
+        .take(pageSize)
+
+    LaunchedEffect(searchQuery, selectedCategoryIndex, selectedSortOption, posts.size) {
+        currentPage = 1
+    }
+
+    LaunchedEffect(totalPages) {
+        if (currentPage > totalPages) {
+            currentPage = totalPages
+        }
+    }
+
+    if (selectedPost != null) {
+        BackHandler {
+            onCloseDetailClick()
+        }
+
+        CommunityDetailScreen(
+            post = selectedPost,
+            currentUserId = currentUserId,
+            currentUserRole = currentUserRole,
+            onBackClick = onCloseDetailClick,
+            onUpdateClick = onUpdatePostClick,
+            onDeleteClick = onDeletePostClick,
+            onToggleLikeClick = onToggleLikeClick,
+            onAddCommentClick = onAddCommentClick,
+            onUpdateCommentClick = onUpdateCommentClick,
+            onDeleteCommentClick = onDeleteCommentClick,
+            onReportClick = onReportClick
+        )
+        return
+    }
 
     // 전체 화면을 세로 스크롤 가능한 LazyColumn으로 구성합니다.
     LazyColumn(
@@ -237,17 +292,24 @@ fun CommunityScreen(
             )
         }
 
-        // AI 챗봇 카드 영역입니다.
-        item {
-            CommunityAiCard(
-                onChatClick = onChatClick
-            )
-        }
-
         item {
             CommunitySearchField(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it }
+            )
+        }
+
+        item {
+            CommunityContestBannerCard(
+                contest = activeContest,
+                onViewPostsClick = {
+                    selectedCategoryIndex = categoryTabs.indexOfFirst {
+                        it.second == CommunityCategory.AVATAR_CONTEST
+                    }.coerceAtLeast(0)
+                },
+                onWriteClick = {
+                    onContestWriteClick(activeContest?.id)
+                }
             )
         }
 
@@ -292,7 +354,7 @@ fun CommunityScreen(
 
         // 게시글 목록을 카드 형태로 렌더링합니다.
         items(
-            items = filteredPosts,
+            items = pagedPosts,
             key = { post -> post.id }
         ) { post ->
             CommunityPostCard(
@@ -301,6 +363,18 @@ fun CommunityScreen(
                     onPostClick(post)
                 }
             )
+        }
+
+        if (!isLoading && filteredPosts.size > pageSize) {
+            item {
+                CommunityPaginationRow(
+                    currentPage = safeCurrentPage,
+                    totalPages = totalPages,
+                    onPageSelected = { page ->
+                        currentPage = page
+                    }
+                )
+            }
         }
     }
 }
@@ -452,95 +526,135 @@ private fun CommunityTopHeader(
     }
 }
 
-// ------------------------------------------------------------
-// AI 카드 영역입니다.
-// ------------------------------------------------------------
 @Composable
-private fun CommunityAiCard(
-    onChatClick: () -> Unit
+private fun CommunityContestBannerCard(
+    contest: CommunityContest?,
+    onViewPostsClick: () -> Unit,
+    onWriteClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    val cardBorderColor = if (isDark) {
-        SpentopiaGlowPurple.copy(alpha = 0.35f)
-    } else {
-        MaterialTheme.colorScheme.outlineVariant
-    }
-    val iconBackgroundColor = if (isDark) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
-    } else {
-        MaterialTheme.colorScheme.primaryContainer
-    }
-    val iconColor = MaterialTheme.colorScheme.onPrimaryContainer
-    val titleColor = MaterialTheme.colorScheme.onSurface
-    val bodyColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val statusText = "진행중"
+    val title = "5월 아바타 콘테스트"
+    val period = "2026.05.09 ~ 2026.05.31"
+    val reward = "1등 기분좋음"
+    val description = "아바타 콘테스트를 개최합니다 ~! 많관부"
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        border = BorderStroke(1.dp, cardBorderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 2.dp else 3.dp)
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(18.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(iconBackgroundColor),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "🤖",
-                    fontSize = 22.sp,
-                    color = iconColor
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "AI 챗봇 고객센터",
-                    fontSize = 15.sp,
+                    text = statusText,
+                    modifier = Modifier
+                        .background(Color(0xFF12B981), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 9.dp, vertical = 4.dp),
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = titleColor
+                    color = Color.White
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
-
                 Text(
-                    text = "내 아바타가 상황이 되어 궁금한 점을 답변해드려요!",
+                    text = "아바타 콘테스트",
                     fontSize = 12.sp,
-                    color = bodyColor,
-                    lineHeight = 17.sp
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Button(
-                onClick = onChatClick,
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+            Text(
+                text = title,
+                fontSize = 19.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = period,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "보상: $reward",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = description,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 19.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "채팅 시작",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Button(
+                    onClick = onViewPostsClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SpentopiaMutedPurple,
+                        contentColor = Color.White
+                    ),
+                    contentPadding = PaddingValues(vertical = 10.dp)
+                ) {
+                    Text(
+                        text = "참가글 보기",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Button(
+                    onClick = onWriteClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF0F172A),
+                        contentColor = Color.White
+                    ),
+                    contentPadding = PaddingValues(vertical = 10.dp)
+                ) {
+                    Text(
+                        text = "참가글 작성",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
@@ -672,6 +786,8 @@ private fun CommunityPostCard(
     post: CommunityPost,
     onClick: () -> Unit
 ) {
+    val badgeColors = communityCategoryBadgeColors(post.category)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -695,14 +811,14 @@ private fun CommunityPostCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(999.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .background(badgeColors.background)
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        text = post.category.label,
+                        text = post.category.badgeLabel(),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = badgeColors.content
                     )
                 }
 
@@ -766,6 +882,91 @@ private fun CommunityPostCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CommunityPaginationRow(
+    currentPage: Int,
+    totalPages: Int,
+    onPageSelected: (Int) -> Unit
+) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        contentPadding = PaddingValues(vertical = 4.dp)
+    ) {
+        items(
+            items = (1..totalPages).toList(),
+            key = { page -> page }
+        ) { page ->
+            val isSelected = page == currentPage
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 3.dp)
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(
+                        if (isSelected) SpentopiaMutedPurple
+                        else MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = if (isSelected) SpentopiaMutedPurple else MaterialTheme.colorScheme.outlineVariant,
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                    .clickable { onPageSelected(page) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = page.toString(),
+                    fontSize = 13.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+private data class CommunityBadgeColors(
+    val background: Color,
+    val content: Color
+)
+
+@Composable
+private fun communityCategoryBadgeColors(category: CommunityCategory): CommunityBadgeColors {
+    val isDark = isSystemInDarkTheme()
+    return when (category) {
+        CommunityCategory.NOTICE -> if (isDark) {
+            CommunityBadgeColors(Color(0xFF164E63), Color(0xFFBAE6FD))
+        } else {
+            CommunityBadgeColors(Color(0xFF0284C7), Color.White)
+        }
+        CommunityCategory.AVATAR_CONTEST -> if (isDark) {
+            CommunityBadgeColors(Color(0xFF713F12), Color(0xFFFEF3C7))
+        } else {
+            CommunityBadgeColors(Color(0xFFB45309), Color.White)
+        }
+        CommunityCategory.REQUEST -> if (isDark) {
+            CommunityBadgeColors(Color(0xFF581C87), Color(0xFFE9D5FF))
+        } else {
+            CommunityBadgeColors(Color(0xFF7E22CE), Color.White)
+        }
+        CommunityCategory.FREE_BOARD -> if (isDark) {
+            CommunityBadgeColors(Color(0xFF064E3B), Color(0xFFA7F3D0))
+        } else {
+            CommunityBadgeColors(Color(0xFF059669), Color.White)
+        }
+    }
+}
+
+private fun CommunityCategory.badgeLabel(): String {
+    return when (this) {
+        CommunityCategory.NOTICE -> "공지"
+        CommunityCategory.AVATAR_CONTEST -> "콘테스트"
+        CommunityCategory.REQUEST -> "아이템 요청"
+        CommunityCategory.FREE_BOARD -> "자유"
     }
 }
 

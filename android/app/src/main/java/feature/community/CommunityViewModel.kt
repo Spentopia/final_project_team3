@@ -1,8 +1,11 @@
 package com.ict.spentopia.feature.community
 
+import android.content.ContentResolver
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ict.spentopia.data.remote.CreateContentReportRequest
 import com.ict.spentopia.data.remote.CreateCommunityCommentRequest
 import com.ict.spentopia.data.remote.CreateCommunityPostRequest
 import com.ict.spentopia.data.remote.RetrofitClient
@@ -13,16 +16,37 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.format.DateTimeParseException
 
+private const val COMMUNITY_SUPABASE_URL = "https://gapdntsijwgoucxhnojq.supabase.co"
+private const val COMMUNITY_BUCKET = "posts"
+
 data class CommunityUiState(
     val posts: List<CommunityPost> = emptyList(),
+    val contests: List<CommunityContest> = emptyList(),
     val selectedPost: CommunityPost? = null,
+    val currentUserId: String = "",
+    val currentUserRole: String = "user",
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
     val errorMessage: String? = null
+)
+
+data class CommunityContest(
+    val id: String,
+    val title: String,
+    val description: String?,
+    val startDate: String,
+    val endDate: String,
+    val status: String?,
+    val rewardDescription: String?
 )
 
 class CommunityViewModel : ViewModel() {
@@ -33,10 +57,19 @@ class CommunityViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                val response = RetrofitClient.communityApi.listPosts(pageSize = 50)
+                val me = runCatching {
+                    RetrofitClient.communityApi.getMe()
+                }.getOrNull()
+                val contests = runCatching {
+                    RetrofitClient.communityApi.listContests().map { it.toUiModel() }
+                }.getOrDefault(_uiState.value.contests)
+                val posts = loadAllCommunityPosts()
                 _uiState.update {
                     it.copy(
-                        posts = response.items.map { item -> item.toUiModel() },
+                        posts = posts.map { item -> item.toUiModel() },
+                        contests = contests,
+                        currentUserId = me?.id ?: it.currentUserId,
+                        currentUserRole = me?.role_type ?: it.currentUserRole,
                         isLoading = false
                     )
                 }
@@ -50,6 +83,14 @@ class CommunityViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    fun selectPost(post: CommunityPost) {
+        _uiState.update { it.copy(selectedPost = post) }
+    }
+
+    fun clearSelectedPost() {
+        _uiState.update { it.copy(selectedPost = null) }
     }
 
     fun loadPostDetail(postId: String) {
@@ -90,22 +131,66 @@ class CommunityViewModel : ViewModel() {
         category: CommunityCategory,
         title: String,
         content: String,
+        imageUri: Uri? = null,
+        contentResolver: ContentResolver? = null,
+        contestId: String? = null,
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             try {
-                val created = RetrofitClient.communityApi.createPost(
+                if (category == CommunityCategory.AVATAR_CONTEST && contestId.isNullOrBlank()) {
+                    throw IllegalArgumentException("아바타 콘테스트 정보를 찾을 수 없습니다.")
+                }
+
+                val postType = category.toBackendType()
+                val uploadedImagePath = if (
+                    imageUri != null &&
+                    contentResolver != null &&
+                    category != CommunityCategory.NOTICE
+                ) {
+                    uploadCommunityImage(
+                        contentResolver = contentResolver,
+                        uri = imageUri,
+                        postType = postType,
+                        contestId = contestId
+                    )
+                } else {
+                    null
+                }
+
+                var created = RetrofitClient.communityApi.createPost(
                     CreateCommunityPostRequest(
-                        post_type = category.toBackendType(),
+                        post_type = postType,
                         title = title,
+                        contest_id = contestId,
+                        image_url = uploadedImagePath,
                         content = content
                     )
-                ).toUiModel()
+                )
+
+                if (
+                    imageUri != null &&
+                    contentResolver != null &&
+                    category == CommunityCategory.NOTICE
+                ) {
+                    val noticeImagePath = uploadCommunityImage(
+                        contentResolver = contentResolver,
+                        uri = imageUri,
+                        postType = postType,
+                        postId = created.id
+                    )
+                    created = RetrofitClient.communityApi.updatePost(
+                        id = created.id,
+                        request = UpdateCommunityPostRequest(image_url = noticeImagePath)
+                    )
+                }
+
+                val createdUi = created.toUiModel()
 
                 _uiState.update { state ->
                     state.copy(
-                        posts = listOf(created) + state.posts,
+                        posts = listOf(createdUi) + state.posts,
                         isSaving = false
                     )
                 }
@@ -115,7 +200,8 @@ class CommunityViewModel : ViewModel() {
                 _uiState.update {
                     it.copy(
                         isSaving = false,
-                        errorMessage = "게시글 등록에 실패했습니다."
+                        errorMessage = e.message?.takeIf { message -> message.isNotBlank() }
+                            ?: "게시글 등록에 실패했습니다."
                     )
                 }
             }
@@ -257,9 +343,99 @@ class CommunityViewModel : ViewModel() {
         }
     }
 
+    fun reportContent(
+        targetType: String,
+        targetId: String,
+        reason: String,
+        detail: String? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                RetrofitClient.communityApi.createContentReport(
+                    CreateContentReportRequest(
+                        target_type = targetType,
+                        target_id = targetId,
+                        reason = reason,
+                        detail = detail
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e("CommunityViewModel", "reportContent failed", e)
+                _uiState.update { it.copy(errorMessage = "신고 접수에 실패했습니다.") }
+            }
+        }
+    }
+
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
     }
+}
+
+private suspend fun loadAllCommunityPosts(): List<com.ict.spentopia.data.remote.CommunityPostResponse> {
+    val pageSize = 50
+    val firstPage = RetrofitClient.communityApi.listPosts(page = 1, pageSize = pageSize)
+    val items = firstPage.items.toMutableList()
+    val totalCount = firstPage.total_count.toInt()
+    var page = 2
+
+    while (items.size < totalCount) {
+        val nextPage = RetrofitClient.communityApi.listPosts(page = page, pageSize = pageSize)
+        if (nextPage.items.isEmpty()) break
+        items += nextPage.items
+        page += 1
+    }
+
+    return items
+}
+
+private suspend fun uploadCommunityImage(
+    contentResolver: ContentResolver,
+    uri: Uri,
+    postType: String,
+    contestId: String? = null,
+    postId: String? = null
+): String {
+    val mimeType = contentResolver.getType(uri) ?: "image/jpeg"
+    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        ?: throw IllegalArgumentException("첨부 이미지를 읽을 수 없습니다.")
+    if (bytes.isEmpty()) {
+        throw IllegalArgumentException("첨부 이미지가 비어 있습니다.")
+    }
+
+    val extension = when (mimeType) {
+        "image/png" -> "png"
+        "image/webp" -> "webp"
+        else -> "jpg"
+    }
+    val body = bytes.toRequestBody(mimeType.toMediaTypeOrNull())
+    val filePart = MultipartBody.Part.createFormData(
+        name = "file",
+        filename = "community-image.$extension",
+        body = body
+    )
+
+    return RetrofitClient.communityApi.uploadPostImage(
+        file = filePart,
+        postType = postType.toPlainRequestBody(),
+        contestId = contestId?.toPlainRequestBody(),
+        postId = postId?.toPlainRequestBody()
+    ).path
+}
+
+private fun String.toPlainRequestBody(): RequestBody {
+    return toRequestBody("text/plain".toMediaType())
+}
+
+private fun com.ict.spentopia.data.remote.CommunityContestResponse.toUiModel(): CommunityContest {
+    return CommunityContest(
+        id = id,
+        title = title,
+        description = description,
+        startDate = start_date.toDateText(),
+        endDate = end_date.toDateText(),
+        status = status,
+        rewardDescription = reward_description
+    )
 }
 
 private fun com.ict.spentopia.data.remote.CommunityPostResponse.toUiModel(
@@ -279,9 +455,44 @@ private fun com.ict.spentopia.data.remote.CommunityPostResponse.toUiModel(
         tagText = post_type.toCategory().label,
         category = post_type.toCategory(),
         viewCount = view_count,
+        detailDateText = created_at.toDetailDateText(),
         comments = comments,
-        isLiked = is_reacted
+        isLiked = is_reacted,
+        imageUrl = image_url.toCommunityImageUrl()
     )
+}
+
+private fun String.toDateText(): String {
+    return try {
+        OffsetDateTime.parse(this).toLocalDate().toString().replace("-", ".")
+    } catch (_: DateTimeParseException) {
+        take(10).replace("-", ".")
+    }
+}
+
+private fun String?.toCommunityImageUrl(): String? {
+    if (isNullOrBlank()) return null
+    if (startsWith("http")) return this
+    return "$COMMUNITY_SUPABASE_URL/storage/v1/object/public/$COMMUNITY_BUCKET/$this"
+}
+
+private fun String?.toDetailDateText(): String {
+    if (isNullOrBlank()) return ""
+
+    return try {
+        val createdAt = OffsetDateTime.parse(this)
+        val date = createdAt.toLocalDate()
+        val time = createdAt.toLocalTime()
+        "%04d.%02d.%02d %02d:%02d".format(
+            date.year,
+            date.monthValue,
+            date.dayOfMonth,
+            time.hour,
+            time.minute
+        )
+    } catch (_: DateTimeParseException) {
+        take(16).replace("-", ".").replace("T", " ")
+    }
 }
 
 private fun com.ict.spentopia.data.remote.CommunityCommentResponse.toUiModel(): CommunityComment {
