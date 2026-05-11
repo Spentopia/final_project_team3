@@ -8,8 +8,9 @@
 use anyhow::{Context, Result, anyhow};
 use axum::extract::Multipart;
 use chrono::Utc;
-use serde::Serialize;
+use serde::{Deserialize,Serialize};
 use serde_json::{Map, Value};
+use std::collections::{HashSet, HashMap};
 use uuid::Uuid;
 
 use super::{
@@ -25,6 +26,19 @@ use crate::{filter, state::AppState};
 
 const POST_TITLE_MAX_LENGTH: usize = 200;
 const POST_CONTENT_MAX_LENGTH: usize = 500;
+
+// reactions 테이블에서 post_id만 가져오기 위한 응답 구조체.
+//
+// Supabase REST에서 select=post_id만 조회할 것이기 때문에
+// 기존 model::Reaction을 그대로 쓰면 안 된다.
+// Reaction 구조체는 id, user_id, voted_at 같은 필드도 기대하기 때문에
+// select=post_id 결과를 역직렬화할 때 필드 부족 문제가 생길 수 있다.
+//
+// 그래서 목록 조회 최적화용으로 post_id만 받는 작은 구조체를 따로 둔다.
+#[derive(Debug, Deserialize)]
+struct ReactedPostIdRow {
+    pub post_id: Uuid,
+}
 
 async fn create_profile_image_signed_url(state: &AppState, path: &str) -> Result<String> {
     let path = path.trim();
@@ -79,28 +93,76 @@ async fn create_profile_image_signed_url(state: &AppState, path: &str) -> Result
     }
 }
 
-async fn to_post_response(
+// ─────────────────────────────────────────────────────────────
+// 게시글 응답 변환 헬퍼
+// ─────────────────────────────────────────────────────────────
+//
+// Post 엔티티(DB 조회 결과)를 프론트에 내려줄 PostResponse로 변환한다.
+//
+// 여기서 중요한 점:
+// - 게시글 목록 조회(list_posts)에서는 N+1 방지를 위해
+//   is_reacted 값을 이미 한 번에 계산해서 넘긴다.
+// - 게시글 상세/생성/수정 같은 단건 조회에서는
+//   기존처럼 해당 post_id 하나에 대해서만 reactions를 조회해도 부담이 작다.
+//
+// 그래서 변환 함수를 2개로 나눈다.
+//
+// 1) to_post_response_with_reacted()
+//    - is_reacted 값을 밖에서 받아서 그대로 응답에 넣음
+//    - 목록 조회에서 사용
+//
+// 2) to_post_response()
+//    - 내부에서 is_reacted_by_user()를 호출함
+//    - 상세/생성/수정 같은 단건 조회에서 사용
+// ─────────────────────────────────────────────────────────────
+
+async fn to_post_response_with_reacted(
     state: &AppState,
-    current_user_id: Uuid,
     post: Post,
+    is_reacted: bool,
+    profile_signed_url_cache: &mut HashMap<String, Option<String>>,
 ) -> Result<PostResponse> {
+    // posts 조회 시 users!posts_user_id_fkey로 같이 가져온 작성자 정보.
+    // 즉, 작성자 nickname/profile_image는 별도 users 조회를 하지 않는다.
     let author_nickname = post
         .users
         .as_ref()
         .and_then(|author| author.nickname.clone());
+
     let author_profile_image = post
         .users
         .as_ref()
         .and_then(|author| author.profile_image.clone());
 
+    // ─────────────────────────────────────────────
+    // 프로필 이미지 signed URL 캐싱
+    // ─────────────────────────────────────────────
+    //
+    // 기존 문제:
+    // - 게시글마다 create_profile_image_signed_url() 호출
+    // - 같은 작성자가 글을 여러 개 썼거나,
+    //   같은 profile_image path가 반복되면 같은 signed URL 요청이 여러 번 나감
+    //
+    // 개선:
+    // - HashMap<String, Option<String>>을 path 기준 캐시로 사용
+    // - 같은 path가 이미 캐시에 있으면 Supabase Storage 요청을 다시 보내지 않음
+    //
+    // 예:
+    // - 같은 작성자의 글 5개
+    // - 기존: signed URL 요청 5번
+    // - 변경: signed URL 요청 1번
     let author_profile_image_url = match author_profile_image.as_deref() {
-        Some(path) => create_profile_image_signed_url(state, path).await.ok(),
+        Some(path) => {
+            if let Some(cached_url) = profile_signed_url_cache.get(path) {
+                cached_url.clone()
+            } else {
+                let signed_url = create_profile_image_signed_url(state, path).await.ok();
+                profile_signed_url_cache.insert(path.to_string(), signed_url.clone());
+                signed_url
+            }
+        }
         None => None,
     };
-
-    // 현재 로그인한 사용자가 이 게시글에 이미 반응했는지 계산한다.
-    // 이 값이 있어야 새로고침 후에도 하트 색상/버튼 상태를 유지할 수 있다.
-    let is_reacted = is_reacted_by_user(state, current_user_id, post.id).await?;
 
     Ok(PostResponse {
         id: post.id,
@@ -120,13 +182,41 @@ async fn to_post_response(
     })
 }
 
-async fn to_comment_response(state: &AppState, comment: Comment) -> CommentResponse {
+async fn to_post_response(
+    state: &AppState,
+    current_user_id: Uuid,
+    post: Post,
+) -> Result<PostResponse> {
+    // 단건 조회용 함수.
+    //
+    // 상세 조회, 게시글 생성 직후 응답, 게시글 수정 직후 응답에서는
+    // 게시글이 1개뿐이라 reactions를 1번 조회해도 N+1 문제가 거의 없다.
+    let is_reacted = is_reacted_by_user(state, current_user_id, post.id).await?;
+
+    // 단건 응답에서도 아래 공통 변환 함수를 사용하기 위해 캐시를 만든다.
+    // 단건에서는 캐시 효과가 크진 않지만, 함수 시그니처를 맞추기 위한 용도다.
+    let mut profile_signed_url_cache: HashMap<String, Option<String>> = HashMap::new();
+
+    to_post_response_with_reacted(
+        state,
+        post,
+        is_reacted,
+        &mut profile_signed_url_cache,
+    )
+        .await
+}
+
+async fn to_comment_response_with_cache(
+    state: &AppState,
+    comment: Comment,
+    profile_signed_url_cache: &mut HashMap<String, Option<String>>,
+) -> CommentResponse {
     // 작성자가 탈퇴자(users.deleted_at IS NOT NULL)면 가공
     // - 닉네임: "탈퇴한 회원"
     // - 프로필 이미지: 기본 이미지
     // - 내용: "[작성자가 탈퇴했습니다]"
     //
-    // 대댓글은 그대로 표시됨 (parent_id로 연결)
+    // 탈퇴자는 signed URL을 만들지 않는다.
     let is_author_withdrawn = comment
         .users
         .as_ref()
@@ -141,24 +231,43 @@ async fn to_comment_response(state: &AppState, comment: Comment) -> CommentRespo
             user_id: comment.user_id,
             author_nickname: Some("탈퇴한 회원".to_string()),
             author_profile_image: Some("defaults/avatar.png".to_string()),
-            author_profile_image_url: None, // signed URL 발급 안 함
+            author_profile_image_url: None,
             content: "[작성자가 탈퇴했습니다]".to_string(),
             created_at: comment.created_at,
             updated_at: comment.updated_at,
         };
     }
 
-    // 정상 댓글: 기존 로직 그대로
     let author_nickname = comment
         .users
         .as_ref()
         .and_then(|author| author.nickname.clone());
+
     let author_profile_image = comment
         .users
         .as_ref()
         .and_then(|author| author.profile_image.clone());
+
+    // ─────────────────────────────────────────────
+    // 댓글 작성자 프로필 signed URL 캐싱
+    // ─────────────────────────────────────────────
+    //
+    // 기존:
+    // - 댓글마다 create_profile_image_signed_url() 호출 가능
+    //
+    // 개선:
+    // - 같은 profile_image path는 한 번만 signed URL 생성
+    // - 같은 사용자가 댓글/대댓글을 여러 개 달아도 요청 수 감소
     let author_profile_image_url = match author_profile_image.as_deref() {
-        Some(path) => create_profile_image_signed_url(state, path).await.ok(),
+        Some(path) => {
+            if let Some(cached_url) = profile_signed_url_cache.get(path) {
+                cached_url.clone()
+            } else {
+                let signed_url = create_profile_image_signed_url(state, path).await.ok();
+                profile_signed_url_cache.insert(path.to_string(), signed_url.clone());
+                signed_url
+            }
+        }
         None => None,
     };
 
@@ -174,6 +283,19 @@ async fn to_comment_response(state: &AppState, comment: Comment) -> CommentRespo
         created_at: comment.created_at,
         updated_at: comment.updated_at,
     }
+}
+
+async fn to_comment_response(state: &AppState, comment: Comment) -> CommentResponse {
+    // 댓글 생성/수정처럼 댓글 1개만 응답하는 경우를 위한 wrapper.
+    // 단건에서는 캐시 효과가 크지 않지만, 기존 호출부를 크게 안 바꾸기 위해 유지한다.
+    let mut profile_signed_url_cache: HashMap<String, Option<String>> = HashMap::new();
+
+    to_comment_response_with_cache(
+        state,
+        comment,
+        &mut profile_signed_url_cache,
+    )
+        .await
 }
 
 async fn ensure_admin(state: &AppState, user_id: Uuid) -> Result<()> {
@@ -216,6 +338,84 @@ async fn get_post(state: &AppState, post_id: Uuid) -> Result<Post> {
         .next()
         .ok_or_else(|| anyhow!("게시물을 찾을 수 없습니다."))
 }
+
+// 현재 로그인한 사용자가 "현재 페이지에 표시된 게시글들 중"
+// 어떤 게시글에 이미 반응했는지 한 번에 가져온다.
+//
+// 기존 문제:
+// - list_posts에서 게시글 10개 조회
+// - 각 게시글마다 is_reacted_by_user() 호출
+// - reactions SELECT 10번 발생
+//
+// 개선 후:
+// - list_posts에서 게시글 10개 조회
+// - post_id 10개를 모음
+// - reactions를 post_id=in.(...) 조건으로 1번만 조회
+// - 결과를 HashSet<Uuid>로 만들어서 contains()로 빠르게 확인
+//
+// 결과:
+// - 게시글 10개여도 reactions 조회 1번
+// - 게시글 50개여도 reactions 조회 1번
+async fn get_reacted_post_ids_by_user(
+    state: &AppState,
+    user_id: Uuid,
+    post_ids: &[Uuid],
+) ->Result<HashSet<Uuid>> {
+    // 현재 페이지에 게시글이 하나도 없으면 reactions를 조회할 필요가 없다.
+    // 빈 in.() 쿼리를 만들면 Supabase/PostgREST 쪽에서 에러가 날 수 있으므로
+    // 여기서 바로 빈 HashSet을 반환한다.
+    if post_ids.is_empty() {
+        return Ok(HashSet::new());
+    }
+
+    // Supabase REST의 in 필터 형식:
+    //
+    // post_id=in.(uuid1,uuid2,uuid3)
+    //
+    // UUID 문자열은 특수문자가 없어서 별도 urlencoding 없이 사용해도 된다.
+    let post_ids_filter = post_ids
+        .iter()
+        .map(Uuid::to_string)
+        .collect::<Vec<String>>()
+        .join(",");
+
+    let url = format!(
+        "{}/rest/v1/reactions?user_id=eq.{}&post_id=in.({})&select=post_id",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+        post_ids_filter,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("reactions 일괄 SELECT 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("reactions 일괄 SELECT 실패: {}", body));
+    }
+
+    let rows: Vec<ReactedPostIdRow> = res
+        .json()
+        .await
+        .context("reactions 일괄 SELECT 응답 역직렬화 실패")?;
+
+    // HashSet으로 바꾸면 아래처럼 O(1)에 가깝게 확인 가능하다.
+    //
+    // reacted_post_ids.contains(&post.id)
+    Ok(rows.into_iter().map(|row| row.post_id).collect())
+
+}
+
+
 
 // 현재 로그인한 사용자가 특정 게시글에 이미 반응했는지 확인한다.
 //
@@ -658,6 +858,29 @@ pub async fn list_contests(state: &AppState) -> Result<Vec<ContestEventResponse>
 }
 
 // ── 게시물 목록 조회 ───────────────────────────────────────────
+//
+// N+1 개선 포인트:
+//
+// 기존 구조:
+// 1. posts 목록 조회 1번
+// 2. for post in posts
+// 3. to_post_response()
+// 4. is_reacted_by_user()
+// 5. reactions를 게시글마다 1번씩 조회
+//
+// 예:
+// - page_size = 10이면 reactions 조회 10번
+// - page_size = 50이면 reactions 조회 50번
+//
+// 개선 구조:
+// 1. posts 목록 조회 1번
+// 2. 현재 페이지의 post_id 목록 수집
+// 3. reactions를 post_id=in.(...)으로 1번만 조회
+// 4. HashSet<Uuid>로 바꾼 뒤 각 post의 is_reacted를 contains()로 계산
+//
+// 결과:
+// - page_size가 10이어도 reactions 조회 1번
+// - page_size가 50이어도 reactions 조회 1번
 
 pub async fn list_posts(
     state: &AppState,
@@ -669,41 +892,86 @@ pub async fn list_posts(
     page: u32,
     page_size: u32,
 ) -> Result<PostListResponse> {
+    // page는 최소 1부터 시작하게 강제한다.
+    // page=0 같은 잘못된 값이 들어오면 offset 계산이 꼬일 수 있기 때문.
     let page = page.max(1);
+
+    // page_size는 최소 1, 최대 50으로 제한한다.
+    // 너무 큰 page_size를 허용하면 한 번에 너무 많은 데이터를 조회해서
+    // DB/백엔드/프론트 모두 부담이 커진다.
     let page_size = page_size.clamp(1, 50);
+
+    // Supabase REST Range는 0-based index를 사용한다.
+    //
+    // 예:
+    // page=1, page_size=10 => 0-9
+    // page=2, page_size=10 => 10-19
     let offset = (page - 1) * page_size;
     let end = offset + page_size - 1;
+
+    // title 검색어는 앞뒤 공백을 제거하고,
+    // 빈 문자열이면 None으로 바꾼다.
     let search_title = normalize_optional_string(title);
 
+    // 초성 검색인지 판단한다.
+    //
+    // 일반 검색:
+    // - DB에서 title=ilike.*검색어* 필터 가능
+    //
+    // 초성 검색:
+    // - DB에서 바로 처리하기 애매해서 일단 posts를 가져온 뒤
+    // - Rust에서 title_matches_choseong()으로 필터링한다.
     let use_choseong_filter = search_title
         .as_deref()
         .map(contains_choseong_query)
         .unwrap_or(false);
 
+    // 기본 조건:
+    // soft delete 된 게시글은 목록에서 제외한다.
     let mut filters = vec!["is_deleted=eq.false".to_string()];
 
+    // 콘테스트 ID가 들어오면 해당 콘테스트 게시글만 조회한다.
     if let Some(id) = contest_id {
         filters.push(format!("contest_id=eq.{}", id));
     }
 
+    // post_type이 들어오면 notice/request/contest/free 중 해당 타입만 조회한다.
     if let Some(post_type) = post_type {
         filters.push(format!("post_type=eq.{}", post_type.as_str()));
     }
 
+    // 일반 제목 검색은 DB에서 ilike로 처리한다.
+    //
+    // 초성 검색은 DB에서 처리하지 않고,
+    // 아래에서 Rust 코드로 필터링하므로 여기서는 title 필터를 붙이지 않는다.
     if let Some(title) = search_title.as_deref() {
         if !use_choseong_filter {
             filters.push(format!("title=ilike.*{}*", urlencoding::encode(title)));
         }
     }
 
+    // 정렬 조건.
+    //
+    // Date  => 최신순
+    // Likes => reaction_count 높은 순, 같으면 최신순
+    // Views => view_count 높은 순, 같으면 최신순
     let order = match sort {
         PostSort::Date => "created_at.desc",
         PostSort::Likes => "reaction_count.desc,created_at.desc",
         PostSort::Views => "view_count.desc,created_at.desc",
     };
 
-    // 탈퇴자(users.deleted_at IS NOT NULL) 게시글은 목록에서 제외
-    // !inner로 INNER JOIN 강제 + users.deleted_at=is.null 필터 적용
+    // 게시글 목록 조회.
+    //
+    // users!posts_user_id_fkey!inner(nickname,profile_image)
+    // - 작성자 정보를 posts와 함께 가져온다.
+    // - 이 부분은 이미 N+1이 아니다.
+    //
+    // users.deleted_at=is.null
+    // - 탈퇴한 사용자의 게시글은 목록에서 제외한다.
+    //
+    // Prefer: count=exact
+    // - content-range 헤더에서 전체 개수를 얻기 위함.
     let url = format!(
         "{}/rest/v1/posts?{}&users.deleted_at=is.null&select=*,users!posts_user_id_fkey!inner(nickname,profile_image)&order={}",
         state.config.supabase_url.trim_end_matches('/'),
@@ -722,6 +990,10 @@ pub async fn list_posts(
         .header("Prefer", "count=exact")
         .header("Range-Unit", "items");
 
+    // 일반 검색은 DB Range로 페이지네이션한다.
+    //
+    // 초성 검색은 Rust에서 필터링해야 하므로,
+    // 먼저 전체 후보를 가져온 뒤 아래에서 skip/take 처리한다.
     let req = if use_choseong_filter {
         req
     } else {
@@ -735,6 +1007,12 @@ pub async fn list_posts(
         return Err(anyhow!("posts SELECT 실패: {}", body));
     }
 
+    // Supabase/PostgREST의 count=exact 결과는 content-range 헤더에 들어온다.
+    //
+    // 예:
+    // content-range: 0-9/123
+    //
+    // 여기서 마지막 123이 전체 개수다.
     let db_total_count = res
         .headers()
         .get("content-range")
@@ -745,6 +1023,8 @@ pub async fn list_posts(
 
     let mut posts: Vec<Post> = res.json().await.context("posts 역직렬화 실패")?;
 
+    // 초성 검색일 때는 DB에서 title 필터를 못 걸었으므로
+    // Rust에서 직접 제목 초성 매칭을 수행한다.
     let total_count = if use_choseong_filter {
         if let Some(title) = search_title.as_deref() {
             posts.retain(|post| title_matches_choseong(&post.title, title));
@@ -755,6 +1035,7 @@ pub async fn list_posts(
         db_total_count
     };
 
+    // 초성 검색일 때는 필터링 후 Rust에서 직접 페이지네이션한다.
     if use_choseong_filter {
         posts = posts
             .into_iter()
@@ -763,11 +1044,46 @@ pub async fn list_posts(
             .collect();
     }
 
+    // ─────────────────────────────────────────────────────────
+    // 여기부터가 N+1 해결 핵심
+    // ─────────────────────────────────────────────────────────
+
+    // 현재 페이지에 표시될 게시글 id만 모은다.
+    //
+    // 예:
+    // posts = [A, B, C, D]
+    // post_ids = [A.id, B.id, C.id, D.id]
+    let post_ids = posts.iter().map(|post| post.id).collect::<Vec<Uuid>>();
+
+    // reactions를 게시글마다 조회하지 않고,
+    // 현재 페이지의 post_id 전체에 대해 한 번만 조회한다.
+    //
+    // 내부 쿼리 예:
+    // /rest/v1/reactions?user_id=eq.{user_id}&post_id=in.(A,B,C,D)&select=post_id
+    let reacted_post_ids = get_reacted_post_ids_by_user(state, user_id, &post_ids).await?;
+
     let mut items = Vec::with_capacity(posts.len());
 
+    // 게시글 목록 응답 생성 중 같은 프로필 이미지 path가 반복될 수 있으므로
+    // signed URL을 path 기준으로 캐싱한다.
+    //
+    // 이 캐시는 이 API 응답을 만드는 동안만 살아있는 요청 단위 캐시다.
+    // 전역 캐시가 아니므로 만료/동시성 문제를 신경 쓸 필요가 적다.
+    let mut profile_signed_url_cache: HashMap<String, Option<String>> = HashMap::new();
+
     for post in posts {
-        // user_id를 넘겨야 is_reacted를 계산할 수 있다.
-        items.push(to_post_response(state, user_id, post).await?);
+        // HashSet에 post.id가 있으면 현재 로그인한 사용자가 이미 반응한 게시글이다.
+        let is_reacted = reacted_post_ids.contains(&post.id);
+
+        items.push(
+            to_post_response_with_reacted(
+                state,
+                post,
+                is_reacted,
+                &mut profile_signed_url_cache,
+            )
+                .await?,
+        );
     }
 
     Ok(PostListResponse { items, total_count })
@@ -1128,8 +1444,20 @@ pub async fn list_comments(state: &AppState, post_id: Uuid) -> Result<Vec<Commen
     let comments: Vec<Comment> = res.json().await.context("comments 역직렬화 실패")?;
     let mut items = Vec::with_capacity(comments.len());
 
+    // 댓글 목록 응답을 만드는 동안 같은 profile_image path가 반복될 수 있다.
+    // 예를 들어 한 사용자가 댓글과 대댓글을 여러 개 달면 같은 프로필 이미지 path가 반복된다.
+    // 이 캐시는 현재 list_comments 요청 안에서만 쓰이는 요청 단위 캐시다.
+    let mut profile_signed_url_cache: HashMap<String, Option<String>> = HashMap::new();
+
     for comment in comments {
-        items.push(to_comment_response(state, comment).await);
+        items.push(
+            to_comment_response_with_cache(
+                state,
+                comment,
+                &mut profile_signed_url_cache,
+            )
+                .await,
+        );
     }
 
     Ok(items)
