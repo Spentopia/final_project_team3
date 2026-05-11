@@ -136,7 +136,21 @@ export const login = async (payload: LoginRequest): Promise<LoginResponse> => {
     throw new Error("Supabase 세션이 없습니다");
   }
 
-  const exchanged = await exchangeSupabaseToken(data.session.access_token);
+  // /auth/exchange 호출
+  // 백엔드에서 다음 케이스가 403으로 떨어질 수 있음:
+  // - 탈퇴 쿨다운 (30일 미만): "탈퇴 후 30일 동안 재가입할 수 없습니다..."
+  // - 탈퇴 쿨다운 만료: "탈퇴한 계정입니다. 새로 회원가입해 주세요."
+  // - 가입 차단 도메인: "해당 이메일로는 가입할 수 없습니다."
+  let exchanged;
+  try {
+    exchanged = await exchangeSupabaseToken(data.session.access_token);
+  } catch (error) {
+    // 백엔드 메시지를 추출해서 친절한 에러로 변환
+    // (axios의 "Request failed with status code 403" 같은 기본 메시지 방지)
+    throw new Error(
+        extractApiErrorMessage(error, "로그인에 실패했습니다.")
+    );
+  }
 
   authStorage.setToken(exchanged.access_token);
 
@@ -145,7 +159,6 @@ export const login = async (payload: LoginRequest): Promise<LoginResponse> => {
     isNewUser: exchanged.is_new_user ?? false,
     roleType: exchanged.role_type ?? "user",
   };
-
 };
 
 // 회원가입
