@@ -352,7 +352,7 @@ export default function ProfilePage() {
             onClick={() => setShowWithdrawConfirm(false)}
           >
             <div
-              className="relative w-[420px] rounded-[14px] border border-white/10 bg-white/90 p-5 shadow-2xl backdrop-blur-xl dark:bg-gray-900/90"
+              className="relative w-[420px] rounded-[14px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-5 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-gray-900/90"
               style={{ borderLeft: "3px solid #f79009" }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -395,7 +395,7 @@ export default function ProfilePage() {
 
         <div className={isWebView ? "grid gap-4" : "grid gap-6 lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]"}>
           {/* 왼쪽 프로필 카드 */}
-          <Card className="border-none bg-gradient-to-br from-slate-900 via-cyan-600 to-teal-500 p-6 text-white shadow-xl shadow-cyan-700/20 backdrop-blur-xl">
+          <Card className="border-none spentopia-hero-card p-6 backdrop-blur-xl">
             {/* 파일 선택 즉시 업로드 */}
             <input
                 ref={fileInputRef}
@@ -406,7 +406,7 @@ export default function ProfilePage() {
             />
             <div className="mb-6 text-center">
               <div className="relative mx-auto mb-4 inline-block">
-                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-white/20 text-4xl
+                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-white/70 text-4xl
   backdrop-blur-sm">
                   {profileImageSrc ? (
                       <img
@@ -422,11 +422,11 @@ export default function ProfilePage() {
                     type="button"
                     onClick={() => !isUploadingImage && fileInputRef.current?.click()}
                     disabled={isUploadingImage}
-                    className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white text-cyan-600
+                    className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-700 dark:text-violet-300
   shadow-lg disabled:opacity-60"
                 >
                   {isUploadingImage ? (
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-700 border-t-transparent dark:border-violet-300" />
                   ) : (
                       <Camera className="h-4 w-4" />
                   )}
@@ -438,24 +438,24 @@ export default function ProfilePage() {
                 {isProfileComplete ? <BadgeCheck className="h-4 w-4" /> : null}
               </div>
               {profile.bio ? (
-                <p className="mt-3 text-center text-sm leading-6 text-white/90">
+                <p className="mt-3 text-center text-sm leading-6 text-gray-700 dark:text-gray-100">
                   {profile.bio}
                 </p>
               ) : null}
             </div>
 
             <div className="space-y-5">
-              <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
-                <p className="mb-1 text-sm opacity-90">가입일</p>
-                <p className="font-bold">{joinedDateLabel}</p>
+              <div className="rounded-lg spentopia-soft-card p-3">
+                <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">가입일</p>
+                <p className="font-bold text-gray-900 dark:text-gray-100">{joinedDateLabel}</p>
               </div>
-              <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
-                <p className="mb-1 text-sm opacity-90">연속 기록</p>
-                <p className="font-bold">{profile.currentStreak}🔥</p>
+              <div className="rounded-lg spentopia-soft-card p-3">
+                <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">연속 기록</p>
+                <p className="font-bold text-gray-900 dark:text-gray-100">{profile.currentStreak}🔥</p>
               </div>
-              <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
-                <p className="mb-1 text-sm opacity-90">보유 SPT</p>
-                <p className="font-bold">
+              <div className="rounded-lg spentopia-soft-card p-3">
+                <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">보유 SPT</p>
+                <p className="font-bold text-gray-900 dark:text-gray-100">
                   {!profile.walletAddress
                     ? "—"
                     : sptLoading
@@ -463,15 +463,15 @@ export default function ProfilePage() {
                     : (sptBalance ?? 0).toLocaleString("ko-KR")} SPT
                 </p>
               </div>
-              <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
-                <p className="mb-1 text-sm opacity-90">보유 NFT</p>
-                <p className="font-bold">
+              <div className="rounded-lg spentopia-soft-card p-3">
+                <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">보유 NFT</p>
+                <p className="font-bold text-gray-900 dark:text-gray-100">
                   {nftCount === null ? "..." : `${nftCount}개`}
                 </p>
               </div>
-              <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm">
-                <p className="mb-1 text-sm opacity-90">로그인 방식</p>
-                <p className="font-bold uppercase">
+              <div className="rounded-lg spentopia-soft-card p-3">
+                <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">로그인 방식</p>
+                <p className="font-bold uppercase text-gray-900 dark:text-gray-100">
                   {profile.loginProvider === "email" && profile.googleConnected
                     ? "EMAIL / GOOGLE"
                     : (profile.loginProvider || "-")}
@@ -482,7 +482,7 @@ export default function ProfilePage() {
 
           <div className="grid gap-6 xl:grid-cols-2">
             {/* 회원 정보 */}
-            <Card className="h-full min-h-[500px] border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+            <Card className="h-full min-h-[500px] border-none spentopia-soft-card p-6 backdrop-blur-xl">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="font-bold text-gray-900 dark:text-gray-100">
                   회원 정보
@@ -506,7 +506,7 @@ export default function ProfilePage() {
                       <Button
                           onClick={handleSave}
                           disabled={isSaving}
-                          className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
+                          className="spentopia-primary-button"
                           size="sm"
                       >
                         <Save className="mr-2 h-4 w-4" />
@@ -590,14 +590,14 @@ export default function ProfilePage() {
             </Card>
 
             {/* 알림 설정 */}
-            <Card className="h-full border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+            <Card className="h-full border-none spentopia-soft-card p-6 backdrop-blur-xl">
               <h3 className="mb-8 font-bold text-gray-900 dark:text-gray-100">
                 알림 설정
               </h3>
               <div className="space-y-10">
                 <div className="flex items-center justify-between">
                   <div className="flex items-start gap-3">
-                    <Bell className="mt-1 h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                    <Bell className="mt-1 h-5 w-5 text-slate-700 dark:text-violet-300" />
                     <div>
                       <p className="font-bold text-gray-900 dark:text-gray-100">
                         예산 초과 알림
@@ -616,7 +616,7 @@ export default function ProfilePage() {
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-start gap-3">
-                    <Bell className="mt-1 h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                    <Bell className="mt-1 h-5 w-5 text-slate-700 dark:text-violet-300" />
                     <div>
                       <p className="font-bold text-gray-900 dark:text-gray-100">
                         보상 획득 알림
@@ -635,7 +635,7 @@ export default function ProfilePage() {
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-start gap-3">
-                    <Bell className="mt-1 h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                    <Bell className="mt-1 h-5 w-5 text-slate-700 dark:text-violet-300" />
                     <div>
                       <p className="font-bold text-gray-900 dark:text-gray-100">
                         스트릭 리마인드
@@ -654,7 +654,7 @@ export default function ProfilePage() {
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-start gap-3">
-                    <Bell className="mt-1 h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                    <Bell className="mt-1 h-5 w-5 text-slate-700 dark:text-violet-300" />
                     <div>
                       <p className="font-bold text-gray-900 dark:text-gray-100">
                         게시물/댓글/좋아요 알림
@@ -675,7 +675,7 @@ export default function ProfilePage() {
             </Card>
 
             {/* 비밀번호 변경 */}
-            <Card className="h-full border-none bg-white/80 p-5 backdrop-blur-xl dark:bg-gray-800/80">
+            <Card className="h-full border-none spentopia-soft-card p-5 backdrop-blur-xl">
               <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">
                 비밀번호 변경
               </h3>
@@ -768,12 +768,12 @@ export default function ProfilePage() {
                 <Button
                     onClick={handleChangePassword}
                     disabled={isChangingPassword || !isEmailUser}
-                    className="mt-1 w-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
+                className="mt-1 w-full spentopia-primary-button"
                 >
                   {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
                 </Button>
 
-                <Card className="bg-gradient-to-br from-slate-50 via-cyan-50 to-teal-50 p-4 dark:from-slate-900/40 dark:via-cyan-950/30 dark:to-teal-950/30">
+                <Card className="spentopia-soft-card p-4">
                   <h4 className="mb-2 font-bold text-gray-900 dark:text-gray-100">
                     💡 비밀번호 안내
                   </h4>

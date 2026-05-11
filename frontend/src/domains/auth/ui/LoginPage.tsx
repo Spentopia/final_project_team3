@@ -30,6 +30,10 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { theme, setTheme } = useTheme();
+  const isDarkMode = theme === "dark";
+  const loginButtonClass = isDarkMode
+    ? "w-full rounded-xl bg-[#1E1B4B] text-white shadow-lg shadow-[#1E1B4B]/20 hover:bg-[#312E81] hover:shadow-[#1E1B4B]/30"
+    : "w-full rounded-xl bg-[#EDEBFF] text-[#1E1B4B] shadow-sm hover:bg-[#E4E1FF]";
 
   const handleLogin = async (e: ReactSubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -73,7 +77,7 @@ export default function Login() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-cyan-600 to-teal-500 dark:from-gray-950 dark:via-cyan-950 dark:to-teal-950 p-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-[#f8fafc] dark:bg-[#090b16] p-4">
 
       {/* 테마 토글 — 우상단 고정 */}
       <button
@@ -86,7 +90,7 @@ export default function Login() {
         <Moon className="hidden h-4 w-4 dark:block" />
       </button>
 
-      <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 dark:bg-gray-900/90 backdrop-blur-xl shadow-2xl">
+      <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 backdrop-blur-xl shadow-2xl dark:bg-[#0b1020]/95 dark:shadow-black/40">
         <div className="p-8">
 
           {/* Logo */}
@@ -127,7 +131,7 @@ export default function Login() {
 
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20 hover:brightness-110"
+              className={loginButtonClass}
             >
               로그인
             </Button>
@@ -144,6 +148,7 @@ export default function Login() {
           <div className="space-y-3">
             <Button
               type="button"
+              variant="outline"
               className="relative h-12 w-full rounded-xl border-0 bg-[#FEE500] text-[#191600] hover:bg-[#FEE500] dark:bg-[#FEE500] dark:text-[#191600] dark:hover:bg-[#FEE500]"
               onClick={() => handleSocialLogin("kakao")}
             >
@@ -171,7 +176,7 @@ export default function Login() {
               구글 로그인
             </Button>
 
-            <WalletLoginButton className="relative h-12 w-full rounded-xl border-0 bg-gradient-to-r from-[#111827] via-[#15152A] to-[#32145D] px-4 text-sm font-semibold text-white shadow-sm hover:from-[#0F172A] hover:via-[#17172F] hover:to-[#3B1770] disabled:opacity-50" />
+            <WalletLoginButton className="relative h-12 w-full rounded-xl bg-gradient-to-r from-[#0B1020] via-[#111827] to-[#2D1847] px-4 text-sm font-semibold text-white shadow-lg shadow-[#0B1020]/30 hover:opacity-90 hover:shadow-[#2D1847]/40 disabled:opacity-50 dark:bg-gradient-to-r dark:from-[#0B1020] dark:via-[#111827] dark:to-[#2D1847] dark:text-white dark:shadow-[#0B1020]/25 dark:hover:brightness-110" />
           </div>
 
           {/* 이메일/비밀번호 찾기 */}

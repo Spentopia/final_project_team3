@@ -145,7 +145,7 @@ class PhantomDeepLinkConnector(
             phantomEncryptionPublicKey = phantomPublicKey
             prefs.edit()
                 .putString(KEY_PHANTOM_PUBLIC_KEY, Base58.encode(phantomPublicKey))
-                .apply()
+                .apply() // 팬텀 키 연결
 
             val data = decryptCallback(uri, phantomPublicKey) ?: return null
             Log.d(tag, "connect callback decrypted=$data")

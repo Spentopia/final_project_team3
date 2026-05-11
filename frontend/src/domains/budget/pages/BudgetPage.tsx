@@ -7,6 +7,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Slider } from "@/shared/ui/slider";
 import { Badge } from "@/shared/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { apiClient } from "@/shared/api/client";
 import {
   Wallet,
@@ -18,6 +19,11 @@ import {
   Home,
   Car,
   Heart as HeartIcon,
+  CalendarDays,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Check,
   LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -58,7 +64,9 @@ type AiPlanApiResponse = {
 };
 
 const PLAN_ORDER_LABELS = ["기본 플랜", "중간 플랜", "여유 플랜"] as const;
-const YEAR_PICKER_SPAN = 2;
+const MIN_YEAR = 1900;
+const MAX_YEAR = 2100;
+const TOTAL_MONTHS = (MAX_YEAR - MIN_YEAR + 1) * 12;
 
 type CustomBudget = {
   monthly: number;
@@ -72,6 +80,13 @@ type CustomBudget = {
 type BudgetCategoryKey = "food" | "transport" | "living" | "leisure";
 
 const BUDGET_CATEGORY_KEYS: BudgetCategoryKey[] = ["food", "transport", "living", "leisure"];
+
+type MonthSnapshot = {
+  customBudget: CustomBudget | null;
+  aiPlans: AiPlan[] | null;
+  selectedPlan: number | null;
+  budgetAmount: number | null;
+};
 
 
 const createEmptyBudget = (): CustomBudget => ({
@@ -91,6 +106,89 @@ const getSelectedPlanStorageKey = (monthKey: string) =>
 
 const getAiPlansStorageKey = (monthKey: string) =>
   `${AI_PLANS_STORAGE_PREFIX}:${monthKey}`;
+
+const getMonthKeyFromParts = (year: number, month: number) =>
+  `${year}-${String(month + 1).padStart(2, "0")}`;
+
+const getMonthIndexFromParts = (year: number, month: number) =>
+  (year - MIN_YEAR) * 12 + month;
+
+const getMonthIndexFromKey = (monthKey: string) => {
+  const [yearPart, monthPart] = monthKey.split("-");
+  const year = Number(yearPart);
+  const month = Number(monthPart) - 1;
+
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return 0;
+
+  return Math.max(0, Math.min(TOTAL_MONTHS - 1, getMonthIndexFromParts(year, month)));
+};
+
+const getMonthPartsFromIndex = (index: number) => {
+  const safeIndex = Math.max(0, Math.min(TOTAL_MONTHS - 1, index));
+  const year = MIN_YEAR + Math.floor(safeIndex / 12);
+  const month = safeIndex % 12;
+  return { year, month };
+};
+
+const getMonthLabelFromIndex = (index: number) => {
+  const { year, month } = getMonthPartsFromIndex(index);
+  return `${year}년 ${month + 1}월`;
+};
+
+const parseCustomBudget = (raw: string | null): CustomBudget | null => {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<CustomBudget>;
+    return { ...createEmptyBudget(), ...parsed };
+  } catch {
+    return null;
+  }
+};
+
+const parseAiPlans = (raw: string | null): AiPlan[] | null => {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as AiPlan[];
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const readMonthSnapshot = (
+  monthKey: string,
+  budgetAmount: number | undefined
+): MonthSnapshot | null => {
+  const customBudget = parseCustomBudget(localStorage.getItem(getCustomBudgetStorageKey(monthKey)));
+  const aiPlans = parseAiPlans(localStorage.getItem(getAiPlansStorageKey(monthKey)));
+  const selectedPlanRaw = localStorage.getItem(getSelectedPlanStorageKey(monthKey));
+  const selectedPlan =
+    selectedPlanRaw === null ? null : Number.isNaN(Number(selectedPlanRaw)) ? null : Number(selectedPlanRaw);
+  const hasAny =
+    Boolean(customBudget) ||
+    Boolean(aiPlans) ||
+    selectedPlanRaw !== null ||
+    (typeof budgetAmount === "number" && budgetAmount > 0);
+
+  if (!hasAny) return null;
+
+  return {
+    customBudget,
+    aiPlans,
+    selectedPlan,
+    budgetAmount: typeof budgetAmount === "number" ? budgetAmount : null,
+  };
+};
+
+const findClosestPreviousMonthSnapshot = (startIndex: number, budgets: Record<string, number>) => {
+  for (let index = Math.max(0, startIndex); index >= 0; index -= 1) {
+    const { year, month } = getMonthPartsFromIndex(index);
+    const key = getMonthKeyFromParts(year, month);
+    const snapshot = readMonthSnapshot(key, budgets[key]);
+    if (snapshot) return snapshot;
+  }
+  return null;
+};
 
 const iconMap = {
   식비: Coffee,
@@ -160,11 +258,10 @@ export default function BudgetPage() {
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
-  const selectableYears = Array.from(
-    { length: YEAR_PICKER_SPAN * 2 + 1 },
-    (_, index) => selectedYear - YEAR_PICKER_SPAN + index
-  );
   const monthKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
+  const selectedMonthIndex = getMonthIndexFromParts(selectedYear, selectedMonth);
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const currentMonthLabel = `${selectedYear}년 ${selectedMonth + 1}월`;
 
   const [aiPlans, setAiPlans] = useState<AiPlan[]>(() => createDefaultAiPlans(1000000));
   const [customBudget, setCustomBudget] = useState<CustomBudget>(createEmptyBudget);
@@ -178,28 +275,77 @@ export default function BudgetPage() {
     const savedPlans = localStorage.getItem(getAiPlansStorageKey(monthKey));
     const savedSelectedPlan = localStorage.getItem(getSelectedPlanStorageKey(monthKey));
 
+    const hasSavedMonthData =
+      Boolean(savedBudget) || Boolean(savedPlans) || savedSelectedPlan !== null || budgets[monthKey] !== undefined;
+
+    const fallbackBudgetForMonth = () => {
+      const previousSnapshot = findClosestPreviousMonthSnapshot(selectedMonthIndex - 1, budgets);
+      if (previousSnapshot?.customBudget?.monthly) {
+        return previousSnapshot.customBudget.monthly;
+      }
+
+      if (previousSnapshot?.budgetAmount && previousSnapshot.budgetAmount > 0) {
+        return previousSnapshot.budgetAmount;
+      }
+
+      if (currentBudget > 0) {
+        return currentBudget;
+      }
+
+      return 1000000;
+    };
+
     if (savedBudget) {
-      try {
-        setCustomBudget({ ...createEmptyBudget(), ...JSON.parse(savedBudget) });
-      } catch {
-        setCustomBudget(createEmptyBudget());
+      const parsedBudget = parseCustomBudget(savedBudget);
+      setCustomBudget(parsedBudget ?? createEmptyBudget());
+    } else if (hasSavedMonthData) {
+      const previousSnapshot = findClosestPreviousMonthSnapshot(selectedMonthIndex - 1, budgets);
+      const nextBudget = previousSnapshot?.customBudget
+        ? { ...previousSnapshot.customBudget }
+        : { ...createEmptyBudget(), monthly: fallbackBudgetForMonth() };
+
+      if (!nextBudget.monthly) {
+        nextBudget.monthly = fallbackBudgetForMonth();
+      }
+
+      setCustomBudget(nextBudget);
+      localStorage.setItem(getCustomBudgetStorageKey(monthKey), JSON.stringify(nextBudget));
+      if (nextBudget.monthly > 0 && budgets[monthKey] !== nextBudget.monthly) {
+        setMonthlyBudget(monthKey, nextBudget.monthly);
       }
     } else {
-      setCustomBudget(createEmptyBudget());
+      const nextBudget = { ...createEmptyBudget(), monthly: fallbackBudgetForMonth() };
+      setCustomBudget(nextBudget);
+      localStorage.setItem(getCustomBudgetStorageKey(monthKey), JSON.stringify(nextBudget));
+      if (nextBudget.monthly > 0) {
+        setMonthlyBudget(monthKey, nextBudget.monthly);
+      }
     }
 
     if (savedPlans) {
-      try {
-        setAiPlans(JSON.parse(savedPlans) as AiPlan[]);
-      } catch {
-        setAiPlans(createDefaultAiPlans(1000000));
-      }
+      const parsedPlans = parseAiPlans(savedPlans);
+      setAiPlans(parsedPlans ?? createDefaultAiPlans(fallbackBudgetForMonth()));
     } else {
-      setAiPlans(createDefaultAiPlans(1000000));
+      const previousSnapshot = findClosestPreviousMonthSnapshot(selectedMonthIndex - 1, budgets);
+      const nextPlans =
+        previousSnapshot?.aiPlans ?? createDefaultAiPlans(fallbackBudgetForMonth());
+      setAiPlans(nextPlans);
+      localStorage.setItem(getAiPlansStorageKey(monthKey), JSON.stringify(nextPlans));
     }
 
-    setSelectedPlan(savedSelectedPlan ? Number(savedSelectedPlan) : null);
-  }, [monthKey]);
+    if (savedSelectedPlan) {
+      setSelectedPlan(Number(savedSelectedPlan));
+    } else {
+      const previousSnapshot = findClosestPreviousMonthSnapshot(selectedMonthIndex - 1, budgets);
+      const nextSelectedPlan = previousSnapshot?.selectedPlan ?? null;
+      setSelectedPlan(nextSelectedPlan);
+      if (nextSelectedPlan === null) {
+        localStorage.removeItem(getSelectedPlanStorageKey(monthKey));
+      } else {
+        localStorage.setItem(getSelectedPlanStorageKey(monthKey), String(nextSelectedPlan));
+      }
+    }
+  }, [monthKey, selectedMonthIndex, currentBudget, budgets, setMonthlyBudget]);
 
   useEffect(() => {
     localStorage.setItem(getCustomBudgetStorageKey(monthKey), JSON.stringify(customBudget));
@@ -436,85 +582,145 @@ try {
     return Math.max(Number(customBudget[key]), Number(customBudget.monthly) - otherTotal, 0);
   };
 
+  const updateSelectedMonthByIndex = (index: number) => {
+    const safeIndex = Math.max(0, Math.min(TOTAL_MONTHS - 1, index));
+    const { year, month } = getMonthPartsFromIndex(safeIndex);
+    setSelectedYear(year);
+    setSelectedMonth(month);
+  };
+
+  const currentYearMonths = Array.from({ length: 12 }, (_, monthIndex) => ({
+    monthIndex,
+    label: `${monthIndex + 1}월`,
+    selected: selectedMonth === monthIndex,
+  }));
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
-            예산 설정
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            AI가 추천하는 플랜으로 시작하거나 직접 설정해보세요
-          </p>
-
-          <div className="mt-4 mb-3 flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedYear((prev) => prev - 1)}
-            >
-              이전 연도
-            </Button>
-
-            {selectableYears.map((year) => (
-              <button
-                key={year}
-                type="button"
-                onClick={() => setSelectedYear(year)}
-                className={`rounded-lg px-3 py-1 text-sm transition ${
-                  selectedYear === year
-                    ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-                    : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
-                }`}
-              >
-                {year}년
-              </button>
-            ))}
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedYear((prev) => prev + 1)}
-            >
-              다음 연도
-            </Button>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-3">
+          <div>
+            <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
+              예산 설정
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300">
+              AI가 추천하는 플랜으로 시작하거나 직접 설정해보세요
+            </p>
           </div>
 
-          <div className="mb-2 flex flex-wrap gap-2">
-            {Array.from({ length: 12 }, (_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setSelectedMonth(i)}
-                className={`rounded-lg px-3 py-1 text-sm transition ${
-                  selectedMonth === i
-                    ? "bg-slate-900 text-white"
-                    : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
-                }`}
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => updateSelectedMonthByIndex(selectedMonthIndex - 1)}
+              disabled={selectedMonthIndex <= 0}
+              className="h-9 w-9 rounded-lg border-slate-200 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            <Popover open={isMonthPickerOpen} onOpenChange={setIsMonthPickerOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-9 w-[184px] items-center justify-between rounded-[13px] border border-slate-200 bg-white px-2.5 text-left text-slate-900 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-[#111827] dark:text-gray-100 dark:hover:bg-slate-800"
+                >
+                  <span className="flex items-center gap-1 text-sm font-semibold">
+                    <CalendarDays className="h-3.5 w-3.5 text-slate-500 dark:text-violet-300" />
+                    {currentMonthLabel}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-500 dark:text-gray-300" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                sideOffset={6}
+                className="z-50 w-[264px] rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_12px_30px_rgba(15,23,42,0.12)] outline-none dark:border-slate-700 dark:bg-[#0b1020] dark:shadow-[0_18px_36px_rgba(0,0,0,0.35)]"
               >
-                {i + 1}월
-              </button>
-            ))}
+                <div className="mb-1.5 flex items-center justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setSelectedYear((prev) => Math.max(MIN_YEAR, prev - 1))}
+                    disabled={selectedYear <= MIN_YEAR}
+                    className="h-7 w-7 rounded-md border-slate-200 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+
+                  <div className="text-sm font-semibold text-slate-900 dark:text-gray-100">
+                    {selectedYear}년
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setSelectedYear((prev) => Math.min(MAX_YEAR, prev + 1))}
+                    disabled={selectedYear >= MAX_YEAR}
+                    className="h-7 w-7 rounded-md border-slate-200 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-0.5">
+                  {currentYearMonths.map(({ monthIndex, label, selected }) => (
+                    <button
+                      key={`${selectedYear}-${monthIndex}`}
+                      type="button"
+                      onClick={() => {
+                        setSelectedMonth(monthIndex);
+                        setIsMonthPickerOpen(false);
+                      }}
+                      className={`flex h-8 items-center justify-center rounded-md text-[12.5px] font-semibold transition ${
+                        selected
+                          ? "bg-slate-900 text-white shadow-sm dark:bg-[#090b16] dark:text-white"
+                          : "border border-slate-200 bg-white text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      <span>{label}</span>
+                      {selected ? <Check className="ml-1 h-3.5 w-3.5" /> : null}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => updateSelectedMonthByIndex(selectedMonthIndex + 1)}
+              disabled={selectedMonthIndex >= TOTAL_MONTHS - 1}
+              className="h-9 w-9 rounded-lg border-slate-200 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
 
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            현재 선택: {selectedYear}년 {selectedMonth + 1}월 / 수입 기준 월 예산{" "}
-            <span className="font-semibold text-cyan-600 dark:text-cyan-400">
+            현재 선택: {currentMonthLabel} / 수입 기준 월 예산{" "}
+            <span className="font-semibold text-slate-900 dark:text-violet-300">
               {currentBudget.toLocaleString()}원
             </span>
           </p>
         </div>
 
-        <Button onClick={handleGenerateAiPlans} disabled={loading}>
-  {loading ? "AI 생성 중..." : "AI 플랜 추천"}
-</Button>
+        <Button
+          onClick={handleGenerateAiPlans}
+          disabled={loading}
+          className="spentopia-primary-button"
+        >
+          {loading ? "AI 생성 중..." : "AI 플랜 추천"}
+        </Button>
       </div>
 
       <div>
         <h2 className="mb-4 flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100">
-  <Sparkles className="h-5 w-5 text-cyan-600" />
+  <Sparkles className="h-5 w-5 text-slate-700 dark:text-violet-300" />
   AI 추천 플랜
 </h2>
 
@@ -526,10 +732,10 @@ try {
           {aiPlans.map((plan) => (
             <Card
               key={plan.id}
-              className={`border-2 bg-white/80 p-6 backdrop-blur-xl transition-all dark:bg-gray-800/80 ${
+              className={`border-2 spentopia-surface-card p-6 backdrop-blur-xl transition-all  ${
                 selectedPlan === plan.id
-                  ? "border-teal-500 shadow-xl"
-                  : "border-transparent hover:border-teal-300"
+                  ? "border-slate-300 shadow-xl dark:border-[#7c3aed]/70"
+                  : "border-transparent hover:border-slate-300 dark:hover:border-[#7c3aed]/40"
               }`}
             >
               <div className="mb-4">
@@ -547,15 +753,15 @@ try {
               </div>
 
               <div className="mb-4 space-y-3">
-                <div className="flex items-center justify-between rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 p-3">
-                  <span className="text-sm font-medium text-gray-700">월 예산</span>
-                  <span className="font-bold text-gray-900">
+                <div className="flex items-center justify-between rounded-lg spentopia-soft-card p-3">
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">월 예산</span>
+                  <span className="font-bold text-gray-900 dark:text-gray-100">
                     {Number(plan.budget || 0).toLocaleString()}원
                   </span>
                 </div>
-                <div className="flex items-center justify-between rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 p-3">
-                  <span className="text-sm font-medium text-gray-700">목표 저축</span>
-                  <span className="font-bold text-green-700">
+                <div className="flex items-center justify-between rounded-lg spentopia-soft-card p-3">
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">목표 저축</span>
+                  <span className="font-bold text-emerald-700 dark:text-emerald-300">
                     {Number(plan.savings || 0).toLocaleString()}원
                   </span>
                 </div>
@@ -586,11 +792,7 @@ try {
               <Button
                 onClick={() => handleApplyPlan(plan.id)}
                 variant={selectedPlan === plan.id ? "default" : "outline"}
-                className={`w-full ${
-                  selectedPlan === plan.id
-                    ? "bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
-                    : ""
-                }`}
+                className="w-full spentopia-primary-button"
               >
                 {selectedPlan === plan.id ? "적용됨" : "이 플랜 적용하기"}
               </Button>
@@ -599,16 +801,16 @@ try {
         </div>
       </div>
 
-      <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+      <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
         <h2 className="mb-6 flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100">
-          <Target className="h-5 w-5 text-cyan-600" />
+          <Target className="h-5 w-5 text-slate-700 dark:text-violet-300" />
           맞춤 예산 설정
         </h2>
 
         <div className="grid gap-8 lg:grid-cols-2">
           <div className="space-y-6">
             <div>
-              <Label className="text-gray-700 dark:text-gray-200">월 전체 예산</Label>
+              <Label className="font-semibold text-gray-900 dark:text-gray-100">월 전체 예산</Label>
               <Input
                 type="number"
                 value={customBudget.monthly}
@@ -619,7 +821,7 @@ try {
             </div>
 
             <div>
-              <Label className="text-gray-700 dark:text-gray-200">목표 저축액</Label>
+              <Label className="font-semibold text-gray-900 dark:text-gray-100">목표 저축액</Label>
               <Input
                 type="number"
                 value={customBudget.savings}
@@ -637,11 +839,11 @@ try {
             <div className="space-y-5">
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                  <Label className="flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
                     <Coffee className="h-4 w-4" />
                     식비
                   </Label>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {Number(customBudget.food).toLocaleString()}원
                   </span>
                 </div>
@@ -655,11 +857,11 @@ try {
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                  <Label className="flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
                     <Car className="h-4 w-4" />
                     교통비
                   </Label>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {Number(customBudget.transport).toLocaleString()}원
                   </span>
                 </div>
@@ -673,11 +875,11 @@ try {
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                  <Label className="flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
                     <Home className="h-4 w-4" />
                     생활비
                   </Label>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {Number(customBudget.living).toLocaleString()}원
                   </span>
                 </div>
@@ -691,11 +893,11 @@ try {
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                  <Label className="flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
                     <HeartIcon className="h-4 w-4" />
                     여가/취미
                   </Label>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {Number(customBudget.leisure).toLocaleString()}원
                   </span>
                 </div>
@@ -710,7 +912,7 @@ try {
 
             <p className="text-sm text-gray-500 dark:text-gray-400">
               카테고리에 배분 가능한 남은 예산은{" "}
-              <span className="font-semibold text-cyan-600 dark:text-cyan-400">
+              <span className="font-semibold text-slate-900 dark:text-violet-300">
                 {remainingCategoryBudget.toLocaleString()}원
               </span>
               입니다.
@@ -718,7 +920,7 @@ try {
 
             <Button
               onClick={handleSaveCustomBudget}
-              className="w-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
+              className="w-full spentopia-primary-button"
             >
               <Wallet className="mr-2 h-4 w-4" />
               {selectedMonth + 1}월 맞춤 예산 저장
@@ -726,7 +928,7 @@ try {
           </div>
 
           <div className="space-y-4">
-            <Card className="border-none bg-gradient-to-br from-slate-900 via-cyan-600 to-teal-500 p-6 text-white shadow-xl shadow-cyan-700/20">
+            <Card className="border-none spentopia-hero-card p-6">
               <p className="mb-1 text-sm opacity-90">현재 설정한 월 예산</p>
               <p className="text-3xl font-bold">
                 {Number(customBudget.monthly).toLocaleString()}원
@@ -736,9 +938,9 @@ try {
               </p>
             </Card>
 
-            <Card className="border-none bg-white/90 p-6 dark:bg-gray-900/80">
+            <Card className="border-none spentopia-surface-card p-6">
               <div className="mb-4 flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+                <TrendingUp className="h-5 w-5 text-slate-700 dark:text-violet-300" />
                 <h3 className="font-bold text-gray-900 dark:text-gray-100">
                   예산 요약
                 </h3>
@@ -746,22 +948,22 @@ try {
 
               <div className="space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-300">카테고리 합계</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">카테고리 합계</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">
                     {totalBudget.toLocaleString()}원
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-300">목표 저축액 포함</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">목표 저축액 포함</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">
                     {withSavings.toLocaleString()}원
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-300">수입 기준 월 예산</span>
-                  <span className="font-medium text-cyan-600 dark:text-cyan-400">
+                  <span className="font-medium text-gray-900 dark:text-gray-100">수입 기준 월 예산</span>
+                  <span className="font-medium text-slate-900 dark:text-violet-300">
                     {currentBudget.toLocaleString()}원
                   </span>
                 </div>
@@ -770,7 +972,7 @@ try {
                   {Number(customBudget.monthly) > 0 && (
                     <div className="h-3 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                       <div
-                        className="h-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500"
+                        className="h-full bg-[linear-gradient(90deg,#334155,#475569,#64748b)] dark:bg-[linear-gradient(90deg,#090b16,#4338ca,#7c3aed)]"
                         style={{
                           width: `${Math.min(
                             100,
@@ -788,13 +990,13 @@ try {
               </div>
             </Card>
 
-            <Card className="border-none bg-gradient-to-br from-amber-50 to-yellow-50 p-6 text-gray-900">
+            <Card className="border-none spentopia-surface-card p-6">
               <div className="mb-3 flex items-center gap-2">
-                <PiggyBank className="h-5 w-5 text-amber-600" />
+                <PiggyBank className="h-5 w-5 text-slate-700 dark:text-violet-300" />
                 <h3 className="font-bold">예산 설정 한마디</h3>
               </div>
 
-              <p className="text-sm leading-6 text-gray-700">
+              <p className="text-sm leading-6 text-gray-800 dark:text-gray-200">
                 지금 선택한 {selectedMonth + 1}월 예산은{" "}
                 <span className="font-semibold">
                   {currentBudget.toLocaleString()}원

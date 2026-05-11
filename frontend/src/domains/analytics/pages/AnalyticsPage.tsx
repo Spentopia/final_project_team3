@@ -539,12 +539,12 @@ while (heightLeft > 0) {
           <p className="text-gray-600 dark:text-gray-300">AI가 분석한 당신의 소비 습관을 확인해보세요</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleShare}>
+          <Button variant="outline" onClick={handleShare} className="spentopia-primary-button">
             <Share2 className="mr-2 h-4 w-4" />
             공유
           </Button>
           <Button
-  className={isPdfMode ? "bg-slate-900 text-white" : "bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"}
+  className={isPdfMode ? "bg-slate-900 text-white" : "spentopia-primary-button"}
   onClick={handleDownload}
 >
             <Download className="mr-2 h-4 w-4" />
@@ -555,7 +555,7 @@ while (heightLeft > 0) {
 
       {/* Summary Cards */}
       <div className="grid gap-6 md:grid-cols-4">
-        <Card className="border-none bg-gradient-to-br from-slate-900 via-cyan-600 to-teal-500 p-6 text-white shadow-xl shadow-cyan-700/20 backdrop-blur-xl">
+        <Card className="border-none spentopia-hero-card p-6 backdrop-blur-xl">
           <p className="mb-1 text-sm opacity-90">이번 달 총 지출</p>
           <p className="mb-2 text-3xl font-bold">
   {totalExpense.toLocaleString()}원
@@ -569,9 +569,9 @@ while (heightLeft > 0) {
           </div>
         </Card>
 
-        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
-          <p className="mb-1 text-sm text-gray-600">일 평균 지출</p>
-          <p className="mb-2 text-3xl font-bold text-gray-900">
+        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+          <p className="mb-1 text-sm font-medium text-gray-800 dark:text-gray-200">일 평균 지출</p>
+          <p className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
   {dailyAverage.toLocaleString()}원
 </p>
 <div className="flex items-center gap-1 text-sm">
@@ -583,21 +583,21 @@ while (heightLeft > 0) {
 </div>
         </Card>
 
-        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
-          <p className="mb-1 text-sm text-gray-600">예산 사용률</p>
-          <p className="mb-2 text-3xl font-bold text-gray-900">{budgetUsage}%</p>
+        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+          <p className="mb-1 text-sm font-medium text-gray-800 dark:text-gray-200">예산 사용률</p>
+          <p className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">{budgetUsage}%</p>
           <div className="h-2 overflow-hidden rounded-full bg-gray-200">
             <div
-  className="h-full bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500"
+  className="h-full spentopia-primary-fill"
   style={{ width: `${budgetUsage}%` }}
 ></div>
           </div>
         </Card>
 
-        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
-          <p className="mb-1 text-sm text-gray-600">최다 소비 카테고리</p>
-          <p className="mb-2 text-3xl font-bold text-gray-900">{topCategoryName}</p>
-          <p className="text-sm text-gray-600">전체의 {topCategoryPercent}%</p>
+        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+          <p className="mb-1 text-sm font-medium text-gray-800 dark:text-gray-200">최다 소비 카테고리</p>
+          <p className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">{topCategoryName}</p>
+          <p className="text-sm text-gray-700 dark:text-gray-300">전체의 {topCategoryPercent}%</p>
         </Card>
       </div>
 
@@ -609,7 +609,7 @@ while (heightLeft > 0) {
         </TabsList>
 
         <TabsContent value="weekly" className="space-y-6">
-          <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
+          <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
             <h3 className="mb-6 font-bold text-gray-900">주간 소비 추이</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={weeklyData}>
@@ -636,7 +636,7 @@ while (heightLeft > 0) {
         </TabsContent>
 
         <TabsContent value="monthly" className="space-y-6">
-          <Card className="border-none bg-white/80 p-6 backdrop-blur-xl">
+          <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
             <h3 className="mb-6 font-bold text-gray-900">월간 소비 추이</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={monthlyData}>
@@ -665,7 +665,7 @@ while (heightLeft > 0) {
 
       {/* Category Analysis */}
       <div className="grid gap-6 lg:grid-cols-2 items-stretch">
-        <Card className="h-full min-h-[400px] flex flex-col border-none bg-white/80 p-6 backdrop-blur-xl">
+        <Card className="h-full min-h-[400px] flex flex-col border-none spentopia-surface-card p-6 backdrop-blur-xl">
           <h3 className="mb-6 font-bold text-gray-900">카테고리별 지출</h3>
           <div className="flex-1">
           <ResponsiveContainer width="100%" height="100%">
@@ -697,7 +697,7 @@ while (heightLeft > 0) {
           </div>
         </Card>
 
-        <Card className="h-full min-h-[400px] border-none bg-white/80 p-6 backdrop-blur-xl">
+        <Card className="h-full min-h-[400px] border-none spentopia-surface-card p-6 backdrop-blur-xl">
           <h3 className="mb-6 font-bold text-gray-900">카테고리 상세</h3>
           <div className="space-y-4">
             {categoryData.map((cat) => (
@@ -724,11 +724,11 @@ while (heightLeft > 0) {
       </div>
 
 {/* AI Insights */}
-<Card className="border-none bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-800 dark:to-gray-900 p-6 backdrop-blur-xl">
+<Card className="border-none spentopia-soft-card p-6 backdrop-blur-xl">
 
   <div className="mb-4 flex items-center justify-between">
     <div className="flex items-center gap-2">
-      <Sparkles className="h-5 w-5 text-cyan-600" />
+      <Sparkles className="h-5 w-5 text-slate-700 dark:text-violet-300" />
 
       <h3 className="font-bold text-gray-900 dark:text-white">
         AI 소비 분석 리포트
@@ -738,7 +738,7 @@ while (heightLeft > 0) {
     <Button
       onClick={handleGenerateReport}
       disabled={isReportLoading}
-      className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
+      className="spentopia-primary-button"
     >
       {isReportLoading ? "AI 분석 중..." : "AI 분석 시작"}
     </Button>
@@ -747,28 +747,28 @@ while (heightLeft > 0) {
   {aiReport ? (
   <div className="grid gap-4 md:grid-cols-2">
 
-    <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
+    <div className="rounded-lg spentopia-surface-card p-4">
       <h4 className="font-bold text-gray-900 dark:text-white">👍 좋은 점</h4>
       <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.good}
       </p>
     </div>
 
-    <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
+    <div className="rounded-lg spentopia-surface-card p-4">
       <h4 className="font-bold text-gray-900 dark:text-white">⚠️ 주의</h4>
       <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.warning}
       </p>
     </div>
 
-    <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
+    <div className="rounded-lg spentopia-surface-card p-4">
       <h4 className="font-bold text-gray-900 dark:text-white">💡 조언</h4>
       <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.advice}
       </p>
     </div>
 
-    <div className="rounded-lg border bg-white dark:bg-gray-800 p-4">
+    <div className="rounded-lg spentopia-surface-card p-4">
       <h4 className="font-bold text-gray-900 dark:text-white">📈 예측</h4>
       <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.prediction}
@@ -787,7 +787,7 @@ while (heightLeft > 0) {
 </Card>
 
       {/* Spending Patterns */}
-<Card className="border-none bg-white/80 dark:bg-gray-900 p-6 backdrop-blur-xl">
+<Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
   <div className="mb-6 flex items-center justify-between">
   <h3 className="font-bold text-gray-900 dark:text-white">
     AI 소비 패턴 분석
@@ -796,7 +796,7 @@ while (heightLeft > 0) {
   <Button
     onClick={handleGeneratePattern}
     disabled={isPatternLoading}
-    className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
+    className="spentopia-primary-button"
   >
     {isPatternLoading ? "AI 분석 중..." : "AI 분석 시작"}
   </Button>
@@ -805,14 +805,14 @@ while (heightLeft > 0) {
   {patternReport ? (
     <div className="grid gap-6 md:grid-cols-2">
 
-      <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-5">
+      <div className="rounded-lg spentopia-surface-card p-5">
         <h4 className="mb-2 font-bold text-gray-900 dark:text-white">📊 분석</h4>
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
           {patternReport.pattern.replace("소비 패턴 분석:", "")}
         </p>
       </div>
 
-      <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-5">
+      <div className="rounded-lg spentopia-surface-card p-5">
         <h4 className="mb-2 font-bold text-gray-900 dark:text-white">💡 개선 방안</h4>
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
           {patternReport.improvement}

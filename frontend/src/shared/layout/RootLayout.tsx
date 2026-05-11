@@ -146,9 +146,9 @@ export default function RootLayout() {
             <p className="mb-2 text-5xl font-extrabold">
               {totalScore}점
             </p>
-            <div className="mb-5 h-3 overflow-hidden rounded-full bg-muted">
+            <div className="mb-5 h-3 overflow-hidden rounded-full bg-slate-200 shadow-inner dark:bg-slate-800">
               <div
-                className="h-full rounded-full bg-[linear-gradient(90deg,var(--luxury-gold),var(--luxury-emerald))] transition-all duration-700"
+                className="h-full rounded-full bg-[linear-gradient(90deg,#22c55e,#06b6d4,#8b5cf6)] shadow-[0_0_14px_rgba(139,92,246,0.45)] transition-all duration-700 dark:bg-[linear-gradient(90deg,#0f172a,#4338ca,#7c3aed)] dark:shadow-[0_0_18px_rgba(124,58,237,0.6)]"
                 style={{ width: `${progressPct}%` }}
               />
             </div>

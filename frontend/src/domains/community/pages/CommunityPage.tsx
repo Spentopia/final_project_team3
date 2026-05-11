@@ -965,7 +965,7 @@ export default function Community() {
             <p className="text-gray-600 dark:text-gray-300">다른 사용자들과 소통하고 경험을 나눠보세요</p>
           </div>
 
-          <Card className="border-none bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl overflow-hidden">
+          <Card className="border-none spentopia-surface-card backdrop-blur-xl overflow-hidden">
             {/* 게시글 헤더 */}
             <div className="px-8 pt-8 pb-6 border-b border-gray-100 dark:border-gray-700">
               <div className="flex items-center gap-2 mb-3">
@@ -1648,7 +1648,7 @@ export default function Community() {
                     <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
+                      className="spentopia-primary-button"
                     >
                       {isSubmitting ? "수정 중" : "수정"}
                     </Button>
@@ -1712,7 +1712,7 @@ export default function Community() {
             </div>
             <Button
                 onClick={() => setIsWriteOpen(true)}
-                className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 h-11 px-5 text-base text-white shadow-lg shadow-cyan-700/20"
+                className="spentopia-primary-button h-11 px-5 text-base"
             >
               <Send className="mr-2 h-4 w-4" />
               글쓰기
@@ -1760,7 +1760,7 @@ export default function Community() {
           </div>
 
           {/* 게시글 리스트 */}
-          <div className="border border-t-0 border-gray-200 dark:border-gray-700 rounded-b-xl overflow-hidden bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl">
+          <div className="border border-t-0 border-gray-200 dark:border-gray-700 rounded-b-xl overflow-hidden spentopia-surface-card backdrop-blur-xl">
             {paginated.length === 0 ? (
                 <div className="py-12 text-center text-sm text-gray-400 dark:text-gray-500">
                   검색 결과가 없습니다
@@ -2004,7 +2004,7 @@ export default function Community() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="h-9 bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 px-5 text-sm text-white shadow-lg shadow-cyan-700/20"
+                    className="h-9 spentopia-primary-button px-5 text-sm"
                   >
                     {isSubmitting ? "등록 중..." : "등록"}
                   </Button>

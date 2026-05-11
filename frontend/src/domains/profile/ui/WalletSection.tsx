@@ -296,7 +296,7 @@ export function WalletSection({
 
     return (
         <>
-            <Card className="h-full border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+            <Card className="h-full border-none spentopia-soft-card p-6 backdrop-blur-xl">
                 <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">지갑 관리</h3>
 
                 {linkedAddress ? (
@@ -344,7 +344,8 @@ export function WalletSection({
                                     void handleLinkWalletStart();
                                 }}
                                 disabled={isProcessing || linkRequested}
-                                className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20"
+                                variant="outline"
+                                className="spentopia-primary-button"
                             >
                                 <LinkIcon className="mr-2 h-4 w-4" />
                                 {linkRequested || (isProcessing && currentProcess === "link")
@@ -353,7 +354,7 @@ export function WalletSection({
                             </Button>
                         </div>
 
-                        <Card className="bg-gradient-to-br from-slate-50 via-cyan-50 to-teal-50 dark:from-slate-900/40 dark:via-cyan-950/30 dark:to-teal-950/30 p-4">
+                        <Card className="spentopia-soft-card p-4">
                             <h4 className="mb-2 font-bold text-gray-900 dark:text-gray-100">💡 지갑 연결 혜택</h4>
                             <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
                                 <li>• NFT로 아바타 아이템 발행</li>
@@ -413,7 +414,8 @@ export function WalletSection({
                                         void handleLinkWallet();
                                     }}
                                     disabled={isProcessing || !isLoggedIn || !isProfileComplete}
-                                    className="flex-1 bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20 hover:brightness-110"
+                                    variant="outline"
+                                    className="flex-1 spentopia-primary-button"
                                 >
                                     <LinkIcon className="h-4 w-4" />
                                     {isProcessing && currentProcess === "link" ? "지갑 연동 중..." : "계정에 지갑 연동"}

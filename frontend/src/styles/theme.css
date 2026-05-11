@@ -204,3 +204,112 @@
     line-height: 1.5;
   }
 }
+
+@layer components {
+  .spentopia-primary-button {
+    @apply border border-slate-200 bg-white text-slate-900 shadow-sm hover:border-slate-300 hover:bg-slate-50 dark:border-[#7c3aed]/35 dark:bg-gradient-to-r dark:from-[#090b16] dark:via-[#111827] dark:to-[#2d1847] dark:text-white dark:shadow-lg dark:shadow-[#7c3aed]/20 dark:hover:brightness-110;
+  }
+
+  .spentopia-primary-fill {
+    @apply bg-slate-300 dark:bg-gradient-to-r dark:from-[#090b16] dark:via-[#111827] dark:to-[#2d1847];
+  }
+
+  .spentopia-income-button {
+    @apply border border-slate-200 bg-white text-slate-900 shadow-sm hover:border-slate-300 hover:bg-slate-50 dark:border-[#10b981]/40 dark:bg-gradient-to-r dark:from-[#064e3b] dark:via-[#065f46] dark:to-[#0f766e] dark:text-white dark:shadow-lg dark:shadow-[#10b981]/15 dark:hover:brightness-110;
+  }
+
+  .spentopia-hero-card {
+    @apply border-none bg-gradient-to-br from-white via-slate-50 to-slate-100 text-[#0f172a] ring-1 ring-slate-200 shadow-[0_18px_42px_rgba(15,23,42,0.1)] backdrop-blur-xl dark:bg-gradient-to-br dark:from-[#090b16] dark:via-[#111827] dark:to-[#2d1847] dark:text-white dark:ring-transparent dark:shadow-xl dark:shadow-[#7c3aed]/15;
+  }
+
+  .spentopia-surface-card {
+    @apply border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-[#f1f5f9] text-[#0f172a] shadow-[0_16px_38px_rgba(15,23,42,0.09)] backdrop-blur-xl dark:border-transparent dark:bg-gradient-to-br dark:from-[#090b16] dark:via-[#111827] dark:to-[#2d1847] dark:text-[#f8fafc] dark:shadow-xl dark:shadow-[#7c3aed]/10;
+  }
+
+  .spentopia-soft-card {
+    @apply border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-[#eef2f7] text-[#0f172a] shadow-[0_12px_28px_rgba(15,23,42,0.07)] dark:border-[#334155] dark:from-[#090b16]/90 dark:via-[#111827]/90 dark:to-[#2d1847]/90 dark:text-[#f8fafc];
+  }
+
+  .spentopia-muted-panel {
+    @apply border border-slate-200 bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 text-[#0f172a] dark:border-[#334155] dark:bg-[#0b1020] dark:text-[#f8fafc];
+  }
+
+  .spentopia-hero-card .text-white\/90 {
+    color: rgba(30, 27, 75, 0.78);
+  }
+
+  .spentopia-hero-card .bg-white\/10 {
+    background-color: rgba(255, 255, 255, 0.58);
+  }
+
+  .dark .spentopia-hero-card .text-white\/90 {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .dark .spentopia-hero-card .bg-white\/10 {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .spentopia-surface-card .text-gray-900,
+  .spentopia-soft-card .text-gray-900 {
+    color: #111827;
+  }
+
+  .spentopia-surface-card .text-gray-700,
+  .spentopia-soft-card .text-gray-700 {
+    color: #374151;
+  }
+
+  .spentopia-surface-card .text-gray-500,
+  .spentopia-soft-card .text-gray-500,
+  .spentopia-muted-panel .text-gray-500 {
+    color: #475569;
+  }
+
+  .spentopia-surface-card .text-gray-400,
+  .spentopia-soft-card .text-gray-400,
+  .spentopia-muted-panel .text-gray-400 {
+    color: #64748b;
+  }
+
+  .spentopia-surface-card .text-gray-600,
+  .spentopia-soft-card .text-gray-600 {
+    color: #475569;
+  }
+
+  .spentopia-surface-card .text-slate-700,
+  .spentopia-soft-card .text-slate-700,
+  .spentopia-muted-panel .text-slate-700 {
+    color: #1e293b;
+  }
+
+  .dark .spentopia-surface-card .text-gray-900,
+  .dark .spentopia-soft-card .text-gray-900,
+  .dark .spentopia-surface-card .text-gray-800,
+  .dark .spentopia-soft-card .text-gray-800 {
+    color: #f8fafc;
+  }
+
+  .dark .spentopia-surface-card .text-gray-700,
+  .dark .spentopia-soft-card .text-gray-700,
+  .dark .spentopia-surface-card .text-gray-600,
+  .dark .spentopia-soft-card .text-gray-600,
+  .dark .spentopia-muted-panel .text-gray-700,
+  .dark .spentopia-muted-panel .text-gray-600,
+  .dark .spentopia-muted-panel .text-gray-500,
+  .dark .spentopia-muted-panel .text-gray-400 {
+    color: #cbd5e1;
+  }
+
+  .dark .spentopia-surface-card .text-slate-900,
+  .dark .spentopia-soft-card .text-slate-900,
+  .dark .spentopia-muted-panel .text-slate-900,
+  .dark .spentopia-surface-card .text-slate-800,
+  .dark .spentopia-soft-card .text-slate-800,
+  .dark .spentopia-muted-panel .text-slate-800,
+  .dark .spentopia-surface-card .text-slate-700,
+  .dark .spentopia-soft-card .text-slate-700,
+  .dark .spentopia-muted-panel .text-slate-700 {
+    color: #f8fafc;
+  }
+}

@@ -453,7 +453,7 @@ const currentBudget = budgets[monthKey] ?? budget;
       {/* Left Column - Calendar & Expenses */}
       <div className="space-y-6">
         {/* Monthly Summary */}
-        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -503,7 +503,7 @@ const currentBudget = budgets[monthKey] ?? budget;
         </Card>
 
         {/* Calendar */}
-        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
           <Calendar
             mode="single"
             selected={selectedDate}
@@ -532,7 +532,7 @@ const currentBudget = budgets[monthKey] ?? budget;
         </Card>
 
         {/* Daily Expenses List */}
-        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="font-bold text-gray-900 dark:text-gray-100">
@@ -543,7 +543,7 @@ const currentBudget = budgets[monthKey] ?? budget;
               </p>
             </div>
             {selectedDateExpenses.some((e) => e.diary) && (
-              <Badge className="bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20">
+              <Badge className="spentopia-primary-button">
                 <Zap className="mr-1 h-3 w-3" />
                 일기 작성 완료
               </Badge>
@@ -630,8 +630,8 @@ const currentBudget = budgets[monthKey] ?? budget;
 
           {/* Daily Diary */}
           {selectedDateExpenses.length > 0 && (
-            <div className="mt-6 rounded-lg border-2 border-dashed border-cyan-300 bg-cyan-50/50 p-4 dark:border-cyan-600 dark:bg-cyan-900/20">
-              <p className="mb-2 font-bold text-cyan-900 dark:text-cyan-100">오늘의 소비 일기</p>
+            <div className="mt-6 rounded-lg border-2 border-dashed border-slate-200 bg-white/80 p-4 shadow-sm dark:border-[#7c3aed]/35 dark:bg-[#090b16]/80 dark:shadow-[#7c3aed]/10">
+              <p className="mb-2 font-bold text-gray-900 dark:text-violet-100">오늘의 소비 일기</p>
               {selectedDateExpenses.find((e) => e.diary) ? (
                 <p className="text-sm text-gray-700 dark:text-gray-300">
                   {selectedDateExpenses.find((e) => e.diary)?.diary}
@@ -649,7 +649,7 @@ const currentBudget = budgets[monthKey] ?? budget;
       {/* Right Column - Add Expense Form */}
       <div className="space-y-6">
         {/* Add Expense Form */}
-        <Card className="border-none bg-white/80 p-6 backdrop-blur-xl dark:bg-gray-800/80">
+        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               {entryType === "income" ? (
@@ -669,7 +669,7 @@ const currentBudget = budgets[monthKey] ?? budget;
                 variant={entryType === "expense" ? "default" : "ghost"}
                 className={
                   entryType === "expense"
-                    ? "bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20 hover:brightness-110"
+                    ? "spentopia-primary-button"
                     : "text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
                 }
                 onClick={() => {
@@ -685,7 +685,7 @@ const currentBudget = budgets[monthKey] ?? budget;
                 variant={entryType === "income" ? "default" : "ghost"}
                 className={
                   entryType === "income"
-                    ? "bg-gradient-to-r from-emerald-700 to-teal-600 text-white shadow-lg shadow-emerald-700/20 hover:brightness-110"
+                    ? "spentopia-income-button"
                     : "text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
                 }
                 onClick={() => {
@@ -856,8 +856,8 @@ const currentBudget = budgets[monthKey] ?? budget;
               disabled={saveLoading}
               className={`w-full ${
                 entryType === "income"
-                  ? "bg-gradient-to-r from-emerald-700 to-teal-600 text-white shadow-lg shadow-emerald-700/20 hover:brightness-110"
-                  : "bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-700/20 hover:brightness-110"
+                  ? "spentopia-income-button"
+                  : "spentopia-primary-button"
               }`}
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -867,9 +867,9 @@ const currentBudget = budgets[monthKey] ?? budget;
         </Card>
 
         {/* Rewards Info */}
-        <Card className="border-none bg-gradient-to-br from-amber-50 to-yellow-50 p-6 text-gray-900 backdrop-blur-xl dark:from-amber-50 dark:to-yellow-50 dark:text-gray-900">
-          <h4 className="mb-3 font-bold text-gray-900">💰 보상 안내</h4>
-          <div className="space-y-2 text-sm text-gray-700">
+        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+          <h4 className="mb-3 font-bold text-gray-900 dark:text-gray-100">💰 보상 안내</h4>
+          <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <div className="flex items-center justify-between">
               <span>기본 기록</span>
             </div>
@@ -880,9 +880,9 @@ const currentBudget = budgets[monthKey] ?? budget;
             <div className="flex items-center justify-between">
               <span>일기 작성</span>
             </div>
-            <div className="mt-3 rounded-lg border border-amber-300 bg-white p-2 text-center">
-              <p className="font-bold text-amber-700">주간 성실도 90점 이상 시</p>
-              <p className="text-xs text-amber-600">랜덤 아바타 뽑기권 지급!</p>
+            <div className="mt-3 rounded-lg border border-slate-200 bg-white p-2 text-center dark:border-[#7c3aed]/35 dark:bg-white/10">
+              <p className="font-bold text-amber-700 dark:text-violet-100">주간 성실도 90점 이상 시</p>
+              <p className="text-xs text-amber-600 dark:text-violet-200">랜덤 아바타 뽑기권 지급!</p>
             </div>
           </div>
         </Card>
