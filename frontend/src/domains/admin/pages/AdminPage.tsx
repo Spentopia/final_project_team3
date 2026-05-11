@@ -15,7 +15,7 @@
 // - 로그아웃 처리
 
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
 import { signOut } from "@/domains/auth/api/auth";
@@ -26,18 +26,25 @@ import AdminReportsPanel from "@/domains/admin/components/AdminReportsPanel";
 import AdminReportDetailModal from "@/domains/admin/components/AdminReportDetailModal";
 import AdminUsersPanel from "@/domains/admin/components/AdminUsersPanel";
 import AdminNoticesPanel from "@/domains/admin/components/AdminNoticesPanel";
+import AdminContestsPanel from "@/domains/admin/components/AdminContestsPanel.tsx";
 
 import {
     createAdminNotice,
+    createAdminContest,
     deleteAdminNotice,
     listAdminContentReports,
+    listAdminContests,
     listAdminNotices,
     listAdminUsers,
     rejectAdminContentReport,
     resolveAdminContentReport,
+    updateAdminContest,
+    updateAdminContestStatus,
     updateAdminNotice,
     updateAdminUserActive,
     type AdminContentReportResponse,
+    type AdminContestResponse,
+    type AdminContestStatus,
     type AdminNoticeResponse,
     type AdminUserResponse,
 } from "@/domains/admin/api/adminApi";
@@ -50,9 +57,81 @@ import type {
 export default function AdminPage() {
     const navigate = useNavigate();
 
+    // URL query parameter를 읽고/수정하기 위한 React Router hook.
+    //
+    // 예:
+    // /admin?tab=contests
+    //
+    // searchParams.get("tab")으로 현재 탭 값을 읽고,
+    // setSearchParams({ tab: "contests" })로 URL을 갱신한다.
+    const [searchParams, setSearchParams] = useSearchParams();
+
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
+    /**
+     * URL query의 tab 값을 관리자 탭 타입으로 안전하게 변환한다.
+     *
+     * 예:
+     * /admin?tab=contests → contests
+     * /admin?tab=users    → users
+     *
+     * 잘못된 값이면 dashboard로 보낸다.
+     */
+    const getInitialAdminTab = (): AdminTab => {
+        const tab = searchParams.get("tab");
+
+        if (
+            tab === "dashboard" ||
+            tab === "reports" ||
+            tab === "users" ||
+            tab === "notices" ||
+            tab === "contests"
+        ) {
+            return tab;
+        }
+
+        return "dashboard";
+    };
+
+    // activeTab은 URL query를 기준으로 초기화한다.
+    //
+    // 기존:
+    // const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
+    //
+    // 문제:
+    // 새로고침하면 항상 dashboard로 돌아감.
+    //
+    // 변경:
+    // /admin?tab=contests면 contests로 초기화.
+    const [activeTab, setActiveTab] = useState<AdminTab>(getInitialAdminTab);
+
+    /**
+     * 관리자 탭 변경 함수.
+     *
+     * 기존에는 setActiveTab만 호출해서 React 메모리에만 탭 상태가 저장됐다.
+     * 그래서 새로고침하면 activeTab 초기값인 dashboard로 돌아갔다.
+     *
+     * 이제는 URL query에도 tab 값을 저장한다.
+     *
+     * 예:
+     * setAdminTab("contests")
+     * → activeTab = "contests"
+     * → URL = /admin?tab=contests
+     *
+     * replace: true를 쓰는 이유:
+     * - 탭 클릭할 때마다 브라우저 뒤로가기 기록이 쌓이는 것을 막기 위함.
+     */
+    const setAdminTab = (tab: AdminTab) => {
+        setActiveTab(tab);
+
+        setSearchParams(
+            { tab },
+            {
+                replace: true,
+            }
+        );
+    };
+    
 
     // 대시보드용 전체 신고 목록
     const [dashboardReports, setDashboardReports] = useState<
@@ -78,6 +157,9 @@ export default function AdminPage() {
     // 공지사항 관리
     const [notices, setNotices] = useState<AdminNoticeResponse[]>([]);
     const [isNoticesLoading, setIsNoticesLoading] = useState(false);
+
+    const [contests, setContests] = useState<AdminContestResponse[]>([]);
+    const [isContestsLoading, setIsContestsLoading] = useState(false);
 
     // 공통 처리 상태
     const [processingId, setProcessingId] = useState<string | null>(null);
@@ -223,6 +305,35 @@ export default function AdminPage() {
         }
 
         void fetchNotices();
+
+        return () => {
+            ignore = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        let ignore = false;
+
+        async function fetchContests() {
+            setIsContestsLoading(true);
+
+            try {
+                const data = await listAdminContests();
+
+                if (!ignore) {
+                    setContests(data);
+                }
+            } catch (error) {
+                console.error("관리자 콘테스트 목록 조회 실패:", error);
+                toast.error("콘테스트 목록을 불러오지 못했습니다.");
+            } finally {
+                if (!ignore) {
+                    setIsContestsLoading(false);
+                }
+            }
+        }
+
+        void fetchContests();
 
         return () => {
             ignore = true;
@@ -383,6 +494,87 @@ export default function AdminPage() {
         }
     };
 
+    const handleCreateContest = async (params: {
+        title: string;
+        description: string | null;
+        start_date: string;
+        end_date: string;
+        status: AdminContestStatus;
+        reward_description: string | null;
+    }) => {
+        if (processingId) return;
+
+        setProcessingId("contest-form");
+
+        try {
+            const created = await createAdminContest(params);
+
+            setContests((prev) => [created, ...prev]);
+
+            toast.success("콘테스트를 생성했습니다.");
+        } catch (error) {
+            console.error("콘테스트 생성 실패:", error);
+            toast.error("콘테스트 생성에 실패했습니다.");
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleUpdateContest = async (
+        contestId: string,
+        params: {
+            title: string;
+            description: string | null;
+            start_date: string;
+            end_date: string;
+            status: AdminContestStatus;
+            reward_description: string | null;
+        }
+    ) => {
+        if (processingId) return;
+
+        setProcessingId("contest-form");
+
+        try {
+            const updated = await updateAdminContest(contestId, params);
+
+            setContests((prev) =>
+                prev.map((contest) => (contest.id === contestId ? updated : contest))
+            );
+
+            toast.success("콘테스트를 수정했습니다.");
+        } catch (error) {
+            console.error("콘테스트 수정 실패:", error);
+            toast.error("콘테스트 수정에 실패했습니다.");
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleUpdateContestStatus = async (
+        contestId: string,
+        status: AdminContestStatus
+    ) => {
+        if (processingId) return;
+
+        setProcessingId(contestId);
+
+        try {
+            const updated = await updateAdminContestStatus(contestId, status);
+
+            setContests((prev) =>
+                prev.map((contest) => (contest.id === contestId ? updated : contest))
+            );
+
+            toast.success("콘테스트 상태를 변경했습니다.");
+        } catch (error) {
+            console.error("콘테스트 상태 변경 실패:", error);
+            toast.error("콘테스트 상태 변경에 실패했습니다.");
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
     // 로그아웃
     const handleLogout = async () => {
         try {
@@ -401,7 +593,7 @@ export default function AdminPage() {
             <div className="flex min-h-screen">
                 <AdminSidebar
                     activeTab={activeTab}
-                    onTabChange={setActiveTab}
+                    onTabChange={setAdminTab}
                     isLoggingOut={isLoggingOut}
                     onLogout={() => void handleLogout()}
                 />
@@ -417,6 +609,7 @@ export default function AdminPage() {
                             {activeTab === "reports" && "신고 관리"}
                             {activeTab === "users" && "회원 관리"}
                             {activeTab === "notices" && "공지사항 관리"}
+                            {activeTab === "contests" && "콘테스트 관리"}
                         </h2>
 
                         <p className="mt-2 text-sm text-muted-foreground">
@@ -428,6 +621,8 @@ export default function AdminPage() {
                                 "가입 회원을 조회하고 활성 상태를 관리합니다."}
                             {activeTab === "notices" &&
                                 "공지사항을 작성, 수정, 삭제합니다."}
+                            {activeTab === "contests" &&
+                                "아바타 콘테스트를 생성하고 상태를 관리합니다."}
                         </p>
                     </div>
 
@@ -438,7 +633,7 @@ export default function AdminPage() {
                             activeUserCount={activeUserCount}
                             recentReports={recentReports}
                             isReportsLoading={isDashboardReportsLoading}
-                            onTabChange={setActiveTab}
+                            onTabChange={setAdminTab}
                         />
                     )}
 
@@ -476,6 +671,21 @@ export default function AdminPage() {
                                 void handleUpdateNotice(noticeId, params)
                             }
                             onDeleteNotice={(noticeId) => void handleDeleteNotice(noticeId)}
+                        />
+                    )}
+
+                    {activeTab === "contests" && (
+                        <AdminContestsPanel
+                            contests={contests}
+                            isContestsLoading={isContestsLoading}
+                            processingId={processingId}
+                            onCreateContest={(params) => void handleCreateContest(params)}
+                            onUpdateContest={(contestId, params) =>
+                                void handleUpdateContest(contestId, params)
+                            }
+                            onUpdateContestStatus={(contestId, status) =>
+                                void handleUpdateContestStatus(contestId, status)
+                            }
                         />
                     )}
                 </main>

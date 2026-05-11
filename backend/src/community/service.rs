@@ -591,7 +591,7 @@ pub async fn upload_post_image(
 
 pub async fn list_contests(state: &AppState) -> Result<Vec<ContestEventResponse>> {
     let url = format!(
-        "{}/rest/v1/contest_events?select=*&order=start_date.desc",
+        "{}/rest/v1/contest_events?select=*&status=in.(active,upcoming)&order=start_date.desc",
         state.config.supabase_url.trim_end_matches('/'),
     );
 

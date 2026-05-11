@@ -26,7 +26,8 @@ use crate::state::AppState;
 use super::{
     dto::{
         CreateAdminNoticeRequest, UpdateAdminNoticeRequest,
-        UpdateUserActiveRequest,
+        UpdateUserActiveRequest, CreateAdminContestRequest, UpdateAdminContestRequest,
+        UpdateAdminContestStatusRequest,
     },
     service,
 };
@@ -47,15 +48,34 @@ pub struct AdminUserQuery {
     pub keyword: Option<String>,
 }
 
-/// 관리자 도메인 공통 에러 매핑
-///
-/// service에서 anyhow::Error로 올라온 메시지를
-/// 적절한 HTTP 상태 코드로 변환한다.
 fn map_admin_error(error: anyhow::Error) -> axum::response::Response {
     let message = error.to_string();
 
-    if message.contains("찾을 수 없습니다") || message.contains("회원을 찾을 수 없습니다") {
+    // 존재하지 않는 리소스
+    //
+    // 예:
+    // - 신고를 찾을 수 없습니다.
+    // - 회원을 찾을 수 없습니다.
+    // - 공지사항을 찾을 수 없습니다.
+    // - 콘테스트를 찾을 수 없습니다.
+    if message.contains("찾을 수 없습니다") {
         return (StatusCode::NOT_FOUND, message).into_response();
+    }
+
+    // 잘못된 요청
+    //
+    // 예:
+    // - 제목을 입력해 주세요.
+    // - 콘테스트 종료일은 시작일 이후여야 합니다.
+    // - 지원하지 않는 콘테스트 상태입니다.
+    // - 수정할 콘테스트 내용이 없습니다.
+    if message.contains("입력해 주세요")
+        || message.contains("수정할 공지사항 내용이 없습니다")
+        || message.contains("콘테스트 종료일")
+        || message.contains("지원하지 않는 콘테스트 상태")
+        || message.contains("수정할 콘테스트")
+    {
+        return (StatusCode::BAD_REQUEST, message).into_response();
     }
 
     (StatusCode::INTERNAL_SERVER_ERROR, message).into_response()
@@ -268,6 +288,101 @@ pub async fn delete_notice(
     Path(notice_id): Path<Uuid>,
 ) -> impl IntoResponse {
     match service::delete_notice(&state, notice_id).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_admin_error(e),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/admin/contests",
+    tag = "관리자",
+    responses(
+        (status = 200, description = "관리자 콘테스트 목록 조회 성공", body = [crate::admin::dto::AdminContestResponse]),
+        (status = 401, description = "인증 실패"),
+        (status = 403, description = "관리자 권한 없음")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn list_contests(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    match service::list_contests(&state).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_admin_error(e),
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/admin/contests",
+    tag = "관리자",
+    request_body = CreateAdminContestRequest,
+    responses(
+        (status = 201, description = "관리자 콘테스트 생성 성공", body = crate::admin::dto::AdminContestResponse),
+        (status = 400, description = "잘못된 요청"),
+        (status = 401, description = "인증 실패"),
+        (status = 403, description = "관리자 권한 없음")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn create_contest(
+    State(state): State<AppState>,
+    Json(req): Json<CreateAdminContestRequest>,
+) -> impl IntoResponse {
+    match service::create_contest(&state, req).await {
+        Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
+        Err(e) => map_admin_error(e),
+    }
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/admin/contests/{id}",
+    tag = "관리자",
+    request_body = UpdateAdminContestRequest,
+    params(("id" = Uuid, Path, description = "콘테스트 ID")),
+    responses(
+        (status = 200, description = "관리자 콘테스트 수정 성공", body = crate::admin::dto::AdminContestResponse),
+        (status = 400, description = "잘못된 요청"),
+        (status = 401, description = "인증 실패"),
+        (status = 403, description = "관리자 권한 없음"),
+        (status = 404, description = "콘테스트 없음")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn update_contest(
+    State(state): State<AppState>,
+    Path(contest_id): Path<Uuid>,
+    Json(req): Json<UpdateAdminContestRequest>,
+) -> impl IntoResponse {
+    match service::update_contest(&state, contest_id, req).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_admin_error(e),
+    }
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/admin/contests/{id}/status",
+    tag = "관리자",
+    request_body = UpdateAdminContestStatusRequest,
+    params(("id" = Uuid, Path, description = "콘테스트 ID")),
+    responses(
+        (status = 200, description = "관리자 콘테스트 상태 변경 성공", body = crate::admin::dto::AdminContestResponse),
+        (status = 400, description = "잘못된 요청"),
+        (status = 401, description = "인증 실패"),
+        (status = 403, description = "관리자 권한 없음"),
+        (status = 404, description = "콘테스트 없음")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn update_contest_status(
+    State(state): State<AppState>,
+    Path(contest_id): Path<Uuid>,
+    Json(req): Json<UpdateAdminContestStatusRequest>,
+) -> impl IntoResponse {
+    match service::update_contest_status(&state, contest_id, req).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => map_admin_error(e),
     }

@@ -183,6 +183,41 @@ export type UpdateAdminNoticeRequest = {
     content?: string;
 };
 
+// ─────────────────────────────────────────────
+// 아바타 콘테스트 관리 타입
+// ─────────────────────────────────────────────
+
+export type AdminContestStatus = "upcoming" | "active" | "ended";
+
+export type AdminContestResponse = {
+    id: string;
+    title: string;
+    description: string | null;
+    start_date: string;
+    end_date: string;
+    status: AdminContestStatus | string;
+    reward_description: string | null;
+    created_at: string | null;
+};
+
+export type CreateAdminContestRequest = {
+    title: string;
+    description?: string | null;
+    start_date: string;
+    end_date: string;
+    status?: AdminContestStatus;
+    reward_description?: string | null;
+};
+
+export type UpdateAdminContestRequest = {
+    title?: string;
+    description?: string | null;
+    start_date?: string;
+    end_date?: string;
+    status?: AdminContestStatus;
+    reward_description?: string | null;
+};
+
 
 // ─────────────────────────────────────────────
 // 신고 관리 API
@@ -312,6 +347,41 @@ export const deleteAdminNotice = async (
     noticeId: string
 ): Promise<AdminNoticeResponse> => {
     const res = await apiClient.delete(`/api/admin/notices/${noticeId}`);
+
+    return res.data;
+};
+
+// ─────────────────────────────────────────────
+// 아바타 콘테스트 관리 API
+// ─────────────────────────────────────────────
+export const listAdminContests = async (): Promise<AdminContestResponse[]> => {
+    const res = await apiClient.get<AdminContestResponse[]>("/api/admin/contests");
+
+    return res.data;
+};
+
+export const createAdminContest = async (
+    payload: CreateAdminContestRequest
+): Promise<AdminContestResponse> => {
+    const res = await apiClient.post("/api/admin/contests", payload);
+    return res.data;
+};
+
+export const updateAdminContest = async (
+    contestId: string,
+    payload: UpdateAdminContestRequest
+): Promise<AdminContestResponse> => {
+    const res = await apiClient.patch(`/api/admin/contests/${contestId}`, payload);
+    return res.data;
+};
+
+export const updateAdminContestStatus = async (
+    contestId: string,
+    status: AdminContestStatus
+): Promise<AdminContestResponse> => {
+    const res = await apiClient.patch(`/api/admin/contests/${contestId}/status`, {
+        status,
+    });
 
     return res.data;
 };

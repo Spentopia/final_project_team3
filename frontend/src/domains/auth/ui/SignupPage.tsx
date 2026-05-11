@@ -334,13 +334,16 @@ export default function Signup() {
                 <div>
                   <Label htmlFor="email">이메일</Label>
                   <Input
-                    id="email"
-                    type="text"
-                    placeholder="your@email.com"
-                    value={formData.email}
-                    onChange={(e) => updateFormData("email", e.target.value)}
-                    className="mt-1"
+                      id="email"
+                      type="text"
+                      placeholder="your@email.com"
+                      value={formData.email}
+                      onChange={(e) => updateFormData("email", e.target.value)}
+                      className="mt-1"
                   />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    탈퇴한 계정의 이메일은 재사용할 수 없습니다
+                  </p>
                 </div>
 
                 <div>

@@ -52,6 +52,34 @@
 // - 이 파일은 "토큰 발급/검증용 비즈니스 로직" 담당
 // - 웹/앱 응답 분기, 쿠키 세팅은 handler.rs에서 담당
 
+// ─────────────────────────────────────────────────────────────
+// 회원탈퇴 라이프사이클 정책
+// ─────────────────────────────────────────────────────────────
+//
+// 우리 서비스는 3단계 데이터 라이프사이클을 적용한다.
+//
+// [Phase 1] 탈퇴 즉시 (withdraw_user)
+//   - is_active=false, deleted_at=now()
+//   - wallet_address 즉시 null (양도 가능한 자산이라 식별자로 부적절)
+//   - google_connected = false
+//   - refresh_sessions 전부 revoke
+//   - email/phone/nickname 등 식별 정보는 유지 (30일 쿨다운 체크용)
+//
+// [Phase 2] 탈퇴 후 30일 (배치 처리)
+//   - provider_id, login_provider, google_connected 정리
+//   - 같은 카카오/구글 계정으로 신규 가입 가능
+//
+// [Phase 3] 탈퇴 후 5년 (배치 처리)
+//   - 부가 데이터 hard delete
+//   - users row 익명화 (anonymized_at 마커, email/phone/nickname 등 모두 익명화)
+//   - 거래/결제 이력은 user_id 외래키로 유지 (전자상거래법 5년 보관)
+//
+// 법적 근거:
+// - 전자상거래법 시행령 제6조: 결제/거래 기록 5년
+// - 전자금융거래법 시행령 제12조: 전자금융거래 기록 5년
+// - 개인정보보호법 제21조: 5년 보관 의무 종료 후 익명화로 파기 원칙 충족
+// ─────────────────────────────────────────────────────────────
+
 // anyhow: Rust의 에러 처리 라이브러리
 // anyhow!("메세지") → 에러 생성
 // Context → .context("설명") 으로 에러에 설명 추가
@@ -81,7 +109,7 @@ use uuid::Uuid;
 use crate::auth::app_jwt::{generate_token_pair, verify_app_refresh_token};
 use crate::auth::refresh_store::{
     create_refresh_session, revoke_refresh_session, revoke_refresh_session_as_reused,
-    verify_refresh_session,
+    revoke_refresh_session_for_rotation, verify_refresh_session,
 };
 
 /// 로그인 성공 시 공통으로 반환할 내부 결과
@@ -124,6 +152,7 @@ struct PublicUserProfileStatusRow {
 }
 
 const APP_SIGNUP_REQUIRED_MESSAGE: &str = "웹에서 회원가입 완료 후 다시 이용해 주세요.";
+const REJOIN_COOLDOWN_DAYS: i64 = 30;
 
 // ─────────────────────────────────────────────────────────────
 // 공통 토큰 발급 + refresh session 저장
@@ -154,6 +183,47 @@ pub async fn issue_login_tokens(
         is_new_user,
         user_id,
     })
+}
+
+/// 탈퇴 후 재가입 쿨다운 체크
+///
+/// 인자:
+/// - deleted_at_str: DB에서 가져온 RFC3339 형식의 탈퇴 시각 문자열
+///
+/// 반환:
+/// - Ok(()): 쿨다운 기간 만료 (재가입/처리 진행 가능)
+/// - Err(_): 아직 쿨다운 기간 중 (사용자에게 남은 일수 안내)
+///
+/// 사용처:
+/// - check_email (이메일 가입 전 중복 확인)
+/// - exchange_supabase_token (이메일/구글 로그인)
+/// - find_or_create_social_user (카카오 로그인)
+///
+/// 지갑 로그인은 wallet_address가 즉시 null로 처리되므로
+/// 쿨다운 체크가 불필요하다 (자연스럽게 매칭이 안 됨).
+pub fn check_rejoin_cooldown(deleted_at_str: &str) -> Result<()> {
+    // RFC3339 → DateTime<FixedOffset>로 파싱
+    let deleted_at = chrono::DateTime::parse_from_rfc3339(deleted_at_str)
+        .context("deleted_at 파싱 실패")?;
+
+    // 재가입 가능 시각 = 탈퇴 시각 + 30일
+    let rejoin_at = deleted_at + chrono::Duration::days(REJOIN_COOLDOWN_DAYS);
+    let now = chrono::Utc::now();
+
+    // 비교를 위해 양쪽을 UTC로 통일
+    if now < rejoin_at.with_timezone(&chrono::Utc) {
+        // 남은 일수 계산 (올림 처리: 30일 23시간 남았으면 "1일 후" 가 아니라 "1일 후" 표시)
+        let remaining = rejoin_at.with_timezone(&chrono::Utc) - now;
+        let days_left = remaining.num_days() + 1;
+
+        return Err(anyhow!(
+            "탈퇴 후 {}일 동안 재가입할 수 없습니다. {}일 후 다시 시도해 주세요.",
+            REJOIN_COOLDOWN_DAYS,
+            days_left
+        ));
+    }
+
+    Ok(())
 }
 
 /// refresh rotation
@@ -229,7 +299,13 @@ pub async fn rotate_refresh_token(
     // 7) 기존 refresh session revoke
     //
     // rotation이므로 replaced_by_session_id에 새 세션 ID 기록
-    revoke_refresh_session(state, session_id, Some(new_session_id)).await?;
+    if let Err(e) = revoke_refresh_session_for_rotation(state, session_id, new_session_id).await {
+        // 같은 refresh token으로 동시에 들어온 요청 중 늦게 온 쪽이면
+        // 여기서 실패한다. 이미 만든 새 세션은 클라이언트에 반환하지 않으므로
+        // best-effort로 폐기해 DB에 살아있는 고아 세션을 남기지 않는다.
+        let _ = revoke_refresh_session(state, new_session_id, None).await;
+        return Err(e);
+    }
 
     Ok(RefreshIssueResult {
         access_token: pair.access_token,
@@ -461,13 +537,28 @@ pub fn verify_solana_signature_pub(
 //  URL 파라미터로 SQL 조건을 표현할 수 있음.
 //   예: ?wallet_address=eq.7xKXt... → WHERE wallet_address = '7xKXt...'
 //
-// wallet/service.rs에서도 중복 연동 체크 시 재사용하므로 pub으로 선언
+// 변경 사항:
+// - 쿼리에 deleted_at=is.null 필터 추가
+//   → 탈퇴자는 자연스럽게 조회 결과에서 제외됨
+//
+// 왜 쿨다운 체크 안 하나:
+// - withdraw_user에서 wallet_address를 즉시 null로 만듦
+// - 따라서 같은 지갑 주소로 검색해도 탈퇴자 row는 매칭되지 않음
+// - 다른 정상 유저가 같은 지갑을 새로 연결한 케이스는
+//   정상적으로 그 유저의 id를 반환하면 됨
+//
+// 이중 안전장치:
+// - 혹시 데이터 마이그레이션 중 wallet_address가 남아있어도
+//   deleted_at=is.null 필터에 걸려서 안전하게 차단됨
+//
+// wallet/service.rs에서도 중복 연동 체크 시 재사용하므로 pub
+
 pub async fn find_user_by_wallet(state: &AppState, wallet_address: &str) -> Result<Uuid> {
     // wallet_address=eq.{주소} → WHERE wallet_address = '{주소}'
     // select=id → id 컬럼만 가져옴 (불필요한 컬럼 제외)
     // trim_end_matches('/'): URL 끝 슬래시 제거 (중복 방지)
     let url = format!(
-        "{}/rest/v1/users?wallet_address=eq.{}&select=id",
+        "{}/rest/v1/users?wallet_address=eq.{}&deleted_at=is.null&select=id",
         state.config.supabase_url.trim_end_matches('/'),
         wallet_address,
     );
@@ -655,16 +746,42 @@ pub async fn exchange_supabase_token(
         .await
         .context("탈퇴 여부 조회 실패")?;
 
+    // [Case 1] user_id 기반 탈퇴 체크
+    //
+    // 이메일 로그인은 탈퇴 시 auth.users도 살아있으므로
+    // 동일 user_id로 다시 들어올 수 있다.
+    // 이때 public.users.deleted_at이 살아있으면 차단 또는 쿨다운 체크.
+    //
+    // 쿨다운 만료 시: 같은 user_id로 부활시키지 않고 새 가입 유도
+    //                (deleted_at은 그대로 두고, 사용자에게 새로 가입하라고 안내)
     if deleted_resp.status().is_success() {
         let rows: Vec<serde_json::Value> = deleted_resp.json().await.unwrap_or_default();
         if let Some(row) = rows.first() {
-            if row["deleted_at"].is_string() {
-                return Err(anyhow!("이미 탈퇴한 회원입니다."));
+            if let Some(deleted_at_str) = row["deleted_at"].as_str() {
+                // 30일 쿨다운 체크 → 미만이면 여기서 에러 던지고 종료
+                check_rejoin_cooldown(deleted_at_str)?;
+
+                // 30일 지났어도 같은 row를 부활시키지 않음
+                // 정책: 탈퇴자는 새 계정으로 가입해야 함
+                tracing::info!(
+                "탈퇴 후 쿨다운 만료 유저 로그인 시도: user_id={}",
+                user_id
+            );
+                return Err(anyhow!(
+                "탈퇴한 계정입니다. 새로 회원가입해 주세요."
+            ));
             }
         }
     }
 
-    // [Case 2] email 기반 탈퇴 체크 (구글 재로그인 시 새 user_id 케이스 대응)
+    // [Case 2] email 기반 탈퇴 체크
+    //
+    // 구글 재로그인 시 Supabase가 새 user_id를 발급할 수 있는 경우 대비.
+    // (탈퇴 후 auth.users가 살아있으면 같은 user_id이지만,
+    //  만약 정책 변경으로 auth.users가 지워진다면 새 user_id가 발급됨)
+    //
+    // 단, withdraw_user에서 email을 마스킹하므로 평소엔 이 분기 매칭 안 됨.
+    // 그래도 안전망으로 남겨둠.
     if let Some(mail) = email {
         let email_check_url = format!(
             "{}/rest/v1/users?email=eq.{}&select=deleted_at&limit=1",
@@ -685,9 +802,17 @@ pub async fn exchange_supabase_token(
         if email_check_resp.status().is_success() {
             let rows: Vec<serde_json::Value> = email_check_resp.json().await.unwrap_or_default();
             if let Some(row) = rows.first() {
-                if row["deleted_at"].is_string() {
-                    tracing::warn!("탈퇴 유저 재로그인 시도 차단 (email 기반): email={}", mail);
-                    return Err(anyhow!("이미 탈퇴한 회원입니다."));
+                if let Some(deleted_at_str) = row["deleted_at"].as_str() {
+                    tracing::warn!(
+                    "탈퇴 유저 재로그인 시도 (email 기반): email={}",
+                    mail
+                );
+                    // 30일 쿨다운 체크
+                    check_rejoin_cooldown(deleted_at_str)?;
+                    // 쿨다운 지났어도 부활 X
+                    return Err(anyhow!(
+                    "탈퇴한 계정입니다. 새로 회원가입해 주세요."
+                ));
                 }
             }
         }
@@ -1142,22 +1267,67 @@ pub async fn kakao_login(
     issue_login_tokens(state, user_uuid, client_type, is_new_user).await
 }
 
-// withdraw_user - 회원탈퇴 처리
+// ═══════════════════════════════════════════════════════════════
+// 회원탈퇴 처리
+// ═══════════════════════════════════════════════════════════════
 //
 // 처리 순서:
-// 1) public.users → deleted_at(탈퇴 시각), is_active(비활성) 세팅
-// 2) Supabase auth.users → 삭제 (더 이상 로그인 시도 자체를 못하게)
-// 3) refresh_sessions → 전체 revoke (현재 로그인된 모든 기기 세션 만료)
+// 1) public.users → soft delete + 일부 식별자 정리
+// 2) refresh_sessions → 전체 revoke
 //
-// 왜 public.users를 바로 DELETE 안 하냐:
-// - 법적으로 3년 보관 의무가 있을 수 있음
-// - deleted_at으로 soft delete 처리해서 데이터는 남기고 접근만 차단
+// 즉시 처리:
+// - deleted_at = now()
+// - is_active = false
+// - wallet_address = null  (양도 가능 자산이라 식별자로 부적절)
+// - google_connected = false
 //
-// 왜 auth.users는 DELETE 하냐:
-// - auth.users가 남아있으면 Supabase 레벨에서 로그인이 가능해짐
-// - public.users에서 막더라도 auth.users가 살아있으면 토큰 자체가 발급됨
-// - 완전한 로그인 차단을 위해 auth.users는 삭제
+// 유지 대상 (30일 쿨다운 체크용):
+// - email
+// - phone
+// - nickname
+// - provider_id, login_provider
+//
+// 30일 후 (Phase 2 배치): provider_id, login_provider 정리
+// 5년 후 (Phase 3 배치): 모든 식별 정보 익명화
+//
+// 왜 auth.users는 안 지우나:
+// - public.users.id가 auth.users(id) ON DELETE CASCADE로 묶여있음
+// - auth.users 삭제 시 public.users row가 함께 날아감 → soft delete 의도 무너짐
+// - 로그인 차단은 deleted_at 체크로 처리 (이미 4군데 구현됨)
+//
+// 왜 즉시 마스킹 안 하나:
+// - 거래/결제 5년 보관 의무 때문에 어차피 row는 살아있음
+// - 30일 쿨다운 체크 단순화 (deleted_at 체크만으로 충분)
+// - 정책 일관성 (provider_id 등도 30일까지 유지하는 것과 동일)
+// - 5년 후 Phase 3 배치에서 일괄 익명화로 처리
+//
+// 법적 근거:
+// - 개인정보보호법: 5년 후 완전 익명화로 즉시 파기 원칙 충족
+// - 전자상거래법: 거래/결제 5년 보관 → row 자체는 유지
+// - 두 법이 충돌하는 부분을 라이프사이클로 분리
 pub async fn withdraw_user(state: &AppState, user_id: Uuid) -> Result<()> {
+    let now = chrono::Utc::now();
+
+    // ── 1) public.users soft delete ────────────────────────
+    //
+    // 처리 정책:
+    // - deleted_at 마커 + is_active=false (즉시 비활성)
+    // - wallet_address NULL (양도 가능 자산이라 식별자로 부적절)
+    // - google_connected false
+    //
+    // 유지 대상 (30일 쿨다운 체크용):
+    // - email
+    // - phone
+    // - nickname
+    // - provider_id, login_provider
+    //
+    // 5년 후 Phase 3 배치에서 일괄 익명화됨.
+    //
+    // 마스킹을 즉시 안 하는 이유:
+    // - 거래/결제 5년 보관 의무 때문에 어차피 row는 살아있음
+    // - 30일 쿨다운 체크 단순화 (deleted_at 체크만으로 충분)
+    // - 정책 일관성 (provider_id 등도 30일까지 유지하는 것과 동일)
+
     let url = format!(
         "{}/rest/v1/users?id=eq.{}",
         state.config.supabase_url.trim_end_matches("/"),
@@ -1175,9 +1345,12 @@ pub async fn withdraw_user(state: &AppState, user_id: Uuid) -> Result<()> {
         .header("Content-Type", "application/json")
         .header("Prefer", "return=minimal")
         .json(&json!({
-            "deleted_at": chrono::Utc::now(), // 탈퇴 시각 기록 (3년 보관 기준점)
-            "is_active": false                // 비활성 처리
-        }))
+        "deleted_at": now,
+        "is_active": false,
+        "wallet_address": null,
+        "google_connected": false,
+        "updated_at": now,
+    }))
         .send()
         .await
         .context("public.users 탈퇴 처리 요청 실패")?;
@@ -1187,43 +1360,18 @@ pub async fn withdraw_user(state: &AppState, user_id: Uuid) -> Result<()> {
         return Err(anyhow!("public.users 탈퇴 처리 실패: {}", err));
     }
 
-    // ── 2) auth.users 삭제 ──────────────────────────────────
-    // Supabase Admin API: DELETE /auth/v1/admin/users/{id}
-    // service role key로만 호출 가능 (일반 anon key 불가)
-    let auth_url = format!(
-        "{}/auth/v1/admin/users/{}",
-        state.config.supabase_url.trim_end_matches('/'),
-        user_id
-    );
-
-    let auth_resp = state
-        .http_client
-        .delete(&auth_url)
-        .header("apikey", &state.config.supabase_secret_key)
-        .header(
-            "Authorization",
-            format!("Bearer {}", state.config.supabase_secret_key),
-        )
-        .send()
-        .await
-        .context("auth.users 삭제 요청 실패")?;
-
-    if !auth_resp.status().is_success() {
-        let err = auth_resp.text().await.unwrap_or_default();
-        return Err(anyhow!("auth.users 삭제 실패: {}", err));
-    }
-
-    // ── 3) refresh_sessions 전체 revoke ────────────────────
-    // 탈퇴 유저가 현재 여러 기기에 로그인되어 있을 수 있음
-    // revoked=false인 세션만 골라서 전부 만료시킴
-    // 실패해도 탈퇴 자체는 성공으로 처리 (치명적 오류 아님)
+    // ── 2) refresh_sessions 전체 revoke ────────────────────
+    //
+    // 다른 기기에 남아있는 모든 로그인 세션을 즉시 만료시킴.
+    // 실패해도 탈퇴 자체는 성공으로 처리 (warn 로그만 남김).
+    // 어차피 사용자는 deleted_at 체크에 막혀서 access token 갱신 불가능.
     let sessions_url = format!(
         "{}/rest/v1/refresh_sessions?user_id=eq.{}&revoked=eq.false",
         state.config.supabase_url.trim_end_matches('/'),
         user_id
     );
 
-    let _ = state
+    let revoke_resp = state
         .http_client
         .patch(&sessions_url)
         .header("apikey", &state.config.supabase_secret_key)
@@ -1235,14 +1383,23 @@ pub async fn withdraw_user(state: &AppState, user_id: Uuid) -> Result<()> {
         .header("Prefer", "return=minimal")
         .json(&json!({
             "revoked": true,
-            "revoked_at": chrono::Utc::now()
+            "revoked_at": now,
+            "updated_at": now
         }))
         .send()
-        .await;
-    // 세션 revoke 실패는 로그만 남기고 넘어감
-    // 어차피 auth.users가 삭제됐으므로 토큰 갱신 자체가 불가능해짐
+        .await
+        .context("refresh_sessions revoke 요청 실패")?;
 
-    tracing::info!("회원탈퇴 완료: user_id={}", user_id);
+    if !revoke_resp.status().is_success() {
+        let err = revoke_resp.text().await.unwrap_or_default();
+        tracing::warn!(
+            "회원탈퇴 세션 revoke 실패 (탈퇴 자체는 성공): user_id={}, error={}",
+            user_id,
+            err
+        );
+    }
+
+    tracing::info!("회원탈퇴 soft delete 완료: user_id={}", user_id);
     Ok(())
 }
 
@@ -1286,15 +1443,26 @@ async fn find_or_create_social_user(
             .send()
             .await
             .context("탈퇴 여부 조회 실패")?;
+
+        // 탈퇴 유저 카카오 로그인 차단 + 쿨다운 체크
+        //
+        // 카카오는 provider + provider_id로 매칭되므로,
+        // 탈퇴 후에도 같은 카카오 계정으로 로그인 시도하면 여기 걸린다.
+        // (provider_id는 30일까지 유지되다가 배치로 정리됨)
         if deleted_resp.status().is_success() {
             let rows: Vec<serde_json::Value> = deleted_resp.json().await.unwrap_or_default();
             if let Some(row) = rows.first() {
-                if row["deleted_at"].is_string() {
+                if let Some(deleted_at_str) = row["deleted_at"].as_str() {
                     tracing::warn!(
-                        "탈퇴 유저 카카오 로그인 시도 차단: user_id={}",
-                        existing_user_id
-                    );
-                    return Err(anyhow!("이미 탈퇴한 회원입니다."));
+                "탈퇴 유저 카카오 로그인 시도: user_id={}",
+                existing_user_id
+            );
+                    // 30일 쿨다운 체크 → 미만이면 에러
+                    check_rejoin_cooldown(deleted_at_str)?;
+                    // 쿨다운 지났어도 부활 X (새 가입 유도)
+                    return Err(anyhow!(
+                "탈퇴한 계정입니다. 새로 회원가입해 주세요."
+            ));
                 }
             }
         }

@@ -77,3 +77,24 @@ pub struct AdminNotice {
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }
+
+// ─────────────────────────────────────────────
+// 관리자 아바타 콘테스트 모델
+// ─────────────────────────────────────────────
+//
+// 조회 대상:
+// - public.contest_events
+//
+// 관리자 페이지에서 콘테스트 목록/생성/수정/상태 변경에 사용한다.
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AdminContest {
+    pub id: Uuid,
+    pub title: String,
+    pub description: Option<String>,
+    pub start_date: DateTime<Utc>,
+    pub end_date: DateTime<Utc>,
+    pub status: Option<String>,
+    pub reward_description: Option<String>,
+    pub created_at: Option<DateTime<Utc>>,
+}

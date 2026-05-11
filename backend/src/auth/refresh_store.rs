@@ -250,6 +250,60 @@ pub async fn revoke_refresh_session(
     Ok(())
 }
 
+// refresh rotation 전용 revoke
+//
+// 같은 refresh token이 거의 동시에 두 번 들어오는 경우를 막기 위해
+// "아직 살아있는 세션" 조건까지 걸고, 실제로 1행이 업데이트됐는지 확인한다.
+pub async fn revoke_refresh_session_for_rotation(
+    state: &AppState,
+    session_id: Uuid,
+    replaced_by_session_id: Uuid,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/refresh_sessions?id=eq.{}&revoked=eq.false&revoked_at=is.null&replaced_by_session_id=is.null",
+        state.config.supabase_url.trim_end_matches('/'),
+        session_id
+    );
+
+    let payload = serde_json::json!({
+        "revoked": true,
+        "revoked_at": Utc::now().to_rfc3339(),
+        "replaced_by_session_id": replaced_by_session_id,
+        "updated_at": Utc::now().to_rfc3339()
+    });
+
+    let resp = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=representation")
+        .json(&payload)
+        .send()
+        .await
+        .context("refresh session rotation revoke 요청 실패")?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(anyhow!("refresh session rotation revoke 실패: {}", err));
+    }
+
+    let rows: Vec<serde_json::Value> = resp
+        .json()
+        .await
+        .context("refresh session rotation revoke 응답 파싱 실패")?;
+
+    if rows.is_empty() {
+        return Err(anyhow!("이미 사용된 refresh token입니다."));
+    }
+
+    Ok(())
+}
+
 // reuse 감지 시 명시적으로 다시 revoke
 //
 // 사실 replaced_by_session_id가 이미 있으면 이미 죽은 세션으로 봐도 되지만,

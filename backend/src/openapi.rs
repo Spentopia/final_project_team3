@@ -32,6 +32,10 @@ use crate::wallet;
         crate::admin::handler::create_notice,
         crate::admin::handler::update_notice,
         crate::admin::handler::delete_notice,
+        crate::admin::handler::list_contests,
+        crate::admin::handler::create_contest,
+        crate::admin::handler::update_contest,
+        crate::admin::handler::update_contest_status,
 
         // ── 인증 ──────────────────────────────────────────────
         crate::auth::handler::request_nonce,
@@ -125,6 +129,10 @@ use crate::wallet;
             admin::dto::AdminNoticeResponse,
             admin::dto::CreateAdminNoticeRequest,
             admin::dto::UpdateAdminNoticeRequest,
+            admin::dto::AdminContestResponse,
+            admin::dto::CreateAdminContestRequest,
+            admin::dto::UpdateAdminContestRequest,
+            admin::dto::UpdateAdminContestStatusRequest,
 
             // ── auth DTO ──────────────────────────────────────
             auth::dto::NonceRequest,

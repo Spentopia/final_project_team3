@@ -9,9 +9,11 @@
 // - 활성 회원 수
 // - 최근 신고 5개 표시
 //
-// 데이터 조회는 여기서 하지 않는다.
-// 상위 AdminPage가 조회한 reports/users를 props로 넘겨준다.
-// 이렇게 하면 데이터 흐름이 한 곳(AdminPage)에 모여서 관리하기 쉽다.
+// 이번 수정:
+// - 최근 신고 테이블을 더 부드러운 관리자 테이블 스타일로 변경
+// - table-fixed + colgroup 적용
+// - row hover 적용
+// - 긴 텍스트 truncate 처리
 
 import { Card } from "@/shared/ui/card";
 
@@ -20,7 +22,6 @@ import type { AdminTab } from "@/domains/admin/types/adminViewTypes";
 
 import {
     formatDateTime,
-    getTextValue,
     REASON_LABEL,
     REPORT_STATUS_LABEL,
     REPORT_STATUS_STYLE,
@@ -49,30 +50,21 @@ export default function AdminDashboard({
             {/* 요약 카드 */}
             <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Card className="border-none bg-white/80 p-5 shadow-card dark:bg-gray-800/80">
-                    <p className="text-sm text-muted-foreground">
-                        처리 대기 신고
-                    </p>
-
+                    <p className="text-sm text-muted-foreground">처리 대기 신고</p>
                     <p className="mt-2 text-3xl font-extrabold text-yellow-500">
                         {pendingReportCount}
                     </p>
                 </Card>
 
                 <Card className="border-none bg-white/80 p-5 shadow-card dark:bg-gray-800/80">
-                    <p className="text-sm text-muted-foreground">
-                        전체 회원
-                    </p>
-
+                    <p className="text-sm text-muted-foreground">전체 회원</p>
                     <p className="mt-2 text-3xl font-extrabold text-cyan-500">
                         {totalUserCount}
                     </p>
                 </Card>
 
                 <Card className="border-none bg-white/80 p-5 shadow-card dark:bg-gray-800/80">
-                    <p className="text-sm text-muted-foreground">
-                        활성 회원
-                    </p>
-
+                    <p className="text-sm text-muted-foreground">활성 회원</p>
                     <p className="mt-2 text-3xl font-extrabold text-emerald-500">
                         {activeUserCount}
                     </p>
@@ -83,10 +75,7 @@ export default function AdminDashboard({
             <Card className="border-none bg-white/80 p-5 shadow-card dark:bg-gray-800/80">
                 <div className="mb-4 flex items-center justify-between">
                     <div>
-                        <h3 className="text-lg font-bold">
-                            최근 신고
-                        </h3>
-
+                        <h3 className="text-lg font-bold">최근 신고</h3>
                         <p className="mt-1 text-sm text-muted-foreground">
                             최근 접수된 신고를 빠르게 확인합니다.
                         </p>
@@ -114,28 +103,21 @@ export default function AdminDashboard({
                 )}
 
                 {!isReportsLoading && recentReports.length > 0 && (
-                    <div className="overflow-hidden rounded-xl border border-border">
+                    <div className="overflow-hidden rounded-2xl border border-border bg-white/60 dark:bg-gray-900/20">
                         <table className="w-full table-fixed text-sm">
                             <colgroup>
-                                {/* 상태 */}
-                                <col className="w-[110px]" />
-
-                                {/* 대상 */}
+                                <col className="w-[120px]" />
                                 <col className="w-[130px]" />
-
-                                {/* 사유 */}
-                                <col className="w-[150px]" />
-
-                                {/* 신고일 */}
-                                <col className="w-[170px]" />
+                                <col className="w-[160px]" />
+                                <col className="w-[180px]" />
                             </colgroup>
 
-                            <thead className="bg-[var(--surface-subtle)] text-left text-muted-foreground">
+                            <thead className="bg-[var(--surface-subtle)] text-left text-sm font-bold text-muted-foreground">
                             <tr>
-                                <th className="px-4 py-3 pl-7">상태</th>
-                                <th className="px-4 py-3 pl-4">대상</th>
+                                <th className="px-4 py-3">상태</th>
+                                <th className="px-4 py-3">대상</th>
                                 <th className="px-4 py-3">사유</th>
-                                <th className="px-4 py-3 pl-12">신고일</th>
+                                <th className="px-4 py-3">신고일</th>
                             </tr>
                             </thead>
 
@@ -143,40 +125,34 @@ export default function AdminDashboard({
                             {recentReports.map((report) => (
                                 <tr
                                     key={report.id}
-                                    className="border-t border-border"
+                                    className="border-t border-border transition-colors hover:bg-[var(--surface-subtle)]/70"
                                 >
-                                    <td className="px-4 py-3">
-                                            <span
-                                                className={`rounded-full px-2 py-1 text-xs font-bold ${
-                                                    REPORT_STATUS_STYLE[
-                                                        report.status
-                                                        ]
-                                                }`}
-                                            >
-                                                {
-                                                    REPORT_STATUS_LABEL[
-                                                        report.status
-                                                        ]
-                                                }
-                                            </span>
+                                    <td className="px-4 py-3 align-middle">
+                      <span
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${
+                              REPORT_STATUS_STYLE[report.status]
+                          }`}
+                      >
+                        {REPORT_STATUS_LABEL[report.status]}
+                      </span>
                                     </td>
 
-                                    <td className="px-4 py-3">
-                                      <span className="block truncate">
-                                        {TARGET_TYPE_LABEL[report.target_type]}
-                                      </span>
+                                    <td className="px-4 py-3 align-middle">
+                      <span className="block truncate">
+                        {TARGET_TYPE_LABEL[report.target_type]}
+                      </span>
                                     </td>
 
-                                    <td className="px-4 py-3">
-                                      <span className="block truncate">
-                                        {REASON_LABEL[report.reason]}
-                                      </span>
+                                    <td className="px-4 py-3 align-middle">
+                      <span className="block truncate">
+                        {REASON_LABEL[report.reason]}
+                      </span>
                                     </td>
 
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                      <span className="block truncate">
-                                        {formatDateTime(report.created_at)}
-                                      </span>
+                                    <td className="px-4 py-3 align-middle text-muted-foreground">
+                      <span className="block truncate">
+                        {formatDateTime(report.created_at)}
+                      </span>
                                     </td>
                                 </tr>
                             ))}

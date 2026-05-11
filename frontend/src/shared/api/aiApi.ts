@@ -1,3 +1,5 @@
+import { aiClient } from "./client";
+
 export interface AnalyzeReportRequest {
   transactions: {
     date: string;
@@ -47,17 +49,15 @@ export interface AnalyzeReportResponse {
 export async function analyzeReport(
   payload: AnalyzeReportRequest
 ): Promise<AnalyzeReportResponse> {
-  const response = await fetch("http://localhost:8000/api/v1/analyze/report", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  try {
+    const response = await aiClient.post(
+      "/api/v1/analyze/report",
+      payload
+    );
 
-  if (!response.ok) {
-    throw new Error("AI 분석 실패");
+    return response.data;
+  } catch (error) {
+    console.error("AI 분석 실패:", error);
+    throw error;
   }
-
-  return response.json();
 }
