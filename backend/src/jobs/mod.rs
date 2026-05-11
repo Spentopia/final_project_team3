@@ -16,4 +16,5 @@
 // `jobs::scheduler::run_now(&state).await` (관리자용)
 
 pub mod cleanup;
+pub mod contest_reward;
 pub mod scheduler;

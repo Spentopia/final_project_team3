@@ -27,6 +27,7 @@ use chrono::{Datelike, TimeZone, Utc};
 use chrono_tz::Asia::Seoul;
 
 use crate::jobs::cleanup;
+use crate::jobs::contest_reward;
 use crate::state::AppState;
 
 /// 스케줄러 시작 (main.rs에서 한 번 호출)
@@ -95,12 +96,22 @@ fn duration_until_next_run() -> std::time::Duration {
         .unwrap_or_else(|_| std::time::Duration::from_secs(24 * 3600))
 }
 
-/// 일일 정리 배치 1회 실행
+/// 일일 배치 1회 실행
 ///
-/// Phase 2 (30일) → Phase 3 (5년) 순서로 실행.
+/// 콘테스트 보상 → Phase 2 (30일) → Phase 3 (5년) 순서로 실행.
 /// 한 단계가 실패해도 다음 단계는 계속 진행 (독립적)
 async fn run_daily_cleanup(state: &AppState) {
-    tracing::info!("=== 일일 탈퇴자 정리 배치 시작 ===");
+    tracing::info!("=== 일일 배치 시작 ===");
+
+    // 콘테스트 종료 보상 지급
+    match contest_reward::process_ended_contests(state).await {
+        Ok(count) => {
+            tracing::info!("콘테스트 보상 배치 완료: {}개 콘테스트 처리", count);
+        }
+        Err(e) => {
+            tracing::error!("콘테스트 보상 배치 실패: {}", e);
+        }
+    }
 
     // Phase 2: 30일 쿨다운 정리
     match cleanup::cleanup_30day_withdrawals(state).await {
@@ -122,7 +133,7 @@ async fn run_daily_cleanup(state: &AppState) {
         }
     }
 
-    tracing::info!("=== 일일 탈퇴자 정리 배치 종료 ===");
+    tracing::info!("=== 일일 배치 종료 ===");
 }
 
 /// 수동 실행용 (관리자 트리거)
