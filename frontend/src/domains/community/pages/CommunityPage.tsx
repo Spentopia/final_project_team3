@@ -470,18 +470,14 @@ export default function Community() {
     return visibleContests[0] ?? null;
   }, [visibleContests]);
 
-  // 필터링
-  const filtered = useMemo(() => {
-    return posts.filter((p) => {
-      const tabMatch    = activeTab === "all" || p.category === activeTab;
-      return tabMatch;
-    });
-  }, [activeTab, posts]);
-
   // 페이지네이션
+//
+// 게시글 타입 필터링은 백엔드의 /api/posts?post_type=...에서 이미 처리한다.
+// 따라서 프론트에서 posts.filter()를 한 번 더 돌릴 필요가 없다.
+//
+// 서버 페이지네이션 결과를 그대로 화면에 보여주는 게 더 단순하고 안전하다.
   const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE));
-  const paginated  = filtered;
-
+  const paginated = posts;
   // 이전글 / 다음글 (전체 목록 id 순서 기준)
   const allIds       = posts.map((p) => p.id);
   const currentIdx   = selectedPost ? allIds.indexOf(selectedPost.id) : -1;
@@ -489,15 +485,34 @@ export default function Community() {
   const nextPost     = currentIdx < posts.length - 1 ? posts[currentIdx + 1] : null;
 
   const handleTabChange = (tab: TabKey) => {
+    // 같은 탭을 다시 누른 경우에는 상태를 바꾸지 않는다.
+    // 상태 변경이 없으면 목록 조회 useEffect도 다시 실행되지 않는다.
+    if (tab === activeTab) {
+      return;
+    }
+
     setActiveTab(tab);
     setCurrentPage(1);
+
+    // 탭을 바꿀 때 검색어를 초기화한다.
+    // searchQuery만 비우면 300ms debounce 이후 debouncedSearchQuery가 다시 바뀌면서
+    // /api/posts가 한 번 더 호출될 수 있다.
+    //
+    // 그래서 실제 조회 조건에 쓰이는 debouncedSearchQuery도 같이 비운다.
     setSearchQuery("");
+    setDebouncedSearchQuery("");
+
     setSelectedPost(null);
   };
 
   const handleSearch = (value: string) => {
+    // 검색 input 값만 즉시 변경한다.
+    //
+    // currentPage는 아래 debounce useEffect에서 300ms 뒤 1로 바꾼다.
+    // 여기서도 setCurrentPage(1)을 하고,
+    // debounce useEffect에서도 setCurrentPage(1)을 하면
+    // 페이지가 2 이상인 상태에서 검색할 때 목록 조회가 중복될 수 있다.
     setSearchQuery(value);
-    setCurrentPage(1);
     setSelectedPost(null);
   };
 
