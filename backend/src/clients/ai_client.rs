@@ -19,7 +19,7 @@ use crate::state::AppState;
 
 // ── 엔드포인트 상수 ───────────────────────────────────────────
 const CHAT_PATH: &str = "/api/v1/chat";
-const ANALYZE_PATH: &str = "/api/v1/analyze";
+const ANALYZE_PATH: &str = "/api/v1/analyze/report";
 const BUDGET_PLAN_PATH: &str = "/api/v1/budget-plan";
 const RECEIPT_OCR_PATH: &str = "/api/v1/receipt/ocr";
 const HISTORY_PATH: &str = "/api/v1/history";
@@ -67,16 +67,34 @@ pub async fn chat(state: &AppState, payload: ChatPayload) -> Result<ChatResult> 
 #[derive(Serialize)]
 pub struct AnalyzePayload {
     pub user_id: String,
+
     pub report_type: String,
     pub start_date: String,
     pub end_date: String,
-    pub expenses: Value,
-    pub category_summary: Option<Value>,
+
+    pub transactions: Value,
+
+    pub total_expense: f64,
+    pub budget: f64,
+
+    pub top_category: String,
+    pub top_category_percent: f64,
+
+    pub daily_average: f64,
+    pub expense_change_rate: f64,
+    pub budget_usage: f64,
+
+    pub category_data: Value,
 }
 
 #[derive(Deserialize)]
 pub struct AnalyzeResult {
-    pub analysis: String,
+    pub good: String,
+    pub warning: String,
+    pub advice: String,
+    pub prediction: String,
+    pub pattern: String,
+    pub improvement: String,
 }
 
 pub async fn analyze(state: &AppState, payload: AnalyzePayload) -> Result<AnalyzeResult> {
@@ -94,14 +112,24 @@ pub async fn analyze(state: &AppState, payload: AnalyzePayload) -> Result<Analyz
         .await
         .context("AI 서버 analyze 요청 실패")?;
 
-    if !res.status().is_success() {
-        let body = res.text().await.unwrap_or_default();
+    let status = res.status();
+
+    let body = res
+        .text()
+        .await
+        .context("AI analyze body 읽기 실패")?;
+
+    println!("🔥 AI SERVER STATUS = {}", status);
+    println!("🔥 AI SERVER BODY = {}", body);
+
+    if !status.is_success() {
         return Err(anyhow!("AI 서버 analyze 실패: {}", body));
     }
 
-    res.json::<AnalyzeResult>()
-        .await
-        .context("AI analyze 응답 역직렬화 실패")
+    let parsed = serde_json::from_str::<AnalyzeResult>(&body)
+        .context("AI analyze 응답 역직렬화 실패")?;
+
+    Ok(parsed)
 }
 
 // ── AI 예산 플랜 ──────────────────────────────────────────────
