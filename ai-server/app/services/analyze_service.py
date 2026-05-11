@@ -1,7 +1,7 @@
 from app.clients.openai_client import OpenAIClient
 from app.services.storage_service import StorageService
 from datetime import datetime
-from app.services.report_service import ReportService
+# from app.services.report_service import ReportService
 
 class AnalyzeService:
 
@@ -28,57 +28,50 @@ class AnalyzeService:
     def generate_report(data: dict):
 
         prompt = f"""
-        너는 매우 정교한 소비 분석 전문가다.
+        당신은 전문 금융 소비 분석 AI입니다.
 
-        절대 짧게 쓰지 말고, 반드시 구체적이고 길게 작성해라.
-        최소 5~7문장 이상으로 작성해라.
+        사용자의 소비 데이터를 기반으로
+        전문적인 소비 리포트를 작성하세요.
 
-        "소비 패턴 분석:" 같은 제목이나 라벨은 절대 포함하지 마라.
-        자연스러운 문장으로 바로 시작해라.
+        조건:
+        - 각 항목 최소 5~7문장
+        - 실제 금융 리포트처럼 자연스럽게 작성
+        - 소비 금액과 소비 패턴 반드시 언급
+        - 예산 대비 사용률 분석 포함
+        - 가장 많이 소비한 카테고리 분석 포함
+        - 절약 가능한 항목 제안 포함
+        - 너무 짧은 답변 금지
+        - 반드시 한국어로 작성
 
-        [데이터]
-        총 지출: {data['totalExpense']}
-        예산 사용률: {data['budgetUsage']}%
-        일 평균 지출: {data['dailyAverage']}
-        전월 대비 변화율: {data['expenseChangeRate']}%
-
-        주간 소비 데이터:
-        {data['weeklyData']}
-
-        월간 소비 흐름:
-        {data['monthlyData']}
-
-        카테고리별 소비:
-        {data['categoryData']}
-
-        [분석 규칙]
-        - 소비가 몰린 요일을 분석해라
-        - 증가/감소 흐름을 설명해라
-        - 가장 많이 소비한 카테고리를 설명해라
-        - 소비 습관의 특징을 구체적으로 설명해라
-        - 불필요한 소비 경향이 있다면 지적해라
-        - 실천 가능한 행동 위주로 작성해라
-        - 구체적인 절약 방법을 포함해라
-
-        [출력]
-        반드시 JSON만 출력:
+        반드시 아래 JSON 형식으로 반환:
 
         {{
           "good": "...",
           "warning": "...",
           "advice": "...",
           "prediction": "...",
-          "pattern": "전체 소비 데이터를 기반으로 자연스럽게 서술된 분석 문단",
-          "improvement": "소비 패턴을 기반으로 한 구체적인 개선 방안"
+          "pattern": "...",
+          "improvement": "..."
         }}
+
+        소비 데이터:
+        {data}
         """
 
         response = OpenAIClient.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "너는 소비 분석 전문가야. 반드시 JSON으로만 답해."},
-                {"role": "user", "content": prompt},
+                {
+                    "role": "system",
+                    "content": "너는 소비 분석 전문가다."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
             ],
+            max_tokens=1000,
+            response_format={"type": "json_object"},
         )
 
         content = response.choices[0].message.content.strip()
@@ -112,7 +105,7 @@ class AnalyzeService:
                 **result,
             }
 
-            ReportService.save_report(save_data)
+            # ReportService.save_report(save_data)
 
             return result
 
