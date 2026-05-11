@@ -10,6 +10,7 @@ import { useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useRef } from "react";
+import type { AnalyzeReportRequest } from "@/shared/api/aiApi";
 
 import {
   BarChart,
@@ -363,29 +364,40 @@ const handleGenerateReport = async () => {
   try {
     setIsReportLoading(true);
 
-    const payload = {
-      transactions: transactions.map((t) => ({
-        date: t.date,
-        amount: t.amount,
-        category: t.category,
-        type: t.type,
-      })),
+    const payload: AnalyzeReportRequest = {
+  report_type: "monthly",
 
-      totalExpense,
-      budget: currentBudget,
-      topCategory: topCategoryName,
-      topCategoryPercent,
+  start_date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`,
 
-      dailyAverage,
-      expenseChangeRate,
-      budgetUsage,
+  end_date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(days).padStart(2, "0")}`,
 
-      weeklyData,
-      monthlyData,
-      categoryData,
-    };
+  transactions: transactions.map((t) => ({
+    date: t.date,
+    amount: t.amount,
+    category: t.category,
+    type: t.type ?? "expense",
+  })),
+
+  total_expense: totalExpense,
+
+  budget: currentBudget,
+
+  top_category: topCategoryName,
+
+  top_category_percent: topCategoryPercent,
+
+  daily_average: dailyAverage,
+
+  expense_change_rate: expenseChangeRate,
+
+  budget_usage: budgetUsage,
+
+  category_data: categoryData,
+};
 
     const result = await analyzeReport(payload) as AIReport;
+
+    console.log("AI REPORT RESULT:", result);
 
     setAiReport({
   good: result.good,
@@ -408,29 +420,40 @@ const handleGeneratePattern = async () => {
   try {
     setIsPatternLoading(true);
 
-    const payload = {
-      transactions: transactions.map((t) => ({
-        date: t.date,
-        amount: t.amount,
-        category: t.category,
-        type: t.type,
-      })),
+    const payload: AnalyzeReportRequest = {
+  report_type: "monthly",
 
-      totalExpense,
-      budget: currentBudget,
-      topCategory: topCategoryName,
-      topCategoryPercent,
+  start_date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`,
 
-      dailyAverage,
-      expenseChangeRate,
-      budgetUsage,
+  end_date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(days).padStart(2, "0")}`,
 
-      weeklyData,
-      monthlyData,
-      categoryData,
-    };
+  transactions: transactions.map((t) => ({
+    date: t.date,
+    amount: t.amount,
+    category: t.category,
+    type: t.type ?? "expense",
+  })),
+
+  total_expense: totalExpense,
+
+  budget: currentBudget,
+
+  top_category: topCategoryName,
+
+  top_category_percent: topCategoryPercent,
+
+  daily_average: dailyAverage,
+
+  expense_change_rate: expenseChangeRate,
+
+  budget_usage: budgetUsage,
+
+  category_data: categoryData,
+};
 
     const result = await analyzeReport(payload) as AIReport;
+
+    console.log("AI PATTERN RESULT:", result);
 
     setPatternReport({
       good: "",
@@ -808,8 +831,8 @@ while (heightLeft > 0) {
       <div className="rounded-lg spentopia-surface-card p-5">
         <h4 className="mb-2 font-bold text-gray-900 dark:text-white">📊 분석</h4>
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-          {patternReport.pattern.replace("소비 패턴 분석:", "")}
-        </p>
+  {(patternReport.pattern ?? "").replace("소비 패턴 분석:", "")}
+</p>
       </div>
 
       <div className="rounded-lg spentopia-surface-card p-5">

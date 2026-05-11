@@ -7,10 +7,13 @@ use super::{dto::GenerateReportRequest, service};
 use crate::state::AppState;
 
 #[utoipa::path(
-    post, path = "/api/reports",
+    post,
+    path = "/api/reports",
     tag = "리포트",
     request_body = GenerateReportRequest,
-    responses((status = 201, description = "리포트 생성 성공"), (status = 400, description = "잘못된 날짜")),
+    responses(
+        (status = 200, description = "AI 리포트 생성 성공")
+    ),
     security(("bearer_auth" = []))
 )]
 pub async fn generate_report(
@@ -18,16 +21,16 @@ pub async fn generate_report(
     Extension(user_id): Extension<Uuid>,
     Json(req): Json<GenerateReportRequest>,
 ) -> impl IntoResponse {
-    if req.start_date > req.end_date {
-        return (
-            StatusCode::BAD_REQUEST,
-            "start_date가 end_date보다 늦을 수 없습니다.".to_string(),
-        )
-            .into_response();
-    }
+
+    println!("🔥 REPORT REQUEST = {:?}", req);
+
     match service::generate_report(&state, user_id, req).await {
-        Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            e.to_string(),
+        )
+            .into_response(),
     }
 }
 

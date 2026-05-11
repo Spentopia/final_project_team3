@@ -1,6 +1,12 @@
-import { aiClient } from "./client";
+import { apiClient } from "./client";
 
 export interface AnalyzeReportRequest {
+  report_type: string;
+
+  start_date: string;
+
+  end_date: string;
+
   transactions: {
     date: string;
     amount: number;
@@ -8,26 +14,21 @@ export interface AnalyzeReportRequest {
     type: string;
   }[];
 
-  totalExpense: number;
+  total_expense: number;
+
   budget: number;
-  topCategory: string;
-  topCategoryPercent: number;
 
-  dailyAverage: number;
-  expenseChangeRate: number;
-  budgetUsage: number;
+  top_category: string;
 
-  weeklyData: {
-    day: string;
-    amount: number;
-  }[];
+  top_category_percent: number;
 
-  monthlyData: {
-    month: string;
-    amount: number;
-  }[];
+  daily_average: number;
 
-  categoryData: {
+  expense_change_rate: number;
+
+  budget_usage: number;
+
+  category_data: {
     key: string;
     name: string;
     amount: number;
@@ -49,15 +50,27 @@ export interface AnalyzeReportResponse {
 export async function analyzeReport(
   payload: AnalyzeReportRequest
 ): Promise<AnalyzeReportResponse> {
+
+  console.log("🔥 FINAL REQUEST =", JSON.stringify(payload, null, 2));
+
   try {
-    const response = await aiClient.post(
-      "/api/v1/analyze/report",
-      payload
+
+    const response = await apiClient.post(
+      "/api/reports",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
     );
 
     return response.data;
+
   } catch (error) {
+
     console.error("AI 분석 실패:", error);
+
     throw error;
   }
 }
