@@ -29,6 +29,9 @@ pub struct PostAuthor {
 pub struct CommentAuthor {
     pub nickname: Option<String>,
     pub profile_image: Option<String>,
+    // 작성자 탈퇴 여부 판단용
+    // service.rs의 to_comment_response에서 가공 처리에 사용
+    pub deleted_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 // public.posts 테이블
