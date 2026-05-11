@@ -1564,6 +1564,8 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
         contract = ActivityResultContracts.GetContent() // 파일이나 이미지를 하나 고르는 규칙을 씀
     ) { uri: Uri? -> // 바로 앞 설정을 이어서 적음
         if (uri != null) { // 조건이 참일 때만 아래 코드를 실행함
+            // 갤러리에서 고른 이미지를 문자열로 저장합니다.
+            // 이 값은 영수증 미리보기와 OCR 업로드에서 다시 사용됩니다.
             receiptImageName = uri.toString() // galleryLauncher 값을 이 함수로 넘김
             receiptVerificationMessage = ""
             isReceiptVerified = false
@@ -1574,6 +1576,8 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap: Bitmap? ->
         bitmap?.let {
+            // 카메라로 찍은 Bitmap을 임시 파일 Uri로 바꿉니다.
+            // 갤러리에서 고른 이미지와 동일한 방식으로 다루기 위해서입니다.
             saveBitmapToCacheUri(context, it, "receipt_camera")?.let { uri ->
                 receiptImageName = uri.toString()
                 receiptVerificationMessage = ""
@@ -2233,6 +2237,9 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
 
                     Button( // 눌렀을 때 동작하는 버튼을 만듦
                         onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
+                            // 수정 저장 흐름입니다.
+                            // 수정 중인 값이 화면 입력값으로 다시 포장된 뒤
+                            // onSaveExpense로 넘어가서 실제 DB 저장이 됩니다.
                             val amountInt = amount.toIntOrNull() ?: 0 // 숫자로 바꾸되 실패하면 null을 줌
                             val currentCategory = if (isExpenseTab) selectedExpenseCategory else selectedIncomeCategory // 현재 카테고리를 계산함
 
@@ -2284,6 +2291,9 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
             } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
                 Button( // 눌렀을 때 동작하는 버튼을 만듦
                     onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
+                        // 새 기록 저장 흐름입니다.
+                        // 지금 화면에 입력한 값들을 하나의 객체로 묶어서
+                        // 바깥의 onSaveExpense에 넘깁니다.
                         val amountInt = amount.toIntOrNull() ?: 0 // 숫자로 바꾸되 실패하면 null을 줌
                         val currentCategory = if (isExpenseTab) selectedExpenseCategory else selectedIncomeCategory // 현재 카테고리를 계산함
 
@@ -2529,6 +2539,7 @@ private fun ExpenseEntity.toUiModel(): ExpenseItemData { // color 값을 이 함
 } // 블록 끝
 
 private fun ExpenseItemData.toEntity(): ExpenseEntity { // diary 값을 이 함수로 넘김
+    // 화면에서 입력한 데이터를 Room DB가 저장할 수 있는 형태로 바꿉니다.
     return ExpenseEntity( // 계산한 결과를 바깥으로 돌려줌
         id = id, // diary 값을 이 함수로 넘김
         date = date, // date 값을 이 함수로 넘김

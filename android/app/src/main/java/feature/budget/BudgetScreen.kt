@@ -117,13 +117,16 @@ fun BudgetScreen(
     var isMonthDialogOpen by remember { mutableStateOf(false) }
 
     // 총 지출 예정 금액 계산
+    // 식비 + 교통비 + 생활비 + 취미를 다 합쳐서
+    // 이번 달 카테고리 예산이 얼마나 되는지 먼저 봅니다.
     val totalExpense = budgetState.foodBudget +
             budgetState.transportBudget +
             budgetState.livingBudget +
             budgetState.hobbyBudget
 
     // 남는 금액 계산
-    // 월 수입 - 총 지출 - 저축 목표
+    // 월 수입에서 카테고리 예산과 저축 목표를 빼서
+    // 실제로 자유롭게 쓸 수 있는 돈이 얼마인지 구합니다.
     val remainingAmount = budgetState.monthlyIncome - totalExpense - budgetState.savingGoal
 
     // 저장 성공하면 스낵바 메시지 띄우기
@@ -1133,7 +1136,9 @@ private fun BudgetSummaryCard(
     } else {
         (totalExpense.toDouble() / monthlyIncome.toDouble()).toFloat().coerceIn(0f, 1f)
     }
+    // 월 수입 대비 카테고리 합계가 몇 퍼센트인지 계산합니다.
     val categoryPercent = if (monthlyIncome <= 0) 0L else (totalExpense * 100.0 / monthlyIncome).toLong()
+    // 100%를 넘기면 경고색으로 바꿔서 초과 상태를 보여줍니다.
     val progressColor = if (categoryPercent <= 100) {
         MaterialTheme.colorScheme.primary
     } else {
@@ -1349,6 +1354,7 @@ private fun BudgetCommentCard(
 ) {
     val isDark = isBudgetDarkTheme()
     val plannedAmount = totalExpense + savingGoal
+    // 실제로 월 예산에서 얼마나 써버렸는지 보는 지표입니다.
     val usedPercent = if (monthlyIncome <= 0) {
         0L
     } else {

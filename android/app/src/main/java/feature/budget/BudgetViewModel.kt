@@ -56,6 +56,8 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
     // DataStore flow 계속 구독함
     private fun loadBudgetSettings() {
         viewModelScope.launch {
+            // DataStore는 값이 바뀌면 Flow로 새 값을 다시 흘려줍니다.
+            // 그래서 여기서는 계속 구독하면서 화면 상태를 최신으로 유지합니다.
             budgetDataStore.budgetSettingsFlow.collect { savedSettings ->
                 _budgetState.value = savedSettings
             }
@@ -109,10 +111,12 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
     fun saveBudgetSettings() { // 함수 선언
         viewModelScope.launch { //비동기 작업 시작 저장 작업 시간이 걸릴수 있으니  앱화면 멈추지 않게 따로 실행
             val currentSettings = _budgetState.value
+            // 먼저 로컬 DataStore에 저장해서 앱 재실행 후에도 값이 남게 합니다.
             budgetDataStore.saveBudgetSettings(currentSettings) // 실제  현재 예상 상태 저장
             //_ budgetState.value 지금 화면이나 ViewModeldl  들고 있는 예산 설정 값이고 그값을 budgetDataStore 에 저장함
 
             try {
+                // 그 다음 서버 예산 API에도 같은 값을 동기화합니다.
                 upsertBackendBudget(currentSettings)
                 _saveError.value = ""
                 _saveSuccess.value = true// 저장이 끝나면 저장 성공 상태를 true 로 바꾸는 부분
@@ -145,6 +149,8 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         viewModelScope.launch {
+            // AI 추천은 현재 예산 상태를 서버에 먼저 맞춰둔 다음 요청합니다.
+            // 그래야 서버가 최신 예산 기준으로 플랜을 계산할 수 있습니다.
             _isAiPlanLoading.value = true
             _aiPlanError.value = ""
 
@@ -188,6 +194,8 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
     private fun syncCurrentMonthBudgetFromBackend() {
         viewModelScope.launch {
             try {
+                // 현재 연/월의 서버 예산을 먼저 읽어와서
+                // 앱 첫 화면이 서버 상태와 비슷하게 시작되도록 맞춥니다.
                 val (year, month) = currentYearMonth()
                 val response = RetrofitClient.budgetApi.getBudget(year = year, month = month)
                 currentBudgetId = response.id
@@ -207,6 +215,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
 
     private suspend fun upsertBackendBudget(settings: BudgetSettingsData): String {
         val (year, month) = currentYearMonth()
+        // 현재 월 예산이 아직 없으면 생성하고, 있으면 그 값을 수정합니다.
         val budgetId = currentBudgetId ?: findOrCreateBudget(year, month, settings).id.also {
             currentBudgetId = it
         }

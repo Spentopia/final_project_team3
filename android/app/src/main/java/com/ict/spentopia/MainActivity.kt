@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
     var kakaoCallbackUri by mutableStateOf<Uri?>(null)
     private set
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: Bundle?) { //RetrofitClient가 토큰 읽기 /네트워크 준비를 할 수 있게 앱 Context 를넘김
         if (BuildConfig.DEBUG) {
             Log.d("Spentopia", "APP_NEW_BUILD_RUNNING")
         }

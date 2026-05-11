@@ -86,6 +86,8 @@ fun CommunityWriteScreen(
     // 선택된 카테고리 상태입니다.
     var selectedCategory by remember(initialCategory) {
         mutableStateOf(
+            // 게시판 선택은 요청/콘테스트/자유만 허용합니다.
+            // 그 외 값이 들어오면 기본값인 자유 게시판으로 돌립니다.
             if (initialCategory == CommunityCategory.REQUEST ||
                 initialCategory == CommunityCategory.AVATAR_CONTEST ||
                 initialCategory == CommunityCategory.FREE_BOARD
@@ -98,6 +100,8 @@ fun CommunityWriteScreen(
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
+        // 앨범에서 고른 이미지를 그대로 저장합니다.
+        // Uri는 미리보기와 서버 업로드 전 단계에서 재사용됩니다.
         selectedImageUri = uri
     }
 
@@ -105,6 +109,8 @@ fun CommunityWriteScreen(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap: Bitmap? ->
         bitmap?.let {
+            // 카메라 미리보기 Bitmap을 임시 파일 Uri로 바꿉니다.
+            // 갤러리 이미지와 같은 방식으로 다루기 위해서입니다.
             selectedImageUri = saveBitmapToCacheUri(
                 context = context,
                 bitmap = it,
@@ -254,6 +260,8 @@ private fun CommunityWriteCategoryCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // 각 칩은 게시판 선택 버튼입니다.
+                // 현재 선택된 칩만 primary 색으로 바뀝니다.
                 listOf(
                     CommunityCategory.REQUEST,
                     CommunityCategory.AVATAR_CONTEST,
@@ -431,6 +439,8 @@ private fun CommunityWriteAttachmentCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
+                // 이미지 앨범 업로드 버튼입니다.
+                // image/*만 허용해서 사진만 고를 수 있습니다.
                 Button(
                     onClick = onPickImageClick,
                     modifier = Modifier.weight(1f),
@@ -454,6 +464,8 @@ private fun CommunityWriteAttachmentCard(
                     )
                 }
 
+                // 카메라 촬영 버튼입니다.
+                // 촬영한 이미지는 임시 Uri로 바꿔서 같은 흐름으로 처리합니다.
                 Button(
                     onClick = onTakePhotoClick,
                     modifier = Modifier.weight(1f),
@@ -585,6 +597,8 @@ private fun CommunityWriteSubmitSection(
 
 private fun saveBitmapToCacheUri(context: Context, bitmap: Bitmap, filePrefix: String): Uri? {
     return try {
+        // 카메라로 찍은 이미지를 앱 캐시 폴더에 저장합니다.
+        // Uri가 있어야 화면 미리보기와 업로드가 가능해집니다.
         val cacheDir = File(context.cacheDir, "community_media").apply {
             if (!exists()) mkdirs()
         }

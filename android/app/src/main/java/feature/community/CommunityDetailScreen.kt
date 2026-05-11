@@ -317,6 +317,8 @@ fun CommunityDetailScreen(
                 }
             },
             onReportComment = { commentId ->
+                // 댓글 신고는 게시글 신고와 같은 다이얼로그를 재사용합니다.
+                // 대상만 comment로 바꿔서 서버로 보냅니다.
                 reportTargets = listOf(
                     ReportTargetOption(
                         type = "comment",
@@ -604,6 +606,7 @@ private fun CommunityDetailContentCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onCopyLinkClick) {
+                        // 게시글 링크를 클립보드에 복사하는 버튼입니다.
                         Icon(
                             imageVector = Icons.Filled.ContentCopy,
                             contentDescription = "링크 복사",
@@ -612,6 +615,8 @@ private fun CommunityDetailContentCard(
                     }
 
                     IconButton(onClick = onReportClick) {
+                        // 신고 아이콘은 비상등 모양으로 표시해서
+                        // 경고/신고 기능이라는 점이 바로 보이도록 했습니다.
                         Icon(
                             painter = painterResource(id = R.drawable.ic_emergency_light),
                             contentDescription = "신고하기",
@@ -1213,6 +1218,8 @@ private data class ReportTargetOption(
 )
 
 private fun communityReportTargetsForPost(post: CommunityPost): List<ReportTargetOption> {
+    // 게시글 신고는 1개 대상이 아니라 3개 후보를 보여줍니다.
+    // 실제 저장 시에는 사용자가 고른 대상 하나만 서버로 갑니다.
     return listOf(
         ReportTargetOption("post", post.id, "게시글"),
         ReportTargetOption("user_nickname", post.authorId, "작성자 닉네임"),
@@ -1254,8 +1261,12 @@ private fun CommunityReportDialog(
             ) {
                 Text(
                     text = if (targets.size > 1) {
+                        // 게시글은 대상이 여러 개일 수 있어서
+                        // 신고 대상까지 선택하게 합니다.
                         "신고 대상을 선택하고 사유를 입력해주세요.\n신고 내용은 운영자가 확인 후 처리합니다."
                     } else {
+                        // 댓글 신고처럼 대상이 하나면
+                        // 사유와 상세 내용만 입력하게 합니다.
                         "신고 사유를 입력해주세요.\n신고 내용은 운영자가 확인 후 처리합니다."
                     },
                     fontSize = 13.sp,
@@ -1263,11 +1274,11 @@ private fun CommunityReportDialog(
                 )
 
                 if (targets.size > 1) {
-                    Text(
-                        text = "신고 대상",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        Text(
+                            text = "신고 대상",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                     )
 
                     FlowRow(
@@ -1389,6 +1400,8 @@ private fun CommunityReportDialog(
             val canSubmit = selectedTarget != null && detail.isNotBlank()
             Button(
                 onClick = {
+                    // 선택한 대상 + 사유 + 상세 내용이 모두 모이면
+                    // 바깥 ViewModel로 신고 데이터를 전달합니다.
                     val target = selectedTarget ?: return@Button
                     val trimmedDetail = detail.trim()
                     if (trimmedDetail.isEmpty()) return@Button

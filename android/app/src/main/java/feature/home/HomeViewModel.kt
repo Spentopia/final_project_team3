@@ -359,11 +359,17 @@ class HomeViewModel(
         onError: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
-            // OCR 인증과 백엔드 DB 업데이트는 서버의 UUID가 기준입니다.
-            // 이미 OCR 버튼에서 서버 기록을 만들었다면 그 UUID를 그대로 쓰고,
-            // 아직 없다면 저장 버튼을 누를 때 먼저 백엔드에 기록을 만듭니다.
+            // 저장 순서:
+            // 1) 서버 UUID가 없으면 먼저 백엔드에 기록을 만들고
+            // 2) 그 UUID를 로컬 객체에 붙인 다음
+            // 3) Room DB에 저장합니다.
+            //
+            // 왜 이렇게 하냐면 OCR 인증이나 서버 동기화는
+            // "서버 기록의 id"를 기준으로 움직이기 때문입니다.
             val expenseForSave = if (expense.serverExpenseId.isBlank()) {
                 try {
+                    // 서버 /api/expenses 로 새 기록을 생성합니다.
+                    // 이 요청은 access token이 있으면 AuthInterceptor가 자동으로 붙여줍니다.
                     val remoteExpense = RetrofitClient.expenseApi.createExpense(
                         CreateExpenseRequest(
                             date = expense.date,
@@ -375,6 +381,8 @@ class HomeViewModel(
                         )
                     )
 
+                    // 서버에서 받은 UUID와 영수증 인증 여부를
+                    // 로컬 저장용 Entity에 다시 넣습니다.
                     expense.copy(
                         serverExpenseId = remoteExpense.id,
                         receiptVerified = remoteExpense.receiptVerified ?: expense.receiptVerified
@@ -387,11 +395,17 @@ class HomeViewModel(
                 expense
             }
 
+            // 최종적으로 Android 로컬 DB(Room)에 저장합니다.
             repository.insertExpense(expenseForSave)
 
-            // 저장한 소비 날짜 기준으로 현재 선택 날짜/월도 같이 맞춰줍니다.
+            // 화면 날짜를 저장한 날짜로 맞춰서
+            // 달력, 목록, 월 합계가 같은 기준을 보게 합니다.
             selectDate(expenseForSave.date)
+
+            // 기록이 추가되었으니 보상/성실도도 다시 불러옵니다.
             loadWeeklyScore()
+
+            // 저장 성공 콜백을 화면에 돌려줍니다.
             onSuccess()
         }
     }
@@ -401,9 +415,12 @@ class HomeViewModel(
     // -----------------------------------------
     fun updateExpense(expense: ExpenseEntity) {
         viewModelScope.launch {
+            // 수정은 로컬 Room DB를 바로 갱신합니다.
+            // 서버 수정 API는 아직 이 경로에서 따로 붙지 않으므로
+            // 현재는 앱 내부 기록 중심으로 반영됩니다.
             repository.updateExpense(expense)
 
-            // 수정한 소비 날짜 기준으로 현재 선택 날짜/월도 같이 맞춰줍니다.
+            // 수정된 날짜로 선택 상태도 같이 맞춥니다.
             selectDate(expense.date)
         }
     }
@@ -413,9 +430,11 @@ class HomeViewModel(
     // -----------------------------------------
     fun deleteExpenseById(id: Long) {
         viewModelScope.launch {
+            // 먼저 로컬 DB에서 삭제할 대상을 찾습니다.
             val expense = repository.getExpenseById(id)
 
             if (expense != null) {
+                // 찾았으면 삭제합니다.
                 repository.deleteExpense(expense)
             }
         }
@@ -479,7 +498,10 @@ class HomeViewModel(
     // 카테고리만 보고 백엔드에 보낼 수입/소비 타입을 정합니다.
     // HomeScreen의 수입 카테고리 목록과 같은 기준입니다.
     private fun resolveTransactionType(category: String): String {
+        // 수입으로 취급할 카테고리를 따로 묶어둡니다.
         val incomeCategories = setOf("월급", "용돈", "부수입", "환급")
+
+        // 해당 카테고리면 income, 아니면 expense로 보냅니다.
         return if (incomeCategories.contains(category)) "income" else "expense"
     }
 
