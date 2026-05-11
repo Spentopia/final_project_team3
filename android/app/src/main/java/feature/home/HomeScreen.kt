@@ -2,6 +2,8 @@ package com.ict.spentopia.feature.home // 이 파일이 속한 패키지 위치�
 
 // 날짜 선택 다이얼로그를 위한 import입니다.
 import android.app.DatePickerDialog // 날짜 선택창 기능을 가져옴
+import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri // 이미지 주소 같은 Uri 타입을 가져옴
 import android.widget.Toast
 
@@ -41,6 +43,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape // 둥근 모서리 
 // 아이콘 관련 import입니다.
 import androidx.compose.material.icons.Icons // 아이콘 묶음을 가져옴
 import androidx.compose.material.icons.filled.CalendarMonth // 달력 아이콘을 가져옴
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.ShoppingCart
 
@@ -118,6 +121,8 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
+import java.io.File
+import java.io.FileOutputStream
 import java.text.DecimalFormat // 숫자를 쉼표 형식으로 바꾸는 도구를 가져옴
 import java.util.Calendar // 날짜 계산용 객체를 가져옴
 import kotlin.math.abs // 절댓값 함수 가져옴
@@ -1499,6 +1504,25 @@ private fun WeeklyScoreProgressBar(
     }
 }
 
+private fun saveBitmapToCacheUri(
+    context: Context,
+    bitmap: Bitmap,
+    filePrefix: String
+): Uri? {
+    return try {
+        val cacheDir = File(context.cacheDir, "receipt_camera").apply {
+            if (!exists()) mkdirs()
+        }
+        val file = File(cacheDir, "${filePrefix}_${System.currentTimeMillis()}.jpg")
+        FileOutputStream(file).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+        }
+        Uri.fromFile(file)
+    } catch (_: Exception) {
+        null
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class) // 실험 기능을 쓰겠다고 표시
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
@@ -1545,6 +1569,18 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
             isReceiptVerified = false
         } // 블록 끝
     } // 블록 끝
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap: Bitmap? ->
+        bitmap?.let {
+            saveBitmapToCacheUri(context, it, "receipt_camera")?.let { uri ->
+                receiptImageName = uri.toString()
+                receiptVerificationMessage = ""
+                isReceiptVerified = false
+            }
+        }
+    }
 
     LaunchedEffect(editingExpense?.id, selectedDate) { // 이 블록의 내용이 여기서 시작됨
         if (editingExpense != null) { // 조건이 참일 때만 아래 코드를 실행함
@@ -1936,22 +1972,53 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
 
                 Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                OutlinedButton( // 눌렀을 때 동작하는 버튼을 만듦
-                    onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
-                        galleryLauncher.launch("image/*") // 갤러리에서 이미지만 고르게 엶
-                    },
-                    shape = RoundedCornerShape(12.dp), // 모서리 모양을 정함
-                    border = BorderStroke(1.dp, formBorderColor), // 바로 앞 설정을 이어서 적음
-                    colors = ButtonDefaults.outlinedButtonColors( // 색상 스타일을 정함
-                        containerColor = formSurfaceColor // 배경색을 정함
-                    )
-                ) { // 이 블록 안의 내용이 시작됨
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = if (receiptImageName.isBlank()) "사진 앨범에서 업로드" else "사진 변경하기", // 화면에 보여줄 글자를 정함
-                        color = formPrimaryTextColor, // 색상을 정함
-                        fontSize = 14.sp // 글자 크기를 정함
-                    )
-                } // 블록 끝
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            galleryLauncher.launch("image/*")
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, formBorderColor),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = formSurfaceColor
+                        )
+                    ) {
+                        Text(
+                            text = if (receiptImageName.isBlank()) "업로드" else "업로드 변경",
+                            color = formPrimaryTextColor,
+                            fontSize = 14.sp
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            cameraLauncher.launch(null)
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, formBorderColor),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = formSurfaceColor
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PhotoCamera,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = formAccentColor
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "카메라",
+                            color = formPrimaryTextColor,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
 
                 if (receiptImageName.isNotBlank()) { // 조건이 참일 때만 아래 코드를 실행함
                     Spacer(modifier = Modifier.height(12.dp)) // 컴포넌트 사이에 빈 공간을 넣음

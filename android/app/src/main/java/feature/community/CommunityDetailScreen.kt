@@ -18,8 +18,13 @@ package com.ict.spentopia.feature.community
 // - 실제 게시글/댓글 데이터 변경은 이 화면 바깥(AppNavGraph, ViewModel)에서 합니다.
 // ------------------------------------------------------------
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,11 +37,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,6 +56,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,24 +67,32 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ict.spentopia.R
+import coil.compose.AsyncImage
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 
 @Composable
 fun CommunityDetailScreen(
     post: CommunityPost?,
     currentUserId: String = "current_user",
+    currentUserRole: String = "user",
     onBackClick: () -> Unit = {},
     onUpdateClick: (CommunityPost) -> Unit = {},
     onDeleteClick: (String) -> Unit = {},
     onToggleLikeClick: (String) -> Unit = {},
     onAddCommentClick: (String, String) -> Unit = { _, _ -> },
     onUpdateCommentClick: (String, String, String) -> Unit = { _, _, _ -> },
-    onDeleteCommentClick: (String, String) -> Unit = { _, _ -> }
+    onDeleteCommentClick: (String, String) -> Unit = { _, _ -> },
+    onReportClick: (String, String, String, String) -> Unit = { _, _, _, _ -> }
 ) {
     // post가 null이면 안전하게 안내 화면으로 보냅니다.
     if (post == null) {
@@ -96,6 +117,9 @@ fun CommunityDetailScreen(
     // 게시글 삭제 확인 다이얼로그 표시 여부입니다.
     var showDeleteDialog by remember(post.id) { mutableStateOf(false) }
 
+    var showReportDialog by remember(post.id) { mutableStateOf(false) }
+    var reportTargets by remember(post.id) { mutableStateOf<List<ReportTargetOption>>(emptyList()) }
+
     // 새 댓글 입력창 상태입니다.
     var commentInput by remember(post.id) { mutableStateOf("") }
 
@@ -104,6 +128,10 @@ fun CommunityDetailScreen(
 
     // 현재 수정 중인 댓글 내용입니다.
     var editingCommentText by remember(post.id) { mutableStateOf("") }
+
+    val context = LocalContext.current
+    val canModifyPost = post.authorId == currentUserId ||
+        (post.category == CommunityCategory.NOTICE && currentUserRole == "admin")
 
     // 게시글 삭제 확인 다이얼로그입니다.
     if (showDeleteDialog) {
@@ -139,6 +167,18 @@ fun CommunityDetailScreen(
         )
     }
 
+    if (showReportDialog) {
+        CommunityReportDialog(
+            targets = reportTargets,
+            onDismiss = { showReportDialog = false },
+            onReportClick = { targetType, targetId, reason, detail ->
+                onReportClick(targetType, targetId, reason, detail)
+                showReportDialog = false
+                Toast.makeText(context, "신고가 접수되었습니다.", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
     // 상세 화면 전체 레이아웃입니다.
     Column(
         modifier = Modifier
@@ -152,6 +192,7 @@ fun CommunityDetailScreen(
         CommunityDetailTopSection(
             onBackClick = onBackClick,
             isEditMode = isEditMode,
+            canModifyPost = canModifyPost,
             onEditModeToggle = {
                 editTitle = post.title
                 editFullContent = post.fullContent
@@ -179,7 +220,14 @@ fun CommunityDetailScreen(
             )
         } else {
             CommunityDetailContentCard(
-                post = post
+                post = post,
+                onCopyLinkClick = {
+                    copyCommunityPostLink(context, post.id)
+                },
+                onReportClick = {
+                    reportTargets = communityReportTargetsForPost(post)
+                    showReportDialog = true
+                }
             )
         }
 
@@ -187,6 +235,7 @@ fun CommunityDetailScreen(
         CommunityDetailActionCard(
             post = post,
             isEditMode = isEditMode,
+            canModifyPost = canModifyPost,
             isSaveEnabled = editTitle.isNotBlank() && editFullContent.isNotBlank(),
             onToggleLikeClick = {
                 // 초보자용 설명:
@@ -266,6 +315,16 @@ fun CommunityDetailScreen(
                     editingCommentId = null
                     editingCommentText = ""
                 }
+            },
+            onReportComment = { commentId ->
+                reportTargets = listOf(
+                    ReportTargetOption(
+                        type = "comment",
+                        id = commentId,
+                        label = "댓글"
+                    )
+                )
+                showReportDialog = true
             }
         )
     }
@@ -339,6 +398,7 @@ private fun CommunityDetailNotFoundScreen(
 private fun CommunityDetailTopSection(
     onBackClick: () -> Unit,
     isEditMode: Boolean,
+    canModifyPost: Boolean,
     onEditModeToggle: () -> Unit
 ) {
     Card(
@@ -361,7 +421,7 @@ private fun CommunityDetailTopSection(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = if (isEditMode) "게시글 수정" else "게시글 상세",
+                        text = "커뮤니티",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -373,7 +433,7 @@ private fun CommunityDetailTopSection(
                         text = if (isEditMode) {
                             "제목, 내용, 카테고리를 수정한 뒤 저장할 수 있습니다."
                         } else {
-                            "선택한 게시글의 상세 내용을 확인하고 좋아요와 댓글을 남길 수 있습니다."
+                            "다른 사용자들과 소통하고 경험을 나눠보세요."
                         },
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -383,7 +443,7 @@ private fun CommunityDetailTopSection(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                if (!isEditMode) {
+                if (!isEditMode && canModifyPost) {
                     Button(
                         onClick = onEditModeToggle,
                         shape = RoundedCornerShape(10.dp),
@@ -413,7 +473,7 @@ private fun CommunityDetailTopSection(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = "뒤로가기",
+                        text = "목록",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -428,7 +488,9 @@ private fun CommunityDetailTopSection(
 // ------------------------------------------------------------
 @Composable
 private fun CommunityDetailContentCard(
-    post: CommunityPost
+    post: CommunityPost,
+    onCopyLinkClick: () -> Unit,
+    onReportClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -441,23 +503,26 @@ private fun CommunityDetailContentCard(
         Column(
             modifier = Modifier.padding(18.dp)
         ) {
+            val badgeColors = communityCategoryBadgeColors(post.category)
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = post.category.label,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF4A7AE8)
-                )
-
-                Text(
-                    text = post.timeText,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(badgeColors.background)
+                        .padding(horizontal = 9.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        text = post.category.badgeLabel(),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = badgeColors.content
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -471,14 +536,108 @@ private fun CommunityDetailContentCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            Text(
-                text = "작성자: ${post.author}",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(42.dp)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = post.author.take(1),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Column {
+                        Text(
+                            text = post.author,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = post.detailDateText.ifBlank { post.timeText },
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Visibility,
+                                    contentDescription = "조회수",
+                                    modifier = Modifier.width(14.dp).height(14.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = post.viewCount.toString(),
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onCopyLinkClick) {
+                        Icon(
+                            imageVector = Icons.Filled.ContentCopy,
+                            contentDescription = "링크 복사",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    IconButton(onClick = onReportClick) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_emergency_light),
+                            contentDescription = "신고하기",
+                            modifier = Modifier.size(22.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(18.dp))
+
+            if (!post.imageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = post.imageUrl,
+                    contentDescription = "첨부 이미지",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentScale = ContentScale.Crop
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+            }
 
             Text(
                 text = post.fullContent,
@@ -633,6 +792,7 @@ private fun CommunityDetailEditCard(
 private fun CommunityDetailActionCard(
     post: CommunityPost,
     isEditMode: Boolean,
+    canModifyPost: Boolean,
     isSaveEnabled: Boolean,
     onToggleLikeClick: () -> Unit,
     onSaveClick: () -> Unit,
@@ -687,21 +847,29 @@ private fun CommunityDetailActionCard(
                         )
                     }
 
-                    Button(
-                        onClick = onDeleteRequest,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = SpentopiaMutedPurple,
-                            contentColor = Color.White
-                        ),
-                        contentPadding = PaddingValues(vertical = 14.dp)
-                    ) {
-                        Text(
-                            text = "게시글 삭제",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                    if (canModifyPost) {
+                        Button(
+                            onClick = onDeleteRequest,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            ),
+                            contentPadding = PaddingValues(vertical = 14.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.DeleteOutline,
+                                contentDescription = null,
+                                modifier = Modifier.width(17.dp).height(17.dp)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = "삭제",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             } else {
@@ -772,7 +940,8 @@ private fun CommunityCommentSection(
     onStartEditComment: (CommunityComment) -> Unit,
     onCancelEditComment: () -> Unit,
     onSaveEditComment: (String) -> Unit,
-    onDeleteComment: (String) -> Unit
+    onDeleteComment: (String) -> Unit,
+    onReportComment: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -816,6 +985,9 @@ private fun CommunityCommentSection(
                         },
                         onDelete = {
                             onDeleteComment(comment.id)
+                        },
+                        onReport = {
+                            onReportComment(comment.id)
                         }
                     )
                 }
@@ -884,7 +1056,8 @@ private fun CommunityCommentItem(
     onStartEdit: () -> Unit,
     onCancelEdit: () -> Unit,
     onSaveEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onReport: () -> Unit
 ) {
     // 이 댓글이 현재 사용자 댓글인지 판단합니다.
     val isMyComment = comment.authorId == currentUserId
@@ -912,11 +1085,30 @@ private fun CommunityCommentItem(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                Text(
-                    text = comment.timeText,
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = comment.timeText,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (!isMyComment) {
+                        IconButton(
+                            onClick = onReport,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_emergency_light),
+                                contentDescription = "댓글 신고",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
             }
 
             if (!isEditing) {
@@ -1011,6 +1203,262 @@ private fun CommunityDetailInfoChip(
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+private data class ReportTargetOption(
+    val type: String,
+    val id: String,
+    val label: String
+)
+
+private fun communityReportTargetsForPost(post: CommunityPost): List<ReportTargetOption> {
+    return listOf(
+        ReportTargetOption("post", post.id, "게시글"),
+        ReportTargetOption("user_nickname", post.authorId, "작성자 닉네임"),
+        ReportTargetOption("user_profile", post.authorId, "작성자 프로필 사진")
+    )
+}
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun CommunityReportDialog(
+    targets: List<ReportTargetOption>,
+    onDismiss: () -> Unit,
+    onReportClick: (String, String, String, String) -> Unit
+) {
+    var selectedTargetIndex by remember { mutableStateOf(0) }
+    var reason by remember { mutableStateOf("inappropriate") }
+    var detail by remember { mutableStateOf("") }
+    val selectedTarget = targets.getOrNull(selectedTargetIndex)
+    val reasons = listOf(
+        "abuse" to "욕설/비방",
+        "inappropriate" to "부적절한 내용",
+        "spam" to "광고/도배",
+        "other" to "기타"
+    )
+
+    androidx.compose.runtime.LaunchedEffect(targets) {
+        selectedTargetIndex = 0
+        reason = "inappropriate"
+        detail = ""
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = "신고하기") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = if (targets.size > 1) {
+                        "신고 대상을 선택하고 사유를 입력해주세요.\n신고 내용은 운영자가 확인 후 처리합니다."
+                    } else {
+                        "신고 사유를 입력해주세요.\n신고 내용은 운영자가 확인 후 처리합니다."
+                    },
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (targets.size > 1) {
+                    Text(
+                        text = "신고 대상",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    FlowRow(
+                        maxItemsInEachRow = 1,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        targets.forEachIndexed { index, target ->
+                            val selected = selectedTargetIndex == index
+                            Button(
+                                onClick = { selectedTargetIndex = index },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (selected) {
+                                        SpentopiaMutedPurple
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                    },
+                                    contentColor = if (selected) {
+                                        Color.White
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
+                                ),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                            ) {
+                                Text(
+                                    text = target.label,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Text(
+                    text = "신고 사유",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                FlowRow(
+                    maxItemsInEachRow = 2,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    reasons.forEach { (value, label) ->
+                        val selected = reason == value
+                        Button(
+                            onClick = { reason = value },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (selected) {
+                                    SpentopiaMutedPurple
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                },
+                                contentColor = if (selected) {
+                                    Color.White
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 13.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "상세 내용",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    OutlinedTextField(
+                        value = detail,
+                        onValueChange = { newValue ->
+                            detail = if (newValue.length <= 500) newValue else newValue.take(500)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text(text = "신고 내용을 입력해주세요. 필수 입력입니다.")
+                        },
+                        minLines = 4,
+                        maxLines = 6,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.65f),
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        )
+                    )
+
+                    Text(
+                        text = "${detail.length}/500",
+                        modifier = Modifier.align(Alignment.End),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            val canSubmit = selectedTarget != null && detail.isNotBlank()
+            Button(
+                onClick = {
+                    val target = selectedTarget ?: return@Button
+                    val trimmedDetail = detail.trim()
+                    if (trimmedDetail.isEmpty()) return@Button
+                    onReportClick(target.type, target.id, reason, trimmedDetail)
+                },
+                enabled = canSubmit,
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = SpentopiaMutedPurple,
+                    contentColor = Color.White,
+                    disabledContainerColor = MaterialTheme.colorScheme.outlineVariant,
+                    disabledContentColor = Color.White
+                )
+            ) {
+                Text(text = "신고하기")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "취소")
+            }
+        }
+    )
+}
+
+private fun copyCommunityPostLink(context: Context, postId: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val text = "spentopia://community/posts/$postId"
+    clipboard.setPrimaryClip(ClipData.newPlainText("커뮤니티 게시글 링크", text))
+    Toast.makeText(context, "링크가 복사되었습니다.", Toast.LENGTH_SHORT).show()
+}
+
+private data class CommunityDetailBadgeColors(
+    val background: Color,
+    val content: Color
+)
+
+@Composable
+private fun communityCategoryBadgeColors(category: CommunityCategory): CommunityDetailBadgeColors {
+    val isDark = isSystemInDarkTheme()
+    return when (category) {
+        CommunityCategory.NOTICE -> if (isDark) {
+            CommunityDetailBadgeColors(Color(0xFF164E63), Color(0xFFBAE6FD))
+        } else {
+            CommunityDetailBadgeColors(Color(0xFF0284C7), Color.White)
+        }
+        CommunityCategory.AVATAR_CONTEST -> if (isDark) {
+            CommunityDetailBadgeColors(Color(0xFF713F12), Color(0xFFFEF3C7))
+        } else {
+            CommunityDetailBadgeColors(Color(0xFFB45309), Color.White)
+        }
+        CommunityCategory.REQUEST -> if (isDark) {
+            CommunityDetailBadgeColors(Color(0xFF581C87), Color(0xFFE9D5FF))
+        } else {
+            CommunityDetailBadgeColors(Color(0xFF7E22CE), Color.White)
+        }
+        CommunityCategory.FREE_BOARD -> if (isDark) {
+            CommunityDetailBadgeColors(Color(0xFF064E3B), Color(0xFFA7F3D0))
+        } else {
+            CommunityDetailBadgeColors(Color(0xFF059669), Color.White)
+        }
+    }
+}
+
+private fun CommunityCategory.badgeLabel(): String {
+    return when (this) {
+        CommunityCategory.NOTICE -> "공지"
+        CommunityCategory.AVATAR_CONTEST -> "콘테스트"
+        CommunityCategory.REQUEST -> "아이템 요청"
+        CommunityCategory.FREE_BOARD -> "자유"
     }
 }
 

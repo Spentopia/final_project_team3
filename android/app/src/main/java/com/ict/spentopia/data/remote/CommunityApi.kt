@@ -3,10 +3,14 @@ package com.ict.spentopia.data.remote
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
+import retrofit2.http.Part
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 
 data class CommunityPostListResponse(
     val items: List<CommunityPostResponse> = emptyList(),
@@ -28,6 +32,36 @@ data class CommunityPostResponse(
     val is_reacted: Boolean = false,
     val view_count: Int = 0,
     val created_at: String? = null
+)
+
+data class CommunityContestResponse(
+    val id: String,
+    val title: String,
+    val description: String? = null,
+    val start_date: String,
+    val end_date: String,
+    val status: String? = null,
+    val reward_description: String? = null
+)
+
+data class UploadCommunityImageResponse(
+    val path: String
+)
+
+data class CommunityMeResponse(
+    val id: String,
+    val role_type: String = "user"
+)
+
+data class CreateContentReportRequest(
+    val target_type: String,
+    val target_id: String,
+    val reason: String,
+    val detail: String? = null
+)
+
+data class ContentReportResponse(
+    val id: String
 )
 
 data class CreateCommunityPostRequest(
@@ -67,9 +101,16 @@ data class UpdateCommunityCommentRequest(
 )
 
 interface CommunityApi {
+    @GET("/me")
+    suspend fun getMe(): CommunityMeResponse
+
+    @GET("/api/contests")
+    suspend fun listContests(): List<CommunityContestResponse>
+
     @GET("/api/posts")
     suspend fun listPosts(
         @Query("post_type") postType: String? = null,
+        @Query("contest_id") contestId: String? = null,
         @Query("sort") sort: String = "date",
         @Query("title") title: String? = null,
         @Query("page") page: Int = 1,
@@ -85,6 +126,15 @@ interface CommunityApi {
     suspend fun createPost(
         @Body request: CreateCommunityPostRequest
     ): CommunityPostResponse
+
+    @Multipart
+    @POST("/api/posts/image/upload")
+    suspend fun uploadPostImage(
+        @Part file: MultipartBody.Part,
+        @Part("post_type") postType: RequestBody,
+        @Part("contest_id") contestId: RequestBody? = null,
+        @Part("post_id") postId: RequestBody? = null
+    ): UploadCommunityImageResponse
 
     @PATCH("/api/posts/{id}")
     suspend fun updatePost(
@@ -128,4 +178,9 @@ interface CommunityApi {
     suspend fun deleteComment(
         @Path("id") commentId: String
     )
+
+    @POST("/api/content-reports")
+    suspend fun createContentReport(
+        @Body request: CreateContentReportRequest
+    ): ContentReportResponse
 }
