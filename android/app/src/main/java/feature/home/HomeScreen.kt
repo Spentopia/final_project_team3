@@ -1,13 +1,13 @@
 package com.ict.spentopia.feature.home // 이 파일이 속한 패키지 위치를 적음
 
-// 날짜 선택 다이얼로그를 위한 import입니다.
+// 날짜 선택 다이얼로그를 위한 import
 import android.app.DatePickerDialog // 날짜 선택창 기능을 가져옴
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri // 이미지 주소 같은 Uri 타입을 가져옴
 import android.widget.Toast
 
-// Activity Result 관련 import입니다.
+// Activity Result 관련 import
 import androidx.activity.compose.rememberLauncherForActivityResult // 외부 앱 결과를 받는 도구를 가져옴
 import androidx.activity.result.contract.ActivityResultContracts // 갤러리 열기 같은 실행 규칙을 가져옴
 
@@ -18,7 +18,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 
-// Compose foundation 관련 import입니다.
+// Compose foundation 관련 import
 import androidx.compose.foundation.BorderStroke // 테두리 선 스타일을 가져옴
 import androidx.compose.foundation.Image // 이미지 표시 컴포넌트를 가져옴
 import androidx.compose.foundation.background // 배경을 꾸미는 기능을 가져옴
@@ -40,14 +40,14 @@ import androidx.compose.foundation.lazy.LazyColumn // 세로 스크롤 리스트
 import androidx.compose.foundation.shape.CircleShape // 원 모양을 가져옴
 import androidx.compose.foundation.shape.RoundedCornerShape // 둥근 모서리 모양을 가져옴
 
-// 아이콘 관련 import입니다.
+// 아이콘 관련 import
 import androidx.compose.material.icons.Icons // 아이콘 묶음을 가져옴
 import androidx.compose.material.icons.filled.CalendarMonth // 달력 아이콘을 가져옴
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.ShoppingCart
 
-// Material3 관련 import입니다.
+// Material3 관련 import
 import androidx.compose.material3.Button // 버튼 컴포넌트를 가져옴
 import androidx.compose.material3.ButtonDefaults // 버튼 기본 스타일 도구를 가져옴
 import androidx.compose.material3.AlertDialog
@@ -66,7 +66,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
 import androidx.compose.material3.TextButton // 글자형 버튼을 가져옴
 
-// Compose runtime 관련 import입니다.
+// Compose runtime 관련 import
 import androidx.compose.runtime.Composable // Compose 함수 표시용 어노테이션을 가져옴
 import androidx.compose.runtime.LaunchedEffect // 상태가 바뀔 때 실행할 효과를 가져옴
 import androidx.compose.runtime.getValue // by 문법으로 상태를 읽게 해줌
@@ -75,7 +75,7 @@ import androidx.compose.runtime.remember // 재구성돼도 값을 기억하게 
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue // by 문법으로 상태를 바꾸게 해줌
 
-// UI 관련 import입니다.
+// UI 관련 import
 import androidx.compose.ui.Alignment // 정렬 기준을 가져옴
 import androidx.compose.ui.Modifier // UI 크기·색·여백 설정 도구를 가져옴
 import androidx.compose.ui.geometry.Offset
@@ -89,23 +89,23 @@ import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
 import androidx.compose.ui.window.Dialog // 팝업 창 컴포넌트를 가져옴
 
-// Coil 이미지 로딩 관련 import입니다.
+// Coil 이미지 로딩 관련 import입니
 import coil.compose.rememberAsyncImagePainter // Uri 이미지를 그리는 도구를 가져옴
 
-// ViewModel을 Compose에서 사용하기 위한 import입니다.
+// ViewModel을 Compose에서 사용하기 위한 import
 import androidx.lifecycle.viewmodel.compose.viewModel // Compose에서 ViewModel을 연결하는 도구를 가져옴
 
-// Flow를 Compose 상태로 안전하게 수집하기 위한 import입니다.
+// Flow를 Compose 상태로 안전하게 수집하기 위한 import
 import androidx.lifecycle.compose.collectAsStateWithLifecycle // Flow 값을 안전하게 화면 상태로 받는 도구를 가져옴
 
-// BudgetViewModel import입니다.
+// BudgetViewModel import
 import com.ict.spentopia.feature.budget.BudgetViewModel // 예산 화면용 ViewModel을 가져옴
 
-// 지갑 선택 다이얼로그 관련 import입니다.
+// 지갑 선택 다이얼로그 관련 import입
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog // 솔라나 지갑 선택 다이얼로그를 가져옴
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // 선택한 솔라나 지갑 종류를 가져옴
 
-// Room Entity import입니다.
+// Room Entity import
 import com.ict.spentopia.data.local.ExpenseEntity // DB에 저장되는 소비 데이터 타입을 가져옴
 import com.ict.spentopia.data.remote.CreateExpenseRequest
 import com.ict.spentopia.data.remote.RetrofitClient
@@ -115,7 +115,7 @@ import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
 
-// 숫자 포맷 및 날짜 계산 관련 import입니다.
+// 숫자 포맷 및 날짜 계산 관련 import
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -127,8 +127,8 @@ import java.text.DecimalFormat // 숫자를 쉼표 형식으로 바꾸는 도구
 import java.util.Calendar // 날짜 계산용 객체를 가져옴
 import kotlin.math.abs // 절댓값 함수 가져옴
 
-@Composable
-private fun isHomeDarkTheme(): Boolean {
+@Composable //이  함수가 jetpack Compose 의 Composavle 함수임 표시 // 즉, Compose UI 상태나 테마 등에 접근 가능
+private fun isHomeDarkTheme(): Boolean { // 다크 테마인지 true/false로 반환
     return MaterialTheme.colorScheme.background == SpentopiaDarkBackground
 }
 
@@ -147,8 +147,8 @@ data class ExpenseItemData( // ExpenseItemData 데이터를 묶어둘 클래스 
     val memo: String, // 이 데이터에 저장할 memo 값을 받음
     val receiptImageName: String, // 이 데이터에 저장할 receiptImageName 값을 받음
     val diary: String, // 이 데이터에 저장할 diary 값을 받음
-    val serverExpenseId: String = "", // 백엔드 expenses 테이블의 UUID입니다. OCR 인증 때 다시 사용합니다.
-    val receiptVerified: Boolean = false // 서버에서 영수증 인증이 성공했는지 저장합니다.
+    val serverExpenseId: String = "", // 백엔드 expenses 테이블의 UUID입니다. OCR 인증 때 다시 사용
+    val receiptVerified: Boolean = false // 서버에서 영수증 인증이 성공했는지 저장
 )
 
 // 달력에서 사용할 날짜 데이터 클래스입니다.

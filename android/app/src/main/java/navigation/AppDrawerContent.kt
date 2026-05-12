@@ -1,175 +1,175 @@
-package com.ict.spentopia.navigation // 네비게이션 관련 패키지
+package com.ict.spentopia.navigation // 이 파일이 속한 패키지 위치를 적음
 
-import androidx.compose.foundation.background // 배경색 지정
-import androidx.compose.foundation.clickable // 클릭 이벤트 처리
-import androidx.compose.foundation.layout.Arrangement // 정렬 방식 사용
-import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃
-import androidx.compose.foundation.layout.Row // 가로 배치 레이아웃
-import androidx.compose.foundation.layout.Spacer // 빈 공간
-import androidx.compose.foundation.layout.fillMaxHeight // 부모 높이를 채움
-import androidx.compose.foundation.layout.fillMaxWidth // 부모 너비를 채움
-import androidx.compose.foundation.layout.height // 높이 지정
-import androidx.compose.foundation.layout.padding // 안쪽 여백 지정
-import androidx.compose.foundation.layout.size // 크기 지정
-import androidx.compose.foundation.shape.RoundedCornerShape // 둥근 모서리 모양
-import androidx.compose.material3.MaterialTheme // 머티리얼 테마 사용
-import androidx.compose.material3.Surface // 카드 같은 표면 UI
-import androidx.compose.material3.Text // 텍스트 표시
-import androidx.compose.runtime.Composable // Compose UI 함수 표시
-import androidx.compose.ui.Alignment // 정렬 기준
-import androidx.compose.ui.Modifier // UI 수정자
-import androidx.compose.ui.draw.clip // 모양대로 잘라내기
-import androidx.compose.ui.text.font.FontWeight // 글자 굵기 지정
-import androidx.compose.ui.unit.dp // dp 단위 사용
+import androidx.compose.foundation.background // background 기능을 가져옴
+import androidx.compose.foundation.clickable // clickable 기능을 가져옴
+import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
+import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Row // 가로 배치 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Spacer // Spacer 기능을 가져옴
+import androidx.compose.foundation.layout.fillMaxHeight // fillMaxHeight 기능을 가져옴
+import androidx.compose.foundation.layout.fillMaxWidth // fillMaxWidth 기능을 가져옴
+import androidx.compose.foundation.layout.height // height 기능을 가져옴
+import androidx.compose.foundation.layout.padding // padding 기능을 가져옴
+import androidx.compose.foundation.layout.size // size 기능을 가져옴
+import androidx.compose.foundation.shape.RoundedCornerShape // RoundedCornerShape 기능을 가져옴
+import androidx.compose.material3.MaterialTheme // MaterialTheme 기능을 가져옴
+import androidx.compose.material3.Surface // Surface 기능을 가져옴
+import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
+import androidx.compose.runtime.Composable // Compose 화면 함수 표시를 가져옴
+import androidx.compose.ui.Alignment // Alignment 기능을 가져옴
+import androidx.compose.ui.Modifier // UI 크기랑 여백 설정 도구를 가져옴
+import androidx.compose.ui.draw.clip // clip 기능을 가져옴
+import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
+import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 
-@Composable // Compose UI 함수
-fun AppDrawerContent( // 공통 드로어 메뉴 UI 함수
-    onCloseClick: () -> Unit, // 닫기 클릭 콜백
-    onLedgerClick: () -> Unit, // 가계부 클릭 콜백
-    onBudgetClick: () -> Unit, // 예산 설정 클릭 콜백
-    onAnalysisClick: () -> Unit, // 소비 분석 클릭 콜백
-    onProfileAvatarClick: () -> Unit, // 수정: 마이페이지/내 아바타 통합 클릭 콜백으로 변경
-    onMarketClick: () -> Unit, // NFT 마켓 클릭 콜백
-    onPlazaClick: () -> Unit, // 광장 클릭 콜백
-    onCommunityClick: () -> Unit, // 커뮤니티 클릭 콜백
-    onLogoutClick: () -> Unit // 로그아웃 클릭 콜백
-) {
-    Column( // 전체 드로어를 세로로 배치
-        modifier = Modifier // Modifier 시작
-            .fillMaxHeight() // 화면 높이 끝까지 채움
-            .fillMaxWidth(0.82f) // 화면 너비의 82%만 사용
-            .background(MaterialTheme.colorScheme.surface) // 배경을 테마 표면색으로 지정
-            .padding(20.dp), // 전체 안쪽 여백 20dp
-        verticalArrangement = Arrangement.Top // 위에서부터 차례대로 배치
-    ) {
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun AppDrawerContent( // AppDrawerContent 함수를 선언함
+    onCloseClick: () -> Unit, // onCloseClick 때 실행할 함수를 받음
+    onLedgerClick: () -> Unit, // onLedgerClick 때 실행할 함수를 받음
+    onBudgetClick: () -> Unit, // 예산 관련 값을 받음
+    onAnalysisClick: () -> Unit, // onAnalysisClick 때 실행할 함수를 받음
+    onProfileAvatarClick: () -> Unit, // 아바타 관련 값을 받음
+    onMarketClick: () -> Unit, // 마켓 관련 값을 받음
+    onPlazaClick: () -> Unit, // onPlazaClick 때 실행할 함수를 받음
+    onCommunityClick: () -> Unit, // 커뮤니티 관련 값을 받음
+    onLogoutClick: () -> Unit // onLogoutClick 때 실행할 함수를 받음
+) { // 이 블록 안의 내용이 시작됨
+    Column( // 안쪽 UI를 세로로 배치함
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
+            .fillMaxHeight()
+            .fillMaxWidth(0.82f)
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(20.dp),
+        verticalArrangement = Arrangement.Top // verticalArrangement 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
 
-        Row( // 상단 제목과 닫기 텍스트를 가로 배치
-            modifier = Modifier.fillMaxWidth(), // 가로로 꽉 채움
-            horizontalArrangement = Arrangement.SpaceBetween, // 양쪽 끝으로 배치
-            verticalAlignment = Alignment.CenterVertically // 세로 중앙 정렬
-        ) {
-            Column { // 제목과 설명을 세로로 배치
-                Text( // 앱 이름 텍스트
-                    text = "Spentopia", // 표시할 글자
-                    style = MaterialTheme.typography.headlineSmall, // 큰 제목 스타일
-                    fontWeight = FontWeight.ExtraBold, // 아주 굵게 표시
-                    color = MaterialTheme.colorScheme.onSurface
+        Row( // 안쪽 UI를 가로로 배치함
+            modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+            horizontalArrangement = Arrangement.SpaceBetween, // horizontalArrangement 값을 정해줌
+            verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Column { // 안쪽 UI를 세로로 배치함
+                Text( // 화면에 글자를 보여줌
+                    text = "Spentopia", // text 값을 정해줌
+                    style = MaterialTheme.typography.headlineSmall, // style 값을 정해줌
+                    fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                    color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
                 )
-                Text( // 설명 텍스트
-                    text = "원하는 메뉴로 바로 이동해보세요", // 안내 문구
-                    style = MaterialTheme.typography.bodyMedium, // 일반 본문 스타일
-                    color = MaterialTheme.colorScheme.onSurfaceVariant // 보조 글자
+                Text( // 화면에 글자를 보여줌
+                    text = "원하는 메뉴로 바로 이동해보세요", // text 값을 정해줌
+                    style = MaterialTheme.typography.bodyMedium, // style 값을 정해줌
+                    color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
                 )
             }
 
-            Text( // 닫기 텍스트 버튼
-                text = "닫기", // 표시할 글자
-                color = MaterialTheme.colorScheme.primary, // 테마 강조 글자
-                fontWeight = FontWeight.SemiBold, // 반굵게 표시
-                modifier = Modifier // 닫기 텍스트에도 Modifier를 적용
-                    .clip(RoundedCornerShape(8.dp)) // 터치 영역을 살짝 둥글게 만듦
-                    .clickable { onCloseClick() } // 닫기 글자를 누르면 드로어를 닫음
-                    .padding(horizontal = 8.dp, vertical = 6.dp) // 누르기 쉬운 터치 여백 추가
+            Text( // 화면에 글자를 보여줌
+                text = "닫기", // text 값을 정해줌
+                color = MaterialTheme.colorScheme.primary, // color 값을 정해줌
+                fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onCloseClick() }
+                    .padding(horizontal = 8.dp, vertical = 6.dp) // .padding(horizontal 값을 정해줌
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp)) // 위쪽과 메뉴 사이 여백
+        Spacer(modifier = Modifier.height(24.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        DrawerMenuItem( // 가계부 메뉴 아이템
-            emoji = "📒", // 아이콘 대신 이모지 사용
-            title = "가계부", // 메뉴 이름
-            onClick = onLedgerClick // 클릭 시 실행할 함수
+        DrawerMenuItem( // Drawer Menu Item 함수를 실행함
+            emoji = "📒", // emoji 값을 정해줌
+            title = "가계부", // 제목을 정해줌
+            onClick = onLedgerClick // onLedgerClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
         )
 
-        DrawerMenuItem( // 예산 설정 메뉴 아이템
-            emoji = "💰", // 이모지
-            title = "예산 설정", // 메뉴 이름
-            onClick = onBudgetClick // 클릭 시 실행
+        DrawerMenuItem( // Drawer Menu Item 함수를 실행함
+            emoji = "💰", // emoji 값을 정해줌
+            title = "예산 설정", // 제목을 정해줌
+            onClick = onBudgetClick // 예산 관련 값을 눌렀을 때 실행할 함수에 넣음
         )
 
-        DrawerMenuItem( // 소비 분석 메뉴 아이템
-            emoji = "📊", // 이모지
-            title = "소비 분석", // 메뉴 이름
-            onClick = onAnalysisClick // 클릭 시 실행
+        DrawerMenuItem( // Drawer Menu Item 함수를 실행함
+            emoji = "📊", // emoji 값을 정해줌
+            title = "소비 분석", // 제목을 정해줌
+            onClick = onAnalysisClick // onAnalysisClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
         )
 
-        DrawerMenuItem( // 수정: 마이페이지 + 내 아바타 통합 메뉴 아이템
-            emoji = "🧍", // 이모지 유지
-            title = "마이페이지 / 내 아바타", // 수정: 두 메뉴를 하나로 통합
-            onClick = onProfileAvatarClick // 수정: 통합 클릭 콜백 실행
+        DrawerMenuItem( // Drawer Menu Item 함수를 실행함
+            emoji = "🧍", // emoji 값을 정해줌
+            title = "마이페이지 / 내 아바타", // 제목을 정해줌
+            onClick = onProfileAvatarClick // 아바타 관련 값을 눌렀을 때 실행할 함수에 넣음
         )
 
-        DrawerMenuItem( // NFT 마켓 메뉴 아이템
-            emoji = "🖼️", // 이모지
-            title = "NFT 마켓", // 메뉴 이름
-            onClick = onMarketClick // 클릭 시 실행
+        DrawerMenuItem( // Drawer Menu Item 함수를 실행함
+            emoji = "🖼️", // emoji 값을 정해줌
+            title = "NFT 마켓", // 제목을 정해줌
+            onClick = onMarketClick // 마켓 관련 값을 눌렀을 때 실행할 함수에 넣음
         )
 
-        DrawerMenuItem( // 광장 메뉴 아이템
-            emoji = "🏛️", // 이모지
-            title = "광장", // 메뉴 이름
-            onClick = onPlazaClick // 클릭 시 실행
+        DrawerMenuItem( // Drawer Menu Item 함수를 실행함
+            emoji = "🏛️", // emoji 값을 정해줌
+            title = "광장", // 제목을 정해줌
+            onClick = onPlazaClick // onPlazaClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
         )
 
-        DrawerMenuItem( // 커뮤니티 메뉴 아이템
-            emoji = "💬", // 이모지
-            title = "커뮤니티", // 메뉴 이름
-            onClick = onCommunityClick // 클릭 시 실행
+        DrawerMenuItem( // Drawer Menu Item 함수를 실행함
+            emoji = "💬", // emoji 값을 정해줌
+            title = "커뮤니티", // 제목을 정해줌
+            onClick = onCommunityClick // 커뮤니티 관련 값을 눌렀을 때 실행할 함수에 넣음
         )
 
-        Spacer(modifier = Modifier.height(18.dp)) // 커뮤니티 메뉴와 로그아웃 메뉴 사이 여백
+        Spacer(modifier = Modifier.height(18.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        DrawerMenuItem( // 로그아웃 메뉴 아이템
-            emoji = "🚪", // 이모지
-            title = "로그아웃", // 메뉴 이름
-            onClick = onLogoutClick // 클릭 시 로그아웃 실행
+        DrawerMenuItem( // Drawer Menu Item 함수를 실행함
+            emoji = "🚪", // emoji 값을 정해줌
+            title = "로그아웃", // 제목을 정해줌
+            onClick = onLogoutClick // onLogoutClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
         )
     }
 }
 
-@Composable // Compose UI 함수
-private fun DrawerMenuItem( // 드로어 안의 메뉴 한 줄 UI
-    emoji: String, // 왼쪽 이모지
-    title: String, // 메뉴 제목
-    onClick: () -> Unit // 클릭 이벤트
-) {
-    Surface( // 카드 같은 배경을 만드는 Surface
-        modifier = Modifier // Modifier 시작
-            .fillMaxWidth() // 가로 꽉 채움
-            .padding(vertical = 6.dp) // 위아래 여백 6dp
-            .clip(RoundedCornerShape(18.dp)) // 모서리를 둥글게 자름
-            .clickable { onClick() }, // 클릭하면 onClick 실행
-        shape = RoundedCornerShape(18.dp), // 카드 모양도 둥글게 설정
-        tonalElevation = 1.dp, // 살짝 떠 보이는 효과
-        color = MaterialTheme.colorScheme.surfaceVariant // 연한 회색 배경
-    ) {
-        Row( // 이모지와 텍스트를 가로 배치
-            modifier = Modifier // Modifier 시작
-                .fillMaxWidth() // 가로 꽉 채움
-                .padding(horizontal = 16.dp, vertical = 18.dp), // 안쪽 여백 지정
-            verticalAlignment = Alignment.CenterVertically // 세로 중앙 정렬
-        ) {
-            Surface( // 이모지 배경 원형/둥근 사각형 역할
-                modifier = Modifier.size(38.dp), // 크기 38dp
-                shape = RoundedCornerShape(12.dp), // 둥근 모서리
-                color = MaterialTheme.colorScheme.outlineVariant // 연한 회색 배경
-            ) {
-                Row( // 이모지를 가운데 정렬하기 위한 Row
-                    modifier = Modifier.fillMaxWidth(), // 가로 꽉 채움
-                    horizontalArrangement = Arrangement.Center, // 가로 중앙 정렬
-                    verticalAlignment = Alignment.CenterVertically // 세로 중앙 정렬
-                ) {
-                    Text(text = emoji) // 이모지 출력
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun DrawerMenuItem( // DrawerMenuItem 함수를 선언함
+    emoji: String, // emoji 값을 받음
+    title: String, // 제목을 받음
+    onClick: () -> Unit // 눌렀을 때 실행할 함수를 받음
+) { // 이 블록 안의 내용이 시작됨
+    Surface( // Surface 함수를 실행함
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
+            .fillMaxWidth()
+            .padding(vertical = 6.dp) // .padding(vertical 값을 정해줌
+            .clip(RoundedCornerShape(18.dp))
+            .clickable { onClick() },
+        shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
+        tonalElevation = 1.dp, // tonalElevation 값을 정해줌
+        color = MaterialTheme.colorScheme.surfaceVariant // color 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Row( // 안쪽 UI를 가로로 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 18.dp), // .padding(horizontal 값을 정해줌
+            verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Surface( // Surface 함수를 실행함
+                modifier = Modifier.size(38.dp), // UI 크기나 여백 같은 모양을 정함
+                shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
+                color = MaterialTheme.colorScheme.outlineVariant // color 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
+                Row( // 안쪽 UI를 가로로 배치함
+                    modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+                    horizontalArrangement = Arrangement.Center, // horizontalArrangement 값을 정해줌
+                    verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text(text = emoji) // 화면에 글자를 보여줌
                 }
             }
 
-            Spacer(modifier = Modifier.size(12.dp)) // 이모지와 제목 사이 간격
+            Spacer(modifier = Modifier.size(12.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            Text( // 메뉴 제목 텍스트
-                text = title, // 표시할 메뉴 이름
-                style = MaterialTheme.typography.titleMedium, // 중간 제목 스타일
-                fontWeight = FontWeight.SemiBold, // 약간 굵게 표시
-                color = MaterialTheme.colorScheme.onSurface // 진한 회색 글자
+            Text( // 화면에 글자를 보여줌
+                text = title, // 제목을 text 값에 넣음
+                style = MaterialTheme.typography.titleMedium, // style 값을 정해줌
+                fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
         }
     }

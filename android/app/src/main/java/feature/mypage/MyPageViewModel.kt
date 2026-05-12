@@ -1,149 +1,149 @@
-package com.ict.spentopia.feature.mypage // 마이페이지 패키지
+package com.ict.spentopia.feature.mypage // 이 파일이 속한 패키지 위치를 적음
 
 // 마이페이지 더미 상태 VM임
 // 실제 계정 API 붙으면 이쪽만 바꾸면 됨
 
-import androidx.compose.runtime.getValue // 상태 읽기
-import androidx.compose.runtime.mutableStateOf // 상태 저장
-import androidx.compose.runtime.setValue // 상태 변경
-import androidx.lifecycle.ViewModel // ViewModel 사용
+import androidx.compose.runtime.getValue // by로 상태를 읽게 해줌
+import androidx.compose.runtime.mutableStateOf // 화면 상태를 만드는 도구를 가져옴
+import androidx.compose.runtime.setValue // by로 상태를 바꾸게 해줌
+import androidx.lifecycle.ViewModel // ViewModel 기능을 가져옴
 
 // 마이페이지 상태 관리
-class MyPageViewModel : ViewModel() { // 마이페이지 ViewModel 시작
+class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클래스 시작
 
     // UI 상태 보관
-    var uiState by mutableStateOf( // 화면 전체 상태 저장
-        MyPageUiState( // 초기 상태 세팅
-            profileSummary = ProfileSummaryUi( // 상단 프로필 요약 데이터
-                nickname = "길동이", // 닉네임 더미값
-                realName = "홍길동", // 실명 더미값
-                joinedDateText = "2026년 4월 1일", // 가입일 더미값
-                streakText = "7일 🔥", // 연속 기록 더미값
-                sptBalanceText = "1,250 SPT", // 보유 SPT 더미값
-                avatarCountText = "15개" // 보유 아바타 수 더미값
-            ), // 프로필 요약 끝
-            memberInfo = MemberInfoUi( // 회원 정보 데이터
-                name = "홍길동", // 이름 더미값
-                nickname = "길동이", // 닉네임 더미값
-                email = "hong@example.com", // 이메일 더미값
-                phone = "010-1234-5678" // 전화번호 더미값
-            ), // 회원 정보 끝
-            socialAccounts = listOf( // 소셜 연동 목록 시작
-                SocialAccountUi( // 카카오 연동 상태
-                    serviceName = "카카오", // 서비스 이름
-                    connected = true // 연동 여부
-                ), // 카카오 끝
-                SocialAccountUi( // 구글 연동 상태
-                    serviceName = "구글", // 서비스 이름
-                    connected = true // 연동 여부
-                ) // 구글 끝
-            ), // 소셜 연동 목록 끝
-            notificationSetting = NotificationSettingUi( // 알림 설정 데이터
-                budgetAlertEnabled = true, // 예산 알림 기본값
-                rewardAlertEnabled = true, // 보상 알림 기본값
-                streakReminderEnabled = true, // 스트릭 알림 기본값
-                marketingAlertEnabled = true // 마케팅 알림 기본값
-            ), // 알림 설정 끝
-            walletUi = WalletUi( // 지갑 상태 데이터
-                isConnected = false, // 지갑 연결 여부 기본값
-                walletAddress = "", // 지갑 주소 기본값
-                walletProvider = "" // 지갑 종류 기본값
-            ) // 지갑 상태 끝
-        ) // 초기 상태 끝
-    ) // 상태 저장 끝
-        private set // 외부 직접 수정 방지
+    var uiState by mutableStateOf( // 화면에서 바뀔 화면 상태를 저장함
+        MyPageUiState( // My Page Ui State 함수를 실행함
+            profileSummary = ProfileSummaryUi( // profileSummary 값을 정해줌
+                nickname = "길동이", // nickname 값을 정해줌
+                realName = "홍길동", // realName 값을 정해줌
+                joinedDateText = "2026년 4월 1일", // joinedDateText 값을 정해줌
+                streakText = "7일 🔥", // streakText 값을 정해줌
+                sptBalanceText = "1,250 SPT", // sptBalanceText 값을 정해줌
+                avatarCountText = "15개" // 아바타 관련 값을 정해줌
+            ),
+            memberInfo = MemberInfoUi( // memberInfo 값을 정해줌
+                name = "홍길동", // name 값을 정해줌
+                nickname = "길동이", // nickname 값을 정해줌
+                email = "hong@example.com", // 이메일을 정해줌
+                phone = "010-1234-5678" // phone 값을 정해줌
+            ),
+            socialAccounts = listOf( // socialAccounts 값을 정해줌
+                SocialAccountUi( // Social Account Ui 함수를 실행함
+                    serviceName = "카카오", // serviceName 값을 정해줌
+                    connected = true // true 값을 connected 값에 넣음
+                ),
+                SocialAccountUi( // Social Account Ui 함수를 실행함
+                    serviceName = "구글", // serviceName 값을 정해줌
+                    connected = true // true 값을 connected 값에 넣음
+                )
+            ),
+            notificationSetting = NotificationSettingUi( // notificationSetting 값을 정해줌
+                budgetAlertEnabled = true, // true 값을 예산 관련 값에 넣음
+                rewardAlertEnabled = true, // true 값을 rewardAlertEnabled 값에 넣음
+                streakReminderEnabled = true, // true 값을 streakReminderEnabled 값에 넣음
+                marketingAlertEnabled = true // true 값을 마켓 관련 값에 넣음
+            ),
+            walletUi = WalletUi( // 지갑 관련 값을 정해줌
+                isConnected = false, // false 값을 isConnected인지 여부에 넣음
+                walletAddress = "", // 지갑 주소를 정해줌
+                walletProvider = "" // 지갑 이름을 정해줌
+            )
+        )
+    )
+        private set
 
     // 상단 탭 변경
-    fun onTabChange(tab: MyPageTab) { // 탭 변경 함수
-        uiState = uiState.copy( // 기존 상태 복사
-            selectedTab = tab // 선택 탭 변경
-        ) // 상태 반영 끝
-    } // 함수 끝
+    fun onTabChange(tab: MyPageTab) { // onTabChange 함수를 선언함
+        uiState = uiState.copy( // 화면 상태를 정해줌
+            selectedTab = tab // tab 값을 selectedTab 값에 넣음
+        )
+    }
 
     // 예산 초과 알림 변경
-    fun onBudgetAlertChange(enabled: Boolean) { // 예산 알림 변경 함수
-        uiState = uiState.copy( // 기존 상태 복사
-            notificationSetting = uiState.notificationSetting.copy( // 알림 상태 복사
-                budgetAlertEnabled = enabled // 예산 알림 값 변경
-            ) // 알림 상태 반영 끝
-        ) // 전체 상태 반영 끝
-    } // 함수 끝
+    fun onBudgetAlertChange(enabled: Boolean) { // onBudgetAlertChange 함수를 선언함
+        uiState = uiState.copy( // 화면 상태를 정해줌
+            notificationSetting = uiState.notificationSetting.copy( // notificationSetting 값을 정해줌
+                budgetAlertEnabled = enabled // enabled 값을 예산 관련 값에 넣음
+            )
+        )
+    }
 
     // 보상 알림 변경
-    fun onRewardAlertChange(enabled: Boolean) { // 보상 알림 변경 함수
-        uiState = uiState.copy( // 기존 상태 복사
-            notificationSetting = uiState.notificationSetting.copy( // 알림 상태 복사
-                rewardAlertEnabled = enabled // 보상 알림 값 변경
-            ) // 알림 상태 반영 끝
-        ) // 전체 상태 반영 끝
-    } // 함수 끝
+    fun onRewardAlertChange(enabled: Boolean) { // onRewardAlertChange 함수를 선언함
+        uiState = uiState.copy( // 화면 상태를 정해줌
+            notificationSetting = uiState.notificationSetting.copy( // notificationSetting 값을 정해줌
+                rewardAlertEnabled = enabled // enabled 값을 rewardAlertEnabled 값에 넣음
+            )
+        )
+    }
 
     // 스트릭 알림 변경
-    fun onStreakReminderChange(enabled: Boolean) { // 스트릭 알림 변경 함수
-        uiState = uiState.copy( // 기존 상태 복사
-            notificationSetting = uiState.notificationSetting.copy( // 알림 상태 복사
-                streakReminderEnabled = enabled // 스트릭 알림 값 변경
-            ) // 알림 상태 반영 끝
-        ) // 전체 상태 반영 끝
-    } // 함수 끝
+    fun onStreakReminderChange(enabled: Boolean) { // onStreakReminderChange 함수를 선언함
+        uiState = uiState.copy( // 화면 상태를 정해줌
+            notificationSetting = uiState.notificationSetting.copy( // notificationSetting 값을 정해줌
+                streakReminderEnabled = enabled // enabled 값을 streakReminderEnabled 값에 넣음
+            )
+        )
+    }
 
     // 마케팅 알림 변경
-    fun onMarketingAlertChange(enabled: Boolean) { // 마케팅 알림 변경 함수
-        uiState = uiState.copy( // 기존 상태 복사
-            notificationSetting = uiState.notificationSetting.copy( // 알림 상태 복사
-                marketingAlertEnabled = enabled // 마케팅 알림 값 변경
-            ) // 알림 상태 반영 끝
-        ) // 전체 상태 반영 끝
-    } // 함수 끝
+    fun onMarketingAlertChange(enabled: Boolean) { // onMarketingAlertChange 함수를 선언함
+        uiState = uiState.copy( // 화면 상태를 정해줌
+            notificationSetting = uiState.notificationSetting.copy( // notificationSetting 값을 정해줌
+                marketingAlertEnabled = enabled // enabled 값을 마켓 관련 값에 넣음
+            )
+        )
+    }
 
     // 지갑 상태 반영
-    fun updateWalletState( // 지갑 상태 변경 함수
-        isConnected: Boolean, // 연결 여부 받기
-        walletAddress: String, // 지갑 주소 받기
-        walletProvider: String // 지갑 종류 받기
-    ) { // 함수 시작
-        uiState = uiState.copy( // 기존 상태 복사
-            walletUi = uiState.walletUi.copy( // 지갑 상태 복사
-                isConnected = isConnected, // 연결 여부 반영
-                walletAddress = walletAddress, // 지갑 주소 반영
-                walletProvider = walletProvider // 지갑 종류 반영
-            ) // 지갑 상태 반영 끝
-        ) // 전체 상태 반영 끝
-    } // 함수 끝
+    fun updateWalletState( // 데이터를 수정하는 함수 시작
+        isConnected: Boolean, // isConnected인지 여부를 받음
+        walletAddress: String, // 지갑 주소를 받음
+        walletProvider: String // 지갑 이름을 받음
+    ) { // 이 블록 안의 내용이 시작됨
+        uiState = uiState.copy( // 화면 상태를 정해줌
+            walletUi = uiState.walletUi.copy( // 지갑 관련 값을 정해줌
+                isConnected = isConnected, // isConnected인지 여부를 isConnected인지 여부에 넣음
+                walletAddress = walletAddress, // 지갑 주소를 지갑 주소에 넣음
+                walletProvider = walletProvider // 지갑 이름을 지갑 이름에 넣음
+            )
+        )
+    }
 
-    fun toggleEditMode() {   //함수정의
-        uiState = uiState.copy(    // 현재의 uiState.copy 복사를 하여 새로운 상태를 만듬
-            isEditMode = !uiState.isEditMode //isEditMode 라는 항목의 값을 현재값의 반대로 바꿈
+    fun toggleEditMode() { // toggleEditMode 함수를 선언함
+        uiState = uiState.copy( // 화면 상태를 정해줌
+            isEditMode = !uiState.isEditMode // isEditMode인지 여부를 정해줌
         )
     }
 
     // 회원 정보 수정
-    fun updateMemberInfo( // 회원 정보 변경 함수
-        name: String, // 이름 받기
-        nickname: String, // 닉네임 받기
-        email: String, // 이메일 받기
-        phone: String // 전화번호 받기
-    ) { // 함수 시작
-        uiState = uiState.copy( // 기존 상태 복사
-            memberInfo = uiState.memberInfo.copy( // 회원 정보 복사
-                name = name, // 이름 반영
-                nickname = nickname, // 닉네임 반영
-                email = email, // 이메일 반영
-                phone = phone // 전화번호 반영
-            ), // 회원 정보 반영 끝
-            profileSummary = uiState.profileSummary.copy( // 프로필 요약 복사
-                nickname = nickname, // 상단 닉네임도 같이 반영
-                realName = name // 상단 실명도 같이 반영
-            ) // 프로필 요약 반영 끝
-        ) // 전체 상태 반영 끝
-    } // 함수 끝
+    fun updateMemberInfo( // 데이터를 수정하는 함수 시작
+        name: String, // name 값을 받음
+        nickname: String, // nickname 값을 받음
+        email: String, // 이메일을 받음
+        phone: String // phone 값을 받음
+    ) { // 이 블록 안의 내용이 시작됨
+        uiState = uiState.copy( // 화면 상태를 정해줌
+            memberInfo = uiState.memberInfo.copy( // memberInfo 값을 정해줌
+                name = name, // name 값을 name 값에 넣음
+                nickname = nickname, // nickname 값을 nickname 값에 넣음
+                email = email, // 이메일을 이메일에 넣음
+                phone = phone // phone 값을 phone 값에 넣음
+            ),
+            profileSummary = uiState.profileSummary.copy( // profileSummary 값을 정해줌
+                nickname = nickname, // nickname 값을 nickname 값에 넣음
+                realName = name // name 값을 realName 값에 넣음
+            )
+        )
+    }
 
     // 프로필 이미지 변경
-    fun updateProfileImage(profileImageUri: String) { // 프로필 이미지 변경 함수
-        uiState = uiState.copy( // 기존 상태 복사
-            profileSummary = uiState.profileSummary.copy( // 프로필 요약 복사
-                profileImageUri = profileImageUri // 프로필 이미지 uri 반영
-            ) // 프로필 요약 반영 끝
-        ) // 전체 상태 반영 끝
-    } // 함수 끝
-} // ViewModel 끝
+    fun updateProfileImage(profileImageUri: String) { // 데이터를 수정하는 함수 시작
+        uiState = uiState.copy( // 화면 상태를 정해줌
+            profileSummary = uiState.profileSummary.copy( // profileSummary 값을 정해줌
+                profileImageUri = profileImageUri // profileImageUri 값을 profileImageUri 값에 넣음
+            )
+        )
+    }
+}

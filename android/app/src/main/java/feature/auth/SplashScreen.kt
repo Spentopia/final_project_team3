@@ -1,271 +1,272 @@
-package com.ict.spentopia.feature.auth
+package com.ict.spentopia.feature.auth // 이 파일이 속한 패키지 위치를 적음
 
 // 스플래시 화면임
 // 앱 시작 전 썸네일 역할
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import com.ict.spentopia.R
-import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
-import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
-import kotlinx.coroutines.delay
-@Composable
-fun SplashScreen(navController: NavController) {
-    val infiniteTransition = rememberInfiniteTransition(label = "splash")
+import androidx.compose.animation.core.RepeatMode // RepeatMode 기능을 가져옴
+import androidx.compose.animation.core.animateFloat // animateFloat 기능을 가져옴
+import androidx.compose.animation.core.infiniteRepeatable // infiniteRepeatable 기능을 가져옴
+import androidx.compose.animation.core.rememberInfiniteTransition // rememberInfiniteTransition 기능을 가져옴
+import androidx.compose.animation.core.tween // tween 기능을 가져옴
+import androidx.compose.foundation.Image // 이미지 표시 컴포넌트를 가져옴
+import androidx.compose.foundation.background // background 기능을 가져옴
+import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Spacer // Spacer 기능을 가져옴
+import androidx.compose.foundation.layout.fillMaxSize // fillMaxSize 기능을 가져옴
+import androidx.compose.foundation.layout.height // height 기능을 가져옴
+import androidx.compose.foundation.layout.offset // offset 기능을 가져옴
+import androidx.compose.foundation.layout.size // size 기능을 가져옴
+import androidx.compose.foundation.shape.CircleShape // CircleShape 기능을 가져옴
+import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
+import androidx.compose.runtime.Composable // Compose 화면 함수 표시를 가져옴
+import androidx.compose.runtime.LaunchedEffect // 화면이 열릴 때 실행하는 도구를 가져옴
+import androidx.compose.runtime.getValue // by로 상태를 읽게 해줌
+import androidx.compose.ui.Alignment // Alignment 기능을 가져옴
+import androidx.compose.ui.Modifier // UI 크기랑 여백 설정 도구를 가져옴
+import androidx.compose.ui.graphics.Brush // Brush 기능을 가져옴
+import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
+import androidx.compose.ui.graphics.graphicsLayer // graphicsLayer 기능을 가져옴
+import androidx.compose.ui.res.painterResource // painterResource 기능을 가져옴
+import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
+import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
+import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
+import androidx.navigation.NavController // NavController 기능을 가져옴
+import com.ict.spentopia.R // R 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple // SpentopiaNavyPurple 기능을 가져옴
+import kotlinx.coroutines.delay // delay 기능을 가져옴
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun SplashScreen(navController: NavController) { // SplashScreen 함수를 선언함
+    val infiniteTransition = rememberInfiniteTransition(label = "splash") // 화면이 다시 그려져도 infiniteTransition 값을 기억함
 
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.65f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(700),
-            repeatMode = RepeatMode.Reverse
+    val alpha by infiniteTransition.animateFloat( // alpha 값을 저장함
+        initialValue = 0.65f, // initialValue 값을 정해줌
+        targetValue = 1f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(700), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "alpha"
+        label = "alpha" // label 값을 정해줌
     )
 
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 0.96f,
-        targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(700),
-            repeatMode = RepeatMode.Reverse
+    val scale by infiniteTransition.animateFloat( // scale 값을 저장함
+        initialValue = 0.96f, // initialValue 값을 정해줌
+        targetValue = 1.04f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(700), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "scale"
+        label = "scale" // label 값을 정해줌
     )
 
-    val sparkleAlpha1 by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(920),
-            repeatMode = RepeatMode.Reverse
+    val sparkleAlpha1 by infiniteTransition.animateFloat( // sparkleAlpha1 값을 저장함
+        initialValue = 0.25f, // initialValue 값을 정해줌
+        targetValue = 1f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(920), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "sparkleAlpha1"
+        label = "sparkleAlpha1" // label 값을 정해줌
     )
 
-    val sparkleAlpha2 by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.25f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1180),
-            repeatMode = RepeatMode.Reverse
+    val sparkleAlpha2 by infiniteTransition.animateFloat( // sparkleAlpha2 값을 저장함
+        initialValue = 1f, // initialValue 값을 정해줌
+        targetValue = 0.25f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(1180), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "sparkleAlpha2"
+        label = "sparkleAlpha2" // label 값을 정해줌
     )
 
-    val sparkleAlpha3 by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1360),
-            repeatMode = RepeatMode.Reverse
+    val sparkleAlpha3 by infiniteTransition.animateFloat( // sparkleAlpha3 값을 저장함
+        initialValue = 0.25f, // initialValue 값을 정해줌
+        targetValue = 1f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(1360), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "sparkleAlpha3"
+        label = "sparkleAlpha3" // label 값을 정해줌
     )
 
-    val sparkleAlpha4 by infiniteTransition.animateFloat(
-        initialValue = 0.45f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1040),
-            repeatMode = RepeatMode.Reverse
+    val sparkleAlpha4 by infiniteTransition.animateFloat( // sparkleAlpha4 값을 저장함
+        initialValue = 0.45f, // initialValue 값을 정해줌
+        targetValue = 1f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(1040), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "sparkleAlpha4"
+        label = "sparkleAlpha4" // label 값을 정해줌
     )
 
-    val sparkleAlpha5 by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.25f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1260),
-            repeatMode = RepeatMode.Reverse
+    val sparkleAlpha5 by infiniteTransition.animateFloat( // sparkleAlpha5 값을 저장함
+        initialValue = 1f, // initialValue 값을 정해줌
+        targetValue = 0.25f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(1260), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "sparkleAlpha5"
+        label = "sparkleAlpha5" // label 값을 정해줌
     )
 
-    val sparkleAlpha6 by infiniteTransition.animateFloat(
-        initialValue = 0.30f,
-        targetValue = 0.95f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500),
-            repeatMode = RepeatMode.Reverse
+    val sparkleAlpha6 by infiniteTransition.animateFloat( // sparkleAlpha6 값을 저장함
+        initialValue = 0.30f, // initialValue 값을 정해줌
+        targetValue = 0.95f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(1500), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "sparkleAlpha6"
+        label = "sparkleAlpha6" // label 값을 정해줌
     )
 
-    val sparkleAlpha7 by infiniteTransition.animateFloat(
-        initialValue = 0.18f,
-        targetValue = 0.82f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1320),
-            repeatMode = RepeatMode.Reverse
+    val sparkleAlpha7 by infiniteTransition.animateFloat( // sparkleAlpha7 값을 저장함
+        initialValue = 0.18f, // initialValue 값을 정해줌
+        targetValue = 0.82f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(1320), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "sparkleAlpha7"
+        label = "sparkleAlpha7" // label 값을 정해줌
     )
 
-    LaunchedEffect(Unit) {
-        delay(4000)
-        navController.navigate("login") {
-            popUpTo("splash") { inclusive = true }
+    LaunchedEffect(Unit) { // 화면이 열리거나 값이 바뀔 때 실행함
+        delay(4000) // delay 함수를 실행함 시간초 설정 4초뒤 로그인 화면으로 넘어감
+        navController.navigate("login") { // 다른 화면으로 이동함
+            popUpTo("splash") { inclusive = true } // inclusive 값을 정해줌
+            // 스플래시를 뒤로가기 기록에서 제거함
         }
     }
 
-    Box(
-        modifier = Modifier
+    Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    listOf(
-                        Color(0xFF090B16),
-                        Color(0xFF111827),
-                        Color(0xFF24103F)
+                    listOf( // list Of 함수를 실행함
+                        Color(0xFF090B16), // Color 함수를 실행함
+                        Color(0xFF111827), // Color 함수를 실행함
+                        Color(0xFF24103F) // Color 함수를 실행함
                     )
                 )
             ),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
+        contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .size(300.dp)
                 .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            Color(0xAA7C3AED),
-                            Color(0x441E1B4B),
+                    brush = Brush.radialGradient( // brush 값을 정해줌
+                        colors = listOf( // colors 값을 정해줌
+                            Color(0xAA7C3AED), // Color 함수를 실행함
+                            Color(0x441E1B4B), // Color 함수를 실행함
                             Color.Transparent
                         )
                     ),
-                    shape = CircleShape
+                    shape = CircleShape // CircleShape 값을 shape 값에 넣음
                 )
         )
 
-        Text(
-            text = "✦",
-            fontSize = 20.sp,
-            color = Color.White,
-            modifier = Modifier
+        Text( // 화면에 글자를 보여줌
+            text = "✦", // text 값을 정해줌
+            fontSize = 20.sp, // fontSize 값을 정해줌
+            color = Color.White, // color 값을 정해줌
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .align(Alignment.Center)
-                .offset(x = (-118).dp, y = (-112).dp)
-                .graphicsLayer { this.alpha = sparkleAlpha1 }
+                .offset(x = (-118).dp, y = (-112).dp) // .offset(x 값을 정해줌
+                .graphicsLayer { this.alpha = sparkleAlpha1 } // this.alpha 값을 정해줌
         )
 
-        Text(
-            text = "✧",
-            fontSize = 18.sp,
-            color = SpentopiaNavyPurple,
-            modifier = Modifier
+        Text( // 화면에 글자를 보여줌
+            text = "✧", // text 값을 정해줌
+            fontSize = 18.sp, // fontSize 값을 정해줌
+            color = SpentopiaNavyPurple, // SpentopiaNavyPurple 값을 color 값에 넣음
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .align(Alignment.Center)
-                .offset(x = 124.dp, y = (-96).dp)
-                .graphicsLayer { this.alpha = sparkleAlpha2 }
+                .offset(x = 124.dp, y = (-96).dp) // .offset(x 값을 정해줌
+                .graphicsLayer { this.alpha = sparkleAlpha2 } // this.alpha 값을 정해줌
         )
 
-        Text(
-            text = "✦",
-            fontSize = 14.sp,
-            color = Color(0xFF6366A8),
-            modifier = Modifier
+        Text( // 화면에 글자를 보여줌
+            text = "✦", // text 값을 정해줌
+            fontSize = 14.sp, // fontSize 값을 정해줌
+            color = Color(0xFF6366A8), // color 값을 정해줌
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .align(Alignment.Center)
-                .offset(x = (-138).dp, y = 24.dp)
-                .graphicsLayer { this.alpha = sparkleAlpha3 }
+                .offset(x = (-138).dp, y = 24.dp) // .offset(x 값을 정해줌
+                .graphicsLayer { this.alpha = sparkleAlpha3 } // this.alpha 값을 정해줌
         )
 
-        Text(
-            text = "✧",
-            fontSize = 16.sp,
-            color = SpentopiaMutedPurple,
-            modifier = Modifier
+        Text( // 화면에 글자를 보여줌
+            text = "✧", // text 값을 정해줌
+            fontSize = 16.sp, // fontSize 값을 정해줌
+            color = SpentopiaMutedPurple, // SpentopiaMutedPurple 값을 color 값에 넣음
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .align(Alignment.Center)
-                .offset(x = 132.dp, y = 38.dp)
-                .graphicsLayer { this.alpha = sparkleAlpha4 }
+                .offset(x = 132.dp, y = 38.dp) // .offset(x 값을 정해줌
+                .graphicsLayer { this.alpha = sparkleAlpha4 } // this.alpha 값을 정해줌
         )
 
-            Text(
-                text = "✦",
-                fontSize = 12.sp,
-                color = Color.White,
-                modifier = Modifier
+            Text( // 화면에 글자를 보여줌
+                text = "✦", // text 값을 정해줌
+                fontSize = 12.sp, // fontSize 값을 정해줌
+                color = Color.White, // color 값을 정해줌
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                     .align(Alignment.Center)
-                    .offset(x = 72.dp, y = (-142).dp)
-                    .graphicsLayer { this.alpha = sparkleAlpha5 }
+                    .offset(x = 72.dp, y = (-142).dp) // .offset(x 값을 정해줌
+                    .graphicsLayer { this.alpha = sparkleAlpha5 } // this.alpha 값을 정해줌
             )
 
-        Text(
-            text = "✧",
-            fontSize = 22.sp,
-            color = Color.White,
-            modifier = Modifier
+        Text( // 화면에 글자를 보여줌
+            text = "✧", // text 값을 정해줌
+            fontSize = 22.sp, // fontSize 값을 정해줌
+            color = Color.White, // color 값을 정해줌
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .align(Alignment.Center)
-                .offset(x = (-92).dp, y = (-148).dp)
-                .graphicsLayer { this.alpha = sparkleAlpha6 }
+                .offset(x = (-92).dp, y = (-148).dp) // .offset(x 값을 정해줌
+                .graphicsLayer { this.alpha = sparkleAlpha6 } // this.alpha 값을 정해줌
         )
 
-        Text(
-            text = "✦",
-            fontSize = 17.sp,
-            color = Color(0xFFD8B4FE),
-            modifier = Modifier
+        Text( // 화면에 글자를 보여줌
+            text = "✦", // text 값을 정해줌
+            fontSize = 17.sp, // fontSize 값을 정해줌
+            color = Color(0xFFD8B4FE), // color 값을 정해줌
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .align(Alignment.Center)
-                .offset(x = 110.dp, y = 118.dp)
-                .graphicsLayer { this.alpha = sparkleAlpha7 }
+                .offset(x = 110.dp, y = 118.dp) // .offset(x 값을 정해줌
+                .graphicsLayer { this.alpha = sparkleAlpha7 } // this.alpha 값을 정해줌
         )
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.ic_spentopia_logo),
-                contentDescription = "Spentopia Logo",
-                modifier = Modifier
+        Column( // 안쪽 UI를 세로로 배치함
+            horizontalAlignment = Alignment.CenterHorizontally // horizontalAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Image( // 화면에 이미지를 보여줌
+                painter = painterResource(id = R.drawable.ic_spentopia_logo), // painter 값을 정해줌
+                contentDescription = "Spentopia Logo", // contentDescription 값을 정해줌
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                     .size(300.dp)
-                    .graphicsLayer {
-                        this.alpha = alpha
-                        scaleX = scale
-                        scaleY = scale
+                    .graphicsLayer { // 이 블록 안의 내용이 시작됨
+                        this.alpha = alpha // alpha 값을 alpha 값에 넣음
+                        scaleX = scale // scale 값을 scaleX 값에 넣음
+                        scaleY = scale // scale 값을 scaleY 값에 넣음
                     }
             )
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(22.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            Text(
-                text = "Spentopia",
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
+            Text( // 화면에 글자를 보여줌
+                text = "Spentopia", // text 값을 정해줌
+                fontSize = 34.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                color = Color.White // color 값을 정해줌
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            Text(
-                text = "내가 기록한 소비가 나를 만든다",
-                fontSize = 16.sp,
-                color = Color(0xFFD1D5DB)
+            Text( // 화면에 글자를 보여줌
+                text = "내가 기록한 소비가 나를 만든다", // text 값을 정해줌
+                fontSize = 16.sp, // fontSize 값을 정해줌
+                color = Color(0xFFD1D5DB) // color 값을 정해줌
             )
         }
     }

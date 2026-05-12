@@ -1,6 +1,6 @@
 // 현재 파일이 속한 패키지(폴더 경로 같은 개념)
 // 보통 프로젝트 구조를 구분할 때 사용합니다.
-package com.ict.spentopia.data.remote
+package com.ict.spentopia.data.remote // 이 파일이 속한 패키지 위치를 적음
 
 // Retrofit에서 사용하는 어노테이션들을 import 합니다.
 // @Body   : 요청 본문(body)에 데이터를 담아서 보낼 때 사용
@@ -9,12 +9,12 @@ package com.ict.spentopia.data.remote
 // @HTTP   : DELETE인데 body도 같이 보내고 싶을 때 사용
 // @Header : 헤더 값을 직접 넣을 때 사용
 // @POST   : POST 요청을 보낼 때 사용
-import retrofit2.http.Body
-import retrofit2.http.GET
-import retrofit2.http.HTTP
-import retrofit2.http.Header
-import retrofit2.http.Headers
-import retrofit2.http.POST
+import retrofit2.http.Body // 서버로 보낼 값을 표시하는 도구를 가져옴
+import retrofit2.http.GET // GET API 표시를 가져옴
+import retrofit2.http.HTTP // HTTP 기능을 가져옴
+import retrofit2.http.Header // 서버 요청 헤더 표시 도구를 가져옴
+import retrofit2.http.Headers // Headers 기능을 가져옴
+import retrofit2.http.POST // POST API 표시를 가져옴
 
 
 // ------------------------------
@@ -28,11 +28,11 @@ import retrofit2.http.POST
 // {
 //   "wallet_address": "7xKXtg2CW87d..."
 // }
-data class NonceRequest(
+data class NonceRequest( // NonceRequest 데이터를 묶어둘 클래스 시작
 
     // nonce를 발급받을 대상 Solana 지갑 주소
     // Base58 형식의 공개키 문자열입니다.
-    val wallet_address: String
+    val wallet_address: String // 지갑 관련 값을 저장함
 )
 
 
@@ -48,17 +48,17 @@ data class NonceRequest(
 //   "nonce": "abc123...",
 //   "message": "Spentopia 지갑 인증 ..."
 // }
-data class NonceResponse(
+data class NonceResponse( // NonceResponse 데이터를 묶어둘 클래스 시작
 
     // 서버가 내려주는 nonce 값
     // nonce는 보통 "한 번만 사용하는 임시 문자열" 같은 개념입니다.
     // 지갑 서명 요청 시 보안 목적으로 많이 사용합니다.
-    val nonce: String,
+    val nonce: String, // 서명용 난수을 저장함
 
     // 실제 지갑으로 서명해야 하는 인증 메시지입니다.
     // 안드로이드에서는 nonce 원문이 아니라
     // 이 message 전체를 지갑으로 서명해야 합니다.
-    val message: String
+    val message: String // 메시지를 저장함
 )
 
 
@@ -72,17 +72,17 @@ data class NonceResponse(
 // 주의:
 // 실제 서명 대상은 nonce 자체가 아니라
 // nonce 응답에 포함된 message 전체입니다.
-data class WalletLoginRequest(
+data class WalletLoginRequest( // WalletLoginRequest 데이터를 묶어둘 클래스 시작
 
     // 로그인에 사용할 지갑 주소
-    val wallet_address: String,
+    val wallet_address: String, // 지갑 관련 값을 저장함
 
     // nonce 발급 API에서 받은 nonce
-    val nonce: String,
+    val nonce: String, // 서명용 난수을 저장함
 
     // 사용자가 지갑으로 message를 서명한 결과값
     // 백엔드에서는 Base58 형식을 기대합니다.
-    val signature: String
+    val signature: String // 지갑 서명값을 저장함
 )
 
 
@@ -99,16 +99,16 @@ data class WalletLoginRequest(
 //   "refresh_token": "...",
 //   "is_new_user": false
 // }
-data class WalletLoginResponse(
+data class WalletLoginResponse( // WalletLoginResponse 데이터를 묶어둘 클래스 시작
 
     // 우리 앱 access token
-    val access_token: String,
+    val access_token: String, // 접근 토큰을 저장함
 
     // 우리 앱 refresh token
-    val refresh_token: String,
+    val refresh_token: String, // 갱신 토큰을 저장함
 
     // 신규 유저 여부
-    val is_new_user: Boolean
+    val is_new_user: Boolean // 새 사용자 여부를 저장함
 )
 
 
@@ -123,16 +123,16 @@ data class WalletLoginResponse(
 //   "nonce": "abc123",
 //   "signature": "서명값"
 // }
-data class WalletLinkRequest(
+data class WalletLinkRequest( // WalletLinkRequest 데이터를 묶어둘 클래스 시작
 
     // 연결하려는 지갑 주소
-    val wallet_address: String,
+    val wallet_address: String, // 지갑 관련 값을 저장함
 
     // 서버에서 먼저 발급받은 nonce
-    val nonce: String,
+    val nonce: String, // 서명용 난수을 저장함
 
     // 사용자가 지갑으로 message에 서명한 결과값
-    val signature: String
+    val signature: String // 지갑 서명값을 저장함
 )
 
 
@@ -146,13 +146,13 @@ data class WalletLinkRequest(
 //   "message": "지갑이 연동되었습니다."
 // }
 // 이런 식으로 보내주면 이 클래스로 받습니다.
-data class WalletLinkResponse(
+data class WalletLinkResponse( // WalletLinkResponse 데이터를 묶어둘 클래스 시작
 
     // 서버가 확인한 지갑 주소
-    val wallet_address: String,
+    val wallet_address: String, // 지갑 관련 값을 저장함
 
     // 결과 메시지
-    val message: String
+    val message: String // 메시지를 저장함
 )
 
 
@@ -162,16 +162,16 @@ data class WalletLinkResponse(
 
 // unlink도 link와 비슷하게
 // 지갑 주소 + nonce + signature를 서버에 보낼 수 있습니다.
-data class WalletUnlinkRequest(
+data class WalletUnlinkRequest( // WalletUnlinkRequest 데이터를 묶어둘 클래스 시작
 
     // 연결 해제할 지갑 주소
-    val wallet_address: String,
+    val wallet_address: String, // 지갑 관련 값을 저장함
 
     // unlink 요청용 nonce
-    val nonce: String,
+    val nonce: String, // 서명용 난수을 저장함
 
     // 사용자가 지갑으로 message를 서명한 값
-    val signature: String
+    val signature: String // 지갑 서명값을 저장함
 )
 
 
@@ -184,10 +184,10 @@ data class WalletUnlinkRequest(
 //   "message": "지갑 연동이 해제되었습니다."
 // }
 // 이런 식으로 보내준다고 가정합니다.
-data class WalletUnlinkResponse(
+data class WalletUnlinkResponse( // WalletUnlinkResponse 데이터를 묶어둘 클래스 시작
 
     // 결과 메시지
-    val message: String
+    val message: String // 메시지를 저장함
 )
 
 
@@ -202,10 +202,10 @@ data class WalletUnlinkResponse(
 // {
 //   "refresh_token": "..."
 // }
-data class RefreshTokenRequest(
+data class RefreshTokenRequest( // RefreshTokenRequest 데이터를 묶어둘 클래스 시작
 
     // 로그인 성공 시 서버에서 받은 refresh token
-    val refresh_token: String
+    val refresh_token: String // 갱신 토큰을 저장함
 )
 
 
@@ -219,13 +219,13 @@ data class RefreshTokenRequest(
 //   "refresh_token": "..."
 // }
 // 이런 식으로 새 토큰을 내려준다고 가정합니다.
-data class RefreshTokenResponse(
+data class RefreshTokenResponse( // RefreshTokenResponse 데이터를 묶어둘 클래스 시작
 
     // 새로 발급받은 access token
-    val access_token: String,
+    val access_token: String, // 접근 토큰을 저장함
 
     // 새로 발급받은 refresh token
-    val refresh_token: String
+    val refresh_token: String // 갱신 토큰을 저장함
 )
 
 
@@ -243,19 +243,19 @@ data class RefreshTokenResponse(
 //   "nickname": "user",
 //   "email": "test@example.com"
 // }
-data class MeResponse(
+data class MeResponse( // MeResponse 데이터를 묶어둘 클래스 시작
 
     // 사용자 id
-    val id: String? = null,
+    val id: String? = null, // 아이디를 저장함
 
     // 연결된 지갑 주소
-    val wallet_address: String? = null,
+    val wallet_address: String? = null, // 지갑 관련 값을 저장함
 
     // 사용자 닉네임
-    val nickname: String? = null,
+    val nickname: String? = null, // nickname 값을 저장함
 
     // 사용자 이메일
-    val email: String? = null
+    val email: String? = null // 이메일을 저장함
 )
 
 
@@ -265,11 +265,11 @@ data class MeResponse(
 
 // Retrofit은 이 interface를 보고
 // "아, 이런 API들이 있구나" 하고 실제 네트워크 코드를 자동 생성해줍니다.
-interface WalletApi {
+interface WalletApi { // WalletApi에서 꼭 만들어야 할 함수 규칙을 정함
 
     // @POST("/auth/wallet/nonce")
     // -> POST 방식으로 /auth/wallet/nonce 주소에 요청을 보냅니다.
-    @POST("/auth/wallet/nonce")
+    @POST("/auth/wallet/nonce") // 서버에 데이터를 보내는 API 주소를 적음
 
     // suspend fun
     // -> 코루틴에서 호출하기 위한 함수입니다.
@@ -280,22 +280,22 @@ interface WalletApi {
     //
     // : NonceResponse
     // -> 응답 결과를 NonceResponse 형태로 받겠다는 뜻
-    suspend fun issueWalletNonce(
+    suspend fun issueWalletNonce( // issueWalletNonce 함수를 선언함
 
         // 요청 body에 wallet_address 전달
-        @Body request: NonceRequest
+        @Body request: NonceRequest // 이 값을 서버 요청 본문에 넣는다는 표시
     ): NonceResponse
 
 
     // @POST("/auth/wallet/login")
     // -> 웹/공통 지갑 로그인 API입니다.
-    @POST("/auth/wallet/login")
+    @POST("/auth/wallet/login") // 서버에 데이터를 보내는 API 주소를 적음
 
     // walletLogin 함수는 지갑 로그인 API입니다.
-    suspend fun walletLogin(
+    suspend fun walletLogin( // 로그인 기능을 실행하는 함수 시작
 
         // 요청 body에 wallet_address, nonce, signature 전달
-        @Body request: WalletLoginRequest
+        @Body request: WalletLoginRequest // 이 값을 서버 요청 본문에 넣는다는 표시
 
         // 응답은 WalletLoginResponse로 받음
     ): WalletLoginResponse
@@ -304,20 +304,20 @@ interface WalletApi {
     // @POST("/auth/app/wallet/login")
     // -> 앱 전용 지갑 로그인 API입니다.
     // 백엔드에서 app 요청 여부를 체크하는 경우 이 엔드포인트를 사용합니다.
-    @POST("/auth/app/wallet/login")
-    suspend fun walletLoginApp(
-        @Header("X-Client-Type") clientType: String = "app",
-        @Body request: WalletLoginRequest
+    @POST("/auth/app/wallet/login") // 서버에 데이터를 보내는 API 주소를 적음
+    suspend fun walletLoginApp( // 로그인 기능을 실행하는 함수 시작
+        @Header("X-Client-Type") clientType: String = "app", // 이 값을 서버 요청 헤더에 넣는다는 표시
+        @Body request: WalletLoginRequest // 이 값을 서버 요청 본문에 넣는다는 표시
     ): WalletLoginResponse
 
 
     // @POST("/auth/app/refresh")
     // -> 앱 전용 토큰 재발급 API입니다.
     // access_token이 만료되었을 때 refresh_token으로 새 토큰을 발급받습니다.
-    @POST("/auth/app/refresh")
-    suspend fun refreshToken(
-        @Header("X-Client-Type") clientType: String = "app",
-        @Body request: RefreshTokenRequest
+    @POST("/auth/app/refresh") // 서버에 데이터를 보내는 API 주소를 적음
+    suspend fun refreshToken( // refreshToken 함수를 선언함
+        @Header("X-Client-Type") clientType: String = "app", // 이 값을 서버 요청 헤더에 넣는다는 표시
+        @Body request: RefreshTokenRequest // 이 값을 서버 요청 본문에 넣는다는 표시
     ): RefreshTokenResponse
 
 
@@ -327,17 +327,17 @@ interface WalletApi {
     //
     // 주의:
     // 백엔드 실제 경로가 /auth/me가 아니면 이 경로를 수정해야 합니다.
-    @GET("/me")
-    suspend fun getMe(): MeResponse
+    @GET("/me") // 서버에서 데이터를 가져오는 API 주소를 적음
+    suspend fun getMe(): MeResponse // 데이터를 불러오는 함수 시작
 
 
     // @POST("/wallet/link")
     // -> POST 방식으로 /wallet/link 주소에 요청을 보냅니다.
     // -> 이미 로그인된 사용자의 계정에 지갑을 연동하는 보호 API입니다.
-    @POST("/wallet/link")
+    @POST("/wallet/link") // 서버에 데이터를 보내는 API 주소를 적음
 
     // linkWallet 함수는 지갑 연결 API입니다.
-    suspend fun linkWallet(
+    suspend fun linkWallet( // linkWallet 함수를 선언함
 
         // @Header("Authorization")
         // -> HTTP 헤더의 Authorization 값으로 들어갑니다.
@@ -345,14 +345,14 @@ interface WalletApi {
         //
         // authorization: String
         // -> 함수 호출할 때 실제 로그인 JWT를 넘겨줍니다.
-        @Header("Authorization") authorization: String,
+        @Header("Authorization") authorization: String, // 이 값을 서버 요청 헤더에 넣는다는 표시
 
         // @Body
         // -> HTTP 요청 body에 request 객체를 JSON 형태로 넣어 보냅니다.
         //
         // request: WalletLinkRequest
         // -> wallet_address, nonce, signature가 들어있는 요청 데이터
-        @Body request: WalletLinkRequest
+        @Body request: WalletLinkRequest // 이 값을 서버 요청 본문에 넣는다는 표시
 
         // 함수 결과는 WalletLinkResponse로 받습니다.
     ): WalletLinkResponse
@@ -374,22 +374,22 @@ interface WalletApi {
 
     // 앱 로그아웃 API
     // 서버는 RefreshRequest JSON body를 기대합니다.
-    @Headers("Content-Type: application/json")
-    @POST("/auth/app/logout")
-    suspend fun logout(
-        @Header("X-Client-Type") clientType: String = "app",
-        @Body request: RefreshTokenRequest
+    @Headers("Content-Type: application/json") // 이 값을 서버 요청 헤더에 넣는다는 표시
+    @POST("/auth/app/logout") // 서버에 데이터를 보내는 API 주소를 적음
+    suspend fun logout( // logout 함수를 선언함
+        @Header("X-Client-Type") clientType: String = "app", // 이 값을 서버 요청 헤더에 넣는다는 표시
+        @Body request: RefreshTokenRequest // 이 값을 서버 요청 본문에 넣는다는 표시
     )
-    @HTTP(method = "DELETE", path = "/wallet/unlink", hasBody = true)
+    @HTTP(method = "DELETE", path = "/wallet/unlink", hasBody = true) // 이 코드에 특별한 역할을 붙이는 표시
 
     // unlinkWallet 함수는 지갑 연결 해제 API입니다.
-    suspend fun unlinkWallet(
+    suspend fun unlinkWallet( // unlinkWallet 함수를 선언함
 
         // Authorization 헤더에 인증 토큰 전달
-        @Header("Authorization") authorization: String,
+        @Header("Authorization") authorization: String, // 이 값을 서버 요청 헤더에 넣는다는 표시
 
         // 요청 body에 wallet_address, nonce, signature 전달
-        @Body request: WalletUnlinkRequest
+        @Body request: WalletUnlinkRequest // 이 값을 서버 요청 본문에 넣는다는 표시
 
         // 응답은 WalletUnlinkResponse로 받음
     ): WalletUnlinkResponse

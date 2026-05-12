@@ -1,4 +1,4 @@
-package com.ict.spentopia.feature.mypage
+package com.ict.spentopia.feature.mypage // 이 파일이 속한 패키지 위치를 적음
 
 // ------------------------------------------------------------
 // MyPageUiState.kt
@@ -21,10 +21,10 @@ package com.ict.spentopia.feature.mypage
 // - 지갑
 // 3개의 내부 탭을 가지고 있으므로 enum으로 분리함
 // ------------------------------------------------------------
-enum class MyPageTab {
-    PROFILE, // 프로필 탭
-    NOTIFICATION, // 알림 탭
-    WALLET // 지갑 탭
+enum class MyPageTab { // MyPageTab에서 고를 수 있는 값들을 묶음
+    PROFILE,
+    NOTIFICATION,
+    WALLET
 }
 
 // ------------------------------------------------------------
@@ -32,11 +32,11 @@ enum class MyPageTab {
 // ------------------------------------------------------------
 // 프로필 탭에서 보여줄 기본 회원 정보를 담는다.
 // ------------------------------------------------------------
-data class MemberInfoUi(
-    val name: String = "", // 이름
-    val nickname: String = "", // 닉네임
-    val email: String = "", // 이메일
-    val phone: String = "" // 전화번호
+data class MemberInfoUi( // MemberInfoUi 데이터를 묶어둘 클래스 시작
+    val name: String = "", // name 값을 저장함
+    val nickname: String = "", // nickname 값을 저장함
+    val email: String = "", // 이메일을 저장함
+    val phone: String = "" // phone 값을 저장함
 )
 
 // ------------------------------------------------------------
@@ -44,9 +44,9 @@ data class MemberInfoUi(
 // ------------------------------------------------------------
 // 카카오 / 네이버 / 구글 등의 연동 상태를 담는다.
 // ------------------------------------------------------------
-data class SocialAccountUi(
-    val serviceName: String = "", // 소셜 서비스 이름
-    val connected: Boolean = false // 연동 여부
+data class SocialAccountUi( // SocialAccountUi 데이터를 묶어둘 클래스 시작
+    val serviceName: String = "", // serviceName 값을 저장함
+    val connected: Boolean = false // connected 값을 저장함
 )
 
 // ------------------------------------------------------------
@@ -54,11 +54,11 @@ data class SocialAccountUi(
 // ------------------------------------------------------------
 // 알림 탭에서 사용하는 토글 상태를 담는다.
 // ------------------------------------------------------------
-data class NotificationSettingUi(
-    val budgetAlertEnabled: Boolean = true, // 예산 초과 알림 여부
-    val rewardAlertEnabled: Boolean = true, // 보상 획득 알림 여부
-    val streakReminderEnabled: Boolean = true, // 스트릭 리마인드 알림 여부
-    val marketingAlertEnabled: Boolean = true // 마케팅 알림 여부
+data class NotificationSettingUi( // NotificationSettingUi 데이터를 묶어둘 클래스 시작
+    val budgetAlertEnabled: Boolean = true, // 예산 관련 값을 저장함
+    val rewardAlertEnabled: Boolean = true, // rewardAlertEnabled 값을 저장함
+    val streakReminderEnabled: Boolean = true, // streakReminderEnabled 값을 저장함
+    val marketingAlertEnabled: Boolean = true // 마켓 관련 값을 저장함
 )
 
 // ------------------------------------------------------------
@@ -66,10 +66,10 @@ data class NotificationSettingUi(
 // ------------------------------------------------------------
 // 지갑 연결 여부와 지갑 표시 정보를 담는다.
 // ------------------------------------------------------------
-data class WalletUi(
-    val isConnected: Boolean = false, // 지갑 연결 여부
-    val walletAddress: String = "", // 지갑 주소
-    val walletProvider: String = "" // 지갑 종류
+data class WalletUi( // WalletUi 데이터를 묶어둘 클래스 시작
+    val isConnected: Boolean = false, // 연결됐는지 저장함
+    val walletAddress: String = "", // 지갑 주소를 저장함
+    val walletProvider: String = "" // 지갑 이름을 저장함
 )
 
 // ------------------------------------------------------------
@@ -77,14 +77,14 @@ data class WalletUi(
 // ------------------------------------------------------------
 // 상단 파란 프로필 카드에 보여줄 요약 정보를 담는다.
 // ------------------------------------------------------------
-data class ProfileSummaryUi(
-    val nickname: String = "", // 대표 닉네임
-    val realName: String = "", // 실명
-    val joinedDateText: String = "", // 가입일 텍스트
-    val streakText: String = "", // 연속 기록 텍스트
-    val sptBalanceText: String = "", // 보유 SPT 텍스트
-    val avatarCountText: String = "", // 보유 아바타 수 텍스트
-    val profileImageUri: String = "" // 프로필 이미지 uri
+data class ProfileSummaryUi( // ProfileSummaryUi 데이터를 묶어둘 클래스 시작
+    val nickname: String = "", // nickname 값을 저장함
+    val realName: String = "", // realName 값을 저장함
+    val joinedDateText: String = "", // joinedDateText 값을 저장함
+    val streakText: String = "", // streakText 값을 저장함
+    val sptBalanceText: String = "", // sptBalanceText 값을 저장함
+    val avatarCountText: String = "", // 아바타 관련 값을 저장함
+    val profileImageUri: String = "" // profileImageUri 값을 저장함
 )
 
 // ------------------------------------------------------------
@@ -92,12 +92,12 @@ data class ProfileSummaryUi(
 // ------------------------------------------------------------
 // MyPageScreen 전체에서 필요한 상태를 하나로 묶음
 // ------------------------------------------------------------
-data class MyPageUiState(
-    val selectedTab: MyPageTab = MyPageTab.PROFILE, // 현재 선택된 내부 탭
-    val profileSummary: ProfileSummaryUi = ProfileSummaryUi(), // 상단 프로필 요약 카드 정보
-    val memberInfo: MemberInfoUi = MemberInfoUi(), // 회원 정보
-    val socialAccounts: List<SocialAccountUi> = emptyList(), // 소셜 연동 목록
-    val notificationSetting: NotificationSettingUi = NotificationSettingUi(), // 알림 설정 상태
-    val walletUi: WalletUi = WalletUi(), // 지갑 상태
-    val isEditMode: Boolean = false // 수정 모드
+data class MyPageUiState( // MyPageUiState 데이터를 묶어둘 클래스 시작
+    val selectedTab: MyPageTab = MyPageTab.PROFILE, // selectedTab 값을 저장함
+    val profileSummary: ProfileSummaryUi = ProfileSummaryUi(), // profileSummary 값을 저장함
+    val memberInfo: MemberInfoUi = MemberInfoUi(), // memberInfo 값을 저장함
+    val socialAccounts: List<SocialAccountUi> = emptyList(), // socialAccounts 값을 저장함
+    val notificationSetting: NotificationSettingUi = NotificationSettingUi(), // notificationSetting 값을 저장함
+    val walletUi: WalletUi = WalletUi(), // 지갑 관련 값을 저장함
+    val isEditMode: Boolean = false // 수정 모드인지 저장함
 )

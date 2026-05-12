@@ -1,295 +1,295 @@
-package com.ict.spentopia.feature.budget
+package com.ict.spentopia.feature.budget // 이 파일이 속한 패키지 위치를 적음
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
-import com.ict.spentopia.data.remote.BudgetCategoryItem
-import com.ict.spentopia.data.remote.BudgetResponse
-import com.ict.spentopia.data.remote.CreateBudgetRequest
-import com.ict.spentopia.data.remote.RetrofitClient
-import com.ict.spentopia.data.remote.UpdateBudgetCategoriesRequest
-import com.ict.spentopia.data.remote.UpdateBudgetRequest
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import retrofit2.HttpException
-import java.util.Calendar
+import android.app.Application // 앱 전체 정보 타입을 가져옴
+import androidx.lifecycle.AndroidViewModel // AndroidViewModel 기능을 가져옴
+import androidx.lifecycle.viewModelScope // viewModelScope 기능을 가져옴
+import com.ict.spentopia.data.remote.BudgetCategoryItem // BudgetCategoryItem 기능을 가져옴
+import com.ict.spentopia.data.remote.BudgetResponse // BudgetResponse 기능을 가져옴
+import com.ict.spentopia.data.remote.CreateBudgetRequest // CreateBudgetRequest 기능을 가져옴
+import com.ict.spentopia.data.remote.RetrofitClient // RetrofitClient 기능을 가져옴
+import com.ict.spentopia.data.remote.UpdateBudgetCategoriesRequest // UpdateBudgetCategoriesRequest 기능을 가져옴
+import com.ict.spentopia.data.remote.UpdateBudgetRequest // UpdateBudgetRequest 기능을 가져옴
+import kotlinx.coroutines.flow.MutableStateFlow // 바뀌는 상태값 도구를 가져옴
+import kotlinx.coroutines.flow.StateFlow // 읽기 전용 상태값 도구를 가져옴
+import kotlinx.coroutines.flow.asStateFlow // asStateFlow 기능을 가져옴
+import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
+import retrofit2.HttpException // 서버 오류 타입을 가져옴
+import java.util.Calendar // Calendar 기능을 가져옴
 
 // 예산 설정 상태 관리 VM임
 // 수정값/불러오기/저장완료 상태 맡음
-class BudgetViewModel(application: Application) : AndroidViewModel(application) {
+class BudgetViewModel(application: Application) : AndroidViewModel(application) { // BudgetViewModel 기능을 묶어둔 클래스 시작
 
     // DataStore 인스턴스 생성
     // 예산 설정 저장용임
-    private val budgetDataStore = BudgetDataStore(application)
+    private val budgetDataStore = BudgetDataStore(application) // 예산 관련 값을 저장함
 
     // 현재 화면 예산 상태
-    private val _budgetState = MutableStateFlow(BudgetSettingsData())
-    val budgetState: StateFlow<BudgetSettingsData> = _budgetState.asStateFlow()
+    private val _budgetState = MutableStateFlow(BudgetSettingsData()) // 화면에서 바뀔 예산 관련 값을 저장함
+    val budgetState: StateFlow<BudgetSettingsData> = _budgetState.asStateFlow() // 화면에서 예산 관련 값을 읽을 수 있게 열어둠
 
     // 저장 완료 여부 상태
-    private val _saveSuccess = MutableStateFlow(false)
-    val saveSuccess: StateFlow<Boolean> = _saveSuccess.asStateFlow()
+    private val _saveSuccess = MutableStateFlow(false) // 화면에서 바뀔 저장 성공 여부를 저장함
+    val saveSuccess: StateFlow<Boolean> = _saveSuccess.asStateFlow() // 화면에서 저장 성공 여부를 읽을 수 있게 열어둠
 
-    private val _saveError = MutableStateFlow("")
-    val saveError: StateFlow<String> = _saveError.asStateFlow()
+    private val _saveError = MutableStateFlow("") // 화면에서 바뀔 오류 내용을 저장함
+    val saveError: StateFlow<String> = _saveError.asStateFlow() // 화면에서 오류 내용을 읽을 수 있게 열어둠
 
-    private val _aiPlanList = MutableStateFlow<List<BudgetPlanUiData>>(emptyList())
-    val aiPlanList: StateFlow<List<BudgetPlanUiData>> = _aiPlanList.asStateFlow()
+    private val _aiPlanList = MutableStateFlow<List<BudgetPlanUiData>>(emptyList()) // 화면에서 바뀔 AI 추천 플랜 목록을 저장함
+    val aiPlanList: StateFlow<List<BudgetPlanUiData>> = _aiPlanList.asStateFlow() // 화면에서 AI 추천 플랜 목록을 읽을 수 있게 열어둠
 
-    private val _isAiPlanLoading = MutableStateFlow(false)
-    val isAiPlanLoading: StateFlow<Boolean> = _isAiPlanLoading.asStateFlow()
+    private val _isAiPlanLoading = MutableStateFlow(false) // 화면에서 바뀔 로딩 상태를 저장함
+    val isAiPlanLoading: StateFlow<Boolean> = _isAiPlanLoading.asStateFlow() // 화면에서 로딩 상태를 읽을 수 있게 열어둠
 
-    private val _aiPlanError = MutableStateFlow("")
-    val aiPlanError: StateFlow<String> = _aiPlanError.asStateFlow()
+    private val _aiPlanError = MutableStateFlow("") // 화면에서 바뀔 오류 내용을 저장함
+    val aiPlanError: StateFlow<String> = _aiPlanError.asStateFlow() // 화면에서 오류 내용을 읽을 수 있게 열어둠
 
-    private var currentBudgetId: String? = null
-    private var lastAiPlanRequestSettings: BudgetSettingsData? = null
+    private var currentBudgetId: String? = null // 나중에 바뀔 수 있는 예산 관련 값을 저장함
+    private var lastAiPlanRequestSettings: BudgetSettingsData? = null // 나중에 바뀔 수 있는 마지막 AI 추천 요청값을 저장함
 
-    init {
-        loadBudgetSettings()
-        syncCurrentMonthBudgetFromBackend()
+    init { // 이 블록 안의 내용이 시작됨
+        loadBudgetSettings() // 예산 설정을 불러옴
+        syncCurrentMonthBudgetFromBackend() // 이번 달 예산을 서버에서 맞춰 가져옴
     }
 
     // 저장값 불러옴
     // DataStore flow 계속 구독함
-    private fun loadBudgetSettings() {
-        viewModelScope.launch {
+    private fun loadBudgetSettings() { // 데이터를 불러오는 함수 시작
+        viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
             // DataStore는 값이 바뀌면 Flow로 새 값을 다시 흘려줍니다.
             // 그래서 여기서는 계속 구독하면서 화면 상태를 최신으로 유지합니다.
             budgetDataStore.budgetSettingsFlow.collect { savedSettings ->
-                _budgetState.value = savedSettings
+                _budgetState.value = savedSettings // 예산 관련 값을 정해줌
             }
         }
     }
 
     // 월 수입 변경
-    fun updateMonthlyIncome(value: Long) {
-        _budgetState.value = _budgetState.value.copy(monthlyIncome = value.coerceAtLeast(0L))
+    fun updateMonthlyIncome(value: Long) { // 데이터를 수정하는 함수 시작
+        _budgetState.value = _budgetState.value.copy(monthlyIncome = value.coerceAtLeast(0L)) // 예산 관련 값을 정해줌
     }
 
     // 저축 목표 변경
-    fun updateSavingGoal(value: Long) {
-        _budgetState.value = _budgetState.value.copy(savingGoal = value.coerceAtLeast(0L))
+    fun updateSavingGoal(value: Long) { // 데이터를 수정하는 함수 시작
+        _budgetState.value = _budgetState.value.copy(savingGoal = value.coerceAtLeast(0L)) // 예산 관련 값을 정해줌
     }
 
     // 식비 변경
-    fun updateFoodBudget(value: Long) {
-        _budgetState.value = _budgetState.value.copy(foodBudget = value.coerceAtLeast(0L))
+    fun updateFoodBudget(value: Long) { // 데이터를 수정하는 함수 시작
+        _budgetState.value = _budgetState.value.copy(foodBudget = value.coerceAtLeast(0L)) // 예산 관련 값을 정해줌
     }
 
     // 교통비 변경
-    fun updateTransportBudget(value: Long) {
-        _budgetState.value = _budgetState.value.copy(transportBudget = value.coerceAtLeast(0L))
+    fun updateTransportBudget(value: Long) { // 데이터를 수정하는 함수 시작
+        _budgetState.value = _budgetState.value.copy(transportBudget = value.coerceAtLeast(0L)) // 예산 관련 값을 정해줌
     }
 
     // 생활비 변경
-    fun updateLivingBudget(value: Long) {
-        _budgetState.value = _budgetState.value.copy(livingBudget = value.coerceAtLeast(0L))
+    fun updateLivingBudget(value: Long) { // 데이터를 수정하는 함수 시작
+        _budgetState.value = _budgetState.value.copy(livingBudget = value.coerceAtLeast(0L)) // 예산 관련 값을 정해줌
     }
 
     // 여가/취미 변경
-    fun updateHobbyBudget(value: Long) {
-        _budgetState.value = _budgetState.value.copy(hobbyBudget = value.coerceAtLeast(0L))
+    fun updateHobbyBudget(value: Long) { // 데이터를 수정하는 함수 시작
+        _budgetState.value = _budgetState.value.copy(hobbyBudget = value.coerceAtLeast(0L)) // 예산 관련 값을 정해줌
     }
 
     // 추천 플랜 적용
-    fun applyPlan(plan: BudgetPlanUiData) {
-        _budgetState.value = _budgetState.value.copy(
-            monthlyIncome = plan.monthlyBudget,
-            savingGoal = plan.savingGoal,
-            foodBudget = plan.food,
-            transportBudget = plan.transport,
-            livingBudget = plan.living,
-            hobbyBudget = plan.hobby
+    fun applyPlan(plan: BudgetPlanUiData) { // applyPlan 함수를 선언함
+        _budgetState.value = _budgetState.value.copy( // 예산 관련 값을 정해줌
+            monthlyIncome = plan.monthlyBudget, // 월 수입을 정해줌
+            savingGoal = plan.savingGoal, // 저축 목표를 정해줌
+            foodBudget = plan.food, // 식비 예산을 정해줌
+            transportBudget = plan.transport, // 교통비 예산을 정해줌
+            livingBudget = plan.living, // 생활비 예산을 정해줌
+            hobbyBudget = plan.hobby // 취미 예산을 정해줌
         )
     }
 
     // 현재 설정 저장
     // 슬라이더/추천 플랜 저장용
-    fun saveBudgetSettings() { // 함수 선언
-        viewModelScope.launch { //비동기 작업 시작 저장 작업 시간이 걸릴수 있으니  앱화면 멈추지 않게 따로 실행
-            val currentSettings = _budgetState.value
+    fun saveBudgetSettings() { // 데이터를 저장하는 함수 시작
+        viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
+            val currentSettings = _budgetState.value // 현재 예산 설정값을 저장함
             // 먼저 로컬 DataStore에 저장해서 앱 재실행 후에도 값이 남게 합니다.
-            budgetDataStore.saveBudgetSettings(currentSettings) // 실제  현재 예상 상태 저장
+            budgetDataStore.saveBudgetSettings(currentSettings)
             //_ budgetState.value 지금 화면이나 ViewModeldl  들고 있는 예산 설정 값이고 그값을 budgetDataStore 에 저장함
 
-            try {
+            try { // 오류가 날 수 있는 코드를 먼저 시도함
                 // 그 다음 서버 예산 API에도 같은 값을 동기화합니다.
-                upsertBackendBudget(currentSettings)
-                _saveError.value = ""
-                _saveSuccess.value = true// 저장이 끝나면 저장 성공 상태를 true 로 바꾸는 부분
-            } catch (e: HttpException) {
-                _saveError.value = when (e.code()) {
+                upsertBackendBudget(currentSettings) // upsert Backend Budget 함수를 실행함
+                _saveError.value = "" // 오류 내용을 정해줌
+                _saveSuccess.value = true // saveSuccess.value 값을 정해줌
+            } catch (e: HttpException) { // 이 블록 안의 내용이 시작됨
+                _saveError.value = when (e.code()) { // 오류 내용을 정해줌
                     401 -> "로그인이 만료되었습니다. 다시 로그인해주세요."
-                    else -> "예산 저장에 실패했습니다. 잠시 후 다시 시도해주세요. (${e.code()})"
+                    else -> "예산 저장에 실패했습니다. 잠시 후 다시 시도해주세요. (${e.code()})" // 위 조건이 아니면 이쪽을 실행함
                 }
-            } catch (e: Exception) {
-                _saveError.value = "예산 저장에 실패했습니다. 잠시 후 다시 시도해주세요."
+            } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
+                _saveError.value = "예산 저장에 실패했습니다. 잠시 후 다시 시도해주세요." // 오류 내용을 정해줌
             }
         }
     }
 
     // 저장 완료 상태 초기화
-    fun resetSaveSuccess() {
-        _saveSuccess.value = false
+    fun resetSaveSuccess() { // 데이터를 저장하는 함수 시작
+        _saveSuccess.value = false // saveSuccess.value 값을 정해줌
     }
 
-    fun resetSaveError() {
-        _saveError.value = ""
+    fun resetSaveError() { // 데이터를 저장하는 함수 시작
+        _saveError.value = "" // 오류 내용을 정해줌
     }
 
-    fun requestAiRecommendedPlans() {
-        if (_isAiPlanLoading.value) return
+    fun requestAiRecommendedPlans() { // requestAiRecommendedPlans 함수를 선언함
+        if (_isAiPlanLoading.value) return // 조건이 맞는지 확인함
 
-        val requestSettings = _budgetState.value
-        if (_aiPlanList.value.isNotEmpty() && lastAiPlanRequestSettings == requestSettings) {
+        val requestSettings = _budgetState.value // requestSettings 값을 저장함
+        if (_aiPlanList.value.isNotEmpty() && lastAiPlanRequestSettings == requestSettings) { // 조건이 맞는지 확인함
             return
         }
 
-        viewModelScope.launch {
+        viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
             // AI 추천은 현재 예산 상태를 서버에 먼저 맞춰둔 다음 요청합니다.
             // 그래야 서버가 최신 예산 기준으로 플랜을 계산할 수 있습니다.
-            _isAiPlanLoading.value = true
-            _aiPlanError.value = ""
+            _isAiPlanLoading.value = true // 로딩 상태를 정해줌
+            _aiPlanError.value = "" // 오류 내용을 정해줌
 
-            try {
-                val budgetId = upsertBackendBudget(requestSettings)
-                val response = RetrofitClient.budgetApi.generateAiPlan(budgetId)
-                _aiPlanList.value = response.plans.map { plan ->
-                    BudgetPlanUiData(
-                        title = plan.name,
-                        description = plan.description,
-                        monthlyBudget = plan.budget,
-                        savingGoal = plan.savings,
-                        food = plan.food,
-                        transport = plan.transport,
-                        living = plan.living,
-                        hobby = plan.leisure,
-                        saving = plan.savings
+            try { // 오류가 날 수 있는 코드를 먼저 시도함
+                val budgetId = upsertBackendBudget(requestSettings) // 예산 관련 값을 저장함
+                val response = RetrofitClient.budgetApi.generateAiPlan(budgetId) // 서버 응답을 저장함
+                _aiPlanList.value = response.plans.map { plan -> // aiPlanList.value 값을 정해줌
+                    BudgetPlanUiData( // Budget Plan Ui Data 함수를 실행함
+                        title = plan.name, // 제목을 정해줌
+                        description = plan.description, // description 값을 정해줌
+                        monthlyBudget = plan.budget, // 예산 관련 값을 정해줌
+                        savingGoal = plan.savings, // 저축 목표를 정해줌
+                        food = plan.food, // food 값을 정해줌
+                        transport = plan.transport, // transport 값을 정해줌
+                        living = plan.living, // living 값을 정해줌
+                        hobby = plan.leisure, // hobby 값을 정해줌
+                        saving = plan.savings // saving 값을 정해줌
                     )
                 }
-                lastAiPlanRequestSettings = requestSettings
-                _aiPlanError.value = if (response.plans.isEmpty()) {
+                lastAiPlanRequestSettings = requestSettings // requestSettings 값을 lastAiPlanRequestSettings 값에 넣음
+                _aiPlanError.value = if (response.plans.isEmpty()) { // 오류 내용을 정해줌
                     "AI 추천 플랜이 비어 있습니다."
-                } else {
+                } else { // 이 블록 안의 내용이 시작됨
                     ""
                 }
-            } catch (e: HttpException) {
-                _aiPlanError.value = when (e.code()) {
+            } catch (e: HttpException) { // 이 블록 안의 내용이 시작됨
+                _aiPlanError.value = when (e.code()) { // 오류 내용을 정해줌
                     401 -> "로그인이 만료되었습니다. 다시 로그인해주세요."
                     404 -> "예산 정보를 찾지 못했습니다. 설정 저장 후 다시 시도해주세요."
                     500, 502 -> "AI 추천 플랜을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
-                    else -> "AI 추천 플랜 요청에 실패했습니다. (${e.code()})"
+                    else -> "AI 추천 플랜 요청에 실패했습니다. (${e.code()})" // 위 조건이 아니면 이쪽을 실행함
                 }
-            } catch (e: Exception) {
-                _aiPlanError.value = "AI 추천 플랜 요청에 실패했습니다. 잠시 후 다시 시도해주세요."
-            } finally {
-                _isAiPlanLoading.value = false
+            } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
+                _aiPlanError.value = "AI 추천 플랜 요청에 실패했습니다. 잠시 후 다시 시도해주세요." // 오류 내용을 정해줌
+            } finally { // 이 블록 안의 내용이 시작됨
+                _isAiPlanLoading.value = false // 로딩 상태를 정해줌
             }
         }
     }
 
-    private fun syncCurrentMonthBudgetFromBackend() {
-        viewModelScope.launch {
-            try {
+    private fun syncCurrentMonthBudgetFromBackend() { // syncCurrentMonthBudgetFromBackend 함수를 선언함
+        viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
+            try { // 오류가 날 수 있는 코드를 먼저 시도함
                 // 현재 연/월의 서버 예산을 먼저 읽어와서
                 // 앱 첫 화면이 서버 상태와 비슷하게 시작되도록 맞춥니다.
-                val (year, month) = currentYearMonth()
-                val response = RetrofitClient.budgetApi.getBudget(year = year, month = month)
-                currentBudgetId = response.id
+                val (year, month) = currentYearMonth() // month 값을 정해줌
+                val response = RetrofitClient.budgetApi.getBudget(year = year, month = month) // 서버 응답을 저장함
+                currentBudgetId = response.id // 예산 관련 값을 정해줌
 
-                val syncedSettings = response.toBudgetSettingsData(_budgetState.value)
-                _budgetState.value = syncedSettings
+                val syncedSettings = response.toBudgetSettingsData(_budgetState.value) // syncedSettings 값을 저장함
+                _budgetState.value = syncedSettings // 예산 관련 값을 정해줌
                 budgetDataStore.saveBudgetSettings(syncedSettings)
-            } catch (e: HttpException) {
-                if (e.code() != 404 && e.code() != 401) {
-                    _saveError.value = "예산 정보를 불러오지 못했습니다. (${e.code()})"
+            } catch (e: HttpException) { // 이 블록 안의 내용이 시작됨
+                if (e.code() != 404 && e.code() != 401) { // 조건이 맞는지 확인함
+                    _saveError.value = "예산 정보를 불러오지 못했습니다. (${e.code()})" // 오류 내용을 정해줌
                 }
-            } catch (_: Exception) {
+            } catch (_: Exception) { // 이 블록 안의 내용이 시작됨
                 // 예산 화면은 로컬 설정으로도 동작해야 하므로 초기 조회 실패는 조용히 넘깁니다.
             }
         }
     }
 
-    private suspend fun upsertBackendBudget(settings: BudgetSettingsData): String {
-        val (year, month) = currentYearMonth()
+    private suspend fun upsertBackendBudget(settings: BudgetSettingsData): String { // upsertBackendBudget 함수를 선언함
+        val (year, month) = currentYearMonth() // month 값을 정해줌
         // 현재 월 예산이 아직 없으면 생성하고, 있으면 그 값을 수정합니다.
-        val budgetId = currentBudgetId ?: findOrCreateBudget(year, month, settings).id.also {
-            currentBudgetId = it
+        val budgetId = currentBudgetId ?: findOrCreateBudget(year, month, settings).id.also { // 예산 관련 값을 저장함
+            currentBudgetId = it // it 값을 예산 관련 값에 넣음
         }
 
-        RetrofitClient.budgetApi.updateBudget(
-            budgetId = budgetId,
-            request = UpdateBudgetRequest(
-                total_budget = settings.monthlyIncome,
-                savings_goal = settings.savingGoal
+        RetrofitClient.budgetApi.updateBudget( // 서버 통신 도구를 설정함
+            budgetId = budgetId, // 예산 관련 값을 예산 관련 값에 넣음
+            request = UpdateBudgetRequest( // 서버 요청값을 정해줌
+                total_budget = settings.monthlyIncome, // 예산 관련 값을 정해줌
+                savings_goal = settings.savingGoal // savings_goal 값을 정해줌
             )
         )
 
-        RetrofitClient.budgetApi.updateCategories(
-            budgetId = budgetId,
-            request = UpdateBudgetCategoriesRequest(
-                categories = settings.toBudgetCategoryItems()
+        RetrofitClient.budgetApi.updateCategories( // 서버 통신 도구를 설정함
+            budgetId = budgetId, // 예산 관련 값을 예산 관련 값에 넣음
+            request = UpdateBudgetCategoriesRequest( // 서버 요청값을 정해줌
+                categories = settings.toBudgetCategoryItems() // categories 값을 정해줌
             )
         )
 
-        return budgetId
+        return budgetId // 이 값을 함수 결과로 돌려줌
     }
 
-    private suspend fun findOrCreateBudget(
-        year: Int,
-        month: Int,
-        settings: BudgetSettingsData
-    ): BudgetResponse {
-        return try {
-            RetrofitClient.budgetApi.getBudget(year = year, month = month)
-        } catch (e: HttpException) {
-            if (e.code() != 404) throw e
+    private suspend fun findOrCreateBudget( // 데이터를 저장하는 함수 시작
+        year: Int, // year 값을 받음
+        month: Int, // month 값을 받음
+        settings: BudgetSettingsData // settings 값을 받음
+    ): BudgetResponse { // 이 블록 안의 내용이 시작됨
+        return try { // 이 값을 함수 결과로 돌려줌
+            RetrofitClient.budgetApi.getBudget(year = year, month = month) // 서버 통신 도구를 설정함
+        } catch (e: HttpException) { // 이 블록 안의 내용이 시작됨
+            if (e.code() != 404) throw e // 조건이 맞는지 확인함
 
-            RetrofitClient.budgetApi.createBudget(
-                CreateBudgetRequest(
-                    year = year,
-                    month = month,
-                    total_budget = settings.monthlyIncome,
-                    savings_goal = settings.savingGoal
+            RetrofitClient.budgetApi.createBudget( // 서버 통신 도구를 설정함
+                CreateBudgetRequest( // 데이터를 저장하는 함수를 실행함
+                    year = year, // year 값을 year 값에 넣음
+                    month = month, // month 값을 month 값에 넣음
+                    total_budget = settings.monthlyIncome, // 예산 관련 값을 정해줌
+                    savings_goal = settings.savingGoal // savings_goal 값을 정해줌
                 )
             )
         }
     }
 
-    private fun currentYearMonth(): Pair<Int, Int> {
-        val calendar = Calendar.getInstance()
-        return calendar.get(Calendar.YEAR) to calendar.get(Calendar.MONTH) + 1
+    private fun currentYearMonth(): Pair<Int, Int> { // currentYearMonth 함수를 선언함
+        val calendar = Calendar.getInstance() // calendar 값을 저장함
+        return calendar.get(Calendar.YEAR) to calendar.get(Calendar.MONTH) + 1 // 이 값을 함수 결과로 돌려줌
     }
 
-    private fun BudgetSettingsData.toBudgetCategoryItems(): List<BudgetCategoryItem> {
-        return listOf(
-            BudgetCategoryItem(category = "food", allocated_amount = foodBudget),
-            BudgetCategoryItem(category = "transport", allocated_amount = transportBudget),
-            BudgetCategoryItem(category = "living", allocated_amount = livingBudget),
-            BudgetCategoryItem(category = "leisure", allocated_amount = hobbyBudget)
+    private fun BudgetSettingsData.toBudgetCategoryItems(): List<BudgetCategoryItem> { // BudgetSettingsData 함수를 선언함
+        return listOf( // 이 값을 함수 결과로 돌려줌
+            BudgetCategoryItem(category = "food", allocated_amount = foodBudget), // 예산 관련 값을 정해줌
+            BudgetCategoryItem(category = "transport", allocated_amount = transportBudget), // 예산 관련 값을 정해줌
+            BudgetCategoryItem(category = "living", allocated_amount = livingBudget), // 예산 관련 값을 정해줌
+            BudgetCategoryItem(category = "leisure", allocated_amount = hobbyBudget) // 예산 관련 값을 정해줌
         )
     }
 
-    private fun BudgetResponse.toBudgetSettingsData(fallback: BudgetSettingsData): BudgetSettingsData {
-        fun amountOf(vararg names: String, fallbackValue: Long): Long {
-            return categories
+    private fun BudgetResponse.toBudgetSettingsData(fallback: BudgetSettingsData): BudgetSettingsData { // BudgetResponse 함수를 선언함
+        fun amountOf(vararg names: String, fallbackValue: Long): Long { // amountOf 함수를 선언함
+            return categories // 이 값을 함수 결과로 돌려줌
                 .firstOrNull { item ->
-                    names.any { name -> item.category.equals(name, ignoreCase = true) }
+                    names.any { name -> item.category.equals(name, ignoreCase = true) } // ignoreCase 값을 정해줌
                 }
                 ?.allocated_amount
                 ?: fallbackValue
         }
 
-        return BudgetSettingsData(
-            monthlyIncome = total_budget,
-            savingGoal = savings_goal ?: fallback.savingGoal,
-            foodBudget = amountOf("food", "식비", fallbackValue = fallback.foodBudget),
-            transportBudget = amountOf("transport", "교통", "교통비", fallbackValue = fallback.transportBudget),
-            livingBudget = amountOf("living", "생활", "생활비", fallbackValue = fallback.livingBudget),
-            hobbyBudget = amountOf("leisure", "hobby", "여가", "취미", "여가/취미", fallbackValue = fallback.hobbyBudget)
+        return BudgetSettingsData( // 이 값을 함수 결과로 돌려줌
+            monthlyIncome = total_budget, // 예산 관련 값을 월 수입에 넣음
+            savingGoal = savings_goal ?: fallback.savingGoal, // 저축 목표를 정해줌
+            foodBudget = amountOf("food", "식비", fallbackValue = fallback.foodBudget), // 식비 예산을 정해줌
+            transportBudget = amountOf("transport", "교통", "교통비", fallbackValue = fallback.transportBudget), // 교통비 예산을 정해줌
+            livingBudget = amountOf("living", "생활", "생활비", fallbackValue = fallback.livingBudget), // 생활비 예산을 정해줌
+            hobbyBudget = amountOf("leisure", "hobby", "여가", "취미", "여가/취미", fallbackValue = fallback.hobbyBudget) // 취미 예산을 정해줌
         )
     }
 }

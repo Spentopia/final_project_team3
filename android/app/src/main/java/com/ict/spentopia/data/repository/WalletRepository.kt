@@ -1,16 +1,16 @@
-package com.ict.spentopia.data.repository
+package com.ict.spentopia.data.repository // 이 파일이 속한 패키지 위치를 적음
 
 // Flow import 입니다.
-import com.ict.spentopia.data.remote.NonceResponse
-import com.ict.spentopia.data.remote.WalletLinkResponse
-import com.ict.spentopia.data.remote.WalletLoginResponse
-import com.ict.spentopia.data.remote.WalletUnlinkResponse
-import kotlinx.coroutines.flow.Flow
+import com.ict.spentopia.data.remote.NonceResponse // NonceResponse 기능을 가져옴
+import com.ict.spentopia.data.remote.WalletLinkResponse // WalletLinkResponse 기능을 가져옴
+import com.ict.spentopia.data.remote.WalletLoginResponse // WalletLoginResponse 기능을 가져옴
+import com.ict.spentopia.data.remote.WalletUnlinkResponse // WalletUnlinkResponse 기능을 가져옴
+import kotlinx.coroutines.flow.Flow // Flow 기능을 가져옴
 
-interface WalletRepository {
+interface WalletRepository { // WalletRepository에서 꼭 만들어야 할 함수 규칙을 정함
 
     // 지갑 주소와 지갑 종류를 저장합니다.
-    suspend fun saveWallet(address: String, provider: String)
+    suspend fun saveWallet(address: String, provider: String) // 데이터를 저장하는 함수 시작
     /*  상세 설명:
 
  사용자가 로그인하거나 지갑을 연결했을 때, 그 지갑의 **주소(address)**와 어떤 서비스(메타마스크, 카이카스 등)인지 나타내는 **종류(provider)**를 넘겨받아 영구적으로 저장합니다.
@@ -18,20 +18,20 @@ interface WalletRepository {
    suspend 키워드가 붙은 이유는 저장 과정에서 I/O 작업(파일 쓰기 등)이 발생할 수 있어, 앱의 메인 화면이 멈추지 않게 비동기적으로 실행하기 위함입니다. */
 
     // 저장된 지갑 주소를 반환합니다.
-    fun getWalletAddress(): Flow<String?>
+    fun getWalletAddress(): Flow<String?> // 데이터를 불러오는 함수 시작
     /*   기능: 저장된 지갑 주소를 실시간으로 관찰합니다.
  상세 설명:
     Flow를 반환하기 때문에, 데이터가 변경될 때마다 앱 화면에 자동으로 바뀐 값을 알려줄 수 있습니다.
    반환 타입이 String?인 이유는 저장된 주소가 없을 경우 null을 반환할 수 있기 때문입니다*/
 
     // 저장된 지갑 종류를 반환합니다.
-    fun getWalletProvider(): Flow<String?>
+    fun getWalletProvider(): Flow<String?> // 데이터를 불러오는 함수 시작
 
     // 저장된 지갑 정보를 삭제합니다.
-    suspend fun clearWallet()
+    suspend fun clearWallet() // clearWallet 함수를 선언함
 
     // 지갑 인증용 nonce를 발급받습니다.
-    suspend fun issueWalletNonce(walletAddress: String): NonceResponse
+    suspend fun issueWalletNonce(walletAddress: String): NonceResponse // issueWalletNonce 함수를 선언함
     /*
     상세 설명:
 
@@ -51,18 +51,18 @@ interface WalletRepository {
 
 
     // 로그인된 계정에 지갑을 연동합니다.
-    suspend fun linkWallet(
-        token: String,
-        walletAddress: String,
-        nonce: String,
-        signature: String
+    suspend fun linkWallet( // linkWallet 함수를 선언함
+        token: String, // 토큰을 받음
+        walletAddress: String, // 지갑 주소를 받음
+        nonce: String, // 서명용 난수를 받음
+        signature: String // 지갑 서명값을 받음
     ): WalletLinkResponse
 
 
-    suspend fun walletLoginApp(
-        walletAddress: String,
-        nonce: String,
-        signature: String
+    suspend fun walletLoginApp( // 로그인 기능을 실행하는 함수 시작
+        walletAddress: String, // 지갑 주소를 받음
+        nonce: String, // 서명용 난수를 받음
+        signature: String // 지갑 서명값을 받음
     ): WalletLoginResponse
     /*
     상세 설명:
@@ -77,11 +77,11 @@ interface WalletRepository {
     */
 
     // 로그인된 계정에서 지갑 연동을 해제합니다.
-    suspend fun unlinkWallet(
-        token: String,
-        walletAddress: String,
-        nonce: String,
-        signature: String
+    suspend fun unlinkWallet( // unlinkWallet 함수를 선언함
+        token: String, // 토큰을 받음
+        walletAddress: String, // 지갑 주소를 받음
+        nonce: String, // 서명용 난수를 받음
+        signature: String // 지갑 서명값을 받음
     ): WalletUnlinkResponse
 
 

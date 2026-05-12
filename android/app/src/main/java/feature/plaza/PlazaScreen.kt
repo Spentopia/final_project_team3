@@ -1,77 +1,77 @@
-package com.example.spentopia.feature.plaza
+package com.example.spentopia.feature.plaza // 이 파일이 속한 패키지 위치를 적음
 
 // 광장 화면임
 // 이벤트/길드/미니게임 허브
 
-import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Campaign
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.EmojiEvents
-import androidx.compose.material.icons.outlined.Extension
-import androidx.compose.material.icons.outlined.Games
-import androidx.compose.material.icons.outlined.Groups
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.Star
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
+import androidx.compose.foundation.BorderStroke // BorderStroke 기능을 가져옴
+import androidx.compose.foundation.background // background 기능을 가져옴
+import androidx.compose.foundation.border // border 기능을 가져옴
+import androidx.compose.foundation.isSystemInDarkTheme // isSystemInDarkTheme 기능을 가져옴
+import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
+import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Row // 가로 배치 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Spacer // Spacer 기능을 가져옴
+import androidx.compose.foundation.layout.fillMaxSize // fillMaxSize 기능을 가져옴
+import androidx.compose.foundation.layout.fillMaxWidth // fillMaxWidth 기능을 가져옴
+import androidx.compose.foundation.layout.height // height 기능을 가져옴
+import androidx.compose.foundation.layout.PaddingValues // PaddingValues 기능을 가져옴
+import androidx.compose.foundation.layout.padding // padding 기능을 가져옴
+import androidx.compose.foundation.layout.size // size 기능을 가져옴
+import androidx.compose.foundation.layout.width // width 기능을 가져옴
+import androidx.compose.foundation.lazy.LazyColumn // 세로 스크롤 목록을 가져옴
+import androidx.compose.foundation.shape.CircleShape // CircleShape 기능을 가져옴
+import androidx.compose.foundation.shape.RoundedCornerShape // RoundedCornerShape 기능을 가져옴
+import androidx.compose.material.icons.Icons // Icons 기능을 가져옴
+import androidx.compose.material.icons.outlined.Campaign // Campaign 기능을 가져옴
+import androidx.compose.material.icons.outlined.ChatBubbleOutline // ChatBubbleOutline 기능을 가져옴
+import androidx.compose.material.icons.outlined.EmojiEvents // EmojiEvents 기능을 가져옴
+import androidx.compose.material.icons.outlined.Extension // Extension 기능을 가져옴
+import androidx.compose.material.icons.outlined.Games // Games 기능을 가져옴
+import androidx.compose.material.icons.outlined.Groups // Groups 기능을 가져옴
+import androidx.compose.material.icons.outlined.Person // Person 기능을 가져옴
+import androidx.compose.material.icons.outlined.PlayArrow // PlayArrow 기능을 가져옴
+import androidx.compose.material.icons.outlined.Star // Star 기능을 가져옴
+import androidx.compose.material3.Button // 버튼 컴포넌트를 가져옴
+import androidx.compose.material3.ButtonDefaults // ButtonDefaults 기능을 가져옴
+import androidx.compose.material3.Card // Card 기능을 가져옴
+import androidx.compose.material3.CardDefaults // CardDefaults 기능을 가져옴
+import androidx.compose.material3.Icon // 아이콘 표시 컴포넌트를 가져옴
+import androidx.compose.material3.MaterialTheme // MaterialTheme 기능을 가져옴
+import androidx.compose.material3.Surface // Surface 기능을 가져옴
+import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
+import androidx.compose.runtime.Composable // Compose 화면 함수 표시를 가져옴
+import androidx.compose.ui.Alignment // Alignment 기능을 가져옴
+import androidx.compose.ui.Modifier // UI 크기랑 여백 설정 도구를 가져옴
+import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
+import androidx.compose.ui.platform.LocalContext // LocalContext 기능을 가져옴
+import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
+import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 
-@Composable
-fun PlazaScreen(
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun PlazaScreen( // PlazaScreen 함수를 선언함
+    modifier: Modifier = Modifier // modifier 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val context = LocalContext.current // 현재 화면 정보를 저장함
 
-    LazyColumn(
-        modifier = modifier
+    LazyColumn( // 안쪽 UI를 세로로 배치함
+        modifier = modifier // modifier 값을 modifier 값에 넣음
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item { Spacer(modifier = Modifier.height(8.dp)) }
+            .padding(horizontal = 16.dp), // .padding(horizontal 값을 정해줌
+        verticalArrangement = Arrangement.spacedBy(16.dp) // verticalArrangement 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        item { Spacer(modifier = Modifier.height(8.dp)) } // UI 크기나 여백 같은 모양을 정함
 
-        item {
-            PlazaHeaderSection()
+        item { // 이 블록 안의 내용이 시작됨
+            PlazaHeaderSection() // Plaza Header Section 함수를 실행함
         }
 
-        item {
-            PlazaHeroCard(
-                onEnterClick = {
-                    Toast.makeText(
+        item { // 이 블록 안의 내용이 시작됨
+            PlazaHeroCard( // 내용을 카드 모양으로 묶어서 보여줌
+                onEnterClick = { // onEnterClick 때 실행할 함수를 정해줌
+                    Toast.makeText( // 화면에 글자를 보여줌
                         context,
                         "모바일에서는 광장 기능을 이용할 수 없습니다.",
                         Toast.LENGTH_SHORT
@@ -80,160 +80,160 @@ fun PlazaScreen(
             )
         }
 
-        item {
-            PlazaFeatureCard()
+        item { // 이 블록 안의 내용이 시작됨
+            PlazaFeatureCard() // 내용을 카드 모양으로 묶어서 보여줌
         }
 
-        item {
-            PlazaRequirementCard()
+        item { // 이 블록 안의 내용이 시작됨
+            PlazaRequirementCard() // 내용을 카드 모양으로 묶어서 보여줌
         }
 
-        item {
-            PlazaOnlineUsersCard()
+        item { // 이 블록 안의 내용이 시작됨
+            PlazaOnlineUsersCard() // 내용을 카드 모양으로 묶어서 보여줌
         }
 
-        item {
-            PlazaTipsCard()
+        item { // 이 블록 안의 내용이 시작됨
+            PlazaTipsCard() // 내용을 카드 모양으로 묶어서 보여줌
         }
 
-        item {
-            PlazaUpcomingCard()
+        item { // 이 블록 안의 내용이 시작됨
+            PlazaUpcomingCard() // 내용을 카드 모양으로 묶어서 보여줌
         }
 
-        item {
-            MobileNoticeCard()
+        item { // 이 블록 안의 내용이 시작됨
+            MobileNoticeCard() // 내용을 카드 모양으로 묶어서 보여줌
         }
 
-        item { Spacer(modifier = Modifier.height(24.dp)) }
+        item { Spacer(modifier = Modifier.height(24.dp)) } // UI 크기나 여백 같은 모양을 정함
     }
 }
 
-@Composable
-private fun PlazaHeaderSection() {
-    Column {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "광장",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun PlazaHeaderSection() { // PlazaHeaderSection 함수를 선언함
+    Column { // 안쪽 UI를 세로로 배치함
+        Row( // 안쪽 UI를 가로로 배치함
+            verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = "광장", // text 값을 정해줌
+                style = MaterialTheme.typography.headlineSmall, // style 값을 정해줌
+                fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(8.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            Box(
-                modifier = Modifier
+            Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                     .background(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(999.dp)
+                        color = MaterialTheme.colorScheme.primaryContainer, // color 값을 정해줌
+                        shape = RoundedCornerShape(999.dp) // shape 값을 정해줌
                     )
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = "PC 전용",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    .padding(horizontal = 10.dp, vertical = 4.dp) // .padding(horizontal 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
+                Text( // 화면에 글자를 보여줌
+                    text = "PC 전용", // text 값을 정해줌
+                    style = MaterialTheme.typography.labelSmall, // style 값을 정해줌
+                    fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                    color = MaterialTheme.colorScheme.onPrimaryContainer // color 값을 정해줌
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        Text(
-            text = "아바타와 함께 다른 유저들을 만나보세요",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        Text( // 화면에 글자를 보여줌
+            text = "아바타와 함께 다른 유저들을 만나보세요", // text 값을 정해줌
+            style = MaterialTheme.typography.bodyLarge, // style 값을 정해줌
+            color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
         )
     }
 }
 
-@Composable
-private fun PlazaHeroCard(
-    onEnterClick: () -> Unit
-) {
-    val isDark = isSystemInDarkTheme()
-    val heroContentColor = MaterialTheme.colorScheme.onSurface
-    val heroMutedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val iconSurfaceColor = MaterialTheme.colorScheme.primaryContainer
-    val iconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun PlazaHeroCard( // PlazaHeroCard 함수를 선언함
+    onEnterClick: () -> Unit // onEnterClick 때 실행할 함수를 받음
+) { // 이 블록 안의 내용이 시작됨
+    val isDark = isSystemInDarkTheme() // 다크모드인지 저장함
+    val heroContentColor = MaterialTheme.colorScheme.onSurface // heroContentColor 값을 저장함
+    val heroMutedContentColor = MaterialTheme.colorScheme.onSurfaceVariant // heroMutedContentColor 값을 저장함
+    val iconSurfaceColor = MaterialTheme.colorScheme.primaryContainer // iconSurfaceColor 값을 저장함
+    val iconContentColor = MaterialTheme.colorScheme.onPrimaryContainer // iconContentColor 값을 저장함
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors( // colors 값을 정해줌
+            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 1.dp else 2.dp)
-    ) {
-        Box(
-            modifier = Modifier
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), // border 값을 정해줌
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 1.dp else 2.dp) // elevation 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 28.dp)
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = iconSurfaceColor
-                ) {
-                    Box(
-                        modifier = Modifier
+                .padding(horizontal = 20.dp, vertical = 28.dp) // .padding(horizontal 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Column( // 안쪽 UI를 세로로 배치함
+                horizontalAlignment = Alignment.CenterHorizontally, // horizontalAlignment 값을 정해줌
+                modifier = Modifier.fillMaxWidth() // UI 크기나 여백 같은 모양을 정함
+            ) { // 이 블록 안의 내용이 시작됨
+                Surface( // Surface 함수를 실행함
+                    shape = CircleShape, // CircleShape 값을 shape 값에 넣음
+                    color = iconSurfaceColor // iconSurfaceColor 값을 color 값에 넣음
+                ) { // 이 블록 안의 내용이 시작됨
+                    Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+                        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                             .size(72.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Games,
-                            contentDescription = null,
-                            tint = iconContentColor,
-                            modifier = Modifier.size(36.dp)
+                        contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
+                    ) { // 이 블록 안의 내용이 시작됨
+                        Icon( // 화면에 아이콘을 보여줌
+                            imageVector = Icons.Outlined.Games, // imageVector 값을 정해줌
+                            contentDescription = null, // null 값을 contentDescription 값에 넣음
+                            tint = iconContentColor, // iconContentColor 값을 tint 값에 넣음
+                            modifier = Modifier.size(36.dp) // UI 크기나 여백 같은 모양을 정함
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(20.dp)) // UI 크기나 여백 같은 모양을 정함
 
-                Text(
-                    text = "Unity WebGL 광장",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = heroContentColor
+                Text( // 화면에 글자를 보여줌
+                    text = "Unity WebGL 광장", // text 값을 정해줌
+                    style = MaterialTheme.typography.headlineSmall, // style 값을 정해줌
+                    fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                    color = heroContentColor // heroContentColor 값을 color 값에 넣음
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
 
-                Text(
-                    text = "PC 웹에서 Unity 기반의 3D 가상 공간을 체험하세요",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = heroMutedContentColor
+                Text( // 화면에 글자를 보여줌
+                    text = "PC 웹에서 Unity 기반의 3D 가상 공간을 체험하세요", // text 값을 정해줌
+                    style = MaterialTheme.typography.bodyLarge, // style 값을 정해줌
+                    color = heroMutedContentColor // heroMutedContentColor 값을 color 값에 넣음
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp)) // UI 크기나 여백 같은 모양을 정함
 
-                Button(
-                    onClick = onEnterClick,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                Button( // 누를 수 있는 버튼을 만듦
+                    onClick = onEnterClick, // onEnterClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
+                    shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
+                    colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
+                        containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer // contentColor 값을 정해줌
                     ),
-                    contentPadding = PaddingValues(vertical = 12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Outlined.PlayArrow,
-                            contentDescription = null
+                    contentPadding = PaddingValues(vertical = 12.dp), // contentPadding 값을 정해줌
+                    modifier = Modifier.fillMaxWidth() // UI 크기나 여백 같은 모양을 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    Row(verticalAlignment = Alignment.CenterVertically) { // 안쪽 UI를 가로로 배치함
+                        Icon( // 화면에 아이콘을 보여줌
+                            imageVector = Icons.Outlined.PlayArrow, // imageVector 값을 정해줌
+                            contentDescription = null // null 값을 contentDescription 값에 넣음
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "광장 입장하기",
-                            fontWeight = FontWeight.SemiBold
+                        Spacer(modifier = Modifier.width(8.dp)) // UI 크기나 여백 같은 모양을 정함
+                        Text( // 화면에 글자를 보여줌
+                            text = "광장 입장하기", // text 값을 정해줌
+                            fontWeight = FontWeight.SemiBold // fontWeight 값을 정해줌
                         )
                     }
                 }
@@ -242,410 +242,410 @@ private fun PlazaHeroCard(
     }
 }
 
-@Composable
-private fun PlazaFeatureCard() {
-    SectionCard(title = "광장 기능") {
-        FeatureRow(
-            icon = {
-                Icon(
-                    imageVector = Icons.Outlined.Groups,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun PlazaFeatureCard() { // PlazaFeatureCard 함수를 선언함
+    SectionCard(title = "광장 기능") { // 내용을 카드 모양으로 묶어서 보여줌
+        FeatureRow( // 안쪽 UI를 가로로 배치함
+            icon = { // icon 값을 정해줌
+                Icon( // 화면에 아이콘을 보여줌
+                    imageVector = Icons.Outlined.Groups, // imageVector 값을 정해줌
+                    contentDescription = null, // null 값을 contentDescription 값에 넣음
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant // tint 값을 정해줌
                 )
             },
-            iconBg = MaterialTheme.colorScheme.surfaceVariant,
-            title = "아바타 이동 & 채팅",
-            description = "내 아바타를 움직이며 다른 유저들과 실시간 채팅을 즐겨보세요"
+            iconBg = MaterialTheme.colorScheme.surfaceVariant, // iconBg 값을 정해줌
+            title = "아바타 이동 & 채팅", // 제목을 정해줌
+            description = "내 아바타를 움직이며 다른 유저들과 실시간 채팅을 즐겨보세요" // description 값을 정해줌
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        FeatureRow(
-            icon = {
-                Icon(
-                    imageVector = Icons.Outlined.Extension,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+        FeatureRow( // 안쪽 UI를 가로로 배치함
+            icon = { // icon 값을 정해줌
+                Icon( // 화면에 아이콘을 보여줌
+                    imageVector = Icons.Outlined.Extension, // imageVector 값을 정해줌
+                    contentDescription = null, // null 값을 contentDescription 값에 넣음
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant // tint 값을 정해줌
                 )
             },
-            iconBg = MaterialTheme.colorScheme.surfaceVariant,
-            title = "커스터마이징 반영",
-            description = "내 아바타에 적용한 모든 아이템이 3D로 표현돼요"
+            iconBg = MaterialTheme.colorScheme.surfaceVariant, // iconBg 값을 정해줌
+            title = "커스터마이징 반영", // 제목을 정해줌
+            description = "내 아바타에 적용한 모든 아이템이 3D로 표현돼요" // description 값을 정해줌
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        FeatureRow(
-            icon = {
-                Icon(
-                    imageVector = Icons.Outlined.EmojiEvents,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+        FeatureRow( // 안쪽 UI를 가로로 배치함
+            icon = { // icon 값을 정해줌
+                Icon( // 화면에 아이콘을 보여줌
+                    imageVector = Icons.Outlined.EmojiEvents, // imageVector 값을 정해줌
+                    contentDescription = null, // null 값을 contentDescription 값에 넣음
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant // tint 값을 정해줌
                 )
             },
-            iconBg = MaterialTheme.colorScheme.surfaceVariant,
-            title = "프리미엄 공간",
-            description = "특별한 칭호와 전용 부스를 획득할 수 있어요"
+            iconBg = MaterialTheme.colorScheme.surfaceVariant, // iconBg 값을 정해줌
+            title = "프리미엄 공간", // 제목을 정해줌
+            description = "특별한 칭호와 전용 부스를 획득할 수 있어요" // description 값을 정해줌
         )
     }
 }
 
-@Composable
-private fun PlazaRequirementCard() {
-    SectionCard(title = "시스템 요구사항") {
-        RequirementText("브라우저", "Chrome, Edge, Firefox (최신 버전)")
-        Spacer(modifier = Modifier.height(12.dp))
-        RequirementText("운영체제", "Windows 10 이상, macOS 10.15 이상")
-        Spacer(modifier = Modifier.height(12.dp))
-        RequirementText("메모리", "최소 4GB RAM (8GB 권장)")
-        Spacer(modifier = Modifier.height(12.dp))
-        RequirementText("그래픽", "WebGL 2.0 지원")
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun PlazaRequirementCard() { // PlazaRequirementCard 함수를 선언함
+    SectionCard(title = "시스템 요구사항") { // 내용을 카드 모양으로 묶어서 보여줌
+        RequirementText("브라우저", "Chrome, Edge, Firefox (최신 버전)") // 화면에 글자를 보여줌
+        Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
+        RequirementText("운영체제", "Windows 10 이상, macOS 10.15 이상") // 화면에 글자를 보여줌
+        Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
+        RequirementText("메모리", "최소 4GB RAM (8GB 권장)") // 화면에 글자를 보여줌
+        Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
+        RequirementText("그래픽", "WebGL 2.0 지원") // 화면에 글자를 보여줌
     }
 }
 
-@Composable
-private fun PlazaOnlineUsersCard() {
-    val users = listOf(
-        Triple("절약왕", "광장 중앙", "💰"),
-        Triple("패션왕", "프리미엄 존", "👗"),
-        Triple("목표달성", "채팅 중", "🎯"),
-        Triple("알뜰맨", "광장 입구", "🏃")
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun PlazaOnlineUsersCard() { // PlazaOnlineUsersCard 함수를 선언함
+    val users = listOf( // users 값을 저장함
+        Triple("절약왕", "광장 중앙", "💰"), // Triple 함수를 실행함
+        Triple("패션왕", "프리미엄 존", "👗"), // Triple 함수를 실행함
+        Triple("목표달성", "채팅 중", "🎯"), // Triple 함수를 실행함
+        Triple("알뜰맨", "광장 입구", "🏃") // Triple 함수를 실행함
     )
 
-    SectionCard(title = "현재 접속 중") {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
+    SectionCard(title = "현재 접속 중") { // 내용을 카드 모양으로 묶어서 보여줌
+        Row( // 안쪽 UI를 가로로 배치함
+            verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                     .size(10.dp)
                     .background(Color(0xFF6FCF97), CircleShape)
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "124명 접속 중",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+            Spacer(modifier = Modifier.width(8.dp)) // UI 크기나 여백 같은 모양을 정함
+            Text( // 화면에 글자를 보여줌
+                text = "124명 접속 중", // text 값을 정해줌
+                style = MaterialTheme.typography.titleMedium, // style 값을 정해줌
+                fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(20.dp)) // UI 크기나 여백 같은 모양을 정함
 
         users.forEachIndexed { index, item ->
-            OnlineUserRow(
-                emoji = item.third,
-                name = item.first,
-                status = item.second
+            OnlineUserRow( // 안쪽 UI를 가로로 배치함
+                emoji = item.third, // emoji 값을 정해줌
+                name = item.first, // name 값을 정해줌
+                status = item.second // status 값을 정해줌
             )
 
-            if (index != users.lastIndex) {
-                Spacer(modifier = Modifier.height(12.dp))
+            if (index != users.lastIndex) { // 조건이 맞는지 확인함
+                Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
             }
         }
     }
 }
 
-@Composable
-private fun PlazaTipsCard() {
-    SectionCard(
-        title = "광장 이용 팁",
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
-    ) {
-        TipText("WASD 키로 아바타를 움직일 수 있어요")
-        Spacer(modifier = Modifier.height(10.dp))
-        TipText("다른 유저 클릭 시 1:1 채팅이 가능해요")
-        Spacer(modifier = Modifier.height(10.dp))
-        TipText("특정 구역에서는 미니게임을 즐길 수 있어요")
-        Spacer(modifier = Modifier.height(10.dp))
-        TipText("성실도 점수가 높으면 특별한 공간이 열려요")
-        Spacer(modifier = Modifier.height(10.dp))
-        TipText("친구 추가 기능으로 함께 즐겨보세요")
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun PlazaTipsCard() { // PlazaTipsCard 함수를 선언함
+    SectionCard( // 내용을 카드 모양으로 묶어서 보여줌
+        title = "광장 이용 팁", // 제목을 정해줌
+        containerColor = MaterialTheme.colorScheme.surfaceVariant // containerColor 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        TipText("WASD 키로 아바타를 움직일 수 있어요") // 화면에 글자를 보여줌
+        Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
+        TipText("다른 유저 클릭 시 1:1 채팅이 가능해요") // 화면에 글자를 보여줌
+        Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
+        TipText("특정 구역에서는 미니게임을 즐길 수 있어요") // 화면에 글자를 보여줌
+        Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
+        TipText("성실도 점수가 높으면 특별한 공간이 열려요") // 화면에 글자를 보여줌
+        Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
+        TipText("친구 추가 기능으로 함께 즐겨보세요") // 화면에 글자를 보여줌
     }
 }
 
-@Composable
-private fun PlazaUpcomingCard() {
-    Column {
-        Text(
-            text = "곧 추가될 기능",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = 4.dp)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun PlazaUpcomingCard() { // PlazaUpcomingCard 함수를 선언함
+    Column { // 안쪽 UI를 세로로 배치함
+        Text( // 화면에 글자를 보여줌
+            text = "곧 추가될 기능", // text 값을 정해줌
+            style = MaterialTheme.typography.titleLarge, // style 값을 정해줌
+            fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+            color = MaterialTheme.colorScheme.onSurface, // color 값을 정해줌
+            modifier = Modifier.padding(start = 4.dp) // UI 크기나 여백 같은 모양을 정함
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        UpcomingItem(
-            icon = {
-                Icon(
-                    imageVector = Icons.Outlined.Star,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+        UpcomingItem( // Upcoming Item 함수를 실행함
+            icon = { // icon 값을 정해줌
+                Icon( // 화면에 아이콘을 보여줌
+                    imageVector = Icons.Outlined.Star, // imageVector 값을 정해줌
+                    contentDescription = null, // null 값을 contentDescription 값에 넣음
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer // tint 값을 정해줌
                 )
             },
-            title = "미니게임",
-            description = "다양한 미니게임으로 SPT 획득",
-            borderColor = MaterialTheme.colorScheme.outlineVariant,
-            backgroundColor = MaterialTheme.colorScheme.surface
+            title = "미니게임", // 제목을 정해줌
+            description = "다양한 미니게임으로 SPT 획득", // description 값을 정해줌
+            borderColor = MaterialTheme.colorScheme.outlineVariant, // borderColor 값을 정해줌
+            backgroundColor = MaterialTheme.colorScheme.surface // backgroundColor 값을 정해줌
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        UpcomingItem(
-            icon = {
-                Icon(
-                    imageVector = Icons.Outlined.Groups,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+        UpcomingItem( // Upcoming Item 함수를 실행함
+            icon = { // icon 값을 정해줌
+                Icon( // 화면에 아이콘을 보여줌
+                    imageVector = Icons.Outlined.Groups, // imageVector 값을 정해줌
+                    contentDescription = null, // null 값을 contentDescription 값에 넣음
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer // tint 값을 정해줌
                 )
             },
-            title = "길드 시스템",
-            description = "친구들과 길드를 만들어보세요",
-            borderColor = MaterialTheme.colorScheme.outlineVariant,
-            backgroundColor = MaterialTheme.colorScheme.surface
+            title = "길드 시스템", // 제목을 정해줌
+            description = "친구들과 길드를 만들어보세요", // description 값을 정해줌
+            borderColor = MaterialTheme.colorScheme.outlineVariant, // borderColor 값을 정해줌
+            backgroundColor = MaterialTheme.colorScheme.surface // backgroundColor 값을 정해줌
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        UpcomingItem(
-            icon = {
-                Icon(
-                    imageVector = Icons.Outlined.Campaign,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+        UpcomingItem( // Upcoming Item 함수를 실행함
+            icon = { // icon 값을 정해줌
+                Icon( // 화면에 아이콘을 보여줌
+                    imageVector = Icons.Outlined.Campaign, // imageVector 값을 정해줌
+                    contentDescription = null, // null 값을 contentDescription 값에 넣음
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer // tint 값을 정해줌
                 )
             },
-            title = "이벤트 홀",
-            description = "특별 이벤트 전용 공간",
-            borderColor = MaterialTheme.colorScheme.outlineVariant,
-            backgroundColor = MaterialTheme.colorScheme.surface
+            title = "이벤트 홀", // 제목을 정해줌
+            description = "특별 이벤트 전용 공간", // description 값을 정해줌
+            borderColor = MaterialTheme.colorScheme.outlineVariant, // borderColor 값을 정해줌
+            backgroundColor = MaterialTheme.colorScheme.surface // backgroundColor 값을 정해줌
         )
     }
 }
 
-@Composable
-private fun MobileNoticeCard() {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun MobileNoticeCard() { // MobileNoticeCard 함수를 선언함
+            Card( // 내용을 카드 모양으로 묶어서 보여줌
+                modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+                shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
+                colors = CardDefaults.cardColors( // colors 값을 정해줌
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant // containerColor 값을 정해줌
         )
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Text(
-                text = "💡",
-                style = MaterialTheme.typography.titleMedium
+    ) { // 이 블록 안의 내용이 시작됨
+        Row( // 안쪽 UI를 가로로 배치함
+            modifier = Modifier.padding(16.dp), // UI 크기나 여백 같은 모양을 정함
+            verticalAlignment = Alignment.Top // verticalAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = "💡", // text 값을 정해줌
+                style = MaterialTheme.typography.titleMedium // style 값을 정해줌
             )
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(10.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            Text(
-                text = "모바일에서는 광장 기능을 이용할 수 없습니다.\nPC 환경에서 이용해주세요.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Medium
+            Text( // 화면에 글자를 보여줌
+                text = "모바일에서는 광장 기능을 이용할 수 없습니다.\nPC 환경에서 이용해주세요.", // text 값을 정해줌
+                style = MaterialTheme.typography.bodyMedium, // style 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurfaceVariant, // color 값을 정해줌
+                fontWeight = FontWeight.Medium // fontWeight 값을 정해줌
             )
         }
     }
 }
 
-@Composable
-private fun SectionCard(
-    title: String,
-    containerColor: Color? = null,
-    content: @Composable () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor ?: MaterialTheme.colorScheme.surface
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun SectionCard( // SectionCard 함수를 선언함
+    title: String, // 제목을 받음
+    containerColor: Color? = null, // containerColor 값을 받음
+    content: @Composable () -> Unit // 내용을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors( // colors 값을 정해줌
+            containerColor = containerColor ?: MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
         )
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier.padding(18.dp) // UI 크기나 여백 같은 모양을 정함
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = title, // 제목을 text 값에 넣음
+                style = MaterialTheme.typography.titleLarge, // style 값을 정해줌
+                fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(18.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            content()
+            content() // content 함수를 실행함
         }
     }
 }
 
-@Composable
-private fun FeatureRow(
-    icon: @Composable () -> Unit,
-    iconBg: Color,
-    title: String,
-    description: String
-) {
-    Row(
-        verticalAlignment = Alignment.Top
-    ) {
-        Box(
-            modifier = Modifier
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun FeatureRow( // FeatureRow 함수를 선언함
+    icon: @Composable () -> Unit, // icon 값을 받음
+    iconBg: Color, // iconBg 값을 받음
+    title: String, // 제목을 받음
+    description: String // description 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Row( // 안쪽 UI를 가로로 배치함
+        verticalAlignment = Alignment.Top // verticalAlignment 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .size(40.dp)
                 .background(iconBg, RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            icon()
+            contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            icon() // icon 함수를 실행함
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(12.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        Column {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+        Column { // 안쪽 UI를 세로로 배치함
+            Text( // 화면에 글자를 보여줌
+                text = title, // 제목을 text 값에 넣음
+                style = MaterialTheme.typography.titleMedium, // style 값을 정해줌
+                fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Spacer(modifier = Modifier.height(4.dp)) // UI 크기나 여백 같은 모양을 정함
+            Text( // 화면에 글자를 보여줌
+                text = description, // description 값을 text 값에 넣음
+                style = MaterialTheme.typography.bodyMedium, // style 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
             )
         }
     }
 }
 
-@Composable
-private fun RequirementText(
-    label: String,
-    value: String
-) {
-    Column {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun RequirementText( // RequirementText 함수를 선언함
+    label: String, // label 값을 받음
+    value: String // 입력값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Column { // 안쪽 UI를 세로로 배치함
+        Text( // 화면에 글자를 보여줌
+            text = label, // label 값을 text 값에 넣음
+            style = MaterialTheme.typography.titleSmall, // style 값을 정해줌
+            fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+            color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
         )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        Spacer(modifier = Modifier.height(2.dp)) // UI 크기나 여백 같은 모양을 정함
+        Text( // 화면에 글자를 보여줌
+            text = value, // 입력값을 text 값에 넣음
+            style = MaterialTheme.typography.bodyMedium, // style 값을 정해줌
+            color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
         )
     }
 }
 
-@Composable
-private fun OnlineUserRow(
-    emoji: String,
-    name: String,
-    status: String
-) {
-    Row(
-        modifier = Modifier
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun OnlineUserRow( // OnlineUserRow 함수를 선언함
+    emoji: String, // emoji 값을 받음
+    name: String, // name 값을 받음
+    status: String // status 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Row( // 안쪽 UI를 가로로 배치함
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
-                shape = RoundedCornerShape(14.dp)
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f), // color 값을 정해줌
+                shape = RoundedCornerShape(14.dp) // shape 값을 정해줌
             )
-            .padding(horizontal = 14.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = emoji,
-            style = MaterialTheme.typography.titleLarge
+            .padding(horizontal = 14.dp, vertical = 14.dp), // .padding(horizontal 값을 정해줌
+        verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Text( // 화면에 글자를 보여줌
+            text = emoji, // emoji 값을 text 값에 넣음
+            style = MaterialTheme.typography.titleLarge // style 값을 정해줌
         )
 
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(10.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        Text(
-            text = name,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
+        Text( // 화면에 글자를 보여줌
+            text = name, // name 값을 text 값에 넣음
+            modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
+            style = MaterialTheme.typography.titleMedium, // style 값을 정해줌
+            fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
+            color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
         )
 
-        Box(
-            modifier = Modifier
+        Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = RoundedCornerShape(999.dp)
+                    width = 1.dp, // width 값을 정해줌
+                    color = MaterialTheme.colorScheme.outlineVariant, // color 값을 정해줌
+                    shape = RoundedCornerShape(999.dp) // shape 값을 정해줌
                 )
-                .padding(horizontal = 10.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = status,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                .padding(horizontal = 10.dp, vertical = 6.dp) // .padding(horizontal 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = status, // status 값을 text 값에 넣음
+                style = MaterialTheme.typography.labelMedium, // style 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
         }
     }
 }
 
-@Composable
-private fun TipText(text: String) {
-    Text(
-        text = "• $text",
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.onSurface
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun TipText(text: String) { // TipText 함수를 선언함
+    Text( // 화면에 글자를 보여줌
+        text = "• $text", // text 값을 정해줌
+        style = MaterialTheme.typography.bodyLarge, // style 값을 정해줌
+        color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
     )
 }
 
-@Composable
-private fun UpcomingItem(
-    icon: @Composable () -> Unit,
-    title: String,
-    description: String,
-    borderColor: Color,
-    backgroundColor: Color
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = backgroundColor
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun UpcomingItem( // UpcomingItem 함수를 선언함
+    icon: @Composable () -> Unit, // icon 값을 받음
+    title: String, // 제목을 받음
+    description: String, // description 값을 받음
+    borderColor: Color, // borderColor 값을 받음
+    backgroundColor: Color // backgroundColor 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors( // colors 값을 정해줌
+            containerColor = backgroundColor // backgroundColor 값을 containerColor 값에 넣음
         ),
-        border = BorderStroke(1.dp, borderColor)
-    ) {
-        Column(
-            modifier = Modifier
+        border = BorderStroke(1.dp, borderColor) // border 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
-                .padding(vertical = 24.dp, horizontal = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier.size(40.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                icon()
+                .padding(vertical = 24.dp, horizontal = 16.dp), // .padding(vertical 값을 정해줌
+            horizontalAlignment = Alignment.CenterHorizontally // horizontalAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+                modifier = Modifier.size(40.dp), // UI 크기나 여백 같은 모양을 정함
+                contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
+                icon() // icon 함수를 실행함
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+            Text( // 화면에 글자를 보여줌
+                text = title, // 제목을 text 값에 넣음
+                style = MaterialTheme.typography.titleLarge, // style 값을 정해줌
+                fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Text( // 화면에 글자를 보여줌
+                text = description, // description 값을 text 값에 넣음
+                style = MaterialTheme.typography.bodyMedium, // style 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
             )
         }
     }

@@ -1,55 +1,55 @@
-package com.ict.spentopia.ui.theme // 이 파일이 속한 패키지 경로를 선언하는 부분
+package com.ict.spentopia.ui.theme // 이 파일이 속한 패키지 위치를 적음
 
-import android.app.Activity // 안드로이드의 Activity 클래스를 가져오는 부분(현재 코드에서는 실제로 사용되지는 않음)
-import android.os.Build // 현재 기기의 안드로이드 버전 정보를 확인할 때 사용하는 Build 클래스를 가져옴
-import androidx.compose.foundation.isSystemInDarkTheme // 시스템이 다크모드인지 자동으로 확인하는 함수
-import androidx.compose.material3.MaterialTheme // Compose Material3의 전체 테마를 적용할 때 사용하는 함수/객체
-import androidx.compose.material3.darkColorScheme // 다크모드용 색상 세트를 만드는 함수
-import androidx.compose.material3.dynamicDarkColorScheme // 안드로이드 12 이상에서 배경화면 기반 다크 색상을 자동 생성하는 함수
-import androidx.compose.material3.dynamicLightColorScheme // 안드로이드 12 이상에서 배경화면 기반 라이트 색상을 자동 생성하는 함수
-import androidx.compose.material3.lightColorScheme // 라이트모드용 색상 세트를 만드는 함수
-import androidx.compose.runtime.Composable // 이 함수가 Compose에서 사용하는 UI 함수라는 것을 표시하는 어노테이션
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext // 현재 Compose 환경의 Context를 가져올 때 사용하는 객체
+import android.app.Activity // Activity 기능을 가져옴
+import android.os.Build // Build 기능을 가져옴
+import androidx.compose.foundation.isSystemInDarkTheme // isSystemInDarkTheme 기능을 가져옴
+import androidx.compose.material3.MaterialTheme // MaterialTheme 기능을 가져옴
+import androidx.compose.material3.darkColorScheme // darkColorScheme 기능을 가져옴
+import androidx.compose.material3.dynamicDarkColorScheme // dynamicDarkColorScheme 기능을 가져옴
+import androidx.compose.material3.dynamicLightColorScheme // dynamicLightColorScheme 기능을 가져옴
+import androidx.compose.material3.lightColorScheme // lightColorScheme 기능을 가져옴
+import androidx.compose.runtime.Composable // Compose 화면 함수 표시를 가져옴
+import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
+import androidx.compose.ui.platform.LocalContext // LocalContext 기능을 가져옴
 
-private val DarkColorScheme = darkColorScheme( // 이 파일 안에서만 사용하는 다크모드용 색상 테마를 생성
-    primary = SpentopiaGlowPurple, // 기본(대표) 색상을 차분한 네이비-퍼플로 설정
-    secondary = SpentopiaGlowBlue, // 보조 색상을 네온 블루로 설정
-    tertiary = SpentopiaGlowCyan, // 세 번째 강조 색상을 네온 시안으로 설정
-    background = SpentopiaDarkBackground,
-    onBackground = SpentopiaDarkText,
-    surface = SpentopiaDarkSurface,
-    onSurface = SpentopiaDarkText,
-    surfaceVariant = SpentopiaDarkSurfaceVariant,
-    onSurfaceVariant = SpentopiaDarkTextMuted,
-    outline = SpentopiaDarkBorder,
-    outlineVariant = Color(0xFF475569),
-    secondaryContainer = SpentopiaDarkSurfaceVariant,
-    onSecondaryContainer = SpentopiaDarkText,
-    primaryContainer = Color(0xFF1E1B4B),
-    onPrimaryContainer = SpentopiaDarkText,
-    inverseSurface = SpentopiaDarkText,
-    inverseOnSurface = SpentopiaDarkBackground
-) // 다크모드 색상 세트 생성 끝
+private val DarkColorScheme = darkColorScheme( // DarkColorScheme 값을 저장함
+    primary = SpentopiaGlowPurple, // SpentopiaGlowPurple 값을 primary 값에 넣음
+    secondary = SpentopiaGlowBlue, // SpentopiaGlowBlue 값을 secondary 값에 넣음
+    tertiary = SpentopiaGlowCyan, // SpentopiaGlowCyan 값을 tertiary 값에 넣음
+    background = SpentopiaDarkBackground, // SpentopiaDarkBackground 값을 background 값에 넣음
+    onBackground = SpentopiaDarkText, // SpentopiaDarkText 값을 onBackground 때 실행할 함수에 넣음
+    surface = SpentopiaDarkSurface, // SpentopiaDarkSurface 값을 surface 값에 넣음
+    onSurface = SpentopiaDarkText, // SpentopiaDarkText 값을 onSurface 때 실행할 함수에 넣음
+    surfaceVariant = SpentopiaDarkSurfaceVariant, // SpentopiaDarkSurfaceVariant 값을 surfaceVariant 값에 넣음
+    onSurfaceVariant = SpentopiaDarkTextMuted, // SpentopiaDarkTextMuted 값을 onSurfaceVariant 때 실행할 함수에 넣음
+    outline = SpentopiaDarkBorder, // SpentopiaDarkBorder 값을 outline 값에 넣음
+    outlineVariant = Color(0xFF475569), // outlineVariant 값을 정해줌
+    secondaryContainer = SpentopiaDarkSurfaceVariant, // SpentopiaDarkSurfaceVariant 값을 secondaryContainer 값에 넣음
+    onSecondaryContainer = SpentopiaDarkText, // SpentopiaDarkText 값을 onSecondaryContainer 때 실행할 함수에 넣음
+    primaryContainer = Color(0xFF1E1B4B), // primaryContainer 값을 정해줌
+    onPrimaryContainer = SpentopiaDarkText, // SpentopiaDarkText 값을 onPrimaryContainer 때 실행할 함수에 넣음
+    inverseSurface = SpentopiaDarkText, // SpentopiaDarkText 값을 inverseSurface 값에 넣음
+    inverseOnSurface = SpentopiaDarkBackground // SpentopiaDarkBackground 값을 inverseOnSurface 값에 넣음
+)
 
-private val LightColorScheme = lightColorScheme( // 이 파일 안에서만 사용하는 라이트모드용 색상 테마를 생성
-    primary = SpentopiaGlowPurple, // 라이트모드 포인트 보라
-    secondary = SpentopiaGlowBlue, // 보조 색상은 부드러운 블루
-    tertiary = SpentopiaNavyPurple, // 세 번째 강조 색상
-    background = SpentopiaLightBackground,
-    onBackground = SpentopiaLightText,
-    surface = SpentopiaLightSurface,
-    onSurface = SpentopiaLightText,
-    surfaceVariant = SpentopiaLightSurfaceVariant,
-    onSurfaceVariant = SpentopiaLightTextMuted,
-    primaryContainer = SpentopiaSoftPurple,
-    onPrimaryContainer = SpentopiaNavyPurple,
-    secondaryContainer = SpentopiaSoftBlue,
-    onSecondaryContainer = SpentopiaNavyPurple,
-    outline = SpentopiaLightBorder,
-    outlineVariant = SpentopiaLightBorder
+private val LightColorScheme = lightColorScheme( // LightColorScheme 값을 저장함
+    primary = SpentopiaGlowPurple, // SpentopiaGlowPurple 값을 primary 값에 넣음
+    secondary = SpentopiaGlowBlue, // SpentopiaGlowBlue 값을 secondary 값에 넣음
+    tertiary = SpentopiaNavyPurple, // SpentopiaNavyPurple 값을 tertiary 값에 넣음
+    background = SpentopiaLightBackground, // SpentopiaLightBackground 값을 background 값에 넣음
+    onBackground = SpentopiaLightText, // SpentopiaLightText 값을 onBackground 때 실행할 함수에 넣음
+    surface = SpentopiaLightSurface, // SpentopiaLightSurface 값을 surface 값에 넣음
+    onSurface = SpentopiaLightText, // SpentopiaLightText 값을 onSurface 때 실행할 함수에 넣음
+    surfaceVariant = SpentopiaLightSurfaceVariant, // SpentopiaLightSurfaceVariant 값을 surfaceVariant 값에 넣음
+    onSurfaceVariant = SpentopiaLightTextMuted, // SpentopiaLightTextMuted 값을 onSurfaceVariant 때 실행할 함수에 넣음
+    primaryContainer = SpentopiaSoftPurple, // SpentopiaSoftPurple 값을 primaryContainer 값에 넣음
+    onPrimaryContainer = SpentopiaNavyPurple, // SpentopiaNavyPurple 값을 onPrimaryContainer 때 실행할 함수에 넣음
+    secondaryContainer = SpentopiaSoftBlue, // SpentopiaSoftBlue 값을 secondaryContainer 값에 넣음
+    onSecondaryContainer = SpentopiaNavyPurple, // SpentopiaNavyPurple 값을 onSecondaryContainer 때 실행할 함수에 넣음
+    outline = SpentopiaLightBorder, // SpentopiaLightBorder 값을 outline 값에 넣음
+    outlineVariant = SpentopiaLightBorder // SpentopiaLightBorder 값을 outlineVariant 값에 넣음
 
-    /* Other default colors to override // 필요하면 아래 기본 색상들도 직접 덮어써서 바꿀 수 있다는 예시 주석 시작
+    /* Other default colors to override
     background = Color(0xFFFFFBFE), // 앱의 전체 배경색을 지정하는 예시
     surface = Color(0xFFFFFBFE), // 카드, 시트 같은 표면 색상을 지정하는 예시
     onPrimary = Color.White, // primary 색상 위에 올라가는 글자/아이콘 색상을 지정하는 예시
@@ -58,28 +58,28 @@ private val LightColorScheme = lightColorScheme( // 이 파일 안에서만 사�
     onBackground = Color(0xFF1C1B1F), // background 위에 올라가는 글자/아이콘 색상을 지정하는 예시
     onSurface = Color(0xFF1C1B1F), // surface 위에 올라가는 글자/아이콘 색상을 지정하는 예시
     */ // 예시 주석 끝
-) // 라이트모드 색상 세트 생성 끝
+)
 
-@Composable // 이 함수가 Compose UI에서 호출되는 컴포저블 함수임을 나타냄
-fun SpentopiaTheme( // 앱 전체에 공통 테마를 적용하는 사용자 정의 테마 함수
-    darkTheme: Boolean = isSystemInDarkTheme(), // darkTheme 값을 따로 넘기지 않으면 시스템 다크모드 설정값을 기본으로 사용
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun SpentopiaTheme( // SpentopiaTheme 함수를 선언함
+    darkTheme: Boolean = isSystemInDarkTheme(), // darkTheme 값을 받음
     // Dynamic color is available on Android 12+ // 동적 색상 기능은 안드로이드 12 이상에서만 가능하다는 설명 주석
-    dynamicColor: Boolean = false, // 동적 색상 사용 여부를 결정하며 기본값은 false
-    content: @Composable () -> Unit // 이 테마 안에 표시할 화면 UI 내용을 함수 형태로 전달받음
-) { // SpentopiaTheme 함수 시작
-    val colorScheme = when { // 어떤 색상 테마를 사용할지 조건에 따라 결정해서 colorScheme에 저장
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> { // 동적 색상 사용이 켜져 있고 안드로이드 버전이 12 이상이면
-            val context = LocalContext.current // 현재 앱/화면의 Context 정보를 가져옴
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context) // 다크모드면 동적 다크 테마, 아니면 동적 라이트 테마를 적용
-        } // 첫 번째 조건 처리 끝
+    dynamicColor: Boolean = false, // dynamicColor 값을 받음
+    content: @Composable () -> Unit // 내용을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val colorScheme = when { // colorScheme 값을 저장함
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> { // > 값을 정해줌
+            val context = LocalContext.current // 현재 화면 정보를 저장함
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context) // 조건이 맞는지 확인함
+        }
 
-        darkTheme -> DarkColorScheme // 동적 색상을 쓰지 않더라도 다크모드면 미리 정의한 다크 색상 테마 사용
-        else -> LightColorScheme // 그 외에는 미리 정의한 라이트 색상 테마 사용
-    } // colorScheme 결정 끝
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme // 위 조건이 아니면 이쪽을 실행함
+    }
 
-    MaterialTheme( // Compose Material3의 기본 테마 시스템을 적용
-        colorScheme = colorScheme, // 위에서 결정한 색상 테마를 적용
-        typography = Typography, // 글꼴 스타일 세트(Typography.kt 등에 정의된 값)를 적용
-        content = content // 이 테마 안에 실제로 그릴 화면 내용을 배치
-    ) // MaterialTheme 적용 끝
-} // SpentopiaTheme 함수 끝
+    MaterialTheme( // Material Theme 함수를 실행함
+        colorScheme = colorScheme, // colorScheme 값을 colorScheme 값에 넣음
+        typography = Typography, // Typography 값을 typography 값에 넣음
+        content = content // 내용을 내용에 넣음
+    )
+}

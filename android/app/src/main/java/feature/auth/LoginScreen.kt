@@ -1,140 +1,140 @@
-package com.ict.spentopia.feature.auth
+package com.ict.spentopia.feature.auth // 이 파일이 속한 패키지 위치를 적음
 
 // 로그인 화면임
 // 이메일/비번, Google/Kakao, 지갑 로그인 한 화면
 
-import android.content.Intent
-import android.net.Uri
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
-import com.ict.spentopia.BuildConfig
-import com.ict.spentopia.R
-import com.ict.spentopia.feature.auth.connector.PhantomDeepLinkConnector
-import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog
-import com.ict.spentopia.feature.auth.wallet.SolanaWalletType
-import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
-import com.ict.spentopia.ui.theme.SpentopiaIconMuted
-import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
-import com.ict.spentopia.ui.theme.SpentopiaNavy
-import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
-import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors
-import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
-import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
-import kotlinx.coroutines.launch
-import android.util.Log
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.shape.CircleShape
+import android.content.Intent // Intent 기능을 가져옴
+import android.net.Uri // 이미지 주소 타입을 가져옴
+import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
+import androidx.activity.compose.rememberLauncherForActivityResult // rememberLauncherForActivityResult 기능을 가져옴
+import androidx.activity.result.contract.ActivityResultContracts // ActivityResultContracts 기능을 가져옴
+import androidx.compose.foundation.BorderStroke // BorderStroke 기능을 가져옴
+import androidx.compose.foundation.Image // 이미지 표시 컴포넌트를 가져옴
+import androidx.compose.foundation.background // background 기능을 가져옴
+import androidx.compose.foundation.border // border 기능을 가져옴
+import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
+import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
+import androidx.compose.foundation.layout.PaddingValues // PaddingValues 기능을 가져옴
+import androidx.compose.foundation.layout.Row // 가로 배치 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Spacer // Spacer 기능을 가져옴
+import androidx.compose.foundation.layout.fillMaxSize // fillMaxSize 기능을 가져옴
+import androidx.compose.foundation.layout.fillMaxWidth // fillMaxWidth 기능을 가져옴
+import androidx.compose.foundation.layout.height // height 기능을 가져옴
+import androidx.compose.foundation.layout.imePadding // imePadding 기능을 가져옴
+import androidx.compose.foundation.layout.padding // padding 기능을 가져옴
+import androidx.compose.foundation.layout.size // size 기능을 가져옴
+import androidx.compose.foundation.interaction.MutableInteractionSource // MutableInteractionSource 기능을 가져옴
+import androidx.compose.foundation.interaction.collectIsPressedAsState // collectIsPressedAsState 기능을 가져옴
+import androidx.compose.foundation.shape.RoundedCornerShape // RoundedCornerShape 기능을 가져옴
+import androidx.compose.foundation.text.KeyboardOptions // KeyboardOptions 기능을 가져옴
+import androidx.compose.material3.MaterialTheme // MaterialTheme 기능을 가져옴
+import androidx.compose.material.icons.Icons // Icons 기능을 가져옴
+import androidx.compose.material.icons.outlined.Email // Email 기능을 가져옴
+import androidx.compose.material.icons.outlined.Lock // Lock 기능을 가져옴
+import androidx.compose.material.icons.outlined.Visibility // Visibility 기능을 가져옴
+import androidx.compose.material.icons.outlined.VisibilityOff // VisibilityOff 기능을 가져옴
+import androidx.compose.material3.Button // 버튼 컴포넌트를 가져옴
+import androidx.compose.material3.ButtonDefaults // ButtonDefaults 기능을 가져옴
+import androidx.compose.material3.HorizontalDivider // HorizontalDivider 기능을 가져옴
+import androidx.compose.material3.Icon // 아이콘 표시 컴포넌트를 가져옴
+import androidx.compose.material3.IconButton // 아이콘 버튼 컴포넌트를 가져옴
+import androidx.compose.material3.OutlinedTextField // OutlinedTextField 기능을 가져옴
+import androidx.compose.material3.OutlinedTextFieldDefaults // OutlinedTextFieldDefaults 기능을 가져옴
+import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
+import androidx.compose.runtime.Composable // Compose 화면 함수 표시를 가져옴
+import androidx.compose.runtime.LaunchedEffect // 화면이 열릴 때 실행하는 도구를 가져옴
+import androidx.compose.runtime.getValue // by로 상태를 읽게 해줌
+import androidx.compose.runtime.mutableStateOf // 화면 상태를 만드는 도구를 가져옴
+import androidx.compose.runtime.remember // 값을 기억하는 Compose 도구를 가져옴
+import androidx.compose.runtime.rememberCoroutineScope // rememberCoroutineScope 기능을 가져옴
+import androidx.compose.runtime.setValue // by로 상태를 바꾸게 해줌
+import androidx.compose.ui.Alignment // Alignment 기능을 가져옴
+import androidx.compose.ui.Modifier // UI 크기랑 여백 설정 도구를 가져옴
+import androidx.compose.ui.graphics.Brush // Brush 기능을 가져옴
+import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
+import androidx.compose.ui.graphics.graphicsLayer // graphicsLayer 기능을 가져옴
+import androidx.compose.ui.draw.shadow // shadow 기능을 가져옴
+import androidx.compose.ui.layout.ContentScale // ContentScale 기능을 가져옴
+import androidx.compose.ui.platform.LocalContext // LocalContext 기능을 가져옴
+import androidx.compose.ui.res.painterResource // painterResource 기능을 가져옴
+import androidx.compose.ui.res.stringResource // stringResource 기능을 가져옴
+import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
+import androidx.compose.ui.text.input.KeyboardType // KeyboardType 기능을 가져옴
+import androidx.compose.ui.text.input.PasswordVisualTransformation // PasswordVisualTransformation 기능을 가져옴
+import androidx.compose.ui.text.input.VisualTransformation // VisualTransformation 기능을 가져옴
+import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
+import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
+import androidx.core.net.toUri // toUri 기능을 가져옴
+import androidx.lifecycle.viewmodel.compose.viewModel // Compose에서 ViewModel 연결하는 도구를 가져옴
+import com.google.android.gms.auth.api.signin.GoogleSignIn // GoogleSignIn 기능을 가져옴
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions // GoogleSignInOptions 기능을 가져옴
+import com.google.android.gms.common.api.ApiException // ApiException 기능을 가져옴
+import com.ict.spentopia.BuildConfig // BuildConfig 기능을 가져옴
+import com.ict.spentopia.R // R 기능을 가져옴
+import com.ict.spentopia.feature.auth.connector.PhantomDeepLinkConnector // PhantomDeepLinkConnector 기능을 가져옴
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog // SolanaWalletDialog 기능을 가져옴
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // SolanaWalletType 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaGlowPurple // SpentopiaGlowPurple 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaIconMuted // SpentopiaIconMuted 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaNavy // SpentopiaNavy 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple // SpentopiaNavyPurple 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors // SpentopiaActionGradientColors 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors // SpentopiaWalletGradientColors 기능을 가져옴
+import com.solana.mobilewalletadapter.clientlib.ActivityResultSender // ActivityResultSender 기능을 가져옴
+import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
+import android.util.Log // 로그 찍는 기능을 가져옴
+import androidx.compose.animation.core.RepeatMode // RepeatMode 기능을 가져옴
+import androidx.compose.animation.core.animateFloat // animateFloat 기능을 가져옴
+import androidx.compose.animation.core.infiniteRepeatable // infiniteRepeatable 기능을 가져옴
+import androidx.compose.animation.core.rememberInfiniteTransition // rememberInfiniteTransition 기능을 가져옴
+import androidx.compose.animation.core.tween // tween 기능을 가져옴
+import androidx.compose.foundation.shape.CircleShape // CircleShape 기능을 가져옴
 
-@Composable
-fun LoginScreen(
-    onLoginClick: () -> Unit,
-    walletActivityResultSender: ActivityResultSender,
-    walletCallbackUri: Uri?,
-    onWalletCallbackConsumed: () -> Unit,
-    kakaoCallbackUri: Uri?,
-    onKakaoCallbackConsumed: () -> Unit,
-    onKakaoClick: () -> Unit = {},
-    onNaverClick: () -> Unit = {},
-    onGoogleClick: () -> Unit = {},
-    onFindEmailClick: () -> Unit = {},
-    onFindPasswordClick: () -> Unit = {},
-    onWalletConnected: (String, String, String, String) -> Unit = { _, _, _, _ -> }
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
+    onLoginClick: () -> Unit, // onLoginClick 때 실행할 함수를 받음
+    walletActivityResultSender: ActivityResultSender, // 지갑 관련 값을 받음
+    walletCallbackUri: Uri?, // 지갑 관련 값을 받음
+    onWalletCallbackConsumed: () -> Unit, // 지갑 관련 값을 받음
+    kakaoCallbackUri: Uri?, // kakaoCallbackUri 값을 받음
+    onKakaoCallbackConsumed: () -> Unit, // onKakaoCallbackConsumed 때 실행할 함수를 받음
+    onKakaoClick: () -> Unit = {}, // onKakaoClick 때 실행할 함수를 받음
+    onNaverClick: () -> Unit = {}, // onNaverClick 때 실행할 함수를 받음
+    onGoogleClick: () -> Unit = {}, // onGoogleClick 때 실행할 함수를 받음
+    onFindEmailClick: () -> Unit = {}, // 이메일 값을 받음
+    onFindPasswordClick: () -> Unit = {}, // 비밀번호 값을 받음
+    onWalletConnected: (String, String, String, String) -> Unit = { _, _, _, _ -> } // Unit 값을 정해줌
+) { // 이 블록 안의 내용이 시작됨
+    val colorScheme = MaterialTheme.colorScheme // colorScheme 값을 저장함
+    var email by remember { mutableStateOf("") } // 화면에서 바뀔 이메일을 저장함
+    var password by remember { mutableStateOf("") } // 화면에서 바뀔 비밀번호를 저장함
+    var passwordVisible by remember { mutableStateOf(false) } // 화면에서 바뀔 비밀번호 값을 저장함
 
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    val phantomConnector = remember { PhantomDeepLinkConnector(context) }
-    val loginViewModel: LoginViewModel = viewModel()
+    val scope = rememberCoroutineScope() // 화면이 다시 그려져도 코루틴 실행 범위을 기억함
+    val context = LocalContext.current // 현재 화면 정보를 저장함
+    val phantomConnector = remember { PhantomDeepLinkConnector(context) } // 화면이 다시 그려져도 phantomConnector 값을 기억함
+    val loginViewModel: LoginViewModel = viewModel() // loginViewModel 값을 저장함
 
-    var showWalletDialog by remember { mutableStateOf(false) }
-    var selectedWallet by remember { mutableStateOf<SolanaWalletType?>(null) }
-    var isWalletLoading by remember { mutableStateOf(false) }
-    var isEmailLoginLoading by remember { mutableStateOf(false) }
-    var isGoogleLoginLoading by remember { mutableStateOf(false) }
+    var showWalletDialog by remember { mutableStateOf(false) } // 화면에서 바뀔 지갑 관련 값을 저장함
+    var selectedWallet by remember { mutableStateOf<SolanaWalletType?>(null) } // 화면에서 바뀔 지갑 관련 값을 저장함
+    var isWalletLoading by remember { mutableStateOf(false) } // 화면에서 바뀔 지갑 관련 값을 저장함
+    var isEmailLoginLoading by remember { mutableStateOf(false) } // 화면에서 바뀔 이메일 값을 저장함
+    var isGoogleLoginLoading by remember { mutableStateOf(false) } // 화면에서 바뀔 로딩 상태를 저장함
 
-    var pendingWalletAddress by remember { mutableStateOf<String?>(null) }
-    var pendingNonce by remember { mutableStateOf<String?>(null) }
+    var pendingWalletAddress by remember { mutableStateOf<String?>(null) } // 화면에서 바뀔 지갑 관련 값을 저장함
+    var pendingNonce by remember { mutableStateOf<String?>(null) } // 화면에서 바뀔 pendingNonce 값을 저장함
 
-    val walletLoginCoordinator = remember(loginViewModel) {
-        WalletLoginCoordinator(loginViewModel)
+    val walletLoginCoordinator = remember(loginViewModel) { // 화면이 다시 그려져도 지갑 관련 값을 기억함
+        WalletLoginCoordinator(loginViewModel) // 로그인 관련 함수를 실행함
     }
 
-    val googleSignInClient = remember(BuildConfig.GOOGLE_WEB_CLIENT_ID) {
-        if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isBlank()) {
+    val googleSignInClient = remember(BuildConfig.GOOGLE_WEB_CLIENT_ID) { // 화면이 다시 그려져도 googleSignInClient 값을 기억함
+        if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isBlank()) { // 조건이 맞는지 확인함
             null
-        } else {
-            val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+        } else { // 이 블록 안의 내용이 시작됨
+            val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN) // options 값을 저장함
                 .requestIdToken(BuildConfig.GOOGLE_WEB_CLIENT_ID)
                 .requestEmail()
                 .build()
@@ -143,80 +143,80 @@ fun LoginScreen(
         }
     }
 
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
+    val googleSignInLauncher = rememberLauncherForActivityResult( // 화면이 다시 그려져도 googleSignInLauncher 값을 기억함
+        contract = ActivityResultContracts.StartActivityForResult() // contract 값을 정해줌
     ) { result ->
-        try {
-            val account = GoogleSignIn
+        try { // 오류가 날 수 있는 코드를 먼저 시도함
+            val account = GoogleSignIn // account 값을 저장함
                 .getSignedInAccountFromIntent(result.data)
                 .getResult(ApiException::class.java)
 
-            val idToken = account.idToken
-            if (idToken.isNullOrBlank()) {
-                isGoogleLoginLoading = false
-                Toast.makeText(context, context.getString(R.string.google_id_token_missing), Toast.LENGTH_SHORT).show()
+            val idToken = account.idToken // 구글 로그인 토큰을 저장함
+            if (idToken.isNullOrBlank()) { // 조건이 맞는지 확인함
+                isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
+                Toast.makeText(context, context.getString(R.string.google_id_token_missing), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                 return@rememberLauncherForActivityResult
             }
 
             loginViewModel.googleLogin(
-                idToken = idToken,
-                onSuccess = {
-                    isGoogleLoginLoading = false
-                    Toast.makeText(context, context.getString(R.string.google_login_success), Toast.LENGTH_SHORT).show()
-                    onLoginClick()
+                idToken = idToken, // 구글 로그인 토큰을 구글 로그인 토큰에 넣음
+                onSuccess = { // 성공했을 때 실행할 함수를 정해줌
+                    isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
+                    Toast.makeText(context, context.getString(R.string.google_login_success), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                    onLoginClick() // 로그인 관련 함수를 실행함
                 },
-                onError = { message ->
-                    isGoogleLoginLoading = false
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                onError = { message -> // 실패했을 때 실행할 함수를 정해줌
+                    isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                 }
             )
-        } catch (e: ApiException) {
-            isGoogleLoginLoading = false
-            Toast.makeText(context, context.getString(R.string.google_login_failed_with_code, e.statusCode), Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            isGoogleLoginLoading = false
-            Toast.makeText(context, e.message ?: context.getString(R.string.google_login_failed), Toast.LENGTH_SHORT).show()
+        } catch (e: ApiException) { // 이 블록 안의 내용이 시작됨
+            isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
+            Toast.makeText(context, context.getString(R.string.google_login_failed_with_code, e.statusCode), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+        } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
+            isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
+            Toast.makeText(context, e.message ?: context.getString(R.string.google_login_failed), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
         }
     }
 
-    fun startWalletLogin(walletType: SolanaWalletType) {
-        selectedWallet = walletType
-        showWalletDialog = false
+    fun startWalletLogin(walletType: SolanaWalletType) { // 로그인 기능을 실행하는 함수 시작
+        selectedWallet = walletType // 지갑 값을 요청값에 넣음
+        showWalletDialog = false // false 값을 지갑 관련 값에 넣음
 
-        when (walletType) {
-            SolanaWalletType.PHANTOM -> {
-                isWalletLoading = true
-                pendingWalletAddress = null
-                pendingNonce = null
-                val opened = phantomConnector.connect()
-                if (!opened) {
-                    isWalletLoading = false
-                    Toast.makeText(context, "Phantom 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+        when (walletType) { // 값 종류에 따라 실행할 코드를 나눔
+            SolanaWalletType.PHANTOM -> { // 이 블록 안의 내용이 시작됨
+                isWalletLoading = true // true 값을 지갑 관련 값에 넣음
+                pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
+                pendingNonce = null // null 값을 pendingNonce 값에 넣음
+                val opened = phantomConnector.connect() // opened 값을 저장함
+                if (!opened) { // 조건이 맞는지 확인함
+                    isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                    Toast.makeText(context, "Phantom 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                 }
             }
 
-            else -> {
-                scope.launch {
-                    isWalletLoading = true
+            else -> { // 위 조건이 아니면 이쪽을 실행함
+                scope.launch { // 이 블록 안의 내용이 시작됨
+                    isWalletLoading = true // true 값을 지갑 관련 값에 넣음
 
                     walletLoginCoordinator.loginWithWallet(
-                        walletType = walletType,
-                        walletActivityResultSender = walletActivityResultSender,
-                        onSuccess = { accessToken, refreshToken ->
-                            isWalletLoading = false
-                            val walletAddress = walletLoginCoordinator.getLastWalletAddress().orEmpty()
-                            val walletProvider = walletType.name
+                        walletType = walletType, // 지갑 값을 요청값에 넣음
+                        walletActivityResultSender = walletActivityResultSender, // 지갑 값을 요청값에 넣음
+                        onSuccess = { accessToken, refreshToken -> // 성공했을 때 실행할 함수를 정해줌
+                            isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                            val walletAddress = walletLoginCoordinator.getLastWalletAddress().orEmpty() // 지갑 주소를 저장함
+                            val walletProvider = walletType.name // 지갑 이름을 저장함
 
-                            onWalletConnected(
+                            onWalletConnected( // 지갑 관련 함수를 실행함
                                 accessToken,
                                 refreshToken,
                                 walletAddress,
                                 walletProvider
                             )
                         },
-                        onError = { message ->
-                            isWalletLoading = false
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        onError = { message -> // 실패했을 때 실행할 함수를 정해줌
+                            isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                         }
                     )
                 }
@@ -224,58 +224,58 @@ fun LoginScreen(
         }
     }
 
-    fun startEmailLogin() {
-        val trimmedEmail = email.trim()
+    fun startEmailLogin() { // 로그인 기능을 실행하는 함수 시작
+        val trimmedEmail = email.trim() // 이메일 값을 저장함
 
-        if (trimmedEmail.isBlank()) {
-            Toast.makeText(context, context.getString(R.string.email_required), Toast.LENGTH_SHORT).show()
+        if (trimmedEmail.isBlank()) { // 조건이 맞는지 확인함
+            Toast.makeText(context, context.getString(R.string.email_required), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
             return
         }
 
-        if (password.isBlank()) {
-            Toast.makeText(context, context.getString(R.string.password_required), Toast.LENGTH_SHORT).show()
+        if (password.isBlank()) { // 조건이 맞는지 확인함
+            Toast.makeText(context, context.getString(R.string.password_required), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
             return
         }
 
-        scope.launch {
-            isEmailLoginLoading = true
+        scope.launch { // 이 블록 안의 내용이 시작됨
+            isEmailLoginLoading = true // true 값을 이메일 값에 넣음
 
             loginViewModel.emailLogin(
-                email = trimmedEmail,
-                password = password,
-                onSuccess = {
-                    isEmailLoginLoading = false
-                    Toast.makeText(context, context.getString(R.string.email_login_success), Toast.LENGTH_SHORT).show()
-                    onLoginClick()
+                email = trimmedEmail, // 이메일 값을 이메일에 넣음
+                password = password, // 비밀번호를 비밀번호에 넣음
+                onSuccess = { // 성공했을 때 실행할 함수를 정해줌
+                    isEmailLoginLoading = false // false 값을 이메일 값에 넣음
+                    Toast.makeText(context, context.getString(R.string.email_login_success), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                    onLoginClick() // 로그인 관련 함수를 실행함
                 },
-                onError = { message ->
-                    isEmailLoginLoading = false
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                onError = { message -> // 실패했을 때 실행할 함수를 정해줌
+                    isEmailLoginLoading = false // false 값을 이메일 값에 넣음
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                 }
             )
         }
     }
 
-    fun startKakaoLogin() {
-        scope.launch {
+    fun startKakaoLogin() { // 로그인 기능을 실행하는 함수 시작
+        scope.launch { // 이 블록 안의 내용이 시작됨
             loginViewModel.getKakaoLoginUrl(
-                onSuccess = { response ->
-                    try {
-                        val intent = Intent(
+                onSuccess = { response -> // 성공했을 때 실행할 함수를 정해줌
+                    try { // 오류가 날 수 있는 코드를 먼저 시도함
+                        val intent = Intent( // intent 값을 저장함
                             Intent.ACTION_VIEW,
                             response.auth_url.toUri()
                         )
                         context.startActivity(intent)
-                    } catch (e: Exception) {
-                        Toast.makeText(
+                    } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
+                        Toast.makeText( // 화면에 글자를 보여줌
                             context,
                             context.getString(R.string.kakao_login_open_failed),
                             Toast.LENGTH_SHORT
                         ).show()
                     }
                 },
-                onError = { message ->
-                    Toast.makeText(
+                onError = { message -> // 실패했을 때 실행할 함수를 정해줌
+                    Toast.makeText( // 화면에 글자를 보여줌
                         context,
                         message,
                         Toast.LENGTH_SHORT
@@ -285,793 +285,793 @@ fun LoginScreen(
         }
     }
 
-    fun startGoogleLogin() {
-        if (BuildConfig.DEBUG) {
-            Log.d("Spentopia", "WEB_ID=${BuildConfig.GOOGLE_WEB_CLIENT_ID}")
+    fun startGoogleLogin() { // 로그인 기능을 실행하는 함수 시작
+        if (BuildConfig.DEBUG) { // 조건이 맞는지 확인함
+            Log.d("Spentopia", "WEB_ID=${BuildConfig.GOOGLE_WEB_CLIENT_ID}") // 개발자가 확인할 로그를 찍음
         }
 
-        if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isBlank()) {
-            Toast.makeText(context, context.getString(R.string.google_web_client_id_missing), Toast.LENGTH_SHORT).show()
+        if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isBlank()) { // 조건이 맞는지 확인함
+            Toast.makeText(context, context.getString(R.string.google_web_client_id_missing), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
             return
         }
 
-        val client = googleSignInClient ?: return
+        val client = googleSignInClient ?: return // 통신 클라이언트를 저장함
 
-        isGoogleLoginLoading = true
+        isGoogleLoginLoading = true // true 값을 로딩 상태에 넣음
         googleSignInLauncher.launch(client.signInIntent)
     }
 
-    val isDarkTheme = colorScheme.surface == Color(0xFF111827)
+    val isDarkTheme = colorScheme.surface == Color(0xFF111827) // 다크 테마인지 저장함
 
-    Box(
-        modifier = Modifier
+    Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxSize()
             .background(
-                brush = if (isDarkTheme) {
+                brush = if (isDarkTheme) { // brush 값을 정해줌
                     Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF090B16),
-                            Color(0xFF111827),
-                            Color(0xFF24103F)
+                        colors = listOf( // colors 값을 정해줌
+                            Color(0xFF090B16), // Color 함수를 실행함
+                            Color(0xFF111827), // Color 함수를 실행함
+                            Color(0xFF24103F) // Color 함수를 실행함
                         )
                     )
-                } else {
+                } else { // 이 블록 안의 내용이 시작됨
                     Brush.verticalGradient(
-                        colors = listOf(colorScheme.background, colorScheme.background)
+                        colors = listOf(colorScheme.background, colorScheme.background) // colors 값을 정해줌
                     )
                 }
             )
             .imePadding()
-    ) {
-        Column(
-            modifier = Modifier
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .padding(top = 8.dp, bottom = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (isDarkTheme) {
-                SplashLikeLogoSection()
-            } else {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_spentopia_logo),
-                    contentDescription = stringResource(id = R.string.spentopia_logo_content_description),
-                    modifier = Modifier.size(200.dp),
-                    contentScale = ContentScale.Fit
+                .padding(horizontal = 24.dp) // .padding(horizontal 값을 정해줌
+                .padding(top = 8.dp, bottom = 8.dp), // .padding(top 값을 정해줌
+            horizontalAlignment = Alignment.CenterHorizontally // horizontalAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            if (isDarkTheme) { // 조건이 맞는지 확인함
+                SplashLikeLogoSection() // Splash Like Logo Section 함수를 실행함
+            } else { // 이 블록 안의 내용이 시작됨
+                Image( // 화면에 이미지를 보여줌
+                    painter = painterResource(id = R.drawable.ic_spentopia_logo), // painter 값을 정해줌
+                    contentDescription = stringResource(id = R.string.spentopia_logo_content_description), // contentDescription 값을 정해줌
+                    modifier = Modifier.size(200.dp), // UI 크기나 여백 같은 모양을 정함
+                    contentScale = ContentScale.Fit // contentScale 값을 정해줌
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(4.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            Text(
-                text = stringResource(id = R.string.app_name),
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.onBackground
+            Text( // 화면에 글자를 보여줌
+                text = stringResource(id = R.string.app_name), // text 값을 정해줌
+                fontSize = 28.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                color = colorScheme.onBackground // color 값을 정해줌
             )
 
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(3.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            Text(
-                text = stringResource(id = R.string.login_tagline),
-                fontSize = 14.sp,
-                color = colorScheme.onSurfaceVariant
+            Text( // 화면에 글자를 보여줌
+                text = stringResource(id = R.string.login_tagline), // text 값을 정해줌
+                fontSize = 14.sp, // fontSize 값을 정해줌
+                color = colorScheme.onSurfaceVariant // color 값을 정해줌
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            LoginInputField(
-                title = stringResource(id = R.string.login_email_label),
-                value = email,
-                onValueChange = { email = it },
-                placeholder = stringResource(id = R.string.login_email_placeholder),
-                keyboardType = KeyboardType.Email,
-                leadingIcon = {
-                    ShimmerLeadingIcon(imageVector = Icons.Outlined.Email)
+            LoginInputField( // 로그인 관련 함수를 실행함
+                title = stringResource(id = R.string.login_email_label), // 제목을 정해줌
+                value = email, // 이메일을 입력값에 넣음
+                onValueChange = { email = it }, // onValueChange 때 실행할 함수를 정해줌
+                placeholder = stringResource(id = R.string.login_email_placeholder), // placeholder 값을 정해줌
+                keyboardType = KeyboardType.Email, // keyboardType 값을 정해줌
+                leadingIcon = { // leadingIcon 값을 정해줌
+                    ShimmerLeadingIcon(imageVector = Icons.Outlined.Email) // 화면에 아이콘을 보여줌
                 }
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            LoginInputField(
-                title = stringResource(id = R.string.login_password_label),
-                value = password,
-                onValueChange = { password = it },
-                placeholder = stringResource(id = R.string.login_password_placeholder),
-                keyboardType = KeyboardType.Password,
-                visualTransformation = if (passwordVisible) {
+            LoginInputField( // 로그인 관련 함수를 실행함
+                title = stringResource(id = R.string.login_password_label), // 제목을 정해줌
+                value = password, // 비밀번호를 입력값에 넣음
+                onValueChange = { password = it }, // onValueChange 때 실행할 함수를 정해줌
+                placeholder = stringResource(id = R.string.login_password_placeholder), // placeholder 값을 정해줌
+                keyboardType = KeyboardType.Password, // keyboardType 값을 정해줌
+                visualTransformation = if (passwordVisible) { // visualTransformation 값을 정해줌
                     VisualTransformation.None
-                } else {
-                    PasswordVisualTransformation()
+                } else { // 이 블록 안의 내용이 시작됨
+                    PasswordVisualTransformation() // Password Visual Transformation 함수를 실행함
                 },
-                leadingIcon = {
-                    ShimmerLeadingIcon(imageVector = Icons.Outlined.Lock)
+                leadingIcon = { // leadingIcon 값을 정해줌
+                    ShimmerLeadingIcon(imageVector = Icons.Outlined.Lock) // 화면에 아이콘을 보여줌
                 },
-                trailingIcon = {
-                    IconButton(
-                        onClick = {
-                            passwordVisible = !passwordVisible
+                trailingIcon = { // trailingIcon 값을 정해줌
+                    IconButton( // 누를 수 있는 버튼을 만듦
+                        onClick = { // 눌렀을 때 실행할 함수를 정해줌
+                            passwordVisible = !passwordVisible // 비밀번호 값을 정해줌
                         }
-                    ) {
-                        Icon(
-                            imageVector = if (passwordVisible) {
+                    ) { // 이 블록 안의 내용이 시작됨
+                        Icon( // 화면에 아이콘을 보여줌
+                            imageVector = if (passwordVisible) { // imageVector 값을 정해줌
                                 Icons.Outlined.VisibilityOff
-                            } else {
+                            } else { // 이 블록 안의 내용이 시작됨
                                 Icons.Outlined.Visibility
                             },
-                            contentDescription = if (passwordVisible) {
-                                stringResource(id = R.string.login_password_hide)
-                            } else {
-                                stringResource(id = R.string.login_password_show)
+                            contentDescription = if (passwordVisible) { // contentDescription 값을 정해줌
+                                stringResource(id = R.string.login_password_hide) // stringResource(id 값을 정해줌
+                            } else { // 이 블록 안의 내용이 시작됨
+                                stringResource(id = R.string.login_password_show) // stringResource(id 값을 정해줌
                             },
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant // tint 값을 정해줌
                         )
                     }
                 }
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            GradientLoginButton(
-                text = if (isEmailLoginLoading) {
-                    stringResource(id = R.string.login_button_loading)
-                } else {
-                    stringResource(id = R.string.login_button)
+            GradientLoginButton( // 누를 수 있는 버튼을 만듦
+                text = if (isEmailLoginLoading) { // text 값을 정해줌
+                    stringResource(id = R.string.login_button_loading) // stringResource(id 값을 정해줌
+                } else { // 이 블록 안의 내용이 시작됨
+                    stringResource(id = R.string.login_button) // stringResource(id 값을 정해줌
                 },
-                enabled = !isEmailLoginLoading && !isWalletLoading,
-                onClick = {
-                    startEmailLogin()
+                enabled = !isEmailLoginLoading && !isWalletLoading, // enabled 값을 정해줌
+                onClick = { // 눌렀을 때 실행할 함수를 정해줌
+                    startEmailLogin() // 로그인 관련 함수를 실행함
                 }
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(4.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            OrDivider()
+            OrDivider() // Or Divider 함수를 실행함
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            LoginOptionButton(
-                text = stringResource(id = R.string.kakao_login_button),
-                iconRes = R.drawable.ic_kakao_login,
-                containerColor = Color(0xFFFEE500),
-                textColor = Color(0xFF191919),
-                borderColor = Color.Transparent,
-                onClick = { startKakaoLogin() }
+            LoginOptionButton( // 누를 수 있는 버튼을 만듦
+                text = stringResource(id = R.string.kakao_login_button), // text 값을 정해줌
+                iconRes = R.drawable.ic_kakao_login, // iconRes 값을 정해줌
+                containerColor = Color(0xFFFEE500), // containerColor 값을 정해줌
+                textColor = Color(0xFF191919), // textColor 값을 정해줌
+                borderColor = Color.Transparent, // borderColor 값을 정해줌
+                onClick = { startKakaoLogin() } // 눌렀을 때 실행할 함수를 정해줌
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(6.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            LoginOptionButton(
-                text = stringResource(id = R.string.google_login_button),
-                iconRes = R.drawable.ic_google_login,
-                containerColor = Color.White,
-                textColor = Color(0xFF111827),
-                borderColor = Color(0xFFDDE3EA),
-                enabled = !isGoogleLoginLoading && !isEmailLoginLoading && !isWalletLoading,
-                onClick = { startGoogleLogin() }
+            LoginOptionButton( // 누를 수 있는 버튼을 만듦
+                text = stringResource(id = R.string.google_login_button), // text 값을 정해줌
+                iconRes = R.drawable.ic_google_login, // iconRes 값을 정해줌
+                containerColor = Color.White, // containerColor 값을 정해줌
+                textColor = Color(0xFF111827), // textColor 값을 정해줌
+                borderColor = Color(0xFFDDE3EA), // borderColor 값을 정해줌
+                enabled = !isGoogleLoginLoading && !isEmailLoginLoading && !isWalletLoading, // enabled 값을 정해줌
+                onClick = { startGoogleLogin() } // 눌렀을 때 실행할 함수를 정해줌
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(6.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            WalletLoginOptionButton(
-                text = stringResource(id = R.string.wallet_login_button),
-                iconRes = R.drawable.ic_wallet_login,
-                enabled = !isWalletLoading && !isEmailLoginLoading,
-                onClick = {
-                    showWalletDialog = true
+            WalletLoginOptionButton( // 누를 수 있는 버튼을 만듦
+                text = stringResource(id = R.string.wallet_login_button), // text 값을 정해줌
+                iconRes = R.drawable.ic_wallet_login, // iconRes 값을 정해줌
+                enabled = !isWalletLoading && !isEmailLoginLoading, // enabled 값을 정해줌
+                onClick = { // 눌렀을 때 실행할 함수를 정해줌
+                    showWalletDialog = true // true 값을 지갑 관련 값에 넣음
                 }
             )
         }
 
-        LaunchedEffect(walletCallbackUri) {
+        LaunchedEffect(walletCallbackUri) { // 화면이 열리거나 값이 바뀔 때 실행함
             walletCallbackUri?.let { uri ->
-                if (uri.scheme == "spentopia" && uri.host == "wallet-callback") {
-                    Log.d("Spentopia", "wallet callback=$uri")
-                    when {
-                        phantomConnector.isErrorCallback(uri) -> {
-                            isWalletLoading = false
-                            pendingWalletAddress = null
-                            pendingNonce = null
+                if (uri.scheme == "spentopia" && uri.host == "wallet-callback") { // 조건이 맞는지 확인함
+                    Log.d("Spentopia", "wallet callback=$uri") // 개발자가 확인할 로그를 찍음
+                    when { // 값 종류에 따라 실행할 코드를 나눔
+                        phantomConnector.isErrorCallback(uri) -> { // 이 블록 안의 내용이 시작됨
+                            isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                            pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
+                            pendingNonce = null // null 값을 pendingNonce 값에 넣음
                             phantomConnector.clearPendingLogin()
-                            val message = phantomConnector.parseErrorCallback(uri)
-                            Log.e("Spentopia", "Phantom callback error=$message")
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            val message = phantomConnector.parseErrorCallback(uri) // 메시지를 저장함
+                            Log.e("Spentopia", "Phantom callback error=$message") // 개발자가 확인할 로그를 찍음
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                         }
 
-                        phantomConnector.isConnectCallback(uri) -> {
-                            val walletAddress = phantomConnector.parseConnectCallback(uri)
-                            if (walletAddress.isNullOrBlank()) {
-                                isWalletLoading = false
-                                pendingWalletAddress = null
-                                pendingNonce = null
+                        phantomConnector.isConnectCallback(uri) -> { // 이 블록 안의 내용이 시작됨
+                            val walletAddress = phantomConnector.parseConnectCallback(uri) // 지갑 주소를 저장함
+                            if (walletAddress.isNullOrBlank()) { // 조건이 맞는지 확인함
+                                isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                                pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
+                                pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                 phantomConnector.clearPendingLogin()
-                                Log.e("Spentopia", "Phantom connect callback missing wallet address")
-                                Toast.makeText(context, context.getString(R.string.wallet_address_missing), Toast.LENGTH_SHORT).show()
-                                onWalletCallbackConsumed()
+                                Log.e("Spentopia", "Phantom connect callback missing wallet address") // 개발자가 확인할 로그를 찍음
+                                Toast.makeText(context, context.getString(R.string.wallet_address_missing), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                                onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
                                 return@let
                             }
-                            pendingWalletAddress = walletAddress
-                            Log.d("Spentopia", "Phantom connected walletAddress=$walletAddress")
-                            scope.launch {
-                                try {
-                                    val nonceResponse = loginViewModel.getWalletNonceOnce(walletAddress)
-                                    pendingNonce = nonceResponse.nonce
+                            pendingWalletAddress = walletAddress // 지갑 주소를 지갑 관련 값에 넣음
+                            Log.d("Spentopia", "Phantom connected walletAddress=$walletAddress") // 개발자가 확인할 로그를 찍음
+                            scope.launch { // 이 블록 안의 내용이 시작됨
+                                try { // 오류가 날 수 있는 코드를 먼저 시도함
+                                    val nonceResponse = loginViewModel.getWalletNonceOnce(walletAddress) // nonceResponse 값을 저장함
+                                    pendingNonce = nonceResponse.nonce // pendingNonce 값을 정해줌
                                     phantomConnector.savePendingLogin(walletAddress, nonceResponse.nonce)
-                                    Log.d("Spentopia", "Phantom nonce issued nonce=${nonceResponse.nonce}")
-                                    val opened = phantomConnector.signMessage(nonceResponse.message)
-                                    Log.d("Spentopia", "Phantom signMessage opened=$opened")
-                                    if (!opened) {
-                                        isWalletLoading = false
-                                        pendingWalletAddress = null
-                                        pendingNonce = null
+                                    Log.d("Spentopia", "Phantom nonce issued nonce=${nonceResponse.nonce}") // 개발자가 확인할 로그를 찍음
+                                    val opened = phantomConnector.signMessage(nonceResponse.message) // opened 값을 저장함
+                                    Log.d("Spentopia", "Phantom signMessage opened=$opened") // 개발자가 확인할 로그를 찍음
+                                    if (!opened) { // 조건이 맞는지 확인함
+                                        isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                                        pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
+                                        pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                         phantomConnector.clearPendingLogin()
-                                        Toast.makeText(context, "Phantom 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Phantom 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                     }
-                                } catch (e: Exception) {
-                                    isWalletLoading = false
-                                    pendingWalletAddress = null
-                                    pendingNonce = null
+                                } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
+                                    isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                                    pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
+                                    pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                     phantomConnector.clearPendingLogin()
-                                    Log.e("Spentopia", "Phantom nonce/sign start failed", e)
-                                    Toast.makeText(context, e.message ?: context.getString(R.string.wallet_nonce_failed), Toast.LENGTH_SHORT).show()
+                                    Log.e("Spentopia", "Phantom nonce/sign start failed", e) // 개발자가 확인할 로그를 찍음
+                                    Toast.makeText(context, e.message ?: context.getString(R.string.wallet_nonce_failed), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                 }
                             }
                         }
 
-                        phantomConnector.isSignCallback(uri) -> {
-                            val signature = phantomConnector.parseSignCallback(uri)
-                            val walletAddress = pendingWalletAddress
+                        phantomConnector.isSignCallback(uri) -> { // 이 블록 안의 내용이 시작됨
+                            val signature = phantomConnector.parseSignCallback(uri) // 지갑 서명값을 저장함
+                            val walletAddress = pendingWalletAddress // 지갑 주소를 저장함
                                 ?: phantomConnector.getPendingWalletAddress()
-                            val nonce = pendingNonce
+                            val nonce = pendingNonce // 서명용 난수을 저장함
                                 ?: phantomConnector.getPendingNonce()
 
-                            if (signature.isNullOrBlank()) {
-                                isWalletLoading = false
-                                pendingWalletAddress = null
-                                pendingNonce = null
+                            if (signature.isNullOrBlank()) { // 조건이 맞는지 확인함
+                                isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                                pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
+                                pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                 phantomConnector.clearPendingLogin()
-                                Log.e("Spentopia", "Phantom sign callback missing signature")
-                                Toast.makeText(context, context.getString(R.string.wallet_signature_missing), Toast.LENGTH_SHORT).show()
-                                onWalletCallbackConsumed()
+                                Log.e("Spentopia", "Phantom sign callback missing signature") // 개발자가 확인할 로그를 찍음
+                                Toast.makeText(context, context.getString(R.string.wallet_signature_missing), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                                onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
                                 return@let
                             }
-                            if (walletAddress.isNullOrBlank() || nonce.isNullOrBlank()) {
-                                isWalletLoading = false
-                                pendingWalletAddress = null
-                                pendingNonce = null
+                            if (walletAddress.isNullOrBlank() || nonce.isNullOrBlank()) { // 조건이 맞는지 확인함
+                                isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                                pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
+                                pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                 phantomConnector.clearPendingLogin()
-                                Log.e("Spentopia", "Phantom login state lost wallet=$walletAddress nonce=$nonce")
-                                Toast.makeText(context, context.getString(R.string.wallet_login_state_lost), Toast.LENGTH_SHORT).show()
-                                onWalletCallbackConsumed()
+                                Log.e("Spentopia", "Phantom login state lost wallet=$walletAddress nonce=$nonce") // 개발자가 확인할 로그를 찍음
+                                Toast.makeText(context, context.getString(R.string.wallet_login_state_lost), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                                onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
                                 return@let
                             }
 
                             loginViewModel.walletLoginApp(
-                                walletAddress = walletAddress,
-                                nonce = nonce,
-                                signature = signature,
-                                onSuccess = { response ->
-                                    Log.d("Spentopia", "Phantom walletLoginApp success accessTokenBlank=${response.access_token.isBlank()} refreshTokenBlank=${response.refresh_token.isBlank()}")
-                                    isWalletLoading = false
-                                    pendingWalletAddress = null
-                                    pendingNonce = null
+                                walletAddress = walletAddress, // 지갑 주소를 지갑 주소에 넣음
+                                nonce = nonce, // 서명용 난수를 서명용 난수에 넣음
+                                signature = signature, // 지갑 서명값을 지갑 서명값에 넣음
+                                onSuccess = { response -> // 성공했을 때 실행할 함수를 정해줌
+                                    Log.d("Spentopia", "Phantom walletLoginApp success accessTokenBlank=${response.access_token.isBlank()} refreshTokenBlank=${response.refresh_token.isBlank()}") // 개발자가 확인할 로그를 찍음
+                                    isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                                    pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
+                                    pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                     phantomConnector.clearPendingLogin()
-                                    onWalletConnected(
+                                    onWalletConnected( // 지갑 관련 함수를 실행함
                                         response.access_token,
                                         response.refresh_token,
                                         walletAddress,
                                         "PHANTOM"
                                     )
                                 },
-                                onError = { message ->
-                                    Log.e("Spentopia", "Phantom walletLoginApp failed=$message")
-                                    isWalletLoading = false
-                                    pendingWalletAddress = null
-                                    pendingNonce = null
+                                onError = { message -> // 실패했을 때 실행할 함수를 정해줌
+                                    Log.e("Spentopia", "Phantom walletLoginApp failed=$message") // 개발자가 확인할 로그를 찍음
+                                    isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                                    pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
+                                    pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                     phantomConnector.clearPendingLogin()
-                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                 }
                             )
                         }
 
-                        else -> {
-                            isWalletLoading = false
-                            pendingWalletAddress = null
-                            pendingNonce = null
+                        else -> { // 위 조건이 아니면 이쪽을 실행함
+                            isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                            pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
+                            pendingNonce = null // null 값을 pendingNonce 값에 넣음
                             phantomConnector.clearPendingLogin()
-                            Log.e("Spentopia", "Unknown wallet callback=$uri")
-                            Toast.makeText(context, context.getString(R.string.wallet_login_state_lost), Toast.LENGTH_SHORT).show()
+                            Log.e("Spentopia", "Unknown wallet callback=$uri") // 개발자가 확인할 로그를 찍음
+                            Toast.makeText(context, context.getString(R.string.wallet_login_state_lost), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                         }
                     }
-                    onWalletCallbackConsumed()
+                    onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
                 }
             }
         }
 
-        LaunchedEffect(kakaoCallbackUri) {
+        LaunchedEffect(kakaoCallbackUri) { // 화면이 열리거나 값이 바뀔 때 실행함
             kakaoCallbackUri?.let { uri ->
 
-                val isCustomScheme =
-                    uri.scheme == "spentopia" && uri.host == "kakao-callback"
+                val isCustomScheme = // 앱 전용 주소인지 저장함
+                    uri.scheme == "spentopia" && uri.host == "kakao-callback" // uri.scheme 값을 정해줌
 
-                val isHttpCallback =
-                    uri.scheme == "http" &&
-                            uri.host == "10.0.2.2" &&
-                            uri.path == "/auth/kakao/callback"
+                val isHttpCallback = // 웹 콜백 주소인지 저장함
+                    uri.scheme == "http" && // uri.scheme 값을 정해줌
+                            uri.host == "10.0.2.2" && // uri.host 값을 정해줌
+                            uri.path == "/auth/kakao/callback" // uri.path 값을 정해줌
 
-                if (isCustomScheme || isHttpCallback) {
-                    val code = uri.getQueryParameter("code")
-                    val state = uri.getQueryParameter("state")
+                if (isCustomScheme || isHttpCallback) { // 조건이 맞는지 확인함
+                    val code = uri.getQueryParameter("code") // 인증 코드를 저장함
+                    val state = uri.getQueryParameter("state") // 상태값을 저장함
 
-                    if (!code.isNullOrBlank() && !state.isNullOrBlank()) {
+                    if (!code.isNullOrBlank() && !state.isNullOrBlank()) { // 조건이 맞는지 확인함
                         loginViewModel.kakaoLogin(
-                            code = code,
-                            state = state,
-                            onSuccess = {
-                                Toast.makeText(context, context.getString(R.string.kakao_login_success), Toast.LENGTH_SHORT).show()
-                                onLoginClick()
+                            code = code, // 인증 코드를 인증 코드에 넣음
+                            state = state, // 상태값을 상태값에 넣음
+                            onSuccess = { // 성공했을 때 실행할 함수를 정해줌
+                                Toast.makeText(context, context.getString(R.string.kakao_login_success), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                                onLoginClick() // 로그인 관련 함수를 실행함
                             },
-                            onError = { message ->
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            onError = { message -> // 실패했을 때 실행할 함수를 정해줌
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                             }
                         )
                     }
 
-                    onKakaoCallbackConsumed()
+                    onKakaoCallbackConsumed() // on Kakao Callback Consumed 함수를 실행함
                 }
             }
         }
 
-        if (showWalletDialog) {
-            SolanaWalletDialog(
-                onDismiss = { showWalletDialog = false },
-                onSelectWallet = { walletType -> startWalletLogin(walletType) }
+        if (showWalletDialog) { // 조건이 맞는지 확인함
+            SolanaWalletDialog( // 지갑 관련 함수를 실행함
+                onDismiss = { showWalletDialog = false }, // 닫을 때 실행할 함수를 정해줌
+                onSelectWallet = { walletType -> startWalletLogin(walletType) } // 지갑 관련 값을 정해줌
             )
         }
     }
 }
 
-@Composable
-private fun SplashLikeLogoSection() {
-    val transition = rememberInfiniteTransition(label = "login-splash-logo")
-    val logoAlpha by transition.animateFloat(
-        initialValue = 0.65f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1800),
-            repeatMode = RepeatMode.Reverse
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun SplashLikeLogoSection() { // SplashLikeLogoSection 함수를 선언함
+    val transition = rememberInfiniteTransition(label = "login-splash-logo") // 화면이 다시 그려져도 transition 값을 기억함
+    val logoAlpha by transition.animateFloat( // logoAlpha 값을 저장함
+        initialValue = 0.65f, // initialValue 값을 정해줌
+        targetValue = 1f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(durationMillis = 1800), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "logo-alpha"
+        label = "logo-alpha" // label 값을 정해줌
     )
-    val logoScale by transition.animateFloat(
-        initialValue = 0.96f,
-        targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2200),
-            repeatMode = RepeatMode.Reverse
+    val logoScale by transition.animateFloat( // logoScale 값을 저장함
+        initialValue = 0.96f, // initialValue 값을 정해줌
+        targetValue = 1.04f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(durationMillis = 2200), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "logo-scale"
+        label = "logo-scale" // label 값을 정해줌
     )
-    val sparkleAlpha by transition.animateFloat(
-        initialValue = 0.28f,
-        targetValue = 0.82f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200),
-            repeatMode = RepeatMode.Reverse
+    val sparkleAlpha by transition.animateFloat( // sparkleAlpha 값을 저장함
+        initialValue = 0.28f, // initialValue 값을 정해줌
+        targetValue = 0.82f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(durationMillis = 1200), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "sparkle-alpha"
+        label = "sparkle-alpha" // label 값을 정해줌
     )
 
-    Box(
-        modifier = Modifier
+    Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .size(220.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
+        contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .size(200.dp)
             .background(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFF7C3AED).copy(alpha = 0.42f),
-                        Color(0xFF2F80ED).copy(alpha = 0.24f),
+                brush = Brush.radialGradient( // brush 값을 정해줌
+                    colors = listOf( // colors 값을 정해줌
+                        Color(0xFF7C3AED).copy(alpha = 0.42f), // Color(0xFF7C3AED).copy(alpha 값을 정해줌
+                        Color(0xFF2F80ED).copy(alpha = 0.24f), // Color(0xFF2F80ED).copy(alpha 값을 정해줌
                         Color.Transparent
                     )
                 ),
-                shape = CircleShape
+                shape = CircleShape // CircleShape 값을 shape 값에 넣음
             )
         )
 
-        Text(
-            text = "✦",
-            fontSize = 20.sp,
-            color = Color.White.copy(alpha = sparkleAlpha),
-            modifier = Modifier
+        Text( // 화면에 글자를 보여줌
+            text = "✦", // text 값을 정해줌
+            fontSize = 20.sp, // fontSize 값을 정해줌
+            color = Color.White.copy(alpha = sparkleAlpha), // color 값을 정해줌
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .align(Alignment.TopStart)
-                .padding(start = 18.dp, top = 26.dp)
+                .padding(start = 18.dp, top = 26.dp) // .padding(start 값을 정해줌
         )
-        Text(
-            text = "✧",
-            fontSize = 18.sp,
-            color = Color.White.copy(alpha = sparkleAlpha * 0.95f),
-            modifier = Modifier
+        Text( // 화면에 글자를 보여줌
+            text = "✧", // text 값을 정해줌
+            fontSize = 18.sp, // fontSize 값을 정해줌
+            color = Color.White.copy(alpha = sparkleAlpha * 0.95f), // color 값을 정해줌
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .align(Alignment.TopEnd)
-                .padding(end = 22.dp, top = 44.dp)
+                .padding(end = 22.dp, top = 44.dp) // .padding(end 값을 정해줌
         )
-        Text(
-            text = "✦",
-            fontSize = 19.sp,
-            color = Color.White.copy(alpha = sparkleAlpha * 0.82f),
-            modifier = Modifier
+        Text( // 화면에 글자를 보여줌
+            text = "✦", // text 값을 정해줌
+            fontSize = 19.sp, // fontSize 값을 정해줌
+            color = Color.White.copy(alpha = sparkleAlpha * 0.82f), // color 값을 정해줌
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .align(Alignment.BottomStart)
-                .padding(start = 28.dp, bottom = 32.dp)
+                .padding(start = 28.dp, bottom = 32.dp) // .padding(start 값을 정해줌
         )
-        Text(
-            text = "✧",
-            fontSize = 16.sp,
-            color = Color.White.copy(alpha = sparkleAlpha * 0.78f),
-            modifier = Modifier
+        Text( // 화면에 글자를 보여줌
+            text = "✧", // text 값을 정해줌
+            fontSize = 16.sp, // fontSize 값을 정해줌
+            color = Color.White.copy(alpha = sparkleAlpha * 0.78f), // color 값을 정해줌
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .align(Alignment.BottomEnd)
-                .padding(end = 30.dp, bottom = 44.dp)
+                .padding(end = 30.dp, bottom = 44.dp) // .padding(end 값을 정해줌
         )
-        Text(
-            text = "✦",
-            fontSize = 14.sp,
-            color = Color(0xFFD8B4FE).copy(alpha = sparkleAlpha * 0.85f),
-            modifier = Modifier
+        Text( // 화면에 글자를 보여줌
+            text = "✦", // text 값을 정해줌
+            fontSize = 14.sp, // fontSize 값을 정해줌
+            color = Color(0xFFD8B4FE).copy(alpha = sparkleAlpha * 0.85f), // color 값을 정해줌
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .align(Alignment.CenterStart)
-                .padding(start = 16.dp, top = 12.dp)
+                .padding(start = 16.dp, top = 12.dp) // .padding(start 값을 정해줌
         )
-        Text(
-            text = "✧",
-            fontSize = 13.sp,
-            color = Color(0xFFC7D2FE).copy(alpha = sparkleAlpha * 0.8f),
-            modifier = Modifier
+        Text( // 화면에 글자를 보여줌
+            text = "✧", // text 값을 정해줌
+            fontSize = 13.sp, // fontSize 값을 정해줌
+            color = Color(0xFFC7D2FE).copy(alpha = sparkleAlpha * 0.8f), // color 값을 정해줌
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .align(Alignment.CenterEnd)
-                .padding(end = 16.dp, top = 4.dp)
+                .padding(end = 16.dp, top = 4.dp) // .padding(end 값을 정해줌
         )
 
-        Image(
-            painter = painterResource(id = R.drawable.ic_spentopia_logo),
-            contentDescription = null,
-            modifier = Modifier
+        Image( // 화면에 이미지를 보여줌
+            painter = painterResource(id = R.drawable.ic_spentopia_logo), // painter 값을 정해줌
+            contentDescription = null, // null 값을 contentDescription 값에 넣음
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .size(200.dp)
-                .graphicsLayer {
-                    alpha = logoAlpha
-                    scaleX = logoScale
-                    scaleY = logoScale
+                .graphicsLayer { // 이 블록 안의 내용이 시작됨
+                    alpha = logoAlpha // logoAlpha 값을 alpha 값에 넣음
+                    scaleX = logoScale // logoScale 값을 scaleX 값에 넣음
+                    scaleY = logoScale // logoScale 값을 scaleY 값에 넣음
                 },
-            contentScale = ContentScale.Fit
+            contentScale = ContentScale.Fit // contentScale 값을 정해줌
         )
     }
 }
 
-@Composable
-private fun LoginInputField(
-    title: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    keyboardType: KeyboardType,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
-    leadingIcon: @Composable (() -> Unit)? = null,
-    trailingIcon: @Composable (() -> Unit)? = null
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.Start
-    ) {
-        Text(
-            text = title,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun LoginInputField( // 로그인 기능을 실행하는 함수 시작
+    title: String, // 제목을 받음
+    value: String, // 입력값을 받음
+    onValueChange: (String) -> Unit, // onValueChange 때 실행할 함수를 받음
+    placeholder: String, // placeholder 값을 받음
+    keyboardType: KeyboardType, // keyboardType 값을 받음
+    visualTransformation: VisualTransformation = VisualTransformation.None, // visualTransformation 값을 받음
+    leadingIcon: @Composable (() -> Unit)? = null, // leadingIcon 값을 받음
+    trailingIcon: @Composable (() -> Unit)? = null // trailingIcon 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Column( // 안쪽 UI를 세로로 배치함
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        horizontalAlignment = Alignment.Start // horizontalAlignment 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Text( // 화면에 글자를 보여줌
+            text = title, // 제목을 text 값에 넣음
+            fontSize = 14.sp, // fontSize 값을 정해줌
+            fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
+            color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
         )
-        Spacer(modifier = Modifier.height(7.dp))
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier
+        Spacer(modifier = Modifier.height(7.dp)) // UI 크기나 여백 같은 모양을 정함
+        OutlinedTextField( // 사용자가 입력할 칸을 만듦
+            value = value, // 입력값을 입력값에 넣음
+            onValueChange = onValueChange, // onValueChange 때 실행할 함수를 onValueChange 때 실행할 함수에 넣음
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
                 .height(54.dp),
-            placeholder = {
-                Text(text = placeholder, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            placeholder = { // placeholder 값을 정해줌
+                Text(text = placeholder, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) // 화면에 글자를 보여줌
             },
-            singleLine = true,
-            visualTransformation = visualTransformation,
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            leadingIcon = leadingIcon,
-            trailingIcon = trailingIcon,
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                focusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                cursorColor = MaterialTheme.colorScheme.primary
+            singleLine = true, // true 값을 singleLine 값에 넣음
+            visualTransformation = visualTransformation, // visualTransformation 값을 visualTransformation 값에 넣음
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType), // keyboardOptions 값을 정해줌
+            leadingIcon = leadingIcon, // leadingIcon 값을 leadingIcon 값에 넣음
+            trailingIcon = trailingIcon, // trailingIcon 값을 trailingIcon 값에 넣음
+            shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
+            colors = OutlinedTextFieldDefaults.colors( // 사용자가 입력할 칸을 만듦
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant, // focusedContainerColor 값을 정해줌
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant, // unfocusedContainerColor 값을 정해줌
+                focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // focusedBorderColor 값을 정해줌
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // unfocusedBorderColor 값을 정해줌
+                focusedTextColor = MaterialTheme.colorScheme.onSurface, // focusedTextColor 값을 정해줌
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface, // unfocusedTextColor 값을 정해줌
+                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant, // focusedPlaceholderColor 값을 정해줌
+                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant, // unfocusedPlaceholderColor 값을 정해줌
+                cursorColor = MaterialTheme.colorScheme.primary // cursorColor 값을 정해줌
             )
         )
     }
 }
 
-@Composable
-private fun GradientLoginButton(
-    text: String,
-    enabled: Boolean = true,
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun GradientLoginButton( // 로그인 기능을 실행하는 함수 시작
+    text: String, // text 값을 받음
+    enabled: Boolean = true, // enabled 값을 받음
+    onClick: () -> Unit // 눌렀을 때 실행할 함수를 받음
+) { // 이 블록 안의 내용이 시작됨
+    val interactionSource = remember { MutableInteractionSource() } // 화면이 다시 그려져도 interactionSource 값을 기억함
+    val pressed by interactionSource.collectIsPressedAsState() // pressed 값을 저장함
 
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        interactionSource = interactionSource,
-        modifier = Modifier
+    Button( // 누를 수 있는 버튼을 만듦
+        onClick = onClick, // 눌렀을 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
+        enabled = enabled, // enabled 값을 enabled 값에 넣음
+        interactionSource = interactionSource, // interactionSource 값을 interactionSource 값에 넣음
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
             .height(52.dp)
-            .graphicsLayer {
-                scaleX = if (pressed) 0.985f else 1f
-                scaleY = if (pressed) 0.985f else 1f
+            .graphicsLayer { // 이 블록 안의 내용이 시작됨
+                scaleX = if (pressed) 0.985f else 1f // scaleX 값을 정해줌
+                scaleY = if (pressed) 0.985f else 1f // scaleY 값을 정해줌
             },
-        shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        shape = RoundedCornerShape(16.dp), // shape 값을 정해줌
+        colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
+            containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer, // contentColor 값을 정해줌
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant, // disabledContainerColor 값을 정해줌
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant // disabledContentColor 값을 정해줌
         ),
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Box(
-            modifier = Modifier
+        contentPadding = PaddingValues(0.dp) // contentPadding 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxSize()
-                .graphicsLayer {
-                    alpha = if (enabled) 1f else 0.55f
+                .graphicsLayer { // 이 블록 안의 내용이 시작됨
+                    alpha = if (enabled) 1f else 0.55f // alpha 값을 정해줌
                 }
                 .shadow(
-                    elevation = if (enabled) 10.dp else 0.dp,
-                    shape = RoundedCornerShape(16.dp),
-                    ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    elevation = if (enabled) 10.dp else 0.dp, // elevation 값을 정해줌
+                    shape = RoundedCornerShape(16.dp), // shape 값을 정해줌
+                    ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f), // ambientColor 값을 정해줌
+                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) // spotColor 값을 정해줌
                 ),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
+            contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = text, // text 값을 text 값에 넣음
+                fontSize = 16.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.Bold // fontWeight 값을 정해줌
             )
         }
     }
 }
 
-@Composable
-private fun LoginOptionButton(
-    text: String,
-    iconRes: Int,
-    containerColor: Color,
-    textColor: Color,
-    borderColor: Color,
-    enabled: Boolean = true,
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun LoginOptionButton( // 로그인 기능을 실행하는 함수 시작
+    text: String, // text 값을 받음
+    iconRes: Int, // iconRes 값을 받음
+    containerColor: Color, // containerColor 값을 받음
+    textColor: Color, // textColor 값을 받음
+    borderColor: Color, // borderColor 값을 받음
+    enabled: Boolean = true, // enabled 값을 받음
+    onClick: () -> Unit // 눌렀을 때 실행할 함수를 받음
+) { // 이 블록 안의 내용이 시작됨
+    val interactionSource = remember { MutableInteractionSource() } // 화면이 다시 그려져도 interactionSource 값을 기억함
+    val pressed by interactionSource.collectIsPressedAsState() // pressed 값을 저장함
 
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        interactionSource = interactionSource,
-        modifier = Modifier
+    Button( // 누를 수 있는 버튼을 만듦
+        onClick = onClick, // 눌렀을 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
+        enabled = enabled, // enabled 값을 enabled 값에 넣음
+        interactionSource = interactionSource, // interactionSource 값을 interactionSource 값에 넣음
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
             .height(50.dp)
-            .graphicsLayer {
-                scaleX = if (pressed) 0.985f else 1f
-                scaleY = if (pressed) 0.985f else 1f
+            .graphicsLayer { // 이 블록 안의 내용이 시작됨
+                scaleX = if (pressed) 0.985f else 1f // scaleX 값을 정해줌
+                scaleY = if (pressed) 0.985f else 1f // scaleY 값을 정해줌
             }
             .border(
-                border = BorderStroke(1.dp, borderColor),
-                shape = RoundedCornerShape(15.dp)
+                border = BorderStroke(1.dp, borderColor), // border 값을 정해줌
+                shape = RoundedCornerShape(15.dp) // shape 값을 정해줌
             ),
-        shape = RoundedCornerShape(15.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            disabledContainerColor = Color(0xFFF2F4F7)
+        shape = RoundedCornerShape(15.dp), // shape 값을 정해줌
+        colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
+            containerColor = containerColor, // containerColor 값을 containerColor 값에 넣음
+            disabledContainerColor = Color(0xFFF2F4F7) // disabledContainerColor 값을 정해줌
         ),
-        contentPadding = PaddingValues(horizontal = 20.dp)
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            StaticButtonShine(
-                shape = RoundedCornerShape(15.dp),
-                pressed = pressed
+        contentPadding = PaddingValues(horizontal = 20.dp) // contentPadding 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+            modifier = Modifier.fillMaxSize(), // UI 크기나 여백 같은 모양을 정함
+            contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            StaticButtonShine( // Static Button Shine 함수를 실행함
+                shape = RoundedCornerShape(15.dp), // shape 값을 정해줌
+                pressed = pressed // pressed 값을 pressed 값에 넣음
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Image(
-                    painter = painterResource(id = iconRes),
-                    contentDescription = text,
-                    modifier = Modifier.size(25.dp),
-                    contentScale = ContentScale.Fit
+            Row( // 안쪽 UI를 가로로 배치함
+                modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+                verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
+                Image( // 화면에 이미지를 보여줌
+                    painter = painterResource(id = iconRes), // painter 값을 정해줌
+                    contentDescription = text, // text 값을 contentDescription 값에 넣음
+                    modifier = Modifier.size(25.dp), // UI 크기나 여백 같은 모양을 정함
+                    contentScale = ContentScale.Fit // contentScale 값을 정해줌
                 )
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = text,
-                        color = textColor,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
+                Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+                    modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
+                    contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 화면에 글자를 보여줌
+                        text = text, // text 값을 text 값에 넣음
+                        color = textColor, // textColor 값을 color 값에 넣음
+                        fontSize = 15.sp, // fontSize 값을 정해줌
+                        fontWeight = FontWeight.Bold // fontWeight 값을 정해줌
                     )
                 }
-                Spacer(modifier = Modifier.size(25.dp))
+                Spacer(modifier = Modifier.size(25.dp)) // UI 크기나 여백 같은 모양을 정함
             }
         }
     }
 }
 
-@Composable
-private fun WalletLoginOptionButton(
-    text: String,
-    iconRes: Int,
-    enabled: Boolean = true,
-    onClick: () -> Unit
-) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun WalletLoginOptionButton( // 로그인 기능을 실행하는 함수 시작
+    text: String, // text 값을 받음
+    iconRes: Int, // iconRes 값을 받음
+    enabled: Boolean = true, // enabled 값을 받음
+    onClick: () -> Unit // 눌렀을 때 실행할 함수를 받음
+) { // 이 블록 안의 내용이 시작됨
+    Button( // 누를 수 있는 버튼을 만듦
+        onClick = onClick, // 눌렀을 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
+        enabled = enabled, // enabled 값을 enabled 값에 넣음
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
             .height(50.dp),
-        shape = RoundedCornerShape(15.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color.Transparent,
-            disabledContainerColor = Color(0xFFF2F4F7)
+        shape = RoundedCornerShape(15.dp), // shape 값을 정해줌
+        colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
+            containerColor = Color.Transparent, // containerColor 값을 정해줌
+            disabledContainerColor = Color(0xFFF2F4F7) // disabledContainerColor 값을 정해줌
         ),
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Box(
-            modifier = Modifier
+        contentPadding = PaddingValues(0.dp) // contentPadding 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxSize()
                 .background(
-                    brush = Brush.horizontalGradient(
-                        colors = SpentopiaWalletGradientColors
+                    brush = Brush.horizontalGradient( // brush 값을 정해줌
+                        colors = SpentopiaWalletGradientColors // 지갑 관련 값을 colors 값에 넣음
                     ),
-                    shape = RoundedCornerShape(15.dp)
+                    shape = RoundedCornerShape(15.dp) // shape 값을 정해줌
                 )
                 .border(
-                    border = BorderStroke(1.dp, SpentopiaGlowPurple),
-                    shape = RoundedCornerShape(15.dp)
+                    border = BorderStroke(1.dp, SpentopiaGlowPurple), // border 값을 정해줌
+                    shape = RoundedCornerShape(15.dp) // shape 값을 정해줌
                 )
-                .padding(horizontal = 20.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Image(
-                    painter = painterResource(id = iconRes),
-                    contentDescription = text,
-                    modifier = Modifier.size(27.dp),
-                    contentScale = ContentScale.Fit
+                .padding(horizontal = 20.dp), // .padding(horizontal 값을 정해줌
+            contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Row( // 안쪽 UI를 가로로 배치함
+                modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+                verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
+                Image( // 화면에 이미지를 보여줌
+                    painter = painterResource(id = iconRes), // painter 값을 정해줌
+                    contentDescription = text, // text 값을 contentDescription 값에 넣음
+                    modifier = Modifier.size(27.dp), // UI 크기나 여백 같은 모양을 정함
+                    contentScale = ContentScale.Fit // contentScale 값을 정해줌
                 )
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = text,
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
+                Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+                    modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
+                    contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 화면에 글자를 보여줌
+                        text = text, // text 값을 text 값에 넣음
+                        color = Color.White, // color 값을 정해줌
+                        fontSize = 15.sp, // fontSize 값을 정해줌
+                        fontWeight = FontWeight.Bold // fontWeight 값을 정해줌
                     )
                 }
-                Spacer(modifier = Modifier.size(27.dp))
+                Spacer(modifier = Modifier.size(27.dp)) // UI 크기나 여백 같은 모양을 정함
             }
         }
     }
 }
 
-@Composable
-private fun StaticButtonShine(
-    shape: RoundedCornerShape,
-    pressed: Boolean = false
-) {
-    val transition = rememberInfiniteTransition(label = "button-shine")
-    val shineAlpha by transition.animateFloat(
-        initialValue = if (pressed) 0.30f else 0.18f,
-        targetValue = if (pressed) 0.46f else 0.28f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1400),
-            repeatMode = RepeatMode.Reverse
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun StaticButtonShine( // StaticButtonShine 함수를 선언함
+    shape: RoundedCornerShape, // shape 값을 받음
+    pressed: Boolean = false // pressed 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val transition = rememberInfiniteTransition(label = "button-shine") // 화면이 다시 그려져도 transition 값을 기억함
+    val shineAlpha by transition.animateFloat( // shineAlpha 값을 저장함
+        initialValue = if (pressed) 0.30f else 0.18f, // initialValue 값을 정해줌
+        targetValue = if (pressed) 0.46f else 0.28f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(durationMillis = 1400), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "shine-alpha"
+        label = "shine-alpha" // label 값을 정해줌
     )
 
-    Box(
-        modifier = Modifier
+    Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxSize()
             .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
+                brush = Brush.linearGradient( // brush 값을 정해줌
+                    colors = listOf( // colors 값을 정해줌
                         Color.Transparent,
-                        Color.White.copy(alpha = shineAlpha),
+                        Color.White.copy(alpha = shineAlpha), // Color.White.copy(alpha 값을 정해줌
                         Color.Transparent
                     )
                 ),
-                shape = shape
+                shape = shape // shape 값을 shape 값에 넣음
             )
     )
 }
 
-@Composable
-private fun ShimmerLeadingIcon(
-    imageVector: androidx.compose.ui.graphics.vector.ImageVector
-) {
-    val transition = rememberInfiniteTransition(label = "login-icon-shimmer")
-    val shimmerAlpha by transition.animateFloat(
-        initialValue = 0.24f,
-        targetValue = 0.56f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200),
-            repeatMode = RepeatMode.Reverse
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun ShimmerLeadingIcon( // ShimmerLeadingIcon 함수를 선언함
+    imageVector: androidx.compose.ui.graphics.vector.ImageVector // imageVector 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val transition = rememberInfiniteTransition(label = "login-icon-shimmer") // 화면이 다시 그려져도 transition 값을 기억함
+    val shimmerAlpha by transition.animateFloat( // shimmerAlpha 값을 저장함
+        initialValue = 0.24f, // initialValue 값을 정해줌
+        targetValue = 0.56f, // targetValue 값을 정해줌
+        animationSpec = infiniteRepeatable( // animationSpec 값을 정해줌
+            animation = tween(durationMillis = 1200), // animation 값을 정해줌
+            repeatMode = RepeatMode.Reverse // repeatMode 값을 정해줌
         ),
-        label = "icon-glow"
+        label = "icon-glow" // label 값을 정해줌
     )
 
-    Box(
-        modifier = Modifier
+    Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .size(28.dp)
             .background(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        SpentopiaGlowPurple.copy(alpha = shimmerAlpha),
-                        SpentopiaMutedPurple.copy(alpha = shimmerAlpha * 0.55f),
+                brush = Brush.radialGradient( // brush 값을 정해줌
+                    colors = listOf( // colors 값을 정해줌
+                        SpentopiaGlowPurple.copy(alpha = shimmerAlpha), // SpentopiaGlowPurple.copy(alpha 값을 정해줌
+                        SpentopiaMutedPurple.copy(alpha = shimmerAlpha * 0.55f), // SpentopiaMutedPurple.copy(alpha 값을 정해줌
                         Color.Transparent
                     )
                 ),
-                shape = CircleShape
+                shape = CircleShape // CircleShape 값을 shape 값에 넣음
             ),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = imageVector,
-            contentDescription = null,
-            tint = SpentopiaIconMuted
+        contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Icon( // 화면에 아이콘을 보여줌
+            imageVector = imageVector, // imageVector 값을 imageVector 값에 넣음
+            contentDescription = null, // null 값을 contentDescription 값에 넣음
+            tint = SpentopiaIconMuted // SpentopiaIconMuted 값을 tint 값에 넣음
         )
     }
 }
 
-@Composable
-private fun OrDivider() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        HorizontalDivider(
-            modifier = Modifier.weight(1f),
-            color = Color(0xFFD6DCE5)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun OrDivider() { // OrDivider 함수를 선언함
+    Row( // 안쪽 UI를 가로로 배치함
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        HorizontalDivider( // Horizontal Divider 함수를 실행함
+            modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
+            color = Color(0xFFD6DCE5) // color 값을 정해줌
         )
-        Text(
-            text = "  ${stringResource(id = R.string.login_or_divider)}  ",
-            color = Color(0xFF9AA4B2),
-            fontSize = 13.sp
+        Text( // 화면에 글자를 보여줌
+            text = "  ${stringResource(id = R.string.login_or_divider)}  ", // text 값을 정해줌
+            color = Color(0xFF9AA4B2), // color 값을 정해줌
+            fontSize = 13.sp // fontSize 값을 정해줌
         )
-        HorizontalDivider(
-            modifier = Modifier.weight(1f),
-            color = Color(0xFFD6DCE5)
+        HorizontalDivider( // Horizontal Divider 함수를 실행함
+            modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
+            color = Color(0xFFD6DCE5) // color 값을 정해줌
         )
     }
 }

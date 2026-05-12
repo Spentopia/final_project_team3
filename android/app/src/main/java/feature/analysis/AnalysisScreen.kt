@@ -1,243 +1,243 @@
-package com.ict.spentopia.feature.analysis
+package com.ict.spentopia.feature.analysis // 이 파일이 속한 패키지 위치를 적음
 
-import android.content.ContentValues
-import android.content.Context
-import android.content.Intent
-import android.os.Environment
-import android.provider.MediaStore
-import android.widget.Toast
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.ict.spentopia.ui.theme.SpentopiaGlowPurple
-import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
-import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
-import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors
-import kotlin.math.max
-import kotlin.math.roundToInt
+import android.content.ContentValues // ContentValues 기능을 가져옴
+import android.content.Context // 현재 화면 정보 타입을 가져옴
+import android.content.Intent // Intent 기능을 가져옴
+import android.os.Environment // Environment 기능을 가져옴
+import android.provider.MediaStore // MediaStore 기능을 가져옴
+import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
+import androidx.compose.foundation.Canvas // Canvas 기능을 가져옴
+import androidx.compose.foundation.background // background 기능을 가져옴
+import androidx.compose.foundation.border // border 기능을 가져옴
+import androidx.compose.foundation.isSystemInDarkTheme // isSystemInDarkTheme 기능을 가져옴
+import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
+import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Row // 가로 배치 레이아웃을 가져옴
+import androidx.compose.foundation.layout.PaddingValues // PaddingValues 기능을 가져옴
+import androidx.compose.foundation.layout.Spacer // Spacer 기능을 가져옴
+import androidx.compose.foundation.layout.fillMaxSize // fillMaxSize 기능을 가져옴
+import androidx.compose.foundation.layout.fillMaxWidth // fillMaxWidth 기능을 가져옴
+import androidx.compose.foundation.layout.height // height 기능을 가져옴
+import androidx.compose.foundation.layout.padding // padding 기능을 가져옴
+import androidx.compose.foundation.layout.size // size 기능을 가져옴
+import androidx.compose.foundation.layout.width // width 기능을 가져옴
+import androidx.compose.foundation.layout.widthIn // widthIn 기능을 가져옴
+import androidx.compose.foundation.rememberScrollState // rememberScrollState 기능을 가져옴
+import androidx.compose.foundation.shape.CircleShape // CircleShape 기능을 가져옴
+import androidx.compose.foundation.shape.RoundedCornerShape // RoundedCornerShape 기능을 가져옴
+import androidx.compose.foundation.verticalScroll // verticalScroll 기능을 가져옴
+import androidx.compose.material3.Button // 버튼 컴포넌트를 가져옴
+import androidx.compose.material3.ButtonDefaults // ButtonDefaults 기능을 가져옴
+import androidx.compose.material3.Card // Card 기능을 가져옴
+import androidx.compose.material3.CardDefaults // CardDefaults 기능을 가져옴
+import androidx.compose.material3.HorizontalDivider // HorizontalDivider 기능을 가져옴
+import androidx.compose.material3.LinearProgressIndicator // LinearProgressIndicator 기능을 가져옴
+import androidx.compose.material3.MaterialTheme // MaterialTheme 기능을 가져옴
+import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
+import androidx.compose.runtime.Composable // Compose 화면 함수 표시를 가져옴
+import androidx.compose.runtime.getValue // by로 상태를 읽게 해줌
+import androidx.compose.runtime.collectAsState // collectAsState 기능을 가져옴
+import androidx.compose.runtime.mutableIntStateOf // mutableIntStateOf 기능을 가져옴
+import androidx.compose.runtime.remember // 값을 기억하는 Compose 도구를 가져옴
+import androidx.compose.runtime.setValue // by로 상태를 바꾸게 해줌
+import androidx.compose.foundation.interaction.MutableInteractionSource // MutableInteractionSource 기능을 가져옴
+import androidx.compose.foundation.interaction.collectIsPressedAsState // collectIsPressedAsState 기능을 가져옴
+import androidx.compose.ui.Alignment // Alignment 기능을 가져옴
+import androidx.compose.ui.Modifier // UI 크기랑 여백 설정 도구를 가져옴
+import androidx.compose.ui.draw.clip // clip 기능을 가져옴
+import androidx.compose.ui.draw.shadow // shadow 기능을 가져옴
+import androidx.compose.ui.geometry.Offset // Offset 기능을 가져옴
+import androidx.compose.ui.graphics.Brush // Brush 기능을 가져옴
+import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
+import androidx.compose.ui.graphics.Path // 주소 중간에 들어갈 값 표시를 가져옴
+import androidx.compose.ui.graphics.PathEffect // PathEffect 기능을 가져옴
+import androidx.compose.ui.graphics.StrokeCap // StrokeCap 기능을 가져옴
+import androidx.compose.ui.graphics.drawscope.Stroke // Stroke 기능을 가져옴
+import androidx.compose.ui.graphics.graphicsLayer // graphicsLayer 기능을 가져옴
+import androidx.compose.ui.input.pointer.pointerInput // pointerInput 기능을 가져옴
+import androidx.compose.ui.platform.LocalContext // LocalContext 기능을 가져옴
+import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
+import androidx.compose.ui.text.style.TextAlign // TextAlign 기능을 가져옴
+import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
+import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
+import androidx.lifecycle.viewmodel.compose.viewModel // Compose에서 ViewModel 연결하는 도구를 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaGlowPurple // SpentopiaGlowPurple 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaNavyPurple // SpentopiaNavyPurple 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors // SpentopiaWalletGradientColors 기능을 가져옴
+import kotlin.math.max // max 기능을 가져옴
+import kotlin.math.roundToInt // roundToInt 기능을 가져옴
 
 // 소비분석 메인 화면임
 // 요약/비중/AI리포트/공유/다운로드 한 화면
-@Composable
-fun AnalysisScreen(
-    viewModel: AnalysisViewModel = viewModel()
-) {
-    val uiState by viewModel.uiState.collectAsState()
-    val trendExpenseList = viewModel.getCurrentTrendList()
-    val context = LocalContext.current
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun AnalysisScreen( // AnalysisScreen 함수를 선언함
+    viewModel: AnalysisViewModel = viewModel() // 화면 데이터 관리자를 받음
+) { // 이 블록 안의 내용이 시작됨
+    val uiState by viewModel.uiState.collectAsState() // 화면 상태를 저장함
+    val trendExpenseList = viewModel.getCurrentTrendList() // 소비 내역 값을 저장함
+    val context = LocalContext.current // 현재 화면 정보를 저장함
 
-    val reportText = buildAnalysisReportText(
-        totalExpense = uiState.totalExpense,
-        averageDailyExpense = uiState.averageDailyExpense,
-        budgetUsageRate = uiState.budgetUsageRate,
-        topCategoryName = uiState.topCategoryName,
-        topCategoryRatio = uiState.topCategoryRatio,
-        selectedPeriod = uiState.selectedPeriod,
-        trendExpenseList = trendExpenseList,
-        categoryList = uiState.categoryList,
-        tipList = uiState.tipList,
-        aiAnalysisText = uiState.aiAnalysisText,
-        timePatternList = uiState.timePatternList,
-        weekdayAverageText = uiState.weekdayAverageText,
-        weekendAverageText = uiState.weekendAverageText,
-        weekendComment = uiState.weekendComment,
-        paymentPatternList = uiState.paymentPatternList
+    val reportText = buildAnalysisReportText( // reportText 값을 저장함
+        totalExpense = uiState.totalExpense, // 소비 내역 값을 정해줌
+        averageDailyExpense = uiState.averageDailyExpense, // 소비 내역 값을 정해줌
+        budgetUsageRate = uiState.budgetUsageRate, // 예산 관련 값을 정해줌
+        topCategoryName = uiState.topCategoryName, // topCategoryName 값을 정해줌
+        topCategoryRatio = uiState.topCategoryRatio, // topCategoryRatio 값을 정해줌
+        selectedPeriod = uiState.selectedPeriod, // selectedPeriod 값을 정해줌
+        trendExpenseList = trendExpenseList, // 소비 내역 값을 소비 내역 값에 넣음
+        categoryList = uiState.categoryList, // categoryList 값을 정해줌
+        tipList = uiState.tipList, // tipList 값을 정해줌
+        aiAnalysisText = uiState.aiAnalysisText, // aiAnalysisText 값을 정해줌
+        timePatternList = uiState.timePatternList, // timePatternList 값을 정해줌
+        weekdayAverageText = uiState.weekdayAverageText, // weekdayAverageText 값을 정해줌
+        weekendAverageText = uiState.weekendAverageText, // weekendAverageText 값을 정해줌
+        weekendComment = uiState.weekendComment, // weekendComment 값을 정해줌
+        paymentPatternList = uiState.paymentPatternList // paymentPatternList 값을 정해줌
     )
 
-    Column(
-        modifier = Modifier
+    Column( // 안쪽 UI를 세로로 배치함
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+            .padding(horizontal = 16.dp, vertical = 20.dp), // .padding(horizontal 값을 정해줌
+        verticalArrangement = Arrangement.spacedBy(16.dp) // verticalArrangement 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
         // 상단 제목 + 공유/다운로드
-        AnalysisHeaderSection(
-            onShareClick = {
-                shareAnalysisReport(context, reportText)
+        AnalysisHeaderSection( // Analysis Header Section 함수를 실행함
+            onShareClick = { // onShareClick 때 실행할 함수를 정해줌
+                shareAnalysisReport(context, reportText) // share Analysis Report 함수를 실행함
             },
-            onDownloadClick = {
-                val fileName = "spentopia_analysis_report_${System.currentTimeMillis()}.txt"
+            onDownloadClick = { // onDownloadClick 때 실행할 함수를 정해줌
+                val fileName = "spentopia_analysis_report_${System.currentTimeMillis()}.txt" // fileName 값을 저장함
 
-                val isSaved = saveAnalysisReportToDownloads(
-                    context = context,
-                    fileName = fileName,
-                    content = reportText
+                val isSaved = saveAnalysisReportToDownloads( // 저장이 성공했는지 저장함
+                    context = context, // 현재 화면 정보를 현재 화면 정보에 넣음
+                    fileName = fileName, // fileName 값을 fileName 값에 넣음
+                    content = reportText // reportText 값을 내용에 넣음
                 )
 
-                Toast.makeText(
+                Toast.makeText( // 화면에 글자를 보여줌
                     context,
-                    if (isSaved) "리포트가 다운로드 폴더에 저장되었어요." else "리포트 저장에 실패했어요.",
+                    if (isSaved) "리포트가 다운로드 폴더에 저장되었어요." else "리포트 저장에 실패했어요.", // 조건이 맞는지 확인함
                     Toast.LENGTH_SHORT
                 ).show()
             }
         )
 
         // 이번 달 핵심 수치 먼저 보여줌
-        SummaryCardSection(
-            totalExpense = uiState.totalExpense,
-            averageDailyExpense = uiState.averageDailyExpense,
-            budgetUsageRate = uiState.budgetUsageRate
+        SummaryCardSection( // Summary Card Section 함수를 실행함
+            totalExpense = uiState.totalExpense, // 소비 내역 값을 정해줌
+            averageDailyExpense = uiState.averageDailyExpense, // 소비 내역 값을 정해줌
+            budgetUsageRate = uiState.budgetUsageRate // 예산 관련 값을 정해줌
         )
 
-        TopCategoryCard(
-            categoryName = uiState.topCategoryName,
-            ratio = uiState.topCategoryRatio
+        TopCategoryCard( // 내용을 카드 모양으로 묶어서 보여줌
+            categoryName = uiState.topCategoryName, // categoryName 값을 정해줌
+            ratio = uiState.topCategoryRatio // ratio 값을 정해줌
         )
 
-        PeriodToggleSection(
-            selectedPeriod = uiState.selectedPeriod,
-            onSelectPeriod = { selectedPeriod ->
+        PeriodToggleSection( // Period Toggle Section 함수를 실행함
+            selectedPeriod = uiState.selectedPeriod, // selectedPeriod 값을 정해줌
+            onSelectPeriod = { selectedPeriod -> // onSelectPeriod 때 실행할 함수를 정해줌
                 viewModel.selectPeriod(selectedPeriod)
             }
         )
 
-        ExpenseTrendCard(
-            title = if (uiState.selectedPeriod == "주간") "주간 소비 추이" else "월간 소비 추이",
-            expenseList = trendExpenseList,
-            selectedPeriod = uiState.selectedPeriod
+        ExpenseTrendCard( // 내용을 카드 모양으로 묶어서 보여줌
+            title = if (uiState.selectedPeriod == "주간") "주간 소비 추이" else "월간 소비 추이", // 제목을 정해줌
+            expenseList = trendExpenseList, // 소비 내역 값을 소비 내역 값에 넣음
+            selectedPeriod = uiState.selectedPeriod // selectedPeriod 값을 정해줌
         )
 
-        CategoryPieChartCard(
-            categoryList = uiState.categoryList
+        CategoryPieChartCard( // 내용을 카드 모양으로 묶어서 보여줌
+            categoryList = uiState.categoryList // categoryList 값을 정해줌
         )
 
-        CategoryDetailCard(
-            categoryList = uiState.categoryList
+        CategoryDetailCard( // 내용을 카드 모양으로 묶어서 보여줌
+            categoryList = uiState.categoryList // categoryList 값을 정해줌
         )
 
         // AI 분석 리포트 영역
-        AiAnalysisReportSection(
-            totalExpense = uiState.totalExpense,
-            aiReport = uiState.aiConsumptionReport,
-            isLoading = uiState.isAiAnalysisLoading,
-            errorMessage = uiState.aiAnalysisError,
-            onRequestAiAnalysis = {
+        AiAnalysisReportSection( // Ai Analysis Report Section 함수를 실행함
+            totalExpense = uiState.totalExpense, // 소비 내역 값을 정해줌
+            aiReport = uiState.aiConsumptionReport, // aiReport 값을 정해줌
+            isLoading = uiState.isAiAnalysisLoading, // 로딩 여부를 정해줌
+            errorMessage = uiState.aiAnalysisError, // 오류 내용을 정해줌
+            onRequestAiAnalysis = { // onRequestAiAnalysis 때 실행할 함수를 정해줌
                 viewModel.requestAiAnalysisReport()
             }
         )
 
-        ConsumptionPatternCard(
-            aiReport = uiState.aiConsumptionReport,
-            isLoading = uiState.isAiAnalysisLoading
+        ConsumptionPatternCard( // 내용을 카드 모양으로 묶어서 보여줌
+            aiReport = uiState.aiConsumptionReport, // aiReport 값을 정해줌
+            isLoading = uiState.isAiAnalysisLoading // 로딩 여부를 정해줌
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(20.dp)) // UI 크기나 여백 같은 모양을 정함
     }
 }
 
 // 상단 제목 섹션
-@Composable
-fun AnalysisHeaderSection(
-    onShareClick: () -> Unit,
-    onDownloadClick: () -> Unit
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text(
-            text = "소비 패턴 분석",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onBackground,
-            lineHeight = 34.sp
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun AnalysisHeaderSection( // AnalysisHeaderSection 함수를 선언함
+    onShareClick: () -> Unit, // onShareClick 때 실행할 함수를 받음
+    onDownloadClick: () -> Unit // onDownloadClick 때 실행할 함수를 받음
+) { // 이 블록 안의 내용이 시작됨
+    Column( // 안쪽 UI를 세로로 배치함
+        verticalArrangement = Arrangement.spacedBy(10.dp) // verticalArrangement 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Text( // 화면에 글자를 보여줌
+            text = "소비 패턴 분석", // text 값을 정해줌
+            fontSize = 28.sp, // fontSize 값을 정해줌
+            fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+            color = MaterialTheme.colorScheme.onBackground, // color 값을 정해줌
+            lineHeight = 34.sp // lineHeight 값을 정해줌
         )
 
-        Text(
-            text = "AI가 분석한 소비 습관을 확인해보세요.",
-            fontSize = 15.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = 22.sp
+        Text( // 화면에 글자를 보여줌
+            text = "AI가 분석한 소비 습관을 확인해보세요.", // text 값을 정해줌
+            fontSize = 15.sp, // fontSize 값을 정해줌
+            color = MaterialTheme.colorScheme.onSurfaceVariant, // color 값을 정해줌
+            lineHeight = 22.sp // lineHeight 값을 정해줌
         )
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Button(
-                onClick = onShareClick,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        Row( // 안쪽 UI를 가로로 배치함
+            horizontalArrangement = Arrangement.spacedBy(10.dp) // horizontalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Button( // 누를 수 있는 버튼을 만듦
+                onClick = onShareClick, // onShareClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
+                colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
+                    containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer // contentColor 값을 정해줌
                 ),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                modifier = Modifier
+                shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp), // contentPadding 값을 정해줌
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                     .height(40.dp)
-            ) {
-                Text(
-                    text = "공유",
-                    fontWeight = FontWeight.SemiBold
+            ) { // 이 블록 안의 내용이 시작됨
+                Text( // 화면에 글자를 보여줌
+                    text = "공유", // text 값을 정해줌
+                    fontWeight = FontWeight.SemiBold // fontWeight 값을 정해줌
                 )
             }
 
-            Button(
-                onClick = onDownloadClick,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            Button( // 누를 수 있는 버튼을 만듦
+                onClick = onDownloadClick, // onDownloadClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
+                colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
+                    containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer // contentColor 값을 정해줌
                 ),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                modifier = Modifier
+                shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp), // contentPadding 값을 정해줌
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                     .height(40.dp)
-            ) {
-                Text(
-                    text = "리포트 다운로드",
-                    fontWeight = FontWeight.SemiBold
+            ) { // 이 블록 안의 내용이 시작됨
+                Text( // 화면에 글자를 보여줌
+                    text = "리포트 다운로드", // text 값을 정해줌
+                    fontWeight = FontWeight.SemiBold // fontWeight 값을 정해줌
                 )
             }
         }
@@ -245,82 +245,82 @@ fun AnalysisHeaderSection(
 }
 
 // 요약 카드 묶음
-@Composable
-fun SummaryCardSection(
-    totalExpense: Int,
-    averageDailyExpense: Int,
-    budgetUsageRate: Float
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        GradientSummaryCard(
-            title = "이번 달 총 지출",
-            valueText = "${formatWon(totalExpense)}원",
-            subText = "지난 달 대비 -12%"
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun SummaryCardSection( // SummaryCardSection 함수를 선언함
+    totalExpense: Int, // 소비 내역 값을 받음
+    averageDailyExpense: Int, // 소비 내역 값을 받음
+    budgetUsageRate: Float // 예산 관련 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Column( // 안쪽 UI를 세로로 배치함
+        verticalArrangement = Arrangement.spacedBy(14.dp) // verticalArrangement 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        GradientSummaryCard( // 내용을 카드 모양으로 묶어서 보여줌
+            title = "이번 달 총 지출", // 제목을 정해줌
+            valueText = "${formatWon(totalExpense)}원", // valueText 값을 정해줌
+            subText = "지난 달 대비 -12%" // subText 값을 정해줌
         )
 
-        WhiteSummaryCard(
-            title = "일 평균 지출",
-            valueText = "${formatWon(averageDailyExpense)}원",
-            subText = "약 -5% 절약중"
+        WhiteSummaryCard( // 내용을 카드 모양으로 묶어서 보여줌
+            title = "일 평균 지출", // 제목을 정해줌
+            valueText = "${formatWon(averageDailyExpense)}원", // valueText 값을 정해줌
+            subText = "약 -5% 절약중" // subText 값을 정해줌
         )
 
-        BudgetUsageCard(
-            usageRate = budgetUsageRate
+        BudgetUsageCard( // 내용을 카드 모양으로 묶어서 보여줌
+            usageRate = budgetUsageRate // 예산 관련 값을 usageRate 값에 넣음
         )
     }
 }
 
 // 보라색 그라데이션 카드
-@Composable
-fun GradientSummaryCard(
-    title: String,
-    valueText: String,
-    subText: String
-) {
-    Card(
-        modifier = Modifier
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun GradientSummaryCard( // GradientSummaryCard 함수를 선언함
+    title: String, // 제목을 받음
+    valueText: String, // valueText 값을 받음
+    subText: String // subText 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
             .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(18.dp),
-                ambientColor = SpentopiaGlowPurple.copy(alpha = 0.14f),
-                spotColor = SpentopiaGlowPurple.copy(alpha = 0.18f)
+                elevation = 8.dp, // elevation 값을 정해줌
+                shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
+                ambientColor = SpentopiaGlowPurple.copy(alpha = 0.14f), // ambientColor 값을 정해줌
+                spotColor = SpentopiaGlowPurple.copy(alpha = 0.18f) // spotColor 값을 정해줌
         ),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-    ) {
-        Box(
-            modifier = Modifier
+        shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer) // colors 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
                 .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = RoundedCornerShape(18.dp)
+                    width = 1.dp, // width 값을 정해줌
+                    color = MaterialTheme.colorScheme.outlineVariant, // color 값을 정해줌
+                    shape = RoundedCornerShape(18.dp) // shape 값을 정해줌
                 )
                 .padding(18.dp)
-        ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Text(
-                    text = title,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+        ) { // 이 블록 안의 내용이 시작됨
+            Column( // 안쪽 UI를 세로로 배치함
+                verticalArrangement = Arrangement.spacedBy(14.dp) // verticalArrangement 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
+                Text( // 화면에 글자를 보여줌
+                    text = title, // 제목을 text 값에 넣음
+                    fontSize = 13.sp, // fontSize 값을 정해줌
+                    color = MaterialTheme.colorScheme.onPrimaryContainer // color 값을 정해줌
                 )
 
-                Text(
-                    text = valueText,
-                    fontSize = 34.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                Text( // 화면에 글자를 보여줌
+                    text = valueText, // valueText 값을 text 값에 넣음
+                    fontSize = 34.sp, // fontSize 값을 정해줌
+                    fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                    color = MaterialTheme.colorScheme.onPrimaryContainer // color 값을 정해줌
                 )
 
-                Text(
-                    text = subText,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                Text( // 화면에 글자를 보여줌
+                    text = subText, // subText 값을 text 값에 넣음
+                    fontSize = 12.sp, // fontSize 값을 정해줌
+                    color = MaterialTheme.colorScheme.onPrimaryContainer // color 값을 정해줌
                 )
             }
         }
@@ -328,93 +328,93 @@ fun GradientSummaryCard(
 }
 
 // 흰색 일반 카드
-@Composable
-fun WhiteSummaryCard(
-    title: String,
-    valueText: String,
-    subText: String
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = title,
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun WhiteSummaryCard( // WhiteSummaryCard 함수를 선언함
+    title: String, // 제목을 받음
+    valueText: String, // valueText 값을 받음
+    subText: String // subText 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
+            verticalArrangement = Arrangement.spacedBy(12.dp) // verticalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = title, // 제목을 text 값에 넣음
+                fontSize = 13.sp, // fontSize 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
             )
 
-            Text(
-                text = valueText,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface
+            Text( // 화면에 글자를 보여줌
+                text = valueText, // valueText 값을 text 값에 넣음
+                fontSize = 22.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
 
-            Text(
-                text = subText,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.primary
+            Text( // 화면에 글자를 보여줌
+                text = subText, // subText 값을 text 값에 넣음
+                fontSize = 12.sp, // fontSize 값을 정해줌
+                color = MaterialTheme.colorScheme.primary // color 값을 정해줌
             )
         }
     }
 }
 
 // 예산 사용률 카드
-@Composable
-fun BudgetUsageCard(
-    usageRate: Float
-) {
-    val percentText = (usageRate * 100).roundToInt()
-    val progress = usageRate.coerceIn(0f, 1f)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun BudgetUsageCard( // BudgetUsageCard 함수를 선언함
+    usageRate: Float // usageRate 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val percentText = (usageRate * 100).roundToInt() // percentText 값을 저장함
+    val progress = usageRate.coerceIn(0f, 1f) // progress 값을 저장함
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Text(
-                text = "예산 사용률",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
+            verticalArrangement = Arrangement.spacedBy(14.dp) // verticalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = "예산 사용률", // text 값을 정해줌
+                fontSize = 13.sp, // fontSize 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
             )
 
-            Text(
-                text = "${percentText}%",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface
+            Text( // 화면에 글자를 보여줌
+                text = "${percentText}%", // text 값을 정해줌
+                fontSize = 22.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
 
-            Box(
-                modifier = Modifier
+            Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                     .fillMaxWidth()
                     .height(12.dp)
                     .clip(RoundedCornerShape(999.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        shape = RoundedCornerShape(999.dp)
+                        width = 1.dp, // width 값을 정해줌
+                        color = MaterialTheme.colorScheme.outlineVariant, // color 값을 정해줌
+                        shape = RoundedCornerShape(999.dp) // shape 값을 정해줌
                     )
-            ) {
-                Box(
-                    modifier = Modifier
+            ) { // 이 블록 안의 내용이 시작됨
+                Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+                    modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                         .fillMaxWidth(progress)
                         .height(12.dp)
                         .clip(RoundedCornerShape(999.dp))
                         .background(
                             Brush.horizontalGradient(
-                                colors = listOf(
+                                colors = listOf( // colors 값을 정해줌
                                     SpentopiaMutedPurple,
                                     MaterialTheme.colorScheme.primary
                                 )
@@ -427,147 +427,147 @@ fun BudgetUsageCard(
 }
 
 // 최대 소비 카테고리 카드
-@Composable
-fun TopCategoryCard(
-    categoryName: String,
-    ratio: Float
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Text(
-                text = "최대 소비 카테고리",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun TopCategoryCard( // TopCategoryCard 함수를 선언함
+    categoryName: String, // categoryName 값을 받음
+    ratio: Float // ratio 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
+            verticalArrangement = Arrangement.spacedBy(14.dp) // verticalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = "최대 소비 카테고리", // text 값을 정해줌
+                fontSize = 13.sp, // fontSize 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
             )
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    text = "🍔",
-                    fontSize = 26.sp
+            Row( // 안쪽 UI를 가로로 배치함
+                verticalAlignment = Alignment.CenterVertically, // verticalAlignment 값을 정해줌
+                horizontalArrangement = Arrangement.spacedBy(10.dp) // horizontalArrangement 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
+                Text( // 화면에 글자를 보여줌
+                    text = "🍔", // text 값을 정해줌
+                    fontSize = 26.sp // fontSize 값을 정해줌
                 )
 
-                Text(
-                    text = categoryName,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                Text( // 화면에 글자를 보여줌
+                    text = categoryName, // categoryName 값을 text 값에 넣음
+                    fontSize = 22.sp, // fontSize 값을 정해줌
+                    fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                    color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
                 )
             }
 
-            Text(
-                text = "전체의 ${(ratio * 100).roundToInt()}%",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Text( // 화면에 글자를 보여줌
+                text = "전체의 ${(ratio * 100).roundToInt()}%", // text 값을 정해줌
+                fontSize = 13.sp, // fontSize 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
             )
         }
     }
 }
 
 // 주간 / 월간 토글 전체
-@Composable
-fun PeriodToggleSection(
-    selectedPeriod: String,
-    onSelectPeriod: (String) -> Unit
-) {
-    Row(
-        modifier = Modifier
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun PeriodToggleSection( // PeriodToggleSection 함수를 선언함
+    selectedPeriod: String, // selectedPeriod 값을 받음
+    onSelectPeriod: (String) -> Unit // onSelectPeriod 때 실행할 함수를 받음
+) { // 이 블록 안의 내용이 시작됨
+    Row( // 안쪽 UI를 가로로 배치함
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(999.dp)
+                color = MaterialTheme.colorScheme.outlineVariant, // color 값을 정해줌
+                shape = RoundedCornerShape(999.dp) // shape 값을 정해줌
             )
             .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        PeriodToggleButton(
-            text = "주간",
-            isSelected = selectedPeriod == "주간",
-            onClick = { onSelectPeriod("주간") },
-            modifier = Modifier.weight(1f)
+        horizontalArrangement = Arrangement.spacedBy(6.dp) // horizontalArrangement 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        PeriodToggleButton( // 누를 수 있는 버튼을 만듦
+            text = "주간", // text 값을 정해줌
+            isSelected = selectedPeriod == "주간", // isSelected인지 여부를 정해줌
+            onClick = { onSelectPeriod("주간") }, // 눌렀을 때 실행할 함수를 정해줌
+            modifier = Modifier.weight(1f) // UI 크기나 여백 같은 모양을 정함
         )
 
-        PeriodToggleButton(
-            text = "월간",
-            isSelected = selectedPeriod == "월간",
-            onClick = { onSelectPeriod("월간") },
-            modifier = Modifier.weight(1f)
+        PeriodToggleButton( // 누를 수 있는 버튼을 만듦
+            text = "월간", // text 값을 정해줌
+            isSelected = selectedPeriod == "월간", // isSelected인지 여부를 정해줌
+            onClick = { onSelectPeriod("월간") }, // 눌렀을 때 실행할 함수를 정해줌
+            modifier = Modifier.weight(1f) // UI 크기나 여백 같은 모양을 정함
         )
     }
 }
 
 // 개별 토글 버튼
-@Composable
-fun PeriodToggleButton(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    Button(
-        onClick = onClick,
-        interactionSource = interactionSource,
-        modifier = modifier
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun PeriodToggleButton( // PeriodToggleButton 함수를 선언함
+    text: String, // text 값을 받음
+    isSelected: Boolean, // isSelected인지 여부를 받음
+    onClick: () -> Unit, // 눌렀을 때 실행할 함수를 받음
+    modifier: Modifier = Modifier // modifier 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val interactionSource = remember { MutableInteractionSource() } // 화면이 다시 그려져도 interactionSource 값을 기억함
+    val pressed by interactionSource.collectIsPressedAsState() // pressed 값을 저장함
+    Button( // 누를 수 있는 버튼을 만듦
+        onClick = onClick, // 눌렀을 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
+        interactionSource = interactionSource, // interactionSource 값을 interactionSource 값에 넣음
+        modifier = modifier // modifier 값을 modifier 값에 넣음
             .height(40.dp)
-            .graphicsLayer {
-                scaleX = if (pressed) 0.985f else 1f
-                scaleY = if (pressed) 0.985f else 1f
+            .graphicsLayer { // 이 블록 안의 내용이 시작됨
+                scaleX = if (pressed) 0.985f else 1f // scaleX 값을 정해줌
+                scaleY = if (pressed) 0.985f else 1f // scaleY 값을 정해줌
             },
-        shape = RoundedCornerShape(999.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+        shape = RoundedCornerShape(999.dp), // shape 값을 정해줌
+        colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, // containerColor 값을 정해줌
+            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface // contentColor 값을 정해줌
         ),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-    ) {
-        Text(
-            text = text,
-            fontWeight = FontWeight.SemiBold
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp) // elevation 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Text( // 화면에 글자를 보여줌
+            text = text, // text 값을 text 값에 넣음
+            fontWeight = FontWeight.SemiBold // fontWeight 값을 정해줌
         )
     }
 }
 
 // 소비 추이 카드
-@Composable
-fun ExpenseTrendCard(
-    title: String,
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun ExpenseTrendCard( // ExpenseTrendCard 함수를 선언함
+    title: String, // 제목을 받음
     expenseList: List<Pair<String, Int>>,
-    selectedPeriod: String
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            Text(
-                text = title,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface
+    selectedPeriod: String // selectedPeriod 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
+            verticalArrangement = Arrangement.spacedBy(18.dp) // verticalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = title, // 제목을 text 값에 넣음
+                fontSize = 20.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
 
-            if (selectedPeriod == "월간") {
-                MonthlyLineChart(
-                    expenseList = expenseList
+            if (selectedPeriod == "월간") { // 조건이 맞는지 확인함
+                MonthlyLineChart( // Monthly Line Chart 함수를 실행함
+                    expenseList = expenseList // 소비 내역 값을 소비 내역 값에 넣음
                 )
-            } else {
-                SimpleBarChart(
-                    expenseList = expenseList
+            } else { // 이 블록 안의 내용이 시작됨
+                SimpleBarChart( // Simple Bar Chart 함수를 실행함
+                    expenseList = expenseList // 소비 내역 값을 소비 내역 값에 넣음
                 )
             }
         }
@@ -575,105 +575,105 @@ fun ExpenseTrendCard(
 }
 
 // 월간 소비 추이 라인 차트
-@Composable
-fun MonthlyLineChart(
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun MonthlyLineChart( // MonthlyLineChart 함수를 선언함
     expenseList: List<Pair<String, Int>>
-) {
-    var selectedMonthIndex by remember { mutableIntStateOf(-1) }
-    val normalizedList = remember(expenseList) {
-        val amountMap = expenseList.toMap()
+) { // 이 블록 안의 내용이 시작됨
+    var selectedMonthIndex by remember { mutableIntStateOf(-1) } // 화면이 다시 그려져도 selectedMonthIndex 값을 기억함
+    val normalizedList = remember(expenseList) { // 화면이 다시 그려져도 normalizedList 값을 기억함
+        val amountMap = expenseList.toMap() // amountMap 값을 저장함
         (1..12).map { month ->
             "${month}월" to (amountMap["${month}월"] ?: 0)
         }
     }
-    val maxAmount = normalizedList.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1
-    val yAxisSteps = remember(maxAmount) {
-        val topAmount = max(60000, ((maxAmount + 9999) / 10000) * 10000)
-        listOf(0, topAmount / 4, topAmount / 2, topAmount * 3 / 4, topAmount)
+    val maxAmount = normalizedList.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1 // maxAmount 값을 저장함
+    val yAxisSteps = remember(maxAmount) { // 화면이 다시 그려져도 yAxisSteps 값을 기억함
+        val topAmount = max(60000, ((maxAmount + 9999) / 10000) * 10000) // topAmount 값을 저장함
+        listOf(0, topAmount / 4, topAmount / 2, topAmount * 3 / 4, topAmount) // list Of 함수를 실행함
     }
-    val isDark = isSystemInDarkTheme()
-    val gridLineColor = if (isDark) Color(0xFF6B7280) else MaterialTheme.colorScheme.outlineVariant
-    val axisTextColor = if (isDark) Color(0xFFE5E7EB) else MaterialTheme.colorScheme.onSurfaceVariant
-    val lineColor = if (isDark) SpentopiaGlowPurple else MaterialTheme.colorScheme.primary
-    val pointFillColor = if (isDark) Color(0xFF111827) else MaterialTheme.colorScheme.surface
-    val chartTopAmount = yAxisSteps.last().coerceAtLeast(1)
+    val isDark = isSystemInDarkTheme() // 다크모드인지 저장함
+    val gridLineColor = if (isDark) Color(0xFF6B7280) else MaterialTheme.colorScheme.outlineVariant // gridLineColor 값을 저장함
+    val axisTextColor = if (isDark) Color(0xFFE5E7EB) else MaterialTheme.colorScheme.onSurfaceVariant // axisTextColor 값을 저장함
+    val lineColor = if (isDark) SpentopiaGlowPurple else MaterialTheme.colorScheme.primary // lineColor 값을 저장함
+    val pointFillColor = if (isDark) Color(0xFF111827) else MaterialTheme.colorScheme.surface // pointFillColor 값을 저장함
+    val chartTopAmount = yAxisSteps.last().coerceAtLeast(1) // chartTopAmount 값을 저장함
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
+    Column(modifier = Modifier.fillMaxWidth()) { // 안쪽 UI를 세로로 배치함
+        Row( // 안쪽 UI를 가로로 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
                 .height(240.dp)
-        ) {
-            Column(
-                modifier = Modifier
+        ) { // 이 블록 안의 내용이 시작됨
+            Column( // 안쪽 UI를 세로로 배치함
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                     .width(48.dp)
                     .height(200.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
+                verticalArrangement = Arrangement.SpaceBetween // verticalArrangement 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
                 yAxisSteps.reversed().forEach { value ->
-                    Text(
-                        text = formatCompactAmount(value),
-                        fontSize = 10.sp,
-                        color = axisTextColor
+                    Text( // 화면에 글자를 보여줌
+                        text = formatCompactAmount(value), // text 값을 정해줌
+                        fontSize = 10.sp, // fontSize 값을 정해줌
+                        color = axisTextColor // axisTextColor 값을 color 값에 넣음
                     )
                 }
             }
 
-            Column(
-                modifier = Modifier
+            Column( // 안쪽 UI를 세로로 배치함
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                     .fillMaxWidth()
                     .height(232.dp)
-            ) {
-                Box(
-                    modifier = Modifier
+            ) { // 이 블록 안의 내용이 시작됨
+                Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+                    modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                         .fillMaxWidth()
                         .height(200.dp)
-                        .pointerInput(normalizedList) {
-                            awaitPointerEventScope {
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    val change = event.changes.firstOrNull()
-                                    if (change != null && change.pressed) {
-                                        val chartWidth = size.width.toFloat().coerceAtLeast(1f)
-                                        val xRatio = (change.position.x / chartWidth).coerceIn(0f, 1f)
-                                        selectedMonthIndex = (xRatio * normalizedList.lastIndex)
+                        .pointerInput(normalizedList) { // 이 블록 안의 내용이 시작됨
+                            awaitPointerEventScope { // 이 블록 안의 내용이 시작됨
+                                while (true) { // 조건이 맞는 동안 계속 반복함
+                                    val event = awaitPointerEvent() // event 값을 저장함
+                                    val change = event.changes.firstOrNull() // change 값을 저장함
+                                    if (change != null && change.pressed) { // 조건이 맞는지 확인함
+                                        val chartWidth = size.width.toFloat().coerceAtLeast(1f) // chartWidth 값을 저장함
+                                        val xRatio = (change.position.x / chartWidth).coerceIn(0f, 1f) // xRatio 값을 저장함
+                                        selectedMonthIndex = (xRatio * normalizedList.lastIndex) // selectedMonthIndex 값을 정해줌
                                             .roundToInt()
                                             .coerceIn(0, normalizedList.lastIndex)
                                     }
                                 }
                             }
                         }
-                ) {
-                    Canvas(modifier = Modifier.matchParentSize()) {
-                        val dash = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
+                ) { // 이 블록 안의 내용이 시작됨
+                    Canvas(modifier = Modifier.matchParentSize()) { // UI 크기나 여백 같은 모양을 정함
+                        val dash = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f) // dash 값을 저장함
 
-                        for (i in 0 until 5) {
-                            val y = size.height * i / 4f
-                            drawLine(
-                                color = gridLineColor,
-                                start = Offset(0f, y),
-                                end = Offset(size.width, y),
-                                pathEffect = dash,
-                                strokeWidth = if (isDark) 1.6f else 1f
+                        for (i in 0 until 5) { // 목록을 하나씩 돌면서 실행함
+                            val y = size.height * i / 4f // y 값을 저장함
+                            drawLine( // draw Line 함수를 실행함
+                                color = gridLineColor, // gridLineColor 값을 color 값에 넣음
+                                start = Offset(0f, y), // start 값을 정해줌
+                                end = Offset(size.width, y), // end 값을 정해줌
+                                pathEffect = dash, // dash 값을 pathEffect 값에 넣음
+                                strokeWidth = if (isDark) 1.6f else 1f // strokeWidth 값을 정해줌
                             )
                         }
 
-                        val horizontalGap = size.width / 11f
-                        val points = normalizedList.mapIndexed { index, item ->
-                            val x = horizontalGap * index
-                            val ratio = item.second.toFloat() / chartTopAmount.toFloat()
-                            val y = size.height - (size.height * ratio.coerceIn(0f, 1f))
-                            Offset(x, y)
+                        val horizontalGap = size.width / 11f // horizontalGap 값을 저장함
+                        val points = normalizedList.mapIndexed { index, item -> // points 값을 저장함
+                            val x = horizontalGap * index // x 값을 저장함
+                            val ratio = item.second.toFloat() / chartTopAmount.toFloat() // ratio 값을 저장함
+                            val y = size.height - (size.height * ratio.coerceIn(0f, 1f)) // y 값을 저장함
+                            Offset(x, y) // Offset 함수를 실행함
                         }
 
-                        if (points.size >= 2) {
-                            val path = Path().apply {
-                                moveTo(points.first().x, points.first().y)
-                                for (index in 1 until points.size) {
-                                    val previous = points[index - 1]
-                                    val current = points[index]
-                                    val controlX = (previous.x + current.x) / 2f
-                                    cubicTo(
+                        if (points.size >= 2) { // 조건이 맞는지 확인함
+                            val path = Path().apply { // path 값을 저장함
+                                moveTo(points.first().x, points.first().y) // move To 함수를 실행함
+                                for (index in 1 until points.size) { // 목록을 하나씩 돌면서 실행함
+                                    val previous = points[index - 1] // previous 값을 저장함
+                                    val current = points[index] // current 값을 저장함
+                                    val controlX = (previous.x + current.x) / 2f // controlX 값을 저장함
+                                    cubicTo( // cubic To 함수를 실행함
                                         controlX,
                                         previous.y,
                                         controlX,
@@ -684,142 +684,142 @@ fun MonthlyLineChart(
                                 }
                             }
 
-                            drawPath(
-                                path = path,
-                                color = lineColor,
-                                style = Stroke(width = 5f)
+                            drawPath( // draw Path 함수를 실행함
+                                path = path, // path 값을 path 값에 넣음
+                                color = lineColor, // lineColor 값을 color 값에 넣음
+                                style = Stroke(width = 5f) // style 값을 정해줌
                             )
                         }
 
                         points.forEachIndexed { index, point ->
-                            val amount = normalizedList[index].second
-                            val selected = index == selectedMonthIndex
-                            if (amount > 0) {
-                                drawCircle(
-                                    color = lineColor.copy(alpha = 0.18f),
-                                    radius = if (selected) 17f else 12f,
-                                    center = point
+                            val amount = normalizedList[index].second // 금액을 저장함
+                            val selected = index == selectedMonthIndex // selected 값을 저장함
+                            if (amount > 0) { // 조건이 맞는지 확인함
+                                drawCircle( // draw Circle 함수를 실행함
+                                    color = lineColor.copy(alpha = 0.18f), // color 값을 정해줌
+                                    radius = if (selected) 17f else 12f, // radius 값을 정해줌
+                                    center = point // point 값을 center 값에 넣음
                                 )
                             }
 
-                            drawCircle(
-                                color = lineColor,
-                                radius = when {
+                            drawCircle( // draw Circle 함수를 실행함
+                                color = lineColor, // lineColor 값을 color 값에 넣음
+                                radius = when { // radius 값을 정해줌
                                     selected -> 9f
                                     amount > 0 -> 7f
-                                    else -> 4.5f
+                                    else -> 4.5f // 위 조건이 아니면 이쪽을 실행함
                                 },
-                                center = point
+                                center = point // point 값을 center 값에 넣음
                             )
-                            drawCircle(
-                                color = pointFillColor,
-                                radius = if (selected) 4.5f else if (amount > 0) 3.5f else 2.2f,
-                                center = point
+                            drawCircle( // draw Circle 함수를 실행함
+                                color = pointFillColor, // pointFillColor 값을 color 값에 넣음
+                                radius = if (selected) 4.5f else if (amount > 0) 3.5f else 2.2f, // radius 값을 정해줌
+                                center = point // point 값을 center 값에 넣음
                             )
                         }
                     }
 
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+                Row( // 안쪽 UI를 가로로 배치함
+                    modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+                    horizontalArrangement = Arrangement.SpaceBetween // horizontalArrangement 값을 정해줌
+                ) { // 이 블록 안의 내용이 시작됨
                     normalizedList.forEach { item ->
-                        Text(
-                            text = item.first,
-                            fontSize = 9.sp,
-                            color = axisTextColor
+                        Text( // 화면에 글자를 보여줌
+                            text = item.first, // text 값을 정해줌
+                            fontSize = 9.sp, // fontSize 값을 정해줌
+                            color = axisTextColor // axisTextColor 값을 color 값에 넣음
                         )
                     }
                 }
             }
         }
 
-        val selectedMonth = normalizedList.getOrNull(selectedMonthIndex)
-        if (selectedMonth != null) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "${selectedMonth.first} ${formatAmount(selectedMonth.second)}",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
+        val selectedMonth = normalizedList.getOrNull(selectedMonthIndex) // selectedMonth 값을 저장함
+        if (selectedMonth != null) { // 조건이 맞는지 확인함
+            Spacer(modifier = Modifier.height(8.dp)) // UI 크기나 여백 같은 모양을 정함
+            Text( // 화면에 글자를 보여줌
+                text = "${selectedMonth.first} ${formatAmount(selectedMonth.second)}", // text 값을 정해줌
+                fontSize = 12.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.primary // color 값을 정해줌
             )
         }
     }
 }
 
 // 간단한 막대 그래프
-@Composable
-fun SimpleBarChart(
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun SimpleBarChart( // SimpleBarChart 함수를 선언함
     expenseList: List<Pair<String, Int>>
-) {
-    val maxAmount = (expenseList.maxOfOrNull { it.second } ?: 1).coerceAtLeast(1)
-    val yAxisSteps = listOf(0, 15000, 30000, 45000, 60000)
-    val isDark = isSystemInDarkTheme()
-    val gridLineColor = if (isDark) Color(0xFF6B7280) else MaterialTheme.colorScheme.outlineVariant
-    val axisTextColor = if (isDark) Color(0xFFE5E7EB) else MaterialTheme.colorScheme.onSurfaceVariant
+) { // 이 블록 안의 내용이 시작됨
+    val maxAmount = (expenseList.maxOfOrNull { it.second } ?: 1).coerceAtLeast(1) // maxAmount 값을 저장함
+    val yAxisSteps = listOf(0, 15000, 30000, 45000, 60000) // yAxisSteps 값을 저장함
+    val isDark = isSystemInDarkTheme() // 다크모드인지 저장함
+    val gridLineColor = if (isDark) Color(0xFF6B7280) else MaterialTheme.colorScheme.outlineVariant // gridLineColor 값을 저장함
+    val axisTextColor = if (isDark) Color(0xFFE5E7EB) else MaterialTheme.colorScheme.onSurfaceVariant // axisTextColor 값을 저장함
 
-    Column(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
+    Column( // 안쪽 UI를 세로로 배치함
+        modifier = Modifier.fillMaxWidth() // UI 크기나 여백 같은 모양을 정함
+    ) { // 이 블록 안의 내용이 시작됨
+        Row( // 안쪽 UI를 가로로 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
                 .height(220.dp)
-        ) {
-            Column(
-                modifier = Modifier
+        ) { // 이 블록 안의 내용이 시작됨
+            Column( // 안쪽 UI를 세로로 배치함
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                     .width(42.dp)
                     .height(200.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
+                verticalArrangement = Arrangement.SpaceBetween // verticalArrangement 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
                 yAxisSteps.reversed().forEach { value ->
-                    Text(
-                        text = value.toString(),
-                        fontSize = 10.sp,
-                        color = axisTextColor
+                    Text( // 화면에 글자를 보여줌
+                        text = value.toString(), // text 값을 정해줌
+                        fontSize = 10.sp, // fontSize 값을 정해줌
+                        color = axisTextColor // axisTextColor 값을 color 값에 넣음
                     )
                 }
             }
 
-            Box(
-                modifier = Modifier
+            Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                     .fillMaxWidth()
                     .height(200.dp)
-            ) {
-                Canvas(
-                    modifier = Modifier.matchParentSize()
-                ) {
-                    val dash = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
+            ) { // 이 블록 안의 내용이 시작됨
+                Canvas( // Canvas 함수를 실행함
+                    modifier = Modifier.matchParentSize() // UI 크기나 여백 같은 모양을 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    val dash = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f) // dash 값을 저장함
 
-                    for (i in 0 until 5) {
-                        val y = size.height * i / 4f
-                        drawLine(
-                            color = gridLineColor,
-                            start = Offset(0f, y),
-                            end = Offset(size.width, y),
-                            pathEffect = dash,
-                            strokeWidth = if (isDark) 1.6f else 1f
+                    for (i in 0 until 5) { // 목록을 하나씩 돌면서 실행함
+                        val y = size.height * i / 4f // y 값을 저장함
+                        drawLine( // draw Line 함수를 실행함
+                            color = gridLineColor, // gridLineColor 값을 color 값에 넣음
+                            start = Offset(0f, y), // start 값을 정해줌
+                            end = Offset(size.width, y), // end 값을 정해줌
+                            pathEffect = dash, // dash 값을 pathEffect 값에 넣음
+                            strokeWidth = if (isDark) 1.6f else 1f // strokeWidth 값을 정해줌
                         )
                     }
                 }
 
-                Row(
-                    modifier = Modifier
+                Row( // 안쪽 UI를 가로로 배치함
+                    modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                         .fillMaxSize()
-                        .padding(horizontal = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.Bottom
-                ) {
+                        .padding(horizontal = 6.dp), // .padding(horizontal 값을 정해줌
+                    horizontalArrangement = Arrangement.SpaceEvenly, // horizontalArrangement 값을 정해줌
+                    verticalAlignment = Alignment.Bottom // verticalAlignment 값을 정해줌
+                ) { // 이 블록 안의 내용이 시작됨
                     expenseList.forEach { item ->
-                        BarChartItem(
-                            label = item.first,
-                            amount = item.second,
-                            maxAmount = maxAmount,
-                            isDark = isDark
+                        BarChartItem( // Bar Chart Item 함수를 실행함
+                            label = item.first, // label 값을 정해줌
+                            amount = item.second, // 금액을 정해줌
+                            maxAmount = maxAmount, // maxAmount 값을 maxAmount 값에 넣음
+                            isDark = isDark // isDark인지 여부를 isDark인지 여부에 넣음
                         )
                     }
                 }
@@ -829,88 +829,88 @@ fun SimpleBarChart(
 }
 
 // 개별 막대
-@Composable
-fun BarChartItem(
-    label: String,
-    amount: Int,
-    maxAmount: Int,
-    isDark: Boolean
-) {
-    val ratio = amount.toFloat() / maxAmount.toFloat()
-    val chartColor = if (isDark) SpentopiaGlowPurple else MaterialTheme.colorScheme.primary
-    val barColors = if (isDark) {
-        listOf(chartColor.copy(alpha = 0.92f), chartColor)
-    } else {
-        listOf(chartColor.copy(alpha = 0.72f), chartColor)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun BarChartItem( // BarChartItem 함수를 선언함
+    label: String, // label 값을 받음
+    amount: Int, // 금액을 받음
+    maxAmount: Int, // maxAmount 값을 받음
+    isDark: Boolean // isDark인지 여부를 받음
+) { // 이 블록 안의 내용이 시작됨
+    val ratio = amount.toFloat() / maxAmount.toFloat() // ratio 값을 저장함
+    val chartColor = if (isDark) SpentopiaGlowPurple else MaterialTheme.colorScheme.primary // chartColor 값을 저장함
+    val barColors = if (isDark) { // barColors 값을 저장함
+        listOf(chartColor.copy(alpha = 0.92f), chartColor) // listOf(chartColor.copy(alpha 값을 정해줌
+    } else { // 이 블록 안의 내용이 시작됨
+        listOf(chartColor.copy(alpha = 0.72f), chartColor) // listOf(chartColor.copy(alpha 값을 정해줌
     }
-    val labelColor = if (isDark) Color(0xFFF9FAFB) else MaterialTheme.colorScheme.onSurfaceVariant
+    val labelColor = if (isDark) Color(0xFFF9FAFB) else MaterialTheme.colorScheme.onSurfaceVariant // labelColor 값을 저장함
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Bottom,
-        modifier = Modifier.width(28.dp)
-    ) {
-        Box(
-            modifier = Modifier
+    Column( // 안쪽 UI를 세로로 배치함
+        horizontalAlignment = Alignment.CenterHorizontally, // horizontalAlignment 값을 정해줌
+        verticalArrangement = Arrangement.Bottom, // verticalArrangement 값을 정해줌
+        modifier = Modifier.width(28.dp) // UI 크기나 여백 같은 모양을 정함
+    ) { // 이 블록 안의 내용이 시작됨
+        Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .height((150 * ratio).dp)
                 .width(16.dp)
                 .background(
-                    brush = Brush.verticalGradient(
-                        colors = barColors
+                    brush = Brush.verticalGradient( // brush 값을 정해줌
+                        colors = barColors // barColors 값을 colors 값에 넣음
                     ),
-                    shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
+                    shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp) // shape 값을 정해줌
                 )
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            color = labelColor
+        Text( // 화면에 글자를 보여줌
+            text = label, // label 값을 text 값에 넣음
+            fontSize = 11.sp, // fontSize 값을 정해줌
+            color = labelColor // labelColor 값을 color 값에 넣음
         )
     }
 }
 
 // 카테고리별 지출 카드
-@Composable
-fun CategoryPieChartCard(
-    categoryList: List<CategorySpendUiModel>
-) {
-    val totalAmount = categoryList.sumOf { it.amount }
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun CategoryPieChartCard( // CategoryPieChartCard 함수를 선언함
+    categoryList: List<CategorySpendUiModel> // categoryList 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val totalAmount = categoryList.sumOf { it.amount } // totalAmount 값을 저장함
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            Text(
-                text = "카테고리별 지출",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
+            verticalArrangement = Arrangement.spacedBy(18.dp) // verticalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = "카테고리별 지출", // text 값을 정해줌
+                fontSize = 20.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
 
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(18.dp)
-            ) {
-                CategoryPieChart(
-                    categoryList = categoryList,
-                    totalAmount = totalAmount
+            Column( // 안쪽 UI를 세로로 배치함
+                modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+                horizontalAlignment = Alignment.CenterHorizontally, // horizontalAlignment 값을 정해줌
+                verticalArrangement = Arrangement.spacedBy(18.dp) // verticalArrangement 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
+                CategoryPieChart( // Category Pie Chart 함수를 실행함
+                    categoryList = categoryList, // categoryList 값을 categoryList 값에 넣음
+                    totalAmount = totalAmount // totalAmount 값을 totalAmount 값에 넣음
                 )
 
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
+                Column( // 안쪽 UI를 세로로 배치함
+                    modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+                    verticalArrangement = Arrangement.spacedBy(10.dp) // verticalArrangement 값을 정해줌
+                ) { // 이 블록 안의 내용이 시작됨
                     categoryList.forEach { item ->
-                        PieLegendItem(item = item)
+                        PieLegendItem(item = item) // PieLegendItem(item 값을 정해줌
                     }
                 }
             }
@@ -919,138 +919,138 @@ fun CategoryPieChartCard(
 }
 
 // 도넛 차트
-@Composable
-fun CategoryPieChart(
-    categoryList: List<CategorySpendUiModel>,
-    totalAmount: Int
-) {
-    val totalRatio = categoryList.sumOf { it.ratio.toDouble() }.toFloat().coerceAtLeast(1f)
-    val isEmpty = totalAmount <= 0 || categoryList.isEmpty()
-    val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun CategoryPieChart( // CategoryPieChart 함수를 선언함
+    categoryList: List<CategorySpendUiModel>, // categoryList 값을 받음
+    totalAmount: Int // totalAmount 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val totalRatio = categoryList.sumOf { it.ratio.toDouble() }.toFloat().coerceAtLeast(1f) // totalRatio 값을 저장함
+    val isEmpty = totalAmount <= 0 || categoryList.isEmpty() // 비어있는 상태인지 저장함
+    val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f) // trackColor 값을 저장함
 
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.size(230.dp)
-    ) {
-        Canvas(
-            modifier = Modifier.size(230.dp)
-        ) {
-            var startAngle = -90f
-            val strokeWidth = 44f
+    Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+        contentAlignment = Alignment.Center, // contentAlignment 값을 정해줌
+        modifier = Modifier.size(230.dp) // UI 크기나 여백 같은 모양을 정함
+    ) { // 이 블록 안의 내용이 시작됨
+        Canvas( // Canvas 함수를 실행함
+            modifier = Modifier.size(230.dp) // UI 크기나 여백 같은 모양을 정함
+        ) { // 이 블록 안의 내용이 시작됨
+            var startAngle = -90f // 나중에 바뀔 수 있는 startAngle 값을 저장함
+            val strokeWidth = 44f // strokeWidth 값을 저장함
 
-            drawArc(
-                color = trackColor,
-                startAngle = -90f,
-                sweepAngle = 360f,
-                useCenter = false,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            drawArc( // draw Arc 함수를 실행함
+                color = trackColor, // trackColor 값을 color 값에 넣음
+                startAngle = -90f, // startAngle 값을 정해줌
+                sweepAngle = 360f, // sweepAngle 값을 정해줌
+                useCenter = false, // false 값을 useCenter 값에 넣음
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round) // style 값을 정해줌
             )
 
-            if (!isEmpty) {
+            if (!isEmpty) { // 조건이 맞는지 확인함
                 categoryList.forEach { item ->
-                    val sweepAngle = (item.ratio / totalRatio) * 360f
+                    val sweepAngle = (item.ratio / totalRatio) * 360f // sweepAngle 값을 저장함
 
-                    drawArc(
-                        color = item.color,
-                        startAngle = startAngle,
-                        sweepAngle = (sweepAngle - 2f).coerceAtLeast(0f),
-                        useCenter = false,
-                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    drawArc( // draw Arc 함수를 실행함
+                        color = item.color, // color 값을 정해줌
+                        startAngle = startAngle, // startAngle 값을 startAngle 값에 넣음
+                        sweepAngle = (sweepAngle - 2f).coerceAtLeast(0f), // sweepAngle 값을 정해줌
+                        useCenter = false, // false 값을 useCenter 값에 넣음
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round) // style 값을 정해줌
                     )
 
-                    startAngle += sweepAngle
+                    startAngle += sweepAngle // + 값을 정해줌
                 }
             }
         }
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "총 지출",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        Column( // 안쪽 UI를 세로로 배치함
+            horizontalAlignment = Alignment.CenterHorizontally // horizontalAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = "총 지출", // text 값을 정해줌
+                fontSize = 12.sp, // fontSize 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
             )
 
-            Text(
-                text = "${formatWon(totalAmount)}원",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface
+            Text( // 화면에 글자를 보여줌
+                text = "${formatWon(totalAmount)}원", // text 값을 정해줌
+                fontSize = 20.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
         }
     }
 }
 
 // 도넛 차트 범례 1줄
-@Composable
-fun PieLegendItem(
-    item: CategorySpendUiModel
-) {
-    val percent = (item.ratio * 100).roundToInt()
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun PieLegendItem( // PieLegendItem 함수를 선언함
+    item: CategorySpendUiModel // item 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val percent = (item.ratio * 100).roundToInt() // percent 값을 저장함
 
-    Row(
-        modifier = Modifier
+    Row( // 안쪽 UI를 가로로 배치함
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
-                shape = RoundedCornerShape(12.dp)
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f), // color 값을 정해줌
+                shape = RoundedCornerShape(12.dp) // shape 값을 정해줌
             )
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
+            .padding(horizontal = 12.dp, vertical = 10.dp), // .padding(horizontal 값을 정해줌
+        verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .size(12.dp)
                 .background(item.color, CircleShape)
         )
 
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(10.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        Text(
-            text = item.name,
-            fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
+        Text( // 화면에 글자를 보여줌
+            text = item.name, // text 값을 정해줌
+            fontSize = 14.sp, // fontSize 값을 정해줌
+            color = MaterialTheme.colorScheme.onSurface, // color 값을 정해줌
+            modifier = Modifier.weight(1f) // UI 크기나 여백 같은 모양을 정함
         )
 
-        Text(
-            text = "${percent}%",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        Text( // 화면에 글자를 보여줌
+            text = "${percent}%", // text 값을 정해줌
+            fontSize = 13.sp, // fontSize 값을 정해줌
+            fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+            color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
         )
     }
 }
 
 // 카테고리 상세 카드
-@Composable
-fun CategoryDetailCard(
-    categoryList: List<CategorySpendUiModel>
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            Text(
-                text = "카테고리 상세",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun CategoryDetailCard( // CategoryDetailCard 함수를 선언함
+    categoryList: List<CategorySpendUiModel> // categoryList 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
+            verticalArrangement = Arrangement.spacedBy(18.dp) // verticalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = "카테고리 상세", // text 값을 정해줌
+                fontSize = 20.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
 
             categoryList.forEachIndexed { index, item ->
-                CategoryDetailItem(item = item)
+                CategoryDetailItem(item = item) // CategoryDetailItem(item 값을 정해줌
 
-                if (index != categoryList.lastIndex) {
-                    HorizontalDivider(
-                        thickness = 0.6.dp,
-                        color = Color.Transparent
+                if (index != categoryList.lastIndex) { // 조건이 맞는지 확인함
+                    HorizontalDivider( // Horizontal Divider 함수를 실행함
+                        thickness = 0.6.dp, // thickness 값을 정해줌
+                        color = Color.Transparent // color 값을 정해줌
                     )
                 }
             }
@@ -1059,196 +1059,196 @@ fun CategoryDetailCard(
 }
 
 // 카테고리 상세 1줄
-@Composable
-fun CategoryDetailItem(
-    item: CategorySpendUiModel
-) {
-    val percent = (item.ratio * 100).roundToInt()
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun CategoryDetailItem( // CategoryDetailItem 함수를 선언함
+    item: CategorySpendUiModel // item 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val percent = (item.ratio * 100).roundToInt() // percent 값을 저장함
 
-    Column(
-        modifier = Modifier
+    Column( // 안쪽 UI를 세로로 배치함
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
-                shape = RoundedCornerShape(14.dp)
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f), // color 값을 정해줌
+                shape = RoundedCornerShape(14.dp) // shape 값을 정해줌
             )
             .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = item.name,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
+        verticalArrangement = Arrangement.spacedBy(10.dp) // verticalArrangement 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Row( // 안쪽 UI를 가로로 배치함
+            modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+            verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = item.name, // text 값을 정해줌
+                fontSize = 15.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface, // color 값을 정해줌
+                modifier = Modifier.weight(1f) // UI 크기나 여백 같은 모양을 정함
             )
 
-            Text(
-                text = "${formatWon(item.amount)}원",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+            Text( // 화면에 글자를 보여줌
+                text = "${formatWon(item.amount)}원", // text 값을 정해줌
+                fontSize = 15.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
         }
 
-        CategoryProgressBar(
-            ratio = item.ratio,
-            color = item.color
+        CategoryProgressBar( // Category Progress Bar 함수를 실행함
+            ratio = item.ratio, // ratio 값을 정해줌
+            color = item.color // color 값을 정해줌
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
-        ) {
-            Text(
-                text = "${percent}%",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.End
+        Row( // 안쪽 UI를 가로로 배치함
+            modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+            horizontalArrangement = Arrangement.End // horizontalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = "${percent}%", // text 값을 정해줌
+                fontSize = 12.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurfaceVariant, // color 값을 정해줌
+                textAlign = TextAlign.End // textAlign 값을 정해줌
             )
         }
     }
 }
 
-@Composable
-fun CategoryProgressBar(
-    ratio: Float,
-    color: Color
-) {
-    Box(
-        modifier = Modifier
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun CategoryProgressBar( // CategoryProgressBar 함수를 선언함
+    ratio: Float, // ratio 값을 받음
+    color: Color // color 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
             .height(10.dp)
             .background(
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.38f),
-                shape = RoundedCornerShape(999.dp)
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.38f), // color 값을 정해줌
+                shape = RoundedCornerShape(999.dp) // shape 값을 정해줌
             )
-    ) {
-        Box(
-            modifier = Modifier
+    ) { // 이 블록 안의 내용이 시작됨
+        Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth(ratio.coerceIn(0f, 1f))
                 .height(10.dp)
                 .background(
-                    color = color,
-                    shape = RoundedCornerShape(999.dp)
+                    color = color, // color 값을 color 값에 넣음
+                    shape = RoundedCornerShape(999.dp) // shape 값을 정해줌
                 )
         )
     }
 }
 
 // AI 리포트 섹션
-@Composable
-fun AiAnalysisReportSection(
-    totalExpense: Int,
-    aiReport: AiConsumptionReportUiModel?,
-    isLoading: Boolean,
-    errorMessage: String,
-    onRequestAiAnalysis: () -> Unit
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "AI 소비 분석 리포트",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun AiAnalysisReportSection( // AiAnalysisReportSection 함수를 선언함
+    totalExpense: Int, // 소비 내역 값을 받음
+    aiReport: AiConsumptionReportUiModel?, // aiReport 값을 받음
+    isLoading: Boolean, // 로딩 여부를 받음
+    errorMessage: String, // 오류 내용을 받음
+    onRequestAiAnalysis: () -> Unit // onRequestAiAnalysis 때 실행할 함수를 받음
+) { // 이 블록 안의 내용이 시작됨
+    Column( // 안쪽 UI를 세로로 배치함
+        verticalArrangement = Arrangement.spacedBy(12.dp) // verticalArrangement 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Row( // 안쪽 UI를 가로로 배치함
+            modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+            horizontalArrangement = Arrangement.SpaceBetween, // horizontalArrangement 값을 정해줌
+            verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = "AI 소비 분석 리포트", // text 값을 정해줌
+                fontSize = 22.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
 
-            Button(
-                onClick = onRequestAiAnalysis,
-                enabled = !isLoading && totalExpense > 0 && aiReport == null,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            Button( // 누를 수 있는 버튼을 만듦
+                onClick = onRequestAiAnalysis, // onRequestAiAnalysis 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
+                enabled = !isLoading && totalExpense > 0 && aiReport == null, // enabled 값을 정해줌
+                shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
+                colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
+                    containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer, // contentColor 값을 정해줌
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant, // disabledContainerColor 값을 정해줌
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant // disabledContentColor 값을 정해줌
                 ),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
-            ) {
-                Text(
-                    text = when {
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp) // contentPadding 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
+                Text( // 화면에 글자를 보여줌
+                    text = when { // text 값을 정해줌
                         isLoading -> "분석 중"
-                        aiReport != null -> "분석 완료"
-                        else -> "AI 분석"
+                        aiReport != null -> "분석 완료" // ! 값을 정해줌
+                        else -> "AI 분석" // 위 조건이 아니면 이쪽을 실행함
                     },
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 13.sp, // fontSize 값을 정해줌
+                    fontWeight = FontWeight.Bold // fontWeight 값을 정해줌
                 )
             }
         }
 
-        AiGeneratedReportCard(
-            totalExpense = totalExpense,
-            aiReport = aiReport,
-            isLoading = isLoading,
-            errorMessage = errorMessage
+        AiGeneratedReportCard( // 내용을 카드 모양으로 묶어서 보여줌
+            totalExpense = totalExpense, // 소비 내역 값을 소비 내역 값에 넣음
+            aiReport = aiReport, // aiReport 값을 aiReport 값에 넣음
+            isLoading = isLoading, // 로딩 여부를 로딩 여부에 넣음
+            errorMessage = errorMessage // 오류 내용을 오류 내용에 넣음
         )
 
     }
 }
 
-@Composable
-fun AiGeneratedReportCard(
-    totalExpense: Int,
-    aiReport: AiConsumptionReportUiModel?,
-    isLoading: Boolean,
-    errorMessage: String
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun AiGeneratedReportCard( // AiGeneratedReportCard 함수를 선언함
+    totalExpense: Int, // 소비 내역 값을 받음
+    aiReport: AiConsumptionReportUiModel?, // aiReport 값을 받음
+    isLoading: Boolean, // 로딩 여부를 받음
+    errorMessage: String // 오류 내용을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(16.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
                 .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = RoundedCornerShape(16.dp)
+                    width = 1.dp, // width 값을 정해줌
+                    color = MaterialTheme.colorScheme.outlineVariant, // color 값을 정해줌
+                    shape = RoundedCornerShape(16.dp) // shape 값을 정해줌
                 )
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            when {
-                totalExpense <= 0 -> {
-                    AiReportStatusText(
-                        title = "AI 소비 코멘트",
-                        message = "아직 분석할 소비 데이터가 없습니다. Home 화면에서 소비 기록을 먼저 입력해주세요."
+            verticalArrangement = Arrangement.spacedBy(8.dp) // verticalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            when { // 값 종류에 따라 실행할 코드를 나눔
+                totalExpense <= 0 -> { // < 값을 정해줌
+                    AiReportStatusText( // 화면에 글자를 보여줌
+                        title = "AI 소비 코멘트", // 제목을 정해줌
+                        message = "아직 분석할 소비 데이터가 없습니다. Home 화면에서 소비 기록을 먼저 입력해주세요." // 메시지를 정해줌
                     )
                 }
-                isLoading -> {
-                    AiReportStatusText(
-                        title = "AI 소비 코멘트",
-                        message = "AI가 이번 기간의 소비 기록을 분석하고 있습니다."
+                isLoading -> { // 이 블록 안의 내용이 시작됨
+                    AiReportStatusText( // 화면에 글자를 보여줌
+                        title = "AI 소비 코멘트", // 제목을 정해줌
+                        message = "AI가 이번 기간의 소비 기록을 분석하고 있습니다." // 메시지를 정해줌
                     )
                 }
-                errorMessage.isNotBlank() -> {
-                    AiReportStatusText(
-                        title = "AI 소비 코멘트",
-                        message = errorMessage,
-                        isError = true
+                errorMessage.isNotBlank() -> { // 이 블록 안의 내용이 시작됨
+                    AiReportStatusText( // 화면에 글자를 보여줌
+                        title = "AI 소비 코멘트", // 제목을 정해줌
+                        message = errorMessage, // 오류 내용을 메시지에 넣음
+                        isError = true // true 값을 오류 여부에 넣음
                     )
                 }
-                aiReport != null -> {
-                    AiReportGrid(report = aiReport)
+                aiReport != null -> { // ! 값을 정해줌
+                    AiReportGrid(report = aiReport) // AiReportGrid(report 값을 정해줌
                 }
-                else -> {
-                    AiReportStatusText(
-                        title = "AI 소비 코멘트",
-                        message = "AI 분석 버튼을 누르면 이번 기간의 소비 데이터를 바탕으로 맞춤 리포트를 생성합니다."
+                else -> { // 위 조건이 아니면 이쪽을 실행함
+                    AiReportStatusText( // 화면에 글자를 보여줌
+                        title = "AI 소비 코멘트", // 제목을 정해줌
+                        message = "AI 분석 버튼을 누르면 이번 기간의 소비 데이터를 바탕으로 맞춤 리포트를 생성합니다." // 메시지를 정해줌
                     )
                 }
             }
@@ -1256,218 +1256,218 @@ fun AiGeneratedReportCard(
     }
 }
 
-@Composable
-fun AiReportStatusText(
-    title: String,
-    message: String,
-    isError: Boolean = false
-) {
-    Text(
-        text = title,
-        fontSize = 16.sp,
-        fontWeight = FontWeight.ExtraBold,
-        color = MaterialTheme.colorScheme.onSurface
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun AiReportStatusText( // AiReportStatusText 함수를 선언함
+    title: String, // 제목을 받음
+    message: String, // 메시지를 받음
+    isError: Boolean = false // 오류 여부를 받음
+) { // 이 블록 안의 내용이 시작됨
+    Text( // 화면에 글자를 보여줌
+        text = title, // 제목을 text 값에 넣음
+        fontSize = 16.sp, // fontSize 값을 정해줌
+        fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+        color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
     )
 
-    Text(
-        text = message,
-        fontSize = 14.sp,
-        lineHeight = 22.sp,
-        color = if (isError) {
-            Color(0xFFE53935)
-        } else {
+    Text( // 화면에 글자를 보여줌
+        text = message, // 메시지를 text 값에 넣음
+        fontSize = 14.sp, // fontSize 값을 정해줌
+        lineHeight = 22.sp, // lineHeight 값을 정해줌
+        color = if (isError) { // color 값을 정해줌
+            Color(0xFFE53935) // Color 함수를 실행함
+        } else { // 이 블록 안의 내용이 시작됨
             MaterialTheme.colorScheme.onSurfaceVariant
         }
     )
 }
 
-@Composable
-fun AiReportGrid(
-    report: AiConsumptionReportUiModel
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        AiReportItemCard(
-            title = "좋은 점",
-            emoji = "👍",
-            message = report.good,
-            borderColor = Color(0xFFB7E4C7)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun AiReportGrid( // AiReportGrid 함수를 선언함
+    report: AiConsumptionReportUiModel // report 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Column( // 안쪽 UI를 세로로 배치함
+        verticalArrangement = Arrangement.spacedBy(10.dp) // verticalArrangement 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        AiReportItemCard( // 내용을 카드 모양으로 묶어서 보여줌
+            title = "좋은 점", // 제목을 정해줌
+            emoji = "👍", // emoji 값을 정해줌
+            message = report.good, // 메시지를 정해줌
+            borderColor = Color(0xFFB7E4C7) // borderColor 값을 정해줌
         )
-        AiReportItemCard(
-            title = "주의",
-            emoji = "⚠️",
-            message = report.warning,
-            borderColor = Color(0xFFFFD166)
+        AiReportItemCard( // 내용을 카드 모양으로 묶어서 보여줌
+            title = "주의", // 제목을 정해줌
+            emoji = "⚠️", // emoji 값을 정해줌
+            message = report.warning, // 메시지를 정해줌
+            borderColor = Color(0xFFFFD166) // borderColor 값을 정해줌
         )
-        AiReportItemCard(
-            title = "조언",
-            emoji = "💡",
-            message = report.advice,
-            borderColor = Color(0xFFD6C8FF)
+        AiReportItemCard( // 내용을 카드 모양으로 묶어서 보여줌
+            title = "조언", // 제목을 정해줌
+            emoji = "💡", // emoji 값을 정해줌
+            message = report.advice, // 메시지를 정해줌
+            borderColor = Color(0xFFD6C8FF) // borderColor 값을 정해줌
         )
-        AiReportItemCard(
-            title = "예측",
-            emoji = "📈",
-            message = report.prediction,
-            borderColor = Color(0xFFA7C7FF)
+        AiReportItemCard( // 내용을 카드 모양으로 묶어서 보여줌
+            title = "예측", // 제목을 정해줌
+            emoji = "📈", // emoji 값을 정해줌
+            message = report.prediction, // 메시지를 정해줌
+            borderColor = Color(0xFFA7C7FF) // borderColor 값을 정해줌
         )
     }
 }
 
-@Composable
-fun AiReportItemCard(
-    title: String,
-    emoji: String,
-    message: String,
-    borderColor: Color
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun AiReportItemCard( // AiReportItemCard 함수를 선언함
+    title: String, // 제목을 받음
+    emoji: String, // emoji 값을 받음
+    message: String, // 메시지를 받음
+    borderColor: Color // borderColor 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
                 .border(
-                    width = 1.dp,
-                    color = borderColor,
-                    shape = RoundedCornerShape(14.dp)
+                    width = 1.dp, // width 값을 정해줌
+                    color = borderColor, // borderColor 값을 color 값에 넣음
+                    shape = RoundedCornerShape(14.dp) // shape 값을 정해줌
                 )
-                .padding(horizontal = 14.dp, vertical = 13.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = emoji,
-                    fontSize = 17.sp
+                .padding(horizontal = 14.dp, vertical = 13.dp), // .padding(horizontal 값을 정해줌
+            verticalArrangement = Arrangement.spacedBy(6.dp) // verticalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Row( // 안쪽 UI를 가로로 배치함
+                verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
+                Text( // 화면에 글자를 보여줌
+                    text = emoji, // emoji 값을 text 값에 넣음
+                    fontSize = 17.sp // fontSize 값을 정해줌
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(8.dp)) // UI 크기나 여백 같은 모양을 정함
 
-                Text(
-                    text = title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                Text( // 화면에 글자를 보여줌
+                    text = title, // 제목을 text 값에 넣음
+                    fontSize = 15.sp, // fontSize 값을 정해줌
+                    fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                    color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
                 )
             }
 
-            Text(
-                text = message.ifBlank { "분석 결과가 비어 있습니다." },
-                fontSize = 14.sp,
-                lineHeight = 21.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Text( // 화면에 글자를 보여줌
+                text = message.ifBlank { "분석 결과가 비어 있습니다." }, // text 값을 정해줌
+                fontSize = 14.sp, // fontSize 값을 정해줌
+                lineHeight = 21.sp, // lineHeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
             )
         }
     }
 }
 
 // AI 리포트 카드 1개
-@Composable
-fun AnalysisTipCard(
-    tip: AnalysisTipUiModel
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun AnalysisTipCard( // AnalysisTipCard 함수를 선언함
+    tip: AnalysisTipUiModel // tip 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(16.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
                 .border(
-                    width = 1.dp,
-                    color = tip.borderColor,
-                    shape = RoundedCornerShape(16.dp)
+                    width = 1.dp, // width 값을 정해줌
+                    color = tip.borderColor, // color 값을 정해줌
+                    shape = RoundedCornerShape(16.dp) // shape 값을 정해줌
                 )
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = tip.emoji,
-                    fontSize = 18.sp
+            verticalArrangement = Arrangement.spacedBy(8.dp) // verticalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Row( // 안쪽 UI를 가로로 배치함
+                verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
+                Text( // 화면에 글자를 보여줌
+                    text = tip.emoji, // text 값을 정해줌
+                    fontSize = 18.sp // fontSize 값을 정해줌
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(8.dp)) // UI 크기나 여백 같은 모양을 정함
 
-                Text(
-                    text = tip.title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                Text( // 화면에 글자를 보여줌
+                    text = tip.title, // text 값을 정해줌
+                    fontSize = 16.sp, // fontSize 값을 정해줌
+                    fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                    color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
                 )
             }
 
-            Text(
-                text = tip.description,
-                fontSize = 14.sp,
-                lineHeight = 22.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Text( // 화면에 글자를 보여줌
+                text = tip.description, // text 값을 정해줌
+                fontSize = 14.sp, // fontSize 값을 정해줌
+                lineHeight = 22.sp, // lineHeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
             )
         }
     }
 }
 
 // 소비 패턴 분석 카드
-@Composable
-fun ConsumptionPatternCard(
-    aiReport: AiConsumptionReportUiModel?,
-    isLoading: Boolean
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            Text(
-                text = "소비 패턴 분석",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun ConsumptionPatternCard( // ConsumptionPatternCard 함수를 선언함
+    aiReport: AiConsumptionReportUiModel?, // aiReport 값을 받음
+    isLoading: Boolean // 로딩 여부를 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
+            verticalArrangement = Arrangement.spacedBy(20.dp) // verticalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = "소비 패턴 분석", // text 값을 정해줌
+                fontSize = 20.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
 
-            when {
-                isLoading -> {
-                    Text(
-                        text = "AI가 소비 패턴을 분석하고 있습니다.",
-                        fontSize = 14.sp,
-                        lineHeight = 22.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            when { // 값 종류에 따라 실행할 코드를 나눔
+                isLoading -> { // 이 블록 안의 내용이 시작됨
+                    Text( // 화면에 글자를 보여줌
+                        text = "AI가 소비 패턴을 분석하고 있습니다.", // text 값을 정해줌
+                        fontSize = 14.sp, // fontSize 값을 정해줌
+                        lineHeight = 22.sp, // lineHeight 값을 정해줌
+                        color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
                     )
                 }
-                aiReport != null -> {
-                    ConsumptionTextReportCard(
-                        title = "분석",
-                        emoji = "📊",
-                        message = aiReport.pattern
+                aiReport != null -> { // ! 값을 정해줌
+                    ConsumptionTextReportCard( // 내용을 카드 모양으로 묶어서 보여줌
+                        title = "분석", // 제목을 정해줌
+                        emoji = "📊", // emoji 값을 정해줌
+                        message = aiReport.pattern // 메시지를 정해줌
                             .replace("소비 패턴 분석:", "")
                             .trim()
                             .ifBlank { "분석 결과가 비어 있습니다." }
                     )
 
-                    ConsumptionTextReportCard(
-                        title = "개선 방안",
-                        emoji = "💡",
-                        message = aiReport.improvement.ifBlank { "개선 방안이 비어 있습니다." }
+                    ConsumptionTextReportCard( // 내용을 카드 모양으로 묶어서 보여줌
+                        title = "개선 방안", // 제목을 정해줌
+                        emoji = "💡", // emoji 값을 정해줌
+                        message = aiReport.improvement.ifBlank { "개선 방안이 비어 있습니다." } // 메시지를 정해줌
                     )
                 }
-                else -> {
-                    Text(
-                        text = "AI 분석 버튼을 누르면 소비 패턴 분석과 개선 방안을 확인할 수 있습니다.",
-                        fontSize = 14.sp,
-                        lineHeight = 22.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                else -> { // 위 조건이 아니면 이쪽을 실행함
+                    Text( // 화면에 글자를 보여줌
+                        text = "AI 분석 버튼을 누르면 소비 패턴 분석과 개선 방안을 확인할 수 있습니다.", // text 값을 정해줌
+                        fontSize = 14.sp, // fontSize 값을 정해줌
+                        lineHeight = 22.sp, // lineHeight 값을 정해줌
+                        color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
                     )
                 }
             }
@@ -1475,177 +1475,177 @@ fun ConsumptionPatternCard(
     }
 }
 
-@Composable
-fun ConsumptionTextReportCard(
-    title: String,
-    emoji: String,
-    message: String
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-    ) {
-        Column(
-            modifier = Modifier
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun ConsumptionTextReportCard( // ConsumptionTextReportCard 함수를 선언함
+    title: String, // 제목을 받음
+    emoji: String, // emoji 값을 받음
+    message: String // 메시지를 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)) // colors 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = emoji,
-                    fontSize = 17.sp
+                .padding(horizontal = 14.dp, vertical = 14.dp), // .padding(horizontal 값을 정해줌
+            verticalArrangement = Arrangement.spacedBy(8.dp) // verticalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Row( // 안쪽 UI를 가로로 배치함
+                verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
+                Text( // 화면에 글자를 보여줌
+                    text = emoji, // emoji 값을 text 값에 넣음
+                    fontSize = 17.sp // fontSize 값을 정해줌
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(8.dp)) // UI 크기나 여백 같은 모양을 정함
 
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                Text( // 화면에 글자를 보여줌
+                    text = title, // 제목을 text 값에 넣음
+                    fontSize = 16.sp, // fontSize 값을 정해줌
+                    fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                    color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
                 )
             }
 
-            Text(
-                text = message,
-                fontSize = 14.sp,
-                lineHeight = 22.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Text( // 화면에 글자를 보여줌
+                text = message, // 메시지를 text 값에 넣음
+                fontSize = 14.sp, // fontSize 값을 정해줌
+                lineHeight = 22.sp, // lineHeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
             )
         }
     }
 }
 
 // 소비 패턴 진행률 1줄
-@Composable
-fun PatternProgressRow(
-    item: PatternProgressUiModel
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = item.label,
-            fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(110.dp)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun PatternProgressRow( // PatternProgressRow 함수를 선언함
+    item: PatternProgressUiModel // item 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Row( // 안쪽 UI를 가로로 배치함
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Text( // 화면에 글자를 보여줌
+            text = item.label, // text 값을 정해줌
+            fontSize = 14.sp, // fontSize 값을 정해줌
+            color = MaterialTheme.colorScheme.onSurfaceVariant, // color 값을 정해줌
+            modifier = Modifier.width(110.dp) // UI 크기나 여백 같은 모양을 정함
         )
 
-        LinearProgressIndicator(
-            progress = { item.ratio.coerceIn(0f, 1f) },
-            modifier = Modifier
+        LinearProgressIndicator( // Linear Progress Indicator 함수를 실행함
+            progress = { item.ratio.coerceIn(0f, 1f) }, // progress 값을 정해줌
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .weight(1f)
                 .height(8.dp),
-            color = SpentopiaMutedPurple,
-            trackColor = MaterialTheme.colorScheme.outlineVariant
+            color = SpentopiaMutedPurple, // SpentopiaMutedPurple 값을 color 값에 넣음
+            trackColor = MaterialTheme.colorScheme.outlineVariant // trackColor 값을 정해줌
         )
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(8.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        Text(
-            text = "${(item.ratio * 100).roundToInt()}%",
-            fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.widthIn(min = 34.dp)
+        Text( // 화면에 글자를 보여줌
+            text = "${(item.ratio * 100).roundToInt()}%", // text 값을 정해줌
+            fontSize = 13.sp, // fontSize 값을 정해줌
+            color = MaterialTheme.colorScheme.onSurface, // color 값을 정해줌
+            fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
+            modifier = Modifier.widthIn(min = 34.dp) // UI 크기나 여백 같은 모양을 정함
         )
     }
 }
 
 // 평일 / 주말 비교 행
-@Composable
-fun PatternCompareRow(
-    leftLabel: String,
-    leftValue: String,
-    rightLabel: String,
-    rightValue: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        SmallCompareCard(
-            label = leftLabel,
-            value = leftValue,
-            modifier = Modifier.weight(1f)
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun PatternCompareRow( // PatternCompareRow 함수를 선언함
+    leftLabel: String, // leftLabel 값을 받음
+    leftValue: String, // leftValue 값을 받음
+    rightLabel: String, // rightLabel 값을 받음
+    rightValue: String // rightValue 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Row( // 안쪽 UI를 가로로 배치함
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        horizontalArrangement = Arrangement.spacedBy(12.dp) // horizontalArrangement 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        SmallCompareCard( // 내용을 카드 모양으로 묶어서 보여줌
+            label = leftLabel, // leftLabel 값을 label 값에 넣음
+            value = leftValue, // leftValue 값을 입력값에 넣음
+            modifier = Modifier.weight(1f) // UI 크기나 여백 같은 모양을 정함
         )
 
-        SmallCompareCard(
-            label = rightLabel,
-            value = rightValue,
-            modifier = Modifier.weight(1f)
+        SmallCompareCard( // 내용을 카드 모양으로 묶어서 보여줌
+            label = rightLabel, // rightLabel 값을 label 값에 넣음
+            value = rightValue, // rightValue 값을 입력값에 넣음
+            modifier = Modifier.weight(1f) // UI 크기나 여백 같은 모양을 정함
         )
     }
 }
 
 // 비교용 작은 카드
-@Composable
-fun SmallCompareCard(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = label,
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+fun SmallCompareCard( // SmallCompareCard 함수를 선언함
+    label: String, // label 값을 받음
+    value: String, // 입력값을 받음
+    modifier: Modifier = Modifier // modifier 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = modifier, // modifier 값을 modifier 값에 넣음
+        shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant) // colors 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
+        Column( // 안쪽 UI를 세로로 배치함
+            modifier = Modifier.padding(14.dp), // UI 크기나 여백 같은 모양을 정함
+            verticalArrangement = Arrangement.spacedBy(8.dp) // verticalArrangement 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Text( // 화면에 글자를 보여줌
+                text = label, // label 값을 text 값에 넣음
+                fontSize = 13.sp, // fontSize 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
             )
 
-            Text(
-                text = value,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+            Text( // 화면에 글자를 보여줌
+                text = value, // 입력값을 text 값에 넣음
+                fontSize = 16.sp, // fontSize 값을 정해줌
+                fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
             )
         }
     }
 }
 
 // 공유 함수
-fun shareAnalysisReport(
-    context: Context,
-    reportText: String
-) {
-    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, "Spentopia 소비 패턴 분석 리포트")
-        putExtra(Intent.EXTRA_TEXT, reportText)
+fun shareAnalysisReport( // shareAnalysisReport 함수를 선언함
+    context: Context, // 현재 화면 정보를 받음
+    reportText: String // reportText 값을 받음
+) { // 이 블록 안의 내용이 시작됨
+    val sendIntent = Intent(Intent.ACTION_SEND).apply { // sendIntent 값을 저장함
+        type = "text/plain" // type 값을 정해줌
+        putExtra(Intent.EXTRA_SUBJECT, "Spentopia 소비 패턴 분석 리포트") // put Extra 함수를 실행함
+        putExtra(Intent.EXTRA_TEXT, reportText) // put Extra 함수를 실행함
     }
 
-    val chooser = Intent.createChooser(sendIntent, "리포트 공유")
+    val chooser = Intent.createChooser(sendIntent, "리포트 공유") // chooser 값을 저장함
     context.startActivity(chooser)
 }
 
 // 다운로드 저장 함수
-fun saveAnalysisReportToDownloads(
-    context: Context,
-    fileName: String,
-    content: String
-): Boolean {
-    return try {
-        val resolver = context.contentResolver
+fun saveAnalysisReportToDownloads( // 데이터를 불러오는 함수 시작
+    context: Context, // 현재 화면 정보를 받음
+    fileName: String, // fileName 값을 받음
+    content: String // 내용을 받음
+): Boolean { // 이 블록 안의 내용이 시작됨
+    return try { // 이 값을 함수 결과로 돌려줌
+        val resolver = context.contentResolver // resolver 값을 저장함
 
-        val values = ContentValues().apply {
-            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-            put(MediaStore.Downloads.MIME_TYPE, "text/plain")
-            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+        val values = ContentValues().apply { // values 값을 저장함
+            put(MediaStore.Downloads.DISPLAY_NAME, fileName) // put 함수를 실행함
+            put(MediaStore.Downloads.MIME_TYPE, "text/plain") // put 함수를 실행함
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS) // put 함수를 실행함
         }
 
-        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) // 이미지 주소를 저장함
             ?: return false
 
         resolver.openOutputStream(uri)?.use { outputStream ->
@@ -1654,47 +1654,47 @@ fun saveAnalysisReportToDownloads(
         } ?: return false
 
         true
-    } catch (e: Exception) {
+    } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
         e.printStackTrace()
         false
     }
 }
 
 // 리포트 텍스트 생성
-fun buildAnalysisReportText(
-    totalExpense: Int,
-    averageDailyExpense: Int,
-    budgetUsageRate: Float,
-    topCategoryName: String,
-    topCategoryRatio: Float,
-    selectedPeriod: String,
+fun buildAnalysisReportText( // buildAnalysisReportText 함수를 선언함
+    totalExpense: Int, // 소비 내역 값을 받음
+    averageDailyExpense: Int, // 소비 내역 값을 받음
+    budgetUsageRate: Float, // 예산 관련 값을 받음
+    topCategoryName: String, // topCategoryName 값을 받음
+    topCategoryRatio: Float, // topCategoryRatio 값을 받음
+    selectedPeriod: String, // selectedPeriod 값을 받음
     trendExpenseList: List<Pair<String, Int>>,
-    categoryList: List<CategorySpendUiModel>,
-    tipList: List<AnalysisTipUiModel>,
-    aiAnalysisText: String,
-    timePatternList: List<PatternProgressUiModel>,
-    weekdayAverageText: String,
-    weekendAverageText: String,
-    weekendComment: String,
-    paymentPatternList: List<PatternProgressUiModel>
-): String {
-    val trendText = trendExpenseList.joinToString("\n") { (label, amount) ->
+    categoryList: List<CategorySpendUiModel>, // categoryList 값을 받음
+    tipList: List<AnalysisTipUiModel>, // tipList 값을 받음
+    aiAnalysisText: String, // aiAnalysisText 값을 받음
+    timePatternList: List<PatternProgressUiModel>, // timePatternList 값을 받음
+    weekdayAverageText: String, // weekdayAverageText 값을 받음
+    weekendAverageText: String, // weekendAverageText 값을 받음
+    weekendComment: String, // weekendComment 값을 받음
+    paymentPatternList: List<PatternProgressUiModel> // paymentPatternList 값을 받음
+): String { // 이 블록 안의 내용이 시작됨
+    val trendText = trendExpenseList.joinToString("\n") { (label, amount) -> // trendText 값을 저장함
         "- $label: ${formatWon(amount)}원"
     }
 
-    val categoryText = categoryList.joinToString("\n") { item ->
+    val categoryText = categoryList.joinToString("\n") { item -> // categoryText 값을 저장함
         "- ${item.name}: ${formatWon(item.amount)}원 (${(item.ratio * 100).roundToInt()}%)"
     }
 
-    val tipText = tipList.joinToString("\n") { tip ->
+    val tipText = tipList.joinToString("\n") { tip -> // tipText 값을 저장함
         "- ${tip.title}: ${tip.description}"
     }
 
-    val timePatternText = timePatternList.joinToString("\n") { item ->
+    val timePatternText = timePatternList.joinToString("\n") { item -> // timePatternText 값을 저장함
         "- ${item.label}: ${(item.ratio * 100).roundToInt()}%"
     }
 
-    val paymentPatternText = paymentPatternList.joinToString("\n") { item ->
+    val paymentPatternText = paymentPatternList.joinToString("\n") { item -> // paymentPatternText 값을 저장함
         "- ${item.label}: ${(item.ratio * 100).roundToInt()}%"
     }
 
@@ -1735,17 +1735,17 @@ fun buildAnalysisReportText(
 }
 
 // 금액 포맷 함수
-fun formatWon(value: Int): String {
-    return "%,d".format(value)
+fun formatWon(value: Int): String { // formatWon 함수를 선언함
+    return "%,d".format(value) // 이 값을 함수 결과로 돌려줌
 }
 
-fun formatAmount(value: Int): String {
-    return "${formatWon(value)}원"
+fun formatAmount(value: Int): String { // formatAmount 함수를 선언함
+    return "${formatWon(value)}원" // 이 값을 함수 결과로 돌려줌
 }
 
-fun formatCompactAmount(value: Int): String {
-    return when {
-        value >= 10000 -> "${value / 10000}만"
-        else -> value.toString()
+fun formatCompactAmount(value: Int): String { // formatCompactAmount 함수를 선언함
+    return when { // 이 값을 함수 결과로 돌려줌
+        value >= 10000 -> "${value / 10000}만" // > 값을 정해줌
+        else -> value.toString() // 위 조건이 아니면 이쪽을 실행함
     }
 }

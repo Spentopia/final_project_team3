@@ -1,4 +1,4 @@
-package com.ict.spentopia.navigation
+package com.ict.spentopia.navigation // 이 파일이 속한 패키지 위치를 적음
 
 // ------------------------------------------------------------
 // Route.kt
@@ -7,7 +7,7 @@ package com.ict.spentopia.navigation
 // 한 곳에서 관리하는 파일입니다.
 // ------------------------------------------------------------
 
-sealed class Route(val route: String) {
+sealed class Route(val route: String) { // Route 결과 종류를 정해진 것만 쓰게 묶음
 
     // 스플래시 화면 route입니다.
     data object Splash : Route("splash")
@@ -57,15 +57,15 @@ sealed class Route(val route: String) {
     data object Chatbot : Route("chatbot")
 
     // 커뮤니티 글쓰기 화면 route입니다.
-    data object CommunityWrite : Route("community_write?category={category}&contestId={contestId}") {
-        private const val baseRoute = "community_write"
+    data object CommunityWrite : Route("community_write?category={category}&contestId={contestId}") { // 커뮤니티 관련 값을 정해줌
+        private const val baseRoute = "community_write" // baseRoute 값을 저장함
 
-        fun createRoute(category: String? = null, contestId: String? = null): String {
-            val params = buildList {
-                if (!category.isNullOrBlank()) add("category=$category")
-                if (!contestId.isNullOrBlank()) add("contestId=$contestId")
+        fun createRoute(category: String? = null, contestId: String? = null): String { // 데이터를 저장하는 함수 시작
+            val params = buildList { // params 값을 저장함
+                if (!category.isNullOrBlank()) add("category=$category") // 조건이 맞는지 확인함
+                if (!contestId.isNullOrBlank()) add("contestId=$contestId") // 조건이 맞는지 확인함
             }
-            return if (params.isEmpty()) baseRoute else "$baseRoute?${params.joinToString("&")}"
+            return if (params.isEmpty()) baseRoute else "$baseRoute?${params.joinToString("&")}" // 이 값을 함수 결과로 돌려줌
         }
     }
 }

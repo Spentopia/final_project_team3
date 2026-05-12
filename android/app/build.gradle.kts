@@ -1,10 +1,10 @@
-import java.util.Properties
+import java.util.Properties // Properties 기능을 가져옴
 
-plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.ksp)
+plugins { // 이 블록 안의 내용이 시작됨
+    alias(libs.plugins.android.application) // alias 함수를 실행함
+    alias(libs.plugins.kotlin.android) // alias 함수를 실행함
+    alias(libs.plugins.kotlin.compose) // alias 함수를 실행함
+    alias(libs.plugins.ksp) // alias 함수를 실행함
 }
 
 // =====================================================
@@ -16,43 +16,43 @@ plugins {
 //
 // 이렇게 하면 LoginScreen.kt에 Web Client ID를 직접 하드코딩 안해도됨
 // =====================================================
-val localProperties = Properties().apply {
-    val file = rootProject.file("local.properties")
-    if (file.exists()) {
-        load(file.inputStream())
+val localProperties = Properties().apply { // localProperties 값을 저장함
+    val file = rootProject.file("local.properties") // 파일을 저장함
+    if (file.exists()) { // 조건이 맞는지 확인함
+        load(file.inputStream()) // 데이터를 불러오는 함수를 실행함
     }
 }
 
 // local.properties에서 GOOGLE_WEB_CLIENT_ID 값을 가져옴
 // 값이 없으면 빈 문자열("")이 들어갑니다.
-val googleWebClientId = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID") ?: ""
+val googleWebClientId = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID") ?: "" // googleWebClientId 값을 저장함
 
 // local.properties에서 백엔드 API 주소를 가져옵니다.
 // 값이 없으면 안드로이드 에뮬레이터에서 로컬 PC 백엔드에 접근하는 기본 주소를 사용합니다.
-val apiBaseUrl = localProperties.getProperty("API_BASE_URL") ?: "http://10.0.2.2:1113/"
+val apiBaseUrl = localProperties.getProperty("API_BASE_URL") ?: "http://10.0.2.2:1113/" // apiBaseUrl 값을 저장함
 
 // Android에서 AI 분석 서버를 직접 호출할 때 사용할 주소입니다.
 // 웹 프론트의 http://localhost:8000/api/v1/analyze/report 와 같은 서버입니다.
-val aiAnalyzeBaseUrl = localProperties.getProperty("AI_ANALYZE_BASE_URL") ?: "http://10.0.2.2:8000/"
+val aiAnalyzeBaseUrl = localProperties.getProperty("AI_ANALYZE_BASE_URL") ?: "http://10.0.2.2:8000/" // aiAnalyzeBaseUrl 값을 저장함
 
 // Android WebView에서 열 NFT 마켓 웹 URL입니다.
 // 로컬 에뮬레이터에서는 localhost 대신 10.0.2.2를 사용합니다.
-val nftMarketWebViewUrl =
+val nftMarketWebViewUrl = // 마켓 관련 값을 저장함
     localProperties.getProperty("NFT_MARKET_WEBVIEW_URL") ?: "http://10.0.2.2:5173/marketplace"
 
-android {
-    namespace = "com.ict.spentopia"
-    compileSdk = 36
+android { // 이 블록 안의 내용이 시작됨
+    namespace = "com.ict.spentopia" // namespace 값을 정해줌
+    compileSdk = 36 // compileSdk 값을 정해줌
 
-    defaultConfig {
-        applicationId = "com.ict.spentopia"
-        minSdk = 26
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+    defaultConfig { // 이 블록 안의 내용이 시작됨
+        applicationId = "com.ict.spentopia" // applicationId 값을 정해줌
+        minSdk = 26 // minSdk 값을 정해줌
+        targetSdk = 35 // targetSdk 값을 정해줌
+        versionCode = 1 // versionCode 값을 정해줌
+        versionName = "1.0" // versionName 값을 정해줌
 
-        testApplicationId = "com.ict.spentopia.test"
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testApplicationId = "com.ict.spentopia.test" // testApplicationId 값을 정해줌
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" // testInstrumentationRunner 값을 정해줌
 
         // =====================================================
         // BuildConfig에 Google Web Client ID 등록
@@ -63,7 +63,7 @@ android {
         //
         // 실제 값은 local.properties의 GOOGLE_WEB_CLIENT_ID에서 가져옴
         // =====================================================
-        buildConfigField(
+        buildConfigField( // build Config Field 함수를 실행함
             "String",
             "GOOGLE_WEB_CLIENT_ID",
             "\"$googleWebClientId\""
@@ -71,13 +71,13 @@ android {
 
         // RetrofitClient에서 사용할 백엔드 기본 주소입니다.
         // android/local.properties에 API_BASE_URL=http://10.0.2.2:1113/ 처럼 적으면 여기로 들어옵니다.
-        buildConfigField(
+        buildConfigField( // build Config Field 함수를 실행함
             "String",
             "API_BASE_URL",
             "\"$apiBaseUrl\""
         )
 
-        buildConfigField(
+        buildConfigField( // build Config Field 함수를 실행함
             "String",
             "AI_ANALYZE_BASE_URL",
             "\"$aiAnalyzeBaseUrl\""
@@ -85,110 +85,110 @@ android {
 
         // MarketScreen WebView에서 로드할 NFT 마켓 웹 페이지 주소입니다.
         // android/local.properties에 NFT_MARKET_WEBVIEW_URL=http://10.0.2.2:5173/marketplace 처럼 설정할 수 있습니다.
-        buildConfigField(
+        buildConfigField( // build Config Field 함수를 실행함
             "String",
             "NFT_MARKET_WEBVIEW_URL",
             "\"$nftMarketWebViewUrl\""
         )
     }
 
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
+    buildTypes { // 이 블록 안의 내용이 시작됨
+        release { // 이 블록 안의 내용이 시작됨
+            isMinifyEnabled = false // false 값을 isMinifyEnabled인지 여부에 넣음
+            proguardFiles( // proguard Files 함수를 실행함
+                getDefaultProguardFile("proguard-android-optimize.txt"), // get Default Proguard File 함수를 실행함
                 "proguard-rules.pro"
             )
         }
     }
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+    compileOptions { // 이 블록 안의 내용이 시작됨
+        sourceCompatibility = JavaVersion.VERSION_17 // sourceCompatibility 값을 정해줌
+        targetCompatibility = JavaVersion.VERSION_17 // targetCompatibility 값을 정해줌
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlinOptions { // 이 블록 안의 내용이 시작됨
+        jvmTarget = "17" // jvmTarget 값을 정해줌
     }
 
-    buildFeatures {
+    buildFeatures { // 이 블록 안의 내용이 시작됨
         // Jetpack Compose 사용
-        compose = true
+        compose = true // true 값을 compose 값에 넣음
 
         // BuildConfig.GOOGLE_WEB_CLIENT_ID를 사용하려면 true 필요
-        buildConfig = true
+        buildConfig = true // true 값을 buildConfig 값에 넣음
     }
 }
 
-kotlin {
-    jvmToolchain(17)
+kotlin { // 이 블록 안의 내용이 시작됨
+    jvmToolchain(17) // jvm Toolchain 함수를 실행함
 }
 
-dependencies {
+dependencies { // 이 블록 안의 내용이 시작됨
     // =========================
     // Android 기본 라이브러리
     // =========================
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.ktx) // implementation 함수를 실행함
+    implementation(libs.androidx.lifecycle.runtime.ktx) // implementation 함수를 실행함
+    implementation(libs.androidx.activity.compose) // implementation 함수를 실행함
 
     // =========================
     // Jetpack Compose
     // =========================
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.graphics)
-    implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.compose.material3)
-    implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation(platform(libs.androidx.compose.bom)) // implementation 함수를 실행함
+    implementation(libs.androidx.compose.ui) // implementation 함수를 실행함
+    implementation(libs.androidx.compose.ui.graphics) // implementation 함수를 실행함
+    implementation(libs.androidx.compose.ui.tooling.preview) // implementation 함수를 실행함
+    implementation(libs.androidx.compose.material3) // implementation 함수를 실행함
+    implementation("androidx.compose.material:material-icons-extended") // implementation 함수를 실행함
+    implementation("androidx.navigation:navigation-compose:2.7.7") // implementation 함수를 실행함
 
     // =========================
     // Lifecycle / 상태 관리
     // =========================
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3") // implementation 함수를 실행함
 
     // =========================
     // 로컬 데이터 저장
     // =========================
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.datastore:datastore-preferences:1.1.1") // implementation 함수를 실행함
 
     // =========================
     // Room 데이터베이스
     // =========================
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-runtime:2.6.1") // implementation 함수를 실행함
+    implementation("androidx.room:room-ktx:2.6.1") // implementation 함수를 실행함
+    ksp("androidx.room:room-compiler:2.6.1") // ksp 함수를 실행함
 
     // =========================
     // Supabase
     // =========================
-    implementation(platform("io.github.jan-tennert.supabase:bom:3.0.0"))
-    implementation("io.github.jan-tennert.supabase:auth-kt")
-    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation(platform("io.github.jan-tennert.supabase:bom:3.0.0")) // implementation 함수를 실행함
+    implementation("io.github.jan-tennert.supabase:auth-kt") // implementation 함수를 실행함
+    implementation("io.github.jan-tennert.supabase:postgrest-kt") // implementation 함수를 실행함
 
     // =========================
     // 이미지 로딩
     // =========================
-    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("io.coil-kt:coil-compose:2.6.0") // implementation 함수를 실행함
 
     // =========================
     // Solana / Wallet 연동
     // =========================
-    implementation("com.solanamobile:mobile-wallet-adapter-clientlib-ktx:2.0.3")
-    implementation("org.purejava:tweetnacl-java:1.1.3")
+    implementation("com.solanamobile:mobile-wallet-adapter-clientlib-ktx:2.0.3") // implementation 함수를 실행함
+    implementation("org.purejava:tweetnacl-java:1.1.3") // implementation 함수를 실행함
 
     // =========================
     // Coroutine
     // =========================
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3") // implementation 함수를 실행함
 
     // =========================
     // Retrofit / OkHttp
     // =========================
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.squareup.retrofit2:retrofit:2.11.0") // implementation 함수를 실행함
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0") // implementation 함수를 실행함
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0") // implementation 함수를 실행함
 
     // =========================
     // Ktor
@@ -197,35 +197,35 @@ dependencies {
     // 삭제하지 않고 주석 처리만 해둠.
     // implementation("io.ktor:ktor-client-okhttp:2.3.10")
 
-    implementation("io.ktor:ktor-client-core:3.0.3")
-    implementation("io.ktor:ktor-client-okhttp:3.0.3")
-    implementation("io.ktor:ktor-client-logging:3.0.3")
+    implementation("io.ktor:ktor-client-core:3.0.3") // implementation 함수를 실행함
+    implementation("io.ktor:ktor-client-okhttp:3.0.3") // implementation 함수를 실행함
+    implementation("io.ktor:ktor-client-logging:3.0.3") // implementation 함수를 실행함
 
     // =========================
     // Bitcoin
     // =========================
-    implementation("org.bitcoinj:bitcoinj-core:0.16.3")
+    implementation("org.bitcoinj:bitcoinj-core:0.16.3") // implementation 함수를 실행함
 
     // =========================
     // Kakao Login SDK
     // =========================
-    implementation("com.kakao.sdk:v2-user:2.20.1")
+    implementation("com.kakao.sdk:v2-user:2.20.1") // implementation 함수를 실행함
 
     // =========================
     // Google Login
     // =========================
-    implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("com.google.android.gms:play-services-auth:21.2.0") // implementation 함수를 실행함
 
     // =========================
     // 테스트
     // =========================
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+    testImplementation(libs.junit) // test Implementation 함수를 실행함
+    androidTestImplementation(libs.androidx.junit) // android Test Implementation 함수를 실행함
+    androidTestImplementation(libs.androidx.espresso.core) // android Test Implementation 함수를 실행함
 
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(platform(libs.androidx.compose.bom)) // android Test Implementation 함수를 실행함
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4) // android Test Implementation 함수를 실행함
 
-    debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    debugImplementation(libs.androidx.compose.ui.tooling) // debug Implementation 함수를 실행함
+    debugImplementation(libs.androidx.compose.ui.test.manifest) // debug Implementation 함수를 실행함
 }

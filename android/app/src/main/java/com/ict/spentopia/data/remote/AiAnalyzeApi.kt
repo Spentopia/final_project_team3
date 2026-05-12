@@ -1,58 +1,58 @@
-package com.ict.spentopia.data.remote
+package com.ict.spentopia.data.remote // 이 파일이 속한 패키지 위치를 적음
 
-import retrofit2.http.Body
-import retrofit2.http.POST
+import retrofit2.http.Body // 서버로 보낼 값을 표시하는 도구를 가져옴
+import retrofit2.http.POST // POST API 표시를 가져옴
 
-data class AnalyzeTransactionRequest(
-    val date: String,
-    val amount: Int,
-    val category: String,
-    val type: String
+data class AnalyzeTransactionRequest( // AnalyzeTransactionRequest 데이터를 묶어둘 클래스 시작
+    val date: String, // 날짜을 저장함
+    val amount: Int, // 금액을 저장함
+    val category: String, // 카테고리을 저장함
+    val type: String // type 값을 저장함
 )
 
-data class AnalyzeWeeklyDataRequest(
-    val day: String,
-    val amount: Float
+data class AnalyzeWeeklyDataRequest( // AnalyzeWeeklyDataRequest 데이터를 묶어둘 클래스 시작
+    val day: String, // day 값을 저장함
+    val amount: Float // 금액을 저장함
 )
 
-data class AnalyzeMonthlyDataRequest(
-    val month: String,
-    val amount: Float
+data class AnalyzeMonthlyDataRequest( // AnalyzeMonthlyDataRequest 데이터를 묶어둘 클래스 시작
+    val month: String, // month 값을 저장함
+    val amount: Float // 금액을 저장함
 )
 
-data class AnalyzeCategoryDataRequest(
-    val name: String,
-    val amount: Float,
-    val value: Float,
-    val key: String? = null
+data class AnalyzeCategoryDataRequest( // AnalyzeCategoryDataRequest 데이터를 묶어둘 클래스 시작
+    val name: String, // name 값을 저장함
+    val amount: Float, // 금액을 저장함
+    val value: Float, // 입력값을 저장함
+    val key: String? = null // key 값을 저장함
 )
 
-data class AnalyzeReportRequest(
-    val transactions: List<AnalyzeTransactionRequest>,
-    val totalExpense: Float,
-    val budget: Float,
-    val topCategory: String,
-    val topCategoryPercent: Float,
-    val dailyAverage: Float,
-    val expenseChangeRate: Float,
-    val budgetUsage: Float,
-    val weeklyData: List<AnalyzeWeeklyDataRequest>,
-    val monthlyData: List<AnalyzeMonthlyDataRequest>,
-    val categoryData: List<AnalyzeCategoryDataRequest>
+data class AnalyzeReportRequest( // AnalyzeReportRequest 데이터를 묶어둘 클래스 시작
+    val transactions: List<AnalyzeTransactionRequest>, // transactions 값을 저장함
+    val totalExpense: Float, // 소비 내역 값을 저장함
+    val budget: Float, // 예산 관련 값을 저장함
+    val topCategory: String, // topCategory 값을 저장함
+    val topCategoryPercent: Float, // topCategoryPercent 값을 저장함
+    val dailyAverage: Float, // dailyAverage 값을 저장함
+    val expenseChangeRate: Float, // 소비 내역 값을 저장함
+    val budgetUsage: Float, // 예산 관련 값을 저장함
+    val weeklyData: List<AnalyzeWeeklyDataRequest>, // weeklyData 값을 저장함
+    val monthlyData: List<AnalyzeMonthlyDataRequest>, // monthlyData 값을 저장함
+    val categoryData: List<AnalyzeCategoryDataRequest> // categoryData 값을 저장함
 )
 
-data class AnalyzeReportResponse(
-    val good: String,
-    val warning: String,
-    val advice: String,
-    val prediction: String,
-    val pattern: String? = null,
-    val improvement: String? = null
+data class AnalyzeReportResponse( // AnalyzeReportResponse 데이터를 묶어둘 클래스 시작
+    val good: String, // good 값을 저장함
+    val warning: String, // warning 값을 저장함
+    val advice: String, // advice 값을 저장함
+    val prediction: String, // prediction 값을 저장함
+    val pattern: String? = null, // pattern 값을 저장함
+    val improvement: String? = null // improvement 값을 저장함
 )
 
-interface AiAnalyzeApi {
-    @POST("/api/v1/analyze/report")
-    suspend fun analyzeReport(
-        @Body request: AnalyzeReportRequest
+interface AiAnalyzeApi { // AiAnalyzeApi에서 꼭 만들어야 할 함수 규칙을 정함
+    @POST("/api/v1/analyze/report") // 서버에 데이터를 보내는 API 주소를 적음
+    suspend fun analyzeReport( // analyzeReport 함수를 선언함
+        @Body request: AnalyzeReportRequest // 이 값을 서버 요청 본문에 넣는다는 표시
     ): AnalyzeReportResponse
 }

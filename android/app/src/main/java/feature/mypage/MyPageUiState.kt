@@ -1,4 +1,4 @@
-package com.ict.spentopia.feature.market
+package com.ict.spentopia.feature.market // 이 파일이 속한 패키지 위치를 적음
 
 // ------------------------------------------------------------
 // MarketUiState.kt
@@ -20,9 +20,9 @@ package com.ict.spentopia.feature.market
 // - 내 판매 목록
 // 2개의 내부 탭을 가지고 있으므로 enum 으로 분리함
 // ------------------------------------------------------------
-enum class MarketTab {
-    MARKET, // 전체 마켓 탭
-    MY_SELL // 내 판매 목록 탭
+enum class MarketTab { // MarketTab에서 고를 수 있는 값들을 묶음
+    MARKET,
+    MY_SELL
 }
 
 // ------------------------------------------------------------
@@ -30,13 +30,13 @@ enum class MarketTab {
 // ------------------------------------------------------------
 // 카드 한 장에 필요한 아이템 표시 정보를 담는다.
 // ------------------------------------------------------------
-data class MarketItemUi(
-    val emoji: String = "", // 대표 이모지
-    val title: String = "", // 아이템 이름
-    val seller: String = "", // 판매자 정보
-    val price: String = "", // 가격
-    val rarity: String = "", // 희귀도
-    val time: String = "" // 등록 시간
+data class MarketItemUi( // MarketItemUi 데이터를 묶어둘 클래스 시작
+    val emoji: String = "", // emoji 값을 저장함
+    val title: String = "", // 제목을 저장함
+    val seller: String = "", // seller 값을 저장함
+    val price: String = "", // price 값을 저장함
+    val rarity: String = "", // rarity 값을 저장함
+    val time: String = "" // time 값을 저장함
 )
 
 // ------------------------------------------------------------
@@ -44,9 +44,9 @@ data class MarketItemUi(
 // ------------------------------------------------------------
 // MarketScreen 전체에서 필요한 상태를 하나로 묶음
 // ------------------------------------------------------------
-data class MarketUiState(
-    val selectedTab: MarketTab = MarketTab.MARKET, // 현재 선택된 내부 탭
-    val searchText: String = "", // 검색어 상태
-    val marketItems: List<MarketItemUi> = emptyList(), // 전체 마켓 아이템 목록
-    val mySellItems: List<MarketItemUi> = emptyList() // 내 판매 아이템 목록
+data class MarketUiState( // MarketUiState 데이터를 묶어둘 클래스 시작
+    val selectedTab: MarketTab = MarketTab.MARKET, // selectedTab 값을 저장함
+    val searchText: String = "", // searchText 값을 저장함
+    val marketItems: List<MarketItemUi> = emptyList(), // 마켓 관련 값을 저장함
+    val mySellItems: List<MarketItemUi> = emptyList() // mySellItems 값을 저장함
 )

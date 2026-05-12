@@ -1,38 +1,38 @@
-package com.ict.spentopia.data.remote
+package com.ict.spentopia.data.remote // 이 파일이 속한 패키지 위치를 적음
 
-import retrofit2.http.Body
-import retrofit2.http.GET
-import retrofit2.http.POST
+import retrofit2.http.Body // 서버로 보낼 값을 표시하는 도구를 가져옴
+import retrofit2.http.GET // GET API 표시를 가져옴
+import retrofit2.http.POST // POST API 표시를 가져옴
 
 // 백엔드 POST /api/reports 요청 body입니다.
 // 백엔드 Rust DTO의 GenerateReportRequest와 필드명을 맞췄습니다.
-data class GenerateReportRequest(
-    val report_type: String,
-    val start_date: String,
-    val end_date: String
+data class GenerateReportRequest( // GenerateReportRequest 데이터를 묶어둘 클래스 시작
+    val report_type: String, // report_type 값을 저장함
+    val start_date: String, // start_date 값을 저장함
+    val end_date: String // end_date 값을 저장함
 )
 
 // 백엔드 /api/reports 응답입니다.
 // Android 분석 화면에서는 우선 ai_analysis 문장을 표시합니다.
-data class ReportResponse(
-    val id: String,
-    val report_type: String,
-    val start_date: String,
-    val end_date: String,
-    val category_summary: Any?,
-    val daily_summary: Any?,
-    val ai_analysis: String?,
-    val created_at: String?
+data class ReportResponse( // ReportResponse 데이터를 묶어둘 클래스 시작
+    val id: String, // 아이디를 저장함
+    val report_type: String, // report_type 값을 저장함
+    val start_date: String, // start_date 값을 저장함
+    val end_date: String, // end_date 값을 저장함
+    val category_summary: Any?, // category_summary 값을 저장함
+    val daily_summary: Any?, // daily_summary 값을 저장함
+    val ai_analysis: String?, // ai_analysis 값을 저장함
+    val created_at: String? // created_at 값을 저장함
 )
 
-interface ReportApi {
+interface ReportApi { // ReportApi에서 꼭 만들어야 할 함수 규칙을 정함
     // 로그인 보호 API입니다.
     // accessToken은 AuthInterceptor가 SharedPreferences에서 읽어 자동으로 붙입니다.
-    @POST("/api/reports")
-    suspend fun generateReport(
-        @Body request: GenerateReportRequest
+    @POST("/api/reports") // 서버에 데이터를 보내는 API 주소를 적음
+    suspend fun generateReport( // generateReport 함수를 선언함
+        @Body request: GenerateReportRequest // 이 값을 서버 요청 본문에 넣는다는 표시
     ): ReportResponse
 
-    @GET("/api/reports")
-    suspend fun getReports(): List<ReportResponse>
+    @GET("/api/reports") // 서버에서 데이터를 가져오는 API 주소를 적음
+    suspend fun getReports(): List<ReportResponse> // 데이터를 불러오는 함수 시작
 }

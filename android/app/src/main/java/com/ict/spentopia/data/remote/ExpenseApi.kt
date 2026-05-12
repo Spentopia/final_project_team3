@@ -1,35 +1,35 @@
-package com.ict.spentopia.data.remote
+package com.ict.spentopia.data.remote // 이 파일이 속한 패키지 위치를 적음
 
-import retrofit2.http.Body
-import retrofit2.http.POST
+import retrofit2.http.Body // 서버로 보낼 값을 표시하는 도구를 가져옴
+import retrofit2.http.POST // POST API 표시를 가져옴
 
 // Android에서 백엔드 DB에 소비/수입 기록을 저장할 때 보내는 요청입니다.
 // 백엔드 dto의 CreateExpenseWebRequest와 이름을 맞춰야 합니다.
-data class CreateExpenseRequest(
-    val date: String,
-    val amount: Int,
-    val category: String,
-    val memo: String?,
-    val transactionType: String,
-    val diary: String?
+data class CreateExpenseRequest( // CreateExpenseRequest 데이터를 묶어둘 클래스 시작
+    val date: String, // 날짜을 저장함
+    val amount: Int, // 금액을 저장함
+    val category: String, // 카테고리을 저장함
+    val memo: String?, // 메모을 저장함
+    val transactionType: String, // transactionType 값을 저장함
+    val diary: String? // diary 값을 저장함
 )
 
 // 백엔드가 소비 저장 후 내려주는 응답입니다.
 // id는 Supabase expenses 테이블의 UUID라서, OCR 인증 때 expense_id로 다시 사용합니다.
-data class ExpenseRemoteResponse(
-    val id: String,
-    val date: String,
-    val amount: Int,
-    val category: String,
-    val memo: String?,
-    val transactionType: String?,
-    val receiptVerified: Boolean?,
-    val diary: String?
+data class ExpenseRemoteResponse( // ExpenseRemoteResponse 데이터를 묶어둘 클래스 시작
+    val id: String, // 아이디를 저장함
+    val date: String, // 날짜을 저장함
+    val amount: Int, // 금액을 저장함
+    val category: String, // 카테고리을 저장함
+    val memo: String?, // 메모을 저장함
+    val transactionType: String?, // transactionType 값을 저장함
+    val receiptVerified: Boolean?, // receiptVerified 값을 저장함
+    val diary: String? // diary 값을 저장함
 )
 
-interface ExpenseApi {
-    @POST("/api/expenses")
-    suspend fun createExpense(
-        @Body request: CreateExpenseRequest
+interface ExpenseApi { // ExpenseApi에서 꼭 만들어야 할 함수 규칙을 정함
+    @POST("/api/expenses") // 서버에 데이터를 보내는 API 주소를 적음
+    suspend fun createExpense( // 데이터를 저장하는 함수 시작
+        @Body request: CreateExpenseRequest // 이 값을 서버 요청 본문에 넣는다는 표시
     ): ExpenseRemoteResponse
 }
