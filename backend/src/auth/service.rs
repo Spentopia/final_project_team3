@@ -86,6 +86,7 @@
 // Result → 성공이면 Ok(값), 실패면 Err(에러)
 use anyhow::{Context, Result, anyhow};
 use std::time::{Duration, SystemTime};
+use chrono::{DateTime, Utc};
 
 // ed25519_dalek: Solana 지갑이 사용하는 ed25519 서명 알고리즘 라이브러리
 // Signature → 서명 값을 담는 구조체 (64바이트)
@@ -146,6 +147,34 @@ struct UserRow {
     id: Uuid,
 }
 
+// ─────────────────────────────────────────────────────────────
+// 로그인/refresh 허용 여부 확인용 users row
+// ─────────────────────────────────────────────────────────────
+//
+// 로그인/토큰 재발급 단계에서는 public.users 전체 정보가 필요하지 않다.
+// 필요한 것은 딱 2개다.
+//
+// - is_active:
+//   관리자가 회원을 비활성화했는지 확인한다.
+//   false면 로그인/refresh를 막는다.
+//
+// - deleted_at:
+//   탈퇴 회원인지 확인한다.
+//   Some이면 탈퇴한 계정이므로 로그인/refresh를 막는다.
+//
+// 이 구조체는 Supabase REST 응답을 역직렬화하기 위한 내부 전용 row다.
+#[derive(Debug, Deserialize)]
+struct LoginAllowedUserRow {
+    is_active: Option<bool>,
+    deleted_at: Option<String>,
+
+    // 비활성 사유.
+    inactive_reason: Option<String>,
+
+    // 비활성 해제 예정일.
+    inactive_until: Option<DateTime<Utc>>,
+}
+
 #[derive(Debug, Deserialize)]
 struct PublicUserProfileStatusRow {
     profile_completed: Option<bool>,
@@ -154,11 +183,138 @@ struct PublicUserProfileStatusRow {
 const APP_SIGNUP_REQUIRED_MESSAGE: &str = "웹에서 회원가입 완료 후 다시 이용해 주세요.";
 const REJOIN_COOLDOWN_DAYS: i64 = 30;
 
+/// UTC DateTime을 한국 시간 기준 문자열로 변환한다.
+///
+/// DB에는 timestamptz를 UTC 기준으로 저장하고,
+/// 사용자 안내 메시지에서는 KST 기준으로 보여준다.
+///
+/// 예:
+/// 2026-05-20T09:00:00Z
+/// → 2026.05.20 18:00
+fn format_kst_datetime(value: DateTime<Utc>) -> String {
+    let kst = value + chrono::Duration::hours(9);
+    kst.format("%Y.%m.%d %H:%M").to_string()
+}
+
+
+
+// ─────────────────────────────────────────────────────────────
+// 로그인/토큰 발급 가능 여부 확인
+// ─────────────────────────────────────────────────────────────
+//
+// 이 함수는 "이 계정에게 access/refresh token을 발급해도 되는가?"를 확인한다.
+//
+// 정책:
+// - deleted_at is not null
+//   → 탈퇴한 계정이므로 차단
+//
+// - is_active = false
+//   → 관리자가 비활성/정지 처리한 계정이므로 차단
+//
+// - is_active = null
+//   → 과거 데이터 호환을 위해 활성으로 간주
+//
+// 왜 여기서 확인하나?
+// - 이메일/구글 로그인은 /auth/exchange 이후 issue_login_tokens()로 모인다.
+// - 카카오 로그인도 최종적으로 issue_login_tokens()로 모인다.
+// - 지갑 로그인도 최종적으로 issue_login_tokens()로 모인다.
+// - refresh는 rotate_refresh_token()에서 별도로 이 함수를 호출한다.
+//
+// 즉, 로그인 방식별로 각각 막는 것보다
+// 공통 토큰 발급 직전에 막는 것이 누락 가능성이 낮다.
+async fn ensure_login_allowed(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=is_active,deleted_at,inactive_reason,inactive_until&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("회원 상태 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("회원 상태 조회 실패: {}", body));
+    }
+
+    let rows: Vec<LoginAllowedUserRow> = res
+        .json()
+        .await
+        .context("회원 상태 조회 응답 파싱 실패")?;
+
+    let user = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("회원 정보를 찾을 수 없습니다."))?;
+
+    // 탈퇴 회원 차단.
+    //
+    // 같은 이메일 영구 재가입 금지 정책과 별개로,
+    // 이미 deleted_at이 있는 계정은 로그인도 막는다.
+    if user.deleted_at.is_some() {
+        return Err(anyhow!(
+            "탈퇴한 계정입니다. 이 계정으로는 로그인할 수 없습니다."
+        ));
+    }
+
+    // 비활성 회원 차단.
+    //
+    // 비활성 회원은 기존 콘텐츠는 유지하지만,
+    // 로그인/refresh로 새 토큰을 받을 수 없다.
+    if user.is_active == Some(false) {
+        let reason = user
+            .inactive_reason
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .unwrap_or("운영정책 위반");
+
+        let until_text = user
+            .inactive_until
+            .map(format_kst_datetime)
+            .unwrap_or_else(|| "미정".to_string());
+
+        // handler.rs에서 JSON 에러로 변환하기 쉽게 prefix를 붙인다.
+        //
+        // 왜 JSON을 여기서 바로 반환하지 않나?
+        // - service.rs는 HTTP 응답을 직접 만들지 않는 비즈니스 계층이다.
+        // - handler.rs가 HTTP 상태코드/JSON 응답으로 변환하는 책임을 가진다.
+        //
+        // 최종 프론트 UX:
+        // - toast: "비활성화된 계정입니다."
+        // - 로그인 화면 안내 박스:
+        //   사유 / 해제 예정일 / 문의 이메일 표시
+        return Err(anyhow!(
+        "ACCOUNT_INACTIVE|{}|{}",
+        reason,
+        until_text
+    ));
+    }
+
+    Ok(())
+}
+
+
 // ─────────────────────────────────────────────────────────────
 // 공통 토큰 발급 + refresh session 저장
 //
 // 모든 로그인 방식(Supabase, 카카오, 지갑)이
 // 최종적으로 이 함수로 모인다.
+//
+// 이 함수에서 is_active/deleted_at을 확인하면,
+// 이메일/구글/카카오/지갑 로그인 모두 공통으로 차단할 수 있다.
 // ─────────────────────────────────────────────────────────────
 pub async fn issue_login_tokens(
     state: &AppState,
@@ -166,14 +322,33 @@ pub async fn issue_login_tokens(
     client_type: &str,
     is_new_user: bool,
 ) -> Result<LoginIssueResult> {
-    // refresh 세션의 고유 ID
+    // 0) 토큰 발급 전 계정 상태 확인.
+    //
+    // 여기서 막는 것:
+    // - 탈퇴 계정: deleted_at is not null
+    // - 비활성 계정: is_active = false
+    //
+    // 주의:
+    // access token은 stateless JWT라 이미 발급된 토큰은 만료 전까지 살아 있을 수 있다.
+    // 하지만 이 체크로 "새 로그인"과 "새 토큰 발급"은 막는다.
+    ensure_login_allowed(state, user_id).await?;
+
+    // refresh 세션의 고유 ID.
     // 이 값이 refresh JWT 안의 sid로 들어간다.
     let session_id = Uuid::new_v4();
 
-    // access / refresh JWT 생성
+    // access / refresh JWT 생성.
+    //
+    // access token:
+    // - DB에 저장하지 않는 stateless JWT
+    // - app_jwt.rs에서 30분 만료로 설정되어 있음
+    //
+    // refresh token:
+    // - refresh_sessions 테이블의 session_id와 연결됨
     let pair = generate_token_pair(&state.config.app_jwt_secret, &user_id, &session_id)?;
 
-    // refresh 세션을 DB에 저장
+    // refresh 세션을 DB에 저장.
+    //
     // 이 row가 있어야 나중에 revoke / rotation / 로그아웃이 가능하다.
     create_refresh_session(state, session_id, user_id, client_type, &pair.refresh_token).await?;
 
@@ -260,22 +435,33 @@ fn check_cooldown_internal(deleted_at_str: &str, is_login: bool) -> Result<()> {
 ///    - expires_at 안 지남
 ///    - replaced_by_session_id 없음
 ///    - token_hash 일치
-/// 4) 새 access / refresh 발급
-/// 5) 새 refresh session 저장
-/// 6) 기존 refresh session revoke
+/// 4) client_type 일치 확인
+/// 5) 사용자 상태 확인
+///    - 탈퇴 계정 차단
+///    - 비활성 계정 차단
+/// 6) 새 access / refresh 발급
+/// 7) 새 refresh session 저장
+/// 8) 기존 refresh session revoke
 pub async fn rotate_refresh_token(
     state: &AppState,
     refresh_token: &str,
     client_type: &str,
 ) -> Result<RefreshIssueResult> {
-    // 1) refresh JWT 자체 검증
+    // 1) refresh JWT 자체 검증.
+    //
+    // 여기서는 JWT 서명, exp, token_type=refresh 여부를 확인한다.
     let claims = verify_app_refresh_token(&state.config.app_jwt_secret, refresh_token)?;
 
-    let session_id = Uuid::parse_str(&claims.sid).context("refresh sid UUID 파싱 실패")?;
+    let session_id = Uuid::parse_str(&claims.sid)
+        .context("refresh sid UUID 파싱 실패")?;
 
-    let user_id = Uuid::parse_str(&claims.sub).context("refresh sub UUID 파싱 실패")?;
+    let user_id = Uuid::parse_str(&claims.sub)
+        .context("refresh sub UUID 파싱 실패")?;
 
-    // 2) DB refresh session 검증
+    // 2) DB refresh session 검증.
+    //
+    // refresh token은 JWT 자체만 맞다고 끝이 아니다.
+    // DB refresh_sessions row와도 일치해야 한다.
     //
     // 여기서:
     // - revoked
@@ -289,7 +475,11 @@ pub async fn rotate_refresh_token(
         Err(e) => {
             let msg = e.to_string();
 
-            // reuse 감지 시엔 보수적으로 한 번 더 revoke 처리
+            // reuse 감지 시엔 보수적으로 한 번 더 revoke 처리.
+            //
+            // 예:
+            // - 이미 rotation된 refresh token을 누군가 다시 사용
+            // - 토큰 재사용 공격 가능성
             if msg.contains("reuse") || msg.contains("이미 교체된 refresh token") {
                 let _ = revoke_refresh_session_as_reused(state, session_id).await;
             }
@@ -298,18 +488,29 @@ pub async fn rotate_refresh_token(
         }
     };
 
-    // 3) web/app 클라이언트 타입 불일치 방지
+    // 3) web/app/unity 클라이언트 타입 불일치 방지.
+    //
+    // 예:
+    // - web에서 발급된 refresh token을 app refresh endpoint에 넣는 것 차단
     if session.client_type != client_type {
         return Err(anyhow!("refresh client_type 불일치"));
     }
 
-    // 4) 새 refresh 세션 ID 생성
+    // 4) 새 access/refresh 발급 전 계정 상태 확인.
+    //
+    // 관리자가 사용자를 비활성화했으면
+    // 기존 refresh token이 아직 유효하더라도 새 access token을 발급하면 안 된다.
+    //
+    // 그래서 token pair 생성 전에 반드시 확인한다.
+    ensure_login_allowed(state, user_id).await?;
+
+    // 5) 새 refresh 세션 ID 생성.
     let new_session_id = Uuid::new_v4();
 
-    // 5) 새 access / refresh JWT 발급
+    // 6) 새 access / refresh JWT 발급.
     let pair = generate_token_pair(&state.config.app_jwt_secret, &user_id, &new_session_id)?;
 
-    // 6) 새 refresh session 저장
+    // 7) 새 refresh session 저장.
     create_refresh_session(
         state,
         new_session_id,
@@ -317,14 +518,16 @@ pub async fn rotate_refresh_token(
         client_type,
         &pair.refresh_token,
     )
-    .await?;
+        .await?;
 
-    // 7) 기존 refresh session revoke
+    // 8) 기존 refresh session revoke.
     //
-    // rotation이므로 replaced_by_session_id에 새 세션 ID 기록
+    // rotation이므로 replaced_by_session_id에 새 세션 ID 기록.
     if let Err(e) = revoke_refresh_session_for_rotation(state, session_id, new_session_id).await {
         // 같은 refresh token으로 동시에 들어온 요청 중 늦게 온 쪽이면
-        // 여기서 실패한다. 이미 만든 새 세션은 클라이언트에 반환하지 않으므로
+        // 여기서 실패한다.
+        //
+        // 이미 만든 새 세션은 클라이언트에 반환하지 않으므로
         // best-effort로 폐기해 DB에 살아있는 고아 세션을 남기지 않는다.
         let _ = revoke_refresh_session(state, new_session_id, None).await;
         return Err(e);
@@ -1028,7 +1231,6 @@ async fn ensure_public_user_exists(
         "profile_image": "defaults/avatar.png",
         "created_at": chrono::Utc::now(),
         "updated_at": chrono::Utc::now(),
-        "is_active": true
     }]);
 
     let insert_resp = state
@@ -1060,7 +1262,6 @@ async fn ensure_public_user_exists(
 
     // email이 Some일 때만 PATCH에 포함 (None이면 기존 이메일 유지)
     let mut patch_data = serde_json::Map::new();
-    patch_data.insert("is_active".to_string(), json!(true));
     patch_data.insert("updated_at".to_string(), json!(chrono::Utc::now()));
     patch_data.insert("google_connected".to_string(), json!(google_connected));
     if let Some(mail) = email {
@@ -1629,7 +1830,6 @@ async fn link_google_to_existing_user(state: &AppState, user_id: &str) -> Result
         .json(&json!({
             "google_connected": true,
             "updated_at": chrono::Utc::now(),
-            "is_active": true
         }))
         .send()
         .await

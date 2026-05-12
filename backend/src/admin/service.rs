@@ -37,7 +37,7 @@
 // - 삭제는 물리 삭제가 아니라 is_deleted = true, deleted_at = now()로 처리한다.
 
 use anyhow::{anyhow, Context, Result};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::state::AppState;
@@ -91,6 +91,15 @@ fn to_user_response(row: AdminUser) -> AdminUserResponse {
         profile_completed: row.profile_completed.unwrap_or(false),
         is_active: row.is_active.unwrap_or(true),
         deleted_at: row.deleted_at,
+
+        // 비활성 정보.
+        //
+        // is_active=false일 때 관리자 화면과 로그인 차단 메시지에서 사용한다.
+        inactive_reason: row.inactive_reason,
+        inactive_at: row.inactive_at,
+        inactive_until: row.inactive_until,
+        inactive_by: row.inactive_by,
+
         created_at: row.created_at,
         updated_at: row.updated_at,
     }
@@ -433,6 +442,81 @@ pub async fn list_users(
     Ok(rows.into_iter().map(to_user_response).collect())
 }
 
+// ─────────────────────────────────────────────
+// 특정 회원의 refresh session 전체 폐기
+// ─────────────────────────────────────────────
+//
+// 주의:
+// - 전체 사용자의 refresh_sessions를 폐기하는 함수가 아니다.
+// - 관리자에게 비활성 처리된 "해당 user_id"의 refresh session만 폐기한다.
+//
+// 사용 시점:
+// - 관리자 회원관리에서 일반 회원을 비활성화할 때
+//
+// 효과:
+// - 해당 회원의 브라우저/앱 refresh token이 더 이상 유효하지 않게 됨
+// - 다음 refresh 시도 시 실패
+// - 이후 auth/service.rs의 로그인 차단 로직 때문에 재로그인도 실패
+//
+// 왜 refresh_sessions만 폐기하나?
+// - access token은 stateless JWT라 DB에 저장되어 있지 않음
+// - 이미 발급된 access token은 만료 전까지 남을 수 있음
+// - 대신 refresh token을 폐기하면 access token 연장이 불가능해짐
+//
+// 핵심:
+// - 반드시 user_id=eq.{user_id} 조건을 넣어야 한다.
+// - 이 조건이 빠지면 모든 회원의 refresh session을 폐기하는 사고가 날 수 있다.
+async fn revoke_refresh_sessions_by_user_id(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<()> {
+    let now = Utc::now().to_rfc3339();
+
+    // 핵심 조건:
+    // user_id=eq.{user_id}
+    //
+    // 이 조건이 있어야 "비활성 처리 대상 회원의 세션만" 폐기된다.
+    //
+    // 절대 아래처럼 user_id 조건 없이 요청하면 안 된다.
+    // /rest/v1/refresh_sessions?revoked=eq.false&revoked_at=is.null
+    //
+    // 그 경우 모든 회원의 살아있는 refresh session이 폐기될 수 있다.
+    let url = format!(
+        "{}/rest/v1/refresh_sessions?user_id=eq.{}&revoked=eq.false&revoked_at=is.null",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "revoked": true,
+            "revoked_at": now,
+            "updated_at": now
+        }))
+        .send()
+        .await
+        .context("특정 회원 refresh session 폐기 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+
+        return Err(anyhow!(
+            "특정 회원 refresh session 폐기 실패: {}",
+            body
+        ));
+    }
+
+    Ok(())
+}
+
 async fn get_admin_user_by_id(
     state: &AppState,
     user_id: Uuid,
@@ -479,28 +563,85 @@ async fn get_admin_user_by_id(
 /// 정책:
 /// - 탈퇴한 회원(deleted_at is not null)은 활성/비활성 변경 불가
 /// - 운영자(role_type = admin)는 활성/비활성 변경 불가
+/// - 비활성 처리 시 reason / inactive_until 저장
+/// - 비활성 처리 시 해당 user_id의 refresh_sessions를 전부 revoke
+/// - 활성화 처리 시 inactive_* 정보 초기화
 ///
-/// 이유:
-/// - 탈퇴자는 이미 서비스 이용 대상이 아니므로 상태를 되돌리면 안 된다.
-/// - 운영자를 비활성화하면 관리자 접근이 꼬일 수 있다.
-///   운영자 권한 회수는 별도 role 관리 기능으로 처리하는 게 안전하다.
+/// 주의:
+/// - inactive_until은 이번 정책에서 자동 해제용이 아니다.
+/// - 사용자 안내와 운영자 참고용이다.
+/// - 실제 해제는 관리자가 활성화 버튼으로 직접 처리한다.
 pub async fn update_user_active(
     state: &AppState,
     user_id: Uuid,
     is_active: bool,
+    reason: Option<String>,
+    inactive_until: Option<DateTime<Utc>>,
+    admin_user_id: Uuid,
 ) -> Result<AdminUserResponse> {
-    // 먼저 대상 회원을 조회해서 role_type / deleted_at을 확인한다.
+    // 1. 대상 회원 조회.
+    //
+    // role_type / deleted_at / 현재 is_active 상태를 확인하기 위함.
     let current_user = get_admin_user_by_id(state, user_id).await?;
 
-    // 탈퇴한 회원은 활성/비활성 변경 불가.
+    // 2. 탈퇴자는 상태 변경 불가.
     if current_user.deleted_at.is_some() {
         return Err(anyhow!("탈퇴한 회원은 활성/비활성 상태를 변경할 수 없습니다."));
     }
 
-    // 운영자 계정은 활성/비활성 변경 불가.
+    // 3. 운영자 계정은 상태 변경 불가.
+    //
+    // 운영자를 비활성화하면 관리자 접근이 꼬일 수 있다.
+    // 운영자 권한 회수는 별도 role 관리 기능으로 처리하는 것이 안전하다.
     if current_user.role_type.as_deref() == Some("admin") {
         return Err(anyhow!("운영자 계정은 활성/비활성 상태를 변경할 수 없습니다."));
     }
+
+    // 4. 같은 상태로 변경 요청한 경우.
+    //
+    // 단, 여기서는 사유/해제일을 수정하는 기능을 따로 만들지 않는다.
+    // 이미 비활성인 회원의 사유를 바꾸고 싶으면 나중에 별도 endpoint를 만들면 된다.
+    if current_user.is_active.unwrap_or(true) == is_active {
+        return Ok(to_user_response(current_user));
+    }
+
+    let now = Utc::now();
+
+    // 5. PATCH payload 구성.
+    //
+    // 활성화와 비활성화는 저장해야 할 컬럼이 다르므로 분기한다.
+    let payload = if is_active {
+        // 활성화 처리.
+        //
+        // 예전 비활성 사유/기간/처리자 정보는 초기화한다.
+        serde_json::json!({
+            "is_active": true,
+            "inactive_reason": null,
+            "inactive_at": null,
+            "inactive_until": null,
+            "inactive_by": null,
+            "updated_at": now.to_rfc3339()
+        })
+    } else {
+        // 비활성화 처리.
+        //
+        // 사유가 비어 있으면 기본 사유를 넣는다.
+        // 운영자에게 사유 입력을 필수로 강제하고 싶으면 여기서 Err를 반환해도 된다.
+        let normalized_reason = reason
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .ok_or_else(|| anyhow!("비활성화 사유를 입력해 주세요."))?;
+
+        serde_json::json!({
+            "is_active": false,
+            "inactive_reason": normalized_reason,
+            "inactive_at": now.to_rfc3339(),
+            "inactive_until": inactive_until.map(|v| v.to_rfc3339()),
+            "inactive_by": admin_user_id,
+            "updated_at": now.to_rfc3339()
+        })
+    };
 
     let url = format!(
         "{}/rest/v1/users?id=eq.{}",
@@ -517,10 +658,7 @@ pub async fn update_user_active(
             format!("Bearer {}", state.config.supabase_secret_key),
         )
         .header("Prefer", "return=representation")
-        .json(&serde_json::json!({
-            "is_active": is_active,
-            "updated_at": Utc::now().to_rfc3339()
-        }))
+        .json(&payload)
         .send()
         .await
         .context("관리자 회원 상태 변경 요청 실패")?;
@@ -539,6 +677,16 @@ pub async fn update_user_active(
         .into_iter()
         .next()
         .ok_or_else(|| anyhow!("회원을 찾을 수 없습니다."))?;
+
+    // 6. 비활성화 처리라면 해당 회원의 refresh session만 폐기한다.
+    //
+    // 전체 유저의 세션이 아니라 user_id 조건으로 대상 회원만 처리한다.
+    //
+    // 활성화 처리일 때는 기존 refresh session을 복구하지 않는다.
+    // 사용자가 다시 로그인해서 새 세션을 받아야 한다.
+    if !is_active {
+        revoke_refresh_sessions_by_user_id(state, user_id).await?;
+    }
 
     Ok(to_user_response(row))
 }

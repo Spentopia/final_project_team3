@@ -55,6 +55,18 @@ pub struct AdminUser {
     // Some이면 관리자 회원관리 화면에서 "탈퇴"로 표시한다.
     pub deleted_at: Option<DateTime<Utc>>,
 
+    // 비활성 사유.
+    pub inactive_reason: Option<String>,
+
+    // 비활성 처리 시각.
+    pub inactive_at: Option<DateTime<Utc>>,
+
+    // 비활성 해제 예정일.
+    pub inactive_until: Option<DateTime<Utc>>,
+
+    // 비활성 처리한 관리자 ID.
+    pub inactive_by: Option<Uuid>,
+
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }

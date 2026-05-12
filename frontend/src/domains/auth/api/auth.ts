@@ -11,6 +11,24 @@ import type {
   SignUpRequest,
 } from "@/domains/auth/model/types";
 
+export type AccountInactiveErrorPayload = {
+  code: "ACCOUNT_INACTIVE";
+  message: string;
+  reason: string;
+  inactive_until_text: string;
+  support_email: string;
+};
+
+export class AccountInactiveError extends Error {
+  payload: AccountInactiveErrorPayload;
+
+  constructor(payload: AccountInactiveErrorPayload) {
+    super(payload.message);
+    this.name = "AccountInactiveError";
+    this.payload = payload;
+  }
+}
+
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
 const clearWalletAdapterState = () => {
@@ -20,28 +38,29 @@ const clearWalletAdapterState = () => {
   window.localStorage.removeItem("walletName");
 };
 
-const extractApiErrorMessage = (error: unknown, fallback: string) => {
+function extractApiErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === "object" && "response" in error) {
     const response = (
-      error as {
-        response?: {
-          data?: unknown;
-        };
-      }
+        error as {
+          response?: {
+            data?: unknown;
+          };
+        }
     ).response;
 
-    if (typeof response?.data === "string" && response.data.trim()) {
-      return response.data;
+    const data = response?.data;
+
+    if (typeof data === "string" && data.trim()) {
+      return data;
     }
 
     if (
-      response?.data &&
-      typeof response.data === "object" &&
-      "message" in response.data &&
-      typeof response.data.message === "string" &&
-      response.data.message.trim()
+        data &&
+        typeof data === "object" &&
+        "message" in data &&
+        typeof (data as { message?: unknown }).message === "string"
     ) {
-      return response.data.message;
+      return (data as { message: string }).message;
     }
   }
 
@@ -50,7 +69,32 @@ const extractApiErrorMessage = (error: unknown, fallback: string) => {
   }
 
   return fallback;
-};
+}
+
+function throwAuthApiError(error: unknown, fallback: string): never {
+  if (error && typeof error === "object" && "response" in error) {
+    const response = (
+        error as {
+          response?: {
+            data?: unknown;
+          };
+        }
+    ).response;
+
+    const data = response?.data;
+
+    if (
+        data &&
+        typeof data === "object" &&
+        "code" in data &&
+        (data as { code?: unknown }).code === "ACCOUNT_INACTIVE"
+    ) {
+      throw new AccountInactiveError(data as AccountInactiveErrorPayload);
+    }
+  }
+
+  throw new Error(extractApiErrorMessage(error, fallback));
+}
 
 const mapSupabaseAuthError = (message: string, fallback: string) => {
   const normalizedMessage = message.toLowerCase();
@@ -110,12 +154,25 @@ const clearAllAuthState = async () => {
 };
 
 // Supabase access_token -> 백엔드 앱 access token 교환
+//
+// 백엔드 /auth/exchange에서는 우리 서비스 계정 상태를 확인한다.
+// 예:
+// - is_active = false → "비활성화된 계정입니다. 관리자에게 문의해 주세요."
+// - deleted_at 존재 → "탈퇴한 계정입니다."
+//
+// AxiosError 그대로 위로 던지면 화면에
+// "Request failed with status code 403"처럼 보일 수 있으므로,
+// response.data 문자열을 Error.message로 정리해서 던진다.
 const exchangeSupabaseToken = async (accessToken: string) => {
-  const res = await apiClient.post("/auth/exchange", {
-    access_token: accessToken,
-  });
+  try {
+    const res = await apiClient.post("/auth/exchange", {
+      access_token: accessToken,
+    });
 
-  return res.data;
+    return res.data;
+  } catch (error) {
+    throwAuthApiError(error, "로그인에 실패했습니다.");
+  }
 };
 
 // 이메일 로그인
@@ -142,11 +199,19 @@ export const login = async (payload: LoginRequest): Promise<LoginResponse> => {
   // - 탈퇴 쿨다운 만료: "탈퇴한 계정입니다. 새로 회원가입해 주세요."
   // - 가입 차단 도메인: "해당 이메일로는 가입할 수 없습니다."
   let exchanged;
+
   try {
     exchanged = await exchangeSupabaseToken(data.session.access_token);
   } catch (error) {
-    // 백엔드 메시지를 추출해서 친절한 에러로 변환
-    // (axios의 "Request failed with status code 403" 같은 기본 메시지 방지)
+    // AccountInactiveError는 LoginPage에서 상세 안내 박스를 띄워야 하므로
+    // 일반 Error로 감싸면 안 된다.
+    //
+    // 즉, 그대로 다시 던져야 한다.
+    if (error instanceof AccountInactiveError) {
+      throw error;
+    }
+
+    // 그 외 에러만 일반 로그인 에러로 변환한다.
     throw new Error(
         extractApiErrorMessage(error, "로그인에 실패했습니다.")
     );
@@ -232,7 +297,19 @@ export const signUp = async (payload: SignUpRequest, captchaToken: string): Prom
     };
   }
 
-  const exchanged = await exchangeSupabaseToken(data.session.access_token);
+  let exchanged;
+
+  try {
+    exchanged = await exchangeSupabaseToken(data.session.access_token);
+  } catch (error) {
+    if (error instanceof AccountInactiveError) {
+      throw error;
+    }
+
+    throw new Error(
+        extractApiErrorMessage(error, "회원가입 후 로그인 처리에 실패했습니다.")
+    );
+  }
 
   return {
     accessToken: exchanged.access_token,
@@ -273,16 +350,17 @@ export const loginWithKakaocode = async (code: string, state: string) => {
     const res = await apiClient.post(
         "/auth/kakao/login",
         { code, state },
-        { withCredentials: true }
+        {
+          headers: {
+            "X-Client-Type": "web",
+          },
+          withCredentials: true,
+        }
     );
+
     return res.data;
   } catch (error) {
-    // 백엔드 응답:
-    // 403 → 탈퇴 쿨다운 또는 탈퇴 계정
-    // 500 → 카카오/서버 에러
-    throw new Error(
-        extractApiErrorMessage(error, "카카오 로그인에 실패했습니다.")
-    );
+    throwAuthApiError(error, "카카오 로그인에 실패했습니다.");
   }
 };
 
