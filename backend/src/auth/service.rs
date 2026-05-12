@@ -185,23 +185,38 @@ pub async fn issue_login_tokens(
     })
 }
 
-/// 탈퇴 후 재가입 쿨다운 체크
+// ─────────────────────────────────────────────────────────────
+// 탈퇴 후 재가입 쿨다운 체크
+//
+// 두 가지 컨텍스트로 분리:
+// - 회원가입 시도: check_rejoin_cooldown ("재가입할 수 없습니다")
+// - 로그인 시도: check_login_cooldown ("다시 시도해 주세요")
+//
+// 사용처:
+// - check_rejoin_cooldown:
+//   - check_email 핸들러 (이메일 회원가입 전 중복 확인)
+// - check_login_cooldown:
+//   - exchange_supabase_token [Case 1, 2] (이메일/구글 로그인)
+//   - find_or_create_social_user (카카오 로그인)
+//
+// 지갑 로그인은 wallet_address가 즉시 null로 처리되므로 별도 쿨다운 체크 불필요.
+// ─────────────────────────────────────────────────────────────
+
+/// 회원가입 컨텍스트용 쿨다운 체크
 ///
-/// 인자:
-/// - deleted_at_str: DB에서 가져온 RFC3339 형식의 탈퇴 시각 문자열
-///
-/// 반환:
-/// - Ok(()): 쿨다운 기간 만료 (재가입/처리 진행 가능)
-/// - Err(_): 아직 쿨다운 기간 중 (사용자에게 남은 일수 안내)
-///
-/// 사용처:
-/// - check_email (이메일 가입 전 중복 확인)
-/// - exchange_supabase_token (이메일/구글 로그인)
-/// - find_or_create_social_user (카카오 로그인)
-///
-/// 지갑 로그인은 wallet_address가 즉시 null로 처리되므로
-/// 쿨다운 체크가 불필요하다 (자연스럽게 매칭이 안 됨).
+/// 메시지 예: "탈퇴 후 30일 동안 재가입할 수 없습니다. N일 후 다시 시도해 주세요."
 pub fn check_rejoin_cooldown(deleted_at_str: &str) -> Result<()> {
+    check_cooldown_internal(deleted_at_str, false)
+}
+
+/// 로그인 컨텍스트용 쿨다운 체크
+///
+/// 메시지 예: "탈퇴한 계정입니다. N일 후 다시 시도해 주세요."
+pub fn check_login_cooldown(deleted_at_str: &str) -> Result<()> {
+    check_cooldown_internal(deleted_at_str, true)
+}
+
+fn check_cooldown_internal(deleted_at_str: &str, is_login: bool) -> Result<()> {
     // RFC3339 → DateTime<FixedOffset>로 파싱
     let deleted_at = chrono::DateTime::parse_from_rfc3339(deleted_at_str)
         .context("deleted_at 파싱 실패")?;
@@ -210,17 +225,25 @@ pub fn check_rejoin_cooldown(deleted_at_str: &str) -> Result<()> {
     let rejoin_at = deleted_at + chrono::Duration::days(REJOIN_COOLDOWN_DAYS);
     let now = chrono::Utc::now();
 
-    // 비교를 위해 양쪽을 UTC로 통일
     if now < rejoin_at.with_timezone(&chrono::Utc) {
-        // 남은 일수 계산 (올림 처리: 30일 23시간 남았으면 "1일 후" 가 아니라 "1일 후" 표시)
+        // 남은 일수 계산 (올림 처리)
         let remaining = rejoin_at.with_timezone(&chrono::Utc) - now;
         let days_left = remaining.num_days() + 1;
 
-        return Err(anyhow!(
-            "탈퇴 후 {}일 동안 재가입할 수 없습니다. {}일 후 다시 시도해 주세요.",
-            REJOIN_COOLDOWN_DAYS,
-            days_left
-        ));
+        return if is_login {
+            // 로그인 컨텍스트: "탈퇴한 계정입니다..."
+            Err(anyhow!(
+                "탈퇴한 계정입니다. {}일 후 다시 시도해 주세요.",
+                days_left
+            ))
+        } else {
+            // 회원가입 컨텍스트: "탈퇴 후 N일 동안 재가입할 수 없습니다..."
+            Err(anyhow!(
+                "탈퇴 후 {}일 동안 재가입할 수 없습니다. {}일 후 다시 시도해 주세요.",
+                REJOIN_COOLDOWN_DAYS,
+                days_left
+            ))
+        };
     }
 
     Ok(())
@@ -759,7 +782,7 @@ pub async fn exchange_supabase_token(
         if let Some(row) = rows.first() {
             if let Some(deleted_at_str) = row["deleted_at"].as_str() {
                 // 30일 쿨다운 체크 → 미만이면 여기서 에러 던지고 종료
-                check_rejoin_cooldown(deleted_at_str)?;
+                check_login_cooldown(deleted_at_str)?;
 
                 // 30일 지났어도 같은 row를 부활시키지 않음
                 // 정책: 탈퇴자는 새 계정으로 가입해야 함
@@ -808,7 +831,7 @@ pub async fn exchange_supabase_token(
                     mail
                 );
                     // 30일 쿨다운 체크
-                    check_rejoin_cooldown(deleted_at_str)?;
+                    check_login_cooldown(deleted_at_str)?;
                     // 쿨다운 지났어도 부활 X
                     return Err(anyhow!(
                     "탈퇴한 계정입니다. 새로 회원가입해 주세요."
@@ -1458,7 +1481,7 @@ async fn find_or_create_social_user(
                 existing_user_id
             );
                     // 30일 쿨다운 체크 → 미만이면 에러
-                    check_rejoin_cooldown(deleted_at_str)?;
+                    check_login_cooldown(deleted_at_str)?;
                     // 쿨다운 지났어도 부활 X (새 가입 유도)
                     return Err(anyhow!(
                 "탈퇴한 계정입니다. 새로 회원가입해 주세요."

@@ -517,6 +517,7 @@ export default function Community() {
   };
 
   const handlePostClick = async (post: Post) => {
+    // 1. 읽은 글 표시를 먼저 처리한다.
     setReadPostIds((prev) => {
       const next = new Set(prev);
       next.add(post.id);
@@ -528,18 +529,43 @@ export default function Community() {
       return next;
     });
 
-    try {
-      const detail = toPost(await getCommunityPost(post.id));
-      setPosts((prev) => prev.map((item) => (item.id === detail.id ? detail : item)));
-      setSelectedPost(detail);
-    } catch (error) {
-      setSelectedPost(post);
-      toast.error("게시글 상세 조회에 실패했습니다");
-      console.error("게시글 상세 조회 실패:", error);
-    }
+    // 2. 상세 화면을 즉시 연다.
+    //
+    // 기존에는 getCommunityPost(post.id) 응답을 기다린 뒤 setSelectedPost를 해서
+    // 네트워크가 느리면 글 클릭 후 상세 화면 전환이 늦게 느껴졌다.
+    //
+    // 목록 데이터에도 title/content/author/image_url/likes/views가 이미 있으므로
+    // 우선 목록 데이터를 그대로 상세 화면에 보여준다.
+    setSelectedPost(post);
 
+    // 3. URL/history와 스크롤도 즉시 처리한다.
+    //
+    // 이것도 await 뒤에 있으면 사용자가 클릭했는데 반응이 늦어 보일 수 있다.
     window.history.pushState({ postId: post.id }, "", "");
     window.scrollTo({ top: 0, behavior: "smooth" });
+
+    try {
+      // 4. 상세 API는 뒤에서 호출한다.
+      //
+      // 이 API는 조회수 증가, 최신 is_reacted, 최신 profile signed URL 등을 반영한다.
+      // 응답이 오면 상세 화면과 목록 상태를 최신 데이터로 교체한다.
+      const detail = toPost(await getCommunityPost(post.id));
+
+      setPosts((prev) =>
+          prev.map((item) => (item.id === detail.id ? detail : item))
+      );
+
+      setSelectedPost((current) =>
+          current?.id === detail.id ? detail : current
+      );
+    } catch (error) {
+      // 5. 상세 API 실패 시
+      //
+      // 이미 목록 데이터로 상세 화면은 열려 있으므로 사용자는 내용을 볼 수 있다.
+      // 다만 조회수 증가/최신 상태 반영은 실패한 상태다.
+      toast.error("게시글 상세 정보를 최신 상태로 불러오지 못했습니다");
+      console.error("게시글 상세 조회 실패:", error);
+    }
   };
 
   const resetWriteForm = () => {

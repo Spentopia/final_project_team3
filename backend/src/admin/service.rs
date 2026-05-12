@@ -90,6 +90,7 @@ fn to_user_response(row: AdminUser) -> AdminUserResponse {
         role_type: row.role_type.unwrap_or_else(|| "user".to_string()),
         profile_completed: row.profile_completed.unwrap_or(false),
         is_active: row.is_active.unwrap_or(true),
+        deleted_at: row.deleted_at,
         created_at: row.created_at,
         updated_at: row.updated_at,
     }
@@ -432,15 +433,75 @@ pub async fn list_users(
     Ok(rows.into_iter().map(to_user_response).collect())
 }
 
+async fn get_admin_user_by_id(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<AdminUser> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=*&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("관리자 회원 단건 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 회원 단건 조회 실패: {}", body));
+    }
+
+    let rows: Vec<AdminUser> = res
+        .json()
+        .await
+        .context("관리자 회원 단건 조회 응답 파싱 실패")?;
+
+    rows.into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("회원을 찾을 수 없습니다."))
+}
+
+
 /// 관리자: 회원 활성/비활성 변경
 ///
 /// is_active = true  -> 활성
 /// is_active = false -> 비활성
+///
+/// 정책:
+/// - 탈퇴한 회원(deleted_at is not null)은 활성/비활성 변경 불가
+/// - 운영자(role_type = admin)는 활성/비활성 변경 불가
+///
+/// 이유:
+/// - 탈퇴자는 이미 서비스 이용 대상이 아니므로 상태를 되돌리면 안 된다.
+/// - 운영자를 비활성화하면 관리자 접근이 꼬일 수 있다.
+///   운영자 권한 회수는 별도 role 관리 기능으로 처리하는 게 안전하다.
 pub async fn update_user_active(
     state: &AppState,
     user_id: Uuid,
     is_active: bool,
 ) -> Result<AdminUserResponse> {
+    // 먼저 대상 회원을 조회해서 role_type / deleted_at을 확인한다.
+    let current_user = get_admin_user_by_id(state, user_id).await?;
+
+    // 탈퇴한 회원은 활성/비활성 변경 불가.
+    if current_user.deleted_at.is_some() {
+        return Err(anyhow!("탈퇴한 회원은 활성/비활성 상태를 변경할 수 없습니다."));
+    }
+
+    // 운영자 계정은 활성/비활성 변경 불가.
+    if current_user.role_type.as_deref() == Some("admin") {
+        return Err(anyhow!("운영자 계정은 활성/비활성 상태를 변경할 수 없습니다."));
+    }
+
     let url = format!(
         "{}/rest/v1/users?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),

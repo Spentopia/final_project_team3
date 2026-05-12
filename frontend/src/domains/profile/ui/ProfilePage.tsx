@@ -359,9 +359,34 @@ export default function ProfilePage() {
               <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 정말 회원탈퇴하시겠습니까?
               </p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                탈퇴 후에는 계정을 복구할 수 없습니다.
-              </p>
+              <div className="mt-2 space-y-1 text-sm text-gray-500 dark:text-gray-400">
+                <p>• 모든 가계부 기록과 SPT 잔액이 즉시 비활성화됩니다.</p>
+
+                {/* 이메일 가입자 (구글 연결 안 한 경우) */}
+                {profile.loginProvider === "email" && !profile.googleConnected && (
+                    <p>• 같은 이메일로는 재가입할 수 없습니다.</p>
+                )}
+
+                {/* 이메일 가입자 + 구글 연결한 경우 */}
+                {profile.loginProvider === "email" && profile.googleConnected && (
+                    <>
+                      <p>• 같은 이메일로는 재가입할 수 없습니다.</p>
+                      <p>• 같은 구글 계정으로는 30일 동안 재가입할 수 없습니다.</p>
+                    </>
+                )}
+
+                {/* 카카오 가입자 */}
+                {profile.loginProvider === "kakao" && (
+                    <p>• 같은 카카오 계정으로는 30일 동안 재가입할 수 없습니다.</p>
+                )}
+
+                {/* 구글 가입자 (login_provider="google") */}
+                {profile.loginProvider === "google" && (
+                    <p>• 같은 구글 계정으로는 30일 동안 재가입할 수 없습니다.</p>
+                )}
+
+                <p>• 기존 데이터는 복구되지 않습니다.</p>
+              </div>
               <div className="mt-4 flex justify-end gap-2">
                 <Button
                   variant="outline"

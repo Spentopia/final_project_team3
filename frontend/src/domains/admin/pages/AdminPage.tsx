@@ -171,7 +171,7 @@ export default function AdminPage() {
     }, [dashboardReports]);
 
     const activeUserCount = useMemo(() => {
-        return users.filter((user) => user.is_active).length;
+        return users.filter((user) => user.is_active && !user.deleted_at).length;
     }, [users]);
 
     const recentReports = useMemo(() => {
@@ -403,6 +403,20 @@ export default function AdminPage() {
     // 회원 활성/비활성 변경
     const handleToggleUserActive = async (user: AdminUserResponse) => {
         if (processingId) return;
+
+        // 탈퇴한 회원은 활성/비활성 변경 불가.
+        // UI에서도 버튼을 숨기지만, 혹시 다른 경로로 호출되는 상황을 방어한다.
+        if (user.deleted_at) {
+            toast.error("탈퇴한 회원은 활성/비활성 상태를 변경할 수 없습니다.");
+            return;
+        }
+
+        // 운영자 계정은 활성/비활성 변경 불가.
+        // 운영자를 비활성화하면 관리자 접근이 꼬일 수 있으므로 별도 role 관리로 처리해야 한다.
+        if (user.role_type === "admin") {
+            toast.error("운영자 계정은 활성/비활성 상태를 변경할 수 없습니다.");
+            return;
+        }
 
         setProcessingId(user.id);
 
