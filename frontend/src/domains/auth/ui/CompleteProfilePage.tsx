@@ -36,11 +36,49 @@ const NICKNAME_SUFFIXES = [
   "존", "랩", "노트", "메이커", "뷰", "코드", "로프트", "라운지", "파크", "빌드",
 ];
 
+const NICKNAME_MIN_LENGTH = 2;
+const NICKNAME_MAX_LENGTH = 8;
+const NICKNAME_RANDOM_NUMBER_DIGITS = 2;
+
 function generateNickname(): string {
-  const prefix = NICKNAME_PREFIXES[Math.floor(Math.random() * NICKNAME_PREFIXES.length)];
-  const suffix = NICKNAME_SUFFIXES[Math.floor(Math.random() * NICKNAME_SUFFIXES.length)];
-  const num = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
-  return `${prefix}${suffix}${num}`;
+  // 랜덤 닉네임 정책:
+  // - prefix + suffix + 숫자 2자리
+  // - 전체 길이 8자 이하만 허용
+  //
+  // 예:
+  // - 알뜰존05       OK
+  // - 리얼라운지05   길이에 따라 OK
+  // - 알뜰로프트05   8자 초과면 후보에서 제외
+  //
+  // 핵심:
+  // slice로 억지로 자르는 방식이 아니라,
+  // 처음부터 8자 이하 후보만 만들어서 그중 하나를 반환한다.
+  const candidates: string[] = [];
+
+  for (const prefix of NICKNAME_PREFIXES) {
+    for (const suffix of NICKNAME_SUFFIXES) {
+      for (let i = 0; i < 100; i += 1) {
+        const num = i
+            .toString()
+            .padStart(NICKNAME_RANDOM_NUMBER_DIGITS, "0");
+
+        const candidate = `${prefix}${suffix}${num}`;
+
+        if (candidate.length <= NICKNAME_MAX_LENGTH) {
+          candidates.push(candidate);
+        }
+      }
+    }
+  }
+
+  // 방어 코드.
+  // 현재 prefix/suffix 배열 기준으로 candidates가 비어 있을 가능성은 낮지만,
+  // 나중에 긴 단어만 남게 되면 빈 배열이 될 수 있으므로 fallback을 둔다.
+  if (candidates.length === 0) {
+    return "픽존00";
+  }
+
+  return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
 const avatarOptions = [
@@ -70,42 +108,84 @@ export default function CompleteProfilePage() {
   const handleNext = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Step 1 → 2: 중복 체크 후 이동
+    if (loading) return;
+
+    // ─────────────────────────────────────────────
+    // Step 1 → Step 2
+    // 닉네임/전화번호 입력 후 중복 확인
+    // ─────────────────────────────────────────────
     if (step === 1) {
-      if (!formData.nickname.trim()) {
+      const nickname = formData.nickname.trim();
+
+      // 닉네임 필수 검사
+      if (!nickname) {
         toast.error("닉네임을 입력해주세요.");
         return;
       }
+
+      // 닉네임 길이 검사
+      //
+      // 백엔드 validate_nickname() 기준과 맞춘다.
+      // 프론트에서도 먼저 막아야 사용자가 Step 2까지 갔다가 실패하지 않는다.
+      if (
+          nickname.length < NICKNAME_MIN_LENGTH ||
+          nickname.length > NICKNAME_MAX_LENGTH
+      ) {
+        toast.error("닉네임은 2~8자까지 입력할 수 있습니다.");
+        return;
+      }
+
+      // 전화번호 필수 검사
       if (!formData.phone.trim()) {
         toast.error("전화번호를 입력해주세요.");
         return;
       }
 
       setLoading(true);
+
       try {
+        // 닉네임/전화번호 중복 확인
+        //
+        // nickname은 trim된 값을 보낸다.
+        // formData.nickname을 그대로 보내면 앞뒤 공백이 포함될 수 있다.
         await checkProfileAvailability({
-          nickname: formData.nickname,
+          nickname,
           phone: formData.phone,
         });
+
+        // trim된 닉네임을 formData에도 반영한다.
+        //
+        // 이유:
+        // Step 2에서 completeProfile() 호출할 때
+        // 앞뒤 공백이 제거된 동일한 닉네임이 저장되게 하기 위함.
+        updateFormData("nickname", nickname);
+
         setStep(2);
       } catch (error: any) {
         toast.error(error.message || "중복 확인에 실패했습니다");
       } finally {
         setLoading(false);
       }
+
       return;
     }
 
-    // Step 2: 아바타 선택 완료 → 프로필 저장
-    // 1) 선택된 이미지가 있으면 먼저 서버에 업로드
-    // 2) 업로드된 path를 completeProfile에 전달
+    // ─────────────────────────────────────────────
+    // Step 2
+    // 아바타 선택 완료 → 프로필 저장
+    // ─────────────────────────────────────────────
     setLoading(true);
+
     try {
-      // 이미지 업로드 (선택된 파일이 있을 때만)
+      // 프로필 이미지 업로드
+      //
+      // 사용자가 이미지를 선택하지 않았다면
+      // profileImage.upload()는 null/undefined 계열 값을 반환하고,
+      // completeProfile에는 profileImage를 넘기지 않는다.
       const imagePath = await profileImage.upload();
 
       const result = await completeProfile({
-        nickname: formData.nickname,
+        nickname: formData.nickname.trim(),
         phone: formData.phone,
         profileImage: imagePath || undefined,
       });
@@ -139,15 +219,27 @@ export default function CompleteProfilePage() {
 
   const handleGenerateNickname = async () => {
     setNicknameChecking(true);
+
     try {
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 5; i += 1) {
         const candidate = generateNickname();
+
+        // generateNickname()에서 이미 8자 이하만 반환하지만,
+        // 혹시 나중에 로직이 바뀌어도 긴 닉네임이 들어가지 않도록 한 번 더 방어한다.
+        if (candidate.length > NICKNAME_MAX_LENGTH) {
+          continue;
+        }
+
         const available = await checkNicknameAvailable(candidate);
+
         if (available) {
           updateFormData("nickname", candidate);
           return;
         }
       }
+
+      // 5회 모두 중복이면 중복 여부는 제출 시 다시 확인된다.
+      // 그래도 길이는 반드시 8자 이하인 값만 사용한다.
       updateFormData("nickname", generateNickname());
     } catch {
       updateFormData("nickname", generateNickname());
@@ -192,12 +284,17 @@ export default function CompleteProfilePage() {
                   <Label htmlFor="nickname">닉네임</Label>
                   <div className="mt-1 flex gap-2">
                     <Input
-                      id="nickname"
-                      type="text"
-                      placeholder="닉네임을 입력해주세요"
-                      value={formData.nickname}
-                      onChange={(e) => updateFormData("nickname", e.target.value)}
-                     
+                        id="nickname"
+                        type="text"
+                        placeholder="2~8자 닉네임을 입력해주세요"
+                        value={formData.nickname}
+                        maxLength={NICKNAME_MAX_LENGTH}
+                        onChange={(e) =>
+                            updateFormData(
+                                "nickname",
+                                e.target.value.slice(0, NICKNAME_MAX_LENGTH)
+                            )
+                        }
                     />
                     <button
                       type="button"

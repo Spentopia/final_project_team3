@@ -44,15 +44,66 @@ const NICKNAME_PREFIXES = [
   "네오", "다이아", "슈퍼", "픽", "데이터", "비트", "리얼", "어반", "부스트", "위너",
 ];
 const NICKNAME_SUFFIXES = [
-  "천국", "로그", "라이프", "밸런스", "모드", "클럽", "포인트", "팩토리", "가든", "스테이지",
+  "천국", "로그", "라이프", "밸런스", "모드", "클럽", "포인트", "팩토리", "가든",
   "존", "랩", "노트", "메이커", "뷰", "코드", "로프트", "라운지", "파크", "빌드",
 ];
 
+const NICKNAME_MIN_LENGTH = 2;
+const NICKNAME_MAX_LENGTH = 8;
+const NICKNAME_RANDOM_NUMBER_DIGITS = 2;
+
 function generateNickname(): string {
-  const prefix = NICKNAME_PREFIXES[Math.floor(Math.random() * NICKNAME_PREFIXES.length)];
-  const suffix = NICKNAME_SUFFIXES[Math.floor(Math.random() * NICKNAME_SUFFIXES.length)];
-  const num = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
-  return `${prefix}${suffix}${num}`;
+  // 랜덤 닉네임 정책:
+  // - prefix + suffix + 숫자 2자리
+  // - 전체 길이 8자 이하만 허용
+  //
+  // 예:
+  // - 리얼존07       → OK
+  // - 갓생라운지42   → OK/길이에 따라 판단
+  // - 데이터라운지42 → 8자 초과면 제외
+  //
+  // 주의:
+  // input maxLength만 믿으면 안 된다.
+  // 주사위 버튼이 직접 formData.nickname에 값을 넣기 때문에
+  // 생성 단계에서 8자 이하만 나오게 해야 한다.
+
+  for (let i = 0; i < 100; i += 1) {
+    const prefix =
+        NICKNAME_PREFIXES[Math.floor(Math.random() * NICKNAME_PREFIXES.length)];
+
+    const suffix =
+        NICKNAME_SUFFIXES[Math.floor(Math.random() * NICKNAME_SUFFIXES.length)];
+
+    // 숫자 2자리: 00 ~ 99
+    const num = Math.floor(Math.random() * 100)
+        .toString()
+        .padStart(NICKNAME_RANDOM_NUMBER_DIGITS, "0");
+
+    const candidate = `${prefix}${suffix}${num}`;
+
+    if (candidate.length <= NICKNAME_MAX_LENGTH) {
+      return candidate;
+    }
+  }
+
+  // 안전 fallback.
+  //
+  // 위 반복에서 혹시라도 8자 이하 조합을 못 찾으면
+  // 짧은 조합으로 강제 생성한다.
+  // 현재 배열 기준으로는 거의 여기까지 오지 않지만,
+  // 나중에 긴 prefix/suffix가 추가될 수 있으므로 방어 코드를 둔다.
+  const shortPrefixes = NICKNAME_PREFIXES.filter((value) => value.length <= 2);
+  const shortSuffixes = NICKNAME_SUFFIXES.filter((value) => value.length <= 2);
+
+  const prefix =
+      shortPrefixes[Math.floor(Math.random() * shortPrefixes.length)] ?? "픽";
+
+  const suffix =
+      shortSuffixes[Math.floor(Math.random() * shortSuffixes.length)] ?? "존";
+
+  const num = Math.floor(Math.random() * 100).toString().padStart(2, "0");
+
+  return `${prefix}${suffix}${num}`.slice(0, NICKNAME_MAX_LENGTH);
 }
 
 const avatarOptions = [
@@ -246,27 +297,45 @@ export default function Signup() {
 
     // ── Step 2 -> Step 3 ────────────────────────────────────
     if (step === 2) {
-      if (!formData.nickname.trim()) {
+      const nickname = formData.nickname.trim();
+
+      if (!nickname) {
         toast.error("닉네임을 입력해주세요.");
         return;
       }
+
+      if (
+          nickname.length < NICKNAME_MIN_LENGTH ||
+          nickname.length > NICKNAME_MAX_LENGTH
+      ) {
+        toast.error("닉네임은 2~8자까지 입력할 수 있습니다.");
+        return;
+      }
+
       if (!formData.phone.trim()) {
         toast.error("전화번호를 입력해주세요.");
         return;
       }
 
       setLoading(true);
+
       try {
         await checkProfileAvailability({
-          nickname: formData.nickname,
+          nickname,
           phone: formData.phone,
         });
+
+        // trim된 닉네임을 formData에도 반영해서
+        // Step 3 completeProfile()에도 동일한 값이 들어가게 한다.
+        updateFormData("nickname", nickname);
+
         setStep(3);
       } catch (error: any) {
         toast.error(error.message || "중복 확인에 실패했습니다");
       } finally {
         setLoading(false);
       }
+
       return;
     }
 
@@ -396,24 +465,34 @@ export default function Signup() {
 
                 <div>
                   <Label htmlFor="nickname">닉네임</Label>
+
                   <div className="mt-1 flex gap-2">
                     <Input
-                      id="nickname"
-                      type="text"
-                      placeholder="멋진 닉네임을 입력해주세요"
-                      value={formData.nickname}
-                      onChange={(e) =>
-                        updateFormData("nickname", e.target.value)
-                      }
+                        id="nickname"
+                        type="text"
+                        placeholder="2~8자 닉네임을 입력해주세요"
+                        value={formData.nickname}
+                        maxLength={NICKNAME_MAX_LENGTH}
+                        onChange={(e) =>
+                            updateFormData(
+                                "nickname",
+                                e.target.value.slice(0, NICKNAME_MAX_LENGTH)
+                            )
+                        }
                     />
+
                     <button
-                      type="button"
-                      onClick={handleGenerateNickname}
-                      disabled={nicknameChecking}
-                      title="랜덤 닉네임 생성"
-                      className="flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                        type="button"
+                        onClick={handleGenerateNickname}
+                        disabled={nicknameChecking}
+                        title="랜덤 닉네임 생성"
+                        className="flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
                     >
-                      <Dices className={`h-4 w-4 text-gray-500 dark:text-gray-400 ${nicknameChecking ? "animate-spin" : ""}`} />
+                      <Dices
+                          className={`h-4 w-4 text-gray-500 dark:text-gray-400 ${
+                              nicknameChecking ? "animate-spin" : ""
+                          }`}
+                      />
                     </button>
                   </div>
                 </div>
