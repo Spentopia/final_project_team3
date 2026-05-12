@@ -121,14 +121,53 @@ pub struct AdminUserResponse {
     // 활성/비활성이 아니라 "탈퇴" 상태로 보여준다.
     pub deleted_at: Option<DateTime<Utc>>,
 
+    // 비활성 사유.
+    //
+    // is_active=false일 때 사용한다.
+    // 예: "부적절한 게시글 반복 작성"
+    pub inactive_reason: Option<String>,
+
+    // 비활성 처리 시각.
+    //
+    // 관리자가 언제 이 회원을 비활성화했는지 기록한다.
+    pub inactive_at: Option<DateTime<Utc>>,
+
+    // 비활성 해제 예정일.
+    //
+    // null이면 무기한 또는 해제일 미정으로 본다.
+    // 이번 정책에서는 자동 해제하지 않고, 사용자 안내용/관리자 참고용으로 사용한다.
+    pub inactive_until: Option<DateTime<Utc>>,
+
+    // 비활성 처리한 관리자 ID.
+    //
+    // public.users.id를 참조한다.
+    pub inactive_by: Option<Uuid>,
+
+
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-// 회원 활성/비활성 변경 요청
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateUserActiveRequest {
+    // true  = 활성화
+    // false = 비활성화
     pub is_active: bool,
+
+    // 비활성 사유.
+    //
+    // is_active=false일 때만 사용한다.
+    // 활성화 요청일 때는 무시한다.
+    pub reason: Option<String>,
+
+    // 비활성 해제 예정일.
+    //
+    // is_active=false일 때만 사용한다.
+    // null이면 무기한 또는 미정으로 처리한다.
+    //
+    // 프론트에서는 ISO 문자열로 보내면 됨.
+    // 예: "2026-05-20T09:00:00.000Z"
+    pub inactive_until: Option<DateTime<Utc>>,
 }
 
 // ─────────────────────────────────────────────

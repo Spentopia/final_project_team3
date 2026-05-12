@@ -64,11 +64,55 @@ async function resolveSupabaseAccessToken() {
   throw new Error("구글 로그인 세션이 없습니다");
 }
 
+type AccountInactiveErrorPayload = {
+  code: "ACCOUNT_INACTIVE";
+  message: string;
+  reason: string;
+  inactive_until_text: string;
+  support_email: string;
+};
+
+function isAccountInactivePayload(data: unknown): data is AccountInactiveErrorPayload {
+  return (
+      !!data &&
+      typeof data === "object" &&
+      "code" in data &&
+      (data as { code?: unknown }).code === "ACCOUNT_INACTIVE"
+  );
+}
+
 async function completeGoogleLogin() {
   const accessToken = await resolveSupabaseAccessToken();
-  const exchanged = await apiClient.post("/auth/exchange", { access_token: accessToken });
+
+  let exchanged;
+
+  try {
+    exchanged = await apiClient.post("/auth/exchange", {
+      access_token: accessToken,
+    });
+  } catch (error) {
+    const data = (
+        error as {
+          response?: {
+            data?: unknown;
+          };
+        }
+    ).response?.data;
+
+    if (isAccountInactivePayload(data)) {
+      sessionStorage.setItem(
+          "account_inactive_info",
+          JSON.stringify(data)
+      );
+
+      throw new Error(data.message);
+    }
+
+    throw error;
+  }
 
   const appAccessToken = exchanged?.data?.access_token;
+
   if (!appAccessToken) {
     throw new Error("앱 로그인 토큰을 받지 못했습니다.");
   }

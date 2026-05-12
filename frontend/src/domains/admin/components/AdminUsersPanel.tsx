@@ -177,13 +177,32 @@ export default function AdminUsersPanel({
                     </span>
                                 </td>
 
-                                <td className="px-4 py-3 align-middle">
-                                    <span
-                                        className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${getUserStatusClassName(user)}`}
-                                        title={user.deleted_at ? `탈퇴일: ${formatDateTime(user.deleted_at)}` : undefined}
-                                    >
-                                        {getUserStatusLabel(user)}
-                                    </span>
+                                <td className="min-w-[220px] px-4 py-3 align-middle">
+  <span
+      className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${getUserStatusClassName(user)}`}
+      title={user.deleted_at ? `탈퇴일: ${formatDateTime(user.deleted_at)}` : undefined}
+  >
+    {getUserStatusLabel(user)}
+  </span>
+
+                                    {!user.is_active && !user.deleted_at && (
+                                        <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                            <p className="whitespace-nowrap">
+                                                {user.inactive_until
+                                                    ? `해제 예정: ${formatDateTime(user.inactive_until)}`
+                                                    : "해제 예정: 미정"}
+                                            </p>
+
+                                            {user.inactive_reason && (
+                                                <p
+                                                    className="mt-0.5 max-w-[220px] truncate"
+                                                    title={user.inactive_reason}
+                                                >
+                                                    사유: {user.inactive_reason}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
                                 </td>
 
                                 <td className="px-4 py-3 align-middle text-muted-foreground">

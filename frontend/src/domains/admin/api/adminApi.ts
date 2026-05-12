@@ -108,6 +108,19 @@ export type AdminContentReportResponse = {
     reviewed_by: string | null;
 };
 
+export type UpdateAdminUserActiveRequest = {
+    is_active: boolean;
+
+    // 비활성화할 때만 사용.
+    // 활성화할 때는 보내지 않아도 된다.
+    reason?: string | null;
+
+    // 비활성 해제 예정일.
+    // ISO 문자열로 보낸다.
+    // null이면 무기한 또는 미정.
+    inactive_until?: string | null;
+};
+
 // ─────────────────────────────────────────────
 // 회원 관리 타입
 // ─────────────────────────────────────────────
@@ -156,6 +169,20 @@ export interface AdminUserResponse {
     // null이면 미탈퇴 회원.
     // 문자열이면 탈퇴 회원.
     deleted_at: string | null;
+
+    // 비활성 사유.
+// is_active=false일 때 표시한다.
+    inactive_reason: string | null;
+
+// 비활성 처리 시각.
+    inactive_at: string | null;
+
+// 비활성 해제 예정일.
+// null이면 무기한 또는 미정.
+    inactive_until: string | null;
+
+// 비활성 처리한 관리자 ID.
+    inactive_by: string | null;
 
     // 가입 시각
     created_at: string | null;
@@ -312,13 +339,11 @@ export async function listAdminUsers(
 // 관리자 권한 부여/해제는 실수 위험이 커서 DB에서 직접 관리하는 구조 추천.
 export async function updateAdminUserActive(
     id: string,
-    isActive: boolean
+    payload: UpdateAdminUserActiveRequest
 ): Promise<AdminUserResponse> {
     const res = await apiClient.patch<AdminUserResponse>(
         `/api/admin/users/${id}/active`,
-        {
-            is_active: isActive,
-        }
+        payload
     );
 
     return res.data;

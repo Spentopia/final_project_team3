@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
-import { loginWithKakaocode } from "@/domains/auth/api/auth";
+import { loginWithKakaocode, AccountInactiveError } from "@/domains/auth/api/auth";
 import { authStorage } from "@/shared/lib/auth";
 
 export default function KakaoCallbackPage() {
@@ -44,12 +44,25 @@ export default function KakaoCallbackPage() {
 
       navigate("/", { replace: true });
     } catch (err: any) {
-      console.error("카카오 로그인 실패:", err);
-      toast.error(
-          err instanceof Error ? err.message : "카카오 로그인에 실패했습니다."
+    console.error("카카오 로그인 실패:", err);
+
+    if (err instanceof AccountInactiveError) {
+      sessionStorage.setItem(
+          "account_inactive_info",
+          JSON.stringify(err.payload)
       );
+
+      toast.error(err.payload.message);
       navigate("/login", { replace: true });
+      return;
     }
+
+    toast.error(
+        err instanceof Error ? err.message : "카카오 로그인에 실패했습니다."
+    );
+
+    navigate("/login", { replace: true });
+  }
   };
 
   if (error) {

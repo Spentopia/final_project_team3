@@ -15,11 +15,11 @@
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
-    response::IntoResponse,
+    response::{IntoResponse, Response},
     Extension, Json,
 };
 use serde::Deserialize;
-use uuid:: Uuid;
+use uuid::Uuid;
 
 use crate::state::AppState;
 
@@ -76,6 +76,7 @@ fn map_admin_error(error: anyhow::Error) -> axum::response::Response {
         || message.contains("수정할 콘테스트")
         || message.contains("탈퇴한 회원은 활성/비활성")
         || message.contains("운영자 계정은 활성/비활성")
+        || message.contains("비활성화 사유")
     {
         return (StatusCode::BAD_REQUEST, message).into_response();
     }
@@ -189,11 +190,28 @@ pub async fn list_users(
 )]
 pub async fn update_user_active(
     State(state): State<AppState>,
+
+    // URL path의 대상 회원 ID.
     Path(user_id): Path<Uuid>,
+
+    // jwt_middleware가 넣어준 현재 로그인한 관리자 ID.
+    //
+    // 이 값은 inactive_by에 저장된다.
+    Extension(admin_user_id): Extension<Uuid>,
+
     Json(req): Json<UpdateUserActiveRequest>,
-) -> impl IntoResponse {
-    match service::update_user_active(&state, user_id, req.is_active).await {
-        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+) -> Response {
+    match service::update_user_active(
+        &state,
+        user_id,
+        req.is_active,
+        req.reason,
+        req.inactive_until,
+        admin_user_id,
+    )
+        .await
+    {
+        Ok(user) => Json(user).into_response(),
         Err(e) => map_admin_error(e),
     }
 }

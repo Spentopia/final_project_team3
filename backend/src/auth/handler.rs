@@ -172,6 +172,87 @@ fn build_clear_refresh_cookie(state: &AppState) -> HeaderMap {
     headers
 }
 
+// ─────────────────────────────────────────────────────────────
+// 인증 service 에러 → HTTP 상태코드 변환
+// ─────────────────────────────────────────────────────────────
+//
+// auth/service.rs에서 올라오는 에러를 handler에서 HTTP 응답으로 바꾼다.
+//
+// 401 Unauthorized:
+// - access token / refresh token이 없거나 잘못됨
+// - 인증 자체가 실패한 경우
+//
+// 403 Forbidden:
+// - 계정은 식별됐지만 서비스 이용이 금지된 경우
+// - 예: 탈퇴 계정, 비활성화 계정
+//
+// 왜 이 함수를 따로 두나?
+// - exchange_token, refresh_token, kakao_login 등에서 같은 분기 로직을 반복하지 않기 위해
+// - 프론트에서 "비활성화된 계정입니다..." 메시지를 toast로 정확히 띄울 수 있게 하기 위해
+fn map_auth_service_error(error: anyhow::Error) -> Response {
+    let msg = error.to_string();
+
+    // 비활성 계정 에러.
+    //
+    // service.rs에서 다음 형태로 올린다:
+    // ACCOUNT_INACTIVE|{reason}|{inactive_until_text}
+    //
+    // 예:
+    // ACCOUNT_INACTIVE|부적절한 게시글 반복 작성|2026.05.20 18:00
+    if let Some(rest) = msg.strip_prefix("ACCOUNT_INACTIVE|") {
+        let mut parts = rest.splitn(2, '|');
+
+        let reason = parts
+            .next()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .unwrap_or("운영정책 위반");
+
+        let inactive_until_text = parts
+            .next()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .unwrap_or("미정");
+
+        return (
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({
+                "code": "ACCOUNT_INACTIVE",
+                "message": "비활성화된 계정입니다.",
+                "reason": reason,
+                "inactive_until_text": inactive_until_text,
+                "support_email": "spentopia.official@gmail.com"
+            })),
+        )
+            .into_response();
+    }
+
+    // 탈퇴 계정.
+    //
+    // 탈퇴는 상세 박스까지는 필요 없고,
+    // 짧은 메시지만 내려줘도 충분하다.
+    if msg.contains("탈퇴한 계정") {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({
+                "code": "ACCOUNT_WITHDRAWN",
+                "message": msg
+            })),
+        )
+            .into_response();
+    }
+
+    // 그 외 인증 실패.
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(serde_json::json!({
+            "code": "AUTH_FAILED",
+            "message": msg
+        })),
+    )
+        .into_response()
+}
+
 /// 현재 요청의 Cookie 헤더에서 refresh 쿠키 추출
 ///
 /// 웹 refresh/logout에서 사용
@@ -334,6 +415,9 @@ pub async fn wallet_login(
             if msg.contains("nonce") || msg.contains("서명") {
                 tracing::warn!("지갑 로그인 실패 (인증): {}", msg);
                 (StatusCode::UNAUTHORIZED, msg)
+            } else if msg.contains("비활성화된 계정") || msg.contains("탈퇴한 계정") {
+                tracing::warn!("지갑 로그인 차단 (계정 상태): {}", msg);
+                (StatusCode::FORBIDDEN, msg)
             } else if msg.contains("연동된 계정이 없습니다") {
                 tracing::info!("지갑 로그인 실패 (미연동/탈퇴): wallet={}", body.wallet_address);
                 (StatusCode::NOT_FOUND, msg)
@@ -402,11 +486,14 @@ pub async fn wallet_login_app(
             if msg.contains("nonce") || msg.contains("서명") {
                 tracing::warn!("앱 지갑 로그인 실패 (인증): {}", msg);
                 (StatusCode::UNAUTHORIZED, msg)
+            } else if msg.contains("비활성화된 계정") || msg.contains("탈퇴한 계정") {
+                tracing::warn!("앱 지갑 로그인 차단 (계정 상태): {}", msg);
+                (StatusCode::FORBIDDEN, msg)
             } else if msg.contains("연동된 계정이 없습니다") {
                 tracing::info!(
-            "앱 지갑 로그인 실패 (미연동/탈퇴): wallet={}",
-            body.wallet_address
-        );
+        "앱 지갑 로그인 실패 (미연동/탈퇴): wallet={}",
+        body.wallet_address
+    );
                 (StatusCode::NOT_FOUND, msg)
             } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
                 tracing::warn!("앱 지갑 로그인 차단 (가입 미완료): {}", msg);
@@ -452,48 +539,48 @@ pub async fn wallet_login_app(
 pub async fn exchange_token(
     State(state): State<AppState>,
     Json(body): Json<ExchangeTokenRequest>,
-) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
+) -> Response {
     if body.access_token.trim().is_empty() {
-        return Err((
+        return (
             StatusCode::BAD_REQUEST,
-            "access_token을 입력해 주세요.".to_string(),
-        ));
+            Json(serde_json::json!({
+                "code": "BAD_REQUEST",
+                "message": "access_token을 입력해 주세요."
+            })),
+        )
+            .into_response();
     }
 
-    let issued = service::exchange_supabase_token(&state, &body.access_token, "web")
-        .await
-        .map_err(|e| {
-            let msg = e.to_string();
-            tracing::error!("토큰 교환 실패: {}", msg);
-
-            // 탈퇴 관련 메시지는 403 (인증 자체가 무효는 아니지만 권한 없음)
-            if msg.contains("탈퇴") {
-                (StatusCode::FORBIDDEN, msg)
-            } else {
-                (StatusCode::UNAUTHORIZED, msg)
-            }
-        })?;
+    let issued = match service::exchange_supabase_token(&state, &body.access_token, "web").await {
+        Ok(issued) => issued,
+        Err(e) => {
+            tracing::error!("토큰 교환 실패: {}", e);
+            return map_auth_service_error(e);
+        }
+    };
 
     let cookie_headers = build_refresh_cookie(&state, &issued.refresh_token);
     tracing::debug!("토큰 교환 응답: web refresh 쿠키를 Set-Cookie로 반환");
 
-    // 이메일/비밀번호 로그인에서만 실제 role_type을 본다.
-    // 운영자 계정은 DB public.users.role_type = 'admin'이어야 한다.
-    let role_type = service::get_user_role(&state, issued.user_id)
-        .await
-        .map_err(|e| {
+    let role_type = match service::get_user_role(&state, issued.user_id).await {
+        Ok(role) => role.unwrap_or_else(|| "user".to_string()),
+        Err(e) => {
             tracing::error!(
                 "이메일 로그인 role_type 조회 실패: user_id={}, error={}",
                 issued.user_id,
                 e
             );
 
-            (
+            return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "사용자 권한 조회에 실패했습니다.".to_string(),
+                Json(serde_json::json!({
+                    "code": "ROLE_LOOKUP_FAILED",
+                    "message": "사용자 권한 조회에 실패했습니다."
+                })),
             )
-        })?
-        .unwrap_or_else(|| "user".to_string());
+                .into_response();
+        }
+    };
 
     let body = WebLoginResponse {
         access_token: issued.access_token,
@@ -501,37 +588,63 @@ pub async fn exchange_token(
         role_type,
     };
 
-    Ok((cookie_headers, Json(serde_json::to_value(body).unwrap())))
+    (cookie_headers, Json(serde_json::to_value(body).unwrap())).into_response()
 }
 
 pub async fn exchange_token_app(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(body): Json<ExchangeTokenRequest>,
-) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
-    ensure_app_request(&headers)?;
-
-    if body.access_token.trim().is_empty() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "access_token을 입력해 주세요.".to_string(),
-        ));
+) -> Response {
+    // 앱 전용 엔드포인트 검증.
+    //
+    // ensure_app_request()는 기존에 Result<(), (StatusCode, String)>를 반환하므로,
+    // 여기서는 match로 받아서 Response로 직접 변환한다.
+    if let Err((status, message)) = ensure_app_request(&headers) {
+        return (
+            status,
+            Json(serde_json::json!({
+                "code": "APP_REQUEST_INVALID",
+                "message": message
+            })),
+        )
+            .into_response();
     }
 
-    let issued = service::exchange_supabase_token(&state, &body.access_token, "app")
-        .await
-        .map_err(|e| {
+    if body.access_token.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "code": "BAD_REQUEST",
+                "message": "access_token을 입력해 주세요."
+            })),
+        )
+            .into_response();
+    }
+
+    let issued = match service::exchange_supabase_token(&state, &body.access_token, "app").await {
+        Ok(issued) => issued,
+        Err(e) => {
             let msg = e.to_string();
             tracing::error!("앱 토큰 교환 실패: {}", msg);
 
-            if msg.contains("탈퇴") {
-                (StatusCode::FORBIDDEN, msg)
-            } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
-                (StatusCode::FORBIDDEN, msg)
-            } else {
-                (StatusCode::UNAUTHORIZED, msg)
+            // 앱 전용 정책:
+            // 모바일 앱은 프로필 완성 전 사용을 막는다.
+            if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
+                return (
+                    StatusCode::FORBIDDEN,
+                    Json(serde_json::json!({
+                        "code": "PROFILE_INCOMPLETE",
+                        "message": msg
+                    })),
+                )
+                    .into_response();
             }
-        })?;
+
+            // 비활성/탈퇴/일반 인증 실패는 공통 JSON 응답으로 변환.
+            return map_auth_service_error(e);
+        }
+    };
 
     let body = AppLoginResponse {
         access_token: issued.access_token,
@@ -539,7 +652,7 @@ pub async fn exchange_token_app(
         is_new_user: issued.is_new_user,
     };
 
-    Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
+    (HeaderMap::new(), Json(serde_json::to_value(body).unwrap())).into_response()
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1245,27 +1358,22 @@ pub async fn check_email(
 
     // 케이스별 처리:
     // 1) 이메일 없음 → 404 (가입 가능)
-    // 2) 탈퇴 X 기존 유저 → 200 exists:true (이미 가입된 이메일)
-    // 3) 탈퇴 O 쿨다운 미만 → 403 "탈퇴 후 30일 동안..."
-    // 4) 탈퇴 O 쿨다운 만료 → 403 "이미 탈퇴한 회원입니다. 다른 이메일로..." ★ 변경
+    // 2) 이메일 있음 + deleted_at IS NULL → 200 exists:true (이미 가입된 이메일)
+    // 3) 이메일 있음 + deleted_at IS NOT NULL → 403 (탈퇴 이메일, 영구 재가입 불가)
     //
+    // 정책:
+    // - 같은 이메일은 영구 재가입 금지
+    // - 30일 쿨다운 후 재가입 허용 정책이 아님
+    // - 따라서 check_rejoin_cooldown()을 호출하지 않는다.
     // 정책: 같은 이메일은 영구 차단 (NFT 거래 무결성 + 5년 보관 의무)
     if let Some(row) = rows.first() {
-        if let Some(deleted_at_str) = row["deleted_at"].as_str() {
-            // 30일 쿨다운 체크 → 미만이면 "30일 안내" 메시지로 차단
-            match crate::auth::service::check_rejoin_cooldown(deleted_at_str) {
-                Err(e) => {
-                    // 쿨다운 미만 → 30일 안내
-                    return Err((StatusCode::FORBIDDEN, e.to_string()));
-                }
-                Ok(_) => {
-                    // 쿨다운 만료해도 같은 이메일 영구 차단
-                    return Err((
-                        StatusCode::FORBIDDEN,
-                        "이미 탈퇴한 회원입니다. 다른 이메일로 가입해 주세요.".to_string(),
-                    ));
-                }
-            }
+        if row["deleted_at"].is_string() {
+            // 이메일은 영구 차단 정책 (NFT 거래 이력 무결성)
+            // 30일 쿨다운 체크조차 안 함 — 어차피 영구라 의미 없음
+            return Err((
+                StatusCode::FORBIDDEN,
+                "이미 탈퇴한 회원입니다. 다른 이메일로 가입해 주세요.".to_string(),
+            ));
         } else {
             return Ok(Json(CheckEmailResponse { exists: true }));
         }
@@ -1375,19 +1483,42 @@ pub async fn kakao_login(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(body): Json<KakaoLoginRequest>,
-) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
+) -> Response {
     if body.code.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "인가 코드가 비어있음".to_string()));
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "code": "BAD_REQUEST",
+                "message": "인가 코드가 비어있음"
+            })),
+        )
+            .into_response();
     }
 
     if body.state.trim().is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "state가 비어있음".to_string()));
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "code": "BAD_REQUEST",
+                "message": "state가 비어있음"
+            })),
+        )
+            .into_response();
     }
 
-    let cookie_state = extract_kakao_state_cookie(&headers).ok_or((
-        StatusCode::UNAUTHORIZED,
-        "OAuth state 쿠키가 없습니다.".to_string(),
-    ))?;
+    let cookie_state = match extract_kakao_state_cookie(&headers) {
+        Some(value) => value,
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({
+                    "code": "OAUTH_STATE_MISSING",
+                    "message": "OAuth state 쿠키가 없습니다."
+                })),
+            )
+                .into_response();
+        }
+    };
 
     if cookie_state != body.state {
         tracing::warn!(
@@ -1395,32 +1526,24 @@ pub async fn kakao_login(
             cookie_state,
             body.state
         );
-        return Err((
+
+        return (
             StatusCode::UNAUTHORIZED,
-            "유효하지 않은 로그인 요청입니다.".to_string(),
-        ));
+            Json(serde_json::json!({
+                "code": "OAUTH_STATE_INVALID",
+                "message": "유효하지 않은 로그인 요청입니다."
+            })),
+        )
+            .into_response();
     }
 
-    let issued = service::kakao_login(&state, &body.code, "web")
-        .await
-        .map_err(|e| {
-            // service에서 올라온 에러를 HTTP 상태코드로 변환
-            //
-            // 케이스 분기:
-            // - 탈퇴 관련 메시지 → 403 (재가입 쿨다운 또는 탈퇴 계정)
-            //   ※ "탈퇴 후 30일 동안 재가입할 수 없습니다..."
-            //   ※ "탈퇴한 계정입니다. 새로 회원가입해 주세요."
-            // - 그 외             → 500 (카카오 API 실패, Supabase 실패 등)
-            let msg = e.to_string();
-
-            if msg.contains("탈퇴") {
-                tracing::warn!("카카오 로그인 차단 (탈퇴 관련): {}", msg);
-                (StatusCode::FORBIDDEN, msg)
-            } else {
-                tracing::error!("카카오 로그인 실패 (서버): {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, msg)
-            }
-        })?;
+    let issued = match service::kakao_login(&state, &body.code, "web").await {
+        Ok(issued) => issued,
+        Err(e) => {
+            tracing::warn!("카카오 로그인 실패/차단: {}", e);
+            return map_auth_service_error(e);
+        }
+    };
 
     let mut merged_headers = build_clear_kakao_state_cookie(&state);
     let refresh_headers = build_refresh_cookie(&state, &issued.refresh_token);
@@ -1435,7 +1558,7 @@ pub async fn kakao_login(
         role_type: "user".to_string(),
     };
 
-    Ok((merged_headers, Json(serde_json::to_value(body).unwrap())))
+    (merged_headers, Json(serde_json::to_value(body).unwrap())).into_response()
 }
 
 pub async fn kakao_login_app(
@@ -1464,8 +1587,8 @@ pub async fn kakao_login_app(
             // - 그 외                   → 500
             let msg = e.to_string();
 
-            if msg.contains("탈퇴") {
-                tracing::warn!("앱 카카오 로그인 차단 (탈퇴 관련): {}", msg);
+            if msg.contains("탈퇴") || msg.contains("비활성화된 계정") {
+                tracing::warn!("앱 카카오 로그인 차단 (계정 상태): {}", msg);
                 (StatusCode::FORBIDDEN, msg)
             } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
                 tracing::warn!("앱 카카오 로그인 차단 (가입 미완료): {}", msg);
@@ -1571,22 +1694,30 @@ pub async fn refresh_token(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(_body): Json<RefreshRequest>,
-) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
+) -> Response {
     tracing::debug!("refresh 요청 수신: client_type=web");
 
-    let refresh_token = extract_refresh_cookie(&headers).ok_or_else(|| {
-        (
-            StatusCode::UNAUTHORIZED,
-            "refresh 쿠키가 없습니다.".to_string(),
-        )
-    })?;
+    let refresh_token = match extract_refresh_cookie(&headers) {
+        Some(token) => token,
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({
+                    "code": "REFRESH_COOKIE_MISSING",
+                    "message": "refresh 쿠키가 없습니다."
+                })),
+            )
+                .into_response();
+        }
+    };
 
-    let rotated = service::rotate_refresh_token(&state, &refresh_token, "web")
-        .await
-        .map_err(|e| {
+    let rotated = match service::rotate_refresh_token(&state, &refresh_token, "web").await {
+        Ok(rotated) => rotated,
+        Err(e) => {
             tracing::warn!("refresh 실패: {}", e);
-            (StatusCode::UNAUTHORIZED, e.to_string())
-        })?;
+            return map_auth_service_error(e);
+        }
+    };
 
     let cookie_headers = build_refresh_cookie(&state, &rotated.refresh_token);
     tracing::debug!("refresh 성공 응답: web refresh 쿠키 재발급");
@@ -1595,73 +1726,103 @@ pub async fn refresh_token(
         access_token: rotated.access_token,
     };
 
-    Ok((cookie_headers, Json(serde_json::to_value(body).unwrap())))
+    (cookie_headers, Json(serde_json::to_value(body).unwrap())).into_response()
 }
 
 pub async fn refresh_token_app(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(body): Json<RefreshRequest>,
-) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
-    ensure_app_request(&headers)?;
+) -> Response {
+    if let Err((status, message)) = ensure_app_request(&headers) {
+        return (
+            status,
+            Json(serde_json::json!({
+                "code": "APP_REQUEST_INVALID",
+                "message": message
+            })),
+        )
+            .into_response();
+    }
+
     tracing::debug!("refresh 요청 수신: client_type=app");
 
-    let refresh_token = body
-        .refresh_token
-        .filter(|v| !v.trim().is_empty())
-        .ok_or_else(|| {
-            (
+    let refresh_token = match body.refresh_token.filter(|v| !v.trim().is_empty()) {
+        Some(token) => token,
+        None => {
+            return (
                 StatusCode::BAD_REQUEST,
-                "refresh_token을 입력해 주세요.".to_string(),
+                Json(serde_json::json!({
+                    "code": "BAD_REQUEST",
+                    "message": "refresh_token을 입력해 주세요."
+                })),
             )
-        })?;
+                .into_response();
+        }
+    };
 
-    let rotated = service::rotate_refresh_token(&state, &refresh_token, "app")
-        .await
-        .map_err(|e| {
+    let rotated = match service::rotate_refresh_token(&state, &refresh_token, "app").await {
+        Ok(rotated) => rotated,
+        Err(e) => {
             tracing::warn!("앱 refresh 실패: {}", e);
-            (StatusCode::UNAUTHORIZED, e.to_string())
-        })?;
+            return map_auth_service_error(e);
+        }
+    };
 
     let body = AppRefreshResponse {
         access_token: rotated.access_token,
         refresh_token: rotated.refresh_token,
     };
 
-    Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
+    (HeaderMap::new(), Json(serde_json::to_value(body).unwrap())).into_response()
 }
 
 pub async fn refresh_token_unity(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(body): Json<RefreshRequest>,
-) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
-    ensure_unity_request(&headers)?;
+) -> Response {
+    if let Err((status, message)) = ensure_unity_request(&headers) {
+        return (
+            status,
+            Json(serde_json::json!({
+                "code": "UNITY_REQUEST_INVALID",
+                "message": message
+            })),
+        )
+            .into_response();
+    }
+
     tracing::debug!("refresh 요청 수신: client_type=unity");
 
-    let refresh_token = body
-        .refresh_token
-        .filter(|v| !v.trim().is_empty())
-        .ok_or_else(|| {
-            (
+    let refresh_token = match body.refresh_token.filter(|v| !v.trim().is_empty()) {
+        Some(token) => token,
+        None => {
+            return (
                 StatusCode::BAD_REQUEST,
-                "refresh_token을 입력해 주세요.".to_string(),
+                Json(serde_json::json!({
+                    "code": "BAD_REQUEST",
+                    "message": "refresh_token을 입력해 주세요."
+                })),
             )
-        })?;
+                .into_response();
+        }
+    };
 
-    let rotated = service::rotate_refresh_token(&state, &refresh_token, "unity")
-        .await
-        .map_err(|e| {
+    let rotated = match service::rotate_refresh_token(&state, &refresh_token, "unity").await {
+        Ok(rotated) => rotated,
+        Err(e) => {
             tracing::warn!("유니티 refresh 실패: {}", e);
-            (StatusCode::UNAUTHORIZED, e.to_string())
-        })?;
+            return map_auth_service_error(e);
+        }
+    };
 
     let body = AppRefreshResponse {
         access_token: rotated.access_token,
         refresh_token: rotated.refresh_token,
     };
 
-    Ok((HeaderMap::new(), Json(serde_json::to_value(body).unwrap())))
+    (HeaderMap::new(), Json(serde_json::to_value(body).unwrap())).into_response()
 }
 
 // ═══════════════════════════════════════════════════════════════

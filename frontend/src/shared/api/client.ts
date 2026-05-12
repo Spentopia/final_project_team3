@@ -117,12 +117,21 @@
         return Promise.reject(error);
       }
 
-      // 인증 진입/종료 엔드포인트는 자동 refresh 대상이 아님.
-      // 여기서 401이면 "기존 access 만료"가 아니라 현재 인증 시도 자체의 실패로 본다.
       if (NO_REFRESH_PATHS.some((path) => originalRequest.url?.includes(path))) {
+        // refresh 요청 자체가 실패한 경우.
+        //
+        // 대표 케이스:
+        // - refresh token 만료
+        // - 로그아웃/탈퇴로 refresh session 폐기
+        // - 관리자가 회원을 비활성화해서 해당 user_id의 refresh_sessions 폐기
+        // - 백엔드에서 is_active=false / deleted_at으로 refresh 차단
+        //
+        // 어떤 이유든 refresh가 실패하면 새 access token을 받을 수 없으므로
+        // 메모리 access token을 삭제한다.
         if (originalRequest.url?.includes("/auth/refresh")) {
           authStorage.clear();
         }
+
         return Promise.reject(error);
       }
 

@@ -54,6 +54,63 @@ import type {
     ReportStatusFilter,
 } from "@/domains/admin/types/adminViewTypes";
 
+
+// ─────────────────────────────────────────────
+// 관리자 API 에러 메시지 추출
+// ─────────────────────────────────────────────
+//
+// 백엔드는 에러를 문자열 body로 내려주는 경우가 많다.
+// 예:
+// - "탈퇴한 회원은 활성/비활성 상태를 변경할 수 없습니다."
+// - "운영자 계정은 활성/비활성 상태를 변경할 수 없습니다."
+//
+// AxiosError를 그대로 toast로 띄우면
+// "Request failed with status code 400"처럼 보일 수 있으므로,
+// response.data 문자열을 우선으로 꺼내서 사용자에게 보여준다.
+function getAdminApiErrorMessage(error: unknown, fallback: string): string {
+    if (error && typeof error === "object" && "response" in error) {
+        const response = (
+            error as {
+                response?: {
+                    data?: unknown;
+                };
+            }
+        ).response;
+
+        if (typeof response?.data === "string" && response.data.trim()) {
+            return response.data;
+        }
+
+        if (
+            response?.data &&
+            typeof response.data === "object" &&
+            "message" in response.data &&
+            typeof response.data.message === "string" &&
+            response.data.message.trim()
+        ) {
+            return response.data.message;
+        }
+    }
+
+    if (error instanceof Error && error.message.trim()) {
+        return error.message;
+    }
+
+    return fallback;
+}
+
+function toIsoFromDateTimeLocal(value: string): string | null {
+    if (!value) return null;
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+    return date.toISOString();
+}
+
 export default function AdminPage() {
     const navigate = useNavigate();
 
@@ -163,6 +220,18 @@ export default function AdminPage() {
 
     // 공통 처리 상태
     const [processingId, setProcessingId] = useState<string | null>(null);
+
+    // 비활성화 사유 입력 모달 대상 회원.
+    const [inactiveTargetUser, setInactiveTargetUser] =
+        useState<AdminUserResponse | null>(null);
+
+// 비활성화 사유.
+    const [inactiveReason, setInactiveReason] = useState("");
+
+// 비활성 해제 예정일.
+// datetime-local input 값.
+// 예: "2026-05-20T18:00"
+    const [inactiveUntil, setInactiveUntil] = useState("");
 
     // 대시보드 계산 값
     const pendingReportCount = useMemo(() => {
@@ -405,36 +474,98 @@ export default function AdminPage() {
         if (processingId) return;
 
         // 탈퇴한 회원은 활성/비활성 변경 불가.
-        // UI에서도 버튼을 숨기지만, 혹시 다른 경로로 호출되는 상황을 방어한다.
         if (user.deleted_at) {
             toast.error("탈퇴한 회원은 활성/비활성 상태를 변경할 수 없습니다.");
             return;
         }
 
         // 운영자 계정은 활성/비활성 변경 불가.
-        // 운영자를 비활성화하면 관리자 접근이 꼬일 수 있으므로 별도 role 관리로 처리해야 한다.
         if (user.role_type === "admin") {
             toast.error("운영자 계정은 활성/비활성 상태를 변경할 수 없습니다.");
             return;
         }
 
+        // 현재 활성 회원을 비활성화하려는 경우:
+        // 바로 API를 호출하지 않고 사유/해제 예정일 입력 모달을 연다.
+        if (user.is_active) {
+            setInactiveTargetUser(user);
+            setInactiveReason("");
+            setInactiveUntil("");
+            return;
+        }
+
+        // 현재 비활성 회원을 다시 활성화하는 경우:
+        // 사유 입력 없이 바로 활성화한다.
         setProcessingId(user.id);
 
         try {
-            const updated = await updateAdminUserActive(user.id, !user.is_active);
+            const updated = await updateAdminUserActive(user.id, {
+                is_active: true,
+            });
 
             setUsers((prev) =>
                 prev.map((item) => (item.id === user.id ? updated : item))
             );
 
-            toast.success(
-                updated.is_active
-                    ? "회원이 활성화되었습니다."
-                    : "회원이 비활성화되었습니다."
-            );
+            toast.success("회원이 활성화되었습니다.");
         } catch (error) {
-            console.error("회원 상태 변경 실패:", error);
-            toast.error("회원 상태 변경에 실패했습니다.");
+            console.error("회원 활성화 실패:", error);
+            toast.error(
+                getAdminApiErrorMessage(error, "회원 활성화에 실패했습니다.")
+            );
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    // 회원 비활성화 확정
+//
+// 이 함수는 비활성화 모달의 "비활성화" 버튼에서 호출된다.
+//
+// 처리 흐름:
+// 1. 대상 회원 존재 확인
+// 2. 사유 입력 검증
+// 3. 해제 예정일을 ISO 문자열로 변환
+// 4. 백엔드 PATCH /api/admin/users/:id/active 호출
+// 5. 응답 받은 회원 row로 users 상태 갱신
+// 6. 모달 닫기
+    const handleConfirmDeactivateUser = async () => {
+        if (!inactiveTargetUser || processingId) return;
+
+        const reason = inactiveReason.trim();
+
+        if (!reason) {
+            toast.error("비활성화 사유를 입력해 주세요.");
+            return;
+        }
+
+        const inactiveUntilIso = toIsoFromDateTimeLocal(inactiveUntil);
+
+        setProcessingId(inactiveTargetUser.id);
+
+        try {
+            const updated = await updateAdminUserActive(inactiveTargetUser.id, {
+                is_active: false,
+                reason,
+                inactive_until: inactiveUntilIso,
+            });
+
+            setUsers((prev) =>
+                prev.map((item) =>
+                    item.id === inactiveTargetUser.id ? updated : item
+                )
+            );
+
+            toast.success("회원이 비활성화되었습니다.");
+
+            setInactiveTargetUser(null);
+            setInactiveReason("");
+            setInactiveUntil("");
+        } catch (error) {
+            console.error("회원 비활성화 실패:", error);
+            toast.error(
+                getAdminApiErrorMessage(error, "회원 비활성화에 실패했습니다.")
+            );
         } finally {
             setProcessingId(null);
         }
@@ -713,6 +844,106 @@ export default function AdminPage() {
                     onResolve={(reportId) => void handleResolveReport(reportId)}
                     onReject={(reportId) => void handleRejectReport(reportId)}
                 />
+            )}
+
+            {/* 회원 비활성화 사유/해제일 입력 모달 */}
+            {inactiveTargetUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="w-full max-w-lg rounded-2xl border border-border bg-[var(--surface-elevated)] p-6 shadow-2xl">
+                        <div className="mb-5">
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-luxury-gold">
+                                Deactivate User
+                            </p>
+
+                            <h3 className="mt-1 text-xl font-extrabold">
+                                회원 비활성화
+                            </h3>
+                            
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="rounded-xl bg-[var(--surface-subtle)] p-3 text-sm">
+                                <p>
+                        <span className="text-muted-foreground">
+                            대상 회원:{" "}
+                        </span>
+
+                                    <span className="font-semibold">
+                            {inactiveTargetUser.nickname ||
+                                inactiveTargetUser.email ||
+                                inactiveTargetUser.id}
+                        </span>
+                                </p>
+
+                                {inactiveTargetUser.email && (
+                                    <p className="mt-1 text-muted-foreground">
+                                        {inactiveTargetUser.email}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="mb-2 block text-sm font-semibold">
+                                    비활성화 사유
+                                </label>
+
+                                <textarea
+                                    value={inactiveReason}
+                                    onChange={(e) => setInactiveReason(e.target.value)}
+                                    placeholder="예: 부적절한 게시글 반복 작성"
+                                    className="min-h-28 w-full rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none transition focus:border-cyan-500"
+                                />
+
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                    사용자가 로그인 시도 시 이 사유가 안내 메시지에 포함됩니다.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="mb-2 block text-sm font-semibold">
+                                    해제 예정일
+                                </label>
+
+                                <input
+                                    type="datetime-local"
+                                    value={inactiveUntil}
+                                    onChange={(e) => setInactiveUntil(e.target.value)}
+                                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-cyan-500"
+                                />
+
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                    비워두면 해제 예정일은 “미정”으로 표시됩니다. 자동 해제는 하지 않습니다.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setInactiveTargetUser(null);
+                                    setInactiveReason("");
+                                    setInactiveUntil("");
+                                }}
+                                disabled={processingId === inactiveTargetUser.id}
+                                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold transition hover:bg-[var(--surface-subtle)] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                취소
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleConfirmDeactivateUser}
+                                disabled={processingId === inactiveTargetUser.id}
+                                className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {processingId === inactiveTargetUser.id
+                                    ? "처리 중..."
+                                    : "비활성화"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
