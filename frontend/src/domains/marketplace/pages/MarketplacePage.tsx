@@ -355,6 +355,7 @@ export default function MarketplacePage() {
     createListing,
     updateEscrow,
     purchaseItem,
+    removeListingLocally,
     cancelListing,
     creatingListing,
     updatingEscrow,
@@ -375,6 +376,7 @@ export default function MarketplacePage() {
   const [cancelTarget, setCancelTarget] = useState<ListingResponse | null>(null);
   const [listingOnChain, setListingOnChain] = useState(false);
   const [cancellingOnChain, setCancellingOnChain] = useState(false);
+  const [pendingAvailablePurchaseCount, setPendingAvailablePurchaseCount] = useState(0);
   const syncingOwnedNfts = false;
   const purchaseBalanceShortage = Boolean(
     purchaseTarget &&
@@ -382,6 +384,21 @@ export default function MarketplacePage() {
       !sptLoading &&
       (sptBalance ?? 0) < purchaseTarget.price_spt,
   );
+
+  const syncInventoryAfterMarketChange = async () => {
+    // 구매/취소 API가 성공했다면 DB 상태는 이미 바뀌었으므로
+    // 카운트 반영은 온체인 인덱싱을 기다리지 않고 먼저 즉시 당긴다.
+    await refetchItems();
+    setPendingAvailablePurchaseCount(0);
+
+    // 온체인 보정 동기화는 카운트 표시와 분리해서 한 번만 늦게 실행한다.
+    // 짧은 연속 호출은 Helius/백엔드 rate limit을 건드릴 수 있다.
+    window.setTimeout(() => {
+      void syncOwnedNfts({ force: true })
+        .then(() => refetchItems())
+        .catch(() => {});
+    }, 1800);
+  };
 
   // ──────────────────────────────────────────────────────────
   // NFT 아이템 필터링
@@ -421,8 +438,7 @@ export default function MarketplacePage() {
   const nftItems = items.filter((item) => {
     if (item.is_nft !== true || !item.nft_mint_address) return false;
     if (myListedMints.has(item.nft_mint_address)) return false; // 이미 판매 등록됨
-    if (!connectedWalletAddress || !item.minted_to_wallet) return true;
-    return item.minted_to_wallet === connectedWalletAddress;
+    return true;
   });
 
   // ──────────────────────────────────────────────────────────
@@ -498,17 +514,21 @@ export default function MarketplacePage() {
         nftMintAddress: purchaseTarget.nft_mint_address,
         priceSpt: purchaseTarget.price_spt,
       });
+      removeListingLocally(purchaseTarget.id);
+      setPendingAvailablePurchaseCount((count) => count + 1);
+      setPurchaseTarget(null);
+      refreshSptBalance();
+
       const result = await purchaseItem(purchaseTarget.id, signature, {
         suppressErrorToast: true,
       });
-      setPurchaseTarget(null);
-      refreshSptBalance();
-      void syncOwnedNfts({ force: true }).then(() => refetchItems()).catch(() => {});
       if (result) {
+        await syncInventoryAfterMarketChange();
         return;
       }
-      toast.success("온체인 구매는 완료되었습니다. 앱 인벤토리를 동기화하고 있습니다.");
+      toast.error("온체인 구매는 완료됐지만 서버 거래 동기화에 실패했습니다. 판매자 알림도 생성되지 않을 수 있어 다시 확인이 필요합니다.");
     } catch (error) {
+      setPurchaseTarget(null);
       toast.error(getMarketplaceErrorMessage(error, "온체인 구매 중 오류가 발생했습니다."));
     }
   };
@@ -525,19 +545,17 @@ export default function MarketplacePage() {
 
     setCancellingOnChain(true);
     try {
-      if (!walletAddress) {
-        toast.error("연동된 지갑 주소가 없습니다.");
-        return;
-      }
+      if (!publicKey) return;
       const signature = await cancelListingOnChain({
         connection,
+        publicKey,
+        sendTransaction,
         nftMintAddress: cancelTarget.nft_mint_address,
-        walletAddress,
       });
       const ok = await cancelListing(cancelTarget.id, signature);
       if (ok) {
         setCancelTarget(null);
-        void syncOwnedNfts({ force: true }).then(() => refetchItems()).catch(() => {});
+        await syncInventoryAfterMarketChange();
       }
     } catch (error) {
       console.error("[cancelListing]", error);
@@ -568,7 +586,7 @@ export default function MarketplacePage() {
               </div>
               <div className={styles.summaryItem}>
                 <span className={styles.summaryLabel}>등록 가능</span>
-                <strong>{nftItems.length.toLocaleString()}</strong>
+                <strong>{(nftItems.length + pendingAvailablePurchaseCount).toLocaleString()}</strong>
               </div>
               <div className={styles.summaryItem}>
                 <span className={styles.summaryLabel}>내 SPT</span>
@@ -700,6 +718,7 @@ export default function MarketplacePage() {
                     event.preventDefault();
                     void handleConfirmPurchase();
                   }}
+                  className={styles.purchaseConfirmButton}
                   disabled={purchasing || sptLoading || purchaseBalanceShortage}
               >
                 {purchasing ? "구매 중..." : "구매 확인"}

@@ -1909,5 +1909,20 @@ pub async fn create_content_report(
         .next()
         .ok_or_else(|| anyhow!("신고 접수 결과가 비어 있습니다."))?;
 
+    // 신고자에게 "신고 접수됨" 알림 발행 — report.id를 type에 포함해 중복 방지
+    // 실패해도 신고 자체는 성공이므로 에러 로그만 남기고 진행
+    let reporter_notification_type =
+        format!("report_submitted_{}", &report.id.to_string()[..8]);
+    if let Err(e) = crate::notification::service::create_notification(
+        state,
+        reporter_id,
+        &reporter_notification_type,
+        "신고가 정상 접수되었어요. 운영자가 확인 후 처리합니다.",
+    )
+    .await
+    {
+        tracing::error!("신고 접수 알림 생성 실패: {}", e);
+    }
+
     Ok(to_content_report_response(report))
 }

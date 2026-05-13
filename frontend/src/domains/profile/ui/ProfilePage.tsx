@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import AvatarPage from "@/domains/avatar/pages/AvatarPage";
-import { syncOwnedNfts, getUserItems } from "@/domains/avatar/api/avatarApi";
+import { getUserItems } from "@/domains/avatar/api/avatarApi";
 import { useSptBalance } from "@/shared/hooks/useSptBalance";
 import { withdrawAccount } from "@/domains/auth/api/auth";
 import { Card } from "@/shared/ui/card";
@@ -104,9 +104,9 @@ export default function ProfilePage() {
   });
   const [isSavingNotifications, setIsSavingNotifications] = useState(false);
 
-  // 마이페이지 진입 시 NFT sync + 보유 NFT 수 조회
+  // 마이페이지 진입 시 보유 NFT 수 조회.
+  // 지갑 NFT 동기화는 RootLayout이 연결 지갑 단위로 한 번만 담당한다.
   useEffect(() => {
-    void syncOwnedNfts().catch(() => {});
     void getUserItems()
       .then((items) => setNftCount(items.filter((i) => i.is_nft === true).length))
       .catch(() => setNftCount(0));

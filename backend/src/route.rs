@@ -321,6 +321,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/admin/content-reports/:id/reject",
             patch(admin::handler::reject_content_report))
         .route(
+            "/api/admin/content-reports/:id/audit-logs",
+            get(admin::handler::list_content_report_audit_logs),
+        )
+        .route(
             "/api/admin/users",
             get(admin::handler::list_users),
         )

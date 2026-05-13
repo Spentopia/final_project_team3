@@ -36,16 +36,75 @@ use super::{
 ///
 /// 예:
 /// GET /api/admin/content-reports
-/// GET /api/admin/content-reports?status=pending
+/// GET /api/admin/content-reports?status=pending&page=1&page_size=20
+/// GET /api/admin/content-reports?keyword=은영&target_type=post&reason=spam
+/// GET /api/admin/content-reports?start_date=2026-05-01&end_date=2026-05-13
+/// GET /api/admin/content-reports?sort_by=reviewed_at&sort_order=desc
 #[derive(Deserialize, Debug)]
 pub struct ContentReportQuery {
+    // 신고 처리 상태 필터
+    // pending / resolved / rejected
     pub status: Option<String>,
+
+    // 신고 대상 타입 필터
+    // post / comment / user_nickname / user_profile
+    pub target_type: Option<String>,
+
+    // 신고 사유 필터
+    // abuse / inappropriate / spam / other
+    pub reason: Option<String>,
+
+    // 신고자 닉네임 또는 이메일 검색어
+    pub keyword: Option<String>,
+
+    // 신고일 시작일.
+    //
+    // 프론트 date input에서 YYYY-MM-DD 형태로 보낸다.
+    // service.rs에서 2026-05-01T00:00:00+09:00 형태로 보정한다.
+    pub start_date: Option<String>,
+
+    // 신고일 종료일.
+    //
+    // 프론트 date input에서 YYYY-MM-DD 형태로 보낸다.
+    // service.rs에서 2026-05-13T23:59:59+09:00 형태로 보정한다.
+    pub end_date: Option<String>,
+
+    // 정렬 기준.
+    //
+    // 허용:
+    // - created_at  : 신고일
+    // - reviewed_at : 처리일
+    //
+    // 잘못된 값이면 service.rs에서 created_at으로 fallback한다.
+    pub sort_by: Option<String>,
+
+    // 정렬 방향.
+    //
+    // 허용:
+    // - desc : 최신순
+    // - asc  : 오래된순
+    //
+    // 잘못된 값이면 service.rs에서 desc로 fallback한다.
+    pub sort_order: Option<String>,
+
+    // 페이지 번호 (1부터, 기본 1)
+    pub page: Option<i64>,
+
+    // 페이지당 건수 (기본 20, 최대 100)
+    pub page_size: Option<i64>,
 }
 
-
+/// 관리자 회원 목록 조회 쿼리
 #[derive(Debug, Deserialize)]
 pub struct AdminUserQuery {
+    // 닉네임/이메일 검색어
     pub keyword: Option<String>,
+
+    // 페이지 번호 (1부터, 기본 1)
+    pub page: Option<i64>,
+
+    // 페이지당 건수 (기본 20, 최대 100)
+    pub page_size: Option<i64>,
 }
 
 fn map_admin_error(error: anyhow::Error) -> axum::response::Response {
@@ -90,10 +149,19 @@ fn map_admin_error(error: anyhow::Error) -> axum::response::Response {
     path = "/api/admin/content-reports",
     tag = "관리자",
     params(
-        ("status" = Option<String>, Query, description = "신고 상태 필터: pending/resolved/rejected")
+    ("status" = Option<String>, Query, description = "신고 상태: pending/resolved/rejected"),
+    ("target_type" = Option<String>, Query, description = "대상 타입: post/comment/user_nickname/user_profile"),
+    ("reason" = Option<String>, Query, description = "신고 사유: abuse/inappropriate/spam/other"),
+    ("keyword" = Option<String>, Query, description = "신고자 닉네임/이메일 검색어"),
+    ("start_date" = Option<String>, Query, description = "신고일 시작일 YYYY-MM-DD"),
+    ("end_date" = Option<String>, Query, description = "신고일 종료일 YYYY-MM-DD"),
+    ("sort_by" = Option<String>, Query, description = "정렬 기준: created_at/reviewed_at"),
+    ("sort_order" = Option<String>, Query, description = "정렬 방향: desc/asc"),
+    ("page" = Option<i64>, Query, description = "페이지 번호 (1부터)"),
+    ("page_size" = Option<i64>, Query, description = "페이지당 건수 (기본 20)"),
     ),
     responses(
-        (status = 200, description = "관리자 신고 목록 조회 성공", body = [crate::admin::dto::AdminContentReportResponse]),
+        (status = 200, description = "관리자 신고 목록 조회 성공", body = crate::admin::dto::AdminContentReportListResponse),
         (status = 401, description = "인증 실패"),
         (status = 403, description = "관리자 권한 없음")
     ),
@@ -103,7 +171,9 @@ pub async fn list_content_reports(
     State(state): State<AppState>,
     Query(query): Query<ContentReportQuery>,
 ) -> impl IntoResponse {
-    match service::list_content_reports(&state, query.status).await {
+    // 핸들러는 쿼리를 통째로 service에 넘긴다.
+    // 파라미터가 늘어나도 함수 시그니처를 안 건드려도 되어 유지보수가 쉽다.
+    match service::list_content_reports(&state, query).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => map_admin_error(e),
     }
@@ -163,17 +233,48 @@ pub async fn reject_content_report(
 
 #[utoipa::path(
     get,
+    path = "/api/admin/content-reports/{id}/audit-logs",
+    tag = "관리자",
+    params(
+        ("id" = Uuid, Path, description = "신고 ID")
+    ),
+    responses(
+        (status = 200, description = "신고 감사 로그 조회 성공", body = [crate::admin::dto::AdminAuditLogResponse]),
+        (status = 401, description = "인증 실패"),
+        (status = 403, description = "관리자 권한 없음"),
+        (status = 404, description = "신고 없음")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn list_content_report_audit_logs(
+    State(state): State<AppState>,
+    Path(report_id): Path<Uuid>,
+) -> impl IntoResponse {
+    match service::list_content_report_audit_logs(&state, report_id).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_admin_error(e),
+    }
+}
+
+#[utoipa::path(
+    get,
     path = "/api/admin/users",
     tag = "관리자",
-    params(("keyword" = Option<String>, Query, description = "닉네임/이메일 검색어")),
-    responses((status = 200, description = "회원 목록 조회 성공")),
+    params(
+        ("keyword" = Option<String>, Query, description = "닉네임/이메일 검색어"),
+        ("page" = Option<i64>, Query, description = "페이지 번호 (1부터)"),
+        ("page_size" = Option<i64>, Query, description = "페이지당 건수 (기본 20)"),
+    ),
+    responses(
+        (status = 200, description = "회원 목록 조회 성공", body = crate::admin::dto::AdminUserListResponse)
+    ),
     security(("bearer_auth" = []))
 )]
 pub async fn list_users(
     State(state): State<AppState>,
     Query(query): Query<AdminUserQuery>,
 ) -> impl IntoResponse {
-    match service::list_users(&state, query.keyword).await {
+    match service::list_users(&state, query).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => map_admin_error(e),
     }

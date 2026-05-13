@@ -43,20 +43,22 @@ use uuid::Uuid;
 use crate::state::AppState;
 
 use super::{
-    dto::{AdminContentReportResponse, AdminNoticeResponse, AdminUserResponse,
-          CreateAdminNoticeRequest, UpdateAdminNoticeRequest,AdminContestResponse,
-          CreateAdminContestRequest, UpdateAdminContestRequest, UpdateAdminContestStatusRequest},
-    model::{AdminContentReport, AdminUser, AdminNotice, AdminContest},
+    dto::{
+        AdminContentReportResponse, AdminContentReportListResponse,
+        AdminUserResponse, AdminUserListResponse,
+        AdminNoticeResponse, CreateAdminNoticeRequest, UpdateAdminNoticeRequest,
+        AdminContestResponse, CreateAdminContestRequest,
+        UpdateAdminContestRequest, UpdateAdminContestStatusRequest,
+        AdminAuditLogResponse,
+    },
+    handler::{ContentReportQuery, AdminUserQuery},
+    model::{AdminContentReport, AdminUser, AdminNotice, AdminContest, AdminAuditLog},
 };
 
 /// DB/view 모델을 관리자 신고 응답 DTO로 변환한다.
 ///
-/// DB row를 그대로 내려도 되긴 하지만,
-/// 나중에 관리자 화면 전용 필드가 추가될 수 있으므로
-/// 변환 함수를 따로 둔다.
-///
-/// 현재 AdminContentReport는 admin_content_reports_view의 응답 모델이다.
-/// 그래서 reporter_nickname, reporter_email을 포함한다.
+/// DB row를 그대로 내려도 되지만,
+/// 응답 DTO를 따로 두면 프론트 전용 필드나 기본값 처리를 한곳에서 관리할 수 있다.
 fn to_report_response(row: AdminContentReport) -> AdminContentReportResponse {
     AdminContentReportResponse {
         id: row.id,
@@ -71,6 +73,30 @@ fn to_report_response(row: AdminContentReport) -> AdminContentReportResponse {
         created_at: row.created_at,
         reviewed_at: row.reviewed_at,
         reviewed_by: row.reviewed_by,
+
+        // view에서 계산된 누적 신고 횟수.
+        //
+        // 혹시 view 반영 전이거나 null로 내려오는 경우에도
+        // 최소 1회 신고된 row이므로 1로 fallback한다.
+        target_report_count: row.target_report_count.unwrap_or(1),
+    }
+}
+
+/// DB row를 관리자 감사 로그 응답 DTO로 변환한다.
+///
+/// 감사 로그는 관리자 작업 이력 표시용이다.
+/// 현재는 신고 처리 완료/반려 이력을 상세 모달에서 보여준다.
+fn to_audit_log_response(row: AdminAuditLog) -> AdminAuditLogResponse {
+    AdminAuditLogResponse {
+        id: row.id,
+        admin_id: row.admin_id,
+        action: row.action,
+        target_type: row.target_type,
+        target_id: row.target_id,
+        before_status: row.before_status,
+        after_status: row.after_status,
+        metadata: row.metadata,
+        created_at: row.created_at,
     }
 }
 
@@ -188,7 +214,7 @@ async fn get_content_report_from_view_by_id(
     report_id: Uuid,
 ) -> Result<AdminContentReportResponse> {
     let url = format!(
-        "{}/rest/v1/admin_content_reports_view?select=id,reporter_id,reporter_nickname,reporter_email,target_type,target_id,reason,detail,status,created_at,reviewed_at,reviewed_by&id=eq.{}&limit=1",
+        "{}/rest/v1/admin_content_reports_view?select=id,reporter_id,reporter_nickname,reporter_email,target_type,target_id,reason,detail,status,created_at,reviewed_at,reviewed_by,target_report_count&id=eq.{}&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         report_id
     );
@@ -223,52 +249,350 @@ async fn get_content_report_from_view_by_id(
     Ok(to_report_response(row))
 }
 
-/// 관리자: 신고 목록 조회
+/// 날짜 필터 시작값 보정.
 ///
-/// API:
-/// GET /api/admin/content-reports
-/// GET /api/admin/content-reports?status=pending
+/// 프론트 date input은 보통 "2026-05-01" 형태로 보낸다.
+/// 그런데 created_at은 timestamptz라서 그냥 날짜만 비교하면 의도와 다를 수 있다.
 ///
-/// status 파라미터:
-/// - None이면 전체 조회
-/// - Some("pending")이면 처리 대기만 조회
-/// - Some("resolved")이면 처리 완료만 조회
-/// - Some("rejected")이면 반려만 조회
+/// 그래서 날짜만 들어온 경우:
+/// - 시작일: 2026-05-01T00:00:00+09:00
 ///
-/// 반환:
-/// - 최신 신고가 먼저 보이도록 created_at desc 정렬
-/// - 관리자 페이지용으로 최대 100개 조회
-/// - reporter_nickname, reporter_email 포함
+/// 이미 ISO 문자열이 들어온 경우는 그대로 사용한다.
+fn normalize_start_date_filter(value: &str) -> String {
+    let trimmed = value.trim();
+
+    if trimmed.len() == 10 {
+        format!("{}T00:00:00+09:00", trimmed)
+    } else {
+        trimmed.to_string()
+    }
+}
+
+/// 날짜 필터 종료값 보정.
+///
+/// 날짜만 들어온 경우:
+/// - 종료일: 2026-05-13T23:59:59+09:00
+///
+/// 이렇게 해야 2026-05-13 하루 전체가 포함된다.
+fn normalize_end_date_filter(value: &str) -> String {
+    let trimmed = value.trim();
+
+    if trimmed.len() == 10 {
+        format!("{}T23:59:59+09:00", trimmed)
+    } else {
+        trimmed.to_string()
+    }
+}
+
+
+/// 관리자: 신고 목록 조회 (페이지네이션 + 검색 + 필터 + 날짜 범위 + 정렬)
+///
+/// API 예시:
+/// GET /api/admin/content-reports?status=pending&page=1&page_size=20
+/// GET /api/admin/content-reports?keyword=은영&target_type=post&reason=spam
+/// GET /api/admin/content-reports?start_date=2026-05-01&end_date=2026-05-13
+/// GET /api/admin/content-reports?sort_by=reviewed_at&sort_order=desc
+///
+/// 동작:
+/// - admin_content_reports_view에서 조회
+/// - 필터:
+///   - status
+///   - target_type
+///   - reason
+///   - keyword: 신고자 닉네임/이메일
+///   - start_date/end_date: 신고일 created_at 기준
+/// - 정렬:
+///   - created_at: 신고일
+///   - reviewed_at: 처리일
+/// - 페이지네이션:
+///   - Range 헤더
+///   - Prefer: count=exact
 pub async fn list_content_reports(
     state: &AppState,
-    status: Option<String>,
-) -> Result<Vec<AdminContentReportResponse>> {
-    // status가 빈 문자열이면 필터를 적용하지 않음
-    let status_filter = status
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
+    query: ContentReportQuery,
+) -> Result<AdminContentReportListResponse> {
+    // ─────────────────────────────────────────────
+    // 1. 페이지 / 페이지 크기 정규화
+    // ─────────────────────────────────────────────
+    //
+    // page는 1부터 시작.
+    // page_size는 너무 큰 요청을 막기 위해 1~100 사이로 제한한다.
+    let page = query.page.unwrap_or(1).max(1);
+    let page_size = query.page_size.unwrap_or(20).clamp(1, 100);
 
-    // 기본 조회 URL
+    // PostgREST Range 헤더는 0-base inclusive다.
     //
-    // 기존:
-    // /rest/v1/content_reports?select=*
+    // page=1, page_size=20 → 0-19
+    // page=2, page_size=20 → 20-39
+    let from = (page - 1) * page_size;
+    let to = from + page_size - 1;
+
+    // ─────────────────────────────────────────────
+    // 2. 정렬 파라미터 정규화
+    // ─────────────────────────────────────────────
     //
-    // 변경:
-    // /rest/v1/admin_content_reports_view
+    // 허용하지 않는 값이 들어오면 안전하게 기본값으로 되돌린다.
+    let sort_by = match query.sort_by.as_deref().map(str::trim) {
+        Some("reviewed_at") => "reviewed_at",
+        _ => "created_at",
+    };
+
+    let sort_order = match query.sort_order.as_deref().map(str::trim) {
+        Some("asc") => "asc",
+        _ => "desc",
+    };
+
+    // reviewed_at은 pending 상태에서는 null일 수 있다.
+    // 처리일순 정렬에서 null이 위로 몰리면 보기 불편하므로 nullslast를 붙인다.
+    let nulls = if sort_by == "reviewed_at" {
+        ".nullslast"
+    } else {
+        ""
+    };
+
+    // ─────────────────────────────────────────────
+    // 3. 기본 조회 URL
+    // ─────────────────────────────────────────────
     //
-    // 이유:
-    // content_reports에는 reporter_id만 있고 닉네임/이메일이 없다.
-    // admin_content_reports_view는 users와 join되어 있어서
-    // reporter_nickname, reporter_email을 함께 내려준다.
+    // target_report_count는 view에서 계산된 누적 신고 횟수다.
     let mut url = format!(
-        "{}/rest/v1/admin_content_reports_view?select=id,reporter_id,reporter_nickname,reporter_email,target_type,target_id,reason,detail,status,created_at,reviewed_at,reviewed_by&order=created_at.desc&limit=100",
+        "{}/rest/v1/admin_content_reports_view?select=id,reporter_id,reporter_nickname,reporter_email,target_type,target_id,reason,detail,status,created_at,reviewed_at,reviewed_by,target_report_count&order={}.{}{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        sort_by,
+        sort_order,
+        nulls
+    );
+
+    // ─────────────────────────────────────────────
+    // 4. 일반 필터 추가
+    // ─────────────────────────────────────────────
+    //
+    // 빈 문자열은 필터로 취급하지 않는다.
+    if let Some(status) = query
+        .status
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        url.push_str(&format!("&status=eq.{}", urlencoding::encode(status)));
+    }
+
+    if let Some(target_type) = query
+        .target_type
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        url.push_str(&format!(
+            "&target_type=eq.{}",
+            urlencoding::encode(target_type)
+        ));
+    }
+
+    if let Some(reason) = query
+        .reason
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        url.push_str(&format!("&reason=eq.{}", urlencoding::encode(reason)));
+    }
+
+    // ─────────────────────────────────────────────
+    // 5. 날짜 범위 필터
+    // ─────────────────────────────────────────────
+    //
+    // 날짜 필터는 신고 접수일(created_at) 기준이다.
+    //
+    // start_date=2026-05-01
+    // → created_at >= 2026-05-01T00:00:00+09:00
+    //
+    // end_date=2026-05-13
+    // → created_at <= 2026-05-13T23:59:59+09:00
+    if let Some(start_date) = query
+        .start_date
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let normalized = normalize_start_date_filter(start_date);
+        url.push_str(&format!(
+            "&created_at=gte.{}",
+            urlencoding::encode(&normalized)
+        ));
+    }
+
+    if let Some(end_date) = query
+        .end_date
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let normalized = normalize_end_date_filter(end_date);
+        url.push_str(&format!(
+            "&created_at=lte.{}",
+            urlencoding::encode(&normalized)
+        ));
+    }
+
+    // ─────────────────────────────────────────────
+    // 6. 신고자 닉네임/이메일 검색
+    // ─────────────────────────────────────────────
+    //
+    // PostgREST or 문법:
+    // or=(reporter_nickname.ilike.*은영*,reporter_email.ilike.*은영*)
+    if let Some(keyword) = query
+        .keyword
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let encoded = urlencoding::encode(keyword);
+
+        url.push_str(&format!(
+            "&or=(reporter_nickname.ilike.*{}*,reporter_email.ilike.*{}*)",
+            encoded, encoded
+        ));
+    }
+
+    // ─────────────────────────────────────────────
+    // 7. 요청
+    // ─────────────────────────────────────────────
+    //
+    // Range 헤더로 현재 페이지 데이터만 받고,
+    // Prefer: count=exact로 전체 개수를 Content-Range에서 받는다.
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Range-Unit", "items")
+        .header("Range", format!("{}-{}", from, to))
+        .header("Prefer", "count=exact")
+        .send()
+        .await
+        .context("관리자 신고 목록 view SELECT 요청 실패")?;
+
+    // PostgREST는 페이지네이션 시 200 또는 206을 반환할 수 있다.
+    // 둘 다 is_success()에 포함된다.
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 신고 목록 view SELECT 실패: {}", body));
+    }
+
+    // ─────────────────────────────────────────────
+    // 8. 전체 개수 추출
+    // ─────────────────────────────────────────────
+    //
+    // Content-Range 예:
+    // 0-19/153
+    //
+    // 슬래시 뒤의 153이 total_count다.
+    let total_count = res
+        .headers()
+        .get("content-range")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.rsplit('/').next())
+        .and_then(|value| value.parse::<i64>().ok())
+        .unwrap_or(0);
+
+    // ─────────────────────────────────────────────
+    // 9. 본문 파싱 및 DTO 변환
+    // ─────────────────────────────────────────────
+    let rows: Vec<AdminContentReport> = res
+        .json()
+        .await
+        .context("관리자 신고 목록 view SELECT 응답 역직렬화 실패")?;
+
+    let items: Vec<AdminContentReportResponse> =
+        rows.into_iter().map(to_report_response).collect();
+
+    Ok(AdminContentReportListResponse {
+        items,
+        total_count,
+        page,
+        page_size,
+    })
+}
+
+/// 관리자 감사 로그를 기록한다.
+///
+/// 이 함수는 중요한 관리자 작업이 성공한 뒤 호출한다.
+///
+/// 현재 사용 위치:
+/// - 신고 처리 완료
+/// - 신고 반려
+///
+/// 왜 별도 테이블에 남기는가?
+/// - content_reports.reviewed_by/reviewed_at은 최종 상태만 보여준다.
+/// - admin_audit_logs는 "누가 언제 어떤 작업을 했는지" 이력을 남긴다.
+/// - 나중에 회원 비활성화, 공지 삭제, 콘테스트 상태 변경도 같은 테이블로 확장 가능하다.
+async fn create_admin_audit_log(
+    state: &AppState,
+    admin_id: Uuid,
+    action: &str,
+    target_type: &str,
+    target_id: Uuid,
+    before_status: Option<&str>,
+    after_status: Option<&str>,
+    metadata: serde_json::Value,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/admin_audit_logs",
         state.config.supabase_url.trim_end_matches('/')
     );
 
-    // 상태 필터가 있으면 PostgREST 쿼리 파라미터 추가
-    if let Some(status) = status_filter {
-        url.push_str(&format!("&status=eq.{}", urlencoding::encode(&status)));
+    let payload = serde_json::json!([{
+        "admin_id": admin_id,
+        "action": action,
+        "target_type": target_type,
+        "target_id": target_id,
+        "before_status": before_status,
+        "after_status": after_status,
+        "metadata": metadata,
+        "created_at": Utc::now().to_rfc3339()
+    }]);
+
+    let res = state
+        .http_client
+        .post(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await
+        .context("관리자 감사 로그 생성 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 감사 로그 생성 실패: {}", body));
     }
+
+    Ok(())
+}
+
+/// 실제 content_reports 테이블에서 현재 신고 상태를 조회한다.
+///
+/// 감사 로그의 before_status를 남기기 위해 PATCH 전에 호출한다.
+/// view가 아니라 실제 테이블을 보는 이유:
+/// - 필요한 값은 status 하나뿐이다.
+/// - view 변경과 무관하게 안정적으로 동작한다.
+async fn get_content_report_status_by_id(
+    state: &AppState,
+    report_id: Uuid,
+) -> Result<String> {
+    let url = format!(
+        "{}/rest/v1/content_reports?id=eq.{}&select=status&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        report_id
+    );
 
     let res = state
         .http_client
@@ -280,19 +604,29 @@ pub async fn list_content_reports(
         )
         .send()
         .await
-        .context("관리자 신고 목록 view SELECT 요청 실패")?;
+        .context("신고 현재 상태 조회 요청 실패")?;
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
-        return Err(anyhow!("관리자 신고 목록 view SELECT 실패: {}", body));
+        return Err(anyhow!("신고 현재 상태 조회 실패: {}", body));
     }
 
-    let rows: Vec<AdminContentReport> = res
+    #[derive(serde::Deserialize)]
+    struct StatusRow {
+        status: String,
+    }
+
+    let rows: Vec<StatusRow> = res
         .json()
         .await
-        .context("관리자 신고 목록 view SELECT 응답 역직렬화 실패")?;
+        .context("신고 현재 상태 조회 응답 파싱 실패")?;
 
-    Ok(rows.into_iter().map(to_report_response).collect())
+    let row = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("신고를 찾을 수 없습니다."))?;
+
+    Ok(row.status)
 }
 
 /// 관리자: 신고 상태 변경 공통 함수
@@ -305,26 +639,36 @@ pub async fn list_content_reports(
 /// - reviewed_at: 현재 시각
 /// - reviewed_by: 처리한 관리자 user_id
 ///
-/// 중요:
-/// PATCH 대상은 실제 테이블인 content_reports다.
-/// view는 조회용으로만 사용한다.
-///
-/// 처리 후 반환:
-/// - PATCH 결과를 그대로 반환하지 않는다.
-/// - PATCH 결과에는 reporter_nickname, reporter_email이 없기 때문이다.
-/// - 그래서 PATCH 성공 후 view에서 다시 단건 조회해서 반환한다.
+/// 추가:
+/// - 상태 변경 성공 후 admin_audit_logs에 감사 로그를 남긴다.
 async fn update_content_report_status(
     state: &AppState,
     admin_id: Uuid,
     report_id: Uuid,
     status: &str,
 ) -> Result<AdminContentReportResponse> {
+    // 1. 변경 전 상태 조회.
+    //
+    // 감사 로그에 before_status를 남기기 위해 PATCH 전에 조회한다.
+    let before_status = get_content_report_status_by_id(state, report_id).await?;
+
+    // 2. 이미 같은 상태라면 불필요한 중복 처리를 막는다.
+    //
+    // 예:
+    // 이미 resolved인데 다시 resolved 요청이 온 경우.
+    if before_status == status {
+        return get_content_report_from_view_by_id(state, report_id).await;
+    }
+
     let url = format!(
         "{}/rest/v1/content_reports?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
         report_id
     );
 
+    let reviewed_at = Utc::now().to_rfc3339();
+
+    // 3. 실제 신고 상태 변경.
     let res = state
         .http_client
         .patch(&url)
@@ -336,7 +680,7 @@ async fn update_content_report_status(
         .header("Prefer", "return=representation")
         .json(&serde_json::json!({
             "status": status,
-            "reviewed_at": Utc::now().to_rfc3339(),
+            "reviewed_at": reviewed_at,
             "reviewed_by": admin_id
         }))
         .send()
@@ -348,8 +692,36 @@ async fn update_content_report_status(
         return Err(anyhow!("관리자 신고 상태 변경 실패: {}", body));
     }
 
-    // PATCH가 성공했다면 최종 응답은 view에서 다시 조회한다.
-    // 그래야 reporter_nickname, reporter_email이 포함된다.
+    // PATCH 응답 본문은 여기서 쓰지 않는다.
+    // reporter_nickname/reporter_email/target_report_count가 필요해서
+    // 최종 응답은 view에서 다시 조회한다.
+
+    // 4. 감사 로그 기록.
+    //
+    // action은 status에 따라 명확하게 분리한다.
+    let action = match status {
+        "resolved" => "content_report_resolved",
+        "rejected" => "content_report_rejected",
+        _ => "content_report_status_changed",
+    };
+
+    create_admin_audit_log(
+        state,
+        admin_id,
+        action,
+        "content_report",
+        report_id,
+        Some(before_status.as_str()),
+        Some(status),
+        serde_json::json!({
+            "report_id": report_id,
+            "reviewed_by": admin_id,
+            "reviewed_at": reviewed_at
+        }),
+    )
+        .await?;
+
+    // 5. 최종 응답은 view에서 다시 조회한다.
     get_content_report_from_view_by_id(state, report_id).await
 }
 
@@ -386,31 +758,84 @@ pub async fn reject_content_report(
     update_content_report_status(state, admin_id, report_id, "rejected").await
 }
 
-// ─────────────────────────────────────────────
-// 회원 관리
-// ─────────────────────────────────────────────
-
-/// 관리자: 회원 목록 조회
+/// 관리자: 특정 신고의 감사 로그 조회
 ///
-/// keyword가 있으면 nickname 또는 email 기준으로 검색한다.
-/// 최대 100개를 최신 가입순으로 조회한다.
+/// API:
+/// GET /api/admin/content-reports/{id}/audit-logs
+///
+/// 동작:
+/// - admin_audit_logs에서 target_type=content_report
+/// - target_id=신고 ID
+/// - created_at desc 정렬
+pub async fn list_content_report_audit_logs(
+    state: &AppState,
+    report_id: Uuid,
+) -> Result<Vec<AdminAuditLogResponse>> {
+    let url = format!(
+        "{}/rest/v1/admin_audit_logs?select=id,admin_id,action,target_type,target_id,before_status,after_status,metadata,created_at&target_type=eq.content_report&target_id=eq.{}&order=created_at.desc",
+        state.config.supabase_url.trim_end_matches('/'),
+        report_id
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("관리자 감사 로그 목록 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 감사 로그 목록 조회 실패: {}", body));
+    }
+
+    let rows: Vec<AdminAuditLog> = res
+        .json()
+        .await
+        .context("관리자 감사 로그 목록 응답 파싱 실패")?;
+
+    Ok(rows.into_iter().map(to_audit_log_response).collect())
+}
+
+/// 관리자: 회원 목록 조회 (페이지네이션 + 검색)
+///
+/// API:
+/// GET /api/admin/users?keyword=은영&page=1&page_size=20
+///
+/// 동작:
+/// - users 테이블 조회
+/// - keyword가 있으면 nickname 또는 email 부분 일치 검색
+/// - 정렬: created_at desc (최신 가입자 먼저)
+/// - 페이지네이션: Range 헤더 + count=exact
 pub async fn list_users(
     state: &AppState,
-    keyword: Option<String>,
-) -> Result<Vec<AdminUserResponse>> {
-    let keyword = keyword
+    query: AdminUserQuery,
+) -> Result<AdminUserListResponse> {
+    // 페이지 / 페이지 크기 정규화.
+    let page = query.page.unwrap_or(1).max(1);
+    let page_size = query.page_size.unwrap_or(20).clamp(1, 100);
+
+    let from = (page - 1) * page_size;
+    let to = from + page_size - 1;
+
+    let keyword = query
+        .keyword
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty());
 
     let mut url = format!(
-        "{}/rest/v1/users?select=*&order=created_at.desc&limit=100",
+        "{}/rest/v1/users?select=*&order=created_at.desc",
         state.config.supabase_url.trim_end_matches('/')
     );
 
+    // nickname 또는 email 기준 검색
     if let Some(keyword) = keyword {
         let encoded = urlencoding::encode(&keyword);
-
-        // nickname 또는 email 기준 검색
         url.push_str(&format!(
             "&or=(nickname.ilike.*{}*,email.ilike.*{}*)",
             encoded, encoded
@@ -425,6 +850,9 @@ pub async fn list_users(
             "Authorization",
             format!("Bearer {}", state.config.supabase_secret_key),
         )
+        .header("Range-Unit", "items")
+        .header("Range", format!("{}-{}", from, to))
+        .header("Prefer", "count=exact")
         .send()
         .await
         .context("관리자 회원 목록 조회 요청 실패")?;
@@ -434,12 +862,28 @@ pub async fn list_users(
         return Err(anyhow!("관리자 회원 목록 조회 실패: {}", body));
     }
 
+    // Content-Range에서 전체 건수 추출
+    let total_count = res
+        .headers()
+        .get("content-range")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.rsplit('/').next())
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(0);
+
     let rows: Vec<AdminUser> = res
         .json()
         .await
         .context("관리자 회원 목록 응답 파싱 실패")?;
 
-    Ok(rows.into_iter().map(to_user_response).collect())
+    let items = rows.into_iter().map(to_user_response).collect();
+
+    Ok(AdminUserListResponse {
+        items,
+        total_count,
+        page,
+        page_size,
+    })
 }
 
 // ─────────────────────────────────────────────

@@ -718,19 +718,30 @@ pub async fn purchase(
     // price_spt (수수료 계산에 필요), status (active 여부 확인) 조회
     // select로 필요한 컬럼만 지정해 페이로드 최소화
     let listing_url = format!(
-        "{}/rest/v1/market_listings?id=eq.{}&select=price_spt,status,escrow_address,seller_id,user_inventory!item_id(nft_mint_address),users!seller_id(wallet_address)",
+        "{}/rest/v1/market_listings?id=eq.{}&select=price_spt,status,escrow_address,seller_id,user_inventory!item_id(nft_mint_address,item_master(name)),users!seller_id(wallet_address)",
         state.config.supabase_url.trim_end_matches('/'),
         req.listing_id,
     );
 
     /// listing 조회용 내부 구조체 (필요한 컬럼만)
     #[derive(Deserialize)]
+    struct PurchaseItemMasterRow {
+        name: String,
+    }
+
+    #[derive(Deserialize)]
+    struct PurchaseUserInventoryRow {
+        nft_mint_address: Option<String>,
+        item_master: PurchaseItemMasterRow,
+    }
+
+    #[derive(Deserialize)]
     struct ListingInfo {
         price_spt: i32,         // 판매 가격 (SPT)
         status: Option<String>, // 현재 상태("active" 여야 구매 가능)
         escrow_address: Option<String>,
         seller_id: Uuid,
-        user_inventory: UserItemNftRow,
+        user_inventory: PurchaseUserInventoryRow,
         users: UserWalletRow,
     }
 
@@ -936,6 +947,25 @@ pub async fn purchase(
         {
             tracing::error!("token_burns INSERT 실패 (구매는 완료됨): {}", e);
         }
+    }
+
+    // 판매자 알림 — listing.seller_id에게 "NFT 아이템이 판매되었어요" 알림 발행
+    // 실패해도 구매 자체는 성공이므로 에러 로그만 남기고 진행
+    let seller_message = format!(
+        "등록하신 NFT {}이 {} SPT에 판매되었어요!",
+        listing.user_inventory.item_master.name,
+        tx.price
+    );
+    let seller_notification_type = format!("market_sold_{}", &tx.id.to_string()[..12]);
+    if let Err(e) = crate::notification::service::create_notification(
+        state,
+        listing.seller_id,
+        &seller_notification_type,
+        &seller_message,
+    )
+    .await
+    {
+        tracing::error!("판매자 알림 생성 실패 (구매는 완료됨): {}", e);
     }
 
     // INSERT된 row 데이터로 TransactionResponse 구성

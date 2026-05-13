@@ -5,6 +5,7 @@ import { ConnectWalletButton } from "@/domains/wallet/ui/ConnectWalletButton";
 import {
   getNotifications,
   markAllNotificationsRead,
+  markNotificationRead,
   type NotificationItem,
 } from "@/shared/api/notificationApi";
 import { Button } from "../ui/button";
@@ -17,6 +18,7 @@ import {
 } from "../ui/sheet";
 import { useTheme } from "next-themes";
 import { startUnityGame } from "@/domains/unity/api/unityHandoff";
+import { supabase } from "@/shared/lib/supabase";
 
 type HeaderProps = {
   onMenuClick?: () => void;
@@ -82,15 +84,65 @@ export default function Header({ onMenuClick }: HeaderProps) {
     return () => window.removeEventListener("spentopia:score-refresh", handleRefresh);
   }, [loadNotifications]);
 
+  // ── Supabase Realtime: notifications 테이블 INSERT 구독 ────────────────
+  //
+  // 백엔드가 service_role로 notifications에 INSERT 하면 WAL 이벤트가 발생하고,
+  // Supabase Realtime이 WebSocket으로 클라이언트에 전달한다.
+  //
+  // 필터 user_id=eq.{userId}로 본인 알림만 수신.
+  //
+  // 알림 도착 시 종 아이콘 옆 빨간 점이 즉시 켜지고,
+  // Sheet를 열면 최상단에 새 알림이 들어와 있다.
+  useEffect(() => {
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setup = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (cancelled) return;
+      if (error || !data.user) return;
+
+      const userId = data.user.id;
+
+      channel = supabase
+        .channel(`notifications:${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            const next = payload.new as NotificationItem;
+            if (!next || !next.id) return;
+
+            setNotifications((prev) => {
+              if (prev.some((n) => n.id === next.id)) return prev;
+              return [next, ...prev];
+            });
+          },
+        )
+        .subscribe();
+    };
+
+    void setup();
+
+    return () => {
+      cancelled = true;
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, []);
+
   const handleReadAll = async () => {
     try {
       setIsMarkingRead(true);
       await markAllNotificationsRead();
       setNotifications((prev) =>
-        prev.map((notification) => ({
-          ...notification,
-          is_read: true,
-        }))
+        prev.map((notification) => ({ ...notification, is_read: true })),
       );
     } catch (error) {
       toast.error(
@@ -98,6 +150,26 @@ export default function Header({ onMenuClick }: HeaderProps) {
       );
     } finally {
       setIsMarkingRead(false);
+    }
+  };
+
+  const handleReadOne = async (notificationId: string) => {
+    // optimistic: 읽음 상태만 먼저 반영하고, 실패하면 복구
+    const snapshot = notifications;
+    setNotifications((prev) =>
+      prev.map((notification) =>
+        notification.id === notificationId
+          ? { ...notification, is_read: true }
+          : notification,
+      ),
+    );
+    try {
+      await markNotificationRead(notificationId);
+    } catch (error) {
+      setNotifications(snapshot);
+      toast.error(
+        error instanceof Error ? error.message : "알림 읽음 처리에 실패했습니다."
+      );
     }
   };
 
@@ -164,7 +236,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
+                  <span className="absolute right-1 top-1 flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                  </span>
                 )}
               </Button>
             </SheetTrigger>
@@ -200,13 +275,19 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
                 {!isLoadingNotifications &&
                   notifications.map((notification) => (
-                    <div
+                    <button
+                      type="button"
                       key={notification.id}
-                      className={`rounded border p-3 ${
+                      onClick={() =>
+                        !notification.is_read && void handleReadOne(notification.id)
+                      }
+                      className={[
+                        "w-full rounded border p-3 text-left transition-colors",
                         notification.is_read
-                          ? "border-border bg-transparent"
-                          : "border-luxury-gold/30 bg-luxury-gold/5"
-                      }`}
+                          ? "border-border bg-[var(--surface-subtle)] hover:border-border"
+                          : "border-luxury-gold/30 bg-luxury-gold/5 hover:border-luxury-gold/60 hover:bg-luxury-gold/10",
+                      ].join(" ")}
+                      title={notification.is_read ? "읽은 알림" : "클릭하면 읽음 처리됩니다"}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <p className="text-sm text-foreground">{notification.message}</p>
@@ -217,7 +298,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                       <div className="mt-2 text-xs text-gray-400">
                         {formatRelativeTime(notification.created_at)}
                       </div>
-                    </div>
+                    </button>
                   ))}
               </div>
             </SheetContent>

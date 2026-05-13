@@ -88,6 +88,11 @@ pub struct AdminContentReportResponse {
     // 처리한 관리자 ID
     // 나중에 팀원 관리자 계정이 늘어날 걸 대비
     pub reviewed_by: Option<Uuid>,
+
+    // 같은 대상이 누적 몇 번 신고되었는지.
+    //
+    // 프론트에서는 2 이상일 때만 "누적 N회" 뱃지를 보여주면 된다.
+    pub target_report_count: i64,
 }
 
 // ─────────────────────────────────────────────
@@ -306,4 +311,85 @@ pub struct UpdateAdminContestRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct UpdateAdminContestStatusRequest {
     pub status: String,
+}
+
+// ─────────────────────────────────────────────
+// 페이지네이션 공통 응답 (신고 목록)
+// ─────────────────────────────────────────────
+//
+// 커뮤니티의 PostListResponse와 필드명을 통일한다.
+// - items     : 현재 페이지의 데이터
+// - total_count : 필터 조건에 맞는 전체 건수 (페이지 수 계산용)
+// - page      : 현재 페이지 번호 (1부터)
+// - page_size : 한 페이지당 건수
+//
+// 제네릭으로 빼면 utoipa 스키마 잡기가 번거로워서
+// 신고/회원 각각 명시적으로 둔다.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AdminContentReportListResponse {
+    pub items: Vec<AdminContentReportResponse>,
+    pub total_count: i64,
+    pub page: i64,
+    pub page_size: i64,
+}
+
+// ─────────────────────────────────────────────
+// 페이지네이션 공통 응답 (회원 목록)
+// ─────────────────────────────────────────────
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct AdminUserListResponse {
+    pub items: Vec<AdminUserResponse>,
+    pub total_count: i64,
+    pub page: i64,
+    pub page_size: i64,
+}
+
+// ─────────────────────────────────────────────
+// 관리자 감사 로그 응답 DTO
+// ─────────────────────────────────────────────
+//
+// 관리자 신고 상세 모달에서 특정 신고에 대한 감사 로그를 표시할 때 사용한다.
+
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct AdminAuditLogResponse {
+    pub id: Uuid,
+
+    // 작업을 수행한 관리자 ID.
+    pub admin_id: Uuid,
+
+    // 작업 종류.
+    //
+    // 예:
+    // - content_report_resolved
+    // - content_report_rejected
+    pub action: String,
+
+    // 작업 대상 타입.
+    //
+    // 이번 기능에서는 content_report만 사용한다.
+    pub target_type: String,
+
+    // 작업 대상 ID.
+    //
+    // content_report의 경우 content_reports.id.
+    pub target_id: Uuid,
+
+    // 변경 전 상태.
+    //
+    // 예: pending
+    pub before_status: Option<String>,
+
+    // 변경 후 상태.
+    //
+    // 예: resolved / rejected
+    pub after_status: Option<String>,
+
+    // 추가 메타데이터.
+    //
+    // 현재는 report_id, reviewed_by 정도만 넣는다.
+    // 나중에 IP, user_agent 같은 필드를 확장할 수 있다.
+    pub metadata: serde_json::Value,
+
+    // 로그 생성 시각.
+    pub created_at: Option<DateTime<Utc>>,
 }

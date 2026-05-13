@@ -371,31 +371,48 @@ async fn get_helius_transaction(
         helius_enhanced_base(rpc_url),
         helius_api_key
     );
-    let response = client
-        .post(&url)
-        .json(&serde_json::json!({ "transactions": [signature] }))
-        .send()
-        .await
-        .context("Helius API 요청 실패")?;
+    let mut last_empty_response = false;
 
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-        return Err(anyhow!("Helius API 오류 (HTTP {}): {}", status, body));
+    for attempt in 0..4 {
+        let response = client
+            .post(&url)
+            .json(&serde_json::json!({ "transactions": [signature] }))
+            .send()
+            .await
+            .context("Helius API 요청 실패")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(anyhow!("Helius API 오류 (HTTP {}): {}", status, body));
+        }
+
+        let res: Vec<serde_json::Value> = response
+            .json()
+            .await
+            .context("Helius API 응답 파싱 실패")?;
+
+        if let Some(tx) = res.into_iter().next() {
+            if !tx["transactionError"].is_null() {
+                return Err(anyhow!("실패한 트랜잭션입니다: {}", tx["transactionError"]));
+            }
+            return Ok(tx);
+        }
+
+        last_empty_response = true;
+        if attempt < 3 {
+            tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+        }
     }
 
-    let res: Vec<serde_json::Value> = response.json().await.context("Helius API 응답 파싱 실패")?;
-
-    let tx = res
-        .into_iter()
-        .next()
-        .ok_or_else(|| anyhow!("트랜잭션을 찾을 수 없습니다: {}", signature))?;
-
-    if !tx["transactionError"].is_null() {
-        return Err(anyhow!("실패한 트랜잭션입니다: {}", tx["transactionError"]));
+    if last_empty_response {
+        return Err(anyhow!(
+            "트랜잭션 파싱 결과가 아직 준비되지 않았습니다: {}",
+            signature
+        ));
     }
 
-    Ok(tx)
+    Err(anyhow!("트랜잭션을 찾을 수 없습니다: {}", signature))
 }
 
 // ── 트랜잭션 검증 (Helius Enhanced API 사용) ─────────────────
@@ -424,6 +441,7 @@ pub async fn verify_program_instruction_tx_data(
         return Err(anyhow!("tx_signature 누락"));
     }
 
+    check_signature_confirmed(rpc_url, client, signature).await?;
     let tx = get_helius_transaction(rpc_url, helius_api_key, client, signature).await?;
 
     // feePayer 기반 서명자 확인
@@ -500,9 +518,6 @@ pub async fn verify_program_instruction_tx_data(
             }
         }
     }
-
-    // confirmed 이상이면 충분 — finalized는 20-30초 소요로 UX 저하
-    check_signature_confirmed(rpc_url, client, signature).await?;
 
     Ok(data_bytes)
 }

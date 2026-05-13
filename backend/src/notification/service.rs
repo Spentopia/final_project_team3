@@ -172,32 +172,43 @@ pub async fn create_notification(
         "{}/rest/v1/notifications",
         state.config.supabase_url.trim_end_matches('/')
     );
+    let mut last_error: Option<anyhow::Error> = None;
 
-    let res = state
-        .http_client
-        .post(&url)
-        .header("apikey", &state.config.supabase_secret_key)
-        .header(
-            "Authorization",
-            format!("Bearer {}", state.config.supabase_secret_key),
-        )
-        .header("Prefer", "return=minimal")
-        .json(&json!({
-            "user_id": user_id,
-            "notification_type": notification_type,
-            "message": message,
-            "is_read": false
-        }))
-        .send()
-        .await
-        .context("notifications INSERT 요청 실패")?;
+    for attempt in 0..3 {
+        match state
+            .http_client
+            .post(&url)
+            .header("apikey", &state.config.supabase_secret_key)
+            .header(
+                "Authorization",
+                format!("Bearer {}", state.config.supabase_secret_key),
+            )
+            .header("Prefer", "return=minimal")
+            .json(&json!({
+                "user_id": user_id,
+                "notification_type": notification_type,
+                "message": message,
+                "is_read": false
+            }))
+            .send()
+            .await
+        {
+            Ok(res) if res.status().is_success() => return Ok(()),
+            Ok(res) => {
+                let body = res.text().await.unwrap_or_default();
+                last_error = Some(anyhow!("notifications INSERT 실패: {}", body));
+            }
+            Err(error) => {
+                last_error = Some(anyhow!("notifications INSERT 요청 실패: {}", error));
+            }
+        }
 
-    if !res.status().is_success() {
-        let body = res.text().await.unwrap_or_default();
-        return Err(anyhow!("notifications INSERT 실패: {}", body));
+        if attempt < 2 {
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        }
     }
 
-    Ok(())
+    Err(last_error.unwrap_or_else(|| anyhow!("notifications INSERT 실패")))
 }
 
 async fn get_notification_settings(
@@ -296,6 +307,18 @@ async fn notification_exists(
     Ok(!rows.is_empty())
 }
 
+/// 예산 사용률에 따라 5% 단위로 알림을 생성한다.
+///
+/// 미초과 구간:
+///     이번 달 예산의 15%, 20%, 25%, ..., 95%에 도달할 때마다 알림 1회.
+///     각 임계값마다 `budget_alert_{year}_{mm}_pct{n}` 형태의 고유 type으로 중복 방지.
+///
+/// 100% 도달 시:
+///     `budget_alert_{year}_{mm}_full` type으로 별도 알림 1회.
+///
+/// 초과 구간:
+///     예산 초과율이 5%, 10%, 15%, ... 단위로 도달할 때마다 알림 1회.
+///     `budget_alert_{year}_{mm}_over{n}` type으로 발행한다 (최대 200% 초과까지).
 pub async fn notify_budget_threshold_if_needed(
     state: &AppState,
     user_id: Uuid,
@@ -374,24 +397,52 @@ pub async fn notify_budget_threshold_if_needed(
         .json()
         .await
         .context("예산 알림용 expenses 역직렬화 실패")?;
-    let total_spent: i32 = expenses.into_iter().map(|row| row.amount).sum();
+    let total_spent: i64 = expenses.into_iter().map(|row| row.amount as i64).sum();
 
-    if total_spent * 100 < budget.total_budget * 80 {
+    // 사용률(%) = total_spent * 100 / total_budget
+    let ratio_pct: i64 = total_spent * 100 / budget.total_budget as i64;
+
+    if ratio_pct < 15 {
         return Ok(());
     }
 
-    let notification_type = format!("budget_alert_{}_{:02}", year, month);
-    if notification_exists(state, user_id, &notification_type).await? {
+    // 1) 미초과 구간: 15% ~ 95% 사이 5% 간격으로 도달한 가장 높은 임계값에만 알림 발행
+    //    (이전 임계값들은 이미 발행됐을 것이고, 중복 방지 로직이 막아준다)
+    if ratio_pct < 100 {
+        let threshold = ((ratio_pct / 5) * 5).min(95) as i32; // 15..=95 중 도달한 최고값
+        let notification_type = format!("budget_alert_{}_{:02}_pct{}", year, month, threshold);
+        if !notification_exists(state, user_id, &notification_type).await? {
+            let message = format!("이번 달 예산의 {}%를 사용했어요!", threshold);
+            create_notification(state, user_id, &notification_type, &message).await?;
+        }
         return Ok(());
     }
 
-    create_notification(
-        state,
-        user_id,
-        &notification_type,
-        "예산의 80%를 사용했어요!",
-    )
-    .await
+    // 2) 100% 정확히 도달 (초과 0%)
+    let full_type = format!("budget_alert_{}_{:02}_full", year, month);
+    if !notification_exists(state, user_id, &full_type).await? {
+        create_notification(
+            state,
+            user_id,
+            &full_type,
+            "이번 달 예산을 모두 사용했어요!",
+        )
+        .await?;
+    }
+
+    // 3) 초과 구간: 초과율 5%, 10%, 15%, ... 단위로 도달한 가장 높은 임계값에만 알림 발행
+    let over_pct = ratio_pct - 100;
+    if over_pct >= 5 {
+        // 최대 200% 초과까지만 알림 (이상치 방지)
+        let over_threshold = ((over_pct / 5) * 5).min(200) as i32;
+        let over_type = format!("budget_alert_{}_{:02}_over{}", year, month, over_threshold);
+        if !notification_exists(state, user_id, &over_type).await? {
+            let message = format!("이번 달 예산을 {}% 초과했어요!", over_threshold);
+            create_notification(state, user_id, &over_type, &message).await?;
+        }
+    }
+
+    Ok(())
 }
 
 pub async fn notify_streak_if_needed(

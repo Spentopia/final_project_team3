@@ -151,6 +151,14 @@ export function WalletSection({
             return;
         }
 
+        if (!walletAddress || walletAddress !== linkedAddress) {
+            const message =
+                '연동 해제는 현재 계정에 등록된 지갑으로만 가능합니다. 등록된 지갑을 다시 연결한 뒤 해제해 주세요.';
+            setLocalMessage(message);
+            toast.error(message);
+            return;
+        }
+
         const result = await unlinkWallet();
         if (result.success) {
             setLinkedAddress(null);

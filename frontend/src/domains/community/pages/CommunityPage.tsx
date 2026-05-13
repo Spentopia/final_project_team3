@@ -3,6 +3,8 @@ import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import AiChatbotDialog from "@/components/chat/AiChatbotDialog";
+import { useSearchParams } from "react-router";
+import Pagination from "@/components/page/Pagination.tsx";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -225,12 +227,54 @@ function toComment(comment: CommentResponse): Comment {
 // ── 컴포넌트 ─────────────────────────────────────────────────
 
 export default function Community() {
-  const [activeTab, setActiveTab]         = useState<TabKey>("all");
-  const [searchQuery, setSearchQuery]     = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [currentPage, setCurrentPage]     = useState(1);
-  const [sort, setSort]                   = useState<PostSort>("date");
-  const [posts, setPosts]                 = useState<Post[]>([]);
+  // ─────────────────────────────────────────────
+// URL 기반 상태 관리
+// ─────────────────────────────────────────────
+//
+// activeTab/currentPage/sort는 이제 useState가 아니라
+// URL query string에서 읽어온 값을 사용한다.
+//
+// 예:
+// /community?tab=contest&page=3&sort=likes&q=검색어
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const activeTab: TabKey = (() => {
+    const tab = searchParams.get("tab");
+
+    if (
+        tab === "notice" ||
+        tab === "contest" ||
+        tab === "item" ||
+        tab === "free"
+    ) {
+      return tab;
+    }
+
+    return "all";
+  })();
+
+  const currentPage: number = Math.max(
+      1,
+      Number(searchParams.get("page")) || 1
+  );
+
+  const sort: PostSort = (() => {
+    const value = searchParams.get("sort");
+
+    if (value === "likes" || value === "views" || value === "date") {
+      return value;
+    }
+
+    return "date";
+  })();
+
+  const urlSearchQuery = searchParams.get("q") ?? "";
+
+  const [searchQuery, setSearchQuery] = useState(urlSearchQuery);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] =
+      useState(urlSearchQuery);
+
+  const [posts, setPosts] = useState<Post[]>([]);
   const [totalCount, setTotalCount]       = useState(0);
   const [selectedPost, setSelectedPost]   = useState<Post | null>(null);
   const [readPostIds, setReadPostIds]     = useState<Set<string>>(() => new Set());
@@ -263,6 +307,33 @@ export default function Community() {
   // replyContent: 대댓글 입력값
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
+
+  const updateSearchParams = (
+      updates: Record<string, string | number | null>
+  ) => {
+    const next = new URLSearchParams(searchParams);
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === "" || value === "all") {
+        next.delete(key);
+        return;
+      }
+
+      if (key === "page" && Number(value) === 1) {
+        next.delete(key);
+        return;
+      }
+
+      if (key === "sort" && value === "date") {
+        next.delete(key);
+        return;
+      }
+
+      next.set(key, String(value));
+    });
+
+    setSearchParams(next, { replace: true });
+  };
 
   // 신고 모달 상태
   //
@@ -365,12 +436,29 @@ export default function Community() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery.trim());
-      setCurrentPage(1);
+      const trimmed = searchQuery.trim();
+
+      setDebouncedSearchQuery(trimmed);
+
+      if (trimmed !== urlSearchQuery) {
+        updateSearchParams({
+          q: trimmed || null,
+          page: null,
+        });
+      }
     }, 300);
 
     return () => window.clearTimeout(timer);
+
+    // updateSearchParams까지 deps에 넣으면 searchParams 변경마다
+    // debounce가 다시 잡힐 수 있어서 여기서는 의도적으로 searchQuery만 본다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
+
+  useEffect(() => {
+    setSearchQuery(urlSearchQuery);
+    setDebouncedSearchQuery(urlSearchQuery);
+  }, [urlSearchQuery]);
 
   useEffect(() => {
     let ignore = false;
@@ -485,23 +573,18 @@ export default function Community() {
   const nextPost     = currentIdx < posts.length - 1 ? posts[currentIdx + 1] : null;
 
   const handleTabChange = (tab: TabKey) => {
-    // 같은 탭을 다시 누른 경우에는 상태를 바꾸지 않는다.
-    // 상태 변경이 없으면 목록 조회 useEffect도 다시 실행되지 않는다.
     if (tab === activeTab) {
       return;
     }
 
-    setActiveTab(tab);
-    setCurrentPage(1);
+    updateSearchParams({
+      tab: tab === "all" ? null : tab,
+      page: null,
+      q: null,
+    });
 
-    // 탭을 바꿀 때 검색어를 초기화한다.
-    // searchQuery만 비우면 300ms debounce 이후 debouncedSearchQuery가 다시 바뀌면서
-    // /api/posts가 한 번 더 호출될 수 있다.
-    //
-    // 그래서 실제 조회 조건에 쓰이는 debouncedSearchQuery도 같이 비운다.
     setSearchQuery("");
     setDebouncedSearchQuery("");
-
     setSelectedPost(null);
   };
 
@@ -513,6 +596,30 @@ export default function Community() {
     // debounce useEffect에서도 setCurrentPage(1)을 하면
     // 페이지가 2 이상인 상태에서 검색할 때 목록 조회가 중복될 수 있다.
     setSearchQuery(value);
+    setSelectedPost(null);
+  };
+
+  const handlePageChange = (page: number) => {
+    if (page === currentPage) {
+      return;
+    }
+
+    updateSearchParams({ page });
+    setSelectedPost(null);
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleSortChange = (nextSort: PostSort) => {
+    if (nextSort === sort) {
+      return;
+    }
+
+    updateSearchParams({
+      sort: nextSort === "date" ? null : nextSort,
+      page: null,
+    });
+
     setSelectedPost(null);
   };
 
@@ -684,14 +791,11 @@ export default function Community() {
       );
 
       setTotalCount((prev) => prev + 1);
-      setCurrentPage(1);
 
-      // 작성한 글 타입에 맞는 탭으로 이동한다.
-      // - contest: 아바타 콘테스트 탭
-      // - request: 아이템 요청 탭
-      // - free: 자유 탭
-      // - notice: 공지사항 탭
-      setActiveTab(createdPost.category);
+      updateSearchParams({
+        tab: createdPost.category,
+        page: null,
+      });
 
       setIsWriteOpen(false);
       resetWriteForm();
@@ -1960,7 +2064,7 @@ export default function Community() {
             ).map(({ key, label }) => (
               <button
                 key={key}
-                onClick={() => { setSort(key); setCurrentPage(1); }}
+                onClick={() => handleSortChange(key)}
                 className={`text-sm px-3 py-1.5 transition-colors ${
                   sort === key
                     ? "text-gray-800 dark:text-gray-100 font-bold"
@@ -2040,23 +2144,13 @@ export default function Community() {
           </div>
 
           {/* 페이지네이션 */}
-          {totalPages > 1 && (
-              <div className="mt-5 flex items-center justify-center gap-1.5">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`w-10 h-10 flex items-center justify-center rounded-lg text-sm border transition-colors ${
-                            page === currentPage
-                                ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white border-[#2563eb] font-medium shadow-[0_10px_24px_rgba(37,99,235,0.22)]"
-                                : "bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                        }`}
-                    >
-                      {page}
-                    </button>
-                ))}
-              </div>
-          )}
+
+          <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+          />
+
         </div>
 
         {isWriteOpen && (
