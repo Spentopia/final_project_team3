@@ -52,6 +52,9 @@ export type ContentReportReason =
     | "spam"
     | "other";
 
+export type AdminReportSortBy = "created_at" | "reviewed_at";
+export type AdminReportSortOrder = "asc" | "desc";
+
 // ─────────────────────────────────────────────
 // 페이지네이션 공통 응답 타입
 // ─────────────────────────────────────────────
@@ -73,19 +76,32 @@ export interface AdminUserListResponse {
     page_size: number;
 }
 
-// ─────────────────────────────────────────────
-// 신고 관리 API
-// ─────────────────────────────────────────────
-
-// 관리자 신고 목록 조회 (페이지네이션 + 검색 + 필터)
+// 관리자 신고 목록 조회 파라미터.
 //
-// 모든 파라미터는 선택.
-// 생략하면 백엔드 기본값(page=1, page_size=20, 필터 없음)으로 동작.
+// 백엔드 ContentReportQuery와 매칭된다.
 export type ListAdminContentReportsParams = {
     status?: ContentReportStatus;
     target_type?: ContentReportTargetType;
     reason?: ContentReportReason;
     keyword?: string;
+
+    // 신고일 날짜 범위 필터.
+    //
+    // 프론트 date input의 값인 YYYY-MM-DD를 그대로 보낸다.
+    // 백엔드에서 하루 시작/끝 시간으로 보정한다.
+    start_date?: string;
+    end_date?: string;
+
+    // 정렬 기준/방향.
+    //
+    // created_at  : 신고일
+    // reviewed_at : 처리일
+    //
+    // desc : 최신순
+    // asc  : 오래된순
+    sort_by?: AdminReportSortBy;
+    sort_order?: AdminReportSortOrder;
+
     page?: number;
     page_size?: number;
 };
@@ -154,6 +170,9 @@ export type AdminContentReportResponse = {
 
     // 처리한 관리자 ID
     reviewed_by: string | null;
+
+    // 같은 대상의 누적 신고 횟수.
+    target_report_count: number;
 };
 
 export type UpdateAdminUserActiveRequest = {
@@ -325,11 +344,22 @@ export async function listAdminContentReports(
                 target_type: params.target_type,
                 reason: params.reason,
                 keyword: params.keyword || undefined,
+
+                // 날짜 범위 필터
+                start_date: params.start_date || undefined,
+                end_date: params.end_date || undefined,
+
+                // 정렬
+                sort_by: params.sort_by,
+                sort_order: params.sort_order,
+
+                // 페이지네이션
                 page: params.page,
                 page_size: params.page_size,
             },
         }
     );
+
     return res.data;
 }
 

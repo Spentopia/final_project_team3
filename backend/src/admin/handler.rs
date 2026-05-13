@@ -38,6 +38,8 @@ use super::{
 /// GET /api/admin/content-reports
 /// GET /api/admin/content-reports?status=pending&page=1&page_size=20
 /// GET /api/admin/content-reports?keyword=은영&target_type=post&reason=spam
+/// GET /api/admin/content-reports?start_date=2026-05-01&end_date=2026-05-13
+/// GET /api/admin/content-reports?sort_by=reviewed_at&sort_order=desc
 #[derive(Deserialize, Debug)]
 pub struct ContentReportQuery {
     // 신고 처리 상태 필터
@@ -54,6 +56,36 @@ pub struct ContentReportQuery {
 
     // 신고자 닉네임 또는 이메일 검색어
     pub keyword: Option<String>,
+
+    // 신고일 시작일.
+    //
+    // 프론트 date input에서 YYYY-MM-DD 형태로 보낸다.
+    // service.rs에서 2026-05-01T00:00:00+09:00 형태로 보정한다.
+    pub start_date: Option<String>,
+
+    // 신고일 종료일.
+    //
+    // 프론트 date input에서 YYYY-MM-DD 형태로 보낸다.
+    // service.rs에서 2026-05-13T23:59:59+09:00 형태로 보정한다.
+    pub end_date: Option<String>,
+
+    // 정렬 기준.
+    //
+    // 허용:
+    // - created_at  : 신고일
+    // - reviewed_at : 처리일
+    //
+    // 잘못된 값이면 service.rs에서 created_at으로 fallback한다.
+    pub sort_by: Option<String>,
+
+    // 정렬 방향.
+    //
+    // 허용:
+    // - desc : 최신순
+    // - asc  : 오래된순
+    //
+    // 잘못된 값이면 service.rs에서 desc로 fallback한다.
+    pub sort_order: Option<String>,
 
     // 페이지 번호 (1부터, 기본 1)
     pub page: Option<i64>,
@@ -117,12 +149,16 @@ fn map_admin_error(error: anyhow::Error) -> axum::response::Response {
     path = "/api/admin/content-reports",
     tag = "관리자",
     params(
-        ("status" = Option<String>, Query, description = "신고 상태: pending/resolved/rejected"),
-        ("target_type" = Option<String>, Query, description = "대상 타입: post/comment/user_nickname/user_profile"),
-        ("reason" = Option<String>, Query, description = "신고 사유: abuse/inappropriate/spam/other"),
-        ("keyword" = Option<String>, Query, description = "신고자 닉네임/이메일 검색어"),
-        ("page" = Option<i64>, Query, description = "페이지 번호 (1부터)"),
-        ("page_size" = Option<i64>, Query, description = "페이지당 건수 (기본 20)"),
+    ("status" = Option<String>, Query, description = "신고 상태: pending/resolved/rejected"),
+    ("target_type" = Option<String>, Query, description = "대상 타입: post/comment/user_nickname/user_profile"),
+    ("reason" = Option<String>, Query, description = "신고 사유: abuse/inappropriate/spam/other"),
+    ("keyword" = Option<String>, Query, description = "신고자 닉네임/이메일 검색어"),
+    ("start_date" = Option<String>, Query, description = "신고일 시작일 YYYY-MM-DD"),
+    ("end_date" = Option<String>, Query, description = "신고일 종료일 YYYY-MM-DD"),
+    ("sort_by" = Option<String>, Query, description = "정렬 기준: created_at/reviewed_at"),
+    ("sort_order" = Option<String>, Query, description = "정렬 방향: desc/asc"),
+    ("page" = Option<i64>, Query, description = "페이지 번호 (1부터)"),
+    ("page_size" = Option<i64>, Query, description = "페이지당 건수 (기본 20)"),
     ),
     responses(
         (status = 200, description = "관리자 신고 목록 조회 성공", body = crate::admin::dto::AdminContentReportListResponse),

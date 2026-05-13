@@ -88,6 +88,11 @@ pub struct AdminContentReportResponse {
     // 처리한 관리자 ID
     // 나중에 팀원 관리자 계정이 늘어날 걸 대비
     pub reviewed_by: Option<Uuid>,
+
+    // 같은 대상이 누적 몇 번 신고되었는지.
+    //
+    // 프론트에서는 2 이상일 때만 "누적 N회" 뱃지를 보여주면 된다.
+    pub target_report_count: i64,
 }
 
 // ─────────────────────────────────────────────

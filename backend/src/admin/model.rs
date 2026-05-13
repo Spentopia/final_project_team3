@@ -34,6 +34,12 @@ pub struct AdminContentReport {
     pub created_at: Option<DateTime<Utc>>,
     pub reviewed_at: Option<DateTime<Utc>>,
     pub reviewed_by: Option<Uuid>,
+    // 같은 대상이 누적 몇 번 신고되었는지.
+    //
+    // admin_content_reports_view에서:
+    // count(*) over (partition by target_type, target_id)
+    // 로 계산해서 내려준다.
+    pub target_report_count: Option<i64>,
 }
 
 // public.users row

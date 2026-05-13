@@ -3,7 +3,7 @@ import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import AiChatbotDialog from "@/components/chat/AiChatbotDialog";
-import { useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import Pagination from "@/components/page/Pagination.tsx";
 import {
   AlertDialog,

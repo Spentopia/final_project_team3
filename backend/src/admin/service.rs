@@ -56,12 +56,8 @@ use super::{
 
 /// DB/view 모델을 관리자 신고 응답 DTO로 변환한다.
 ///
-/// DB row를 그대로 내려도 되긴 하지만,
-/// 나중에 관리자 화면 전용 필드가 추가될 수 있으므로
-/// 변환 함수를 따로 둔다.
-///
-/// 현재 AdminContentReport는 admin_content_reports_view의 응답 모델이다.
-/// 그래서 reporter_nickname, reporter_email을 포함한다.
+/// DB row를 그대로 내려도 되지만,
+/// 응답 DTO를 따로 두면 프론트 전용 필드나 기본값 처리를 한곳에서 관리할 수 있다.
 fn to_report_response(row: AdminContentReport) -> AdminContentReportResponse {
     AdminContentReportResponse {
         id: row.id,
@@ -76,6 +72,12 @@ fn to_report_response(row: AdminContentReport) -> AdminContentReportResponse {
         created_at: row.created_at,
         reviewed_at: row.reviewed_at,
         reviewed_by: row.reviewed_by,
+
+        // view에서 계산된 누적 신고 횟수.
+        //
+        // 혹시 view 반영 전이거나 null로 내려오는 경우에도
+        // 최소 1회 신고된 row이므로 1로 fallback한다.
+        target_report_count: row.target_report_count.unwrap_or(1),
     }
 }
 
@@ -193,7 +195,7 @@ async fn get_content_report_from_view_by_id(
     report_id: Uuid,
 ) -> Result<AdminContentReportResponse> {
     let url = format!(
-        "{}/rest/v1/admin_content_reports_view?select=id,reporter_id,reporter_nickname,reporter_email,target_type,target_id,reason,detail,status,created_at,reviewed_at,reviewed_by&id=eq.{}&limit=1",
+        "{}/rest/v1/admin_content_reports_view?select=id,reporter_id,reporter_nickname,reporter_email,target_type,target_id,reason,detail,status,created_at,reviewed_at,reviewed_by,target_report_count&id=eq.{}&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         report_id
     );
@@ -228,79 +230,218 @@ async fn get_content_report_from_view_by_id(
     Ok(to_report_response(row))
 }
 
-/// 관리자: 신고 목록 조회 (페이지네이션 + 검색 + 필터)
+/// 날짜 필터 시작값 보정.
 ///
-/// API:
+/// 프론트 date input은 보통 "2026-05-01" 형태로 보낸다.
+/// 그런데 created_at은 timestamptz라서 그냥 날짜만 비교하면 의도와 다를 수 있다.
+///
+/// 그래서 날짜만 들어온 경우:
+/// - 시작일: 2026-05-01T00:00:00+09:00
+///
+/// 이미 ISO 문자열이 들어온 경우는 그대로 사용한다.
+fn normalize_start_date_filter(value: &str) -> String {
+    let trimmed = value.trim();
+
+    if trimmed.len() == 10 {
+        format!("{}T00:00:00+09:00", trimmed)
+    } else {
+        trimmed.to_string()
+    }
+}
+
+/// 날짜 필터 종료값 보정.
+///
+/// 날짜만 들어온 경우:
+/// - 종료일: 2026-05-13T23:59:59+09:00
+///
+/// 이렇게 해야 2026-05-13 하루 전체가 포함된다.
+fn normalize_end_date_filter(value: &str) -> String {
+    let trimmed = value.trim();
+
+    if trimmed.len() == 10 {
+        format!("{}T23:59:59+09:00", trimmed)
+    } else {
+        trimmed.to_string()
+    }
+}
+
+
+/// 관리자: 신고 목록 조회 (페이지네이션 + 검색 + 필터 + 날짜 범위 + 정렬)
+///
+/// API 예시:
 /// GET /api/admin/content-reports?status=pending&page=1&page_size=20
+/// GET /api/admin/content-reports?keyword=은영&target_type=post&reason=spam
+/// GET /api/admin/content-reports?start_date=2026-05-01&end_date=2026-05-13
+/// GET /api/admin/content-reports?sort_by=reviewed_at&sort_order=desc
 ///
 /// 동작:
 /// - admin_content_reports_view에서 조회
-/// - 필터: status / target_type / reason / keyword(닉네임/이메일)
-/// - 정렬: created_at desc (최신 신고가 먼저)
-/// - 페이지네이션: page(1-base) + page_size
-/// - 응답에 total_count 포함해서 프론트에서 페이지 수 계산
-///
-/// 페이지네이션 구현:
-/// - Supabase PostgREST는 Range 헤더 기반 페이지네이션을 지원한다.
-/// - Range: 0-19  → 1페이지 20건
-/// - Range: 20-39 → 2페이지 20건
-/// - Prefer: count=exact 헤더를 같이 보내면
-///   응답 Content-Range 헤더에 "0-19/153" 형태로 전체 건수가 온다.
-/// - 153이 total_count가 되고, 프론트에서 total_count / page_size로 총 페이지 수 계산.
+/// - 필터:
+///   - status
+///   - target_type
+///   - reason
+///   - keyword: 신고자 닉네임/이메일
+///   - start_date/end_date: 신고일 created_at 기준
+/// - 정렬:
+///   - created_at: 신고일
+///   - reviewed_at: 처리일
+/// - 페이지네이션:
+///   - Range 헤더
+///   - Prefer: count=exact
 pub async fn list_content_reports(
     state: &AppState,
     query: ContentReportQuery,
 ) -> Result<AdminContentReportListResponse> {
-    // 1. 페이지 / 페이지 크기 정규화.
+    // ─────────────────────────────────────────────
+    // 1. 페이지 / 페이지 크기 정규화
+    // ─────────────────────────────────────────────
     //
-    // 잘못된 값(0, 음수, 너무 큰 값)이 들어와도 안전하게 동작하도록 정리한다.
+    // page는 1부터 시작.
+    // page_size는 너무 큰 요청을 막기 위해 1~100 사이로 제한한다.
     let page = query.page.unwrap_or(1).max(1);
     let page_size = query.page_size.unwrap_or(20).clamp(1, 100);
 
-    // Range 헤더용 시작/끝 인덱스 (0-base, inclusive)
+    // PostgREST Range 헤더는 0-base inclusive다.
+    //
+    // page=1, page_size=20 → 0-19
+    // page=2, page_size=20 → 20-39
     let from = (page - 1) * page_size;
     let to = from + page_size - 1;
 
-    // 2. 기본 조회 URL
+    // ─────────────────────────────────────────────
+    // 2. 정렬 파라미터 정규화
+    // ─────────────────────────────────────────────
     //
-    // 정렬은 최신 신고가 먼저 보이도록 created_at desc.
+    // 허용하지 않는 값이 들어오면 안전하게 기본값으로 되돌린다.
+    let sort_by = match query.sort_by.as_deref().map(str::trim) {
+        Some("reviewed_at") => "reviewed_at",
+        _ => "created_at",
+    };
+
+    let sort_order = match query.sort_order.as_deref().map(str::trim) {
+        Some("asc") => "asc",
+        _ => "desc",
+    };
+
+    // reviewed_at은 pending 상태에서는 null일 수 있다.
+    // 처리일순 정렬에서 null이 위로 몰리면 보기 불편하므로 nullslast를 붙인다.
+    let nulls = if sort_by == "reviewed_at" {
+        ".nullslast"
+    } else {
+        ""
+    };
+
+    // ─────────────────────────────────────────────
+    // 3. 기본 조회 URL
+    // ─────────────────────────────────────────────
+    //
+    // target_report_count는 view에서 계산된 누적 신고 횟수다.
     let mut url = format!(
-        "{}/rest/v1/admin_content_reports_view?select=id,reporter_id,reporter_nickname,reporter_email,target_type,target_id,reason,detail,status,created_at,reviewed_at,reviewed_by&order=created_at.desc",
-        state.config.supabase_url.trim_end_matches('/')
+        "{}/rest/v1/admin_content_reports_view?select=id,reporter_id,reporter_nickname,reporter_email,target_type,target_id,reason,detail,status,created_at,reviewed_at,reviewed_by,target_report_count&order={}.{}{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        sort_by,
+        sort_order,
+        nulls
     );
 
-    // 3. 필터 추가
+    // ─────────────────────────────────────────────
+    // 4. 일반 필터 추가
+    // ─────────────────────────────────────────────
     //
     // 빈 문자열은 필터로 취급하지 않는다.
-    // 예: status=&target_type=post → status는 무시, target_type만 적용.
-    if let Some(status) = query.status.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
+    if let Some(status) = query
+        .status
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         url.push_str(&format!("&status=eq.{}", urlencoding::encode(status)));
     }
 
-    if let Some(target_type) = query.target_type.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
-        url.push_str(&format!("&target_type=eq.{}", urlencoding::encode(target_type)));
+    if let Some(target_type) = query
+        .target_type
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        url.push_str(&format!(
+            "&target_type=eq.{}",
+            urlencoding::encode(target_type)
+        ));
     }
 
-    if let Some(reason) = query.reason.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
+    if let Some(reason) = query
+        .reason
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         url.push_str(&format!("&reason=eq.{}", urlencoding::encode(reason)));
     }
 
-    // 신고자 닉네임/이메일 검색 (대소문자 무시, 부분 일치)
+    // ─────────────────────────────────────────────
+    // 5. 날짜 범위 필터
+    // ─────────────────────────────────────────────
+    //
+    // 날짜 필터는 신고 접수일(created_at) 기준이다.
+    //
+    // start_date=2026-05-01
+    // → created_at >= 2026-05-01T00:00:00+09:00
+    //
+    // end_date=2026-05-13
+    // → created_at <= 2026-05-13T23:59:59+09:00
+    if let Some(start_date) = query
+        .start_date
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let normalized = normalize_start_date_filter(start_date);
+        url.push_str(&format!(
+            "&created_at=gte.{}",
+            urlencoding::encode(&normalized)
+        ));
+    }
+
+    if let Some(end_date) = query
+        .end_date
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let normalized = normalize_end_date_filter(end_date);
+        url.push_str(&format!(
+            "&created_at=lte.{}",
+            urlencoding::encode(&normalized)
+        ));
+    }
+
+    // ─────────────────────────────────────────────
+    // 6. 신고자 닉네임/이메일 검색
+    // ─────────────────────────────────────────────
     //
     // PostgREST or 문법:
     // or=(reporter_nickname.ilike.*은영*,reporter_email.ilike.*은영*)
-    if let Some(keyword) = query.keyword.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
+    if let Some(keyword) = query
+        .keyword
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         let encoded = urlencoding::encode(keyword);
+
         url.push_str(&format!(
             "&or=(reporter_nickname.ilike.*{}*,reporter_email.ilike.*{}*)",
             encoded, encoded
         ));
     }
 
-    // 4. 요청.
+    // ─────────────────────────────────────────────
+    // 7. 요청
+    // ─────────────────────────────────────────────
     //
-    // Range 헤더로 페이지네이션,
-    // Prefer: count=exact로 전체 건수를 Content-Range 응답 헤더로 받는다.
+    // Range 헤더로 현재 페이지 데이터만 받고,
+    // Prefer: count=exact로 전체 개수를 Content-Range에서 받는다.
     let res = state
         .http_client
         .get(&url)
@@ -316,25 +457,32 @@ pub async fn list_content_reports(
         .await
         .context("관리자 신고 목록 view SELECT 요청 실패")?;
 
-    // PostgREST는 페이지네이션 시 200 또는 206을 반환한다. 둘 다 정상.
+    // PostgREST는 페이지네이션 시 200 또는 206을 반환할 수 있다.
+    // 둘 다 is_success()에 포함된다.
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
         return Err(anyhow!("관리자 신고 목록 view SELECT 실패: {}", body));
     }
 
-    // 5. Content-Range 헤더에서 total_count 추출.
+    // ─────────────────────────────────────────────
+    // 8. 전체 개수 추출
+    // ─────────────────────────────────────────────
     //
-    // 형식 예시: "0-19/153"
-    // 슬래시 뒤의 숫자가 전체 건수.
+    // Content-Range 예:
+    // 0-19/153
+    //
+    // 슬래시 뒤의 153이 total_count다.
     let total_count = res
         .headers()
         .get("content-range")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.rsplit('/').next())
-        .and_then(|s| s.parse::<i64>().ok())
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.rsplit('/').next())
+        .and_then(|value| value.parse::<i64>().ok())
         .unwrap_or(0);
 
-    // 6. 본문 파싱 및 변환.
+    // ─────────────────────────────────────────────
+    // 9. 본문 파싱 및 DTO 변환
+    // ─────────────────────────────────────────────
     let rows: Vec<AdminContentReport> = res
         .json()
         .await

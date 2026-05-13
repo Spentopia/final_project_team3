@@ -22,16 +22,17 @@ import { signOut } from "@/domains/auth/api/auth";
 
 import AdminSidebar from "@/domains/admin/components/AdminSidebar";
 import AdminDashboard from "@/domains/admin/components/AdminDashboard";
-import AdminReportsPanel from "@/domains/admin/components/AdminReportsPanel";
 import AdminReportDetailModal from "@/domains/admin/components/AdminReportDetailModal";
 import AdminUsersPanel from "@/domains/admin/components/AdminUsersPanel";
 import AdminNoticesPanel from "@/domains/admin/components/AdminNoticesPanel";
 import AdminContestsPanel from "@/domains/admin/components/AdminContestsPanel.tsx";
 
 // AdminPage.tsx 상단 import에 추가
-import type {
-    ReportTargetTypeFilter,
-    ReportReasonFilter,
+import AdminReportsPanel, {
+    type ReportReasonFilter,
+    type ReportTargetTypeFilter,
+    type ReportSortBy,
+    type ReportSortOrder,
 } from "@/domains/admin/components/AdminReportsPanel";
 
 import {
@@ -159,6 +160,7 @@ export default function AdminPage() {
         return "dashboard";
     };
 
+
     // activeTab은 URL query를 기준으로 초기화한다.
     //
     // 기존:
@@ -222,6 +224,33 @@ export default function AdminPage() {
     const [selectedReport, setSelectedReport] =
         useState<AdminContentReportResponse | null>(null);
     const [isReportsLoading, setIsReportsLoading] = useState(false);
+    // 신고일 날짜 범위 필터.
+// input type="date" 값이므로 YYYY-MM-DD 문자열로 관리한다.
+    const [reportStartDate, setReportStartDate] = useState("");
+    const [reportEndDate, setReportEndDate] = useState("");
+
+// 신고 목록 정렬 상태.
+//
+// created_at  : 신고일
+// reviewed_at : 처리일
+//
+// 기본은 신고일 최신순.
+    const [reportSortBy, setReportSortBy] = useState<ReportSortBy>("created_at");
+    const [reportSortOrder, setReportSortOrder] =
+        useState<ReportSortOrder>("desc");
+
+    const handleReportSortChange = (nextSortBy: ReportSortBy) => {
+        // 같은 정렬 기준을 다시 누르면 asc/desc 토글.
+        if (nextSortBy === reportSortBy) {
+            setReportSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
+        } else {
+            // 다른 정렬 기준으로 바꾸면 기본은 최신순 desc.
+            setReportSortBy(nextSortBy);
+            setReportSortOrder("desc");
+        }
+
+        setReportPage(1);
+    };
 
     // ─────────────────────────────────────────────
     // 회원 관리 상태 (페이지네이션 추가)
@@ -297,7 +326,15 @@ export default function AdminPage() {
     // 필터(셀렉트) 바뀌면 1페이지로
     useEffect(() => {
         setReportPage(1);
-    }, [reportStatus, reportTargetType, reportReason]);
+    }, [
+        reportStatus,
+        reportTargetType,
+        reportReason,
+        reportStartDate,
+        reportEndDate,
+        reportSortBy,
+        reportSortOrder,
+    ]);
 
     // 회원 검색 디바운스
     useEffect(() => {
@@ -361,6 +398,15 @@ export default function AdminPage() {
                         reportTargetType === "all" ? undefined : reportTargetType,
                     reason: reportReason === "all" ? undefined : reportReason,
                     keyword: debouncedReportKeyword || undefined,
+
+                    // 신고일 날짜 범위
+                    start_date: reportStartDate || undefined,
+                    end_date: reportEndDate || undefined,
+
+                    // 신고일/처리일 정렬
+                    sort_by: reportSortBy,
+                    sort_order: reportSortOrder,
+
                     page: reportPage,
                     page_size: REPORTS_PAGE_SIZE,
                 });
@@ -389,19 +435,12 @@ export default function AdminPage() {
         reportTargetType,
         reportReason,
         debouncedReportKeyword,
+        reportStartDate,
+        reportEndDate,
+        reportSortBy,
+        reportSortOrder,
         reportPage,
     ]);
-
-    // 회원 검색 디바운스
-    useEffect(() => {
-        const timer = window.setTimeout(() => {
-            setDebouncedUserKeyword(userKeyword.trim());
-        }, 300);
-
-        return () => {
-            window.clearTimeout(timer);
-        };
-    }, [userKeyword]);
 
     // ─────────────────────────────────────────────
     // 회원 목록 조회 (변경)
@@ -864,7 +903,7 @@ export default function AdminPage() {
                     {activeTab === "dashboard" && (
                         <AdminDashboard
                             pendingReportCount={pendingReportCount}
-                            totalUserCount={users.length}
+                            totalUserCount={userTotalCount}
                             activeUserCount={activeUserCount}
                             recentReports={recentReports}
                             isReportsLoading={isDashboardReportsLoading}
@@ -879,19 +918,45 @@ export default function AdminPage() {
                             targetTypeFilter={reportTargetType}
                             reasonFilter={reportReason}
                             keyword={reportKeyword}
+
+                            // 날짜 필터
+                            startDate={reportStartDate}
+                            endDate={reportEndDate}
+
+                            // 정렬
+                            sortBy={reportSortBy}
+                            sortOrder={reportSortOrder}
+
+                            // 페이지네이션
                             page={reportPage}
                             totalCount={reportTotalCount}
                             pageSize={REPORTS_PAGE_SIZE}
+
                             isReportsLoading={isReportsLoading}
                             processingId={processingId}
+
                             onReportStatusChange={setReportStatus}
                             onTargetTypeChange={setReportTargetType}
                             onReasonChange={setReportReason}
                             onKeywordChange={setReportKeyword}
+
+                            // 날짜 필터 변경
+                            onStartDateChange={(value) => {
+                                setReportStartDate(value);
+                                setReportPage(1);
+                            }}
+                            onEndDateChange={(value) => {
+                                setReportEndDate(value);
+                                setReportPage(1);
+                            }}
+
+                            // 정렬 변경
+                            onSortChange={handleReportSortChange}
+
                             onPageChange={setReportPage}
                             onSelectReport={setSelectedReport}
-                            onResolveReport={(id) => void handleResolveReport(id)}
-                            onRejectReport={(id) => void handleRejectReport(id)}
+                            onResolveReport={handleResolveReport}
+                            onRejectReport={handleRejectReport}
                         />
                     )}
 

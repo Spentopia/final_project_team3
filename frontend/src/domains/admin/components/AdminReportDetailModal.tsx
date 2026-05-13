@@ -86,6 +86,21 @@ export default function AdminReportDetailModal({
                         <span>{TARGET_TYPE_LABEL[report.target_type]}</span>
                     </div>
 
+                    {/* 같은 대상 누적 신고 횟수 */}
+                    <div className="flex justify-between gap-4 border-b border-border pb-2">
+                        <span className="text-muted-foreground">누적 신고 횟수</span>
+
+                        <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                                report.target_report_count > 1
+                                    ? "bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-300"
+                                    : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                            }`}
+                        >
+                            {report.target_report_count.toLocaleString()}회
+                        </span>
+                    </div>
+
                     <div className="flex justify-between gap-4 border-b border-border pb-2">
                         <span className="text-muted-foreground">신고 사유</span>
 
