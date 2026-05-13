@@ -122,3 +122,23 @@ pub struct AdminContest {
     pub reward_description: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
 }
+
+// ─────────────────────────────────────────────
+// 관리자 감사 로그 모델
+// ─────────────────────────────────────────────
+//
+// public.admin_audit_logs 테이블 row를 역직렬화하기 위한 모델.
+// 이 모델은 Supabase REST API 응답을 받기 위해 사용한다.
+
+#[derive(Debug, serde::Deserialize)]
+pub struct AdminAuditLog {
+    pub id: Uuid,
+    pub admin_id: Uuid,
+    pub action: String,
+    pub target_type: String,
+    pub target_id: Uuid,
+    pub before_status: Option<String>,
+    pub after_status: Option<String>,
+    pub metadata: serde_json::Value,
+    pub created_at: Option<DateTime<Utc>>,
+}

@@ -175,6 +175,43 @@ export type AdminContentReportResponse = {
     target_report_count: number;
 };
 
+// 관리자 감사 로그 응답 타입.
+//
+// 백엔드 AdminAuditLogResponse와 매칭된다.
+export type AdminAuditLogResponse = {
+    id: string;
+
+    // 작업한 관리자 ID.
+    admin_id: string;
+
+    // 작업 종류.
+    //
+    // 예:
+    // content_report_resolved
+    // content_report_rejected
+    action: string;
+
+    // 작업 대상 타입.
+    //
+    // 이번 기능에서는 content_report.
+    target_type: string;
+
+    // 작업 대상 ID.
+    target_id: string;
+
+    // 변경 전 상태.
+    before_status: string | null;
+
+    // 변경 후 상태.
+    after_status: string | null;
+
+    // 추가 메타데이터.
+    metadata: Record<string, unknown>;
+
+    // 로그 생성 시각.
+    created_at: string | null;
+};
+
 export type UpdateAdminUserActiveRequest = {
     is_active: boolean;
 
@@ -384,6 +421,19 @@ export const rejectAdminContentReport = async (
 
     return res.data;
 };
+
+// 특정 신고의 관리자 감사 로그 조회.
+//
+// GET /api/admin/content-reports/{reportId}/audit-logs
+export async function listAdminContentReportAuditLogs(
+    reportId: string
+): Promise<AdminAuditLogResponse[]> {
+    const res = await apiClient.get<AdminAuditLogResponse[]>(
+        `/api/admin/content-reports/${reportId}/audit-logs`
+    );
+
+    return res.data;
+}
 
 // ─────────────────────────────────────────────
 // 회원 관리 API

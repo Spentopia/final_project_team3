@@ -49,9 +49,10 @@ use super::{
         AdminNoticeResponse, CreateAdminNoticeRequest, UpdateAdminNoticeRequest,
         AdminContestResponse, CreateAdminContestRequest,
         UpdateAdminContestRequest, UpdateAdminContestStatusRequest,
+        AdminAuditLogResponse,
     },
     handler::{ContentReportQuery, AdminUserQuery},
-    model::{AdminContentReport, AdminUser, AdminNotice, AdminContest},
+    model::{AdminContentReport, AdminUser, AdminNotice, AdminContest, AdminAuditLog},
 };
 
 /// DB/view 모델을 관리자 신고 응답 DTO로 변환한다.
@@ -78,6 +79,24 @@ fn to_report_response(row: AdminContentReport) -> AdminContentReportResponse {
         // 혹시 view 반영 전이거나 null로 내려오는 경우에도
         // 최소 1회 신고된 row이므로 1로 fallback한다.
         target_report_count: row.target_report_count.unwrap_or(1),
+    }
+}
+
+/// DB row를 관리자 감사 로그 응답 DTO로 변환한다.
+///
+/// 감사 로그는 관리자 작업 이력 표시용이다.
+/// 현재는 신고 처리 완료/반려 이력을 상세 모달에서 보여준다.
+fn to_audit_log_response(row: AdminAuditLog) -> AdminAuditLogResponse {
+    AdminAuditLogResponse {
+        id: row.id,
+        admin_id: row.admin_id,
+        action: row.action,
+        target_type: row.target_type,
+        target_id: row.target_id,
+        before_status: row.before_status,
+        after_status: row.after_status,
+        metadata: row.metadata,
+        created_at: row.created_at,
     }
 }
 
@@ -499,6 +518,117 @@ pub async fn list_content_reports(
     })
 }
 
+/// 관리자 감사 로그를 기록한다.
+///
+/// 이 함수는 중요한 관리자 작업이 성공한 뒤 호출한다.
+///
+/// 현재 사용 위치:
+/// - 신고 처리 완료
+/// - 신고 반려
+///
+/// 왜 별도 테이블에 남기는가?
+/// - content_reports.reviewed_by/reviewed_at은 최종 상태만 보여준다.
+/// - admin_audit_logs는 "누가 언제 어떤 작업을 했는지" 이력을 남긴다.
+/// - 나중에 회원 비활성화, 공지 삭제, 콘테스트 상태 변경도 같은 테이블로 확장 가능하다.
+async fn create_admin_audit_log(
+    state: &AppState,
+    admin_id: Uuid,
+    action: &str,
+    target_type: &str,
+    target_id: Uuid,
+    before_status: Option<&str>,
+    after_status: Option<&str>,
+    metadata: serde_json::Value,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/admin_audit_logs",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let payload = serde_json::json!([{
+        "admin_id": admin_id,
+        "action": action,
+        "target_type": target_type,
+        "target_id": target_id,
+        "before_status": before_status,
+        "after_status": after_status,
+        "metadata": metadata,
+        "created_at": Utc::now().to_rfc3339()
+    }]);
+
+    let res = state
+        .http_client
+        .post(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await
+        .context("관리자 감사 로그 생성 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 감사 로그 생성 실패: {}", body));
+    }
+
+    Ok(())
+}
+
+/// 실제 content_reports 테이블에서 현재 신고 상태를 조회한다.
+///
+/// 감사 로그의 before_status를 남기기 위해 PATCH 전에 호출한다.
+/// view가 아니라 실제 테이블을 보는 이유:
+/// - 필요한 값은 status 하나뿐이다.
+/// - view 변경과 무관하게 안정적으로 동작한다.
+async fn get_content_report_status_by_id(
+    state: &AppState,
+    report_id: Uuid,
+) -> Result<String> {
+    let url = format!(
+        "{}/rest/v1/content_reports?id=eq.{}&select=status&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        report_id
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("신고 현재 상태 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("신고 현재 상태 조회 실패: {}", body));
+    }
+
+    #[derive(serde::Deserialize)]
+    struct StatusRow {
+        status: String,
+    }
+
+    let rows: Vec<StatusRow> = res
+        .json()
+        .await
+        .context("신고 현재 상태 조회 응답 파싱 실패")?;
+
+    let row = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("신고를 찾을 수 없습니다."))?;
+
+    Ok(row.status)
+}
+
 /// 관리자: 신고 상태 변경 공통 함수
 ///
 /// resolve/reject가 하는 일이 거의 같기 때문에
@@ -509,26 +639,36 @@ pub async fn list_content_reports(
 /// - reviewed_at: 현재 시각
 /// - reviewed_by: 처리한 관리자 user_id
 ///
-/// 중요:
-/// PATCH 대상은 실제 테이블인 content_reports다.
-/// view는 조회용으로만 사용한다.
-///
-/// 처리 후 반환:
-/// - PATCH 결과를 그대로 반환하지 않는다.
-/// - PATCH 결과에는 reporter_nickname, reporter_email이 없기 때문이다.
-/// - 그래서 PATCH 성공 후 view에서 다시 단건 조회해서 반환한다.
+/// 추가:
+/// - 상태 변경 성공 후 admin_audit_logs에 감사 로그를 남긴다.
 async fn update_content_report_status(
     state: &AppState,
     admin_id: Uuid,
     report_id: Uuid,
     status: &str,
 ) -> Result<AdminContentReportResponse> {
+    // 1. 변경 전 상태 조회.
+    //
+    // 감사 로그에 before_status를 남기기 위해 PATCH 전에 조회한다.
+    let before_status = get_content_report_status_by_id(state, report_id).await?;
+
+    // 2. 이미 같은 상태라면 불필요한 중복 처리를 막는다.
+    //
+    // 예:
+    // 이미 resolved인데 다시 resolved 요청이 온 경우.
+    if before_status == status {
+        return get_content_report_from_view_by_id(state, report_id).await;
+    }
+
     let url = format!(
         "{}/rest/v1/content_reports?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
         report_id
     );
 
+    let reviewed_at = Utc::now().to_rfc3339();
+
+    // 3. 실제 신고 상태 변경.
     let res = state
         .http_client
         .patch(&url)
@@ -540,7 +680,7 @@ async fn update_content_report_status(
         .header("Prefer", "return=representation")
         .json(&serde_json::json!({
             "status": status,
-            "reviewed_at": Utc::now().to_rfc3339(),
+            "reviewed_at": reviewed_at,
             "reviewed_by": admin_id
         }))
         .send()
@@ -552,39 +692,37 @@ async fn update_content_report_status(
         return Err(anyhow!("관리자 신고 상태 변경 실패: {}", body));
     }
 
-    // PATCH가 성공했다면 최종 응답은 view에서 다시 조회한다.
-    // 그래야 reporter_nickname, reporter_email이 포함된다.
-    let response = get_content_report_from_view_by_id(state, report_id).await?;
+    // PATCH 응답 본문은 여기서 쓰지 않는다.
+    // reporter_nickname/reporter_email/target_report_count가 필요해서
+    // 최종 응답은 view에서 다시 조회한다.
 
-    // 신고자에게 처리 결과 알림 발행
-    // - resolved: 신고가 받아들여져 처리됨
-    // - rejected: 신고가 반려됨
-    // 실패해도 상태 변경 자체는 성공이므로 에러 로그만 남기고 진행
-    let (notification_type_suffix, message) = match status {
-        "resolved" => (
-            "resolved",
-            "접수하신 신고가 처리되었어요. 검토 결과 정책 위반이 확인되었습니다.",
-        ),
-        "rejected" => (
-            "rejected",
-            "접수하신 신고가 반려되었어요. 정책 위반이 확인되지 않았습니다.",
-        ),
-        _ => ("status", "신고 상태가 변경되었어요."),
+    // 4. 감사 로그 기록.
+    //
+    // action은 status에 따라 명확하게 분리한다.
+    let action = match status {
+        "resolved" => "content_report_resolved",
+        "rejected" => "content_report_rejected",
+        _ => "content_report_status_changed",
     };
-    let reporter_notification_type =
-        format!("report_{}_{}", notification_type_suffix, &report_id.to_string()[..8]);
-    if let Err(e) = crate::notification::service::create_notification(
-        state,
-        response.reporter_id,
-        &reporter_notification_type,
-        message,
-    )
-    .await
-    {
-        tracing::error!("신고 처리 결과 알림 생성 실패: {}", e);
-    }
 
-    Ok(response)
+    create_admin_audit_log(
+        state,
+        admin_id,
+        action,
+        "content_report",
+        report_id,
+        Some(before_status.as_str()),
+        Some(status),
+        serde_json::json!({
+            "report_id": report_id,
+            "reviewed_by": admin_id,
+            "reviewed_at": reviewed_at
+        }),
+    )
+        .await?;
+
+    // 5. 최종 응답은 view에서 다시 조회한다.
+    get_content_report_from_view_by_id(state, report_id).await
 }
 
 /// 관리자: 신고 처리 완료
@@ -618,6 +756,50 @@ pub async fn reject_content_report(
     report_id: Uuid,
 ) -> Result<AdminContentReportResponse> {
     update_content_report_status(state, admin_id, report_id, "rejected").await
+}
+
+/// 관리자: 특정 신고의 감사 로그 조회
+///
+/// API:
+/// GET /api/admin/content-reports/{id}/audit-logs
+///
+/// 동작:
+/// - admin_audit_logs에서 target_type=content_report
+/// - target_id=신고 ID
+/// - created_at desc 정렬
+pub async fn list_content_report_audit_logs(
+    state: &AppState,
+    report_id: Uuid,
+) -> Result<Vec<AdminAuditLogResponse>> {
+    let url = format!(
+        "{}/rest/v1/admin_audit_logs?select=id,admin_id,action,target_type,target_id,before_status,after_status,metadata,created_at&target_type=eq.content_report&target_id=eq.{}&order=created_at.desc",
+        state.config.supabase_url.trim_end_matches('/'),
+        report_id
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("관리자 감사 로그 목록 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 감사 로그 목록 조회 실패: {}", body));
+    }
+
+    let rows: Vec<AdminAuditLog> = res
+        .json()
+        .await
+        .context("관리자 감사 로그 목록 응답 파싱 실패")?;
+
+    Ok(rows.into_iter().map(to_audit_log_response).collect())
 }
 
 /// 관리자: 회원 목록 조회 (페이지네이션 + 검색)

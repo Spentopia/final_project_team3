@@ -233,6 +233,31 @@ pub async fn reject_content_report(
 
 #[utoipa::path(
     get,
+    path = "/api/admin/content-reports/{id}/audit-logs",
+    tag = "관리자",
+    params(
+        ("id" = Uuid, Path, description = "신고 ID")
+    ),
+    responses(
+        (status = 200, description = "신고 감사 로그 조회 성공", body = [crate::admin::dto::AdminAuditLogResponse]),
+        (status = 401, description = "인증 실패"),
+        (status = 403, description = "관리자 권한 없음"),
+        (status = 404, description = "신고 없음")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn list_content_report_audit_logs(
+    State(state): State<AppState>,
+    Path(report_id): Path<Uuid>,
+) -> impl IntoResponse {
+    match service::list_content_report_audit_logs(&state, report_id).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_admin_error(e),
+    }
+}
+
+#[utoipa::path(
+    get,
     path = "/api/admin/users",
     tag = "관리자",
     params(

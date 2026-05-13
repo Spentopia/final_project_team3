@@ -343,3 +343,53 @@ pub struct AdminUserListResponse {
     pub page: i64,
     pub page_size: i64,
 }
+
+// ─────────────────────────────────────────────
+// 관리자 감사 로그 응답 DTO
+// ─────────────────────────────────────────────
+//
+// 관리자 신고 상세 모달에서 특정 신고에 대한 감사 로그를 표시할 때 사용한다.
+
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct AdminAuditLogResponse {
+    pub id: Uuid,
+
+    // 작업을 수행한 관리자 ID.
+    pub admin_id: Uuid,
+
+    // 작업 종류.
+    //
+    // 예:
+    // - content_report_resolved
+    // - content_report_rejected
+    pub action: String,
+
+    // 작업 대상 타입.
+    //
+    // 이번 기능에서는 content_report만 사용한다.
+    pub target_type: String,
+
+    // 작업 대상 ID.
+    //
+    // content_report의 경우 content_reports.id.
+    pub target_id: Uuid,
+
+    // 변경 전 상태.
+    //
+    // 예: pending
+    pub before_status: Option<String>,
+
+    // 변경 후 상태.
+    //
+    // 예: resolved / rejected
+    pub after_status: Option<String>,
+
+    // 추가 메타데이터.
+    //
+    // 현재는 report_id, reviewed_by 정도만 넣는다.
+    // 나중에 IP, user_agent 같은 필드를 확장할 수 있다.
+    pub metadata: serde_json::Value,
+
+    // 로그 생성 시각.
+    pub created_at: Option<DateTime<Utc>>,
+}
