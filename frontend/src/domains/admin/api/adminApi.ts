@@ -52,6 +52,54 @@ export type ContentReportReason =
     | "spam"
     | "other";
 
+// ─────────────────────────────────────────────
+// 페이지네이션 공통 응답 타입
+// ─────────────────────────────────────────────
+//
+// 백엔드 AdminContentReportListResponse / AdminUserListResponse와 매칭.
+// 커뮤니티 CommunityPostListResponse와 필드명 통일 (total_count, items).
+
+export interface AdminContentReportListResponse {
+    items: AdminContentReportResponse[];
+    total_count: number;
+    page: number;
+    page_size: number;
+}
+
+export interface AdminUserListResponse {
+    items: AdminUserResponse[];
+    total_count: number;
+    page: number;
+    page_size: number;
+}
+
+// ─────────────────────────────────────────────
+// 신고 관리 API
+// ─────────────────────────────────────────────
+
+// 관리자 신고 목록 조회 (페이지네이션 + 검색 + 필터)
+//
+// 모든 파라미터는 선택.
+// 생략하면 백엔드 기본값(page=1, page_size=20, 필터 없음)으로 동작.
+export type ListAdminContentReportsParams = {
+    status?: ContentReportStatus;
+    target_type?: ContentReportTargetType;
+    reason?: ContentReportReason;
+    keyword?: string;
+    page?: number;
+    page_size?: number;
+};
+
+// ─────────────────────────────────────────────
+// 회원 관리 API
+// ─────────────────────────────────────────────
+
+export type ListAdminUsersParams = {
+    keyword?: string;
+    page?: number;
+    page_size?: number;
+};
+
 // 관리자 신고 응답 타입
 //
 // 백엔드 AdminContentReportResponse와 맞춰야 한다.
@@ -267,13 +315,19 @@ export type UpdateAdminContestRequest = {
 // listAdminContentReports()
 // listAdminContentReports("pending")
 export async function listAdminContentReports(
-    status?: ContentReportStatus
-): Promise<AdminContentReportResponse[]> {
-    const res = await apiClient.get<AdminContentReportResponse[]>(
-        "/api/admin/content-reports",{
+    params: ListAdminContentReportsParams = {}
+): Promise<AdminContentReportListResponse> {
+    const res = await apiClient.get<AdminContentReportListResponse>(
+        "/api/admin/content-reports",
+        {
             params: {
-                status,
-            }
+                status: params.status,
+                target_type: params.target_type,
+                reason: params.reason,
+                keyword: params.keyword || undefined,
+                page: params.page,
+                page_size: params.page_size,
+            },
         }
     );
     return res.data;
@@ -316,14 +370,15 @@ export const rejectAdminContentReport = async (
 // listAdminUsers("test@example.com")
 // listAdminUsers("은영")
 export async function listAdminUsers(
-    keyword?: string
-): Promise<AdminUserResponse[]> {
-    const res = await apiClient.get<AdminUserResponse[]>("/api/admin/users", {
+    params: ListAdminUsersParams = {}
+): Promise<AdminUserListResponse> {
+    const res = await apiClient.get<AdminUserListResponse>("/api/admin/users", {
         params: {
-            keyword: keyword || undefined,
+            keyword: params.keyword || undefined,
+            page: params.page,
+            page_size: params.page_size,
         },
     });
-
     return res.data;
 }
 
