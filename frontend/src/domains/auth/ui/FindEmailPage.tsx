@@ -39,7 +39,6 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
-import { Sparkles } from "lucide-react";
 
 // Turnstile 전역 타입 선언
 declare global {
@@ -209,15 +208,19 @@ export default function FindEmailPage() {
   const isGoogleOnly = result?.login_provider === "google";
 
   const isKakao = result?.login_provider === "kakao";
+  const authPrimaryButtonClass =
+    "spentopia-light-nft-button";
+  const googleLoginButtonClass =
+    "w-full rounded-xl border border-gray-200 bg-white text-gray-900 hover:bg-gray-50 dark:border-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-50";
+  const kakaoLoginButtonClass =
+    "w-full rounded-xl border-0 bg-[#FEE500] text-[#191600] hover:bg-[#FEE500] dark:bg-[#FEE500] dark:text-[#191600] dark:hover:bg-[#FEE500]";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-500 via-blue-500 to-teal-500 p-4 dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900">
-      <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 backdrop-blur-xl dark:bg-gray-900/95">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.16),transparent_34%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-[#090b16] dark:bg-none">
+      <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 shadow-2xl backdrop-blur-xl dark:bg-[#0b1020]/95 dark:shadow-black/40">
         <div className="p-8">
           <div className="mb-8 flex flex-col items-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg">
-              <Sparkles className="h-8 w-8 text-white" />
-            </div>
+            <img src="/favicon.svg" alt="Spentopia" className="mb-4 h-16 w-16" />
             <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
               이메일 찾기
             </h1>
@@ -230,7 +233,7 @@ export default function FindEmailPage() {
                   <p className="text-gray-600 dark:text-gray-400">
                     등록된 이메일:
                   </p>
-                  <p className="text-xl font-bold text-cyan-600 dark:text-cyan-400">
+                  <p className="text-xl font-bold text-[#1E1B4B] dark:text-[#c4b5fd]">
                     {result.masked_email}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -239,12 +242,12 @@ export default function FindEmailPage() {
 
                   <div className="flex gap-3 pt-4">
                     <Link to="/login" className="flex-1">
-                      <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600">
+                      <Button className={`w-full ${authPrimaryButtonClass}`}>
                         로그인
                       </Button>
                     </Link>
                     <Link to="/forgot-password" className="flex-1">
-                      <Button variant="outline" className="w-full">
+	                      <Button variant="outline" className="w-full spentopia-light-nft-button">
                         비밀번호 찾기
                       </Button>
                     </Link>
@@ -257,7 +260,7 @@ export default function FindEmailPage() {
                   <p className="text-gray-600 dark:text-gray-400">
                     등록된 이메일:
                   </p>
-                  <p className="text-xl font-bold text-cyan-600 dark:text-cyan-400">
+                  <p className="text-xl font-bold text-[#1E1B4B] dark:text-[#c4b5fd]">
                     {result.masked_email}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -266,7 +269,7 @@ export default function FindEmailPage() {
 
                   <div className="grid gap-3 pt-4">
                     <Link to="/login">
-                      <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600">
+                      <Button className={`w-full ${authPrimaryButtonClass}`}>
                         이메일 로그인
                       </Button>
                     </Link>
@@ -274,13 +277,13 @@ export default function FindEmailPage() {
                     <Button
                       type="button"
                       onClick={handleGoogleLogin}
-                      className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                      className={googleLoginButtonClass}
                     >
                       구글 로그인
                     </Button>
 
                     <Link to="/forgot-password">
-                      <Button variant="outline" className="w-full">
+	                      <Button variant="outline" className="w-full spentopia-light-nft-button">
                         비밀번호 찾기
                       </Button>
                     </Link>
@@ -293,7 +296,7 @@ export default function FindEmailPage() {
                   <p className="text-gray-600 dark:text-gray-400">
                     등록된 이메일:
                   </p>
-                  <p className="text-xl font-bold text-cyan-600 dark:text-cyan-400">
+                  <p className="text-xl font-bold text-[#1E1B4B] dark:text-[#c4b5fd]">
                     {result.masked_email}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -304,7 +307,7 @@ export default function FindEmailPage() {
                     <Button
                       type="button"
                       onClick={handleGoogleLogin}
-                      className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                      className={googleLoginButtonClass}
                     >
                       구글 로그인
                     </Button>
@@ -322,7 +325,7 @@ export default function FindEmailPage() {
                     <Button
                       type="button"
                       onClick={handleKakaoLogin}
-                      className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                      className={kakaoLoginButtonClass}
                     >
                       카카오 로그인
                     </Button>
@@ -338,7 +341,7 @@ export default function FindEmailPage() {
 
                   <div className="pt-4">
                     <Link to="/login">
-                      <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600">
+                      <Button className={`w-full ${authPrimaryButtonClass}`}>
                         로그인으로 이동
                       </Button>
                     </Link>
@@ -350,7 +353,7 @@ export default function FindEmailPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full"
+	                  className="w-full spentopia-light-nft-button"
                   onClick={resetResult}
                 >
                   다시 찾기
@@ -379,7 +382,7 @@ export default function FindEmailPage() {
               <Button
                 type="submit"
                 disabled={loading || !captchaToken}
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                className={`w-full ${authPrimaryButtonClass}`}
               >
                 {loading ? "찾는 중..." : "이메일 찾기"}
               </Button>
@@ -387,7 +390,7 @@ export default function FindEmailPage() {
               <div className="text-center">
                 <Link
                   to="/login"
-                  className="text-sm text-gray-500 hover:text-cyan-600 dark:text-gray-400"
+                  className="text-sm text-gray-500 hover:text-[#1E1B4B] dark:text-gray-400 dark:hover:text-[#c4b5fd]"
                 >
                   로그인으로 돌아가기
                 </Link>

@@ -1,0 +1,72 @@
+.marketCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  border: 1px solid rgba(37, 99, 235, 0.14) !important;
+  border-radius: 0.75rem;
+  background-color: #ffffff !important;
+  background-image:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(241, 245, 249, 0.94)) !important;
+  box-shadow:
+    0 10px 30px rgba(37, 99, 235, 0.06),
+    0 2px 10px rgba(15, 23, 42, 0.04) !important;
+}
+
+.marketInner {
+  border: 1px solid rgba(59, 130, 246, 0.16) !important;
+  background-color: #f1f5f9 !important;
+  background-image: linear-gradient(135deg, #ffffff 0%, #f8fafc 52%, #e0f2fe 100%) !important;
+  box-shadow:
+    0 10px 30px rgba(37, 99, 235, 0.06),
+    0 2px 10px rgba(15, 23, 42, 0.04) !important;
+}
+
+.marketExpenseSubmitButton {
+  border: 1px solid rgba(37, 99, 235, 0.18) !important;
+  background-color: #ffffff !important;
+  background-image:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(241, 245, 249, 0.94)) !important;
+  color: #0f172a !important;
+  box-shadow:
+    0 10px 30px rgba(37, 99, 235, 0.06),
+    0 2px 10px rgba(15, 23, 42, 0.04) !important;
+}
+
+.marketExpenseSubmitButton:hover {
+  border-color: rgba(37, 99, 235, 0.3) !important;
+  background-color: #2563eb !important;
+  background-image: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 14px 34px rgba(37, 99, 235, 0.2),
+    0 3px 12px rgba(15, 23, 42, 0.06) !important;
+}
+
+:global(.dark) .marketCard {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: #111827 !important;
+  background-image: linear-gradient(135deg, #090b16, #111827 52%, #2d1847) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+:global(.dark) .marketInner {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: #111827 !important;
+  background-image: linear-gradient(135deg, rgba(9, 11, 22, 0.9), rgba(17, 24, 39, 0.9) 52%, rgba(45, 24, 71, 0.9)) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+:global(.dark) .marketExpenseSubmitButton {
+  border-color: rgba(124, 58, 237, 0.35) !important;
+  background-color: #111827 !important;
+  background-image: linear-gradient(135deg, #090b16, #111827 52%, #2d1847) !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 32px rgba(45, 24, 71, 0.34) !important;
+}
+
+:global(.dark) .marketExpenseSubmitButton:hover {
+  border-color: rgba(124, 58, 237, 0.45) !important;
+  background-image: linear-gradient(135deg, #111827, #1e1b4b 48%, #3b1770) !important;
+}

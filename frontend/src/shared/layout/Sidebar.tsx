@@ -76,7 +76,7 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
         </div>
         <div>
           <h1 className="font-bold text-sidebar-foreground">Spentopia</h1>
-          <p className="text-xs text-muted-foreground">소비를 자산으로</p>
+          <p className="text-xs text-[#52647e] dark:text-muted-foreground">소비를 자산으로</p>
         </div>
       </div>
 
@@ -92,7 +92,7 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
               to={item.path}
               className={`relative flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-card before:absolute before:left-1.5 before:top-1/2 before:h-6 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-luxury-gold"
+                  ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] before:absolute before:left-1.5 before:top-1/2 before:h-6 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-white/80 dark:bg-gradient-to-r dark:from-[#090b16] dark:via-[#111827] dark:to-[#2d1847] dark:text-white dark:shadow-lg dark:shadow-[#7c3aed]/20 dark:before:bg-luxury-gold"
                   : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
               }`}
             >
@@ -113,7 +113,7 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
             }}
             className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-all ${
               isProfileSectionActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-card before:absolute before:left-1.5 before:top-1/2 before:h-6 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-luxury-gold"
+                ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] before:absolute before:left-1.5 before:top-1/2 before:h-6 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-white/80 dark:bg-gradient-to-r dark:from-[#090b16] dark:via-[#111827] dark:to-[#2d1847] dark:text-white dark:shadow-lg dark:shadow-[#7c3aed]/20 dark:before:bg-luxury-gold"
                 : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
             }`}
           >
@@ -135,7 +135,7 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
                     to={item.path}
                     className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
                       isActive
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white shadow-[0_8px_18px_rgba(37,99,235,0.18)] dark:bg-sidebar-accent dark:text-sidebar-accent-foreground"
                         : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
                     }`}
                   >
@@ -152,10 +152,10 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
         <button
           type="button"
           onClick={onWeeklyScoreClick}
-          className="flex w-full flex-col items-start justify-center rounded-xl border border-sidebar-border bg-card px-4 py-3 text-card-foreground shadow-card transition-all hover:-translate-y-0.5 hover:border-luxury-gold/30"
+          className="flex w-full flex-col items-start justify-center rounded-xl border border-sidebar-border bg-card px-4 py-3 text-card-foreground shadow-card transition-all hover:-translate-y-0.5 hover:border-[#2563eb]/30 hover:shadow-[0_14px_34px_rgba(37,99,235,0.16)] dark:hover:border-luxury-gold/30"
         >
           <span className="flex items-center gap-2 font-semibold">
-            <Zap className="h-4 w-4 text-luxury-gold" />
+            <Zap className="h-4 w-4 text-[#2563eb] dark:text-luxury-gold" />
             이번 주 성실도
           </span>
           <span className="mt-1 text-2xl font-extrabold text-foreground">{weeklyScore}점</span>
@@ -164,7 +164,7 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
         {/* 이용가이드 버튼 */}
         <Link
           to="/guide"
-          className="mt-6 flex w-full items-center justify-center rounded-xl border border-sidebar-border bg-[var(--surface-subtle)] px-4 py-3 font-semibold text-sidebar-foreground shadow-card transition-all hover:-translate-y-0.5 hover:border-luxury-gold/30"
+          className="mt-6 flex w-full items-center justify-center rounded-xl border border-sidebar-border bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_48%,#dbeafe_100%)] px-4 py-3 font-semibold text-sidebar-foreground shadow-card transition-all hover:-translate-y-0.5 hover:border-[#2563eb]/30 hover:bg-[linear-gradient(135deg,#3b82f6,#2563eb)] hover:text-white hover:shadow-[0_14px_34px_rgba(37,99,235,0.18)] dark:bg-gradient-to-r dark:from-[#090b16] dark:via-[#111827] dark:to-[#2d1847] dark:text-white dark:shadow-lg dark:shadow-[#7c3aed]/20 dark:hover:border-luxury-gold/30"
         >
           이용가이드
         </Link>

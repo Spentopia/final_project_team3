@@ -35,7 +35,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
 import type { FormEvent } from "react";
-import { Sparkles, Dices } from "lucide-react";
+import { Dices } from "lucide-react";
 import { formatPhone } from "@/shared/lib/phone";
 import { toast } from "sonner";
 
@@ -368,14 +368,15 @@ export default function Signup() {
     setFormData({ ...formData, [field]: value });
   };
 
+  const authPrimaryButtonClass =
+      "spentopia-light-nft-button";
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-500 via-blue-500 to-teal-500 dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900 p-4">
-      <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.16),transparent_34%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-[#090b16] dark:bg-none">
+      <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 shadow-2xl backdrop-blur-xl dark:bg-[#0b1020]/95 dark:shadow-black/40">
         <div className="p-8">
           <div className="mb-8 flex flex-col items-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg">
-              <Sparkles className="h-8 w-8 text-white" />
-            </div>
+            <img src="/favicon.svg" alt="Spentopia" className="mb-4 h-16 w-16" />
             <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
               회원가입
             </h1>
@@ -390,7 +391,7 @@ export default function Signup() {
                 key={s}
                 className={`h-2 flex-1 rounded-full ${
                   s <= step
-                    ? "bg-gradient-to-br from-cyan-500 via-blue-500 to-teal-500"
+                    ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] dark:bg-[#1E1B4B]"
                     : "bg-gray-200 dark:bg-gray-700"
                 }`}
               />
@@ -486,7 +487,7 @@ export default function Signup() {
                         onClick={handleGenerateNickname}
                         disabled={nicknameChecking}
                         title="랜덤 닉네임 생성"
-                        className="flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                        className="flex items-center justify-center rounded-md border border-gray-200 bg-white px-3 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
                     >
                       <Dices
                           className={`h-4 w-4 text-gray-500 dark:text-gray-400 ${
@@ -530,8 +531,8 @@ export default function Signup() {
                         onClick={() => updateFormData("avatar", avatar.id)}
                         className={`flex flex-col items-center justify-center rounded-xl border-2 p-4 transition-all ${
                           formData.avatar === avatar.id
-                            ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/30 shadow-lg"
-                            : "border-gray-200 dark:border-gray-700 hover:border-cyan-300 dark:hover:border-cyan-600"
+                            ? "border-[#2563eb] bg-[#eff6ff] shadow-lg dark:border-[#7c3aed] dark:bg-[#1E1B4B]/40"
+                            : "border-gray-200 hover:border-[#b9b2ff] dark:border-gray-700 dark:hover:border-[#7c3aed]"
                         }`}
                       >
                         <span className="mb-2 text-4xl">{avatar.emoji}</span>
@@ -543,11 +544,11 @@ export default function Signup() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-cyan-200 dark:border-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 p-4">
-                  <p className="mb-2 font-bold text-purple-900 dark:text-purple-100">
+                <div className="rounded-lg border border-[#d8d3ff] bg-[#f4f2ff] p-4 dark:border-[#7c3aed]/40 dark:bg-[#1E1B4B]/30">
+                  <p className="mb-2 font-bold text-[#1e3a8a] dark:text-purple-100">
                     🎁 가입 축하 선물!
                   </p>
-                  <p className="text-sm text-purple-700 dark:text-purple-300">
+                  <p className="text-sm text-[#2563eb] dark:text-purple-300">
                     회원가입 완료 시 기본 아바타를 지급하고 프로필 설정을 바로 이어서
                     할 수 있어요.
                   </p>
@@ -561,7 +562,7 @@ export default function Signup() {
                   type="button"
                   variant="outline"
                   onClick={handleBack}
-                  className="flex-1"
+                  className={`flex-1 ${authPrimaryButtonClass}`}
                 >
                   이전
                 </Button>
@@ -569,12 +570,13 @@ export default function Signup() {
 
               <Button
                 type="submit"
+                variant="outline"
                 disabled={
                   loading ||
                   profileImage.uploading ||
                   (step === 1 && !captchaToken)
                 }
-                className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                className={`flex-1 ${authPrimaryButtonClass}`}
               >
                 {loading || profileImage.uploading
                   ? "처리 중..."
@@ -590,7 +592,7 @@ export default function Signup() {
               이미 계정이 있으신가요?{" "}
               <Link
                 to="/login"
-                className="font-bold text-cyan-600 dark:text-cyan-400 hover:text-purple-700 dark:hover:text-purple-300"
+                className="font-bold text-[#1E1B4B] hover:underline dark:text-[#c4b5fd]"
               >
                 로그인
               </Link>

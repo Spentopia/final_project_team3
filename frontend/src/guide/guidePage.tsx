@@ -59,7 +59,7 @@ function WalletAppGuide() {
 
   return (
     <div className="space-y-4">
-      <Card className="border-none spentopia-soft-card p-5 backdrop-blur-xl">
+      <Card className="border-none spentopia-soft-card spentopia-nft-card-tone p-5 backdrop-blur-xl">
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-violet-300" />
           <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -70,12 +70,12 @@ function WalletAppGuide() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         {wallets.map((w) => (
-          <Card key={w.name} className="border-none spentopia-soft-card p-5 backdrop-blur-xl">
+          <Card key={w.name} className="border-none spentopia-soft-card spentopia-nft-card-tone p-5 backdrop-blur-xl">
             <p className="mb-4 font-bold text-gray-900 dark:text-gray-100">{w.name}</p>
             <ol className="space-y-3">
               {w.steps.map((s, i) => (
                 <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-700 dark:bg-gradient-to-r dark:from-[#090b16] dark:via-[#4338ca] dark:to-[#7c3aed] dark:text-white">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full spentopia-step-badge text-[10px] font-bold">
                     {i + 1}
                   </span>
                   {s}
@@ -86,7 +86,7 @@ function WalletAppGuide() {
         ))}
       </div>
 
-      <Card className="border-none spentopia-soft-card p-5 backdrop-blur-xl">
+      <Card className="border-none spentopia-soft-card spentopia-nft-card-tone p-5 backdrop-blur-xl">
         <p className="mb-3 font-bold text-gray-900 dark:text-gray-100">연동 해제</p>
         <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
           <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
@@ -121,7 +121,7 @@ function WalletWebGuide() {
 
   return (
     <div className="space-y-4">
-      <Card className="border-none spentopia-soft-card p-5 backdrop-blur-xl">
+      <Card className="border-none spentopia-soft-card spentopia-nft-card-tone p-5 backdrop-blur-xl">
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-violet-300" />
           <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -132,12 +132,12 @@ function WalletWebGuide() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         {wallets.map((w) => (
-          <Card key={w.name} className="border-none spentopia-soft-card p-5 backdrop-blur-xl">
+          <Card key={w.name} className="border-none spentopia-soft-card spentopia-nft-card-tone p-5 backdrop-blur-xl">
             <p className="mb-4 font-bold text-gray-900 dark:text-gray-100">{w.name}</p>
             <ol className="space-y-3">
               {w.steps.map((s, i) => (
                 <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-700 dark:bg-gradient-to-r dark:from-[#090b16] dark:via-[#4338ca] dark:to-[#7c3aed] dark:text-white">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full spentopia-step-badge text-[10px] font-bold">
                     {i + 1}
                   </span>
                   {s}
@@ -148,7 +148,7 @@ function WalletWebGuide() {
         ))}
       </div>
 
-      <Card className="border-none spentopia-soft-card p-5 backdrop-blur-xl">
+      <Card className="border-none spentopia-soft-card spentopia-nft-card-tone p-5 backdrop-blur-xl">
         <p className="mb-3 font-bold text-gray-900 dark:text-gray-100">공통 안내</p>
         <div className="space-y-2">
           {[
@@ -203,7 +203,7 @@ export default function GuidePage() {
   ];
 
   return (
-    <div className="min-h-full bg-gradient-to-br from-cyan-50 via-white to-blue-50 p-6 dark:from-gray-950 dark:via-gray-900 dark:to-cyan-950/30">
+    <div className="min-h-full p-6">
       <div className="mx-auto max-w-6xl space-y-6">
 
         {/* 헤더 */}
@@ -222,7 +222,7 @@ export default function GuidePage() {
 
         {/* 메인 탭 */}
         <Tabs defaultValue="start">
-          <TabsList className="h-auto w-full justify-start gap-1 spentopia-soft-card p-1.5 backdrop-blur-xl">
+          <TabsList className="h-auto w-full justify-start gap-1 spentopia-soft-card spentopia-nft-card-tone p-1.5 backdrop-blur-xl">
             {[
               { value: "start",     icon: Sparkles,  label: "시작하기" },
               { value: "wallet",    icon: Wallet,    label: "지갑 연동" },
@@ -241,13 +241,13 @@ export default function GuidePage() {
           <TabsContent value="start" className="mt-4 space-y-4">
             <div className="grid gap-4 lg:grid-cols-2">
               {startSteps.map(({ icon: Icon, step, title, desc, points }) => (
-                <Card key={step} className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+                <Card key={step} className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
                   <div className="mb-4 flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 shadow-md dark:bg-[#0f172a] dark:text-violet-300">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl spentopia-guide-icon">
                       <Icon className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-slate-600 dark:text-violet-300">STEP {step}</p>
+                      <p className="text-xs font-semibold spentopia-guide-label">STEP {step}</p>
                       <h3 className="font-bold text-gray-900 dark:text-gray-100">{title}</h3>
                     </div>
                   </div>
@@ -265,12 +265,12 @@ export default function GuidePage() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
-              <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+              <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
                 <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">추천 루틴</h3>
                 <div className="flex flex-wrap items-center gap-2">
                   {["소비 기록", "영수증 인증", "한 줄 일기", "분석 확인"].map((s, i, arr) => (
                     <div key={s} className="flex items-center gap-2">
-                      <Badge variant="outline" className="border-slate-200 text-slate-700 dark:border-violet-700 dark:text-violet-300">
+                      <Badge variant="outline" className="spentopia-guide-chip">
                         {s}
                       </Badge>
                       {i < arr.length - 1 && <span className="text-gray-400">→</span>}
@@ -278,8 +278,8 @@ export default function GuidePage() {
                   ))}
                 </div>
               </Card>
-              <Card className="border-none spentopia-soft-card p-6 text-gray-900 shadow-xl">
-                <Coins className="mb-3 h-6 w-6 text-slate-700 dark:text-violet-300" />
+              <Card className="border-none spentopia-soft-card spentopia-nft-card-tone p-6 text-gray-900 shadow-xl">
+                <Coins className="mb-3 h-6 w-6 spentopia-guide-label" />
                 <p className="font-bold text-gray-900 dark:text-gray-100">매일 1회</p>
                 <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">짧게라도 꾸준히</p>
               </Card>
@@ -288,9 +288,9 @@ export default function GuidePage() {
 
           {/* ── 지갑 연동 ── */}
           <TabsContent value="wallet" className="mt-4 space-y-4">
-            <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+            <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 dark:bg-[#0f172a] dark:text-violet-300">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl spentopia-guide-icon">
                   <Wallet className="h-5 w-5" />
                 </div>
                 <div>
@@ -323,9 +323,9 @@ export default function GuidePage() {
 
           {/* ── NFT 마켓 ── */}
           <TabsContent value="market" className="mt-4 space-y-4">
-            <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+            <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 dark:bg-[#0f172a] dark:text-violet-300">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl spentopia-guide-icon">
                   <Coins className="h-5 w-5" />
                 </div>
                 <div>
@@ -339,8 +339,8 @@ export default function GuidePage() {
                   { label: "사용", value: "NFT 마켓 아바타 구매" },
                   { label: "조회", value: "프로필 → 보유 SPT" },
                 ].map((item) => (
-                  <div key={item.label} className="rounded-xl bg-slate-100 p-3 dark:bg-[#0f172a]">
-                    <p className="text-xs font-semibold text-slate-700 dark:text-violet-300">{item.label}</p>
+                  <div key={item.label} className="rounded-xl spentopia-market-light-soft p-3">
+                    <p className="text-xs font-semibold spentopia-guide-label">{item.label}</p>
                     <p className="mt-1 text-sm font-bold text-gray-900 dark:text-gray-100">{item.value}</p>
                   </div>
                 ))}
@@ -348,9 +348,9 @@ export default function GuidePage() {
             </Card>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+              <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
                 <div className="mb-4 flex items-center gap-3">
-                  <ShoppingBag className="h-5 w-5 text-slate-700 dark:text-violet-300" />
+                  <ShoppingBag className="h-5 w-5 spentopia-guide-label" />
                   <h3 className="font-bold text-gray-900 dark:text-gray-100">아바타 구매</h3>
                 </div>
                 <ol className="space-y-3">
@@ -361,22 +361,22 @@ export default function GuidePage() {
                     "승인 시 SPT 차감 + 아바타 지급",
                   ].map((s, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#090b16] via-[#4338ca] to-[#7c3aed] text-[10px] font-bold text-white">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full spentopia-step-badge text-[10px] font-bold">
                         {i + 1}
                       </span>
                       {s}
                     </li>
                   ))}
                 </ol>
-                <div className="mt-4 flex items-start gap-2 rounded-lg bg-slate-50 p-3 dark:bg-violet-950/20">
+                <div className="mt-4 flex items-start gap-2 rounded-lg spentopia-market-light-soft p-3">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-violet-300" />
                   <p className="text-xs text-gray-700 dark:text-gray-300">구매 전 프로필에서 SPT 잔액을 확인하세요.</p>
                 </div>
               </Card>
 
-              <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+              <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
                 <div className="mb-4 flex items-center gap-3">
-                  <Tag className="h-5 w-5 text-slate-700 dark:text-violet-300" />
+                  <Tag className="h-5 w-5 spentopia-guide-label" />
                   <h3 className="font-bold text-gray-900 dark:text-gray-100">아바타 판매 등록</h3>
                 </div>
                 <ol className="space-y-3">
@@ -387,23 +387,23 @@ export default function GuidePage() {
                     "구매 완료 시 SPT가 내 지갑으로 전송",
                   ].map((s, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#090b16] via-[#4338ca] to-[#7c3aed] text-[10px] font-bold text-white">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full spentopia-step-badge text-[10px] font-bold">
                         {i + 1}
                       </span>
                       {s}
                     </li>
                   ))}
                 </ol>
-                <div className="mt-4 flex items-start gap-2 rounded-lg bg-slate-50 p-3 dark:bg-violet-950/20">
+                <div className="mt-4 flex items-start gap-2 rounded-lg spentopia-market-light-soft p-3">
                   <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-violet-300" />
                   <p className="text-xs text-gray-700 dark:text-gray-300">판매 등록된 NFT는 에스크로 컨트랙트에 안전하게 보관됩니다.</p>
                 </div>
               </Card>
             </div>
 
-            <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+            <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
               <div className="mb-4 flex items-center gap-3">
-                <ShieldCheck className="h-5 w-5 text-slate-700 dark:text-violet-300" />
+                <ShieldCheck className="h-5 w-5 spentopia-guide-label" />
                 <h3 className="font-bold text-gray-900 dark:text-gray-100">에스크로 거래 흐름</h3>
               </div>
               <div className="grid grid-cols-3 gap-3">
@@ -412,8 +412,8 @@ export default function GuidePage() {
                   { step: "02", label: "구매 결제", desc: "SPT → 컨트랙트 예치" },
                   { step: "03", label: "자동 정산", desc: "NFT → 구매자 / SPT → 판매자" },
                 ].map((item) => (
-                  <div key={item.step} className="rounded-xl border border-slate-200 spentopia-soft-card p-4">
-                    <p className="text-xs font-semibold text-slate-600 dark:text-violet-300">STEP {item.step}</p>
+                  <div key={item.step} className="rounded-xl border border-slate-200 spentopia-market-light-soft p-4">
+                    <p className="text-xs font-semibold spentopia-guide-label">STEP {item.step}</p>
                     <p className="mt-1 font-bold text-gray-900 dark:text-gray-100">{item.label}</p>
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{item.desc}</p>
                   </div>
@@ -425,9 +425,9 @@ export default function GuidePage() {
           {/* ── 예산·분석 ── */}
           <TabsContent value="budget" className="mt-4 space-y-4">
             <div className="grid gap-4 lg:grid-cols-2">
-              <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+              <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
                 <div className="mb-4 flex items-center gap-3">
-                <PiggyBank className="h-5 w-5 text-slate-700 dark:text-violet-300" />
+                <PiggyBank className="h-5 w-5 spentopia-guide-label" />
                   <h3 className="font-bold text-gray-900 dark:text-gray-100">월 예산 설정</h3>
                 </div>
                 <ol className="space-y-3">
@@ -438,7 +438,7 @@ export default function GuidePage() {
                     "대시보드·분석에서 예산 대비 현황 확인",
                   ].map((s, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-700 dark:bg-gradient-to-r dark:from-[#090b16] dark:via-[#4338ca] dark:to-[#7c3aed] dark:text-white">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full spentopia-step-badge text-[10px] font-bold">
                         {i + 1}
                       </span>
                       {s}
@@ -447,9 +447,9 @@ export default function GuidePage() {
                 </ol>
               </Card>
 
-              <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+              <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
                 <div className="mb-4 flex items-center gap-3">
-                  <BrainCircuit className="h-5 w-5 text-slate-700 dark:text-violet-300" />
+                  <BrainCircuit className="h-5 w-5 spentopia-guide-label" />
                   <h3 className="font-bold text-gray-900 dark:text-gray-100">AI 예산 플랜</h3>
                 </div>
                 <ol className="space-y-3">
@@ -460,23 +460,23 @@ export default function GuidePage() {
                     "확정 시 해당 월 예산으로 즉시 반영",
                   ].map((s, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#090b16] via-[#4338ca] to-[#7c3aed] text-[10px] font-bold text-white">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full spentopia-step-badge text-[10px] font-bold">
                         {i + 1}
                       </span>
                       {s}
                     </li>
                   ))}
                 </ol>
-                <div className="mt-4 flex items-start gap-2 rounded-lg bg-slate-50 p-3 dark:bg-violet-950/20">
+                <div className="mt-4 flex items-start gap-2 rounded-lg spentopia-market-light-soft p-3">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-violet-300" />
                   <p className="text-xs text-gray-700 dark:text-gray-300">2주 이상 기록이 쌓일수록 추천 정확도가 올라가요.</p>
                 </div>
               </Card>
             </div>
 
-            <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+            <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
               <div className="mb-4 flex items-center gap-3">
-                <BarChart3 className="h-5 w-5 text-slate-700 dark:text-violet-300" />
+                <BarChart3 className="h-5 w-5 spentopia-guide-label" />
                 <h3 className="font-bold text-gray-900 dark:text-gray-100">분석 리포트</h3>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -486,7 +486,7 @@ export default function GuidePage() {
                   { label: "예산 대비 현황", desc: "설정 예산 vs 실제 소비 비율" },
                   { label: "AI 채팅 분석", desc: "챗봇에 질문하면 데이터 기반 답변" },
                 ].map((item) => (
-                  <div key={item.label} className="rounded-xl border border-slate-200 spentopia-soft-card p-4">
+                  <div key={item.label} className="rounded-xl border border-slate-200 spentopia-market-light-soft p-4">
                     <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{item.label}</p>
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{item.desc}</p>
                   </div>
@@ -494,7 +494,7 @@ export default function GuidePage() {
               </div>
             </Card>
 
-            <Card className="border-none spentopia-surface-card p-5 backdrop-blur-xl">
+            <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-5 backdrop-blur-xl">
               <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
                 <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-violet-300" />
                 예산 80% 초과 시 알림이 발송됩니다. 프로필 → 알림 설정에서 켜두세요.
@@ -510,8 +510,8 @@ export default function GuidePage() {
                 { icon: Sparkles,      label: "좋아요",  desc: "유용한 게시글에 공감 표현" },
                 { icon: Users,         label: "광장",    desc: "다른 유저 소비 기록 실시간 피드" },
               ].map(({ icon: Icon, label, desc }) => (
-                <Card key={label} className="border-none spentopia-surface-card p-5 backdrop-blur-xl">
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 dark:bg-[#0f172a] dark:text-violet-300">
+                <Card key={label} className="border-none spentopia-surface-card spentopia-nft-card-tone p-5 backdrop-blur-xl">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl spentopia-guide-icon">
                     <Icon className="h-5 w-5" />
                   </div>
                   <p className="font-bold text-gray-900 dark:text-gray-100">{label}</p>
@@ -521,9 +521,9 @@ export default function GuidePage() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+              <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
                 <div className="mb-4 flex items-center gap-3">
-                  <MessageSquare className="h-5 w-5 text-slate-700 dark:text-violet-300" />
+                  <MessageSquare className="h-5 w-5 spentopia-guide-label" />
                   <h3 className="font-bold text-gray-900 dark:text-gray-100">게시글 작성</h3>
                 </div>
                 <ol className="space-y-3">
@@ -534,7 +534,7 @@ export default function GuidePage() {
                     "등록 즉시 피드에 노출",
                   ].map((s, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-700 dark:bg-gradient-to-r dark:from-[#090b16] dark:via-[#4338ca] dark:to-[#7c3aed] dark:text-white">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full spentopia-step-badge text-[10px] font-bold">
                         {i + 1}
                       </span>
                       {s}
@@ -543,9 +543,9 @@ export default function GuidePage() {
                 </ol>
               </Card>
 
-              <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+              <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
                 <div className="mb-4 flex items-center gap-3">
-                  <Users className="h-5 w-5 text-slate-700 dark:text-violet-300" />
+                  <Users className="h-5 w-5 spentopia-guide-label" />
                   <h3 className="font-bold text-gray-900 dark:text-gray-100">광장 (Plaza)</h3>
                 </div>
                 <ul className="space-y-3">
@@ -560,7 +560,7 @@ export default function GuidePage() {
                     </li>
                   ))}
                 </ul>
-                <div className="mt-4 flex items-start gap-2 rounded-lg bg-slate-50 p-3 dark:bg-violet-950/20">
+                <div className="mt-4 flex items-start gap-2 rounded-lg spentopia-market-light-soft p-3">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-violet-300" />
                   <p className="text-xs text-gray-700 dark:text-gray-300">광장에는 닉네임만 공개돼요. 민감한 금액 정보는 직접 공유하지 않도록 주의하세요.</p>
                 </div>

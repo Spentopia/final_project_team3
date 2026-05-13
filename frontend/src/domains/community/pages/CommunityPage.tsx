@@ -1095,7 +1095,7 @@ export default function Community() {
             <p className="text-gray-600 dark:text-gray-300">다른 사용자들과 소통하고 경험을 나눠보세요</p>
           </div>
 
-          <Card className="border-none spentopia-surface-card backdrop-blur-xl overflow-hidden">
+          <Card className="border-none spentopia-surface-card spentopia-nft-card-tone backdrop-blur-xl overflow-hidden">
             {/* 게시글 헤더 */}
             <div className="px-8 pt-8 pb-6 border-b border-gray-100 dark:border-gray-700">
               <div className="flex items-center gap-2 mb-3">
@@ -1291,7 +1291,7 @@ export default function Community() {
                   <Button
                     type="submit"
                     disabled={isCommentSubmitting}
-                    className="h-10 px-5"
+                    className="h-10 px-5 spentopia-light-nft-button"
                   >
                     등록
                   </Button>
@@ -1406,12 +1406,13 @@ export default function Community() {
                                       취소
                                     </Button>
 
-                                    <Button
+                                      <Button
                                         type="button"
                                         size="sm"
                                         disabled={isCommentSubmitting}
                                         onClick={() => void handleUpdateComment(comment.id)}
-                                    >
+                                        className="spentopia-light-nft-button"
+                                      >
                                       저장
                                     </Button>
                                   </div>
@@ -1453,6 +1454,7 @@ export default function Community() {
                                       size="sm"
                                       disabled={isCommentSubmitting}
                                       onClick={() => void handleCreateReply(comment.id)}
+                                      className="spentopia-light-nft-button"
                                   >
                                     등록
                                   </Button>
@@ -1572,12 +1574,13 @@ export default function Community() {
                                               취소
                                             </Button>
 
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                disabled={isCommentSubmitting}
-                                                onClick={() => void handleUpdateComment(reply.id)}
-                                            >
+	                                            <Button
+	                                                type="button"
+	                                                size="sm"
+	                                                disabled={isCommentSubmitting}
+	                                                onClick={() => void handleUpdateComment(reply.id)}
+	                                                className="spentopia-light-nft-button"
+	                                            >
                                               저장
                                             </Button>
                                           </div>
@@ -1784,7 +1787,7 @@ export default function Community() {
                     <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="spentopia-primary-button"
+                      className="spentopia-light-nft-button"
                     >
                       {isSubmitting ? "수정 중" : "수정"}
                     </Button>
@@ -1848,7 +1851,7 @@ export default function Community() {
             </div>
             <Button
                 onClick={() => setIsWriteOpen(true)}
-                className="spentopia-primary-button h-11 px-5 text-base"
+                className="spentopia-light-nft-button h-11 px-5 text-base"
             >
               <Send className="mr-2 h-4 w-4" />
               글쓰기
@@ -1866,7 +1869,7 @@ export default function Community() {
     - 사용자가 참가글을 작성하면 posts.post_type = "contest"로 저장된다.
 ------------------------------------------------ */}
           {mainContest && (
-              <Card className="mb-5 overflow-hidden border-none bg-white/90 shadow-card dark:bg-gray-900/80">
+              <Card className="mb-5 overflow-hidden border-none spentopia-market-light-card spentopia-nft-card-tone">
                 <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -1911,7 +1914,7 @@ export default function Community() {
                     <button
                         type="button"
                         onClick={() => handleTabChange("contest")}
-                        className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-muted-foreground transition hover:bg-[var(--surface-subtle)] hover:text-foreground"
+                        className="spentopia-light-nft-button rounded-xl px-4 py-2 text-sm font-semibold transition"
                     >
                       참가글 보기
                     </button>
@@ -1920,7 +1923,7 @@ export default function Community() {
                         type="button"
                         disabled={mainContest.status !== "active"}
                         onClick={() => handleStartContestPost(mainContest.id)}
-                        className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="spentopia-light-nft-button rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       참가글 작성
                     </button>
@@ -1970,7 +1973,7 @@ export default function Community() {
           </div>
 
           {/* 게시글 리스트 */}
-          <div className="border border-t-0 border-gray-200 dark:border-gray-700 rounded-b-xl overflow-hidden spentopia-surface-card backdrop-blur-xl">
+          <div className="border border-t-0 border-gray-200 dark:border-gray-700 rounded-b-xl overflow-hidden spentopia-surface-card spentopia-nft-card-tone backdrop-blur-xl">
             {paginated.length === 0 ? (
                 <div className="py-12 text-center text-sm text-gray-400 dark:text-gray-500">
                   검색 결과가 없습니다
@@ -2045,7 +2048,7 @@ export default function Community() {
                         onClick={() => setCurrentPage(page)}
                         className={`w-10 h-10 flex items-center justify-center rounded-lg text-sm border transition-colors ${
                             page === currentPage
-                                ? "bg-cyan-500 text-white border-cyan-500 font-medium"
+                                ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white border-[#2563eb] font-medium shadow-[0_10px_24px_rgba(37,99,235,0.22)]"
                                 : "bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                         }`}
                     >
@@ -2220,7 +2223,7 @@ export default function Community() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="h-9 spentopia-primary-button px-5 text-sm"
+                    className="h-9 spentopia-light-nft-button px-5 text-sm"
                   >
                     {isSubmitting ? "등록 중..." : "등록"}
                   </Button>

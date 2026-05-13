@@ -70,11 +70,7 @@ export default function Login() {
     }
   }, []);
 
-  const isDarkMode = theme === "dark";
-
-  const loginButtonClass = isDarkMode
-      ? "w-full rounded-xl bg-[#1E1B4B] text-white shadow-lg shadow-[#1E1B4B]/20 hover:bg-[#312E81] hover:shadow-[#1E1B4B]/30"
-      : "w-full rounded-xl bg-[#EDEBFF] text-[#1E1B4B] shadow-sm hover:bg-[#E4E1FF]";
+  const loginButtonClass = "w-full rounded-xl spentopia-light-nft-button";
 
   const handleLogin = async (e: ReactSubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -163,13 +159,13 @@ export default function Login() {
   };
 
   return (
-      <div className="relative flex min-h-screen items-center justify-center bg-[#f8fafc] p-4 dark:bg-[#090b16]">
+      <div className="relative flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.16),transparent_34%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-[#090b16] dark:bg-none">
         {/* 테마 토글 — 우상단 고정 */}
         <button
             type="button"
             aria-label="테마 변경"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition hover:bg-white/30"
+            className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-[#1e3a8a] shadow-sm ring-1 ring-blue-100 backdrop-blur-sm transition hover:bg-white dark:bg-white/20 dark:text-white dark:hover:bg-white/30"
         >
           <Sun className="h-4 w-4 dark:hidden" />
           <Moon className="hidden h-4 w-4 dark:block" />
@@ -181,11 +177,11 @@ export default function Login() {
             <div className="mb-8 flex flex-col items-center">
               <img src="/favicon.svg" alt="Spentopia" className="mb-4 h-16 w-16" />
 
-              <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="mb-2 text-3xl font-bold text-[#1e3a8a] dark:text-white">
                 Spentopia
               </h1>
 
-              <p className="text-center text-gray-500 dark:text-gray-400">
+              <p className="text-center text-[#52647e] dark:text-gray-400">
                 지출을 관리하면 열리는 나만의 세계
               </p>
             </div>
@@ -248,7 +244,7 @@ export default function Login() {
                 />
               </div>
 
-              <Button type="submit" className={loginButtonClass}>
+              <Button type="submit" variant="outline" className={loginButtonClass}>
                 로그인
               </Button>
             </form>
@@ -294,14 +290,14 @@ export default function Login() {
                 구글 로그인
               </Button>
 
-              <WalletLoginButton className="relative h-12 w-full rounded-xl bg-gradient-to-r from-[#0B1020] via-[#111827] to-[#2D1847] px-4 text-sm font-semibold text-white shadow-lg shadow-[#0B1020]/30 hover:opacity-90 hover:shadow-[#2D1847]/40 disabled:opacity-50 dark:bg-gradient-to-r dark:from-[#0B1020] dark:via-[#111827] dark:to-[#2D1847] dark:text-white dark:shadow-[#0B1020]/25 dark:hover:brightness-110" />
+              <WalletLoginButton className="relative h-12 w-full rounded-xl bg-gradient-to-r from-[#090b16] via-[#111827] to-[#2d1847] px-4 text-sm font-semibold text-white shadow-lg shadow-[#0B1020]/30 hover:opacity-90 hover:shadow-[#2D1847]/40 disabled:opacity-50 dark:bg-gradient-to-r dark:from-[#0B1020] dark:via-[#111827] dark:to-[#2D1847] dark:text-white dark:shadow-[#0B1020]/25 dark:hover:brightness-110" />
             </div>
 
             {/* 이메일/비밀번호 찾기 */}
             <div className="mt-4 flex justify-center gap-4 text-sm text-gray-400 dark:text-gray-500">
               <Link
                   to="/find-email"
-                  className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-400"
+                  className="transition-colors hover:text-[#2563eb] dark:hover:text-cyan-400"
               >
                 이메일 찾기
               </Link>
@@ -310,7 +306,7 @@ export default function Login() {
 
               <Link
                   to="/forgot-password"
-                  className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-400"
+                  className="transition-colors hover:text-[#2563eb] dark:hover:text-cyan-400"
               >
                 비밀번호 찾기
               </Link>
@@ -323,7 +319,7 @@ export default function Login() {
 
                 <Link
                     to="/signup"
-                    className="font-bold text-cyan-600 hover:underline dark:text-cyan-400"
+                    className="font-bold text-[#2563eb] hover:underline dark:text-cyan-400"
                 >
                   회원가입
                 </Link>

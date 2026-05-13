@@ -31,11 +31,11 @@ export default function EmailConfirmedPage() {
   // 이메일 변경 요청 직후 — 메일함 확인 안내
   if (mode === "sent") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-500 via-blue-500 to-teal-500 dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900 p-4">
+      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.16),transparent_34%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-gradient-to-br dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900">
         <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl">
           <div className="p-8">
             <div className="mb-8 flex flex-col items-center text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 shadow-lg">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#60a5fa] to-[#2563eb] shadow-lg shadow-blue-500/20">
                 <Mail className="h-8 w-8 text-white" />
               </div>
               <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
@@ -77,11 +77,11 @@ export default function EmailConfirmedPage() {
   // SMTP 링크 클릭 후 — 변경 완료
   if (mode === "email_change") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-500 via-blue-500 to-teal-500 dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900 p-4">
+      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.16),transparent_34%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-gradient-to-br dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900">
         <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl">
           <div className="p-8">
             <div className="mb-8 flex flex-col items-center text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 shadow-lg">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#60a5fa] to-[#2563eb] shadow-lg shadow-blue-500/20">
                 <CheckCircle2 className="h-8 w-8 text-white" />
               </div>
               <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
@@ -109,7 +109,8 @@ export default function EmailConfirmedPage() {
             <Button
               type="button"
               onClick={() => navigate("/login")}
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+              variant="outline"
+              className="w-full spentopia-light-nft-button"
             >
               로그인하러 가기
             </Button>
@@ -121,11 +122,11 @@ export default function EmailConfirmedPage() {
 
   // 기본 — 회원가입 이메일 인증 완료
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-500 via-blue-500 to-teal-500 dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.16),transparent_34%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-gradient-to-br dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900">
       <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl">
         <div className="p-8">
           <div className="mb-8 flex flex-col items-center text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 shadow-lg">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#60a5fa] to-[#2563eb] shadow-lg shadow-blue-500/20">
               <CheckCircle2 className="h-8 w-8 text-white" />
             </div>
             <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
@@ -153,7 +154,8 @@ export default function EmailConfirmedPage() {
           <Button
             type="button"
             onClick={() => navigate("/login")}
-            className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+            variant="outline"
+            className="w-full spentopia-light-nft-button"
           >
             로그인하러 가기
           </Button>

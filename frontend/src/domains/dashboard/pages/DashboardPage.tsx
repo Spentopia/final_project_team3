@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useFinance } from "@/shared/providers/FinanceProvider";
 import { deleteExpense } from "@/shared/api/expenseApi";
+import styles from "./DashboardPage.module.css";
 
 
 import { Calendar } from "@/shared/ui/calendar";
-import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -88,6 +88,22 @@ export default function DashboardPage() {
   const draftStorageKey = "dashboard-expense-draft";
   const selectedDateStorageKey = "dashboard-selected-date";
   const entryTypeStorageKey = "dashboard-entry-type";
+  const marketCardStyle = {
+    border: "1px solid rgba(30, 58, 138, 0.16)",
+    backgroundColor: "#ffffff",
+    backgroundImage:
+      "linear-gradient(135deg, #ffffff 0%, #f8fafc 52%, #e0f2fe 100%)",
+    boxShadow:
+      "0 10px 30px rgba(37, 99, 235, 0.06), 0 2px 10px rgba(15, 23, 42, 0.04)",
+  } as const;
+  const marketInnerStyle = {
+    border: "1px solid rgba(59, 130, 246, 0.16)",
+    backgroundColor: "#f1f5f9",
+    backgroundImage:
+      "linear-gradient(135deg, #ffffff 0%, #f8fafc 52%, #e0f2fe 100%)",
+    boxShadow:
+      "0 10px 30px rgba(37, 99, 235, 0.06), 0 2px 10px rgba(15, 23, 42, 0.04)",
+  } as const;
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
     const saved = localStorage.getItem(selectedDateStorageKey);
@@ -453,7 +469,10 @@ const currentBudget = budgets[monthKey] ?? budget;
       {/* Left Column - Calendar & Expenses */}
       <div className="space-y-6">
         {/* Monthly Summary */}
-        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+        <div
+          style={marketCardStyle}
+          className={`${styles.marketCard} p-6 backdrop-blur-xl`}
+        >
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -469,21 +488,30 @@ const currentBudget = budgets[monthKey] ?? budget;
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg bg-cyan-100 p-4 text-gray-900 dark:bg-cyan-100 dark:text-gray-900">
+            <div
+              style={marketInnerStyle}
+              className={`${styles.marketInner} rounded-lg p-4 text-gray-900 dark:text-gray-100`}
+            >
               <p className="text-sm font-medium">예산</p>
               <p className="font-bold">
                 {effectiveMonthlyBudget.toLocaleString()}원
               </p>
             </div>
 
-            <div className="rounded-lg bg-blue-100 p-4 text-gray-900 dark:bg-blue-100 dark:text-gray-900">
+            <div
+              style={marketInnerStyle}
+              className={`${styles.marketInner} rounded-lg p-4 text-gray-900 dark:text-gray-100`}
+            >
               <p className="text-sm font-medium">남은 예산</p>
               <p className="font-bold">
                 {(effectiveMonthlyBudget - monthlyTotal).toLocaleString()}원
               </p>
             </div>
 
-            <div className="rounded-lg bg-teal-100 p-4 text-gray-900 dark:bg-teal-100 dark:text-gray-900">
+            <div
+              style={marketInnerStyle}
+              className={`${styles.marketInner} rounded-lg p-4 text-gray-900 dark:text-gray-100`}
+            >
               <p className="text-sm font-medium">사용률</p>
               <p className="font-bold">
                 {effectiveMonthlyBudget > 0
@@ -493,17 +521,20 @@ const currentBudget = budgets[monthKey] ?? budget;
               </p>
             </div>
 
-            <div className="rounded-lg bg-emerald-100 p-4 text-gray-900 dark:bg-emerald-100 dark:text-gray-900">
+            <div
+              style={marketInnerStyle}
+              className={`${styles.marketInner} rounded-lg p-4 text-gray-900 dark:text-gray-100`}
+            >
               <p className="text-sm font-medium">수입</p>
               <p className="font-bold">
                 {monthlyIncomeTotal.toLocaleString()}원
               </p>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Calendar */}
-        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+        <div style={marketCardStyle} className={`${styles.marketCard} p-6 backdrop-blur-xl`}>
           <Calendar
             mode="single"
             selected={selectedDate}
@@ -526,13 +557,16 @@ const currentBudget = budgets[monthKey] ?? budget;
             modifiers={{ recorded: recordedDates }}
             modifiersClassNames={{
               recorded:
-                "relative font-bold text-cyan-700 after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-cyan-500 dark:text-cyan-300 dark:after:bg-cyan-300",
+                "relative font-bold text-[#2563eb] after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-[#2563eb] dark:text-cyan-300 dark:after:bg-cyan-300",
             }}
           />
-        </Card>
+        </div>
 
         {/* Daily Expenses List */}
-        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+        <div
+          style={marketCardStyle}
+          className={`${styles.marketCard} p-6 backdrop-blur-xl`}
+        >
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="font-bold text-gray-900 dark:text-gray-100">
@@ -566,7 +600,8 @@ const currentBudget = budgets[monthKey] ?? budget;
                 return (
                   <div
                     key={expense.id}
-                    className="flex items-center justify-between rounded-lg border bg-white p-4 transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900/50"
+                    style={marketInnerStyle}
+                    className={`${styles.marketInner} flex items-center justify-between rounded-lg border p-4 transition-all hover:shadow-md`}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`rounded-lg ${categoryInfo.color} p-3 text-white`}>
@@ -630,7 +665,10 @@ const currentBudget = budgets[monthKey] ?? budget;
 
           {/* Daily Diary */}
           {selectedDateExpenses.length > 0 && (
-            <div className="mt-6 rounded-lg border-2 border-dashed border-slate-200 bg-white/80 p-4 shadow-sm dark:border-[#7c3aed]/35 dark:bg-[#090b16]/80 dark:shadow-[#7c3aed]/10">
+            <div
+              style={marketInnerStyle}
+              className={`${styles.marketInner} mt-6 rounded-lg border-2 border-dashed border-slate-200 p-4 shadow-sm dark:border-[#7c3aed]/35`}
+            >
               <p className="mb-2 font-bold text-gray-900 dark:text-violet-100">오늘의 소비 일기</p>
               {selectedDateExpenses.find((e) => e.diary) ? (
                 <p className="text-sm text-gray-700 dark:text-gray-300">
@@ -643,13 +681,16 @@ const currentBudget = budgets[monthKey] ?? budget;
               )}
             </div>
           )}
-        </Card>
+        </div>
       </div>
 
       {/* Right Column - Add Expense Form */}
       <div className="space-y-6">
         {/* Add Expense Form */}
-        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+        <div
+          style={marketCardStyle}
+          className={`${styles.marketCard} p-6 backdrop-blur-xl`}
+        >
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               {entryType === "income" ? (
@@ -852,22 +893,26 @@ const currentBudget = budgets[monthKey] ?? budget;
             )}
 
             <Button
+              variant={entryType === "income" ? "default" : "outline"}
               onClick={handleAddExpense}
               disabled={saveLoading}
               className={`w-full ${
                 entryType === "income"
                   ? "spentopia-income-button"
-                  : "spentopia-primary-button"
+                  : "spentopia-light-nft-button"
               }`}
             >
               <Plus className="mr-2 h-4 w-4" />
               {saveLoading ? "저장 중..." : entryType === "income" ? "수입 입력 완료" : "소비 입력 완료"}
             </Button>
           </div>
-        </Card>
+        </div>
 
         {/* Rewards Info */}
-        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+        <div
+          style={marketCardStyle}
+          className={`${styles.marketCard} p-6 backdrop-blur-xl`}
+        >
           <h4 className="mb-3 font-bold text-gray-900 dark:text-gray-100">💰 보상 안내</h4>
           <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <div className="flex items-center justify-between">
@@ -880,12 +925,15 @@ const currentBudget = budgets[monthKey] ?? budget;
             <div className="flex items-center justify-between">
               <span>일기 작성</span>
             </div>
-            <div className="mt-3 rounded-lg border border-slate-200 bg-white p-2 text-center dark:border-[#7c3aed]/35 dark:bg-white/10">
+            <div
+              style={marketInnerStyle}
+              className={`${styles.marketInner} mt-3 rounded-lg border border-slate-200 p-2 text-center dark:border-[#7c3aed]/35`}
+            >
               <p className="font-bold text-amber-700 dark:text-violet-100">주간 성실도 90점 이상 시</p>
               <p className="text-xs text-amber-600 dark:text-violet-200">랜덤 아바타 뽑기권 지급!</p>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

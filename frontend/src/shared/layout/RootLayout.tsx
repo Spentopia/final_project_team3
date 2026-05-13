@@ -117,7 +117,7 @@ export default function RootLayout() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <main className="flex-1 overflow-auto bg-[radial-gradient(circle_at_top_right,rgba(212,175,119,0.06),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_240px)] p-6">
+        <main className="flex-1 overflow-auto bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.12),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.72),rgba(239,246,255,0.32)_260px,transparent)] p-6 dark:bg-[radial-gradient(circle_at_top_right,rgba(212,175,119,0.06),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_240px)]">
           <Outlet />
         </main>
       </div>
@@ -139,16 +139,16 @@ export default function RootLayout() {
             <DialogHeader>
               <div className="mb-4 flex items-center justify-between">
                 <DialogTitle className="text-xl font-bold">이번 주 성실도</DialogTitle>
-                <Zap className="h-5 w-5 text-luxury-gold" />
+                <Zap className="h-5 w-5 text-[#2563eb] dark:text-luxury-gold" />
               </div>
             </DialogHeader>
 
             <p className="mb-2 text-5xl font-extrabold">
               {totalScore}점
             </p>
-            <div className="mb-5 h-3 overflow-hidden rounded-full bg-slate-200 shadow-inner dark:bg-slate-800">
+            <div className="mb-5 h-3 overflow-hidden rounded-full bg-[#dbeafe] shadow-inner dark:bg-slate-800">
               <div
-                className="h-full rounded-full bg-[linear-gradient(90deg,#22c55e,#06b6d4,#8b5cf6)] shadow-[0_0_14px_rgba(139,92,246,0.45)] transition-all duration-700 dark:bg-[linear-gradient(90deg,#0f172a,#4338ca,#7c3aed)] dark:shadow-[0_0_18px_rgba(124,58,237,0.6)]"
+                className="h-full rounded-full bg-[linear-gradient(135deg,#3b82f6,#2563eb)] shadow-[0_0_14px_rgba(37,99,235,0.34)] transition-all duration-700 dark:bg-[linear-gradient(90deg,#0f172a,#4338ca,#7c3aed)] dark:shadow-[0_0_18px_rgba(124,58,237,0.6)]"
                 style={{ width: `${progressPct}%` }}
               />
             </div>

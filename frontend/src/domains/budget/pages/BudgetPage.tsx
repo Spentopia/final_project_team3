@@ -732,10 +732,10 @@ try {
           {aiPlans.map((plan) => (
             <Card
               key={plan.id}
-              className={`border-2 spentopia-surface-card p-6 backdrop-blur-xl transition-all  ${
+              className={`border-2 spentopia-plan-light-card spentopia-nft-card-tone p-6 backdrop-blur-xl transition-all  ${
                 selectedPlan === plan.id
-                  ? "border-slate-300 shadow-xl dark:border-[#7c3aed]/70"
-                  : "border-transparent hover:border-slate-300 dark:hover:border-[#7c3aed]/40"
+                  ? "border-cyan-300 shadow-xl dark:border-[#7c3aed]/70"
+                  : "border-transparent hover:border-cyan-300 dark:hover:border-[#7c3aed]/40"
               }`}
             >
               <div className="mb-4">
@@ -753,13 +753,13 @@ try {
               </div>
 
               <div className="mb-4 space-y-3">
-                <div className="flex items-center justify-between rounded-lg spentopia-soft-card p-3">
+                <div className="flex items-center justify-between rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
                   <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">월 예산</span>
                   <span className="font-bold text-gray-900 dark:text-gray-100">
                     {Number(plan.budget || 0).toLocaleString()}원
                   </span>
                 </div>
-                <div className="flex items-center justify-between rounded-lg spentopia-soft-card p-3">
+                <div className="flex items-center justify-between rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
                   <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">목표 저축</span>
                   <span className="font-bold text-emerald-700 dark:text-emerald-300">
                     {Number(plan.savings || 0).toLocaleString()}원
@@ -791,8 +791,8 @@ try {
 
               <Button
                 onClick={() => handleApplyPlan(plan.id)}
-                variant={selectedPlan === plan.id ? "default" : "outline"}
-                className="w-full spentopia-primary-button"
+                variant="outline"
+                className="w-full spentopia-light-nft-button"
               >
                 {selectedPlan === plan.id ? "적용됨" : "이 플랜 적용하기"}
               </Button>
@@ -801,7 +801,7 @@ try {
         </div>
       </div>
 
-      <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+      <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
         <h2 className="mb-6 flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100">
           <Target className="h-5 w-5 text-slate-700 dark:text-violet-300" />
           맞춤 예산 설정
@@ -919,8 +919,9 @@ try {
             </p>
 
             <Button
+              variant="outline"
               onClick={handleSaveCustomBudget}
-              className="w-full spentopia-primary-button"
+              className="w-full spentopia-light-nft-button"
             >
               <Wallet className="mr-2 h-4 w-4" />
               {selectedMonth + 1}월 맞춤 예산 저장
@@ -928,7 +929,7 @@ try {
           </div>
 
           <div className="space-y-4">
-            <Card className="border-none spentopia-hero-card p-6">
+            <Card className="border-none spentopia-hero-card spentopia-nft-card-tone p-6">
               <p className="mb-1 text-sm opacity-90">현재 설정한 월 예산</p>
               <p className="text-3xl font-bold">
                 {Number(customBudget.monthly).toLocaleString()}원
@@ -938,7 +939,7 @@ try {
               </p>
             </Card>
 
-            <Card className="border-none spentopia-surface-card p-6">
+            <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6">
               <div className="mb-4 flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-slate-700 dark:text-violet-300" />
                 <h3 className="font-bold text-gray-900 dark:text-gray-100">
@@ -970,9 +971,9 @@ try {
 
                 <div className="pt-2">
                   {Number(customBudget.monthly) > 0 && (
-                    <div className="h-3 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                    <div className="spentopia-xp-track h-3">
                       <div
-                        className="h-full bg-[linear-gradient(90deg,#334155,#475569,#64748b)] dark:bg-[linear-gradient(90deg,#090b16,#4338ca,#7c3aed)]"
+                        className="h-full spentopia-xp-bar"
                         style={{
                           width: `${Math.min(
                             100,
@@ -990,7 +991,7 @@ try {
               </div>
             </Card>
 
-            <Card className="border-none spentopia-surface-card p-6">
+            <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6">
               <div className="mb-3 flex items-center gap-2">
                 <PiggyBank className="h-5 w-5 text-slate-700 dark:text-violet-300" />
                 <h3 className="font-bold">예산 설정 한마디</h3>

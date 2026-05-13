@@ -16,13 +16,13 @@ export default function Plaza() {
       </div>
 
       {/* Unity WebGL Info */}
-      <Card className="border-none spentopia-hero-card p-8 text-center backdrop-blur-xl">
+      <Card className="border-none spentopia-market-card-view p-8 text-center backdrop-blur-xl">
         <Gamepad2 className="mx-auto mb-4 h-16 w-16 text-slate-700 dark:text-violet-300" />
         <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">Unity WebGL 광장</h2>
         <p className="mb-6 text-gray-700 dark:text-gray-300">
           PC 웹에서 Unity 기반의 3D 가상 공간을 체험하세요
         </p>
-        <Button size="lg" variant="secondary">
+        <Button size="lg" variant="secondary" className="spentopia-plaza-entry-button">
           <Play className="mr-2 h-5 w-5" />
           광장 입장하기
         </Button>
@@ -30,7 +30,7 @@ export default function Plaza() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Features */}
-        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+        <Card className="border-none spentopia-market-card-view p-6 backdrop-blur-xl">
           <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">광장 기능</h3>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
@@ -72,7 +72,7 @@ export default function Plaza() {
         </Card>
 
         {/* System Requirements */}
-        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+        <Card className="border-none spentopia-market-card-view p-6 backdrop-blur-xl">
           <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">시스템 요구사항</h3>
           <div className="space-y-3">
             <div>
@@ -99,7 +99,7 @@ export default function Plaza() {
         </Card>
 
         {/* Online Users */}
-        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+        <Card className="border-none spentopia-market-card-view p-6 backdrop-blur-xl">
           <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">현재 접속 중</h3>
           <div className="mb-4 flex items-center gap-2">
             <div className="h-3 w-3 animate-pulse rounded-full bg-green-500"></div>
@@ -113,7 +113,7 @@ export default function Plaza() {
               { name: "목표달성", avatar: "🎯", status: "채팅 중" },
               { name: "알뜰맨", avatar: "🏃", status: "광장 입구" },
             ].map((user, i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg spentopia-soft-card p-3">
+              <div key={i} className="flex items-center justify-between rounded-lg spentopia-market-card-view p-3">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl">{user.avatar}</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">{user.name}</span>
@@ -127,7 +127,7 @@ export default function Plaza() {
         </Card>
 
         {/* Tips */}
-        <Card className="border-none spentopia-soft-card p-6 backdrop-blur-xl">
+        <Card className="border-none spentopia-market-card-view p-6 backdrop-blur-xl">
           <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">광장 이용 팁</h3>
           <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>• WASD 키로 아바타를 움직일 수 있어요</li>
@@ -140,20 +140,20 @@ export default function Plaza() {
       </div>
 
       {/* Coming Soon Features */}
-      <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+      <Card className="border-none spentopia-market-card-view p-6 backdrop-blur-xl">
         <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">곧 추가될 기능</h3>
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border-2 border-dashed border-slate-200 spentopia-soft-card p-4 text-center">
+          <div className="rounded-lg border-2 border-dashed border-slate-200 spentopia-market-card-view p-4 text-center">
             <Sparkles className="mx-auto mb-2 h-8 w-8 text-slate-700 dark:text-violet-300" />
             <h4 className="mb-1 font-bold text-gray-900 dark:text-gray-100">미니게임</h4>
             <p className="text-sm text-gray-700 dark:text-gray-300">다양한 미니게임으로 SPT 획득</p>
           </div>
-          <div className="rounded-lg border-2 border-dashed border-slate-200 spentopia-soft-card p-4 text-center">
+          <div className="rounded-lg border-2 border-dashed border-slate-200 spentopia-market-card-view p-4 text-center">
             <Users className="mx-auto mb-2 h-8 w-8 text-slate-700 dark:text-violet-300" />
             <h4 className="mb-1 font-bold text-gray-900 dark:text-gray-100">길드 시스템</h4>
             <p className="text-sm text-gray-700 dark:text-gray-300">친구들과 길드를 만들어보세요</p>
           </div>
-          <div className="rounded-lg border-2 border-dashed border-slate-200 spentopia-soft-card p-4 text-center">
+          <div className="rounded-lg border-2 border-dashed border-slate-200 spentopia-market-card-view p-4 text-center">
             <Crown className="mx-auto mb-2 h-8 w-8 text-slate-700 dark:text-violet-300" />
             <h4 className="mb-1 font-bold text-gray-900 dark:text-gray-100">이벤트 홀</h4>
             <p className="text-sm text-gray-700 dark:text-gray-300">특별 이벤트 전용 공간</p>

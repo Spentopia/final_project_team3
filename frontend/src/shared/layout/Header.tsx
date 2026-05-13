@@ -131,7 +131,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </Button>
 
         <div className="flex min-w-0 flex-col">
-          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-luxury-gold">
+          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#2563eb] dark:text-luxury-gold">
             Spentopia
           </span>
           <p className="mt-0.5 text-base font-semibold tracking-normal text-foreground">
@@ -227,6 +227,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </div>
 
         <Button
+          variant="outline"
           onClick={handleStartGame}
           className="h-14 rounded-lg border border-orange-300 bg-gradient-to-r from-orange-400 via-amber-500 to-orange-600 px-8 text-lg font-extrabold text-white shadow-xl shadow-orange-500/40 transition-all hover:-translate-y-0.5 hover:scale-[1.03] hover:from-orange-300 hover:via-amber-400 hover:to-orange-500 hover:shadow-orange-500/60 dark:border-orange-300/70 dark:shadow-orange-950/60"
         >

@@ -19,7 +19,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
-import { Sparkles, MailCheck } from "lucide-react";
+import { MailCheck } from "lucide-react";
 import { toast } from "sonner";
 
 // 이메일 도메인 → 메일 서비스 매핑
@@ -166,19 +166,21 @@ export default function ForgotPasswordPage() {
       window.location.href = mailService.url;
     }
   };
+  const authPrimaryButtonClass =
+    "spentopia-light-nft-button";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-500 via-blue-500 to-teal-500 dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900 p-4">
-      <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.16),transparent_34%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-[#090b16] dark:bg-none">
+      <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 shadow-2xl backdrop-blur-xl dark:bg-[#0b1020]/95 dark:shadow-black/40">
         <div className="p-8">
           <div className="mb-8 flex flex-col items-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg">
-              {sent ? (
-                <MailCheck className="h-8 w-8 text-white" />
-              ) : (
-                <Sparkles className="h-8 w-8 text-white" />
-              )}
-            </div>
+            {sent ? (
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#dbeafe] shadow-lg shadow-blue-500/10 dark:bg-[#1E1B4B]">
+                <MailCheck className="h-8 w-8 text-[#1e3a8a] dark:text-white" />
+              </div>
+            ) : (
+              <img src="/favicon.svg" alt="Spentopia" className="mb-4 h-16 w-16" />
+            )}
             <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
               {sent ? "메일을 보냈어요" : "비밀번호 찾기"}
             </h1>
@@ -188,14 +190,13 @@ export default function ForgotPasswordPage() {
           {sent ? (
             <div className="space-y-4">
               
-              <div className="rounded-lg border border-cyan-200 dark:border-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 p-4">
+              <div className="rounded-lg border border-[#bfdbfe] bg-[#eff6ff] p-4 dark:border-[#7c3aed]/40 dark:bg-[#1E1B4B]/30">
                 <div className="mb-2 flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-purple-500" />
-                  <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+                  <p className="text-sm font-semibold text-[#1e3a8a] dark:text-purple-100">
                     안내
                   </p>
                 </div>
-                <p className="text-sm text-purple-700 dark:text-purple-300 leading-6">
+                <p className="text-sm text-[#2563eb] dark:text-purple-300 leading-6">
                   메일함과 스팸함을 확인해주세요.
                   <br />
                   받은 메일의 링크를 눌러 비밀번호를 재설정할 수 있어요.
@@ -207,7 +208,7 @@ export default function ForgotPasswordPage() {
                   <Button
                     type="button"
                     onClick={openMailService}
-                    className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                    className={`w-full ${authPrimaryButtonClass}`}
                   >
                     이메일 열기
                   </Button>
@@ -218,7 +219,7 @@ export default function ForgotPasswordPage() {
                 )}
 
                 <Link to="/login">
-                  <Button variant="outline" className="w-full">
+	                  <Button variant="outline" className="w-full spentopia-light-nft-button">
                     로그인으로 돌아가기
                   </Button>
                 </Link>
@@ -247,7 +248,7 @@ export default function ForgotPasswordPage() {
               <Button
                 type="submit"
                 disabled={loading || !captchaToken}
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                className={`w-full ${authPrimaryButtonClass}`}
               >
                 {loading ? "발송 중..." : "재설정 링크 보내기"}
               </Button>
@@ -255,7 +256,7 @@ export default function ForgotPasswordPage() {
               <div className="text-center">
                 <Link
                   to="/login"
-                  className="text-sm text-gray-500 dark:text-gray-400 hover:text-cyan-600"
+                  className="text-sm text-gray-500 hover:text-[#1E1B4B] dark:text-gray-400 dark:hover:text-[#c4b5fd]"
                 >
                   로그인으로 돌아가기
                 </Link>

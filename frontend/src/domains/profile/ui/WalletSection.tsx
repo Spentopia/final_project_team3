@@ -296,12 +296,12 @@ export function WalletSection({
 
     return (
         <>
-            <Card className="h-full border-none spentopia-soft-card p-6 backdrop-blur-xl">
+            <Card className="h-full border-none spentopia-soft-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
                 <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">지갑 관리</h3>
 
                 {linkedAddress ? (
                     <div className="space-y-4">
-                        <div className="rounded-lg border-2 border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-900/20 p-4">
+                        <div className="rounded-lg border-2 border-green-500 spentopia-market-light-soft p-4 dark:border-green-600">
                             <div className="mb-3 flex items-center gap-2 text-green-700 dark:text-green-400">
                                 <Wallet className="h-5 w-5" />
                                 <span className="font-bold">계정에 지갑 연동됨</span>
@@ -332,7 +332,7 @@ export function WalletSection({
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        <div className="rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 p-8 text-center">
+                        <div className="rounded-lg border-2 border-dashed border-gray-300 spentopia-market-light-soft p-8 text-center dark:border-gray-600">
                             <Wallet className="mx-auto mb-3 h-12 w-12 text-gray-400 dark:text-gray-500" />
                             <p className="mb-2 font-bold text-gray-900 dark:text-gray-100">지갑이 연결되지 않았어요</p>
                             <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
@@ -345,7 +345,7 @@ export function WalletSection({
                                 }}
                                 disabled={isProcessing || linkRequested}
                                 variant="outline"
-                                className="spentopia-primary-button"
+	                                className="spentopia-light-nft-button"
                             >
                                 <LinkIcon className="mr-2 h-4 w-4" />
                                 {linkRequested || (isProcessing && currentProcess === "link")
@@ -354,7 +354,7 @@ export function WalletSection({
                             </Button>
                         </div>
 
-                        <Card className="spentopia-soft-card p-4">
+                        <Card className="spentopia-soft-card spentopia-nft-card-tone p-4">
                             <h4 className="mb-2 font-bold text-gray-900 dark:text-gray-100">💡 지갑 연결 혜택</h4>
                             <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
                                 <li>• NFT로 아바타 아이템 발행</li>
@@ -402,7 +402,7 @@ export function WalletSection({
                                 }}
                                 disabled={isProcessing || disconnecting}
                                 variant="outline"
-                                className="flex-1"
+	                                className="flex-1 spentopia-light-nft-button"
                             >
                                 <Wallet className="h-4 w-4" />
                                 {connected ? "연결된 지갑 연동" : "브라우저 지갑 연결"}
@@ -415,7 +415,7 @@ export function WalletSection({
                                     }}
                                     disabled={isProcessing || !isLoggedIn || !isProfileComplete}
                                     variant="outline"
-                                    className="flex-1 spentopia-primary-button"
+	                                    className="flex-1 spentopia-light-nft-button"
                                 >
                                     <LinkIcon className="h-4 w-4" />
                                     {isProcessing && currentProcess === "link" ? "지갑 연동 중..." : "계정에 지갑 연동"}

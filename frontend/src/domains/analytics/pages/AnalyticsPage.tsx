@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import styles from "./AnalyticsPage.module.css";
 import { useFinance, type Transaction } from "@/shared/providers/FinanceProvider";
 import { listExpenses } from "@/shared/api/expenseApi";
 
@@ -33,7 +34,6 @@ import {
   Share2,
   Sparkles,
 } from "lucide-react";
-import styles from "./AnalyticsPage.module.css";
 import {
   getMonthlyExpenseTotal,
   getMonthlyIncomeTotal,
@@ -47,6 +47,7 @@ type AIReport = {
   pattern: string;
   improvement: string;
 };
+
 
 const WEEKLY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const MONTHLY_LABELS = Array.from({ length: 12 }, (_, index) => `${index + 1}월`);
@@ -497,22 +498,27 @@ console.log("복사 완료");
 const handleDownload = async () => {
   if (!reportRef.current) return;
 
-  try {
-    setIsPdfMode(true); // 🔥 먼저 상태 변경
+  const sourceNode = reportRef.current;
+  const clonedNode = sourceNode.cloneNode(true) as HTMLElement;
+  const sourceWidth = sourceNode.getBoundingClientRect().width;
 
-    reportRef.current.classList.add(styles["pdf-mode"]);
+  try {
+    clonedNode.style.position = "fixed";
+    clonedNode.style.left = "-10000px";
+    clonedNode.style.top = "0";
+    clonedNode.style.width = `${sourceWidth}px`;
+    clonedNode.style.pointerEvents = "none";
+    clonedNode.style.zIndex = "-1";
+    document.body.appendChild(clonedNode);
 
     // 🔥 렌더 반영 기다림
     await new Promise((r) => setTimeout(r, 100));
 
-    const canvas = await html2canvas(reportRef.current, {
+    const canvas = await html2canvas(clonedNode, {
       scale: 2,
       useCORS: true,
       backgroundColor: "#ffffff",
     });
-
-    reportRef.current.classList.remove(styles["pdf-mode"]);
-    setIsPdfMode(false); // 🔥 다시 원래 상태
 
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF("p", "mm", "a4");
@@ -543,6 +549,8 @@ while (heightLeft > 0) {
     pdf.save("소비_분석_리포트.pdf");
   } catch (err) {
     console.error("PDF 생성 실패", err);
+  } finally {
+    clonedNode.remove();
   }
 };
 
@@ -552,6 +560,13 @@ while (heightLeft > 0) {
   const timePatternTotal = timePatternData.reduce((sum, slot) => sum + slot.amount, 0);
   const weekdayPatternData = buildWeekdayPatternData(thisMonthTransactions);
   const paymentPatternData = buildPaymentPatternData(thisMonthTransactions);
+
+  const marketCardStyle = {
+    border: "1px solid rgba(37, 99, 235, 0.14)",
+    backgroundImage:
+      "radial-gradient(circle at top right, rgba(96, 165, 250, 0.16), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(239, 246, 255, 0.92))",
+    boxShadow: "0 18px 42px rgba(30, 58, 138, 0.08)",
+  };
 
   return (
     <div ref={reportRef} className="space-y-6">
@@ -578,8 +593,8 @@ while (heightLeft > 0) {
 
       {/* Summary Cards */}
       <div className="grid gap-6 md:grid-cols-4">
-        <Card className="border-none spentopia-hero-card p-6 backdrop-blur-xl">
-          <p className="mb-1 text-sm opacity-90">이번 달 총 지출</p>
+        <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
+          <p className="mb-1 text-sm opacity-90">이번 달 총 지출 </p>
           <p className="mb-2 text-3xl font-bold">
   {totalExpense.toLocaleString()}원
 </p>
@@ -592,7 +607,7 @@ while (heightLeft > 0) {
           </div>
         </Card>
 
-        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+        <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
           <p className="mb-1 text-sm font-medium text-gray-800 dark:text-gray-200">일 평균 지출</p>
           <p className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
   {dailyAverage.toLocaleString()}원
@@ -606,18 +621,18 @@ while (heightLeft > 0) {
 </div>
         </Card>
 
-        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+        <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
           <p className="mb-1 text-sm font-medium text-gray-800 dark:text-gray-200">예산 사용률</p>
           <p className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">{budgetUsage}%</p>
-          <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+          <div className={`${styles.budgetGaugeTrack} h-3`}>
             <div
-  className="h-full spentopia-primary-fill"
-  style={{ width: `${budgetUsage}%` }}
+  className={styles.budgetGaugeFill}
+  style={{ width: `${Math.min(budgetUsage, 100)}%` }}
 ></div>
           </div>
         </Card>
 
-        <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+        <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
           <p className="mb-1 text-sm font-medium text-gray-800 dark:text-gray-200">최다 소비 카테고리</p>
           <p className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">{topCategoryName}</p>
           <p className="text-sm text-gray-700 dark:text-gray-300">전체의 {topCategoryPercent}%</p>
@@ -632,8 +647,8 @@ while (heightLeft > 0) {
         </TabsList>
 
         <TabsContent value="weekly" className="space-y-6">
-          <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
-            <h3 className="mb-6 font-bold text-gray-900">주간 소비 추이</h3>
+          <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
+            <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">주간 소비 추이</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={weeklyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -659,8 +674,8 @@ while (heightLeft > 0) {
         </TabsContent>
 
         <TabsContent value="monthly" className="space-y-6">
-          <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
-            <h3 className="mb-6 font-bold text-gray-900">월간 소비 추이</h3>
+          <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
+            <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">월간 소비 추이</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -688,8 +703,8 @@ while (heightLeft > 0) {
 
       {/* Category Analysis */}
       <div className="grid gap-6 lg:grid-cols-2 items-stretch">
-        <Card className="h-full min-h-[400px] flex flex-col border-none spentopia-surface-card p-6 backdrop-blur-xl">
-          <h3 className="mb-6 font-bold text-gray-900">카테고리별 지출</h3>
+        <Card style={marketCardStyle} className={`${styles.marketCard} h-full min-h-[400px] flex flex-col border-none p-6 backdrop-blur-xl`}>
+          <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">카테고리별 지출</h3>
           <div className="flex-1">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -720,25 +735,25 @@ while (heightLeft > 0) {
           </div>
         </Card>
 
-        <Card className="h-full min-h-[400px] border-none spentopia-surface-card p-6 backdrop-blur-xl">
-          <h3 className="mb-6 font-bold text-gray-900">카테고리 상세</h3>
+        <Card style={marketCardStyle} className={`${styles.marketCard} h-full min-h-[400px] border-none p-6 backdrop-blur-xl`}>
+          <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">카테고리 상세</h3>
           <div className="space-y-4">
             {categoryData.map((cat) => (
               <div key={cat.name} className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-gray-900">
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
   {CATEGORY_MAP[cat.key]?.icon} {cat.name}
 </span>
-                  <span className="font-bold text-gray-900">{cat.amount.toLocaleString()}원</span>
+                  <span className="font-bold text-gray-900 dark:text-gray-100">{cat.amount.toLocaleString()}원</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                     <div
   className="h-full"
-  style={{ backgroundColor: cat.color }}
+  style={{ width: `${cat.value}%`, backgroundColor: cat.color }}
 ></div>
                   </div>
-                  <span className="text-sm font-medium text-gray-600">{cat.value}%</span>
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{cat.value}%</span>
                 </div>
               </div>
             ))}
@@ -747,7 +762,7 @@ while (heightLeft > 0) {
       </div>
 
 {/* AI Insights */}
-<Card className="border-none spentopia-soft-card p-6 backdrop-blur-xl">
+<Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
 
   <div className="mb-4 flex items-center justify-between">
     <div className="flex items-center gap-2">
@@ -770,28 +785,28 @@ while (heightLeft > 0) {
   {aiReport ? (
   <div className="grid gap-4 md:grid-cols-2">
 
-    <div className="rounded-lg spentopia-surface-card p-4">
+    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
       <h4 className="font-bold text-gray-900 dark:text-white">👍 좋은 점</h4>
       <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.good}
       </p>
     </div>
 
-    <div className="rounded-lg spentopia-surface-card p-4">
+    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
       <h4 className="font-bold text-gray-900 dark:text-white">⚠️ 주의</h4>
       <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.warning}
       </p>
     </div>
 
-    <div className="rounded-lg spentopia-surface-card p-4">
+    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
       <h4 className="font-bold text-gray-900 dark:text-white">💡 조언</h4>
       <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.advice}
       </p>
     </div>
 
-    <div className="rounded-lg spentopia-surface-card p-4">
+    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
       <h4 className="font-bold text-gray-900 dark:text-white">📈 예측</h4>
       <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.prediction}
@@ -810,7 +825,7 @@ while (heightLeft > 0) {
 </Card>
 
       {/* Spending Patterns */}
-<Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
+<Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
   <div className="mb-6 flex items-center justify-between">
   <h3 className="font-bold text-gray-900 dark:text-white">
     AI 소비 패턴 분석
@@ -828,14 +843,14 @@ while (heightLeft > 0) {
   {patternReport ? (
     <div className="grid gap-6 md:grid-cols-2">
 
-      <div className="rounded-lg spentopia-surface-card p-5">
+      <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-5`}>
         <h4 className="mb-2 font-bold text-gray-900 dark:text-white">📊 분석</h4>
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
   {(patternReport.pattern ?? "").replace("소비 패턴 분석:", "")}
 </p>
       </div>
 
-      <div className="rounded-lg spentopia-surface-card p-5">
+      <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-5`}>
         <h4 className="mb-2 font-bold text-gray-900 dark:text-white">💡 개선 방안</h4>
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
           {patternReport.improvement}

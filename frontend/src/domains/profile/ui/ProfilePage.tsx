@@ -420,7 +420,7 @@ export default function ProfilePage() {
 
         <div className={isWebView ? "grid gap-4" : "grid gap-6 lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]"}>
           {/* 왼쪽 프로필 카드 */}
-          <Card className="border-none spentopia-hero-card p-6 backdrop-blur-xl">
+          <Card className="border-none spentopia-hero-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
             {/* 파일 선택 즉시 업로드 */}
             <input
                 ref={fileInputRef}
@@ -470,15 +470,15 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-5">
-              <div className="rounded-lg spentopia-soft-card p-3">
+              <div className="rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
                 <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">가입일</p>
                 <p className="font-bold text-gray-900 dark:text-gray-100">{joinedDateLabel}</p>
               </div>
-              <div className="rounded-lg spentopia-soft-card p-3">
+              <div className="rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
                 <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">연속 기록</p>
                 <p className="font-bold text-gray-900 dark:text-gray-100">{profile.currentStreak}🔥</p>
               </div>
-              <div className="rounded-lg spentopia-soft-card p-3">
+              <div className="rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
                 <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">보유 SPT</p>
                 <p className="font-bold text-gray-900 dark:text-gray-100">
                   {!profile.walletAddress
@@ -488,13 +488,13 @@ export default function ProfilePage() {
                     : (sptBalance ?? 0).toLocaleString("ko-KR")} SPT
                 </p>
               </div>
-              <div className="rounded-lg spentopia-soft-card p-3">
+              <div className="rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
                 <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">보유 NFT</p>
                 <p className="font-bold text-gray-900 dark:text-gray-100">
                   {nftCount === null ? "..." : `${nftCount}개`}
                 </p>
               </div>
-              <div className="rounded-lg spentopia-soft-card p-3">
+              <div className="rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
                 <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">로그인 방식</p>
                 <p className="font-bold uppercase text-gray-900 dark:text-gray-100">
                   {profile.loginProvider === "email" && profile.googleConnected
@@ -507,7 +507,7 @@ export default function ProfilePage() {
 
           <div className="grid gap-6 xl:grid-cols-2">
             {/* 회원 정보 */}
-            <Card className="h-full min-h-[500px] border-none spentopia-soft-card p-6 backdrop-blur-xl">
+            <Card className="h-full min-h-[500px] border-none spentopia-soft-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="font-bold text-gray-900 dark:text-gray-100">
                   회원 정보
@@ -523,7 +523,7 @@ export default function ProfilePage() {
                     {isWithdrawing ? "탈퇴 처리 중..." : "회원탈퇴"}
                   </Button>
                   {!isEditing ? (
-                      <Button onClick={handleEditStart} variant="outline" size="sm">
+	                      <Button onClick={handleEditStart} variant="outline" size="sm" className="spentopia-light-nft-button">
                         <Edit className="mr-2 h-4 w-4" />
                         수정
                       </Button>
@@ -531,7 +531,7 @@ export default function ProfilePage() {
                       <Button
                           onClick={handleSave}
                           disabled={isSaving}
-                          className="spentopia-primary-button"
+	                          className="spentopia-light-nft-button"
                           size="sm"
                       >
                         <Save className="mr-2 h-4 w-4" />
@@ -615,7 +615,7 @@ export default function ProfilePage() {
             </Card>
 
             {/* 알림 설정 */}
-            <Card className="h-full border-none spentopia-soft-card p-6 backdrop-blur-xl">
+            <Card className="h-full border-none spentopia-soft-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
               <h3 className="mb-8 font-bold text-gray-900 dark:text-gray-100">
                 알림 설정
               </h3>
@@ -700,7 +700,7 @@ export default function ProfilePage() {
             </Card>
 
             {/* 비밀번호 변경 */}
-            <Card className="h-full border-none spentopia-soft-card p-5 backdrop-blur-xl">
+            <Card className="h-full border-none spentopia-soft-card spentopia-nft-card-tone p-5 backdrop-blur-xl">
               <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">
                 비밀번호 변경
               </h3>
@@ -793,12 +793,12 @@ export default function ProfilePage() {
                 <Button
                     onClick={handleChangePassword}
                     disabled={isChangingPassword || !isEmailUser}
-                className="mt-1 w-full spentopia-primary-button"
+                className="mt-1 w-full spentopia-light-nft-button"
                 >
                   {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
                 </Button>
 
-                <Card className="spentopia-soft-card p-4">
+                <Card className="spentopia-soft-card spentopia-nft-card-tone p-4">
                   <h4 className="mb-2 font-bold text-gray-900 dark:text-gray-100">
                     💡 비밀번호 안내
                   </h4>

@@ -253,11 +253,11 @@ export default function CompleteProfilePage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-500 via-blue-500 to-teal-500 dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.16),transparent_34%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-gradient-to-br dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900">
       <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl">
         <div className="p-8">
           <div className="mb-8 flex flex-col items-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#60a5fa] to-[#2563eb] shadow-lg shadow-blue-500/20">
               <Sparkles className="h-8 w-8 text-white" />
             </div>
             <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">프로필 완성</h1>
@@ -271,7 +271,7 @@ export default function CompleteProfilePage() {
               <div
                 key={s}
                 className={`h-2 flex-1 rounded-full ${
-                  s <= step ? "bg-gradient-to-r from-cyan-500 to-blue-500" : "bg-gray-200 dark:bg-gray-700"
+                  s <= step ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)]" : "bg-gray-200 dark:bg-gray-700"
                 }`}
               ></div>
             ))}
@@ -352,8 +352,8 @@ export default function CompleteProfilePage() {
                         onClick={() => updateFormData("avatar", avatar.id)}
                         className={`flex flex-col items-center justify-center rounded-xl border-2 p-4 transition-all ${
                           formData.avatar === avatar.id
-                            ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-900/30 shadow-lg"
-                            : "border-gray-200 dark:border-gray-700 hover:border-cyan-300 dark:hover:border-cyan-600"
+                            ? "border-[#2563eb] bg-[#eff6ff] dark:bg-cyan-900/30 shadow-lg"
+                            : "border-gray-200 dark:border-gray-700 hover:border-[#93c5fd] dark:hover:border-cyan-600"
                         }`}
                       >
                         <span className="mb-2 text-4xl">{avatar.emoji}</span>
@@ -363,9 +363,9 @@ export default function CompleteProfilePage() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-cyan-200 dark:border-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 p-4">
-                  <p className="mb-2 font-bold text-purple-900 dark:text-purple-100">🎁 가입 축하 선물!</p>
-                  <p className="text-sm text-purple-700 dark:text-purple-300">
+                <div className="rounded-lg border border-[#bfdbfe] bg-[#eff6ff] dark:border-cyan-700 dark:bg-cyan-900/30 p-4">
+                  <p className="mb-2 font-bold text-[#1e3a8a] dark:text-purple-100">🎁 가입 축하 선물!</p>
+                  <p className="text-sm text-[#2563eb] dark:text-purple-300">
                     프로필 완성 시 기본 아바타를 지급해드려요!
                   </p>
                 </div>
@@ -374,14 +374,15 @@ export default function CompleteProfilePage() {
 
             <div className="flex gap-3 pt-4">
               {step > 1 && (
-                <Button type="button" variant="outline" onClick={handleBack} className="flex-1">
+                <Button type="button" variant="outline" onClick={handleBack} className="flex-1 spentopia-light-nft-button">
                   이전
                 </Button>
               )}
               <Button
                 type="submit"
                 disabled={loading || profileImage.uploading}
-                className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                variant="outline"
+                className="flex-1 spentopia-light-nft-button"
               >
                 {loading || profileImage.uploading
                   ? "저장 중..."
