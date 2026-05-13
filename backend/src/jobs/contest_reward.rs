@@ -8,10 +8,13 @@
 //      - 1등: 500 SPT, 2등: 300 SPT, 3등: 150 SPT
 // ─────────────────────────────────────────────────────────────
 
+use std::collections::HashSet;
+
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use uuid::Uuid;
 
+use crate::notification::service::create_notification;
 use crate::reward::dto::ContestRewardRequest;
 use crate::reward::service::grant_contest_reward;
 use crate::state::AppState;
@@ -33,7 +36,11 @@ pub async fn process_ended_contests(state: &AppState) -> Result<usize> {
     let count = contests.len();
 
     for contest in contests {
-        tracing::info!("콘테스트 보상 처리 시작: {} ({})", contest.title, contest.id);
+        tracing::info!(
+            "콘테스트 보상 처리 시작: {} ({})",
+            contest.title,
+            contest.id
+        );
 
         // status를 먼저 ended로 변경 — 다음 배치에서 중복 처리 방지
         if let Err(e) = mark_contest_ended(state, contest.id).await {
@@ -58,6 +65,15 @@ pub async fn process_ended_contests(state: &AppState) -> Result<usize> {
             continue;
         }
 
+        let participant_user_ids = match fetch_participant_user_ids(state, contest.id).await {
+            Ok(user_ids) => user_ids,
+            Err(e) => {
+                tracing::error!("콘테스트 {} 참가자 조회 실패: {}", contest.id, e);
+                continue;
+            }
+        };
+        let winner_user_ids: HashSet<Uuid> = top_posts.iter().map(|post| post.user_id).collect();
+
         for (idx, post) in top_posts.iter().enumerate() {
             let rank = (idx + 1) as u8;
             let req = ContestRewardRequest {
@@ -65,13 +81,31 @@ pub async fn process_ended_contests(state: &AppState) -> Result<usize> {
                 rank,
             };
             match grant_contest_reward(state, req).await {
-                Ok(_) => {
+                Ok(reward) => {
                     tracing::info!(
                         "콘테스트 {} {}등 보상 지급 완료: user={}",
                         contest.id,
                         rank,
                         post.user_id
                     );
+
+                    let notification_type =
+                        format!("ct_win_{}_{}", &contest.id.to_string()[..8], rank);
+                    let message = format!(
+                        "축하합니다! 아바타 콘테스트 {}등을 수상해 {} SPT가 지급되었어요.",
+                        rank, reward.amount
+                    );
+                    if let Err(e) =
+                        create_notification(state, post.user_id, &notification_type, &message).await
+                    {
+                        tracing::error!(
+                            "콘테스트 {} {}등 수상 알림 생성 실패: user={}, err={}",
+                            contest.id,
+                            rank,
+                            post.user_id,
+                            e
+                        );
+                    }
                 }
                 Err(e) => {
                     tracing::error!(
@@ -82,6 +116,22 @@ pub async fn process_ended_contests(state: &AppState) -> Result<usize> {
                         e
                     );
                 }
+            }
+        }
+
+        for user_id in participant_user_ids
+            .into_iter()
+            .filter(|user_id| !winner_user_ids.contains(user_id))
+        {
+            let notification_type = format!("ct_out_{}", &contest.id.to_string()[..8]);
+            let message = "이번 콘테스트는 순위권에 들지 못했어요. 다음 도전을 기다릴게요.";
+            if let Err(e) = create_notification(state, user_id, &notification_type, message).await {
+                tracing::error!(
+                    "콘테스트 {} 비수상 알림 생성 실패: user={}, err={}",
+                    contest.id,
+                    user_id,
+                    e
+                );
             }
         }
     }
@@ -178,4 +228,37 @@ async fn fetch_top_posts(state: &AppState, contest_id: Uuid) -> Result<Vec<PostR
     res.json::<Vec<PostRow>>()
         .await
         .context("콘테스트 상위 게시글 응답 파싱 실패")
+}
+
+/// 콘테스트에 참여한 사용자 전체 조회
+async fn fetch_participant_user_ids(state: &AppState, contest_id: Uuid) -> Result<HashSet<Uuid>> {
+    let url = format!(
+        "{}/rest/v1/posts?contest_id=eq.{}&is_deleted=eq.false&select=user_id",
+        state.config.supabase_url.trim_end_matches('/'),
+        contest_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("콘테스트 참가자 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow::anyhow!("콘테스트 참가자 조회 실패: {}", body));
+    }
+
+    let posts = res
+        .json::<Vec<PostRow>>()
+        .await
+        .context("콘테스트 참가자 응답 파싱 실패")?;
+
+    Ok(posts.into_iter().map(|post| post.user_id).collect())
 }

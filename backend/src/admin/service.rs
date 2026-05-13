@@ -350,7 +350,37 @@ async fn update_content_report_status(
 
     // PATCH가 성공했다면 최종 응답은 view에서 다시 조회한다.
     // 그래야 reporter_nickname, reporter_email이 포함된다.
-    get_content_report_from_view_by_id(state, report_id).await
+    let response = get_content_report_from_view_by_id(state, report_id).await?;
+
+    // 신고자에게 처리 결과 알림 발행
+    // - resolved: 신고가 받아들여져 처리됨
+    // - rejected: 신고가 반려됨
+    // 실패해도 상태 변경 자체는 성공이므로 에러 로그만 남기고 진행
+    let (notification_type_suffix, message) = match status {
+        "resolved" => (
+            "resolved",
+            "접수하신 신고가 처리되었어요. 검토 결과 정책 위반이 확인되었습니다.",
+        ),
+        "rejected" => (
+            "rejected",
+            "접수하신 신고가 반려되었어요. 정책 위반이 확인되지 않았습니다.",
+        ),
+        _ => ("status", "신고 상태가 변경되었어요."),
+    };
+    let reporter_notification_type =
+        format!("report_{}_{}", notification_type_suffix, &report_id.to_string()[..8]);
+    if let Err(e) = crate::notification::service::create_notification(
+        state,
+        response.reporter_id,
+        &reporter_notification_type,
+        message,
+    )
+    .await
+    {
+        tracing::error!("신고 처리 결과 알림 생성 실패: {}", e);
+    }
+
+    Ok(response)
 }
 
 /// 관리자: 신고 처리 완료

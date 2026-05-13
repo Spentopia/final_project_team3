@@ -21,6 +21,7 @@ interface UseMarketReturn {
         txSignature: string,
         options?: { suppressErrorToast?: boolean },
     ) => Promise<TransactionResponse | null>;
+    removeListingLocally: (listingId: string) => void;
     cancelListing: (listingId: string, txSignature: string) => Promise<boolean>;
     creatingListing: boolean;
     updatingEscrow: boolean;
@@ -61,10 +62,6 @@ export function useMarket(): UseMarketReturn{
         try{
             const newListing = await createListingApi({item_id: itemId, price_spt:priceSpt});
 
-            // 성공한 리스팅을 로컬 목록 앞에 추가 (최신 항목이 위에 오게)
-            // prev: 이전 상태 - React가 비동기 환경에서 안전하게 상태를 업데이트하는 패턴
-            setListings((prev)=>[newListing, ...prev]);
-
             toast.success("판매 등록 요청이 생성되었습니다.");
             return newListing;
         }catch (err){
@@ -88,13 +85,8 @@ export function useMarket(): UseMarketReturn{
                 escrow_address: escrowAddress,
                 tx_signature: txSignature,
             });
-            setListings((prev) =>
-                prev.map((listing) =>
-                    listing.id === listingId
-                        ? {...listing, escrow_address: escrowAddress, status: "active"}
-                        : listing
-                )
-            );
+            const refreshedListings = await getListingsApi();
+            setListings(refreshedListings);
             toast.success("판매가 등록되었습니다.");
             return true;
         }catch (err){
@@ -118,14 +110,14 @@ export function useMarket(): UseMarketReturn{
         try{
             const result = await purchaseItemApi({listing_id: listingId, tx_signature:txSignature});
 
-            // 구매 완료된 리스팅을 로컬 목록에서 제거
-            setListings((prev)=>prev.filter((l)=>l.id !==listingId));
+            setListings((prev)=>prev.filter((listing)=>listing.id !== listingId));
+            const refreshedListings = await getListingsApi();
+            setListings(refreshedListings);
             toast.success("구매가 완료되었습니다.");
             return result;
         }catch (err){
             const message = err instanceof Error ? err.message : "구매 중 오류가 발생했습니다.";
             setPurchaseError(message);
-            setListings((prev)=>prev.filter((l)=>l.id !==listingId));
             if (!options?.suppressErrorToast) {
                 toast.error(message);
             }
@@ -134,6 +126,10 @@ export function useMarket(): UseMarketReturn{
             setPurchasing(false);
         }
     },[]);
+
+    const removeListingLocally = useCallback((listingId: string) => {
+        setListings((prev) => prev.filter((listing) => listing.id !== listingId));
+    }, []);
 
     const cancelListing = useCallback(async (
         listingId: string,
@@ -159,6 +155,7 @@ export function useMarket(): UseMarketReturn{
         createListing,
         updateEscrow,
         purchaseItem,
+        removeListingLocally,
         cancelListing,
         creatingListing,
         updatingEscrow,

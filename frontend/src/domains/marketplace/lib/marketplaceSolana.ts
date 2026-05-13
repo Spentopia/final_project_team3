@@ -192,44 +192,13 @@ export async function listNftOnChain(params: {
     };
 }
 
-type SolanaProvider = {
-    publicKey: { toBase58(): string; toBytes(): Uint8Array };
-    signAndSendTransaction: (tx: Transaction) => Promise<{ signature: string }>;
-};
-
-// DB에 저장된 walletAddress와 publicKey가 일치하는 provider를 찾는다.
-// 여러 지갑이 설치돼 있어도 실제 연동된 지갑만 선택한다.
-function getSolanaProvider(walletAddress: string): SolanaProvider {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const win = window as any;
-    const candidates: unknown[] = [
-        win.phantom?.solana,
-        win.solflare,
-        win.backpack,
-        win.solana,
-    ];
-    const provider = candidates.find(
-        (p): p is SolanaProvider =>
-            !!p &&
-            typeof p === "object" &&
-            "publicKey" in p &&
-            (p as SolanaProvider).publicKey?.toBase58() === walletAddress,
-    );
-    if (!provider) {
-        throw new Error(
-            "연동된 지갑을 찾을 수 없습니다. 익스텐션에서 이 사이트에 지갑이 연결되어 있는지 확인해 주세요.",
-        );
-    }
-    return provider;
-}
-
 export async function cancelListingOnChain(params: {
     connection: Connection;
+    publicKey: PublicKey;
+    sendTransaction: (transaction: Transaction, connection: Connection) => Promise<string>;
     nftMintAddress: string;
-    walletAddress: string;
 }): Promise<string> {
-    const provider = getSolanaProvider(params.walletAddress);
-    const seller = new PublicKey(provider.publicKey.toBytes());
+    const seller = params.publicKey;
 
     const nftMint = new PublicKey(params.nftMintAddress);
     const listing = listingPda(seller, nftMint);
@@ -273,7 +242,9 @@ export async function cancelListingOnChain(params: {
         throw new Error(`리스팅 PDA가 온체인에 존재하지 않습니다. (${listing.toBase58()})`);
     }
 
-    const { signature } = await provider.signAndSendTransaction(transaction);
+    await assertTransactionSimulationSucceeds(params.connection, transaction);
+
+    const signature = await params.sendTransaction(transaction, params.connection);
 
     const confirmation = await params.connection.confirmTransaction(
         { signature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },

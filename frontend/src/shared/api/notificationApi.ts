@@ -47,3 +47,11 @@ export async function markAllNotificationsRead(): Promise<void> {
     throw new Error(extractApiErrorMessage(error, "알림 읽음 처리에 실패했습니다."));
   }
 }
+
+export async function markNotificationRead(notificationId: string): Promise<void> {
+  try {
+    await apiClient.patch(`/api/notifications/${notificationId}/read`);
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error, "알림 읽음 처리에 실패했습니다."));
+  }
+}
