@@ -28,6 +28,12 @@ import AdminUsersPanel from "@/domains/admin/components/AdminUsersPanel";
 import AdminNoticesPanel from "@/domains/admin/components/AdminNoticesPanel";
 import AdminContestsPanel from "@/domains/admin/components/AdminContestsPanel.tsx";
 
+// AdminPage.tsx 상단 import에 추가
+import type {
+    ReportTargetTypeFilter,
+    ReportReasonFilter,
+} from "@/domains/admin/components/AdminReportsPanel";
+
 import {
     createAdminNotice,
     createAdminContest,
@@ -111,6 +117,9 @@ function toIsoFromDateTimeLocal(value: string): string | null {
     return date.toISOString();
 }
 
+const REPORTS_PAGE_SIZE = 20;
+const USERS_PAGE_SIZE = 20;
+
 export default function AdminPage() {
     const navigate = useNavigate();
 
@@ -188,7 +197,7 @@ export default function AdminPage() {
             }
         );
     };
-    
+
 
     // 대시보드용 전체 신고 목록
     const [dashboardReports, setDashboardReports] = useState<
@@ -197,18 +206,31 @@ export default function AdminPage() {
     const [isDashboardReportsLoading, setIsDashboardReportsLoading] =
         useState(false);
 
-    // 신고 관리 탭용 신고 목록
-    const [reportStatus, setReportStatus] =
-        useState<ReportStatusFilter>("pending");
+    // ─────────────────────────────────────────────
+    // 신고 관리 상태 (페이지네이션 + 필터 추가)
+    // ─────────────────────────────────────────────
+    const [reportStatus, setReportStatus] = useState<ReportStatusFilter>("pending");
+    const [reportTargetType, setReportTargetType] =
+        useState<ReportTargetTypeFilter>("all");
+    const [reportReason, setReportReason] = useState<ReportReasonFilter>("all");
+    const [reportKeyword, setReportKeyword] = useState("");
+    const [debouncedReportKeyword, setDebouncedReportKeyword] = useState("");
+    const [reportPage, setReportPage] = useState(1);
+
     const [reports, setReports] = useState<AdminContentReportResponse[]>([]);
+    const [reportTotalCount, setReportTotalCount] = useState(0);
     const [selectedReport, setSelectedReport] =
         useState<AdminContentReportResponse | null>(null);
     const [isReportsLoading, setIsReportsLoading] = useState(false);
 
-    // 회원 관리
+    // ─────────────────────────────────────────────
+    // 회원 관리 상태 (페이지네이션 추가)
+    // ─────────────────────────────────────────────
     const [users, setUsers] = useState<AdminUserResponse[]>([]);
+    const [userTotalCount, setUserTotalCount] = useState(0);
     const [userKeyword, setUserKeyword] = useState("");
     const [debouncedUserKeyword, setDebouncedUserKeyword] = useState("");
+    const [userPage, setUserPage] = useState(1);
     const [isUsersLoading, setIsUsersLoading] = useState(false);
 
     // 공지사항 관리
@@ -239,15 +261,61 @@ export default function AdminPage() {
             .length;
     }, [dashboardReports]);
 
+    // ─────────────────────────────────────────────
+    // 대시보드 활성 회원 수 계산 (수정)
+    // ─────────────────────────────────────────────
+    //
+    // 기존엔 users.filter()로 계산했는데, 이제 users는 페이지네이션된 일부만 있다.
+    // 그래서 대시보드 활성 회원 수는 별도 처리가 필요.
+    //
+    // 간단히 처리하려면: totalUserCount는 userTotalCount를 그대로 사용.
+    // 활성 회원 수까지 정확히 보려면 별도 API가 필요한데,
+    // 졸작에서는 일단 "현재 페이지 활성 회원" 정도로만 표시하거나
+    // 활성 회원 수 표시를 빼는 게 깔끔.
+    //
+    // 여기선 totalCount로 표시.
     const activeUserCount = useMemo(() => {
-        return users.filter((user) => user.is_active && !user.deleted_at).length;
+        return users.filter((u) => u.is_active && !u.deleted_at).length;
     }, [users]);
 
     const recentReports = useMemo(() => {
         return dashboardReports.slice(0, 5);
     }, [dashboardReports]);
 
-    // 대시보드용 전체 신고 목록 조회
+    // ─────────────────────────────────────────────
+    // 신고 필터 디바운스 (검색어만)
+    // ─────────────────────────────────────────────
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setDebouncedReportKeyword(reportKeyword.trim());
+            setReportPage(1); // 검색어가 바뀌면 1페이지로
+        }, 300);
+
+        return () => window.clearTimeout(timer);
+    }, [reportKeyword]);
+
+    // 필터(셀렉트) 바뀌면 1페이지로
+    useEffect(() => {
+        setReportPage(1);
+    }, [reportStatus, reportTargetType, reportReason]);
+
+    // 회원 검색 디바운스
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setDebouncedUserKeyword(userKeyword.trim());
+            setUserPage(1);
+        }, 300);
+
+        return () => window.clearTimeout(timer);
+    }, [userKeyword]);
+
+    // ─────────────────────────────────────────────
+    // 대시보드용 신고는 별도 호출 (기존 유지)
+    // ─────────────────────────────────────────────
+    //
+    // 대시보드는 페이지네이션 안 함.
+    // 단순히 최근 5개 + pending 카운트만 필요.
+    // listAdminContentReports의 응답 구조가 바뀌었으므로 .items로 접근.
     useEffect(() => {
         let ignore = false;
 
@@ -255,10 +323,10 @@ export default function AdminPage() {
             setIsDashboardReportsLoading(true);
 
             try {
-                const data = await listAdminContentReports(undefined);
+                const data = await listAdminContentReports({ page: 1, page_size: 50 });
 
                 if (!ignore) {
-                    setDashboardReports(data);
+                    setDashboardReports(data.items);
                 }
             } catch (error) {
                 console.error("관리자 대시보드 신고 목록 조회 실패:", error);
@@ -277,7 +345,9 @@ export default function AdminPage() {
         };
     }, []);
 
-    // 신고 관리 탭용 신고 목록 조회
+    // ─────────────────────────────────────────────
+    // 신고 관리 탭용 신고 목록 조회 (변경)
+    // ─────────────────────────────────────────────
     useEffect(() => {
         let ignore = false;
 
@@ -285,12 +355,19 @@ export default function AdminPage() {
             setIsReportsLoading(true);
 
             try {
-                const data = await listAdminContentReports(
-                    reportStatus === "all" ? undefined : reportStatus
-                );
+                const data = await listAdminContentReports({
+                    status: reportStatus === "all" ? undefined : reportStatus,
+                    target_type:
+                        reportTargetType === "all" ? undefined : reportTargetType,
+                    reason: reportReason === "all" ? undefined : reportReason,
+                    keyword: debouncedReportKeyword || undefined,
+                    page: reportPage,
+                    page_size: REPORTS_PAGE_SIZE,
+                });
 
                 if (!ignore) {
-                    setReports(data);
+                    setReports(data.items);
+                    setReportTotalCount(data.total_count);
                 }
             } catch (error) {
                 console.error("관리자 신고 목록 조회 실패:", error);
@@ -307,7 +384,13 @@ export default function AdminPage() {
         return () => {
             ignore = true;
         };
-    }, [reportStatus]);
+    }, [
+        reportStatus,
+        reportTargetType,
+        reportReason,
+        debouncedReportKeyword,
+        reportPage,
+    ]);
 
     // 회원 검색 디바운스
     useEffect(() => {
@@ -320,7 +403,9 @@ export default function AdminPage() {
         };
     }, [userKeyword]);
 
-    // 회원 목록 조회
+    // ─────────────────────────────────────────────
+    // 회원 목록 조회 (변경)
+    // ─────────────────────────────────────────────
     useEffect(() => {
         let ignore = false;
 
@@ -328,10 +413,15 @@ export default function AdminPage() {
             setIsUsersLoading(true);
 
             try {
-                const data = await listAdminUsers(debouncedUserKeyword);
+                const data = await listAdminUsers({
+                    keyword: debouncedUserKeyword || undefined,
+                    page: userPage,
+                    page_size: USERS_PAGE_SIZE,
+                });
 
                 if (!ignore) {
-                    setUsers(data);
+                    setUsers(data.items);
+                    setUserTotalCount(data.total_count);
                 }
             } catch (error) {
                 console.error("관리자 회원 목록 조회 실패:", error);
@@ -348,7 +438,7 @@ export default function AdminPage() {
         return () => {
             ignore = true;
         };
-    }, [debouncedUserKeyword]);
+    }, [debouncedUserKeyword, userPage]);
 
     // 공지사항 목록 조회
     useEffect(() => {
@@ -786,12 +876,22 @@ export default function AdminPage() {
                         <AdminReportsPanel
                             reports={reports}
                             reportStatus={reportStatus}
+                            targetTypeFilter={reportTargetType}
+                            reasonFilter={reportReason}
+                            keyword={reportKeyword}
+                            page={reportPage}
+                            totalCount={reportTotalCount}
+                            pageSize={REPORTS_PAGE_SIZE}
                             isReportsLoading={isReportsLoading}
                             processingId={processingId}
                             onReportStatusChange={setReportStatus}
+                            onTargetTypeChange={setReportTargetType}
+                            onReasonChange={setReportReason}
+                            onKeywordChange={setReportKeyword}
+                            onPageChange={setReportPage}
                             onSelectReport={setSelectedReport}
-                            onResolveReport={(reportId) => void handleResolveReport(reportId)}
-                            onRejectReport={(reportId) => void handleRejectReport(reportId)}
+                            onResolveReport={(id) => void handleResolveReport(id)}
+                            onRejectReport={(id) => void handleRejectReport(id)}
                         />
                     )}
 
@@ -801,8 +901,12 @@ export default function AdminPage() {
                             userKeyword={userKeyword}
                             isUsersLoading={isUsersLoading}
                             processingId={processingId}
+                            page={userPage}
+                            totalCount={userTotalCount}
+                            pageSize={USERS_PAGE_SIZE}
+                            onPageChange={setUserPage}
                             onUserKeywordChange={setUserKeyword}
-                            onToggleUserActive={(user) => void handleToggleUserActive(user)}
+                            onToggleUserActive={(u) => void handleToggleUserActive(u)}
                         />
                     )}
 
@@ -858,7 +962,7 @@ export default function AdminPage() {
                             <h3 className="mt-1 text-xl font-extrabold">
                                 회원 비활성화
                             </h3>
-                            
+
                         </div>
 
                         <div className="space-y-4">

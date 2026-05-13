@@ -307,3 +307,34 @@ pub struct UpdateAdminContestRequest {
 pub struct UpdateAdminContestStatusRequest {
     pub status: String,
 }
+
+// ─────────────────────────────────────────────
+// 페이지네이션 공통 응답 (신고 목록)
+// ─────────────────────────────────────────────
+//
+// 커뮤니티의 PostListResponse와 필드명을 통일한다.
+// - items     : 현재 페이지의 데이터
+// - total_count : 필터 조건에 맞는 전체 건수 (페이지 수 계산용)
+// - page      : 현재 페이지 번호 (1부터)
+// - page_size : 한 페이지당 건수
+//
+// 제네릭으로 빼면 utoipa 스키마 잡기가 번거로워서
+// 신고/회원 각각 명시적으로 둔다.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AdminContentReportListResponse {
+    pub items: Vec<AdminContentReportResponse>,
+    pub total_count: i64,
+    pub page: i64,
+    pub page_size: i64,
+}
+
+// ─────────────────────────────────────────────
+// 페이지네이션 공통 응답 (회원 목록)
+// ─────────────────────────────────────────────
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct AdminUserListResponse {
+    pub items: Vec<AdminUserResponse>,
+    pub total_count: i64,
+    pub page: i64,
+    pub page_size: i64,
+}
