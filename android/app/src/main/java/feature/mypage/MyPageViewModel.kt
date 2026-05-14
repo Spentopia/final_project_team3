@@ -7,6 +7,11 @@ import androidx.compose.runtime.getValue // by로 상태를 읽게 해줌
 import androidx.compose.runtime.mutableStateOf // 화면 상태를 만드는 도구를 가져옴
 import androidx.compose.runtime.setValue // by로 상태를 바꾸게 해줌
 import androidx.lifecycle.ViewModel // ViewModel 기능을 가져옴
+import androidx.lifecycle.viewModelScope // ViewModel 코루틴 범위를 가져옴
+import com.ict.spentopia.data.remote.RetrofitClient // 서버 통신 도구를 가져옴
+import com.ict.spentopia.data.remote.UpdateUserSettingsRequest // 알림 설정 수정 요청을 가져옴
+import com.ict.spentopia.data.remote.UserSettingsResponse // 알림 설정 응답을 가져옴
+import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
 
 // 마이페이지 상태 관리
 class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클래스 시작
@@ -53,6 +58,50 @@ class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클
     )
         private set
 
+    init {
+        loadNotificationSettings() // 화면이 처음 만들어질 때 서버 알림 설정을 불러옴
+    }
+
+    private fun loadNotificationSettings() { // 서버에서 알림 설정을 불러옴
+        viewModelScope.launch {
+            try {
+                applyNotificationSettings(RetrofitClient.userSettingsApi.getSettings()) // 서버 응답을 화면 상태에 반영함
+            } catch (_: Exception) {
+                // 설정 조회 실패 시 기존 기본값을 유지한다.
+            }
+        }
+    }
+
+    private fun applyNotificationSettings(settings: UserSettingsResponse) { // 서버 응답을 화면 상태에 반영함
+        uiState = uiState.copy(
+            notificationSetting = uiState.notificationSetting.copy(
+                budgetAlertEnabled = settings.alert_budget ?: true, // 예산 알림 값이 없으면 기본값 true를 사용함
+                rewardAlertEnabled = settings.alert_reward ?: true, // 보상 알림 값이 없으면 기본값 true를 사용함
+                streakReminderEnabled = settings.alert_streak ?: true, // 스트릭 알림 값이 없으면 기본값 true를 사용함
+                marketingAlertEnabled = settings.notification_listener ?: true // 전체 알림 수신 값이 없으면 기본값 true를 사용함
+            )
+        )
+    }
+
+    private fun saveNotificationSettings() { // 현재 알림 설정을 서버에 저장함
+        val setting = uiState.notificationSetting // 현재 화면에 선택된 토글 값을 가져옴
+        viewModelScope.launch {
+            try {
+                val updated = RetrofitClient.userSettingsApi.updateSettings(
+                    UpdateUserSettingsRequest(
+                        alert_budget = setting.budgetAlertEnabled, // 예산 알림 사용 여부를 서버에 보냄
+                        alert_reward = setting.rewardAlertEnabled, // 보상 알림 사용 여부를 서버에 보냄
+                        alert_streak = setting.streakReminderEnabled, // 스트릭 알림 사용 여부를 서버에 보냄
+                        notification_listener = setting.marketingAlertEnabled // 전체 알림 수신 여부를 서버에 보냄
+                    )
+                )
+                applyNotificationSettings(updated) // 서버에 저장된 최종 값을 다시 화면에 반영함
+            } catch (_: Exception) {
+                // 실패 시 화면에서 바꾼 값은 유지하고 다음 변경 때 다시 저장을 시도한다.
+            }
+        }
+    }
+
     // 상단 탭 변경
     fun onTabChange(tab: MyPageTab) { // onTabChange 함수를 선언함
         uiState = uiState.copy( // 화면 상태를 정해줌
@@ -67,6 +116,7 @@ class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클
                 budgetAlertEnabled = enabled // enabled 값을 예산 관련 값에 넣음
             )
         )
+        saveNotificationSettings() // 변경된 토글 값을 서버에 저장함
     }
 
     // 보상 알림 변경
@@ -76,6 +126,7 @@ class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클
                 rewardAlertEnabled = enabled // enabled 값을 rewardAlertEnabled 값에 넣음
             )
         )
+        saveNotificationSettings() // 변경된 토글 값을 서버에 저장함
     }
 
     // 스트릭 알림 변경
@@ -85,6 +136,7 @@ class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클
                 streakReminderEnabled = enabled // enabled 값을 streakReminderEnabled 값에 넣음
             )
         )
+        saveNotificationSettings() // 변경된 토글 값을 서버에 저장함
     }
 
     // 마케팅 알림 변경
@@ -94,6 +146,7 @@ class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클
                 marketingAlertEnabled = enabled // enabled 값을 마켓 관련 값에 넣음
             )
         )
+        saveNotificationSettings() // 변경된 토글 값을 서버에 저장함
     }
 
     // 지갑 상태 반영

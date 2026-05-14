@@ -6,10 +6,16 @@ import android.content.Intent // Intent 기능을 가져옴
 import android.os.Environment // Environment 기능을 가져옴
 import android.provider.MediaStore // MediaStore 기능을 가져옴
 import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
+import androidx.compose.animation.core.LinearEasing // 일정한 속도 애니메이션을 가져옴
+import androidx.compose.animation.core.RepeatMode // 반복 방향 설정을 가져옴
+import androidx.compose.animation.core.animateFloat // Float 애니메이션을 가져옴
+import androidx.compose.animation.core.infiniteRepeatable // 무한 반복 애니메이션을 가져옴
+import androidx.compose.animation.core.rememberInfiniteTransition // 반복 애니메이션 상태를 기억함
+import androidx.compose.animation.core.tween // 시간 기반 애니메이션을 가져옴
+import androidx.compose.foundation.BorderStroke // BorderStroke 기능을 가져옴
 import androidx.compose.foundation.Canvas // Canvas 기능을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
 import androidx.compose.foundation.border // border 기능을 가져옴
-import androidx.compose.foundation.isSystemInDarkTheme // isSystemInDarkTheme 기능을 가져옴
 import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
 import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
 import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
@@ -62,12 +68,28 @@ import androidx.compose.ui.text.style.TextAlign // TextAlign 기능을 가져옴
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
 import androidx.lifecycle.viewmodel.compose.viewModel // Compose에서 ViewModel 연결하는 도구를 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // 앱 다크모드 배경색을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple // SpentopiaGlowPurple 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple // SpentopiaNavyPurple 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors // SpentopiaWalletGradientColors 기능을 가져옴
 import kotlin.math.max // max 기능을 가져옴
 import kotlin.math.roundToInt // roundToInt 기능을 가져옴
+
+@Composable
+private fun isAnalysisDarkTheme(): Boolean {
+    return MaterialTheme.colorScheme.background == SpentopiaDarkBackground
+}
+
+@Composable
+private fun analysisSoftCardColor(): Color {
+    return if (isAnalysisDarkTheme()) Color(0xFF171A2B) else Color(0xFFF8FBFF)
+}
+
+@Composable
+private fun analysisSoftCardBorderColor(): Color {
+    return if (isAnalysisDarkTheme()) Color(0xFF4C3B7A) else Color(0xFFBFDBFE)
+}
 
 // 소비분석 메인 화면임
 // 요약/비중/AI리포트/공유/다운로드 한 화면
@@ -289,7 +311,8 @@ fun GradientSummaryCard( // GradientSummaryCard 함수를 선언함
                 spotColor = SpentopiaGlowPurple.copy(alpha = 0.18f) // spotColor 값을 정해줌
         ),
         shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer) // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = analysisSoftCardColor()), // colors 값을 정해줌
+        border = BorderStroke(1.dp, analysisSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
@@ -337,7 +360,8 @@ fun WhiteSummaryCard( // WhiteSummaryCard 함수를 선언함
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = analysisSoftCardColor()), // colors 값을 정해줌
+        border = BorderStroke(1.dp, analysisSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
@@ -372,11 +396,40 @@ fun BudgetUsageCard( // BudgetUsageCard 함수를 선언함
 ) { // 이 블록 안의 내용이 시작됨
     val percentText = (usageRate * 100).roundToInt() // percentText 값을 저장함
     val progress = usageRate.coerceIn(0f, 1f) // progress 값을 저장함
+    val isDark = isAnalysisDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
+    val waveShift by rememberInfiniteTransition().animateFloat( // 게이지 안의 빛이 계속 흐르게 만듦
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+    val progressBrush = Brush.linearGradient( // 성실도 게이지처럼 울렁이는 진행 색상임
+        colors = if (isDark) {
+            listOf(
+                SpentopiaMutedPurple,
+                MaterialTheme.colorScheme.primary,
+                SpentopiaGlowPurple.copy(alpha = 0.72f),
+                MaterialTheme.colorScheme.primary
+            )
+        } else {
+            listOf(
+                Color(0xFF93C5FD),
+                MaterialTheme.colorScheme.primary,
+                Color(0xFF38BDF8),
+                MaterialTheme.colorScheme.primary
+            )
+        },
+        start = Offset(-220f + waveShift * 260f, 0f),
+        end = Offset(260f + waveShift * 260f, 0f)
+    )
 
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = analysisSoftCardColor()), // colors 값을 정해줌
+        border = BorderStroke(1.dp, analysisSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
@@ -400,7 +453,13 @@ fun BudgetUsageCard( // BudgetUsageCard 함수를 선언함
                     .fillMaxWidth()
                     .height(12.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(
+                        if (isDark) {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        } else {
+                            Color(0xFFE0F2FE)
+                        }
+                    )
                     .border(
                         width = 1.dp, // width 값을 정해줌
                         color = MaterialTheme.colorScheme.outlineVariant, // color 값을 정해줌
@@ -412,14 +471,7 @@ fun BudgetUsageCard( // BudgetUsageCard 함수를 선언함
                         .fillMaxWidth(progress)
                         .height(12.dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf( // colors 값을 정해줌
-                                    SpentopiaMutedPurple,
-                                    MaterialTheme.colorScheme.primary
-                                )
-                            )
-                        )
+                        .background(progressBrush)
                 )
             }
         }
@@ -435,7 +487,8 @@ fun TopCategoryCard( // TopCategoryCard 함수를 선언함
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = analysisSoftCardColor()), // colors 값을 정해줌
+        border = BorderStroke(1.dp, analysisSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
@@ -548,7 +601,8 @@ fun ExpenseTrendCard( // ExpenseTrendCard 함수를 선언함
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = analysisSoftCardColor()), // colors 값을 정해줌
+        border = BorderStroke(1.dp, analysisSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
@@ -591,7 +645,7 @@ fun MonthlyLineChart( // MonthlyLineChart 함수를 선언함
         val topAmount = max(60000, ((maxAmount + 9999) / 10000) * 10000) // topAmount 값을 저장함
         listOf(0, topAmount / 4, topAmount / 2, topAmount * 3 / 4, topAmount) // list Of 함수를 실행함
     }
-    val isDark = isSystemInDarkTheme() // 다크모드인지 저장함
+    val isDark = isAnalysisDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
     val gridLineColor = if (isDark) Color(0xFF6B7280) else MaterialTheme.colorScheme.outlineVariant // gridLineColor 값을 저장함
     val axisTextColor = if (isDark) Color(0xFFE5E7EB) else MaterialTheme.colorScheme.onSurfaceVariant // axisTextColor 값을 저장함
     val lineColor = if (isDark) SpentopiaGlowPurple else MaterialTheme.colorScheme.primary // lineColor 값을 저장함
@@ -758,7 +812,7 @@ fun SimpleBarChart( // SimpleBarChart 함수를 선언함
 ) { // 이 블록 안의 내용이 시작됨
     val maxAmount = (expenseList.maxOfOrNull { it.second } ?: 1).coerceAtLeast(1) // maxAmount 값을 저장함
     val yAxisSteps = listOf(0, 15000, 30000, 45000, 60000) // yAxisSteps 값을 저장함
-    val isDark = isSystemInDarkTheme() // 다크모드인지 저장함
+    val isDark = isAnalysisDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
     val gridLineColor = if (isDark) Color(0xFF6B7280) else MaterialTheme.colorScheme.outlineVariant // gridLineColor 값을 저장함
     val axisTextColor = if (isDark) Color(0xFFE5E7EB) else MaterialTheme.colorScheme.onSurfaceVariant // axisTextColor 값을 저장함
 
@@ -882,7 +936,8 @@ fun CategoryPieChartCard( // CategoryPieChartCard 함수를 선언함
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = analysisSoftCardColor()), // colors 값을 정해줌
+        border = BorderStroke(1.dp, analysisSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
@@ -1031,7 +1086,8 @@ fun CategoryDetailCard( // CategoryDetailCard 함수를 선언함
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = analysisSoftCardColor()), // colors 값을 정해줌
+        border = BorderStroke(1.dp, analysisSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
@@ -1209,7 +1265,8 @@ fun AiGeneratedReportCard( // AiGeneratedReportCard 함수를 선언함
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(16.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = analysisSoftCardColor()), // colors 값을 정해줌
+        border = BorderStroke(1.dp, analysisSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
@@ -1325,7 +1382,8 @@ fun AiReportItemCard( // AiReportItemCard 함수를 선언함
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = analysisSoftCardColor()), // colors 값을 정해줌
+        border = BorderStroke(1.dp, analysisSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
@@ -1374,7 +1432,8 @@ fun AnalysisTipCard( // AnalysisTipCard 함수를 선언함
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(16.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = analysisSoftCardColor()), // colors 값을 정해줌
+        border = BorderStroke(1.dp, analysisSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
@@ -1424,7 +1483,8 @@ fun ConsumptionPatternCard( // ConsumptionPatternCard 함수를 선언함
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = analysisSoftCardColor()), // colors 값을 정해줌
+        border = BorderStroke(1.dp, analysisSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier.padding(18.dp), // UI 크기나 여백 같은 모양을 정함
@@ -1484,7 +1544,8 @@ fun ConsumptionTextReportCard( // ConsumptionTextReportCard 함수를 선언함
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)) // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = analysisSoftCardColor()), // colors 값을 정해줌
+        border = BorderStroke(1.dp, analysisSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
@@ -1593,7 +1654,8 @@ fun SmallCompareCard( // SmallCompareCard 함수를 선언함
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = modifier, // modifier 값을 modifier 값에 넣음
         shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant) // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = analysisSoftCardColor()), // colors 값을 정해줌
+        border = BorderStroke(1.dp, analysisSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier.padding(14.dp), // UI 크기나 여백 같은 모양을 정함

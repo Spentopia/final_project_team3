@@ -18,7 +18,6 @@ import androidx.compose.foundation.BorderStroke // BorderStroke 기능을 가져
 import androidx.compose.foundation.background // background 기능을 가져옴
 import androidx.compose.foundation.border // border 기능을 가져옴
 import androidx.compose.foundation.clickable // clickable 기능을 가져옴
-import androidx.compose.foundation.isSystemInDarkTheme // isSystemInDarkTheme 기능을 가져옴
 import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
 import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
 import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
@@ -73,6 +72,7 @@ import androidx.compose.ui.text.style.TextOverflow // TextOverflow 기능을 가
 import androidx.compose.ui.tooling.preview.Preview // Preview 기능을 가져옴
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // 앱 다크모드 배경색을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
 
 // ------------------------------------------------------------
@@ -381,12 +381,15 @@ fun CommunityScreen( // CommunityScreen 함수를 선언함
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun CommunityLoadingCard() { // 데이터를 불러오는 함수 시작
+    val cardColor = communitySoftCardColor()
+    val cardBorderColor = communitySoftCardBorderColor()
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = cardColor // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, cardBorderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Row( // 안쪽 UI를 가로로 배치함
@@ -412,12 +415,15 @@ private fun CommunityErrorCard( // CommunityErrorCard 함수를 선언함
     message: String, // 메시지를 받음
     onRetryClick: () -> Unit // onRetryClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val cardColor = communitySoftCardColor()
+    val cardBorderColor = communitySoftCardBorderColor()
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = cardColor // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, cardBorderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Row( // 안쪽 UI를 가로로 배치함
@@ -444,12 +450,15 @@ private fun CommunityErrorCard( // CommunityErrorCard 함수를 선언함
 // ------------------------------------------------------------
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun EmptyPostCard() { // EmptyPostCard 함수를 선언함
+    val cardColor = communitySoftCardColor()
+    val cardBorderColor = communitySoftCardBorderColor()
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = cardColor // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, cardBorderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -481,6 +490,8 @@ private fun EmptyPostCard() { // EmptyPostCard 함수를 선언함
 private fun CommunityTopHeader( // CommunityTopHeader 함수를 선언함
     onWriteClick: () -> Unit // onWriteClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isCommunityDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
+    val buttonColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // 글쓰기 버튼색을 모드별로 분리함
     Row( // 안쪽 UI를 가로로 배치함
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         horizontalArrangement = Arrangement.SpaceBetween, // horizontalArrangement 값을 정해줌
@@ -512,15 +523,16 @@ private fun CommunityTopHeader( // CommunityTopHeader 함수를 선언함
             onClick = onWriteClick, // onWriteClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
             shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
             colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer // contentColor 값을 정해줌
+                containerColor = buttonColor, // containerColor 값을 정해줌
+                contentColor = Color.White // contentColor 값을 정해줌
             ),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp) // contentPadding 값을 정해줌
         ) { // 이 블록 안의 내용이 시작됨
             Text( // 화면에 글자를 보여줌
                 text = "글쓰기", // text 값을 정해줌
                 fontSize = 12.sp, // fontSize 값을 정해줌
-                fontWeight = FontWeight.SemiBold // fontWeight 값을 정해줌
+                fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
+                color = Color.White
             )
         }
     }
@@ -532,6 +544,10 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
     onViewPostsClick: () -> Unit, // onViewPostsClick 때 실행할 함수를 받음
     onWriteClick: () -> Unit // onWriteClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isCommunityDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
+    val buttonColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // 참가 버튼색을 모드별로 분리함
+    val cardColor = communitySoftCardColor()
+    val cardBorderColor = communitySoftCardBorderColor()
     val statusText = "진행중" // statusText 값을 저장함
     val title = "5월 아바타 콘테스트" // 제목을 저장함
     val period = "2026.05.09 ~ 2026.05.31" // period 값을 저장함
@@ -542,11 +558,11 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(24.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surfaceVariant // containerColor 값을 정해줌
+            containerColor = cardColor // containerColor 값을 정해줌
         ),
         border = BorderStroke( // border 값을 정해줌
             1.dp,
-            MaterialTheme.colorScheme.outlineVariant
+            cardBorderColor
         )
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -627,7 +643,7 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
                     modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
                     shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
                     colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                        containerColor = SpentopiaMutedPurple, // SpentopiaMutedPurple 값을 containerColor 값에 넣음
+                        containerColor = buttonColor, // buttonColor 값을 containerColor 값에 넣음
                         contentColor = Color.White // contentColor 값을 정해줌
                     ),
                     contentPadding = PaddingValues(vertical = 10.dp) // contentPadding 값을 정해줌
@@ -635,7 +651,8 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
                     Text( // 화면에 글자를 보여줌
                         text = "참가글 보기", // text 값을 정해줌
                         fontSize = 12.sp, // fontSize 값을 정해줌
-                        fontWeight = FontWeight.Bold // fontWeight 값을 정해줌
+                        fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                        color = Color.White
                     )
                 }
 
@@ -644,7 +661,7 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
                     modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
                     shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
                     colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                        containerColor = Color(0xFF0F172A), // containerColor 값을 정해줌
+                        containerColor = buttonColor, // containerColor 값을 정해줌
                         contentColor = Color.White // contentColor 값을 정해줌
                     ),
                     contentPadding = PaddingValues(vertical = 10.dp) // contentPadding 값을 정해줌
@@ -652,7 +669,8 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
                     Text( // 화면에 글자를 보여줌
                         text = "참가글 작성", // text 값을 정해줌
                         fontSize = 12.sp, // fontSize 값을 정해줌
-                        fontWeight = FontWeight.Bold // fontWeight 값을 정해줌
+                        fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                        color = Color.White
                     )
                 }
             }
@@ -787,6 +805,8 @@ private fun CommunityPostCard( // CommunityPostCard 함수를 선언함
     onClick: () -> Unit // 눌렀을 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val badgeColors = communityCategoryBadgeColors(post.category) // badgeColors 값을 저장함
+    val cardColor = communitySoftCardColor()
+    val cardBorderColor = communitySoftCardBorderColor()
 
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
@@ -796,8 +816,9 @@ private fun CommunityPostCard( // CommunityPostCard 함수를 선언함
             },
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = cardColor // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, cardBorderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -891,6 +912,11 @@ private fun CommunityPaginationRow( // CommunityPaginationRow 함수를 선언�
     totalPages: Int, // totalPages 값을 받음
     onPageSelected: (Int) -> Unit // onPageSelected 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isCommunityDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
+    val selectedColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // 페이지 선택 버튼색을 모드별로 분리함
+    val unselectedColor = if (isDark) Color(0xFF171A2B) else Color(0xFFEFF6FF) // 선택 안 된 페이지 배경색을 모드별로 분리함
+    val unselectedBorderColor = if (isDark) Color(0xFF2E3352) else Color(0xFFBFDBFE) // 선택 안 된 페이지 테두리색을 모드별로 분리함
+    val unselectedTextColor = if (isDark) Color(0xFFD8D6F5) else Color(0xFF1E3A8A) // 선택 안 된 페이지 글자색을 모드별로 분리함
     LazyRow( // 안쪽 UI를 가로로 배치함
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         horizontalArrangement = Arrangement.Center, // horizontalArrangement 값을 정해줌
@@ -907,12 +933,12 @@ private fun CommunityPaginationRow( // CommunityPaginationRow 함수를 선언�
                     .size(38.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(
-                        if (isSelected) SpentopiaMutedPurple // 조건이 맞는지 확인함
-                        else MaterialTheme.colorScheme.surfaceVariant // 위 조건이 아니면 이쪽을 실행함
+                        if (isSelected) selectedColor // 조건이 맞는지 확인함
+                        else unselectedColor // 위 조건이 아니면 이쪽을 실행함
                     )
                     .border(
                         width = 1.dp, // width 값을 정해줌
-                        color = if (isSelected) SpentopiaMutedPurple else MaterialTheme.colorScheme.outlineVariant, // color 값을 정해줌
+                        color = if (isSelected) selectedColor else unselectedBorderColor, // color 값을 정해줌
                         shape = RoundedCornerShape(10.dp) // shape 값을 정해줌
                     )
                     .clickable { onPageSelected(page) },
@@ -922,7 +948,7 @@ private fun CommunityPaginationRow( // CommunityPaginationRow 함수를 선언�
                     text = page.toString(), // text 값을 정해줌
                     fontSize = 13.sp, // fontSize 값을 정해줌
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, // fontWeight 값을 정해줌
-                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
+                    color = if (isSelected) Color.White else unselectedTextColor // color 값을 정해줌
                 )
             }
         }
@@ -936,7 +962,7 @@ private data class CommunityBadgeColors( // CommunityBadgeColors 데이터를 �
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun communityCategoryBadgeColors(category: CommunityCategory): CommunityBadgeColors { // communityCategoryBadgeColors 함수를 선언함
-    val isDark = isSystemInDarkTheme() // 다크모드인지 저장함
+    val isDark = isCommunityDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
     return when (category) { // 이 값을 함수 결과로 돌려줌
         CommunityCategory.NOTICE -> if (isDark) { // 이 블록 안의 내용이 시작됨
             CommunityBadgeColors(Color(0xFF164E63), Color(0xFFBAE6FD)) // Community Badge Colors 함수를 실행함
@@ -959,6 +985,21 @@ private fun communityCategoryBadgeColors(category: CommunityCategory): Community
             CommunityBadgeColors(Color(0xFF059669), Color.White) // Community Badge Colors 함수를 실행함
         }
     }
+}
+
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun isCommunityDarkTheme(): Boolean { // 앱 테마 기준으로 커뮤니티 다크모드 여부를 확인함
+    return MaterialTheme.colorScheme.background == SpentopiaDarkBackground // 시스템 설정이 아니라 앱 설정 기준으로 판단함
+}
+
+@Composable
+private fun communitySoftCardColor(): Color {
+    return if (isCommunityDarkTheme()) Color(0xFF171A2B) else Color(0xFFF8FBFF)
+}
+
+@Composable
+private fun communitySoftCardBorderColor(): Color {
+    return if (isCommunityDarkTheme()) Color(0xFF4C3B7A) else Color(0xFFBFDBFE)
 }
 
 private fun CommunityCategory.badgeLabel(): String { // CommunityCategory 함수를 선언함

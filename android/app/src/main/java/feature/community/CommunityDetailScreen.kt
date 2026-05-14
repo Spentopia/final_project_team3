@@ -23,8 +23,8 @@ import android.content.ClipboardManager // ClipboardManager 기능을 가져옴
 import android.content.Context // 현재 화면 정보 타입을 가져옴
 import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
+import androidx.compose.foundation.border // border 기능을 가져옴
 import androidx.compose.foundation.clickable // clickable 기능을 가져옴
-import androidx.compose.foundation.isSystemInDarkTheme // isSystemInDarkTheme 기능을 가져옴
 import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
 import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
 import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
@@ -78,7 +78,23 @@ import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
 import com.ict.spentopia.R // R 기능을 가져옴
 import coil.compose.AsyncImage // AsyncImage 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // 앱 다크모드 배경색을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
+
+@Composable
+private fun isCommunityDetailDarkTheme(): Boolean {
+    return MaterialTheme.colorScheme.background == SpentopiaDarkBackground
+}
+
+@Composable
+private fun communityDetailSoftCardColor(): Color {
+    return if (isCommunityDetailDarkTheme()) Color(0xFF171A2B) else Color(0xFFF8FBFF)
+}
+
+@Composable
+private fun communityDetailSoftCardBorderColor(): Color {
+    return if (isCommunityDetailDarkTheme()) Color(0xFF4C3B7A) else Color(0xFFBFDBFE)
+}
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 fun CommunityDetailScreen( // CommunityDetailScreen 함수를 선언함
@@ -1218,12 +1234,9 @@ private data class ReportTargetOption( // ReportTargetOption 데이터를 묶어
 )
 
 private fun communityReportTargetsForPost(post: CommunityPost): List<ReportTargetOption> { // communityReportTargetsForPost 함수를 선언함
-    // 게시글 신고는 1개 대상이 아니라 3개 후보를 보여줍니다.
-    // 실제 저장 시에는 사용자가 고른 대상 하나만 서버로 갑니다.
+    // 웹뷰 신고 화면처럼 별도 신고 대상 선택 없이 게시글 자체를 신고합니다.
     return listOf( // 이 값을 함수 결과로 돌려줌
-        ReportTargetOption("post", post.id, "게시글"), // Report Target Option 함수를 실행함
-        ReportTargetOption("user_nickname", post.authorId, "작성자 닉네임"), // Report Target Option 함수를 실행함
-        ReportTargetOption("user_profile", post.authorId, "작성자 프로필 사진") // Report Target Option 함수를 실행함
+        ReportTargetOption("post", post.id, "게시글") // Report Target Option 함수를 실행함
     )
 }
 
@@ -1234,10 +1247,17 @@ private fun CommunityReportDialog( // CommunityReportDialog 함수를 선언함
     onDismiss: () -> Unit, // 닫을 때 실행할 함수를 받음
     onReportClick: (String, String, String, String) -> Unit
 ) { // 이 블록 안의 내용이 시작됨
-    var selectedTargetIndex by remember { mutableStateOf(0) } // 화면에서 바뀔 selectedTargetIndex 값을 저장함
     var reason by remember { mutableStateOf("inappropriate") } // 화면에서 바뀔 reason 값을 저장함
     var detail by remember { mutableStateOf("") } // 화면에서 바뀔 detail 값을 저장함
-    val selectedTarget = targets.getOrNull(selectedTargetIndex) // selectedTarget 값을 저장함
+    val selectedTarget = targets.firstOrNull() // 신고 대상 선택 없이 첫 번째 대상을 사용함
+    val isDark = isCommunityDetailDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
+    val dialogColor = communityDetailSoftCardColor() // 신고 다이얼로그 배경색을 정함
+    val dialogBorderColor = communityDetailSoftCardBorderColor() // 신고 다이얼로그 테두리색을 정함
+    val selectedColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // 선택 버튼 색을 모드별로 분리함
+    val unselectedColor = if (isDark) Color(0xFF111827) else Color(0xFFEFF6FF) // 미선택 버튼 색을 모드별로 분리함
+    val unselectedTextColor = if (isDark) Color(0xFFD8D6F5) else Color(0xFF1E3A8A) // 미선택 버튼 글자색을 모드별로 분리함
+    val inputContainerColor = if (isDark) Color(0xFF111827) else Color(0xFFFFFFFF) // 입력창 배경색을 모드별로 분리함
+    val inputBorderColor = if (isDark) Color(0xFF4C3B7A) else Color(0xFF93C5FD) // 입력창 테두리색을 모드별로 분리함
     val reasons = listOf( // reasons 값을 저장함
         "abuse" to "욕설/비방",
         "inappropriate" to "부적절한 내용",
@@ -1246,75 +1266,29 @@ private fun CommunityReportDialog( // CommunityReportDialog 함수를 선언함
     )
 
     androidx.compose.runtime.LaunchedEffect(targets) { // 화면이 열리거나 값이 바뀔 때 실행함
-        selectedTargetIndex = 0 // selectedTargetIndex 값을 정해줌
         reason = "inappropriate" // reason 값을 정해줌
         detail = "" // detail 값을 정해줌
     }
 
     AlertDialog( // 팝업 확인창을 보여줌
         onDismissRequest = onDismiss, // 닫을 때 실행할 함수를 onDismissRequest 때 실행할 함수에 넣음
+        containerColor = dialogColor,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         title = { Text(text = "신고하기") }, // 화면에 글자를 보여줌
         text = { // text 값을 정해줌
             Column( // 안쪽 UI를 세로로 배치함
                 verticalArrangement = Arrangement.spacedBy(12.dp), // verticalArrangement 값을 정해줌
-                modifier = Modifier.verticalScroll(rememberScrollState()) // UI 크기나 여백 같은 모양을 정함
+                modifier = Modifier
+                    .border(1.dp, dialogBorderColor, RoundedCornerShape(18.dp))
+                    .padding(2.dp)
+                    .verticalScroll(rememberScrollState()) // UI 크기나 여백 같은 모양을 정함
             ) { // 이 블록 안의 내용이 시작됨
                 Text( // 화면에 글자를 보여줌
-                    text = if (targets.size > 1) { // text 값을 정해줌
-                        // 게시글은 대상이 여러 개일 수 있어서
-                        // 신고 대상까지 선택하게 합니다.
-                        "신고 대상을 선택하고 사유를 입력해주세요.\n신고 내용은 운영자가 확인 후 처리합니다."
-                    } else { // 이 블록 안의 내용이 시작됨
-                        // 댓글 신고처럼 대상이 하나면
-                        // 사유와 상세 내용만 입력하게 합니다.
-                        "신고 사유를 입력해주세요.\n신고 내용은 운영자가 확인 후 처리합니다."
-                    },
+                    text = "신고 사유를 입력해주세요.\n신고 내용은 운영자가 확인 후 처리합니다.",
                     fontSize = 13.sp, // fontSize 값을 정해줌
                     color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
                 )
-
-                if (targets.size > 1) { // 조건이 맞는지 확인함
-                        Text( // 화면에 글자를 보여줌
-                            text = "신고 대상", // text 값을 정해줌
-                            fontSize = 13.sp, // fontSize 값을 정해줌
-                            fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
-                            color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
-                    )
-
-                    FlowRow( // 안쪽 UI를 가로로 배치함
-                        maxItemsInEachRow = 1, // 안쪽 UI를 가로로 배치함
-                        horizontalArrangement = Arrangement.spacedBy(8.dp), // horizontalArrangement 값을 정해줌
-                        verticalArrangement = Arrangement.spacedBy(8.dp) // verticalArrangement 값을 정해줌
-                    ) { // 이 블록 안의 내용이 시작됨
-                        targets.forEachIndexed { index, target ->
-                            val selected = selectedTargetIndex == index // selected 값을 저장함
-                            Button( // 누를 수 있는 버튼을 만듦
-                                onClick = { selectedTargetIndex = index }, // 눌렀을 때 실행할 함수를 정해줌
-                                modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
-                                shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
-                                colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                                    containerColor = if (selected) { // containerColor 값을 정해줌
-                                        SpentopiaMutedPurple
-                                    } else { // 이 블록 안의 내용이 시작됨
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                    },
-                                    contentColor = if (selected) { // contentColor 값을 정해줌
-                                        Color.White
-                                    } else { // 이 블록 안의 내용이 시작됨
-                                        MaterialTheme.colorScheme.onSurface
-                                    }
-                                ),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp) // contentPadding 값을 정해줌
-                            ) { // 이 블록 안의 내용이 시작됨
-                                Text( // 화면에 글자를 보여줌
-                                    text = target.label, // text 값을 정해줌
-                                    fontSize = 13.sp, // fontSize 값을 정해줌
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal // fontWeight 값을 정해줌
-                                )
-                            }
-                        }
-                    }
-                }
 
                 Text( // 화면에 글자를 보여줌
                     text = "신고 사유", // text 값을 정해줌
@@ -1336,14 +1310,14 @@ private fun CommunityReportDialog( // CommunityReportDialog 함수를 선언함
                             shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
                             colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
                                 containerColor = if (selected) { // containerColor 값을 정해줌
-                                    SpentopiaMutedPurple
+                                    selectedColor
                                 } else { // 이 블록 안의 내용이 시작됨
-                                    MaterialTheme.colorScheme.surfaceVariant
+                                    unselectedColor
                                 },
                                 contentColor = if (selected) { // contentColor 값을 정해줌
                                     Color.White
                                 } else { // 이 블록 안의 내용이 시작됨
-                                    MaterialTheme.colorScheme.onSurface
+                                    unselectedTextColor
                                 }
                             ),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp) // contentPadding 값을 정해줌
@@ -1378,12 +1352,13 @@ private fun CommunityReportDialog( // CommunityReportDialog 함수를 선언함
                         maxLines = 6, // maxLines 값을 정해줌
                         shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
                         colors = OutlinedTextFieldDefaults.colors( // 사용자가 입력할 칸을 만듦
-                            focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.65f), // focusedBorderColor 값을 정해줌
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // unfocusedBorderColor 값을 정해줌
+                            focusedBorderColor = selectedColor, // focusedBorderColor 값을 정해줌
+                            unfocusedBorderColor = inputBorderColor, // unfocusedBorderColor 값을 정해줌
                             focusedTextColor = MaterialTheme.colorScheme.onSurface, // focusedTextColor 값을 정해줌
                             unfocusedTextColor = MaterialTheme.colorScheme.onSurface, // unfocusedTextColor 값을 정해줌
-                            focusedContainerColor = MaterialTheme.colorScheme.surface, // focusedContainerColor 값을 정해줌
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface // unfocusedContainerColor 값을 정해줌
+                            focusedContainerColor = inputContainerColor, // focusedContainerColor 값을 정해줌
+                            unfocusedContainerColor = inputContainerColor, // unfocusedContainerColor 값을 정해줌
+                            cursorColor = selectedColor // cursorColor 값을 정해줌
                         )
                     )
 
@@ -1410,10 +1385,10 @@ private fun CommunityReportDialog( // CommunityReportDialog 함수를 선언함
                 enabled = canSubmit, // canSubmit 값을 enabled 값에 넣음
                 shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
                 colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                    containerColor = SpentopiaMutedPurple, // SpentopiaMutedPurple 값을 containerColor 값에 넣음
+                    containerColor = selectedColor, // selectedColor 값을 containerColor 값에 넣음
                     contentColor = Color.White, // contentColor 값을 정해줌
-                    disabledContainerColor = MaterialTheme.colorScheme.outlineVariant, // disabledContainerColor 값을 정해줌
-                    disabledContentColor = Color.White // disabledContentColor 값을 정해줌
+                    disabledContainerColor = if (isDark) Color(0xFF2E3352) else Color(0xFFDBEAFE), // disabledContainerColor 값을 정해줌
+                    disabledContentColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B) // disabledContentColor 값을 정해줌
                 )
             ) { // 이 블록 안의 내용이 시작됨
                 Text(text = "신고하기") // 화면에 글자를 보여줌
@@ -1421,7 +1396,7 @@ private fun CommunityReportDialog( // CommunityReportDialog 함수를 선언함
         },
         dismissButton = { // dismissButton 값을 정해줌
             TextButton(onClick = onDismiss) { // 누를 수 있는 버튼을 만듦
-                Text(text = "취소") // 화면에 글자를 보여줌
+                Text(text = "취소", color = unselectedTextColor) // 화면에 글자를 보여줌
             }
         }
     )
@@ -1441,7 +1416,7 @@ private data class CommunityDetailBadgeColors( // CommunityDetailBadgeColors 데
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun communityCategoryBadgeColors(category: CommunityCategory): CommunityDetailBadgeColors { // communityCategoryBadgeColors 함수를 선언함
-    val isDark = isSystemInDarkTheme() // 다크모드인지 저장함
+    val isDark = isCommunityDetailDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
     return when (category) { // 이 값을 함수 결과로 돌려줌
         CommunityCategory.NOTICE -> if (isDark) { // 이 블록 안의 내용이 시작됨
             CommunityDetailBadgeColors(Color(0xFF164E63), Color(0xFFBAE6FD)) // Community Detail Badge Colors 함수를 실행함

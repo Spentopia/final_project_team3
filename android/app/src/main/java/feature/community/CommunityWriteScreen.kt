@@ -64,8 +64,8 @@ import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져�
 import androidx.compose.ui.tooling.preview.Preview // Preview 기능을 가져옴
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
-import androidx.compose.ui.graphics.Brush // Brush 기능을 가져옴
 import coil.compose.AsyncImage // AsyncImage 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // 앱 다크모드 배경색을 가져옴
 import java.io.File // File 기능을 가져옴
 import java.io.FileOutputStream // FileOutputStream 기능을 가져옴
 
@@ -546,12 +546,8 @@ private fun CommunityWriteSubmitSection( // CommunityWriteSubmitSection 함수�
     onSubmitClick: () -> Unit // onSubmitClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val colorScheme = MaterialTheme.colorScheme // colorScheme 값을 저장함
-    val enabledGradient = listOf( // enabledGradient 값을 저장함
-        colorScheme.primary,
-        colorScheme.primary.copy(alpha = 0.72f), // colorScheme.primary.copy(alpha 값을 정해줌
-        colorScheme.primaryContainer,
-        colorScheme.primary
-    )
+    val isDark = isCommunityWriteDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
+    val buttonColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // 등록 버튼색을 모드별로 분리함
 
     Button( // 누를 수 있는 버튼을 만듦
         onClick = onSubmitClick, // onSubmitClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
@@ -570,16 +566,7 @@ private fun CommunityWriteSubmitSection( // CommunityWriteSubmitSection 함수�
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
                 .background(
-                    brush = if (isEnabled) { // brush 값을 정해줌
-                        Brush.horizontalGradient(enabledGradient)
-                    } else { // 이 블록 안의 내용이 시작됨
-                        Brush.horizontalGradient(
-                            listOf( // list Of 함수를 실행함
-                                MaterialTheme.colorScheme.outlineVariant,
-                                MaterialTheme.colorScheme.outlineVariant
-                            )
-                        )
-                    },
+                    color = if (isEnabled) buttonColor else MaterialTheme.colorScheme.outlineVariant, // 버튼 내부 색을 단색으로 정함
                     shape = RoundedCornerShape(14.dp) // shape 값을 정해줌
                 )
                 .padding(vertical = 14.dp), // .padding(vertical 값을 정해줌
@@ -593,6 +580,11 @@ private fun CommunityWriteSubmitSection( // CommunityWriteSubmitSection 함수�
             )
         }
     }
+}
+
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun isCommunityWriteDarkTheme(): Boolean { // 앱 테마 기준으로 글쓰기 다크모드 여부를 확인함
+    return MaterialTheme.colorScheme.background == SpentopiaDarkBackground // 시스템 설정이 아니라 앱 설정 기준으로 판단함
 }
 
 private fun saveBitmapToCacheUri(context: Context, bitmap: Bitmap, filePrefix: String): Uri? { // 데이터를 저장하는 함수 시작
