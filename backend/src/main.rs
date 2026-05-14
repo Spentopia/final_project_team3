@@ -20,6 +20,7 @@
 // - 보안 점검에서 HIGH로 분류된 이슈
 // - tower_governor: token bucket 알고리즘 기반 IP별 요청 제한 미들웨어
 
+mod admin;
 mod auth;
 pub mod avatar;
 pub mod budget;
@@ -28,6 +29,7 @@ pub mod community;
 mod config;
 pub mod expense;
 mod filter;
+mod jobs;
 pub mod ledger;
 pub mod market;
 pub mod notification;
@@ -39,8 +41,6 @@ mod route;
 mod state;
 pub mod user;
 pub mod wallet;
-mod admin;
-mod jobs;
 
 use axum::http::{HeaderValue, Method, header};
 use std::net::SocketAddr;

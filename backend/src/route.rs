@@ -32,7 +32,6 @@ use crate::state::AppState;
 use crate::user;
 use crate::wallet;
 
-
 pub fn create_router(state: AppState) -> Router {
     // ── 공개 라우트 ─────────────────────────────────────────
     let public_routes = Router::new()
@@ -314,38 +313,38 @@ pub fn create_router(state: AppState) -> Router {
             post(reward::handler::grant_contest_reward),
         )
         // ── 관리자 신고 관리 ─────────────────────────────
-        .route("/api/admin/content-reports",
-            get(admin::handler::list_content_reports))
-        .route("/api/admin/content-reports/:id/resolve",
-            patch(admin::handler::resolve_content_report))
-        .route("/api/admin/content-reports/:id/reject",
-            patch(admin::handler::reject_content_report))
+        .route(
+            "/api/admin/content-reports",
+            get(admin::handler::list_content_reports),
+        )
+        .route(
+            "/api/admin/content-reports/:id/resolve",
+            patch(admin::handler::resolve_content_report),
+        )
+        .route(
+            "/api/admin/content-reports/:id/reject",
+            patch(admin::handler::reject_content_report),
+        )
         .route(
             "/api/admin/content-reports/:id/audit-logs",
             get(admin::handler::list_content_report_audit_logs),
         )
-        .route(
-            "/api/admin/users",
-            get(admin::handler::list_users),
-        )
+        .route("/api/admin/users", get(admin::handler::list_users))
         .route(
             "/api/admin/users/:id/active",
             patch(admin::handler::update_user_active),
         )
         .route(
             "/api/admin/notices",
-            get(admin::handler::list_notices)
-                .post(admin::handler::create_notice),
+            get(admin::handler::list_notices).post(admin::handler::create_notice),
         )
         .route(
             "/api/admin/notices/:id",
-            patch(admin::handler::update_notice)
-                .delete(admin::handler::delete_notice),
+            patch(admin::handler::update_notice).delete(admin::handler::delete_notice),
         )
         .route(
             "/api/admin/contests",
-            get(admin::handler::list_contests)
-                .post(admin::handler::create_contest),
+            get(admin::handler::list_contests).post(admin::handler::create_contest),
         )
         .route(
             "/api/admin/contests/:id",

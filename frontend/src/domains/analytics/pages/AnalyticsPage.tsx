@@ -48,6 +48,8 @@ type AIReport = {
   improvement: string;
 };
 
+type AnalysisReportType = AnalyzeReportRequest["report_type"];
+
 
 const WEEKLY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const MONTHLY_LABELS = Array.from({ length: 12 }, (_, index) => `${index + 1}월`);
@@ -74,12 +76,23 @@ const parseTransactionDate = (dateValue: string) => {
   return Number.isNaN(fallbackDate.getTime()) ? null : fallbackDate;
 };
 
+const formatDateKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
 const getWeekStart = (date: Date) => {
   const weekStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const mondayOffset = (weekStart.getDay() + 6) % 7;
   weekStart.setDate(weekStart.getDate() - mondayOffset);
   weekStart.setHours(0, 0, 0, 0);
   return weekStart;
+};
+
+const isDateInRange = (dateValue: string, start: Date, end: Date) => {
+  const date = parseTransactionDate(dateValue);
+  if (!date) return false;
+
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return day.getTime() >= start.getTime() && day.getTime() <= end.getTime();
 };
 
 const expenseTransactionsOnly = (transactions: Transaction[]) =>
@@ -290,6 +303,8 @@ const [isPatternLoading, setIsPatternLoading] = useState(false);
 
 const [isPdfMode, setIsPdfMode] = useState(false);
 
+const [selectedReportType, setSelectedReportType] = useState<AnalysisReportType>("weekly");
+
 // 총 지출
 const totalExpense = getMonthlyExpenseTotal(transactions, now);
 
@@ -359,42 +374,82 @@ const categoryData = Object.entries(categoryTotals).map(([name, amount], index) 
 const weeklyData = buildWeeklyData(thisMonthTransactions, now);
 const monthlyData = buildMonthlyData(transactions, now.getFullYear());
 
+const buildAnalysisPayload = (reportType: AnalysisReportType): AnalyzeReportRequest => {
+  const periodStart =
+    reportType === "weekly"
+      ? getWeekStart(now)
+      : new Date(now.getFullYear(), now.getMonth(), 1);
+  const periodEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  periodEnd.setHours(23, 59, 59, 999);
+
+  const periodTransactions = expenseTransactionsOnly(transactions).filter((transaction) =>
+    isDateInRange(transaction.date, periodStart, periodEnd)
+  );
+  const periodTotalExpense = periodTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+  const periodDays =
+    Math.floor(
+      (new Date(periodEnd.getFullYear(), periodEnd.getMonth(), periodEnd.getDate()).getTime() -
+        periodStart.getTime()) /
+        (1000 * 60 * 60 * 24)
+    ) + 1;
+  const periodDailyAverage = Math.round(periodTotalExpense / Math.max(periodDays, 1));
+
+  const periodCategoryTotals = periodTransactions.reduce((acc, cur) => {
+    const key = cur.category ?? "기타";
+    acc[key] = (acc[key] ?? 0) + cur.amount;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const periodTopCategory = Object.entries(periodCategoryTotals).sort((a, b) => b[1] - a[1])[0];
+  const periodTopCategoryName = CATEGORY_MAP[periodTopCategory?.[0] ?? ""]?.label ?? "없음";
+  const periodTopCategoryPercent = periodTotalExpense
+    ? Math.round(((periodTopCategory?.[1] ?? 0) / periodTotalExpense) * 100)
+    : 0;
+
+  const periodCategoryData = Object.entries(periodCategoryTotals).map(([name, amount], index) => ({
+    key: name,
+    name: CATEGORY_MAP[name]?.label ?? name,
+    amount,
+    value: periodTotalExpense ? Math.round((amount / periodTotalExpense) * 100) : 0,
+    color: COLORS[index % COLORS.length],
+  }));
+
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const periodBudget =
+    reportType === "weekly" && currentBudget > 0
+      ? Math.round((currentBudget / daysInMonth) * periodDays)
+      : currentBudget;
+  const periodBudgetUsage =
+    periodBudget > 0 ? Math.round((periodTotalExpense / periodBudget) * 100) : 0;
+
+  return {
+    report_type: reportType,
+    start_date: formatDateKey(periodStart),
+    end_date: formatDateKey(periodEnd),
+    transactions: periodTransactions.map((t) => ({
+      date: t.date,
+      amount: t.amount,
+      category: t.category,
+      type: t.type ?? "expense",
+    })),
+    total_expense: periodTotalExpense,
+    budget: periodBudget,
+    top_category: periodTopCategoryName,
+    top_category_percent: periodTopCategoryPercent,
+    daily_average: periodDailyAverage,
+    expense_change_rate: reportType === "monthly" ? expenseChangeRate : 0,
+    budget_usage: periodBudgetUsage,
+    category_data: periodCategoryData,
+  };
+};
+
 const handleGenerateReport = async () => {
   if (thisMonthTransactions.length === 0) return;
 
   try {
     setIsReportLoading(true);
 
-    const payload: AnalyzeReportRequest = {
-  report_type: "monthly",
-
-  start_date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`,
-
-  end_date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(days).padStart(2, "0")}`,
-
-  transactions: transactions.map((t) => ({
-    date: t.date,
-    amount: t.amount,
-    category: t.category,
-    type: t.type ?? "expense",
-  })),
-
-  total_expense: totalExpense,
-
-  budget: currentBudget,
-
-  top_category: topCategoryName,
-
-  top_category_percent: topCategoryPercent,
-
-  daily_average: dailyAverage,
-
-  expense_change_rate: expenseChangeRate,
-
-  budget_usage: budgetUsage,
-
-  category_data: categoryData,
-};
+    const payload = buildAnalysisPayload(selectedReportType);
 
     const result = await analyzeReport(payload) as AIReport;
 
@@ -421,36 +476,7 @@ const handleGeneratePattern = async () => {
   try {
     setIsPatternLoading(true);
 
-    const payload: AnalyzeReportRequest = {
-  report_type: "monthly",
-
-  start_date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`,
-
-  end_date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(days).padStart(2, "0")}`,
-
-  transactions: transactions.map((t) => ({
-    date: t.date,
-    amount: t.amount,
-    category: t.category,
-    type: t.type ?? "expense",
-  })),
-
-  total_expense: totalExpense,
-
-  budget: currentBudget,
-
-  top_category: topCategoryName,
-
-  top_category_percent: topCategoryPercent,
-
-  daily_average: dailyAverage,
-
-  expense_change_rate: expenseChangeRate,
-
-  budget_usage: budgetUsage,
-
-  category_data: categoryData,
-};
+    const payload = buildAnalysisPayload(selectedReportType);
 
     const result = await analyzeReport(payload) as AIReport;
 
@@ -641,7 +667,11 @@ while (heightLeft > 0) {
       </div>
 
       {/* Main Charts */}
-      <Tabs defaultValue="weekly" className="space-y-6">
+      <Tabs
+        value={selectedReportType}
+        onValueChange={(value) => setSelectedReportType(value as AnalysisReportType)}
+        className="space-y-6"
+      >
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="weekly">주간</TabsTrigger>
           <TabsTrigger value="monthly">월간</TabsTrigger>

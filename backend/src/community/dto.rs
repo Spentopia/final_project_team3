@@ -160,10 +160,10 @@ impl ContentReportTargetType {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ContentReportReason {
-    Abuse,          // 욕설/비방
-    Inappropriate,  // 부적절한 표현/이미지
-    Spam,           // 광고/도배
-    Other,          // 기타
+    Abuse,         // 욕설/비방
+    Inappropriate, // 부적절한 표현/이미지
+    Spam,          // 광고/도배
+    Other,         // 기타
 }
 
 impl ContentReportReason {

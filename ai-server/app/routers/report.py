@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from app.services.analyze_service import AnalyzeService
 
@@ -23,7 +23,7 @@ class CategoryData(BaseModel):
 
 
 class GenerateReportRequest(BaseModel):
-    report_type: str
+    report_type: Literal["weekly", "monthly"]
     start_date: str
     end_date: str
 

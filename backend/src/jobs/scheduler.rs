@@ -44,11 +44,7 @@ pub fn start(state: AppState) {
             let hours = sleep_dur.as_secs() / 3600;
             let minutes = (sleep_dur.as_secs() % 3600) / 60;
 
-            tracing::info!(
-                "다음 배치 실행까지 대기: {}시간 {}분",
-                hours,
-                minutes
-            );
+            tracing::info!("다음 배치 실행까지 대기: {}시간 {}분", hours, minutes);
 
             tokio::time::sleep(sleep_dur).await;
 
@@ -67,21 +63,15 @@ fn duration_until_next_run() -> std::time::Duration {
     let now_kst = Utc::now().with_timezone(&Seoul);
 
     // 오늘 KST 03:00 (DST 등 예외 케이스가 있을 수 있어 unwrap 안 씀)
-    let today_3am = match Seoul.with_ymd_and_hms(
-        now_kst.year(),
-        now_kst.month(),
-        now_kst.day(),
-        3,
-        0,
-        0,
-    ) {
-        chrono::LocalResult::Single(dt) => dt,
-        _ => {
-            // 예상치 못한 케이스 → 24시간 뒤로 fallback
-            tracing::warn!("KST 03:00 계산 실패, 24시간 후로 fallback");
-            return std::time::Duration::from_secs(24 * 3600);
-        }
-    };
+    let today_3am =
+        match Seoul.with_ymd_and_hms(now_kst.year(), now_kst.month(), now_kst.day(), 3, 0, 0) {
+            chrono::LocalResult::Single(dt) => dt,
+            _ => {
+                // 예상치 못한 케이스 → 24시간 뒤로 fallback
+                tracing::warn!("KST 03:00 계산 실패, 24시간 후로 fallback");
+                return std::time::Duration::from_secs(24 * 3600);
+            }
+        };
 
     // 이미 오늘 03:00 지났으면 내일 03:00
     let next_run = if now_kst < today_3am {

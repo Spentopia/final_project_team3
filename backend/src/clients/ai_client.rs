@@ -114,10 +114,7 @@ pub async fn analyze(state: &AppState, payload: AnalyzePayload) -> Result<Analyz
 
     let status = res.status();
 
-    let body = res
-        .text()
-        .await
-        .context("AI analyze body 읽기 실패")?;
+    let body = res.text().await.context("AI analyze body 읽기 실패")?;
 
     println!("🔥 AI SERVER STATUS = {}", status);
     println!("🔥 AI SERVER BODY = {}", body);
@@ -126,8 +123,8 @@ pub async fn analyze(state: &AppState, payload: AnalyzePayload) -> Result<Analyz
         return Err(anyhow!("AI 서버 analyze 실패: {}", body));
     }
 
-    let parsed = serde_json::from_str::<AnalyzeResult>(&body)
-        .context("AI analyze 응답 역직렬화 실패")?;
+    let parsed =
+        serde_json::from_str::<AnalyzeResult>(&body).context("AI analyze 응답 역직렬화 실패")?;
 
     Ok(parsed)
 }
