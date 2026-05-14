@@ -41,6 +41,24 @@ export type AdminReportAction =
     | "request_profile_image_change"
     | "request_nickname_change";
 
+// 관리자 대시보드 통계 응답.
+//
+// 백엔드:
+// GET /api/admin/dashboard/stats
+//
+// 주의:
+// - average_report_handle_minutes는 처리된 신고가 하나도 없으면 null이다.
+export type AdminDashboardStatsResponse = {
+    total_users: number;
+    active_users: number;
+    inactive_users: number;
+    withdrawn_users: number;
+    pending_reports: number;
+    resolved_reports: number;
+    rejected_reports: number;
+    average_report_handle_minutes: number | null;
+};
+
 // 관리자 신고 운영 조치 요청 body.
 export type ApplyAdminContentReportActionRequest = {
     action: AdminReportAction;
@@ -447,6 +465,19 @@ export type UpdateAdminContestRequest = {
     status?: AdminContestStatus;
     reward_description?: string | null;
 };
+
+
+// 관리자 대시보드 통계 조회.
+//
+// 관리자 첫 화면 카드에 표시할 운영 요약 지표를 가져온다.
+export const getAdminDashboardStats =
+    async (): Promise<AdminDashboardStatsResponse> => {
+        const res = await apiClient.get<AdminDashboardStatsResponse>(
+            "/api/admin/dashboard/stats",
+        );
+
+        return res.data;
+    };
 
 
 // ─────────────────────────────────────────────

@@ -49,6 +49,7 @@ use super::{
         AdminContentReportListResponse,
         AdminContentReportResponse,
         AdminContestResponse,
+        AdminDashboardStatsResponse,
         AdminNoticeResponse,
         AdminReportAction,
         AdminReportTargetDetailResponse,
@@ -410,6 +411,282 @@ fn normalize_end_date_filter(value: &str) -> String {
     } else {
         trimmed.to_string()
     }
+}
+
+// ─────────────────────────────────────────────
+// 관리자 대시보드 통계
+// ─────────────────────────────────────────────
+//
+// 관리자 첫 화면에서 보여줄 운영 요약 지표를 계산한다.
+//
+// 현재 1차 범위:
+// - 회원 수 통계
+// - 신고 상태별 통계
+// - 평균 신고 처리 시간
+//
+// 정확한 DAU/MAU는 별도 activity log가 있어야 하므로 여기서는 제외한다.
+
+/// PostgREST Content-Range 헤더에서 전체 count를 추출한다.
+///
+/// Supabase REST에서 count를 얻으려면:
+/// - Prefer: count=exact
+/// - Range: 0-0
+///
+/// 응답 헤더 예:
+/// - content-range: 0-0/153
+/// - content-range: */0
+///
+/// 이 함수는 slash 뒤의 값을 i64로 파싱한다.
+/// 파싱 실패 시 0으로 fallback한다.
+fn parse_content_range_count(value: Option<&reqwest::header::HeaderValue>) -> i64 {
+    value
+        .and_then(|header_value| header_value.to_str().ok())
+        .and_then(|content_range| content_range.rsplit('/').next())
+        .and_then(|count| count.parse::<i64>().ok())
+        .unwrap_or(0)
+}
+
+/// 특정 테이블의 row 수를 조회한다.
+///
+/// table:
+/// - "users"
+/// - "content_reports"
+///
+/// filter_query:
+/// - 빈 문자열이면 필터 없음.
+/// - 예: "status=eq.pending"
+/// - 예: "deleted_at=is.null&is_active=eq.true"
+///
+/// 구현 방식:
+/// - 실제 데이터는 1개만 받아오도록 Range: 0-0 사용
+/// - 전체 개수는 Content-Range 헤더에서 읽음
+///
+/// 주의:
+/// - table 이름은 외부 입력을 그대로 받는 용도가 아니다.
+/// - 이 함수는 service 내부에서 고정된 테이블명만 넣어 호출한다.
+async fn count_rows(
+    state: &AppState,
+    table: &str,
+    filter_query: &str,
+) -> Result<i64> {
+    let base_url = state.config.supabase_url.trim_end_matches('/');
+
+    let url = if filter_query.trim().is_empty() {
+        format!("{}/rest/v1/{}?select=id", base_url, table)
+    } else {
+        format!(
+            "{}/rest/v1/{}?select=id&{}",
+            base_url,
+            table,
+            filter_query
+        )
+    };
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Range-Unit", "items")
+        .header("Range", "0-0")
+        .header("Prefer", "count=exact")
+        .send()
+        .await
+        .with_context(|| format!("관리자 대시보드 count 조회 요청 실패: {}", table))?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+
+        return Err(anyhow!(
+            "관리자 대시보드 count 조회 실패: table={}, body={}",
+            table,
+            body
+        ));
+    }
+
+    Ok(parse_content_range_count(res.headers().get("content-range")))
+}
+
+/// 평균 신고 처리 시간을 분 단위로 계산한다.
+///
+/// 기준:
+/// - content_reports.created_at
+/// - content_reports.reviewed_at
+///
+/// reviewed_at이 있는 신고만 대상으로 한다.
+/// 아직 처리되지 않은 pending 신고는 평균 처리 시간 계산에서 제외한다.
+///
+/// 구현 방식:
+/// - 처리된 신고 row의 created_at/reviewed_at만 조회
+/// - Rust에서 duration을 계산해 평균을 낸다.
+///
+/// 현재 프로젝트/시연 규모에서는 이 방식이 충분하다.
+/// 데이터가 수십만 건 이상 쌓이는 서비스라면 DB 함수나 materialized view로 옮기는 게 좋다.
+async fn get_average_report_handle_minutes(
+    state: &AppState,
+) -> Result<Option<i64>> {
+    #[derive(Debug, serde::Deserialize)]
+    struct ReportTimeRow {
+        created_at: Option<DateTime<Utc>>,
+        reviewed_at: Option<DateTime<Utc>>,
+    }
+
+    let url = format!(
+        "{}/rest/v1/content_reports?select=created_at,reviewed_at&created_at=not.is.null&reviewed_at=not.is.null&limit=1000",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("평균 신고 처리 시간 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+
+        return Err(anyhow!("평균 신고 처리 시간 조회 실패: {}", body));
+    }
+
+    let rows: Vec<ReportTimeRow> = res
+        .json()
+        .await
+        .context("평균 신고 처리 시간 응답 파싱 실패")?;
+
+    let mut total_minutes: i64 = 0;
+    let mut count: i64 = 0;
+
+    for row in rows {
+        let Some(created_at) = row.created_at else {
+            continue;
+        };
+
+        let Some(reviewed_at) = row.reviewed_at else {
+            continue;
+        };
+
+        // 혹시 데이터가 꼬여 reviewed_at이 created_at보다 빠른 경우는 제외한다.
+        if reviewed_at < created_at {
+            continue;
+        }
+
+        let duration = reviewed_at - created_at;
+        total_minutes += duration.num_minutes();
+        count += 1;
+    }
+
+    if count == 0 {
+        Ok(None)
+    } else {
+        Ok(Some(total_minutes / count))
+    }
+}
+
+/// 관리자: 대시보드 통계 조회.
+///
+/// API:
+/// GET /api/admin/dashboard/stats
+///
+/// 반환 지표:
+/// - 전체 회원 수
+/// - 활성 회원 수
+/// - 비활성 회원 수
+/// - 탈퇴 회원 수
+/// - 대기중 신고 수
+/// - 처리완료 신고 수
+/// - 반려 신고 수
+/// - 평균 신고 처리 시간
+pub async fn get_dashboard_stats(
+    state: &AppState,
+) -> Result<AdminDashboardStatsResponse> {
+    // ─────────────────────────────────────────────
+    // 회원 통계
+    // ─────────────────────────────────────────────
+    //
+    // users 기준:
+    // - total_users: 전체 row 수
+    // - active_users: 탈퇴하지 않았고 활성 상태
+    // - inactive_users: 탈퇴하지 않았고 비활성 상태
+    // - withdrawn_users: deleted_at이 있는 탈퇴 회원
+    let total_users = count_rows(state, "users", "").await?;
+
+    let active_users = count_rows(
+        state,
+        "users",
+        "deleted_at=is.null&is_active=eq.true",
+    )
+        .await?;
+
+    let inactive_users = count_rows(
+        state,
+        "users",
+        "deleted_at=is.null&is_active=eq.false",
+    )
+        .await?;
+
+    let withdrawn_users = count_rows(
+        state,
+        "users",
+        "deleted_at=not.is.null",
+    )
+        .await?;
+
+    // ─────────────────────────────────────────────
+    // 신고 통계
+    // ─────────────────────────────────────────────
+    //
+    // content_reports.status 기준:
+    // - pending: 대기중
+    // - resolved: 처리완료
+    // - rejected: 반려
+    let pending_reports = count_rows(
+        state,
+        "content_reports",
+        "status=eq.pending",
+    )
+        .await?;
+
+    let resolved_reports = count_rows(
+        state,
+        "content_reports",
+        "status=eq.resolved",
+    )
+        .await?;
+
+    let rejected_reports = count_rows(
+        state,
+        "content_reports",
+        "status=eq.rejected",
+    )
+        .await?;
+
+    // ─────────────────────────────────────────────
+    // 평균 신고 처리 시간
+    // ─────────────────────────────────────────────
+    //
+    // reviewed_at이 있는 신고만 대상으로 평균을 계산한다.
+    let average_report_handle_minutes =
+        get_average_report_handle_minutes(state).await?;
+
+    Ok(AdminDashboardStatsResponse {
+        total_users,
+        active_users,
+        inactive_users,
+        withdrawn_users,
+        pending_reports,
+        resolved_reports,
+        rejected_reports,
+        average_report_handle_minutes,
+    })
 }
 
 /// 관리자: 신고 목록 조회 (페이지네이션 + 검색 + 필터 + 날짜 범위 + 정렬)

@@ -95,6 +95,81 @@ pub struct AdminContentReportResponse {
     pub target_report_count: i64,
 }
 
+// ─────────────────────────────────────────────
+// 관리자 대시보드 통계 응답 DTO
+// ─────────────────────────────────────────────
+//
+// 관리자 첫 화면에서 서비스 운영 현황을 요약해서 보여주기 위한 응답.
+//
+// 현재 1차 구현 범위:
+// - 별도 activity log 테이블 없이도 계산 가능한 값만 제공한다.
+// - users 테이블과 content_reports 테이블 기준으로 계산한다.
+//
+// 주의:
+// - DAU/MAU는 정확한 활동 로그가 있어야 하므로 여기서는 제외한다.
+// - SPT/NFT 거래 통계도 별도 거래 로그/트랜잭션 테이블이 안정화된 뒤 추가하는 게 좋다.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AdminDashboardStatsResponse {
+    // 전체 회원 수.
+    //
+    // users 테이블 전체 row 수.
+    // 탈퇴 회원도 users row가 남아 있다면 포함된다.
+    pub total_users: i64,
+
+    // 활성 회원 수.
+    //
+    // 기준:
+    // - deleted_at is null
+    // - is_active = true
+    //
+    // 탈퇴하지 않았고 운영자가 비활성화하지 않은 정상 이용 가능 회원.
+    pub active_users: i64,
+
+    // 비활성 회원 수.
+    //
+    // 기준:
+    // - deleted_at is null
+    // - is_active = false
+    //
+    // 탈퇴는 아니지만 운영자가 비활성 처리한 회원.
+    pub inactive_users: i64,
+
+    // 탈퇴 회원 수.
+    //
+    // 기준:
+    // - deleted_at is not null
+    //
+    // soft delete/탈퇴 처리된 회원 수.
+    pub withdrawn_users: i64,
+
+    // 대기중 신고 수.
+    //
+    // content_reports.status = 'pending'
+    pub pending_reports: i64,
+
+    // 처리완료 신고 수.
+    //
+    // content_reports.status = 'resolved'
+    pub resolved_reports: i64,
+
+    // 반려 신고 수.
+    //
+    // content_reports.status = 'rejected'
+    pub rejected_reports: i64,
+
+    // 평균 신고 처리 시간.
+    //
+    // 단위: 분
+    //
+    // 계산 기준:
+    // - reviewed_at is not null
+    // - created_at is not null
+    // - reviewed_at >= created_at
+    //
+    // 처리된 신고가 하나도 없으면 null.
+    pub average_report_handle_minutes: Option<i64>,
+}
+
 #[derive(Debug, Clone, Copy, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ResolveReportActionType {
