@@ -33,19 +33,19 @@ private val DarkColorScheme = darkColorScheme( // DarkColorScheme 값을 저장�
 )
 
 private val LightColorScheme = lightColorScheme( // LightColorScheme 값을 저장함
-    primary = SpentopiaGlowPurple, // SpentopiaGlowPurple 값을 primary 값에 넣음
-    secondary = SpentopiaGlowBlue, // SpentopiaGlowBlue 값을 secondary 값에 넣음
-    tertiary = SpentopiaNavyPurple, // SpentopiaNavyPurple 값을 tertiary 값에 넣음
+    primary = Color(0xFF2563EB), // 라이트모드의 주요 포인트를 선명한 블루로 정함
+    secondary = Color(0xFF0EA5E9), // 라이트모드 보조 포인트를 스카이블루로 정함
+    tertiary = SpentopiaGlowPurple, // 보라색은 라이트모드에서 보조 포인트로만 사용함
     background = SpentopiaLightBackground, // SpentopiaLightBackground 값을 background 값에 넣음
     onBackground = SpentopiaLightText, // SpentopiaLightText 값을 onBackground 때 실행할 함수에 넣음
     surface = SpentopiaLightSurface, // SpentopiaLightSurface 값을 surface 값에 넣음
     onSurface = SpentopiaLightText, // SpentopiaLightText 값을 onSurface 때 실행할 함수에 넣음
     surfaceVariant = SpentopiaLightSurfaceVariant, // SpentopiaLightSurfaceVariant 값을 surfaceVariant 값에 넣음
     onSurfaceVariant = SpentopiaLightTextMuted, // SpentopiaLightTextMuted 값을 onSurfaceVariant 때 실행할 함수에 넣음
-    primaryContainer = SpentopiaSoftPurple, // SpentopiaSoftPurple 값을 primaryContainer 값에 넣음
-    onPrimaryContainer = SpentopiaNavyPurple, // SpentopiaNavyPurple 값을 onPrimaryContainer 때 실행할 함수에 넣음
-    secondaryContainer = SpentopiaSoftBlue, // SpentopiaSoftBlue 값을 secondaryContainer 값에 넣음
-    onSecondaryContainer = SpentopiaNavyPurple, // SpentopiaNavyPurple 값을 onSecondaryContainer 때 실행할 함수에 넣음
+    primaryContainer = Color(0xFFDBEAFE), // 라이트모드 카드/버튼 배경을 밝은 스카이블루로 정함
+    onPrimaryContainer = Color(0xFF1E3A8A), // 밝은 블루 배경 위에 읽히는 진한 블루 글자색임
+    secondaryContainer = Color(0xFFF0F9FF), // 일반 보조 영역은 더 밝은 하늘색으로 정함
+    onSecondaryContainer = Color(0xFF075985), // 보조 영역 위의 글자색임
     outline = SpentopiaLightBorder, // SpentopiaLightBorder 값을 outline 값에 넣음
     outlineVariant = SpentopiaLightBorder // SpentopiaLightBorder 값을 outlineVariant 값에 넣음
 

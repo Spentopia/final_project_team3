@@ -18,6 +18,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult // rememberLa
 import androidx.activity.result.contract.ActivityResultContracts // ActivityResultContracts 기능을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
 import androidx.compose.foundation.clickable // clickable 기능을 가져옴
+import androidx.compose.foundation.isSystemInDarkTheme // isSystemInDarkTheme 기능을 가져옴
 import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
 import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
 import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
@@ -546,11 +547,12 @@ private fun CommunityWriteSubmitSection( // CommunityWriteSubmitSection 함수�
     onSubmitClick: () -> Unit // onSubmitClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val colorScheme = MaterialTheme.colorScheme // colorScheme 값을 저장함
+    val isDark = isSystemInDarkTheme() // 다크모드인지 저장함
     val enabledGradient = listOf( // enabledGradient 값을 저장함
-        colorScheme.primary,
-        colorScheme.primary.copy(alpha = 0.72f), // colorScheme.primary.copy(alpha 값을 정해줌
-        colorScheme.primaryContainer,
-        colorScheme.primary
+        if (isDark) colorScheme.primary else Color(0xFF2563EB),
+        if (isDark) colorScheme.primary.copy(alpha = 0.72f) else Color(0xFF3B82F6), // colorScheme.primary.copy(alpha 값을 정해줌
+        if (isDark) colorScheme.primaryContainer else Color(0xFF7C3AED),
+        if (isDark) colorScheme.primary else Color(0xFF0EA5E9)
     )
 
     Button( // 누를 수 있는 버튼을 만듦

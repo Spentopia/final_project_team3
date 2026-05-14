@@ -493,13 +493,13 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
     // 카테고리별 색상 반환 함수입니다.
     private fun getCategoryColor(category: String): Color { // 데이터를 불러오는 함수 시작
         return when (category) { // 이 값을 함수 결과로 돌려줌
-            "식비" -> Color(0xFFFF7A00)
-            "교통" -> Color(0xFF334155)
-            "쇼핑" -> Color(0xFFE84AA8)
-            "카페" -> Color(0xFF1E1B4B)
-            "여가" -> Color(0xFF312E81)
-            "생활비" -> Color(0xFF475569)
-            else -> Color(0xFF6B7280) // 위 조건이 아니면 이쪽을 실행함
+            "식비" -> Color(0xFFF97316)
+            "교통" -> Color(0xFF2563EB)
+            "쇼핑" -> Color(0xFFEC4899)
+            "카페" -> Color(0xFF0EA5E9)
+            "여가" -> Color(0xFF8B5CF6)
+            "생활비" -> Color(0xFF14B8A6)
+            else -> Color(0xFF64748B) // 위 조건이 아니면 이쪽을 실행함
         }
     }
 

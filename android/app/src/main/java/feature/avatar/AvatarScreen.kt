@@ -211,7 +211,7 @@ fun AvatarScreen( // AvatarScreen 함수를 선언함
                                 )
                         ) { // 이 블록 안의 내용이 시작됨
                             Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
-                                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
+                                modifier = Modifier // UI 크기나 여백 같은 모양을 정함dksl rms
                                     .fillMaxWidth(uiState.reward.progress)
                                     .height(8.dp)
                                     .background(

@@ -611,8 +611,8 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                 onClick = onWalletConnectClick, // color 값을 이 함수로 넘김
                 shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                 colors = ButtonDefaults.buttonColors( // 색상 스타일을 정함
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = if (isDark) Color(0xFF6D28D9) else MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = if (isDark) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
                 ),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp) // 버튼 안쪽 여백을 정함
             ) { // 이 블록 안의 내용이 시작됨

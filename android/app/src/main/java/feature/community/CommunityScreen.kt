@@ -532,6 +532,7 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
     onViewPostsClick: () -> Unit, // onViewPostsClick 때 실행할 함수를 받음
     onWriteClick: () -> Unit // onWriteClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isSystemInDarkTheme() // 다크모드인지 저장함
     val statusText = "진행중" // statusText 값을 저장함
     val title = "5월 아바타 콘테스트" // 제목을 저장함
     val period = "2026.05.09 ~ 2026.05.31" // period 값을 저장함
@@ -542,11 +543,11 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(24.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surfaceVariant // containerColor 값을 정해줌
+            containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFEFF6FF) // containerColor 값을 정해줌
         ),
         border = BorderStroke( // border 값을 정해줌
             1.dp,
-            MaterialTheme.colorScheme.outlineVariant
+            if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFF93C5FD)
         )
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -627,7 +628,7 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
                     modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
                     shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
                     colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                        containerColor = SpentopiaMutedPurple, // SpentopiaMutedPurple 값을 containerColor 값에 넣음
+                        containerColor = if (isDark) SpentopiaMutedPurple else Color(0xFF2563EB), // SpentopiaMutedPurple 값을 containerColor 값에 넣음
                         contentColor = Color.White // contentColor 값을 정해줌
                     ),
                     contentPadding = PaddingValues(vertical = 10.dp) // contentPadding 값을 정해줌
@@ -644,7 +645,7 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
                     modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
                     shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
                     colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                        containerColor = Color(0xFF0F172A), // containerColor 값을 정해줌
+                        containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFF7C3AED), // containerColor 값을 정해줌
                         contentColor = Color.White // contentColor 값을 정해줌
                     ),
                     contentPadding = PaddingValues(vertical = 10.dp) // contentPadding 값을 정해줌

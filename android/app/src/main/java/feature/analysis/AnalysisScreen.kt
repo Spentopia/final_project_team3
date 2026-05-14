@@ -6,6 +6,12 @@ import android.content.Intent // Intent 기능을 가져옴
 import android.os.Environment // Environment 기능을 가져옴
 import android.provider.MediaStore // MediaStore 기능을 가져옴
 import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
+import androidx.compose.animation.core.LinearEasing // 일정한 속도 애니메이션을 가져옴
+import androidx.compose.animation.core.RepeatMode // 반복 방향 설정을 가져옴
+import androidx.compose.animation.core.animateFloat // Float 애니메이션을 가져옴
+import androidx.compose.animation.core.infiniteRepeatable // 무한 반복 애니메이션을 가져옴
+import androidx.compose.animation.core.rememberInfiniteTransition // 반복 애니메이션 상태를 기억함
+import androidx.compose.animation.core.tween // 시간 기반 애니메이션을 가져옴
 import androidx.compose.foundation.Canvas // Canvas 기능을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
 import androidx.compose.foundation.border // border 기능을 가져옴
@@ -372,6 +378,34 @@ fun BudgetUsageCard( // BudgetUsageCard 함수를 선언함
 ) { // 이 블록 안의 내용이 시작됨
     val percentText = (usageRate * 100).roundToInt() // percentText 값을 저장함
     val progress = usageRate.coerceIn(0f, 1f) // progress 값을 저장함
+    val isDark = isSystemInDarkTheme() // 다크모드인지 저장함
+    val waveShift by rememberInfiniteTransition().animateFloat( // 게이지 안의 빛이 계속 흐르게 만듦
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+    val progressBrush = Brush.linearGradient( // 성실도 게이지처럼 울렁이는 진행 색상임
+        colors = if (isDark) {
+            listOf(
+                SpentopiaMutedPurple,
+                MaterialTheme.colorScheme.primary,
+                SpentopiaGlowPurple.copy(alpha = 0.72f),
+                MaterialTheme.colorScheme.primary
+            )
+        } else {
+            listOf(
+                Color(0xFF93C5FD),
+                MaterialTheme.colorScheme.primary,
+                Color(0xFF38BDF8),
+                MaterialTheme.colorScheme.primary
+            )
+        },
+        start = Offset(-220f + waveShift * 260f, 0f),
+        end = Offset(260f + waveShift * 260f, 0f)
+    )
 
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
@@ -400,7 +434,13 @@ fun BudgetUsageCard( // BudgetUsageCard 함수를 선언함
                     .fillMaxWidth()
                     .height(12.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(
+                        if (isDark) {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        } else {
+                            Color(0xFFE0F2FE)
+                        }
+                    )
                     .border(
                         width = 1.dp, // width 값을 정해줌
                         color = MaterialTheme.colorScheme.outlineVariant, // color 값을 정해줌
@@ -412,14 +452,7 @@ fun BudgetUsageCard( // BudgetUsageCard 함수를 선언함
                         .fillMaxWidth(progress)
                         .height(12.dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf( // colors 값을 정해줌
-                                    SpentopiaMutedPurple,
-                                    MaterialTheme.colorScheme.primary
-                                )
-                            )
-                        )
+                        .background(progressBrush)
                 )
             }
         }

@@ -5,10 +5,16 @@ import android.net.Uri // 이미지 주소 타입을 가져옴
 import android.util.Log // 로그 찍는 기능을 가져옴
 import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
+import androidx.compose.foundation.rememberScrollState // rememberScrollState 기능을 가져옴
+import androidx.compose.foundation.verticalScroll // verticalScroll 기능을 가져옴
+import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
 import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
+import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
 import androidx.compose.foundation.layout.fillMaxSize // fillMaxSize 기능을 가져옴
+import androidx.compose.foundation.layout.fillMaxWidth // fillMaxWidth 기능을 가져옴
 import androidx.compose.foundation.layout.navigationBarsPadding // navigationBarsPadding 기능을 가져옴
 import androidx.compose.foundation.layout.padding // padding 기능을 가져옴
+import androidx.compose.foundation.layout.Row // 가로 배치 레이아웃을 가져옴
 import androidx.compose.foundation.layout.size // size 기능을 가져옴
 import androidx.compose.material.icons.Icons // Icons 기능을 가져옴
 import androidx.compose.material.icons.filled.Menu // Menu 기능을 가져옴
@@ -21,6 +27,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api // ExperimentalMateri
 import androidx.compose.material3.FloatingActionButton // FloatingActionButton 기능을 가져옴
 import androidx.compose.material3.Icon // 아이콘 표시 컴포넌트를 가져옴
 import androidx.compose.material3.IconButton // 아이콘 버튼 컴포넌트를 가져옴
+import androidx.compose.material3.CircularProgressIndicator // 로딩 표시 컴포넌트를 가져옴
+import androidx.compose.material3.HorizontalDivider // 구분선을 가져옴
 import androidx.compose.material3.ModalDrawerSheet // ModalDrawerSheet 기능을 가져옴
 import androidx.compose.material3.ModalNavigationDrawer // ModalNavigationDrawer 기능을 가져옴
 import androidx.compose.material3.Scaffold // Scaffold 기능을 가져옴
@@ -44,6 +52,7 @@ import androidx.compose.ui.draw.shadow // shadow 기능을 가져옴
 import androidx.compose.ui.graphics.graphicsLayer // graphicsLayer 기능을 가져옴
 import androidx.compose.ui.platform.LocalContext // LocalContext 기능을 가져옴
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
+import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
 import androidx.lifecycle.compose.collectAsStateWithLifecycle // ViewModel 상태를 화면에서 안전하게 받는 도구를 가져옴
 import androidx.lifecycle.viewmodel.compose.viewModel // Compose에서 ViewModel 연결하는 도구를 가져옴
 import androidx.navigation.compose.NavHost // NavHost 기능을 가져옴
@@ -54,6 +63,7 @@ import androidx.navigation.NavType // NavType 기능을 가져옴
 import androidx.navigation.navArgument // navArgument 기능을 가져옴
 import com.example.spentopia.feature.plaza.PlazaScreen // PlazaScreen 기능을 가져옴
 import com.ict.spentopia.data.remote.NonceRequest // NonceRequest 기능을 가져옴
+import com.ict.spentopia.data.remote.NotificationResponse // NotificationResponse 기능을 가져옴
 import com.ict.spentopia.data.remote.RetrofitClient // RetrofitClient 기능을 가져옴
 import com.ict.spentopia.data.remote.RefreshTokenRequest // RefreshTokenRequest 기능을 가져옴
 import com.ict.spentopia.data.remote.WalletLinkRequest // WalletLinkRequest 기능을 가져옴
@@ -102,6 +112,9 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
 
     var showThemeDialog by remember { mutableStateOf(false) } // 화면에서 바뀔 showThemeDialog 값을 저장함
     var showNotificationDialog by remember { mutableStateOf(false) } // 화면에서 바뀔 showNotificationDialog 값을 저장함
+    var notifications by remember { mutableStateOf<List<NotificationResponse>>(emptyList()) } // 서버에서 받아온 알림 목록을 저장함
+    var notificationsLoading by remember { mutableStateOf(false) } // 알림을 불러오는 중인지 저장함
+    var notificationsError by remember { mutableStateOf<String?>(null) } // 알림 조회 실패 문구를 저장함
 
     // SharedPreferences는 토큰/지갑/강제로그아웃 저장용
     val prefs = remember { // 화면이 다시 그려져도 간단 저장소를 기억함
@@ -121,6 +134,47 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
     }
 
     fun shouldForceLogout(): Boolean = prefs.getBoolean("force_logout", false) // shouldForceLogout 함수를 선언함
+
+    fun loadNotifications() { // 백엔드에서 내 알림 목록을 불러오는 함수
+        scope.launch {
+            notificationsLoading = true // 로딩 화면을 보여주기 위해 true로 바꿈
+            notificationsError = null // 이전 오류 메시지를 지움
+            try {
+                notifications = RetrofitClient.notificationApi.getNotifications() // 실제 서버 알림 목록을 받아옴
+            } catch (e: Exception) {
+                Log.e("SpentopiaNotification", "알림 조회 실패", e)
+                notificationsError = "알림을 불러오지 못했습니다." // 화면에 보여줄 오류 문구를 저장함
+            } finally {
+                notificationsLoading = false // 로딩 상태를 끝냄
+            }
+        }
+    }
+
+    fun readNotification(notificationId: String) { // 알림 1개를 서버에 읽음 처리하는 함수
+        scope.launch {
+            try {
+                RetrofitClient.notificationApi.readNotification(notificationId) // 서버에 읽음 처리 요청을 보냄
+                notifications = notifications.map { item ->
+                    if (item.id == notificationId) item.copy(is_read = true) else item // 화면 목록도 읽음 상태로 바꿈
+                }
+            } catch (e: Exception) {
+                Log.e("SpentopiaNotification", "알림 읽음 처리 실패", e)
+                Toast.makeText(context, "알림 읽음 처리에 실패했습니다.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun readAllNotifications() { // 모든 알림을 서버에 읽음 처리하는 함수
+        scope.launch {
+            try {
+                RetrofitClient.notificationApi.readAllNotifications() // 서버에 전체 읽음 처리 요청을 보냄
+                notifications = notifications.map { it.copy(is_read = true) } // 화면 목록도 모두 읽음 상태로 바꿈
+            } catch (e: Exception) {
+                Log.e("SpentopiaNotification", "전체 알림 읽음 처리 실패", e)
+                Toast.makeText(context, "전체 읽음 처리에 실패했습니다.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState() // navBackStackEntry 값을 저장함
     val currentRoute = navBackStackEntry?.destination?.route // currentRoute 값을 저장함
@@ -445,7 +499,10 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                                     tint = MaterialTheme.colorScheme.onSurface // tint 값을 정해줌
                                 )
                             }
-                            IconButton(onClick = { showNotificationDialog = true }) { // 누를 수 있는 버튼을 만듦
+                            IconButton(onClick = { // 누를 수 있는 버튼을 만듦
+                                showNotificationDialog = true // 알림 팝업을 열어줌
+                                loadNotifications() // 팝업을 열 때 최신 알림을 다시 불러옴
+                            }) {
                                 Icon( // 화면에 아이콘을 보여줌
                                     Icons.Default.NotificationsNone,
                                     contentDescription = "알림", // contentDescription 값을 정해줌
@@ -716,13 +773,140 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
             AlertDialog( // 팝업 확인창을 보여줌
                 onDismissRequest = { showNotificationDialog = false }, // onDismissRequest 때 실행할 함수를 정해줌
                 title = { Text("알림") }, // 화면에 글자를 보여줌
-                text = { Text("예산의 80%를 사용했어요!\n5분 전\n\n새로운 아바타를 획득했어요\n1시간 전\n\n7일 연속 기록 달성! 보상이 지급됐어요\n2시간 전") }, // 화면에 글자를 보여줌
+                text = {
+                    NotificationDialogContent(
+                        notifications = notifications,
+                        loading = notificationsLoading,
+                        errorMessage = notificationsError,
+                        onReadClick = { notificationId -> readNotification(notificationId) },
+                        onRetryClick = { loadNotifications() }
+                    )
+                },
                 confirmButton = { // confirmButton 값을 정해줌
                     TextButton(onClick = { showNotificationDialog = false }) { Text("닫기") } // 화면에 글자를 보여줌
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { readAllNotifications() },
+                        enabled = notifications.any { !it.is_read } && !notificationsLoading
+                    ) {
+                        Text("모두 읽음")
+                    }
                 }
             )
         }
     }
+}
+
+@Composable
+private fun NotificationDialogContent(
+    notifications: List<NotificationResponse>, // 화면에 보여줄 알림 목록
+    loading: Boolean, // 알림을 불러오는 중인지 여부
+    errorMessage: String?, // 오류가 있을 때 보여줄 문구
+    onReadClick: (String) -> Unit, // 알림 읽음 버튼을 눌렀을 때 실행할 함수
+    onRetryClick: () -> Unit // 다시 불러오기 버튼을 눌렀을 때 실행할 함수
+) {
+    when {
+        loading -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+
+        errorMessage != null -> {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { // 오류 문구와 재시도 버튼을 세로로 배치함
+                Text(errorMessage) // 오류 문구를 보여줌
+                TextButton(onClick = onRetryClick) {
+                    Text("다시 불러오기") // 알림 목록 재조회 버튼을 보여줌
+                }
+            }
+        }
+
+        notifications.isEmpty() -> {
+            Text("아직 도착한 알림이 없습니다.") // 알림이 없을 때 보여줄 빈 상태 문구
+        }
+
+        else -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                notifications.forEachIndexed { index, notification ->
+                    NotificationDialogItem(
+                        notification = notification, // 알림 1개 데이터를 넘김
+                        onReadClick = { onReadClick(notification.id) } // 해당 알림 아이디로 읽음 처리함
+                    )
+                    if (index < notifications.lastIndex) {
+                        HorizontalDivider()
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NotificationDialogItem(
+    notification: NotificationResponse, // 알림 1개 데이터
+    onReadClick: () -> Unit // 읽음 버튼을 눌렀을 때 실행할 함수
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { // 알림 종류, 내용, 시간을 세로로 배치함
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = notification.notification_type.toNotificationTypeLabel(), // 서버 알림 타입을 사용자용 문구로 바꿈
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            if (!notification.is_read) {
+                TextButton(onClick = onReadClick) {
+                    Text("읽음") // 읽지 않은 알림만 읽음 버튼을 보여줌
+                }
+            }
+        }
+        Text(
+            text = notification.message, // 서버에서 받은 알림 메시지를 보여줌
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (notification.is_read) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            fontWeight = if (notification.is_read) FontWeight.Normal else FontWeight.SemiBold
+        )
+        Text(
+            text = notification.created_at.toNotificationTimeText(), // 서버 시간을 간단한 표시 형식으로 바꿈
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+private fun String.toNotificationTypeLabel(): String { // 서버 알림 타입을 화면용 문구로 바꾸는 함수
+    return when {
+        startsWith("budget_alert") -> "예산 알림"
+        startsWith("reward") -> "보상 알림"
+        startsWith("streak") -> "스트릭 알림"
+        else -> "알림"
+    }
+}
+
+private fun String?.toNotificationTimeText(): String { // ISO 시간 문자열을 화면에 보기 좋게 바꾸는 함수
+    if (isNullOrBlank()) return "" // 시간이 없으면 빈 문자열을 돌려줌
+    return replace("T", " ")
+        .replace("Z", "")
+        .substringBefore(".")
 }
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시

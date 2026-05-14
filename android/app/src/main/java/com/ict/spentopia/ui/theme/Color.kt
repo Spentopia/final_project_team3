@@ -5,12 +5,12 @@ import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
 val SpentopiaNavy = Color(0xFF0F172A) // SpentopiaNavy 값을 저장함
 val SpentopiaNavyPurple = Color(0xFF1E1B4B) // SpentopiaNavyPurple 값을 저장함
 val SpentopiaMutedPurple = Color(0xFF312E81) // SpentopiaMutedPurple 값을 저장함
-val SpentopiaLightBackground = Color(0xFFF8FAFC) // SpentopiaLightBackground 값을 저장함
+val SpentopiaLightBackground = Color(0xFFF6FAFF) // SpentopiaLightBackground 값을 저장함
 val SpentopiaLightSurface = Color.White // SpentopiaLightSurface 값을 저장함
-val SpentopiaLightSurfaceVariant = Color(0xFFF1F5F9) // SpentopiaLightSurfaceVariant 값을 저장함
-val SpentopiaLightText = Color(0xFF111827) // SpentopiaLightText 값을 저장함
-val SpentopiaLightTextMuted = Color(0xFF64748B) // SpentopiaLightTextMuted 값을 저장함
-val SpentopiaLightBorder = Color(0xFFE2E8F0) // SpentopiaLightBorder 값을 저장함
+val SpentopiaLightSurfaceVariant = Color(0xFFEFF6FF) // SpentopiaLightSurfaceVariant 값을 저장함
+val SpentopiaLightText = Color(0xFF0F172A) // SpentopiaLightText 값을 저장함
+val SpentopiaLightTextMuted = Color(0xFF53657D) // SpentopiaLightTextMuted 값을 저장함
+val SpentopiaLightBorder = Color(0xFFDBEAFE) // SpentopiaLightBorder 값을 저장함
 val SpentopiaDarkBackground = Color(0xFF090B16) // SpentopiaDarkBackground 값을 저장함
 val SpentopiaDarkSurface = Color(0xFF111827) // SpentopiaDarkSurface 값을 저장함
 val SpentopiaDarkSurfaceVariant = Color(0xFF1E293B) // SpentopiaDarkSurfaceVariant 값을 저장함
@@ -47,12 +47,12 @@ val SpentopiaCtaGradientColors = listOf( // SpentopiaCtaGradientColors 값을 �
     Color(0xFF12C2E9) // Color 함수를 실행함
 )
 val SpentopiaLightCtaGradientColors = listOf( // SpentopiaLightCtaGradientColors 값을 저장함
-    SpentopiaSoftPurple2,
-    SpentopiaSoftBlue,
-    SpentopiaSoftSky
+    Color(0xFFDBEAFE),
+    Color(0xFF93C5FD),
+    Color(0xFF60A5FA)
 )
-val SpentopiaLightCtaBorder = Color(0xFFC7D2FE) // SpentopiaLightCtaBorder 값을 저장함
-val SpentopiaLightCtaContent = Color(0xFF4C1D95) // SpentopiaLightCtaContent 값을 저장함
+val SpentopiaLightCtaBorder = Color(0xFF93C5FD) // SpentopiaLightCtaBorder 값을 저장함
+val SpentopiaLightCtaContent = Color(0xFF1E3A8A) // SpentopiaLightCtaContent 값을 저장함
 
 fun spentopiaCtaGradientColors(isDark: Boolean): List<Color> { // spentopiaCtaGradientColors 함수를 선언함
     return if (isDark) SpentopiaCtaGradientColors else SpentopiaLightCtaGradientColors // 이 값을 함수 결과로 돌려줌

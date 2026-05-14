@@ -329,6 +329,24 @@ object RetrofitClient { // RetrofitClient를 앱에서 하나만 쓰게 만듦
             .create(RewardApi::class.java)
     }
 
+    val notificationApi: NotificationApi by lazy { // notificationApi 값을 저장함
+        Retrofit.Builder() // 서버 통신 도구를 설정함
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(NotificationApi::class.java)
+    }
+
+    val userSettingsApi: UserSettingsApi by lazy { // userSettingsApi 값을 저장함
+        Retrofit.Builder() // 서버 통신 도구를 설정함
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(UserSettingsApi::class.java)
+    }
+
     val aiAnalyzeApi: AiAnalyzeApi by lazy { // aiAnalyzeApi 값을 저장함
         Retrofit.Builder() // 서버 통신 도구를 설정함
             .baseUrl(AI_ANALYZE_BASE_URL)
