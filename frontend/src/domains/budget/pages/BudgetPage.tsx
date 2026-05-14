@@ -42,7 +42,7 @@ type PlanCategory = {
 };
 
 type AiPlan = {
-  id: number;
+  id: string;
   name: string;
   budget: number;
   savings: number;
@@ -64,9 +64,17 @@ type AiPlanApiResponse = {
 };
 
 const PLAN_ORDER_LABELS = ["기본 플랜", "중간 플랜", "여유 플랜"] as const;
+const today = new Date();
+
 const MIN_YEAR = 1900;
-const MAX_YEAR = 2100;
-const TOTAL_MONTHS = (MAX_YEAR - MIN_YEAR + 1) * 12;
+
+const CURRENT_YEAR = today.getFullYear();
+const CURRENT_MONTH = today.getMonth();
+
+const MAX_YEAR = CURRENT_YEAR;
+
+const TOTAL_MONTHS =
+  (MAX_YEAR - MIN_YEAR) * 12 + (CURRENT_MONTH + 1);
 
 type CustomBudget = {
   monthly: number;
@@ -84,7 +92,7 @@ const BUDGET_CATEGORY_KEYS: BudgetCategoryKey[] = ["food", "transport", "living"
 type MonthSnapshot = {
   customBudget: CustomBudget | null;
   aiPlans: AiPlan[] | null;
-  selectedPlan: number | null;
+  selectedPlan: string | null;
   budgetAmount: number | null;
 };
 
@@ -163,7 +171,9 @@ const readMonthSnapshot = (
   const aiPlans = parseAiPlans(localStorage.getItem(getAiPlansStorageKey(monthKey)));
   const selectedPlanRaw = localStorage.getItem(getSelectedPlanStorageKey(monthKey));
   const selectedPlan =
-    selectedPlanRaw === null ? null : Number.isNaN(Number(selectedPlanRaw)) ? null : Number(selectedPlanRaw);
+  selectedPlanRaw === null
+    ? null
+    : selectedPlanRaw;
   const hasAny =
     Boolean(customBudget) ||
     Boolean(aiPlans) ||
@@ -198,11 +208,14 @@ const iconMap = {
   저축: PiggyBank,
 } as const;
 
-const createDefaultAiPlans = (monthlyBudget: number): AiPlan[] => {
-  const baseBudget = monthlyBudget > 0 ? monthlyBudget : 1000000;
+const createDefaultAiPlans = (
+  monthlyBudget: number,
+  savingsGoal: number = 0
+): AiPlan[] => {
+  const baseBudget = monthlyBudget > 9999 ? monthlyBudget : 0;
   const variants = [
     {
-      id: 1,
+      id: "기본 플랜",
       name: "기본 플랜",
       budget: baseBudget,
       savingsRatio: 0.28,
@@ -210,7 +223,7 @@ const createDefaultAiPlans = (monthlyBudget: number): AiPlan[] => {
       categoryRatios: { food: 0.24, transport: 0.14, living: 0.32, leisure: 0.08 },
     },
     {
-      id: 2,
+      id: "중간 플랜",
       name: "중간 플랜",
       budget: baseBudget,
       savingsRatio: 0.18,
@@ -218,7 +231,7 @@ const createDefaultAiPlans = (monthlyBudget: number): AiPlan[] => {
       categoryRatios: { food: 0.25, transport: 0.14, living: 0.29, leisure: 0.16 },
     },
     {
-      id: 3,
+      id: "여유 플랜",
       name: "여유 플랜",
       budget: baseBudget,
       savingsRatio: 0.1,
@@ -228,29 +241,42 @@ const createDefaultAiPlans = (monthlyBudget: number): AiPlan[] => {
   ];
 
   return variants.map((variant) => {
-    const budget = variant.budget;
-    const savings = Math.round((budget * variant.savingsRatio) / 10000) * 10000;
-    const spendable = budget - savings;
-    const food = Math.round((spendable * variant.categoryRatios.food) / 10000) * 10000;
-    const transport = Math.round((spendable * variant.categoryRatios.transport) / 10000) * 10000;
-    const living = Math.round((spendable * variant.categoryRatios.living) / 10000) * 10000;
-    const leisure = budget - savings - food - transport - living;
+  const budget = variant.budget;
 
-    return {
-      id: variant.id,
-      name: variant.name,
-      budget,
-      savings,
-      description: variant.description,
-      categories: [
-        { name: "식비", amount: food },
-        { name: "교통비", amount: transport },
-        { name: "생활비", amount: living },
-        { name: "여가/취미", amount: leisure },
-        { name: "저축", amount: savings },
-      ],
-    };
-  });
+  const savings = Math.min(
+    Math.round((savingsGoal || 0) / 10000) * 10000,
+    budget
+  );
+
+  const spendable = budget - savings;
+
+  const food =
+    Math.round((spendable * variant.categoryRatios.food) / 10000) * 10000;
+
+  const transport =
+    Math.round((spendable * variant.categoryRatios.transport) / 10000) * 10000;
+
+  const living =
+    Math.round((spendable * variant.categoryRatios.living) / 10000) * 10000;
+
+  const leisure =
+    budget - savings - food - transport - living;
+
+  return {
+    id: variant.id,
+    name: variant.name,
+    budget,
+    savings,
+    description: variant.description,
+    categories: [
+      { name: "식비", amount: food },
+      { name: "교통비", amount: transport },
+      { name: "생활비", amount: living },
+      { name: "여가/취미", amount: leisure },
+      { name: "저축", amount: savings },
+    ],
+  };
+});
 };
 
 export default function BudgetPage() {
@@ -263,12 +289,20 @@ export default function BudgetPage() {
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
   const currentMonthLabel = `${selectedYear}년 ${selectedMonth + 1}월`;
 
-  const [aiPlans, setAiPlans] = useState<AiPlan[]>(() => createDefaultAiPlans(1000000));
+  const [aiPlans, setAiPlans] = useState<AiPlan[]>(() => {
+  const saved = localStorage.getItem(
+    getAiPlansStorageKey(
+      `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
+    )
+  );
+
+  return parseAiPlans(saved) || [];
+});
   const [customBudget, setCustomBudget] = useState<CustomBudget>(createEmptyBudget);
-  const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const selectedMonthDate = new Date(selectedYear, selectedMonth, 1);
   const monthlyIncomeBudget = getMonthlyIncomeTotal(transactions, selectedMonthDate);
-  const currentBudget = monthlyIncomeBudget || budgets[monthKey] || 0;
+  const currentBudget = budgets[monthKey] || monthlyIncomeBudget || 0;
 
   useEffect(() => {
     const savedBudget = localStorage.getItem(getCustomBudgetStorageKey(monthKey));
@@ -279,105 +313,156 @@ export default function BudgetPage() {
       Boolean(savedBudget) || Boolean(savedPlans) || savedSelectedPlan !== null || budgets[monthKey] !== undefined;
 
     const fallbackBudgetForMonth = () => {
-      const previousSnapshot = findClosestPreviousMonthSnapshot(selectedMonthIndex - 1, budgets);
-      if (previousSnapshot?.customBudget?.monthly) {
-        return previousSnapshot.customBudget.monthly;
-      }
+  const previousSnapshot = findClosestPreviousMonthSnapshot(
+    selectedMonthIndex - 1,
+    budgets
+  );
 
-      if (previousSnapshot?.budgetAmount && previousSnapshot.budgetAmount > 0) {
-        return previousSnapshot.budgetAmount;
-      }
+  if (previousSnapshot?.customBudget?.monthly) {
+    return previousSnapshot.customBudget.monthly;
+  }
 
-      if (currentBudget > 0) {
-        return currentBudget;
-      }
+  if (
+    previousSnapshot?.budgetAmount &&
+    previousSnapshot.budgetAmount > 0
+  ) {
+    return previousSnapshot.budgetAmount;
+  }
 
-      return 1000000;
-    };
+  return 1000000;
+};
 
     if (savedBudget) {
-      const parsedBudget = parseCustomBudget(savedBudget);
-      setCustomBudget(parsedBudget ?? createEmptyBudget());
-    } else if (hasSavedMonthData) {
-      const previousSnapshot = findClosestPreviousMonthSnapshot(selectedMonthIndex - 1, budgets);
-      const nextBudget = previousSnapshot?.customBudget
-        ? { ...previousSnapshot.customBudget }
-        : { ...createEmptyBudget(), monthly: fallbackBudgetForMonth() };
+  const parsedBudget = parseCustomBudget(savedBudget);
 
-      if (!nextBudget.monthly) {
-        nextBudget.monthly = fallbackBudgetForMonth();
-      }
+  if (parsedBudget) {
+    setCustomBudget(parsedBudget);
 
-      setCustomBudget(nextBudget);
-      localStorage.setItem(getCustomBudgetStorageKey(monthKey), JSON.stringify(nextBudget));
-      if (nextBudget.monthly > 0 && budgets[monthKey] !== nextBudget.monthly) {
-        setMonthlyBudget(monthKey, nextBudget.monthly);
-      }
-    } else {
-      const nextBudget = { ...createEmptyBudget(), monthly: fallbackBudgetForMonth() };
-      setCustomBudget(nextBudget);
-      localStorage.setItem(getCustomBudgetStorageKey(monthKey), JSON.stringify(nextBudget));
-      if (nextBudget.monthly > 0) {
-        setMonthlyBudget(monthKey, nextBudget.monthly);
-      }
+    if (parsedBudget.monthly > 0) {
+      setMonthlyBudget(monthKey, parsedBudget.monthly);
     }
-
-    if (savedPlans) {
-      const parsedPlans = parseAiPlans(savedPlans);
-      setAiPlans(parsedPlans ?? createDefaultAiPlans(fallbackBudgetForMonth()));
-    } else {
-      const previousSnapshot = findClosestPreviousMonthSnapshot(selectedMonthIndex - 1, budgets);
-      const nextPlans =
-        previousSnapshot?.aiPlans ?? createDefaultAiPlans(fallbackBudgetForMonth());
-      setAiPlans(nextPlans);
-      localStorage.setItem(getAiPlansStorageKey(monthKey), JSON.stringify(nextPlans));
-    }
-
-    if (savedSelectedPlan) {
-      setSelectedPlan(Number(savedSelectedPlan));
-    } else {
-      const previousSnapshot = findClosestPreviousMonthSnapshot(selectedMonthIndex - 1, budgets);
-      const nextSelectedPlan = previousSnapshot?.selectedPlan ?? null;
-      setSelectedPlan(nextSelectedPlan);
-      if (nextSelectedPlan === null) {
-        localStorage.removeItem(getSelectedPlanStorageKey(monthKey));
-      } else {
-        localStorage.setItem(getSelectedPlanStorageKey(monthKey), String(nextSelectedPlan));
-      }
-    }
-  }, [monthKey, selectedMonthIndex, currentBudget, budgets, setMonthlyBudget]);
-
-  useEffect(() => {
-    localStorage.setItem(getCustomBudgetStorageKey(monthKey), JSON.stringify(customBudget));
-  }, [customBudget, monthKey]);
-
-  useEffect(() => {
-    localStorage.setItem(getAiPlansStorageKey(monthKey), JSON.stringify(aiPlans));
-  }, [aiPlans, monthKey]);
-
-  useEffect(() => {
-    if (selectedPlan === null) {
-      localStorage.removeItem(getSelectedPlanStorageKey(monthKey));
-      return;
-    }
-    localStorage.setItem(getSelectedPlanStorageKey(monthKey), String(selectedPlan));
-  }, [selectedPlan, monthKey]);
-
-  useEffect(() => {
-  if (currentBudget > 0 && selectedPlan === null) {
-    setCustomBudget((prev) => ({
-      ...prev,
-      monthly: currentBudget,
-    }));
   }
-}, [currentBudget, selectedPlan]);
+} else if (hasSavedMonthData) {
+  const previousSnapshot = findClosestPreviousMonthSnapshot(
+    selectedMonthIndex - 1,
+    budgets
+  );
+
+  const nextBudget = previousSnapshot?.customBudget
+    ? { ...previousSnapshot.customBudget }
+    : { ...createEmptyBudget(), monthly: fallbackBudgetForMonth() };
+
+  if (!nextBudget.monthly) {
+    nextBudget.monthly = fallbackBudgetForMonth();
+  }
+
+  setCustomBudget(nextBudget);
+
+  localStorage.setItem(
+    getCustomBudgetStorageKey(monthKey),
+    JSON.stringify(nextBudget)
+  );
+
+  if (
+    nextBudget.monthly > 0 &&
+    budgets[monthKey] !== nextBudget.monthly
+  ) {
+    setMonthlyBudget(monthKey, nextBudget.monthly);
+  }
+} else {
+  const previousSnapshot = findClosestPreviousMonthSnapshot(
+    selectedMonthIndex - 1,
+    budgets
+  );
+
+  let nextBudget;
+
+  if (previousSnapshot?.customBudget) {
+    nextBudget = { ...previousSnapshot.customBudget };
+  } else {
+    nextBudget = createEmptyBudget();
+
+    nextBudget.monthly =
+      previousSnapshot?.budgetAmount || 1000000;
+  }
+
+  setCustomBudget(nextBudget);
+
+  localStorage.setItem(
+    getCustomBudgetStorageKey(monthKey),
+    JSON.stringify(nextBudget)
+  );
+
+  if (nextBudget.monthly > 0) {
+    setMonthlyBudget(monthKey, nextBudget.monthly);
+  }
+} // ← 바깥 else 종료
+
+    const parsedPlans = parseAiPlans(savedPlans);
+
+if (parsedPlans && parsedPlans.length > 0) {
+  setAiPlans(parsedPlans);
+} else {
+  // 이전 달 플랜 자동 복원
+  const previousSnapshot = findClosestPreviousMonthSnapshot(
+    selectedMonthIndex - 1,
+    budgets
+  );
+
+  if (previousSnapshot?.aiPlans?.length) {
+    setAiPlans(previousSnapshot.aiPlans);
+
+    localStorage.setItem(
+      getAiPlansStorageKey(monthKey),
+      JSON.stringify(previousSnapshot.aiPlans)
+    );
+  } else {
+    setAiPlans([]);
+  }
+}
+
+// 이미 위에서 읽은 값 사용
+setSelectedPlan(savedSelectedPlan ?? null);
+
+if (savedSelectedPlan && parsedPlans?.length) {
+  const appliedPlan = parsedPlans.find(
+    (p) => p.id === savedSelectedPlan
+  );
+
+  if (appliedPlan) {
+    setCustomBudget({
+      monthly: appliedPlan.budget,
+      savings: appliedPlan.savings,
+      food:
+        appliedPlan.categories.find((c) => c.name === "식비")?.amount ?? 0,
+      transport:
+        appliedPlan.categories.find((c) => c.name === "교통비")?.amount ?? 0,
+      living:
+        appliedPlan.categories.find((c) => c.name === "생활비")?.amount ?? 0,
+      leisure:
+        appliedPlan.categories.find((c) => c.name === "여가/취미")?.amount ?? 0,
+    });
+
+    setMonthlyBudget(monthKey, appliedPlan.budget);
+  }
+} // ← 이거 추가
+
+}, [monthKey, budgets]);
 
   useEffect(() => {
-    if (selectedPlan !== null) return;
-    setAiPlans(createDefaultAiPlans(customBudget.monthly || currentBudget || 1000000));
-  }, [customBudget.monthly, currentBudget, selectedPlan]);
+  if (!monthKey) return;
 
-  const handleApplyPlan = async (planId: number) => {
+  localStorage.setItem(
+    getAiPlansStorageKey(monthKey),
+    JSON.stringify(aiPlans)
+  );
+}, [aiPlans, monthKey]);
+
+
+  const handleApplyPlan = async (planId: string) => {
+
+  console.log("🔥 클릭된 planId:", planId);
+
   const plan = aiPlans.find((p) => p.id === planId);
   if (!plan) return;
 
@@ -419,7 +504,15 @@ export default function BudgetPage() {
 
     // 4️⃣ 프론트 상태 업데이트
     setSelectedPlan(planId);
-    setMonthlyBudget(monthKey, plan.budget);
+
+localStorage.setItem(
+  getSelectedPlanStorageKey(monthKey),
+  planId
+);
+
+console.log("✅ selectedPlan 저장:", planId);
+
+setMonthlyBudget(monthKey, plan.budget);
 
     setCustomBudget({
       monthly: plan.budget,
@@ -442,7 +535,7 @@ export default function BudgetPage() {
   const handleGenerateAiPlans = async () => {
   const sourceBudget = currentBudget || customBudget.monthly;
 
-  if (!selectedPlan && !sourceBudget) {
+  if (!sourceBudget || sourceBudget <= 0) {
     toast.error("먼저 예산을 설정하세요!");
     return;
   }
@@ -488,7 +581,13 @@ try {
 
     // 👉 3. AI 플랜 생성 요청 (핵심)
     const aiRes = await apiClient.post<AiPlanApiResponse>(
-      `/api/budget/${budgetId}/ai-plan`
+      `/api/budget/${budgetId}/ai-plan`,
+      {
+    total_budget: sourceBudget,
+    savings_goal: customBudget.savings,
+    year: selectedYear,
+    month,
+  }
     );
 
     const data = aiRes.data;
@@ -498,7 +597,7 @@ try {
     // 👉 4. 프론트 형식으로 변환
     const mappedPlans: AiPlan[] = data.plans
       .map((p, idx) => ({
-        id: Date.now() + idx,
+        id: PLAN_ORDER_LABELS[idx],
         name: p.name,
         budget: p.budget,
         savings: p.savings,
@@ -516,7 +615,32 @@ try {
         name: PLAN_ORDER_LABELS[idx] ?? plan.name,
       }));
 
-    setAiPlans(mappedPlans);
+    const appliedPlanId =
+  localStorage.getItem(getSelectedPlanStorageKey(monthKey));
+
+let finalPlans = [...mappedPlans];
+
+// 적용중인 플랜 유지
+if (appliedPlanId) {
+  const appliedIndex = aiPlans.findIndex(
+    (p) => p.id === appliedPlanId
+  );
+
+  const appliedPlan = aiPlans[appliedIndex];
+
+  if (appliedIndex !== -1 && appliedPlan) {
+    finalPlans[appliedIndex] = appliedPlan;
+  }
+}
+
+// ✅ state 저장
+setAiPlans(finalPlans);
+
+// ✅ localStorage 즉시 저장
+localStorage.setItem(
+  getAiPlansStorageKey(monthKey),
+  JSON.stringify(finalPlans)
+);
 
     toast.success("AI 플랜 생성 완료!");
   } catch (err) {
@@ -528,12 +652,30 @@ try {
 };
 
   const handleSaveCustomBudget = () => {
-    setMonthlyBudget(monthKey, Number(customBudget.monthly) || 0);
-    toast.success(`${selectedYear}년 ${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`);
-  };
+  const monthlyBudget = Number(customBudget.monthly) || 0;
+
+  if (monthlyBudget < 300000) {
+    toast.error("월 전체 예산은 최소 300,000원 이상이어야 합니다.");
+    return;
+  }
+
+  setMonthlyBudget(monthKey, monthlyBudget);
+
+  localStorage.setItem(
+    getCustomBudgetStorageKey(monthKey),
+    JSON.stringify(customBudget)
+  );
+
+  toast.success(
+    `${selectedYear}년 ${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`
+  );
+};
 
   const fitCategoryBudgetsToMonthly = (budget: CustomBudget): CustomBudget => {
-    const monthlyLimit = Math.max(0, Number(budget.monthly) || 0);
+    const monthlyLimit = Math.max(
+  0,
+  (Number(budget.monthly) || 0) - (Number(budget.savings) || 0)
+);
     let remaining = monthlyLimit;
     const next = { ...budget };
 
@@ -553,7 +695,10 @@ try {
 
   const updateCategoryBudget = (key: BudgetCategoryKey, amount: number) => {
     setCustomBudget((prev) => {
-      const monthlyLimit = Math.max(0, Number(prev.monthly) || 0);
+      const monthlyLimit = Math.max(
+  0,
+  (Number(prev.monthly) || 0) - (Number(prev.savings) || 0)
+);
       const otherTotal = BUDGET_CATEGORY_KEYS
         .filter((categoryKey) => categoryKey !== key)
         .reduce((sum, categoryKey) => sum + Number(prev[categoryKey]), 0);
@@ -573,13 +718,24 @@ try {
     Number(customBudget.leisure);
 
   const withSavings = totalBudget + Number(customBudget.savings);
-  const remainingCategoryBudget = Math.max(0, Number(customBudget.monthly) - totalBudget);
+  const remainingCategoryBudget = Math.max(
+  0,
+  Number(customBudget.monthly) -
+    Number(customBudget.savings) -
+    totalBudget
+);
   const getCategorySliderMax = (key: BudgetCategoryKey) => {
     const otherTotal = BUDGET_CATEGORY_KEYS
       .filter((categoryKey) => categoryKey !== key)
       .reduce((sum, categoryKey) => sum + Number(customBudget[categoryKey]), 0);
 
-    return Math.max(Number(customBudget[key]), Number(customBudget.monthly) - otherTotal, 0);
+    return Math.max(
+  Number(customBudget[key]),
+  Number(customBudget.monthly) -
+    Number(customBudget.savings) -
+    otherTotal,
+  0
+);
   };
 
   const updateSelectedMonthByIndex = (index: number) => {
@@ -667,25 +823,39 @@ try {
                 </div>
 
                 <div className="grid grid-cols-3 gap-0.5">
-                  {currentYearMonths.map(({ monthIndex, label, selected }) => (
-                    <button
-                      key={`${selectedYear}-${monthIndex}`}
-                      type="button"
-                      onClick={() => {
-                        setSelectedMonth(monthIndex);
-                        setIsMonthPickerOpen(false);
-                      }}
-                      className={`flex h-8 items-center justify-center rounded-md text-[12.5px] font-semibold transition ${
-                        selected
-                          ? "bg-slate-900 text-white shadow-sm dark:bg-[#090b16] dark:text-white"
-                          : "border border-slate-200 bg-white text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <span>{label}</span>
-                      {selected ? <Check className="ml-1 h-3.5 w-3.5" /> : null}
-                    </button>
-                  ))}
-                </div>
+  {currentYearMonths.map(({ monthIndex, label, selected }) => {
+    const isFutureMonth =
+      selectedYear > CURRENT_YEAR ||
+      (selectedYear === CURRENT_YEAR &&
+        monthIndex > CURRENT_MONTH);
+
+    return (
+      <button
+        key={`${selectedYear}-${monthIndex}`}
+        type="button"
+        disabled={isFutureMonth}
+        onClick={() => {
+          if (isFutureMonth) return;
+
+          setSelectedMonth(monthIndex);
+          setIsMonthPickerOpen(false);
+        }}
+        className={`flex h-9 items-center justify-center rounded-lg text-sm font-medium transition
+          ${
+            selected
+              ? "bg-slate-900 text-white dark:bg-violet-500"
+              : isFutureMonth
+              ? "cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-gray-500"
+              : "text-slate-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-slate-800"
+          }
+        `}
+      >
+        {label}
+        {selected && <Check className="ml-1 h-3.5 w-3.5" />}
+      </button>
+    );
+  })}
+</div>
               </PopoverContent>
             </Popover>
 
@@ -728,13 +898,32 @@ try {
   기본 추천 플랜입니다. AI로 새로 추천받을 수 있어요.
 </p>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {aiPlans.map((plan) => (
-            <Card
-              key={plan.id}
+        {aiPlans.length === 0 ? (
+  <Card className="border-none spentopia-surface-card p-6">
+    <div className="rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 px-6 py-20">
+      <div className="flex flex-col items-center justify-center text-center">
+        <Sparkles className="mb-5 h-10 w-10 text-slate-400 dark:text-violet-300" />
+
+        <h3 className="mb-3 text-2xl font-bold text-slate-900 dark:text-white">
+          아직 생성된 AI 플랜이 없어요
+        </h3>
+
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          월 예산과 저축 목표를 입력한 뒤 AI 플랜 추천 버튼을 눌러보세요.
+        </p>
+      </div>
+    </div>
+  </Card>
+) : (
+  <div className="grid gap-6 md:grid-cols-3">
+    {aiPlans.map((plan) => {
+
+  return (
+    <Card
+      key={plan.id}
               className={`border-2 spentopia-surface-card p-6 backdrop-blur-xl transition-all  ${
                 selectedPlan === plan.id
-                  ? "border-slate-300 shadow-xl dark:border-[#7c3aed]/70"
+  ? "border-emerald-500 bg-emerald-50/60 shadow-2xl dark:border-emerald-400 dark:bg-emerald-900/10"
                   : "border-transparent hover:border-slate-300 dark:hover:border-[#7c3aed]/40"
               }`}
             >
@@ -790,16 +979,25 @@ try {
               </div>
 
               <Button
-                onClick={() => handleApplyPlan(plan.id)}
-                variant={selectedPlan === plan.id ? "default" : "outline"}
-                className="w-full spentopia-primary-button"
-              >
-                {selectedPlan === plan.id ? "적용됨" : "이 플랜 적용하기"}
-              </Button>
-            </Card>
-          ))}
-        </div>
-      </div>
+  type="button"
+  onClick={async () => {
+    await handleApplyPlan(plan.id);
+  }}
+  disabled={selectedPlan === plan.id}
+  className={`w-full transition-all duration-300 ${
+    selectedPlan === plan.id
+      ? "bg-emerald-600 hover:bg-emerald-600 text-white cursor-default"
+      : "spentopia-primary-button"
+  }`}
+>
+  {selectedPlan === plan.id ? "적용됨 ✓" : "이 플랜 적용하기"}
+</Button>
+                </Card>
+  );
+})}
+  </div>
+)}
+</div>
 
       <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
         <h2 className="mb-6 flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100">
@@ -812,28 +1010,34 @@ try {
             <div>
               <Label className="font-semibold text-gray-900 dark:text-gray-100">월 전체 예산</Label>
               <Input
-                type="number"
-                value={customBudget.monthly}
-                onChange={(e) => updateMonthlyBudget(Number(e.target.value) || 0)}
-                className="mt-2"
-                placeholder="예: 500000"
-              />
+  value={customBudget.monthly === 0 ? "" : customBudget.monthly}
+  onChange={(e) => updateMonthlyBudget(Number(e.target.value) || 0)}
+  className="mt-2"
+  placeholder="월 예산을 입력하세요."
+/>
             </div>
 
             <div>
               <Label className="font-semibold text-gray-900 dark:text-gray-100">목표 저축액</Label>
               <Input
-                type="number"
-                value={customBudget.savings}
-                onChange={(e) =>
-                  setCustomBudget({
-                    ...customBudget,
-                    savings: Number(e.target.value) || 0,
-                  })
-                }
-                className="mt-2"
-                placeholder="예: 100000"
-              />
+  value={customBudget.savings === 0 ? "" : customBudget.savings}
+  onChange={(e) => {
+    const inputValue = Number(e.target.value) || 0;
+    const maxSavings = Number(customBudget.monthly) || 0;
+
+    setCustomBudget({
+      ...customBudget,
+      savings: Math.min(inputValue, maxSavings),
+    });
+
+    if (inputValue > maxSavings) {
+      toast.error("목표 저축액은 월 전체 예산을 초과할 수 없습니다.");
+    }
+  }}
+  max={customBudget.monthly}
+  className="mt-2"
+  placeholder="저축액을 입력하세요."
+/>
             </div>
 
             <div className="space-y-5">

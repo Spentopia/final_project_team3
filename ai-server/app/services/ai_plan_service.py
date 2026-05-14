@@ -107,7 +107,7 @@ def build_prompt(payload, fixed_summary, total_budget):
 - 플랜 차이는 총예산이 아니라 저축/식비/교통비/생활비/여가취미 배분 방식에서만 드러나야 한다.
 - 각 플랜의 savings + food + transport + living + leisure 합계는 정확히 budget과 같아야 한다.
 - 사용자의 고정 지출 총합보다 생활비/교통비/식비 합산이 비현실적으로 작으면 안 된다.
-- savings는 가능하면 사용자의 희망 저축액을 반영하되, 기본 플랜 > 중간 플랜 > 여유 플랜 순으로 작아져야 한다.
+- 모든 플랜의 savings는 반드시 사용자의 희망 저축액과 동일해야 한다.
 - savings는 너무 보수적으로 잡지 말고, 각 플랜이 월 예산 대비 대략 기본 28~38%, 중간 20~28%, 여유 14~22% 범위를 우선 기준으로 삼는다.
 - 모든 금액은 10000원 단위 정수로 맞춘다.
 - 사용자가 입력한 월 예산이 크더라도 임의로 150만원 같은 상한으로 줄이지 않는다.
@@ -157,7 +157,7 @@ def fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index
     fixed_by_category = fixed_summary["category_totals"]
     fixed_total = fixed_summary["total"]
 
-    min_savings, max_savings = calculate_savings_bounds(profile, budget, savings_goal, plan_index)
+    min_savings, max_savings = calculate_savings_bounds(profile, budget, savings_goal)
     savings = round_to_unit(min_savings)
 
     remaining = max(0, budget - savings)
@@ -208,34 +208,33 @@ def fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index
     }
 
 
-def calculate_savings_bounds(profile, budget, savings_goal, plan_index):
+def calculate_savings_bounds(profile, budget, savings_goal):
     min_ratio, max_ratio = profile["savings_ratio"]
+
     ratio_floor = int(budget * min_ratio)
     ratio_ceiling = int(budget * max_ratio)
 
     if savings_goal > 0:
-        if plan_index == 0:
-            desired = int(savings_goal * 1.2)
-        elif plan_index == 1:
-            desired = int(savings_goal * 1.05)
-        else:
-            desired = int(savings_goal * 0.85)
+        desired = savings_goal
     else:
         desired = ratio_floor
 
-    min_savings = max(ratio_floor, desired)
-    max_savings = max(min_savings, ratio_ceiling)
+    desired = min(desired, budget)
+
+    min_savings = desired
+    max_savings = desired
+
     return min_savings, max_savings
 
 
 def normalize_plan(raw_plan, profile, total_budget, savings_goal, fixed_summary, plan_index):
     fallback = fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index)
     budget = clamp_budget(total_budget)
-    min_savings, max_savings = calculate_savings_bounds(profile, budget, savings_goal, plan_index)
+    min_savings, max_savings = calculate_savings_bounds(profile, budget, savings_goal)
     raw_savings = round_to_unit(raw_plan.get("savings") or fallback["savings"])
 
     values = {
-        "savings": max(round_to_unit(min_savings), min(raw_savings, round_to_unit(max_savings))),
+        "savings": round_to_unit(min_savings),
         "food": round_to_unit(raw_plan.get("food") or fallback["food"]),
         "transport": round_to_unit(raw_plan.get("transport") or fallback["transport"]),
         "living": round_to_unit(raw_plan.get("living") or fallback["living"]),
