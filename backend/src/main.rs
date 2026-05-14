@@ -48,6 +48,35 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
+fn is_vite_dev_origin(origin: &HeaderValue) -> bool {
+    let Ok(origin) = origin.to_str() else {
+        return false;
+    };
+
+    let Some(origin_without_scheme) = origin.strip_prefix("http://") else {
+        return false;
+    };
+
+    let Some((host, port)) = origin_without_scheme.rsplit_once(':') else {
+        return false;
+    };
+
+    let Ok(port) = port.parse::<u16>() else {
+        return false;
+    };
+
+    if !(5173..=5179).contains(&port) {
+        return false;
+    }
+
+    host == "localhost"
+        || host == "127.0.0.1"
+        || host == "10.0.2.2"
+        || host.starts_with("10.")
+        || host.starts_with("172.")
+        || host.starts_with("192.168.")
+}
+
 // ─────────────────────────────────────────────────────────────
 // Rate Limiting 관련 import
 //
@@ -135,8 +164,15 @@ async fn main() {
         }
     }
 
+    let cors_allowed_origins = allowed_origins.clone();
+
     let cors = CorsLayer::new()
-        .allow_origin(AllowOrigin::list(allowed_origins))
+        .allow_origin(AllowOrigin::predicate(move |origin, _| {
+            cors_allowed_origins
+                .iter()
+                .any(|allowed_origin| allowed_origin == origin)
+                || is_vite_dev_origin(origin)
+        }))
         .allow_methods([
             Method::GET,
             Method::POST,

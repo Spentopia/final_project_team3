@@ -29,7 +29,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
-import {Link as LinkIcon, Wallet} from "lucide-react";
+import {Link as LinkIcon, Monitor, Unplug, Wallet} from "lucide-react";
 import {toast} from "sonner";
 
 interface WalletSectionProps {
@@ -293,10 +293,27 @@ export function WalletSection({
 
     const browserWalletStatus = connected && walletAddress
         ? `${shortenWalletAddress(walletAddress)} 연결됨`
-        : "연결된 지갑이 없습니다.";
+        : "연결 안 됨";
     const isLinkedWalletConnected = Boolean(
         linkedAddress && connected && walletAddress === linkedAddress
     );
+    const isDifferentBrowserWalletConnected = Boolean(
+        linkedAddress && connected && walletAddress && walletAddress !== linkedAddress
+    );
+    const browserWalletMessage = !linkedAddress
+        ? connected && walletAddress
+            ? "이 지갑을 현재 계정에 연동할 수 있어요"
+            : "지갑 연동을 시작하면 브라우저 지갑 선택창이 열립니다"
+        : isLinkedWalletConnected
+            ? "연동된 지갑이 브라우저에도 연결되어 있어요"
+            : isDifferentBrowserWalletConnected
+                ? "현재 연결된 지갑이 계정에 연동된 지갑과 다릅니다"
+                : "해제와 NFT 거래를 하려면 연동된 지갑을 연결해 주세요";
+    const browserWalletCardTone = isLinkedWalletConnected
+        ? "border-green-500 dark:border-green-600"
+        : isDifferentBrowserWalletConnected
+            ? "border-amber-400 dark:border-amber-500"
+            : "border-gray-300 dark:border-gray-600";
     const helperMessage = localMessage ?? successMessage ?? errorMessage;
     const helperTone = localMessage || errorMessage
         ? "text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30"
@@ -305,37 +322,94 @@ export function WalletSection({
     return (
         <>
             <Card className="h-full border-none spentopia-soft-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
-                <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">지갑 관리</h3>
+                <div className="mb-6 rounded-xl spentopia-market-light-soft px-4 py-5">
+                    <div className="flex items-start gap-3">
+                        <div className="rounded-lg bg-white/70 p-2 text-cyan-700 shadow-sm dark:bg-white/10 dark:text-cyan-300">
+                            <Wallet className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-900 dark:text-gray-100">지갑 관리</h3>
+                            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                계정에 등록된 지갑과 현재 브라우저에 연결된 지갑을 구분해서 관리합니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
                 {linkedAddress ? (
                     <div className="space-y-4">
                         <div className="rounded-lg border-2 border-green-500 spentopia-market-light-soft p-4 dark:border-green-600">
                             <div className="mb-3 flex items-center gap-2 text-green-700 dark:text-green-400">
                                 <Wallet className="h-5 w-5" />
-                                <span className="font-bold">계정에 지갑 연동됨</span>
+                                <span className="font-bold">연동된 지갑</span>
                             </div>
                             <p className="mb-2 break-all font-mono text-sm text-gray-700 dark:text-gray-300">
                                 {linkedAddress}
                             </p>
                             <p className="text-xs text-gray-600 dark:text-gray-400">
-                                {isLinkedWalletConnected
-                                    ? "브라우저 지갑도 연결되어 있어요"
-                                    : "연동 해제는 지갑 서명이 필요합니다"}
+                                서비스 계정에 등록된 지갑 주소입니다.
                             </p>
                         </div>
+
+                        <div className={`rounded-lg border-2 spentopia-market-light-soft p-4 ${browserWalletCardTone}`}>
+                            <div className="mb-3 flex items-center gap-2 text-gray-800 dark:text-gray-100">
+                                <Monitor className="h-5 w-5" />
+                                <span className="font-bold">브라우저 지갑</span>
+                            </div>
+                            <p className="mb-2 break-all font-mono text-sm text-gray-700 dark:text-gray-300">
+                                {connected && walletAddress ? walletAddress : browserWalletStatus}
+                            </p>
+                            <p className={`text-xs ${
+                                isDifferentBrowserWalletConnected
+                                    ? "text-amber-700 dark:text-amber-300"
+                                    : "text-gray-600 dark:text-gray-400"
+                            }`}>
+                                {browserWalletMessage}
+                            </p>
+                        </div>
+
+                        {!isLinkedWalletConnected ? (
+                            <Button
+                                type="button"
+                                onClick={openBrowserWalletModal}
+                                disabled={isProcessing || disconnecting || openingWalletModal}
+                                variant="outline"
+                                className="w-full spentopia-light-nft-button"
+                            >
+                                <Wallet className="mr-2 h-4 w-4" />
+                                {isDifferentBrowserWalletConnected
+                                    ? "연동된 지갑으로 다시 연결"
+                                    : "연동된 지갑 연결하기"}
+                            </Button>
+                        ) : null}
+
+                        {isDifferentBrowserWalletConnected ? (
+                            <Button
+                                type="button"
+                                onClick={() => {
+                                    void disconnectWallet().finally(deselectWallet);
+                                }}
+                                disabled={isProcessing || disconnecting}
+                                variant="outline"
+                                className="w-full"
+                            >
+                                <Unplug className="mr-2 h-4 w-4" />
+                                현재 브라우저 지갑 연결 해제
+                            </Button>
+                        ) : null}
 
                         <Button
                             type="button"
                             onClick={() => {
                                 void handleUnlinkWallet();
                             }}
-                            disabled={isProcessing}
+                            disabled={isProcessing || !isLinkedWalletConnected}
                             variant="outline"
                             className="w-full border-red-300 text-red-600 hover:bg-red-50"
                         >
                             {isProcessing && currentProcess === "unlink"
-                                ? "지갑 연결 해제 중..."
-                                : "지갑 연결 해제"}
+                                ? "지갑 연동 해제 중..."
+                                : "지갑 연동 해제"}
                         </Button>
                     </div>
                 ) : (
@@ -360,6 +434,19 @@ export function WalletSection({
                                     ? "지갑 연동 중..."
                                     : "지갑 연결하기"}
                             </Button>
+                        </div>
+
+                        <div className={`rounded-lg border-2 spentopia-market-light-soft p-4 ${browserWalletCardTone}`}>
+                            <div className="mb-3 flex items-center gap-2 text-gray-800 dark:text-gray-100">
+                                <Monitor className="h-5 w-5" />
+                                <span className="font-bold">브라우저 지갑</span>
+                            </div>
+                            <p className="mb-2 break-all font-mono text-sm text-gray-700 dark:text-gray-300">
+                                {connected && walletAddress ? walletAddress : browserWalletStatus}
+                            </p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                                {browserWalletMessage}
+                            </p>
                         </div>
 
                         <Card className="spentopia-soft-card spentopia-nft-card-tone p-4">

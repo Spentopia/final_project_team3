@@ -48,6 +48,49 @@ pub async fn link_wallet(
         nonce.len()
     );
 
+    let current_wallet_url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=wallet_address&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    let current_wallet_resp = state
+        .http_client
+        .get(&current_wallet_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("기존 지갑 연동 여부 조회 HTTP 요청 실패")?;
+
+    if !current_wallet_resp.status().is_success() {
+        let err_text = current_wallet_resp.text().await.unwrap_or_default();
+        return Err(anyhow!("기존 지갑 연동 여부 조회 실패: {}", err_text));
+    }
+
+    let current_wallet_rows: Vec<serde_json::Value> = current_wallet_resp
+        .json()
+        .await
+        .context("기존 지갑 연동 여부 JSON 파싱 실패")?;
+
+    if let Some(existing_wallet) = current_wallet_rows
+        .first()
+        .and_then(|row| row.get("wallet_address"))
+        .and_then(|value| value.as_str())
+        .filter(|value| !value.trim().is_empty())
+    {
+        if existing_wallet == wallet_address {
+            return Err(anyhow!("이미 현재 계정에 연동된 지갑 주소입니다."));
+        }
+
+        return Err(anyhow!(
+            "이미 현재 계정에 다른 지갑이 연동되어 있습니다. 먼저 기존 지갑을 해제해 주세요."
+        ));
+    }
+
     // 1) nonce 검증
     // nonce_store에서 이 지갑 주소에 해당하는 nonce를 꺼냄
     // ok_or_else: None이면 에러로 변환
