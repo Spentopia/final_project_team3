@@ -562,10 +562,11 @@ while (heightLeft > 0) {
   const paymentPatternData = buildPaymentPatternData(thisMonthTransactions);
 
   const marketCardStyle = {
-    border: "1px solid rgba(37, 99, 235, 0.14)",
+    border: "1px solid rgba(37, 99, 235, 0.22)",
     backgroundImage:
-      "radial-gradient(circle at top right, rgba(96, 165, 250, 0.16), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(239, 246, 255, 0.92))",
-    boxShadow: "0 18px 42px rgba(30, 58, 138, 0.08)",
+      "radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.9), transparent 34%), radial-gradient(circle at 82% 18%, rgba(147, 197, 253, 0.34), transparent 36%), linear-gradient(135deg, #eff6ff 0%, #dbeafe 38%, #f8fbff 62%, #bfdbfe 100%)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 14px 36px rgba(37, 99, 235, 0.1), 0 2px 8px rgba(15, 23, 42, 0.04)",
   };
 
   return (

@@ -89,20 +89,19 @@ export default function DashboardPage() {
   const selectedDateStorageKey = "dashboard-selected-date";
   const entryTypeStorageKey = "dashboard-entry-type";
   const marketCardStyle = {
-    border: "1px solid rgba(30, 58, 138, 0.16)",
+    border: "1px solid rgba(37, 99, 235, 0.22)",
     backgroundColor: "#ffffff",
     backgroundImage:
-      "linear-gradient(135deg, #ffffff 0%, #f8fafc 52%, #e0f2fe 100%)",
+      "radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.9), transparent 34%), radial-gradient(circle at 82% 18%, rgba(147, 197, 253, 0.34), transparent 36%), linear-gradient(135deg, #eff6ff 0%, #dbeafe 38%, #f8fbff 62%, #bfdbfe 100%)",
     boxShadow:
-      "0 10px 30px rgba(37, 99, 235, 0.06), 0 2px 10px rgba(15, 23, 42, 0.04)",
+      "inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 14px 36px rgba(37, 99, 235, 0.1), 0 2px 8px rgba(15, 23, 42, 0.04)",
   } as const;
   const marketInnerStyle = {
-    border: "1px solid rgba(59, 130, 246, 0.16)",
-    backgroundColor: "#f1f5f9",
+    border: "1px solid rgba(59, 130, 246, 0.24)",
+    backgroundColor: "#f8fbff",
     backgroundImage:
-      "linear-gradient(135deg, #ffffff 0%, #f8fafc 52%, #e0f2fe 100%)",
-    boxShadow:
-      "0 10px 30px rgba(37, 99, 235, 0.06), 0 2px 10px rgba(15, 23, 42, 0.04)",
+      "linear-gradient(135deg, #f8fbff 0%, #e0f2fe 42%, #dbeafe 100%)",
+    boxShadow: "0 8px 20px rgba(37, 99, 235, 0.08)",
   } as const;
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
