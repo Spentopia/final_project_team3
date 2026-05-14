@@ -37,6 +37,8 @@ use crate::wallet;
         crate::admin::handler::update_contest,
         crate::admin::handler::update_contest_status,
         crate::admin::handler::list_content_report_audit_logs,
+        crate::admin::handler::apply_content_report_action,
+        crate::admin::handler::get_content_report_target_detail,
 
         // ── 인증 ──────────────────────────────────────────────
         crate::auth::handler::request_nonce,
@@ -135,6 +137,9 @@ use crate::wallet;
             admin::dto::UpdateAdminContestRequest,
             admin::dto::UpdateAdminContestStatusRequest,
             admin::dto::AdminAuditLogResponse,
+            admin::dto::ApplyContentReportActionRequest,
+            admin::dto::AdminReportAction,
+            admin::dto::AdminReportTargetDetailResponse,
 
             // ── auth DTO ──────────────────────────────────────
             auth::dto::NonceRequest,

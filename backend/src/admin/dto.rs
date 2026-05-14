@@ -334,6 +334,59 @@ pub struct AdminContentReportListResponse {
 }
 
 // ─────────────────────────────────────────────
+// 관리자 신고 운영 조치 Action
+// ─────────────────────────────────────────────
+//
+// 신고 상세 모달에서 관리자가 선택할 수 있는 실제 운영 조치 종류.
+//
+// 프론트 요청 예:
+// PATCH /api/admin/content-reports/{id}/apply-action
+// {
+//   "action": "delete_post"
+// }
+//
+// serde(rename_all = "snake_case")를 사용하면 Rust enum은 DeletePost지만,
+// JSON에서는 "delete_post"로 주고받을 수 있다.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AdminReportAction {
+    // 게시글 신고일 때만 허용.
+    // posts.is_deleted = true, posts.deleted_at = now()
+    DeletePost,
+
+    // 댓글 신고일 때만 허용.
+    // comments.is_deleted = true, comments.deleted_at = now()
+    DeleteComment,
+
+    // 프로필 사진 신고일 때만 허용.
+    // users.profile_image = null
+    ClearProfileImage,
+
+    // 프로필 사진 신고일 때만 허용.
+    // 실제 데이터는 바꾸지 않고 사용자에게 변경 요청 알림만 보낸다.
+    RequestProfileImageChange,
+
+    // 닉네임 신고일 때만 허용.
+    // 실제 닉네임은 바꾸지 않고 사용자에게 변경 요청 알림만 보낸다.
+    RequestNicknameChange,
+}
+
+// ─────────────────────────────────────────────
+// 관리자 신고 운영 조치 요청 DTO
+// ─────────────────────────────────────────────
+//
+// 프론트에서 운영 조치 버튼을 누르면 이 DTO 형태로 요청한다.
+//
+// 예:
+// {
+//   "action": "delete_post"
+// }
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct ApplyContentReportActionRequest {
+    pub action: AdminReportAction,
+}
+
+// ─────────────────────────────────────────────
 // 페이지네이션 공통 응답 (회원 목록)
 // ─────────────────────────────────────────────
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
@@ -392,4 +445,84 @@ pub struct AdminAuditLogResponse {
 
     // 로그 생성 시각.
     pub created_at: Option<DateTime<Utc>>,
+}
+
+
+// ─────────────────────────────────────────────
+// 관리자 신고 대상 상세 응답 DTO
+// ─────────────────────────────────────────────
+//
+// 신고 상세 모달에서 "신고당한 실제 대상 정보"를 보여주기 위한 응답.
+//
+// 핵심:
+// - profile_image / author_profile_image는 DB에 저장된 원본 path.
+// - profile_image_url / author_profile_image_url은 백엔드가 생성한 signed URL.
+// - 프론트는 이미지를 보여줄 때 *_url 필드를 우선 사용한다.
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum AdminReportTargetDetailResponse {
+    Post {
+        id: Uuid,
+
+        author_id: Uuid,
+        author_nickname: Option<String>,
+        author_email: Option<String>,
+        author_profile_image: Option<String>,
+        author_profile_image_url: Option<String>,
+
+        title: Option<String>,
+        content: Option<String>,
+        image_url: Option<String>,
+
+        is_deleted: bool,
+        deleted_at: Option<DateTime<Utc>>,
+        created_at: Option<DateTime<Utc>>,
+        updated_at: Option<DateTime<Utc>>,
+    },
+
+    Comment {
+        id: Uuid,
+        post_id: Uuid,
+        parent_id: Option<Uuid>,
+
+        author_id: Uuid,
+        author_nickname: Option<String>,
+        author_email: Option<String>,
+        author_profile_image: Option<String>,
+        author_profile_image_url: Option<String>,
+
+        content: Option<String>,
+
+        is_deleted: bool,
+        deleted_at: Option<DateTime<Utc>>,
+        created_at: Option<DateTime<Utc>>,
+        updated_at: Option<DateTime<Utc>>,
+    },
+
+    UserProfile {
+        user_id: Uuid,
+        nickname: Option<String>,
+        email: Option<String>,
+
+        // DB 원본 path
+        profile_image: Option<String>,
+
+        // 백엔드 signed URL
+        profile_image_url: Option<String>,
+
+        is_active: bool,
+        deleted_at: Option<DateTime<Utc>>,
+        created_at: Option<DateTime<Utc>>,
+        updated_at: Option<DateTime<Utc>>,
+    },
+
+    UserNickname {
+        user_id: Uuid,
+        nickname: Option<String>,
+        email: Option<String>,
+        is_active: bool,
+        deleted_at: Option<DateTime<Utc>>,
+        created_at: Option<DateTime<Utc>>,
+        updated_at: Option<DateTime<Utc>>,
+    },
 }

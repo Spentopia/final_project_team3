@@ -24,6 +24,21 @@ import {apiClient} from "@/shared/api/client.ts";
 // rejected : 반려
 export type ContentReportStatus = "pending" | "resolved" | "rejected";
 
+// 관리자 신고 운영 조치 action.
+//
+// 백엔드 AdminReportAction enum과 매칭된다.
+export type AdminReportAction =
+    | "delete_post"
+    | "delete_comment"
+    | "clear_profile_image"
+    | "request_profile_image_change"
+    | "request_nickname_change";
+
+// 관리자 신고 운영 조치 요청 body.
+export type ApplyAdminContentReportActionRequest = {
+    action: AdminReportAction;
+};
+
 // 신고 대상 타입
 //
 // post          : 게시글
@@ -54,6 +69,75 @@ export type ContentReportReason =
 
 export type AdminReportSortBy = "created_at" | "reviewed_at";
 export type AdminReportSortOrder = "asc" | "desc";
+
+// ─────────────────────────────────────────────
+// 관리자 신고 대상 상세 타입
+// ─────────────────────────────────────────────
+//
+// 백엔드 AdminReportTargetDetailResponse와 매칭된다.
+// kind 값으로 타입을 구분한다.
+
+export type AdminReportTargetDetailResponse =
+    | {
+    kind: "post";
+    id: string;
+
+    author_id: string;
+    author_nickname: string | null;
+    author_email: string | null;
+    author_profile_image: string | null;
+    author_profile_image_url: string | null;
+
+    title: string | null;
+    content: string | null;
+    image_url: string | null;
+
+    is_deleted: boolean;
+    deleted_at: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+}
+    | {
+    kind: "comment";
+    id: string;
+    post_id: string;
+    parent_id: string | null;
+
+    author_id: string;
+    author_nickname: string | null;
+    author_email: string | null;
+    author_profile_image: string | null;
+    author_profile_image_url: string | null;
+
+    content: string | null;
+
+    is_deleted: boolean;
+    deleted_at: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+}
+    | {
+    kind: "user_profile";
+    user_id: string;
+    nickname: string | null;
+    email: string | null;
+    profile_image: string | null;
+    profile_image_url: string | null;
+    is_active: boolean;
+    deleted_at: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+}
+    | {
+    kind: "user_nickname";
+    user_id: string;
+    nickname: string | null;
+    email: string | null;
+    is_active: boolean;
+    deleted_at: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+};
 
 // ─────────────────────────────────────────────
 // 페이지네이션 공통 응답 타입
@@ -395,6 +479,44 @@ export async function listAdminContentReports(
                 page_size: params.page_size,
             },
         }
+    );
+
+    return res.data;
+}
+
+// 신고에 실제 운영 조치를 적용한다.
+//
+// 알림 제외 버전.
+// 백엔드에서는 다음만 수행한다.
+// - 게시글/댓글/프로필 이미지 실제 조치
+// - 신고 처리완료
+// - 감사 로그 기록
+export async function applyAdminContentReportAction(
+    reportId: string,
+    payload: ApplyAdminContentReportActionRequest
+): Promise<AdminContentReportResponse> {
+    const res = await apiClient.patch<AdminContentReportResponse>(
+        `/api/admin/content-reports/${reportId}/apply-action`,
+        payload
+    );
+
+    return res.data;
+}
+
+// 특정 신고의 실제 신고 대상 상세 조회.
+//
+// GET /api/admin/content-reports/{reportId}/target
+//
+// 예:
+// - 게시글 신고면 게시글 제목/내용/이미지/작성자 정보
+// - 댓글 신고면 댓글 내용/작성자 정보
+// - 프로필 신고면 프로필 이미지/사용자 정보
+// - 닉네임 신고면 닉네임/사용자 정보
+export async function getAdminContentReportTargetDetail(
+    reportId: string
+): Promise<AdminReportTargetDetailResponse> {
+    const res = await apiClient.get<AdminReportTargetDetailResponse>(
+        `/api/admin/content-reports/${reportId}/target`
     );
 
     return res.data;
