@@ -29,6 +29,8 @@ data class AnalyzeCategoryDataRequest( // AnalyzeCategoryDataRequest 데이터�
 )
 
 data class AnalyzeReportRequest( // AnalyzeReportRequest 데이터를 묶어둘 클래스 시작
+    @SerializedName("analysis_kind")
+    val analysisKind: String, // report 또는 pattern 값을 저장함
     @SerializedName("report_type")
     val reportType: String, // weekly 또는 monthly 값을 저장함
     @SerializedName("start_date")

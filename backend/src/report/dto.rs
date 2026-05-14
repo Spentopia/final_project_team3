@@ -22,7 +22,23 @@ impl ReportType {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum AnalysisKind {
+    Report,
+    Pattern,
+}
+
+impl AnalysisKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Report => "report",
+            Self::Pattern => "pattern",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct Transaction {
     pub date: String,
     pub amount: f64,
@@ -30,7 +46,7 @@ pub struct Transaction {
     pub r#type: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct CategoryData {
     pub key: Option<String>,
     pub name: String,
@@ -39,8 +55,10 @@ pub struct CategoryData {
     pub color: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct GenerateReportRequest {
+    pub analysis_kind: AnalysisKind,
+
     pub report_type: ReportType,
 
     pub start_date: String,

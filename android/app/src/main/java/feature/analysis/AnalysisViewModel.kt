@@ -446,6 +446,7 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
         }
 
         return AnalyzeReportRequest( // 이 값을 함수 결과로 돌려줌
+            analysisKind = "report", // 앱은 우선 리포트 분석으로 요청함
             reportType = reportType, // reportType 값을 정해줌
             startDate = startDate, // 시작일을 정해줌
             endDate = endDate, // 종료일을 정해줌

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import axios from "axios";
 import styles from "./AnalyticsPage.module.css";
 import { useFinance, type Transaction } from "@/shared/providers/FinanceProvider";
 import { listExpenses } from "@/shared/api/expenseApi";
@@ -7,11 +8,14 @@ import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { analyzeReport } from "@/shared/api/aiApi";
+import { isSolana402Body, sendSolanaX402Payment } from "@/shared/api/solanaX402";
 import { useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useRef } from "react";
 import type { AnalyzeReportRequest } from "@/shared/api/aiApi";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { toast } from "sonner";
 
 import {
   BarChart,
@@ -49,6 +53,8 @@ type AIReport = {
 };
 
 type AnalysisReportType = AnalyzeReportRequest["report_type"];
+type AnalysisKind = AnalyzeReportRequest["analysis_kind"];
+type ReportStateByPeriod = Record<AnalysisReportType, AIReport | null>;
 
 
 const WEEKLY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -255,6 +261,8 @@ const buildPaymentPatternData = (transactions: Transaction[]) => {
 
 export default function Analytics() {
   const { transactions, replaceTransactions, budgets } = useFinance();
+  const { connection } = useConnection();
+  const { publicKey, signTransaction } = useWallet();
 
 const reportRef = useRef<HTMLDivElement>(null);
 
@@ -274,7 +282,9 @@ useEffect(() => {
 
       replaceTransactions(formatted);
     } catch (error) {
-      console.error("지출 불러오기 실패", error);
+      toast.error("지출 내역을 불러오지 못했습니다.", {
+        description: "잠시 후 다시 시도해주세요.",
+      });
     }
   };
 
@@ -293,9 +303,15 @@ useEffect(() => {
   );
 });
 
-const [aiReport, setAiReport] = useState<AIReport | null>(null);
+const [aiReports, setAiReports] = useState<ReportStateByPeriod>({
+  weekly: null,
+  monthly: null,
+});
 
-const [patternReport, setPatternReport] = useState<AIReport | null>(null);
+const [patternReports, setPatternReports] = useState<ReportStateByPeriod>({
+  weekly: null,
+  monthly: null,
+});
 
 const [isReportLoading, setIsReportLoading] = useState(false);
 
@@ -304,6 +320,8 @@ const [isPatternLoading, setIsPatternLoading] = useState(false);
 const [isPdfMode, setIsPdfMode] = useState(false);
 
 const [selectedReportType, setSelectedReportType] = useState<AnalysisReportType>("weekly");
+const aiReport = aiReports[selectedReportType];
+const patternReport = patternReports[selectedReportType];
 
 // 총 지출
 const totalExpense = getMonthlyExpenseTotal(transactions, now);
@@ -312,24 +330,24 @@ const totalExpense = getMonthlyExpenseTotal(transactions, now);
 const days = new Date().getDate();
 const dailyAverage = Math.round(totalExpense / days);
 
-// 🔥 이번 달 / 지난 달 계산 (여기로 이동)
+// 이번 달 / 지난 달 계산
 const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
 const currentMonthExpense = getMonthlyExpenseTotal(transactions, now);
 const lastMonthExpense = getMonthlyExpenseTotal(transactions, lastMonth);
 
-// 🔥 총 지출 변화율
+// 총 지출 변화율
 const expenseChangeRate =
   lastMonthExpense > 0
     ? Math.round(((currentMonthExpense - lastMonthExpense) / lastMonthExpense) * 100)
     : 0;
 
-// 🔥 지난달 일 평균
+// 지난달 일 평균
 const lastMonthDays = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
 const lastMonthDailyAverage =
   lastMonthExpense > 0 ? Math.round(lastMonthExpense / lastMonthDays) : 0;
 
-// 🔥 일 평균 변화율
+// 일 평균 변화율
 const dailyChangeRate =
   lastMonthDailyAverage > 0
     ? Math.round(((dailyAverage - lastMonthDailyAverage) / lastMonthDailyAverage) * 100)
@@ -374,7 +392,10 @@ const categoryData = Object.entries(categoryTotals).map(([name, amount], index) 
 const weeklyData = buildWeeklyData(thisMonthTransactions, now);
 const monthlyData = buildMonthlyData(transactions, now.getFullYear());
 
-const buildAnalysisPayload = (reportType: AnalysisReportType): AnalyzeReportRequest => {
+const buildAnalysisPayload = (
+  reportType: AnalysisReportType,
+  analysisKind: AnalysisKind
+): AnalyzeReportRequest => {
   const periodStart =
     reportType === "weekly"
       ? getWeekStart(now)
@@ -423,6 +444,7 @@ const buildAnalysisPayload = (reportType: AnalysisReportType): AnalyzeReportRequ
     periodBudget > 0 ? Math.round((periodTotalExpense / periodBudget) * 100) : 0;
 
   return {
+    analysis_kind: analysisKind,
     report_type: reportType,
     start_date: formatDateKey(periodStart),
     end_date: formatDateKey(periodEnd),
@@ -443,28 +465,118 @@ const buildAnalysisPayload = (reportType: AnalysisReportType): AnalyzeReportRequ
   };
 };
 
+const getPaymentCacheKey = async (payload: AnalyzeReportRequest) => {
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const hash = Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return `spentopia:x402:${hash}`;
+};
+
+const getFriendlyAnalysisErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    if (error.message.includes("관리자에게 문의")) return error.message;
+    if (error.message.includes("잔액")) return error.message;
+    if (error.message.includes("서명")) return error.message;
+    if (error.message.includes("지갑")) return error.message;
+  }
+
+  if (axios.isAxiosError(error) && error.response?.status && error.response.status >= 500) {
+    return "서버 오류가 발생했습니다. 결제 내역이 있다면 관리자에게 문의해주세요.";
+  }
+
+  return "분석을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.";
+};
+
+const requestPaidAnalysis = async (payload: AnalyzeReportRequest) => {
+  const cacheKey = await getPaymentCacheKey(payload);
+  const cachedPaymentHeader = sessionStorage.getItem(cacheKey);
+  if (cachedPaymentHeader) {
+    try {
+      const result = await analyzeReport(payload, cachedPaymentHeader);
+      sessionStorage.removeItem(cacheKey);
+      return result;
+    } catch (error) {
+      sessionStorage.removeItem(cacheKey);
+      if (!axios.isAxiosError(error) || error.response?.status !== 402) {
+        throw error;
+      }
+    }
+  }
+
+  let paymentCompleted = false;
+
+  try {
+    return await analyzeReport(payload);
+  } catch (error) {
+    if (!axios.isAxiosError(error) || error.response?.status !== 402) {
+      throw error;
+    }
+    if (!isSolana402Body(error.response.data)) {
+      throw error;
+    }
+
+    const requirement = error.response.data.accepts[0];
+    const amount = requirement
+      ? (Number(requirement.maxAmountRequired) / 1_000_000).toFixed(2)
+      : "";
+
+    toast.info("무료 분석 횟수를 모두 사용했어요.", {
+      description: `${amount} USDC 결제가 필요합니다. 지갑 창이 열리면 결제 내용을 확인하고 서명해주세요.`,
+    });
+
+    const paymentHeader = await sendSolanaX402Payment({
+      body: error.response.data,
+      connection,
+      publicKey,
+      signTransaction,
+    });
+    paymentCompleted = true;
+    sessionStorage.setItem(cacheKey, paymentHeader);
+
+    toast.success("결제가 확인됐어요.", {
+      description: "이제 분석 결과를 불러오고 있습니다.",
+    });
+
+    try {
+      const result = await analyzeReport(payload, paymentHeader);
+      sessionStorage.removeItem(cacheKey);
+      return result;
+    } catch (retryError) {
+      if (paymentCompleted) {
+        throw new Error("결제는 완료됐지만 분석 결과를 불러오지 못했습니다. 관리자에게 문의해주세요.");
+      }
+      throw retryError;
+    }
+  }
+};
+
 const handleGenerateReport = async () => {
   if (thisMonthTransactions.length === 0) return;
 
   try {
     setIsReportLoading(true);
 
-    const payload = buildAnalysisPayload(selectedReportType);
+    const payload = buildAnalysisPayload(selectedReportType, "report");
 
-    const result = await analyzeReport(payload) as AIReport;
+    const result = await requestPaidAnalysis(payload) as AIReport;
 
-    console.log("AI REPORT RESULT:", result);
-
-    setAiReport({
-  good: result.good,
-  warning: result.warning,
-  advice: result.advice,
-  prediction: result.prediction,
-  pattern: "",
-  improvement: "",
-});
+    setAiReports((prev) => ({
+      ...prev,
+      [selectedReportType]: {
+        good: result.good,
+        warning: result.warning,
+        advice: result.advice,
+        prediction: result.prediction,
+        pattern: "",
+        improvement: "",
+      },
+    }));
   } catch (error) {
-    console.error("AI 리포트 실패", error);
+    toast.error("AI 분석 리포트를 생성하지 못했습니다.", {
+      description: getFriendlyAnalysisErrorMessage(error),
+    });
   } finally {
     setIsReportLoading(false);
   }
@@ -476,22 +588,25 @@ const handleGeneratePattern = async () => {
   try {
     setIsPatternLoading(true);
 
-    const payload = buildAnalysisPayload(selectedReportType);
+    const payload = buildAnalysisPayload(selectedReportType, "pattern");
 
-    const result = await analyzeReport(payload) as AIReport;
+    const result = await requestPaidAnalysis(payload) as AIReport;
 
-    console.log("AI PATTERN RESULT:", result);
-
-    setPatternReport({
-      good: "",
-      warning: "",
-      advice: "",
-      prediction: "",
-      pattern: result.pattern,
-      improvement: result.improvement,
-    });
+    setPatternReports((prev) => ({
+      ...prev,
+      [selectedReportType]: {
+        good: "",
+        warning: "",
+        advice: "",
+        prediction: "",
+        pattern: result.pattern,
+        improvement: result.improvement,
+      },
+    }));
   } catch (error) {
-    console.error("소비 패턴 분석 실패", error);
+    toast.error("AI 소비 패턴 분석을 생성하지 못했습니다.", {
+      description: getFriendlyAnalysisErrorMessage(error),
+    });
   } finally {
     setIsPatternLoading(false);
   }
@@ -514,10 +629,11 @@ const handleShare = async () => {
       });
     } else {
       await navigator.clipboard.writeText(text);
-console.log("복사 완료");
     }
   } catch (err) {
-    console.error(err);
+    toast.error("공유에 실패했습니다.", {
+      description: "잠시 후 다시 시도해주세요.",
+    });
   }
 };
 
@@ -537,7 +653,7 @@ const handleDownload = async () => {
     clonedNode.style.zIndex = "-1";
     document.body.appendChild(clonedNode);
 
-    // 🔥 렌더 반영 기다림
+    // 렌더 반영 대기
     await new Promise((r) => setTimeout(r, 100));
 
     const canvas = await html2canvas(clonedNode, {
@@ -549,7 +665,7 @@ const handleDownload = async () => {
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF("p", "mm", "a4");
 
-// 🔥 여백 설정
+// 여백 설정
 const margin = 12;
 
 const imgWidth = 210 - margin * 2;
@@ -574,7 +690,9 @@ while (heightLeft > 0) {
 
     pdf.save("소비_분석_리포트.pdf");
   } catch (err) {
-    console.error("PDF 생성 실패", err);
+    toast.error("PDF를 생성하지 못했습니다.", {
+      description: "잠시 후 다시 시도해주세요.",
+    });
   } finally {
     clonedNode.remove();
   }

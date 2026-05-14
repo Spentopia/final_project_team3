@@ -44,9 +44,6 @@ class GenerateReportRequest(BaseModel):
 
 @router.post("/api/v1/analyze/report")
 async def analyze_report(request: GenerateReportRequest):
-
-    print("🔥 AI REPORT REQUEST =", request)
-
     result = AnalyzeService.generate_report(request.model_dump())
 
     return result
