@@ -387,10 +387,8 @@ async fn get_helius_transaction(
             return Err(anyhow!("Helius API 오류 (HTTP {}): {}", status, body));
         }
 
-        let res: Vec<serde_json::Value> = response
-            .json()
-            .await
-            .context("Helius API 응답 파싱 실패")?;
+        let res: Vec<serde_json::Value> =
+            response.json().await.context("Helius API 응답 파싱 실패")?;
 
         if let Some(tx) = res.into_iter().next() {
             if !tx["transactionError"].is_null() {

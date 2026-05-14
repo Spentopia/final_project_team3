@@ -11,8 +11,8 @@ use uuid::Uuid;
 
 use super::{
     dto::{
-        ChatRequest, CreateCommentRequest, CreateContentReportRequest, CreatePostRequest,
-        PostSort, PostType, UpdateCommentRequest, UpdatePostRequest,
+        ChatRequest, CreateCommentRequest, CreateContentReportRequest, CreatePostRequest, PostSort,
+        PostType, UpdateCommentRequest, UpdatePostRequest,
     },
     service,
 };
@@ -374,9 +374,6 @@ pub async fn create_content_report(
         Err(e) => map_community_error(e),
     }
 }
-
-
-
 
 #[utoipa::path(
     post, path = "/api/chat",

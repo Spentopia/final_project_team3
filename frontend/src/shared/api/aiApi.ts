@@ -1,7 +1,7 @@
 import { apiClient } from "./client";
 
 export interface AnalyzeReportRequest {
-  report_type: string;
+  report_type: "weekly" | "monthly";
 
   start_date: string;
 

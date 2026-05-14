@@ -953,8 +953,7 @@ pub async fn purchase(
     // 실패해도 구매 자체는 성공이므로 에러 로그만 남기고 진행
     let seller_message = format!(
         "등록하신 NFT {}이 {} SPT에 판매되었어요!",
-        listing.user_inventory.item_master.name,
-        tx.price
+        listing.user_inventory.item_master.name, tx.price
     );
     let seller_notification_type = format!("market_sold_{}", &tx.id.to_string()[..12]);
     if let Err(e) = crate::notification::service::create_notification(

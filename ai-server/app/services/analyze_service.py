@@ -26,14 +26,19 @@ class AnalyzeService:
 # 🔥 여기부터 추가 (절대 위 코드 건드리지 말 것)
     @staticmethod
     def generate_report(data: dict):
+        report_type = data.get("report_type", "monthly")
+        report_label = "주간" if report_type == "weekly" else "월간"
 
         prompt = f"""
         당신은 전문 금융 소비 분석 AI입니다.
 
         사용자의 소비 데이터를 기반으로
-        전문적인 소비 리포트를 작성하세요.
+        전문적인 {report_label} 소비 리포트를 작성하세요.
 
         조건:
+        - report_type이 weekly이면 주간 소비 흐름과 단기 개선 행동을 중심으로 분석
+        - report_type이 monthly이면 월간 소비 구조와 다음 달 예측을 중심으로 분석
+        - start_date부터 end_date까지의 기간만 기준으로 분석
         - 각 항목 최소 5~7문장
         - 실제 금융 리포트처럼 자연스럽게 작성
         - 소비 금액과 소비 패턴 반드시 언급

@@ -85,8 +85,8 @@
 // Context → .context("설명") 으로 에러에 설명 추가
 // Result → 성공이면 Ok(값), 실패면 Err(에러)
 use anyhow::{Context, Result, anyhow};
-use std::time::{Duration, SystemTime};
 use chrono::{DateTime, Utc};
+use std::time::{Duration, SystemTime};
 
 // ed25519_dalek: Solana 지갑이 사용하는 ed25519 서명 알고리즘 라이브러리
 // Signature → 서명 값을 담는 구조체 (64바이트)
@@ -196,8 +196,6 @@ fn format_kst_datetime(value: DateTime<Utc>) -> String {
     kst.format("%Y.%m.%d %H:%M").to_string()
 }
 
-
-
 // ─────────────────────────────────────────────────────────────
 // 로그인/토큰 발급 가능 여부 확인
 // ─────────────────────────────────────────────────────────────
@@ -222,10 +220,7 @@ fn format_kst_datetime(value: DateTime<Utc>) -> String {
 //
 // 즉, 로그인 방식별로 각각 막는 것보다
 // 공통 토큰 발급 직전에 막는 것이 누락 가능성이 낮다.
-async fn ensure_login_allowed(
-    state: &AppState,
-    user_id: Uuid,
-) -> Result<()> {
+async fn ensure_login_allowed(state: &AppState, user_id: Uuid) -> Result<()> {
     let url = format!(
         "{}/rest/v1/users?id=eq.{}&select=is_active,deleted_at,inactive_reason,inactive_until&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
@@ -249,10 +244,8 @@ async fn ensure_login_allowed(
         return Err(anyhow!("회원 상태 조회 실패: {}", body));
     }
 
-    let rows: Vec<LoginAllowedUserRow> = res
-        .json()
-        .await
-        .context("회원 상태 조회 응답 파싱 실패")?;
+    let rows: Vec<LoginAllowedUserRow> =
+        res.json().await.context("회원 상태 조회 응답 파싱 실패")?;
 
     let user = rows
         .into_iter()
@@ -296,16 +289,11 @@ async fn ensure_login_allowed(
         // - toast: "비활성화된 계정입니다."
         // - 로그인 화면 안내 박스:
         //   사유 / 해제 예정일 / 문의 이메일 표시
-        return Err(anyhow!(
-        "ACCOUNT_INACTIVE|{}|{}",
-        reason,
-        until_text
-    ));
+        return Err(anyhow!("ACCOUNT_INACTIVE|{}|{}", reason, until_text));
     }
 
     Ok(())
 }
-
 
 // ─────────────────────────────────────────────────────────────
 // 공통 토큰 발급 + refresh session 저장
@@ -393,8 +381,8 @@ pub fn check_login_cooldown(deleted_at_str: &str) -> Result<()> {
 
 fn check_cooldown_internal(deleted_at_str: &str, is_login: bool) -> Result<()> {
     // RFC3339 → DateTime<FixedOffset>로 파싱
-    let deleted_at = chrono::DateTime::parse_from_rfc3339(deleted_at_str)
-        .context("deleted_at 파싱 실패")?;
+    let deleted_at =
+        chrono::DateTime::parse_from_rfc3339(deleted_at_str).context("deleted_at 파싱 실패")?;
 
     // 재가입 가능 시각 = 탈퇴 시각 + 30일
     let rejoin_at = deleted_at + chrono::Duration::days(REJOIN_COOLDOWN_DAYS);
@@ -452,11 +440,9 @@ pub async fn rotate_refresh_token(
     // 여기서는 JWT 서명, exp, token_type=refresh 여부를 확인한다.
     let claims = verify_app_refresh_token(&state.config.app_jwt_secret, refresh_token)?;
 
-    let session_id = Uuid::parse_str(&claims.sid)
-        .context("refresh sid UUID 파싱 실패")?;
+    let session_id = Uuid::parse_str(&claims.sid).context("refresh sid UUID 파싱 실패")?;
 
-    let user_id = Uuid::parse_str(&claims.sub)
-        .context("refresh sub UUID 파싱 실패")?;
+    let user_id = Uuid::parse_str(&claims.sub).context("refresh sub UUID 파싱 실패")?;
 
     // 2) DB refresh session 검증.
     //
@@ -518,7 +504,7 @@ pub async fn rotate_refresh_token(
         client_type,
         &pair.refresh_token,
     )
-        .await?;
+    .await?;
 
     // 8) 기존 refresh session revoke.
     //
@@ -989,13 +975,8 @@ pub async fn exchange_supabase_token(
 
                 // 30일 지났어도 같은 row를 부활시키지 않음
                 // 정책: 탈퇴자는 새 계정으로 가입해야 함
-                tracing::info!(
-                "탈퇴 후 쿨다운 만료 유저 로그인 시도: user_id={}",
-                user_id
-            );
-                return Err(anyhow!(
-                "탈퇴한 계정입니다. 새로 회원가입해 주세요."
-            ));
+                tracing::info!("탈퇴 후 쿨다운 만료 유저 로그인 시도: user_id={}", user_id);
+                return Err(anyhow!("탈퇴한 계정입니다. 새로 회원가입해 주세요."));
             }
         }
     }
@@ -1029,16 +1010,11 @@ pub async fn exchange_supabase_token(
             let rows: Vec<serde_json::Value> = email_check_resp.json().await.unwrap_or_default();
             if let Some(row) = rows.first() {
                 if let Some(deleted_at_str) = row["deleted_at"].as_str() {
-                    tracing::warn!(
-                    "탈퇴 유저 재로그인 시도 (email 기반): email={}",
-                    mail
-                );
+                    tracing::warn!("탈퇴 유저 재로그인 시도 (email 기반): email={}", mail);
                     // 30일 쿨다운 체크
                     check_login_cooldown(deleted_at_str)?;
                     // 쿨다운 지났어도 부활 X
-                    return Err(anyhow!(
-                    "탈퇴한 계정입니다. 새로 회원가입해 주세요."
-                ));
+                    return Err(anyhow!("탈퇴한 계정입니다. 새로 회원가입해 주세요."));
                 }
             }
         }
@@ -1569,12 +1545,12 @@ pub async fn withdraw_user(state: &AppState, user_id: Uuid) -> Result<()> {
         .header("Content-Type", "application/json")
         .header("Prefer", "return=minimal")
         .json(&json!({
-        "deleted_at": now,
-        "is_active": false,
-        "wallet_address": null,
-        "google_connected": false,
-        "updated_at": now,
-    }))
+            "deleted_at": now,
+            "is_active": false,
+            "wallet_address": null,
+            "google_connected": false,
+            "updated_at": now,
+        }))
         .send()
         .await
         .context("public.users 탈퇴 처리 요청 실패")?;
@@ -1677,16 +1653,11 @@ async fn find_or_create_social_user(
             let rows: Vec<serde_json::Value> = deleted_resp.json().await.unwrap_or_default();
             if let Some(row) = rows.first() {
                 if let Some(deleted_at_str) = row["deleted_at"].as_str() {
-                    tracing::warn!(
-                "탈퇴 유저 카카오 로그인 시도: user_id={}",
-                existing_user_id
-            );
+                    tracing::warn!("탈퇴 유저 카카오 로그인 시도: user_id={}", existing_user_id);
                     // 30일 쿨다운 체크 → 미만이면 에러
                     check_login_cooldown(deleted_at_str)?;
                     // 쿨다운 지났어도 부활 X (새 가입 유도)
-                    return Err(anyhow!(
-                "탈퇴한 계정입니다. 새로 회원가입해 주세요."
-            ));
+                    return Err(anyhow!("탈퇴한 계정입니다. 새로 회원가입해 주세요."));
                 }
             }
         }

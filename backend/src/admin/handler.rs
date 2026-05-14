@@ -13,10 +13,10 @@
 //   관리자만 이 핸들러에 도달하게 만든다.
 
 use axum::{
+    Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
-    Extension, Json,
 };
 use serde::Deserialize;
 use uuid::Uuid;
@@ -25,9 +25,8 @@ use crate::state::AppState;
 
 use super::{
     dto::{
-        CreateAdminNoticeRequest, UpdateAdminNoticeRequest,
-        UpdateUserActiveRequest, CreateAdminContestRequest, UpdateAdminContestRequest,
-        UpdateAdminContestStatusRequest,
+        CreateAdminContestRequest, CreateAdminNoticeRequest, UpdateAdminContestRequest,
+        UpdateAdminContestStatusRequest, UpdateAdminNoticeRequest, UpdateUserActiveRequest,
     },
     service,
 };
@@ -142,7 +141,6 @@ fn map_admin_error(error: anyhow::Error) -> axum::response::Response {
 
     (StatusCode::INTERNAL_SERVER_ERROR, message).into_response()
 }
-
 
 #[utoipa::path(
     get,
@@ -310,7 +308,7 @@ pub async fn update_user_active(
         req.inactive_until,
         admin_user_id,
     )
-        .await
+    .await
     {
         Ok(user) => Json(user).into_response(),
         Err(e) => map_admin_error(e),
@@ -332,9 +330,7 @@ pub async fn update_user_active(
     ),
     security(("bearer_auth" = []))
 )]
-pub async fn list_notices(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn list_notices(State(state): State<AppState>) -> impl IntoResponse {
     match service::list_notices(&state).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => map_admin_error(e),
@@ -425,9 +421,7 @@ pub async fn delete_notice(
     ),
     security(("bearer_auth" = []))
 )]
-pub async fn list_contests(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn list_contests(State(state): State<AppState>) -> impl IntoResponse {
     match service::list_contests(&state).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => map_admin_error(e),

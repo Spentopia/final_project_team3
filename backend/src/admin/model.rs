@@ -5,7 +5,7 @@
 // model은 DB row와 최대한 1:1로 맞춘다.
 // service.rs에서 이 모델을 받은 뒤 dto.rs의 응답 DTO로 변환한다.
 
-use chrono:: {DateTime, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

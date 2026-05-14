@@ -2,15 +2,11 @@
 
 use anyhow::{Context, Result, anyhow};
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::{
-    dto::{
-        AnalyzeReportResponse,
-        GenerateReportRequest,
-        ReportResponse,
-    },
+    dto::{AnalyzeReportResponse, GenerateReportRequest, ReportResponse},
     model::Report,
 };
 
@@ -21,14 +17,13 @@ pub async fn generate_report(
     user_id: Uuid,
     req: GenerateReportRequest,
 ) -> Result<AnalyzeReportResponse> {
-
     // AI 서버 호출
     let ai_result = crate::clients::ai_client::analyze(
         state,
         crate::clients::ai_client::AnalyzePayload {
             user_id: user_id.to_string(),
 
-            report_type: req.report_type.clone(),
+            report_type: req.report_type.as_str().to_string(),
             start_date: req.start_date.clone(),
             end_date: req.end_date.clone(),
 
@@ -47,7 +42,7 @@ pub async fn generate_report(
             category_data: serde_json::to_value(&req.category_data)?,
         },
     )
-        .await?;
+    .await?;
 
     // reports 저장
     let url = format!(
@@ -86,7 +81,7 @@ pub async fn generate_report(
         .json(&InsertPayload {
             user_id,
 
-            report_type: req.report_type,
+            report_type: req.report_type.as_str().to_string(),
 
             start_date: req.start_date.to_string(),
             end_date: req.end_date.to_string(),
@@ -114,11 +109,7 @@ pub async fn generate_report(
     })
 }
 
-pub async fn list_reports(
-    state: &AppState,
-    user_id: Uuid,
-) -> Result<Vec<ReportResponse>> {
-
+pub async fn list_reports(state: &AppState, user_id: Uuid) -> Result<Vec<ReportResponse>> {
     let url = format!(
         "{}/rest/v1/reports?user_id=eq.{}&select=*&order=created_at.desc",
         state.config.supabase_url.trim_end_matches('/'),

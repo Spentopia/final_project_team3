@@ -21,16 +21,11 @@ pub async fn generate_report(
     Extension(user_id): Extension<Uuid>,
     Json(req): Json<GenerateReportRequest>,
 ) -> impl IntoResponse {
-
     println!("🔥 REPORT REQUEST = {:?}", req);
 
     match service::generate_report(&state, user_id, req).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            e.to_string(),
-        )
-            .into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
 

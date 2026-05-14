@@ -101,7 +101,6 @@ pub struct ContentReport {
     pub reviewed_by: Option<Uuid>,
 }
 
-
 // public.chatbot_logs 테이블
 // AI 챗봇 상담 로그
 #[derive(Debug, Clone, Serialize, Deserialize)]

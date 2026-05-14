@@ -4,7 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from app.services.analyze_service import AnalyzeService
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 app = FastAPI()
 router = APIRouter()
@@ -36,7 +36,7 @@ class Transaction(BaseModel):
 
 class GenerateReportRequest(BaseModel):
     user_id: Optional[str] = None
-    report_type: str
+    report_type: Literal["weekly", "monthly"]
     start_date: str
     end_date: str
 
