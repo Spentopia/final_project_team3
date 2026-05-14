@@ -36,6 +36,7 @@ import {
     listAdminContentReportAuditLogs,
     type AdminAuditLogResponse,
     type AdminContentReportResponse,
+    type ResolveReportActionType,
 } from "@/domains/admin/api/adminApi";
 
 import {
@@ -51,8 +52,31 @@ type AdminReportDetailModalProps = {
     report: AdminContentReportResponse;
     processingId: string | null;
     onClose: () => void;
-    onResolve: (reportId: string) => void;
+    onResolve: (reportId: string, actionType: ResolveReportActionType) => void;
     onReject: (reportId: string) => void;
+};
+
+const REPORT_ACTION_OPTIONS: Record<
+    string,
+    { value: ResolveReportActionType; label: string }[]
+> = {
+    post: [
+        { value: "no_action", label: "조치 없이 처리 완료" },
+        { value: "post_deleted", label: "게시글 삭제 후 처리 완료" },
+    ],
+    comment: [
+        { value: "no_action", label: "조치 없이 처리 완료" },
+        { value: "comment_deleted", label: "댓글 삭제 후 처리 완료" },
+    ],
+    user_profile: [
+        { value: "no_action", label: "조치 없이 처리 완료" },
+        { value: "profile_image_change_requested", label: "프로필 사진 변경 요청" },
+        { value: "profile_image_reset", label: "프로필 사진 기본 이미지 변경" },
+    ],
+    user_nickname: [
+        { value: "no_action", label: "조치 없이 처리 완료" },
+        { value: "nickname_change_requested", label: "닉네임 변경 요청" },
+    ],
 };
 
 /**
@@ -104,6 +128,11 @@ export default function AdminReportDetailModal({
                                                }: AdminReportDetailModalProps) {
     const isProcessing = processingId === report.id;
     const isPending = report.status === "pending";
+    const actionOptions = REPORT_ACTION_OPTIONS[report.target_type] ?? [
+        { value: "no_action", label: "조치 없이 처리 완료" },
+    ];
+    const [resolveActionType, setResolveActionType] =
+        useState<ResolveReportActionType>(actionOptions[0].value);
 
     const detailText = report.detail?.trim()
         ? report.detail
@@ -430,6 +459,25 @@ export default function AdminReportDetailModal({
                 </div>
 
                 <div className="mt-6 flex justify-end gap-2">
+                    {isPending && (
+                        <select
+                            value={resolveActionType}
+                            onChange={(event) =>
+                                setResolveActionType(
+                                    event.target.value as ResolveReportActionType,
+                                )
+                            }
+                            disabled={isProcessing}
+                            className="mr-auto rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold"
+                        >
+                            {actionOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    )}
+
                     <button
                         type="button"
                         onClick={onClose}
@@ -451,7 +499,7 @@ export default function AdminReportDetailModal({
                     <button
                         type="button"
                         disabled={!isPending || isProcessing}
-                        onClick={() => onResolve(report.id)}
+                        onClick={() => onResolve(report.id, resolveActionType)}
                         className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <CheckCircle2 className="h-4 w-4" />

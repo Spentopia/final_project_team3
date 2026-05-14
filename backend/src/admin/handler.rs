@@ -25,8 +25,9 @@ use crate::state::AppState;
 
 use super::{
     dto::{
-        CreateAdminContestRequest, CreateAdminNoticeRequest, UpdateAdminContestRequest,
-        UpdateAdminContestStatusRequest, UpdateAdminNoticeRequest, UpdateUserActiveRequest,
+        CreateAdminContestRequest, CreateAdminNoticeRequest, ResolveContentReportRequest,
+        UpdateAdminContestRequest, UpdateAdminContestStatusRequest, UpdateAdminNoticeRequest,
+        UpdateUserActiveRequest,
     },
     service,
 };
@@ -196,8 +197,11 @@ pub async fn resolve_content_report(
     State(state): State<AppState>,
     Extension(admin_id): Extension<Uuid>,
     Path(report_id): Path<Uuid>,
+    body: Option<Json<ResolveContentReportRequest>>,
 ) -> impl IntoResponse {
-    match service::resolve_content_report(&state, admin_id, report_id).await {
+    let action_type = body.and_then(|Json(body)| body.action_type);
+
+    match service::resolve_content_report(&state, admin_id, report_id, action_type).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => map_admin_error(e),
     }

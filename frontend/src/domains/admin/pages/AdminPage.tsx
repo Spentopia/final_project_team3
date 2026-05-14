@@ -70,6 +70,7 @@ import {
     type AdminContestStatus,
     type AdminNoticeResponse,
     type AdminUserResponse,
+    type ResolveReportActionType,
 } from "@/domains/admin/api/adminApi";
 
 import type {
@@ -567,13 +568,16 @@ export default function AdminPage() {
     }, []);
 
     // 신고 처리 완료
-    const handleResolveReport = async (reportId: string) => {
+    const handleResolveReport = async (
+        reportId: string,
+        actionType: ResolveReportActionType = "no_action",
+    ) => {
         if (processingId) return;
 
         setProcessingId(reportId);
 
         try {
-            const updated = await resolveAdminContentReport(reportId);
+            const updated = await resolveAdminContentReport(reportId, actionType);
 
             setReports((prev) =>
                 prev.map((report) => (report.id === reportId ? updated : report))
@@ -1028,7 +1032,9 @@ export default function AdminPage() {
                     report={selectedReport}
                     processingId={processingId}
                     onClose={() => setSelectedReport(null)}
-                    onResolve={(reportId) => void handleResolveReport(reportId)}
+                    onResolve={(reportId, actionType) =>
+                        void handleResolveReport(reportId, actionType)
+                    }
                     onReject={(reportId) => void handleRejectReport(reportId)}
                 />
             )}
