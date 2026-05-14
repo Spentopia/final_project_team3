@@ -34,6 +34,8 @@ import androidx.compose.material3.ModalNavigationDrawer // ModalNavigationDrawer
 import androidx.compose.material3.Scaffold // Scaffold 기능을 가져옴
 import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
 import androidx.compose.material3.MaterialTheme // MaterialTheme 기능을 가져옴
+import androidx.compose.material3.Switch // Switch 기능을 가져옴
+import androidx.compose.material3.SwitchDefaults // SwitchDefaults 기능을 가져옴
 import androidx.compose.material3.TextButton // 글자 버튼 컴포넌트를 가져옴
 import androidx.compose.material3.TopAppBarDefaults // TopAppBarDefaults 기능을 가져옴
 import androidx.compose.material3.rememberDrawerState // rememberDrawerState 기능을 가져옴
@@ -66,6 +68,7 @@ import com.ict.spentopia.data.remote.NonceRequest // NonceRequest 기능을 가�
 import com.ict.spentopia.data.remote.NotificationResponse // NotificationResponse 기능을 가져옴
 import com.ict.spentopia.data.remote.RetrofitClient // RetrofitClient 기능을 가져옴
 import com.ict.spentopia.data.remote.RefreshTokenRequest // RefreshTokenRequest 기능을 가져옴
+import com.ict.spentopia.data.remote.UpdateUserSettingsRequest // UpdateUserSettingsRequest 기능을 가져옴
 import com.ict.spentopia.data.remote.WalletLinkRequest // WalletLinkRequest 기능을 가져옴
 import com.ict.spentopia.data.remote.WalletUnlinkRequest // WalletUnlinkRequest 기능을 가져옴
 import com.ict.spentopia.feature.analysis.AnalysisScreen // AnalysisScreen 기능을 가져옴
@@ -115,6 +118,8 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
     var notifications by remember { mutableStateOf<List<NotificationResponse>>(emptyList()) } // 서버에서 받아온 알림 목록을 저장함
     var notificationsLoading by remember { mutableStateOf(false) } // 알림을 불러오는 중인지 저장함
     var notificationsError by remember { mutableStateOf<String?>(null) } // 알림 조회 실패 문구를 저장함
+    var notificationEnabled by remember { mutableStateOf(true) } // 전체 알림 수신 여부를 저장함
+    var notificationSettingLoading by remember { mutableStateOf(false) } // 알림 설정 저장/조회 중인지 저장함
 
     // SharedPreferences는 토큰/지갑/강제로그아웃 저장용
     val prefs = remember { // 화면이 다시 그려져도 간단 저장소를 기억함
@@ -146,6 +151,44 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                 notificationsError = "알림을 불러오지 못했습니다." // 화면에 보여줄 오류 문구를 저장함
             } finally {
                 notificationsLoading = false // 로딩 상태를 끝냄
+            }
+        }
+    }
+
+    fun loadNotificationSetting() { // 알림 팝업 상단의 전체 알림 수신 값을 불러오는 함수
+        scope.launch {
+            notificationSettingLoading = true // 설정 조회 중임을 표시함
+            try {
+                val settings = RetrofitClient.userSettingsApi.getSettings() // 서버에 저장된 알림 설정을 가져옴
+                notificationEnabled = settings.notification_listener ?: true // 값이 없으면 기본 ON으로 보여줌
+            } catch (e: Exception) {
+                Log.e("SpentopiaNotification", "알림 설정 조회 실패", e)
+            } finally {
+                notificationSettingLoading = false // 설정 조회 상태를 끝냄
+            }
+        }
+    }
+
+    fun updateNotificationEnabled(enabled: Boolean) { // 전체 알림 수신 여부를 서버에 저장하는 함수
+        notificationEnabled = enabled // 먼저 화면 스위치를 바로 바꿔줌
+        scope.launch {
+            notificationSettingLoading = true // 저장 중임을 표시함
+            try {
+                val updated = RetrofitClient.userSettingsApi.updateSettings( // 전체 알림 수신 여부만 서버에 보냄
+                    UpdateUserSettingsRequest(
+                        alert_budget = null,
+                        alert_reward = null,
+                        alert_streak = null,
+                        notification_listener = enabled
+                    )
+                )
+                notificationEnabled = updated.notification_listener ?: enabled // 서버 최종 값을 화면에 반영함
+            } catch (e: Exception) {
+                notificationEnabled = !enabled // 실패하면 이전 상태로 되돌림
+                Log.e("SpentopiaNotification", "알림 설정 저장 실패", e)
+                Toast.makeText(context, "알림 설정 저장에 실패했습니다.", Toast.LENGTH_SHORT).show()
+            } finally {
+                notificationSettingLoading = false // 저장 상태를 끝냄
             }
         }
     }
@@ -501,6 +544,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                             }
                             IconButton(onClick = { // 누를 수 있는 버튼을 만듦
                                 showNotificationDialog = true // 알림 팝업을 열어줌
+                                loadNotificationSetting() // 팝업을 열 때 알림 수신 설정을 불러옴
                                 loadNotifications() // 팝업을 열 때 최신 알림을 다시 불러옴
                             }) {
                                 Icon( // 화면에 아이콘을 보여줌
@@ -778,6 +822,9 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                         notifications = notifications,
                         loading = notificationsLoading,
                         errorMessage = notificationsError,
+                        notificationEnabled = notificationEnabled,
+                        notificationSettingLoading = notificationSettingLoading,
+                        onNotificationEnabledChange = { enabled -> updateNotificationEnabled(enabled) },
                         onReadClick = { notificationId -> readNotification(notificationId) },
                         onRetryClick = { loadNotifications() }
                     )
@@ -803,48 +850,84 @@ private fun NotificationDialogContent(
     notifications: List<NotificationResponse>, // 화면에 보여줄 알림 목록
     loading: Boolean, // 알림을 불러오는 중인지 여부
     errorMessage: String?, // 오류가 있을 때 보여줄 문구
+    notificationEnabled: Boolean, // 전체 알림 수신 여부
+    notificationSettingLoading: Boolean, // 알림 수신 설정을 저장/조회 중인지 여부
+    onNotificationEnabledChange: (Boolean) -> Unit, // 전체 알림 스위치를 바꿨을 때 실행할 함수
     onReadClick: (String) -> Unit, // 알림 읽음 버튼을 눌렀을 때 실행할 함수
     onRetryClick: () -> Unit // 다시 불러오기 버튼을 눌렀을 때 실행할 함수
 ) {
-    when {
-        loading -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(), // 스위치 영역을 가로로 채움
+            horizontalArrangement = Arrangement.SpaceBetween, // 문구와 스위치를 양끝에 배치함
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "알림 받기",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = if (notificationEnabled) "앱 알림을 받고 있어요." else "앱 알림을 받지 않아요.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+            Switch(
+                checked = notificationEnabled,
+                onCheckedChange = onNotificationEnabledChange,
+                enabled = !notificationSettingLoading,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            )
         }
 
-        errorMessage != null -> {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { // 오류 문구와 재시도 버튼을 세로로 배치함
-                Text(errorMessage) // 오류 문구를 보여줌
-                TextButton(onClick = onRetryClick) {
-                    Text("다시 불러오기") // 알림 목록 재조회 버튼을 보여줌
+        HorizontalDivider()
+
+        when {
+            loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
             }
-        }
 
-        notifications.isEmpty() -> {
-            Text("아직 도착한 알림이 없습니다.") // 알림이 없을 때 보여줄 빈 상태 문구
-        }
+            errorMessage != null -> {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { // 오류 문구와 재시도 버튼을 세로로 배치함
+                    Text(errorMessage) // 오류 문구를 보여줌
+                    TextButton(onClick = onRetryClick) {
+                        Text("다시 불러오기") // 알림 목록 재조회 버튼을 보여줌
+                    }
+                }
+            }
 
-        else -> {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                notifications.forEachIndexed { index, notification ->
-                    NotificationDialogItem(
-                        notification = notification, // 알림 1개 데이터를 넘김
-                        onReadClick = { onReadClick(notification.id) } // 해당 알림 아이디로 읽음 처리함
-                    )
-                    if (index < notifications.lastIndex) {
-                        HorizontalDivider()
+            notifications.isEmpty() -> {
+                Text("아직 도착한 알림이 없습니다.") // 알림이 없을 때 보여줄 빈 상태 문구
+            }
+
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    notifications.forEachIndexed { index, notification ->
+                        NotificationDialogItem(
+                            notification = notification, // 알림 1개 데이터를 넘김
+                            onReadClick = { onReadClick(notification.id) } // 해당 알림 아이디로 읽음 처리함
+                        )
+                        if (index < notifications.lastIndex) {
+                            HorizontalDivider()
+                        }
                     }
                 }
             }

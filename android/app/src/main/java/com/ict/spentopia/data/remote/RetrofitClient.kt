@@ -44,7 +44,7 @@ object RetrofitClient { // RetrofitClient를 앱에서 하나만 쓰게 만듦
     // const val
     // -> 바뀌지 않는 상수값
     //
-    // BASE_URL
+    // BASE_URLvmfhj
     // -> 서버의 기본 주소
     // 예: "http://10.0.2.2:8080/" 또는 "https://api.example.com/"
     //

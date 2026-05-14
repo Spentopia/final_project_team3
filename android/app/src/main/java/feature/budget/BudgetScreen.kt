@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable // 무한 반복 애�
 import androidx.compose.animation.core.rememberInfiniteTransition // 반복 애니메이션 상태를 기억함
 import androidx.compose.animation.core.tween // 시간 기반 애니메이션을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
+import androidx.compose.foundation.BorderStroke // BorderStroke 기능을 가져옴
 import androidx.compose.foundation.border // border 기능을 가져옴
 import androidx.compose.foundation.clickable // clickable 기능을 가져옴
 import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
@@ -89,6 +90,16 @@ private const val MAX_BUDGET_AMOUNT = 999_999_999_999L // 예산 관련 값을 �
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun isBudgetDarkTheme(): Boolean { // isBudgetDarkTheme 함수를 선언함
     return MaterialTheme.colorScheme.background == SpentopiaDarkBackground // 이 값을 함수 결과로 돌려줌
+}
+
+@Composable
+private fun budgetSoftCardColor(): Color {
+    return if (isBudgetDarkTheme()) Color(0xFF171A2B) else Color(0xFFF8FBFF)
+}
+
+@Composable
+private fun budgetSoftCardBorderColor(): Color {
+    return if (isBudgetDarkTheme()) Color(0xFF4C3B7A) else Color(0xFFBFDBFE)
 }
 
 // 예산 설정 화면임
@@ -313,6 +324,9 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
 // 화면 상단 제목 영역
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun BudgetTopSection() { // BudgetTopSection 함수를 선언함
+    val isDark = isBudgetDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
+    val guideColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF53657D) // 안내 문구 색을 모드별로 분리함
+    val guideStrongColor = if (isDark) Color(0xFFD8B4FE) else Color(0xFF2563EB) // 강조 문구 색을 모드별로 분리함
     Column( // 안쪽 UI를 세로로 배치함
         modifier = Modifier.fillMaxWidth() // UI 크기나 여백 같은 모양을 정함
     ) { // 이 블록 안의 내용이 시작됨
@@ -331,14 +345,14 @@ private fun BudgetTopSection() { // BudgetTopSection 함수를 선언함
             Text( // 화면에 글자를 보여줌
                 text = "AI가 추천하는 플랜으로 시작하거나 ", // text 값을 정해줌
                 style = MaterialTheme.typography.bodyLarge, // style 값을 정해줌
-                color = Color(0xFF334155) // color 값을 정해줌
+                color = guideColor // color 값을 정해줌
             )
 
             Text( // 화면에 글자를 보여줌
                 text = "직접 설정해보세요", // text 값을 정해줌
                 style = MaterialTheme.typography.bodyLarge, // style 값을 정해줌
                 fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
-                color = MaterialTheme.colorScheme.onBackground // color 값을 정해줌
+                color = guideStrongColor // color 값을 정해줌
             )
         }
     }
@@ -559,6 +573,8 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
     isLoading: Boolean, // 로딩 여부를 받음
     onAiRecommendClick: () -> Unit // onAiRecommendClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isBudgetDarkTheme() // 다크모드인지 저장함
+    val buttonColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // AI 추천 버튼색을 모드별로 분리함
     Row( // 안쪽 UI를 가로로 배치함
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         horizontalArrangement = Arrangement.SpaceBetween, // horizontalArrangement 값을 정해줌
@@ -591,8 +607,8 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
             modifier = Modifier.height(40.dp), // UI 크기나 여백 같은 모양을 정함
             shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
             colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer, // contentColor 값을 정해줌
+                containerColor = buttonColor, // containerColor 값을 정해줌
+                contentColor = Color.White, // contentColor 값을 정해줌
                 disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant, // disabledContainerColor 값을 정해줌
                 disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant // disabledContentColor 값을 정해줌
             ),
@@ -603,7 +619,7 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
                 CircularProgressIndicator( // Circular Progress Indicator 함수를 실행함
                     modifier = Modifier.size(14.dp), // UI 크기나 여백 같은 모양을 정함
                     strokeWidth = 2.dp, // strokeWidth 값을 정해줌
-                    color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
+                    color = Color.White // color 값을 정해줌
                 )
                 Spacer(modifier = Modifier.width(6.dp)) // UI 크기나 여백 같은 모양을 정함
             }
@@ -611,7 +627,8 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
             Text( // 화면에 글자를 보여줌
                 text = if (isLoading) "추천 중" else "AI 추천", // text 값을 정해줌
                 style = MaterialTheme.typography.bodyMedium, // style 값을 정해줌
-                fontWeight = FontWeight.Bold // fontWeight 값을 정해줌
+                fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                color = Color.White
             )
         }
     }
@@ -963,15 +980,16 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
                 modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
                 shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
                 colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                    containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer // contentColor 값을 정해줌
+                    containerColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB), // containerColor 값을 정해줌
+                    contentColor = Color.White // contentColor 값을 정해줌
                 ),
                 contentPadding = PaddingValues(vertical = 12.dp) // contentPadding 값을 정해줌
             ) { // 이 블록 안의 내용이 시작됨
                 Text( // 화면에 글자를 보여줌
                     text = "설정 저장", // text 값을 정해줌
                     style = MaterialTheme.typography.titleMedium, // style 값을 정해줌
-                    fontWeight = FontWeight.Bold // fontWeight 값을 정해줌
+                    fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                    color = Color.White
                 )
             }
         }
@@ -1212,14 +1230,15 @@ private fun BudgetSummaryCard( // BudgetSummaryCard 함수를 선언함
         ),
         shape = RoundedCornerShape(22.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors(
-            containerColor = if (isDark) MaterialTheme.colorScheme.primaryContainer else Color(0xFFEFF6FF)
-        ) // colors 값을 정해줌
+            containerColor = budgetSoftCardColor()
+        ), // colors 값을 정해줌
+        border = BorderStroke(1.dp, budgetSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .border(
                     width = 1.dp, // width 값을 정해줌
-                    color = MaterialTheme.colorScheme.outlineVariant, // color 값을 정해줌
+                    color = budgetSoftCardBorderColor(), // color 값을 정해줌
                     shape = RoundedCornerShape(22.dp) // shape 값을 정해줌
                 )
                 .padding(18.dp)

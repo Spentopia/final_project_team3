@@ -7,9 +7,19 @@ import retrofit2.http.POST // POST API 표시를 가져옴
 // 백엔드 POST /api/reports 요청 body입니다.
 // 백엔드 Rust DTO의 GenerateReportRequest와 필드명을 맞췄습니다.
 data class GenerateReportRequest( // GenerateReportRequest 데이터를 묶어둘 클래스 시작
+    val analysis_kind: String, // report 또는 pattern 값을 백엔드에 보냄
     val report_type: String, // report_type 값을 저장함
     val start_date: String, // start_date 값을 저장함
-    val end_date: String // end_date 값을 저장함
+    val end_date: String, // end_date 값을 저장함
+    val transactions: List<AnalyzeTransactionRequest>, // 분석에 사용할 소비 목록을 보냄
+    val total_expense: Double, // 기간 총 지출 금액을 보냄
+    val budget: Double, // 현재 예산 값을 보냄
+    val top_category: String, // 가장 많이 쓴 카테고리를 보냄
+    val top_category_percent: Double, // 가장 많이 쓴 카테고리 비율을 보냄
+    val daily_average: Double, // 하루 평균 지출을 보냄
+    val expense_change_rate: Double, // 지출 변화율을 보냄
+    val budget_usage: Double, // 예산 사용률을 보냄
+    val category_data: List<AnalyzeCategoryDataRequest> // 카테고리별 소비 데이터를 보냄
 )
 
 // 백엔드 /api/reports 응답입니다.
@@ -31,7 +41,7 @@ interface ReportApi { // ReportApi에서 꼭 만들어야 할 함수 규칙을 �
     @POST("/api/reports") // 서버에 데이터를 보내는 API 주소를 적음
     suspend fun generateReport( // generateReport 함수를 선언함
         @Body request: GenerateReportRequest // 이 값을 서버 요청 본문에 넣는다는 표시
-    ): ReportResponse
+    ): AnalyzeReportResponse
 
     @GET("/api/reports") // 서버에서 데이터를 가져오는 API 주소를 적음
     suspend fun getReports(): List<ReportResponse> // 데이터를 불러오는 함수 시작

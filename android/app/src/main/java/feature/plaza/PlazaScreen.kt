@@ -7,9 +7,9 @@ import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
 import androidx.compose.foundation.BorderStroke // BorderStroke 기능을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
 import androidx.compose.foundation.border // border 기능을 가져옴
-import androidx.compose.foundation.isSystemInDarkTheme // isSystemInDarkTheme 기능을 가져옴
 import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
 import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
+import androidx.compose.foundation.layout.BoxScope // BoxScope 기능을 가져옴
 import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
 import androidx.compose.foundation.layout.Row // 가로 배치 레이아웃을 가져옴
 import androidx.compose.foundation.layout.Spacer // Spacer 기능을 가져옴
@@ -44,10 +44,13 @@ import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져�
 import androidx.compose.runtime.Composable // Compose 화면 함수 표시를 가져옴
 import androidx.compose.ui.Alignment // Alignment 기능을 가져옴
 import androidx.compose.ui.Modifier // UI 크기랑 여백 설정 도구를 가져옴
+import androidx.compose.ui.geometry.Offset // 그라데이션 위치 값을 가져옴
+import androidx.compose.ui.graphics.Brush // 그라데이션 색칠 도구를 가져옴
 import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
 import androidx.compose.ui.platform.LocalContext // LocalContext 기능을 가져옴
 import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // 앱 다크모드 배경색을 가져옴
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 fun PlazaScreen( // PlazaScreen 함수를 선언함
@@ -154,33 +157,52 @@ private fun PlazaHeaderSection() { // PlazaHeaderSection 함수를 선언함
 private fun PlazaHeroCard( // PlazaHeroCard 함수를 선언함
     onEnterClick: () -> Unit // onEnterClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
-    val isDark = isSystemInDarkTheme() // 다크모드인지 저장함
-    val heroContentColor = MaterialTheme.colorScheme.onSurface // heroContentColor 값을 저장함
-    val heroMutedContentColor = MaterialTheme.colorScheme.onSurfaceVariant // heroMutedContentColor 값을 저장함
-    val iconSurfaceColor = MaterialTheme.colorScheme.primaryContainer // iconSurfaceColor 값을 저장함
-    val iconContentColor = MaterialTheme.colorScheme.onPrimaryContainer // iconContentColor 값을 저장함
+    val isDark = isPlazaDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
+    val heroBackgroundBrush = if (isDark) { // hero 배경을 모드별로 분리함
+        Brush.linearGradient(
+            colors = listOf(Color(0xFF070A18), Color(0xFF111827), Color(0xFF211A45)),
+            start = Offset.Zero,
+            end = Offset(800f, 800f)
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(Color(0xFFFFFFFF), Color(0xFFF8FBFF), Color(0xFFE0F2FE)),
+            start = Offset.Zero,
+            end = Offset(800f, 800f)
+        )
+    }
+    val heroBorderColor = if (isDark) Color(0xFF334155) else Color(0xFFBFDBFE) // hero 테두리색을 모드별로 분리함
+    val heroContentColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A) // heroContentColor 값을 저장함
+    val heroMutedContentColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF53657D) // heroMutedContentColor 값을 저장함
+    val pointColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // 버튼/아이콘 포인트 색을 모드별로 분리함
 
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = Color.Transparent // containerColor 값을 정해줌
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), // border 값을 정해줌
+        border = BorderStroke(1.dp, heroBorderColor), // border 값을 정해줌
         elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 1.dp else 2.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
+                .background(heroBackgroundBrush)
                 .padding(horizontal = 20.dp, vertical = 28.dp) // .padding(horizontal 값을 정해줌
         ) { // 이 블록 안의 내용이 시작됨
+            if (isDark) {
+                PlazaDarkDecorations()
+            } else {
+                PlazaLightDecorations()
+            }
             Column( // 안쪽 UI를 세로로 배치함
                 horizontalAlignment = Alignment.CenterHorizontally, // horizontalAlignment 값을 정해줌
                 modifier = Modifier.fillMaxWidth() // UI 크기나 여백 같은 모양을 정함
             ) { // 이 블록 안의 내용이 시작됨
                 Surface( // Surface 함수를 실행함
                     shape = CircleShape, // CircleShape 값을 shape 값에 넣음
-                    color = iconSurfaceColor // iconSurfaceColor 값을 color 값에 넣음
+                    color = pointColor // iconSurfaceColor 값을 color 값에 넣음
                 ) { // 이 블록 안의 내용이 시작됨
                     Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
                         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
@@ -190,7 +212,7 @@ private fun PlazaHeroCard( // PlazaHeroCard 함수를 선언함
                         Icon( // 화면에 아이콘을 보여줌
                             imageVector = Icons.Outlined.Games, // imageVector 값을 정해줌
                             contentDescription = null, // null 값을 contentDescription 값에 넣음
-                            tint = iconContentColor, // iconContentColor 값을 tint 값에 넣음
+                            tint = Color.White, // iconContentColor 값을 tint 값에 넣음
                             modifier = Modifier.size(36.dp) // UI 크기나 여백 같은 모양을 정함
                         )
                     }
@@ -219,13 +241,16 @@ private fun PlazaHeroCard( // PlazaHeroCard 함수를 선언함
                     onClick = onEnterClick, // onEnterClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
                     shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
                     colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                        containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer // contentColor 값을 정해줌
+                        containerColor = pointColor, // containerColor 값을 정해줌
+                        contentColor = Color.White // contentColor 값을 정해줌
                     ),
                     contentPadding = PaddingValues(vertical = 12.dp), // contentPadding 값을 정해줌
                     modifier = Modifier.fillMaxWidth() // UI 크기나 여백 같은 모양을 정함
                 ) { // 이 블록 안의 내용이 시작됨
-                    Row(verticalAlignment = Alignment.CenterVertically) { // 안쪽 UI를 가로로 배치함
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) { // 안쪽 UI를 가로로 배치함
                         Icon( // 화면에 아이콘을 보여줌
                             imageVector = Icons.Outlined.PlayArrow, // imageVector 값을 정해줌
                             contentDescription = null // null 값을 contentDescription 값에 넣음
@@ -233,7 +258,8 @@ private fun PlazaHeroCard( // PlazaHeroCard 함수를 선언함
                         Spacer(modifier = Modifier.width(8.dp)) // UI 크기나 여백 같은 모양을 정함
                         Text( // 화면에 글자를 보여줌
                             text = "광장 입장하기", // text 값을 정해줌
-                            fontWeight = FontWeight.SemiBold // fontWeight 값을 정해줌
+                            fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
+                            color = Color.White
                         )
                     }
                 }
@@ -241,6 +267,114 @@ private fun PlazaHeroCard( // PlazaHeroCard 함수를 선언함
         }
     }
 }
+
+@Composable
+private fun BoxScope.PlazaLightDecorations() {
+    PlazaGlowOrb(
+        modifier = Modifier
+            .align(Alignment.TopEnd)
+            .size(112.dp),
+        colors = listOf(
+            Color(0xFF93C5FD).copy(alpha = 0.38f),
+            Color(0xFFDBEAFE).copy(alpha = 0.18f),
+            Color.Transparent
+        )
+    )
+    PlazaGlowOrb(
+        modifier = Modifier
+            .align(Alignment.BottomStart)
+            .size(92.dp),
+        colors = listOf(
+            Color(0xFFBAE6FD).copy(alpha = 0.44f),
+            Color(0xFFE0F2FE).copy(alpha = 0.2f),
+            Color.Transparent
+        )
+    )
+    PlazaGlowOrb(
+        modifier = Modifier
+            .align(Alignment.TopStart)
+            .size(74.dp),
+        colors = listOf(
+            Color.White.copy(alpha = 0.58f),
+            Color(0xFFDBEAFE).copy(alpha = 0.18f),
+            Color.Transparent
+        )
+    )
+    PlazaSparkle(
+        modifier = Modifier
+            .align(Alignment.CenterEnd),
+        color = Color(0xFF60A5FA).copy(alpha = 0.32f)
+    )
+}
+
+@Composable
+private fun BoxScope.PlazaDarkDecorations() {
+    PlazaGlowOrb(
+        modifier = Modifier
+            .align(Alignment.TopEnd)
+            .size(118.dp),
+        colors = listOf(
+            Color(0xFF6D5BD0).copy(alpha = 0.34f),
+            Color(0xFF312E81).copy(alpha = 0.18f),
+            Color.Transparent
+        )
+    )
+    PlazaGlowOrb(
+        modifier = Modifier
+            .align(Alignment.BottomStart)
+            .size(96.dp),
+        colors = listOf(
+            Color(0xFF22D3EE).copy(alpha = 0.24f),
+            Color(0xFF1E1B4B).copy(alpha = 0.16f),
+            Color.Transparent
+        )
+    )
+    PlazaSparkle(
+        modifier = Modifier
+            .align(Alignment.TopStart),
+        color = Color(0xFFE0E7FF).copy(alpha = 0.64f)
+    )
+    PlazaSparkle(
+        modifier = Modifier
+            .align(Alignment.CenterEnd),
+        color = Color(0xFFC4B5FD).copy(alpha = 0.55f)
+    )
+}
+
+@Composable
+private fun PlazaGlowOrb(
+    modifier: Modifier = Modifier,
+    colors: List<Color>
+) {
+    Box(
+        modifier = modifier.background(
+            brush = Brush.radialGradient(colors = colors),
+            shape = CircleShape
+        )
+    )
+}
+
+@Composable
+private fun PlazaSparkle(
+    modifier: Modifier = Modifier,
+    color: Color
+) {
+    Box(modifier = modifier.size(18.dp), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .height(18.dp)
+                .background(color, RoundedCornerShape(999.dp))
+        )
+        Box(
+            modifier = Modifier
+                .width(18.dp)
+                .height(4.dp)
+                .background(color.copy(alpha = 0.82f), RoundedCornerShape(999.dp))
+        )
+    }
+}
+
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun PlazaFeatureCard() { // PlazaFeatureCard 함수를 선언함
@@ -349,8 +483,7 @@ private fun PlazaOnlineUsersCard() { // PlazaOnlineUsersCard 함수를 선언함
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun PlazaTipsCard() { // PlazaTipsCard 함수를 선언함
     SectionCard( // 내용을 카드 모양으로 묶어서 보여줌
-        title = "광장 이용 팁", // 제목을 정해줌
-        containerColor = MaterialTheme.colorScheme.surfaceVariant // containerColor 값을 정해줌
+        title = "광장 이용 팁" // 제목을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         TipText("WASD 키로 아바타를 움직일 수 있어요") // 화면에 글자를 보여줌
         Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
@@ -387,8 +520,8 @@ private fun PlazaUpcomingCard() { // PlazaUpcomingCard 함수를 선언함
             },
             title = "미니게임", // 제목을 정해줌
             description = "다양한 미니게임으로 SPT 획득", // description 값을 정해줌
-            borderColor = MaterialTheme.colorScheme.outlineVariant, // borderColor 값을 정해줌
-            backgroundColor = MaterialTheme.colorScheme.surface // backgroundColor 값을 정해줌
+            borderColor = plazaSoftCardBorderColor(), // borderColor 값을 정해줌
+            backgroundColor = plazaSoftCardColor() // backgroundColor 값을 정해줌
         )
 
         Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
@@ -403,8 +536,8 @@ private fun PlazaUpcomingCard() { // PlazaUpcomingCard 함수를 선언함
             },
             title = "길드 시스템", // 제목을 정해줌
             description = "친구들과 길드를 만들어보세요", // description 값을 정해줌
-            borderColor = MaterialTheme.colorScheme.outlineVariant, // borderColor 값을 정해줌
-            backgroundColor = MaterialTheme.colorScheme.surface // backgroundColor 값을 정해줌
+            borderColor = plazaSoftCardBorderColor(), // borderColor 값을 정해줌
+            backgroundColor = plazaSoftCardColor() // backgroundColor 값을 정해줌
         )
 
         Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
@@ -419,20 +552,23 @@ private fun PlazaUpcomingCard() { // PlazaUpcomingCard 함수를 선언함
             },
             title = "이벤트 홀", // 제목을 정해줌
             description = "특별 이벤트 전용 공간", // description 값을 정해줌
-            borderColor = MaterialTheme.colorScheme.outlineVariant, // borderColor 값을 정해줌
-            backgroundColor = MaterialTheme.colorScheme.surface // backgroundColor 값을 정해줌
+            borderColor = plazaSoftCardBorderColor(), // borderColor 값을 정해줌
+            backgroundColor = plazaSoftCardColor() // backgroundColor 값을 정해줌
         )
     }
 }
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun MobileNoticeCard() { // MobileNoticeCard 함수를 선언함
+    val cardColor = plazaSoftCardColor()
+    val cardBorderColor = plazaSoftCardBorderColor()
             Card( // 내용을 카드 모양으로 묶어서 보여줌
                 modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
                 shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
                 colors = CardDefaults.cardColors( // colors 값을 정해줌
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant // containerColor 값을 정해줌
-        )
+                    containerColor = cardColor // containerColor 값을 정해줌
+        ),
+                border = BorderStroke(1.dp, cardBorderColor)
     ) { // 이 블록 안의 내용이 시작됨
         Row( // 안쪽 UI를 가로로 배치함
             modifier = Modifier.padding(16.dp), // UI 크기나 여백 같은 모양을 정함
@@ -461,15 +597,20 @@ private fun SectionCard( // SectionCard 함수를 선언함
     containerColor: Color? = null, // containerColor 값을 받음
     content: @Composable () -> Unit // 내용을 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isPlazaDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
+    val defaultCardColor = plazaSoftCardColor() // 일반 카드 색을 모드별로 분리함
+    val cardBorderColor = plazaSoftCardBorderColor() // 일반 카드 테두리색을 모드별로 분리함
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = containerColor ?: MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
-        )
+            containerColor = containerColor ?: defaultCardColor // containerColor 값을 정해줌
+        ),
+        border = BorderStroke(1.dp, cardBorderColor)
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
-            modifier = Modifier.padding(18.dp) // UI 크기나 여백 같은 모양을 정함
+            modifier = Modifier
+                .padding(18.dp) // UI 크기나 여백 같은 모양을 정함
         ) { // 이 블록 안의 내용이 시작됨
             Text( // 화면에 글자를 보여줌
                 text = title, // 제목을 text 값에 넣음
@@ -483,6 +624,21 @@ private fun SectionCard( // SectionCard 함수를 선언함
             content() // content 함수를 실행함
         }
     }
+}
+
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun isPlazaDarkTheme(): Boolean { // 앱 테마 기준으로 광장 다크모드 여부를 확인함
+    return MaterialTheme.colorScheme.background == SpentopiaDarkBackground // 시스템 설정이 아니라 앱 설정 기준으로 판단함
+}
+
+@Composable
+private fun plazaSoftCardColor(): Color {
+    return if (isPlazaDarkTheme()) Color(0xFF171A2B) else Color(0xFFF8FBFF)
+}
+
+@Composable
+private fun plazaSoftCardBorderColor(): Color {
+    return if (isPlazaDarkTheme()) Color(0xFF4C3B7A) else Color(0xFFBFDBFE)
 }
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시

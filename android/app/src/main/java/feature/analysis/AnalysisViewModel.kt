@@ -11,6 +11,7 @@ import com.ict.spentopia.data.remote.AnalyzeMonthlyDataRequest // AnalyzeMonthly
 import com.ict.spentopia.data.remote.AnalyzeReportRequest // AnalyzeReportRequest 기능을 가져옴
 import com.ict.spentopia.data.remote.AnalyzeTransactionRequest // AnalyzeTransactionRequest 기능을 가져옴
 import com.ict.spentopia.data.remote.AnalyzeWeeklyDataRequest // AnalyzeWeeklyDataRequest 기능을 가져옴
+import com.ict.spentopia.data.remote.GenerateReportRequest // 백엔드 AI 리포트 요청 DTO를 가져옴
 import com.ict.spentopia.data.remote.RetrofitClient // RetrofitClient 기능을 가져옴
 import com.ict.spentopia.data.repository.ExpenseRepository // ExpenseRepository 기능을 가져옴
 import com.ict.spentopia.feature.budget.BudgetDataStore // BudgetDataStore 기능을 가져옴
@@ -212,8 +213,8 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
             )
 
             try { // 오류가 날 수 있는 코드를 먼저 시도함
-                val report = RetrofitClient.aiAnalyzeApi.analyzeReport( // report 값을 저장함
-                    buildAnalyzeReportRequest(_uiState.value) // build Analyze Report Request 함수를 실행함
+                val report = RetrofitClient.reportApi.generateReport( // 백엔드 /api/reports를 호출해서 무료 횟수 제한까지 같이 적용함
+                    buildGenerateReportRequest(_uiState.value) // build Generate Report Request 함수를 실행함
                 )
 
                 val uiReport = AiConsumptionReportUiModel( // uiReport 값을 저장함
@@ -236,6 +237,7 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
                     isAiAnalysisLoading = false, // false 값을 로딩 상태에 넣음
                     aiAnalysisError = when (e.code()) { // 오류 내용을 정해줌
                         401 -> "로그인이 만료되었습니다. 다시 로그인해주세요."
+                        402 -> "무료 AI 분석 횟수를 모두 사용했습니다. 결제가 필요한 상태입니다."
                         500, 502 -> "AI 분석 서버 응답을 불러오지 못했습니다."
                         else -> "AI 분석 요청에 실패했습니다. (${e.code()})" // 위 조건이 아니면 이쪽을 실행함
                     }
@@ -418,14 +420,16 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
     }
 
     // AI 리포트 생성에 사용할 기간입니다.
-    // 주간 선택 시 최근 7일, 월간 선택 시 이번 달 1일~오늘을 보냅니다.
+    // 주간 선택 시 이번 주 월요일, 월간 선택 시 이번 달 1일을 시작일로 보냅니다.
+    // 백엔드가 start_date를 무료 분석 횟수의 period_start로 쓰기 때문에 주간 시작일을 고정해야 합니다.
     private fun createReportPeriodRange(period: String): Pair<String, String> { // 데이터를 저장하는 함수 시작
         val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US) // formatter 값을 저장함
         val end = Calendar.getInstance() // end 값을 저장함
         val start = Calendar.getInstance() // start 값을 저장함
 
         if (period == "주간") { // 조건이 맞는지 확인함
-            start.add(Calendar.DAY_OF_MONTH, -6)
+            start.firstDayOfWeek = Calendar.MONDAY // 한 주의 시작을 월요일로 맞춤
+            start.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY) // 이번 주 월요일을 시작일로 정함
         } else { // 이 블록 안의 내용이 시작됨
             start.set(Calendar.DAY_OF_MONTH, 1)
         }
@@ -478,6 +482,25 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
                 )
             },
             categoryData = categoryData // categoryData 값을 categoryData 값에 넣음
+        )
+    }
+
+    private fun buildGenerateReportRequest(state: AnalysisUiState): GenerateReportRequest { // buildGenerateReportRequest 함수를 선언함
+        val aiRequest = buildAnalyzeReportRequest(state) // 기존 AI 서버용 요청 값을 재사용해서 백엔드 요청으로 바꿈
+        return GenerateReportRequest( // 이 값을 함수 결과로 돌려줌
+            analysis_kind = aiRequest.analysisKind, // report 분석으로 요청함
+            report_type = aiRequest.reportType, // weekly 또는 monthly 값을 보냄
+            start_date = aiRequest.startDate, // 시작일을 보냄
+            end_date = aiRequest.endDate, // 종료일을 보냄
+            transactions = aiRequest.transactions, // 소비 목록을 보냄
+            total_expense = aiRequest.totalExpense.toDouble(), // 총 지출을 보냄
+            budget = aiRequest.budget.toDouble(), // 예산을 보냄
+            top_category = aiRequest.topCategory, // 최대 소비 카테고리를 보냄
+            top_category_percent = aiRequest.topCategoryPercent.toDouble(), // 최대 소비 카테고리 비율을 보냄
+            daily_average = aiRequest.dailyAverage.toDouble(), // 하루 평균 지출을 보냄
+            expense_change_rate = aiRequest.expenseChangeRate.toDouble(), // 지출 변화율을 보냄
+            budget_usage = aiRequest.budgetUsage.toDouble(), // 예산 사용률을 보냄
+            category_data = aiRequest.categoryData // 카테고리별 소비 데이터를 보냄
         )
     }
 

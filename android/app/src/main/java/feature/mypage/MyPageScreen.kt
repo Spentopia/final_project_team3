@@ -820,7 +820,7 @@ private fun WalletTabContent( // WalletTabContent 함수를 선언함
                             Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
                                 modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                                     .background(
-                                        color = if (isDark) Color(0xFF6D28D9) else MaterialTheme.colorScheme.primaryContainer, // color 값을 정해줌
+                                        color = if (isDark) Color(0xFF7C3AED) else Color(0xFF2563EB), // color 값을 정해줌
                                         shape = RoundedCornerShape(12.dp) // shape 값을 정해줌
                                     )
                                     .clickable { // 이 블록 안의 내용이 시작됨
@@ -830,7 +830,7 @@ private fun WalletTabContent( // WalletTabContent 함수를 선언함
                             ) { // 이 블록 안의 내용이 시작됨
                                 Text( // 화면에 글자를 보여줌
                                     text = "🔗 지갑 연결하기", // text 값을 정해줌
-                                    color = if (isDark) Color.White else MaterialTheme.colorScheme.onPrimaryContainer, // color 값을 정해줌
+                                    color = Color.White, // color 값을 정해줌
                                     fontSize = 14.sp, // fontSize 값을 정해줌
                                     fontWeight = FontWeight.Bold // fontWeight 값을 정해줌
                                 )
