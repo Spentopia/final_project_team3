@@ -13,6 +13,24 @@
 // - 회원 활성/비활성 처리
 // - 공지사항 작성/수정/삭제
 // - 로그아웃 처리
+//
+// 탭 상태 관리 방식:
+// - 기존에는 activeTab을 useState로 따로 관리하고 URL query와 수동 동기화했다.
+// - 이제는 Community.tsx와 동일하게 URL query가 진실의 원천이다.
+// - 즉 activeTab은 useState가 아니라 searchParams.get("tab")에서 매 렌더링마다 계산한다.
+//
+// 예:
+// - /admin                 → dashboard
+// - /admin?tab=reports     → reports
+// - /admin?tab=users       → users
+// - /admin?tab=notices     → notices
+// - /admin?tab=contests    → contests
+//
+// 장점:
+// - 새로고침해도 현재 탭 유지
+// - URL 공유 가능
+// - 브라우저 뒤로가기/앞으로가기와 자연스럽게 동작
+// - Community.tsx의 URL 기반 상태 관리 방식과 통일됨
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -26,8 +44,6 @@ import AdminReportDetailModal from "@/domains/admin/components/AdminReportDetail
 import AdminUsersPanel from "@/domains/admin/components/AdminUsersPanel";
 import AdminNoticesPanel from "@/domains/admin/components/AdminNoticesPanel";
 import AdminContestsPanel from "@/domains/admin/components/AdminContestsPanel.tsx";
-
-// AdminPage.tsx 상단 import에 추가
 import AdminReportsPanel, {
     type ReportReasonFilter,
     type ReportTargetTypeFilter,
@@ -61,6 +77,38 @@ import type {
     ReportStatusFilter,
 } from "@/domains/admin/types/adminViewTypes";
 
+// ─────────────────────────────────────────────
+// 관리자 탭 URL 파싱 헬퍼
+// ─────────────────────────────────────────────
+//
+// URL query의 tab 값을 AdminTab으로 안전하게 변환한다.
+//
+// 허용값:
+// - dashboard
+// - reports
+// - users
+// - notices
+// - contests
+//
+// 잘못된 값이 들어오면 dashboard로 fallback한다.
+//
+// 예:
+// /admin?tab=reports  → reports
+// /admin?tab=unknown  → dashboard
+// /admin              → dashboard
+function getAdminTabFromUrl(tab: string | null): AdminTab {
+    if (
+        tab === "dashboard" ||
+        tab === "reports" ||
+        tab === "users" ||
+        tab === "notices" ||
+        tab === "contests"
+    ) {
+        return tab;
+    }
+
+    return "dashboard";
+}
 
 // ─────────────────────────────────────────────
 // 관리자 API 에러 메시지 추출
@@ -106,6 +154,8 @@ function getAdminApiErrorMessage(error: unknown, fallback: string): string {
     return fallback;
 }
 
+// datetime-local input 값은 보통 "2026-05-20T18:00" 형태다.
+// 백엔드에는 ISO 문자열로 보내는 게 안전하므로 Date로 변환 후 toISOString()을 사용한다.
 function toIsoFromDateTimeLocal(value: string): string | null {
     if (!value) return null;
 
@@ -127,79 +177,53 @@ export default function AdminPage() {
     // URL query parameter를 읽고/수정하기 위한 React Router hook.
     //
     // 예:
-    // /admin?tab=contests
+    // /admin?tab=reports
     //
     // searchParams.get("tab")으로 현재 탭 값을 읽고,
-    // setSearchParams({ tab: "contests" })로 URL을 갱신한다.
+    // setSearchParams(...)로 URL을 갱신한다.
     const [searchParams, setSearchParams] = useSearchParams();
+
+    // ─────────────────────────────────────────────
+    // URL 기반 관리자 탭 상태
+    // ─────────────────────────────────────────────
+    //
+    // activeTab은 useState로 따로 관리하지 않는다.
+    // URL query string이 진실의 원천이다.
+    //
+    // 기존:
+    // const [activeTab, setActiveTab] = useState<AdminTab>(getInitialAdminTab);
+    //
+    // 변경:
+    // const activeTab = getAdminTabFromUrl(searchParams.get("tab"));
+    //
+    // 이렇게 하면 브라우저 뒤로가기/앞으로가기로 URL의 tab이 바뀌어도
+    // activeTab이 즉시 URL을 따라간다.
+    const activeTab: AdminTab = getAdminTabFromUrl(searchParams.get("tab"));
 
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    /**
-     * URL query의 tab 값을 관리자 탭 타입으로 안전하게 변환한다.
-     *
-     * 예:
-     * /admin?tab=contests → contests
-     * /admin?tab=users    → users
-     *
-     * 잘못된 값이면 dashboard로 보낸다.
-     */
-    const getInitialAdminTab = (): AdminTab => {
-        const tab = searchParams.get("tab");
+    // 관리자 탭 변경 함수.
+    //
+    // Community.tsx의 updateSearchParams와 같은 방향이다.
+    // React state를 직접 바꾸지 않고 URL만 바꾼다.
+    // 그러면 activeTab은 위에서 searchParams를 기준으로 다시 계산된다.
+    //
+    // dashboard는 기본 탭이므로 URL을 깔끔하게 하기 위해 tab 파라미터를 제거한다.
+    //
+    // 예:
+    // setAdminTab("reports")   → /admin?tab=reports
+    // setAdminTab("dashboard") → /admin
+    const setAdminTab = (tab: AdminTab) => {
+        const next = new URLSearchParams(searchParams);
 
-        if (
-            tab === "dashboard" ||
-            tab === "reports" ||
-            tab === "users" ||
-            tab === "notices" ||
-            tab === "contests"
-        ) {
-            return tab;
+        if (tab === "dashboard") {
+            next.delete("tab");
+        } else {
+            next.set("tab", tab);
         }
 
-        return "dashboard";
+        setSearchParams(next, { replace: true });
     };
-
-
-    // activeTab은 URL query를 기준으로 초기화한다.
-    //
-    // 기존:
-    // const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
-    //
-    // 문제:
-    // 새로고침하면 항상 dashboard로 돌아감.
-    //
-    // 변경:
-    // /admin?tab=contests면 contests로 초기화.
-    const [activeTab, setActiveTab] = useState<AdminTab>(getInitialAdminTab);
-
-    /**
-     * 관리자 탭 변경 함수.
-     *
-     * 기존에는 setActiveTab만 호출해서 React 메모리에만 탭 상태가 저장됐다.
-     * 그래서 새로고침하면 activeTab 초기값인 dashboard로 돌아갔다.
-     *
-     * 이제는 URL query에도 tab 값을 저장한다.
-     *
-     * 예:
-     * setAdminTab("contests")
-     * → activeTab = "contests"
-     * → URL = /admin?tab=contests
-     *
-     * replace: true를 쓰는 이유:
-     * - 탭 클릭할 때마다 브라우저 뒤로가기 기록이 쌓이는 것을 막기 위함.
-     */
-    const setAdminTab = (tab: AdminTab) => {
-        setActiveTab(tab);
-
-        setSearchParams(
-            { tab },
-            {
-                replace: true,
-            }
-        );
-    };
-
 
     // 대시보드용 전체 신고 목록
     const [dashboardReports, setDashboardReports] = useState<
@@ -209,8 +233,14 @@ export default function AdminPage() {
         useState(false);
 
     // ─────────────────────────────────────────────
-    // 신고 관리 상태 (페이지네이션 + 필터 추가)
+    // 신고 관리 상태
     // ─────────────────────────────────────────────
+    //
+    // 이 필터들은 아직 URL 동기화하지 않는다.
+    // 현재 요청은 관리자 탭 activeTab만 커뮤니티 방식과 통일하는 것이다.
+    //
+    // 나중에 필요하면 reportStatus/reportTargetType/reportReason/page도
+    // ?status=pending&page=2 같은 식으로 URL 동기화할 수 있다.
     const [reportStatus, setReportStatus] = useState<ReportStatusFilter>("pending");
     const [reportTargetType, setReportTargetType] =
         useState<ReportTargetTypeFilter>("all");
@@ -224,17 +254,18 @@ export default function AdminPage() {
     const [selectedReport, setSelectedReport] =
         useState<AdminContentReportResponse | null>(null);
     const [isReportsLoading, setIsReportsLoading] = useState(false);
+
     // 신고일 날짜 범위 필터.
-// input type="date" 값이므로 YYYY-MM-DD 문자열로 관리한다.
+    // input type="date" 값이므로 YYYY-MM-DD 문자열로 관리한다.
     const [reportStartDate, setReportStartDate] = useState("");
     const [reportEndDate, setReportEndDate] = useState("");
 
-// 신고 목록 정렬 상태.
-//
-// created_at  : 신고일
-// reviewed_at : 처리일
-//
-// 기본은 신고일 최신순.
+    // 신고 목록 정렬 상태.
+    //
+    // created_at  : 신고일
+    // reviewed_at : 처리일
+    //
+    // 기본은 신고일 최신순.
     const [reportSortBy, setReportSortBy] = useState<ReportSortBy>("created_at");
     const [reportSortOrder, setReportSortOrder] =
         useState<ReportSortOrder>("desc");
@@ -249,11 +280,12 @@ export default function AdminPage() {
             setReportSortOrder("desc");
         }
 
+        // 정렬이 바뀌면 1페이지로 돌린다.
         setReportPage(1);
     };
 
     // ─────────────────────────────────────────────
-    // 회원 관리 상태 (페이지네이션 추가)
+    // 회원 관리 상태
     // ─────────────────────────────────────────────
     const [users, setUsers] = useState<AdminUserResponse[]>([]);
     const [userTotalCount, setUserTotalCount] = useState(0);
@@ -266,43 +298,39 @@ export default function AdminPage() {
     const [notices, setNotices] = useState<AdminNoticeResponse[]>([]);
     const [isNoticesLoading, setIsNoticesLoading] = useState(false);
 
+    // 콘테스트 관리
     const [contests, setContests] = useState<AdminContestResponse[]>([]);
     const [isContestsLoading, setIsContestsLoading] = useState(false);
 
-    // 공통 처리 상태
+    // 공통 처리 상태.
+    // 신고 처리, 회원 활성화, 공지 삭제 등에서 중복 클릭을 막기 위해 사용한다.
     const [processingId, setProcessingId] = useState<string | null>(null);
 
     // 비활성화 사유 입력 모달 대상 회원.
     const [inactiveTargetUser, setInactiveTargetUser] =
         useState<AdminUserResponse | null>(null);
 
-// 비활성화 사유.
+    // 비활성화 사유.
     const [inactiveReason, setInactiveReason] = useState("");
 
-// 비활성 해제 예정일.
-// datetime-local input 값.
-// 예: "2026-05-20T18:00"
+    // 비활성 해제 예정일.
+    // datetime-local input 값.
+    // 예: "2026-05-20T18:00"
     const [inactiveUntil, setInactiveUntil] = useState("");
 
-    // 대시보드 계산 값
+    // 대시보드 대기 신고 수.
     const pendingReportCount = useMemo(() => {
         return dashboardReports.filter((report) => report.status === "pending")
             .length;
     }, [dashboardReports]);
 
-    // ─────────────────────────────────────────────
-    // 대시보드 활성 회원 수 계산 (수정)
-    // ─────────────────────────────────────────────
+    // 대시보드 활성 회원 수.
     //
-    // 기존엔 users.filter()로 계산했는데, 이제 users는 페이지네이션된 일부만 있다.
-    // 그래서 대시보드 활성 회원 수는 별도 처리가 필요.
+    // 주의:
+    // users는 현재 페이지의 회원 목록이다.
+    // 따라서 activeUserCount는 "현재 페이지 기준 활성 회원 수"다.
     //
-    // 간단히 처리하려면: totalUserCount는 userTotalCount를 그대로 사용.
-    // 활성 회원 수까지 정확히 보려면 별도 API가 필요한데,
-    // 졸작에서는 일단 "현재 페이지 활성 회원" 정도로만 표시하거나
-    // 활성 회원 수 표시를 빼는 게 깔끔.
-    //
-    // 여기선 totalCount로 표시.
+    // 전체 활성 회원 수가 필요하면 별도 통계 API가 필요하다.
     const activeUserCount = useMemo(() => {
         return users.filter((u) => u.is_active && !u.deleted_at).length;
     }, [users]);
@@ -312,18 +340,18 @@ export default function AdminPage() {
     }, [dashboardReports]);
 
     // ─────────────────────────────────────────────
-    // 신고 필터 디바운스 (검색어만)
+    // 신고 검색어 디바운스
     // ─────────────────────────────────────────────
     useEffect(() => {
         const timer = window.setTimeout(() => {
             setDebouncedReportKeyword(reportKeyword.trim());
-            setReportPage(1); // 검색어가 바뀌면 1페이지로
+            setReportPage(1);
         }, 300);
 
         return () => window.clearTimeout(timer);
     }, [reportKeyword]);
 
-    // 필터(셀렉트) 바뀌면 1페이지로
+    // 신고 필터가 바뀌면 1페이지로 이동.
     useEffect(() => {
         setReportPage(1);
     }, [
@@ -336,7 +364,7 @@ export default function AdminPage() {
         reportSortOrder,
     ]);
 
-    // 회원 검색 디바운스
+    // 회원 검색어 디바운스.
     useEffect(() => {
         const timer = window.setTimeout(() => {
             setDebouncedUserKeyword(userKeyword.trim());
@@ -347,12 +375,11 @@ export default function AdminPage() {
     }, [userKeyword]);
 
     // ─────────────────────────────────────────────
-    // 대시보드용 신고는 별도 호출 (기존 유지)
+    // 대시보드용 신고 목록 조회
     // ─────────────────────────────────────────────
     //
-    // 대시보드는 페이지네이션 안 함.
-    // 단순히 최근 5개 + pending 카운트만 필요.
-    // listAdminContentReports의 응답 구조가 바뀌었으므로 .items로 접근.
+    // 대시보드는 페이지네이션 UI를 보여주지 않는다.
+    // 최근 신고 몇 개와 pending 카운트만 필요하므로 page_size 50 정도로 조회한다.
     useEffect(() => {
         let ignore = false;
 
@@ -383,7 +410,7 @@ export default function AdminPage() {
     }, []);
 
     // ─────────────────────────────────────────────
-    // 신고 관리 탭용 신고 목록 조회 (변경)
+    // 신고 관리 탭용 신고 목록 조회
     // ─────────────────────────────────────────────
     useEffect(() => {
         let ignore = false;
@@ -443,7 +470,7 @@ export default function AdminPage() {
     ]);
 
     // ─────────────────────────────────────────────
-    // 회원 목록 조회 (변경)
+    // 회원 목록 조회
     // ─────────────────────────────────────────────
     useEffect(() => {
         let ignore = false;
@@ -509,6 +536,7 @@ export default function AdminPage() {
         };
     }, []);
 
+    // 콘테스트 목록 조회
     useEffect(() => {
         let ignore = false;
 
@@ -648,16 +676,16 @@ export default function AdminPage() {
     };
 
     // 회원 비활성화 확정
-//
-// 이 함수는 비활성화 모달의 "비활성화" 버튼에서 호출된다.
-//
-// 처리 흐름:
-// 1. 대상 회원 존재 확인
-// 2. 사유 입력 검증
-// 3. 해제 예정일을 ISO 문자열로 변환
-// 4. 백엔드 PATCH /api/admin/users/:id/active 호출
-// 5. 응답 받은 회원 row로 users 상태 갱신
-// 6. 모달 닫기
+    //
+    // 이 함수는 비활성화 모달의 "비활성화" 버튼에서 호출된다.
+    //
+    // 처리 흐름:
+    // 1. 대상 회원 존재 확인
+    // 2. 사유 입력 검증
+    // 3. 해제 예정일을 ISO 문자열로 변환
+    // 4. 백엔드 PATCH /api/admin/users/:id/active 호출
+    // 5. 응답 받은 회원 row로 users 상태 갱신
+    // 6. 모달 닫기
     const handleConfirmDeactivateUser = async () => {
         if (!inactiveTargetUser || processingId) return;
 
@@ -768,6 +796,7 @@ export default function AdminPage() {
         }
     };
 
+    // 콘테스트 생성
     const handleCreateContest = async (params: {
         title: string;
         description: string | null;
@@ -794,6 +823,7 @@ export default function AdminPage() {
         }
     };
 
+    // 콘테스트 수정
     const handleUpdateContest = async (
         contestId: string,
         params: {
@@ -825,6 +855,7 @@ export default function AdminPage() {
         }
     };
 
+    // 콘테스트 상태 변경
     const handleUpdateContestStatus = async (
         contestId: string,
         status: AdminContestStatus
@@ -918,29 +949,19 @@ export default function AdminPage() {
                             targetTypeFilter={reportTargetType}
                             reasonFilter={reportReason}
                             keyword={reportKeyword}
-
-                            // 날짜 필터
                             startDate={reportStartDate}
                             endDate={reportEndDate}
-
-                            // 정렬
                             sortBy={reportSortBy}
                             sortOrder={reportSortOrder}
-
-                            // 페이지네이션
                             page={reportPage}
                             totalCount={reportTotalCount}
                             pageSize={REPORTS_PAGE_SIZE}
-
                             isReportsLoading={isReportsLoading}
                             processingId={processingId}
-
                             onReportStatusChange={setReportStatus}
                             onTargetTypeChange={setReportTargetType}
                             onReasonChange={setReportReason}
                             onKeywordChange={setReportKeyword}
-
-                            // 날짜 필터 변경
                             onStartDateChange={(value) => {
                                 setReportStartDate(value);
                                 setReportPage(1);
@@ -949,10 +970,7 @@ export default function AdminPage() {
                                 setReportEndDate(value);
                                 setReportPage(1);
                             }}
-
-                            // 정렬 변경
                             onSortChange={handleReportSortChange}
-
                             onPageChange={setReportPage}
                             onSelectReport={setSelectedReport}
                             onResolveReport={handleResolveReport}
@@ -1027,21 +1045,20 @@ export default function AdminPage() {
                             <h3 className="mt-1 text-xl font-extrabold">
                                 회원 비활성화
                             </h3>
-
                         </div>
 
                         <div className="space-y-4">
                             <div className="rounded-xl bg-[var(--surface-subtle)] p-3 text-sm">
                                 <p>
-                        <span className="text-muted-foreground">
-                            대상 회원:{" "}
-                        </span>
+                                    <span className="text-muted-foreground">
+                                        대상 회원:{" "}
+                                    </span>
 
                                     <span className="font-semibold">
-                            {inactiveTargetUser.nickname ||
-                                inactiveTargetUser.email ||
-                                inactiveTargetUser.id}
-                        </span>
+                                        {inactiveTargetUser.nickname ||
+                                            inactiveTargetUser.email ||
+                                            inactiveTargetUser.id}
+                                    </span>
                                 </p>
 
                                 {inactiveTargetUser.email && (
