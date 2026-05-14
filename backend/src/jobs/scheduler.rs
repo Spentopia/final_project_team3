@@ -28,6 +28,7 @@ use chrono_tz::Asia::Seoul;
 
 use crate::jobs::cleanup;
 use crate::jobs::contest_reward;
+use crate::jobs::streak_reminder;
 use crate::state::AppState;
 
 /// 스케줄러 시작 (main.rs에서 한 번 호출)
@@ -35,12 +36,13 @@ use crate::state::AppState;
 /// tokio::spawn으로 백그라운드 태스크를 띄우고,
 /// 무한 루프로 매일 새벽 3시(KST)마다 정리 배치를 실행한다.
 pub fn start(state: AppState) {
+    let cleanup_state = state.clone();
     tokio::spawn(async move {
         tracing::info!("배치 스케줄러 시작: 매일 KST 03:00 실행");
 
         loop {
             // 다음 실행 시각까지 대기
-            let sleep_dur = duration_until_next_run();
+            let sleep_dur = duration_until_next_run_at(3);
             let hours = sleep_dur.as_secs() / 3600;
             let minutes = (sleep_dur.as_secs() % 3600) / 60;
 
@@ -49,41 +51,71 @@ pub fn start(state: AppState) {
             tokio::time::sleep(sleep_dur).await;
 
             // 일일 정리 배치 실행
-            run_daily_cleanup(&state).await;
+            run_daily_cleanup(&cleanup_state).await;
+        }
+    });
+
+    tokio::spawn(async move {
+        tracing::info!("스트릭 리마인드 스케줄러 시작: 매일 KST 21:00 실행");
+
+        loop {
+            let sleep_dur = duration_until_next_run_at(21);
+            let hours = sleep_dur.as_secs() / 3600;
+            let minutes = (sleep_dur.as_secs() % 3600) / 60;
+
+            tracing::info!(
+                "다음 스트릭 리마인드 실행까지 대기: {}시간 {}분",
+                hours,
+                minutes
+            );
+
+            tokio::time::sleep(sleep_dur).await;
+            run_daily_streak_reminder(&state).await;
         }
     });
 }
 
-/// 다음 새벽 3시(KST)까지 남은 시간 계산
+/// 다음 지정 시각(KST)까지 남은 시간 계산
 ///
 /// 현재 시각이:
-/// - 새벽 3시 이전 → 오늘 새벽 3시
-/// - 새벽 3시 이후 → 내일 새벽 3시
-fn duration_until_next_run() -> std::time::Duration {
+/// - 지정 시각 이전 → 오늘 지정 시각
+/// - 지정 시각 이후 → 내일 지정 시각
+fn duration_until_next_run_at(hour: u32) -> std::time::Duration {
     let now_kst = Utc::now().with_timezone(&Seoul);
 
-    // 오늘 KST 03:00 (DST 등 예외 케이스가 있을 수 있어 unwrap 안 씀)
-    let today_3am =
-        match Seoul.with_ymd_and_hms(now_kst.year(), now_kst.month(), now_kst.day(), 3, 0, 0) {
+    let today_run =
+        match Seoul.with_ymd_and_hms(now_kst.year(), now_kst.month(), now_kst.day(), hour, 0, 0) {
             chrono::LocalResult::Single(dt) => dt,
             _ => {
                 // 예상치 못한 케이스 → 24시간 뒤로 fallback
-                tracing::warn!("KST 03:00 계산 실패, 24시간 후로 fallback");
+                tracing::warn!("KST {}:00 계산 실패, 24시간 후로 fallback", hour);
                 return std::time::Duration::from_secs(24 * 3600);
             }
         };
 
-    // 이미 오늘 03:00 지났으면 내일 03:00
-    let next_run = if now_kst < today_3am {
-        today_3am
+    let next_run = if now_kst < today_run {
+        today_run
     } else {
-        today_3am + chrono::Duration::days(1)
+        today_run + chrono::Duration::days(1)
     };
 
     // chrono Duration → std Duration
     (next_run - now_kst)
         .to_std()
         .unwrap_or_else(|_| std::time::Duration::from_secs(24 * 3600))
+}
+
+async fn run_daily_streak_reminder(state: &AppState) {
+    let today_kst = Utc::now().with_timezone(&Seoul).date_naive();
+
+    match streak_reminder::process_daily_streak_reminders(state, today_kst).await {
+        Ok(count) => {
+            tracing::info!("스트릭 리마인드 배치 완료: {}명 알림 생성", count);
+        }
+        Err(e) => {
+            tracing::error!("스트릭 리마인드 배치 실패: {}", e);
+        }
+    }
 }
 
 /// 일일 배치 1회 실행

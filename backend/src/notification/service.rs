@@ -12,6 +12,7 @@ struct UserSettingsRow {
     alert_budget: Option<bool>,
     alert_reward: Option<bool>,
     alert_streak: Option<bool>,
+    alert_social: Option<bool>,
     notification_listener: Option<bool>,
 }
 
@@ -30,6 +31,7 @@ enum NotificationPreference {
     Budget,
     Reward,
     Streak,
+    Social,
 }
 
 fn to_response(row: Notification) -> NotificationResponse {
@@ -215,13 +217,18 @@ async fn get_notification_settings(
     state: &AppState,
     user_id: Uuid,
 ) -> Result<Option<UserSettingsRow>> {
+    let base_url = state.config.supabase_url.trim_end_matches('/');
     let url = format!(
+        "{}/rest/v1/user_settings?user_id=eq.{}&select=alert_budget,alert_reward,alert_streak,alert_social,notification_listener&limit=1",
+        base_url, user_id
+    );
+    let fallback_url = format!(
         "{}/rest/v1/user_settings?user_id=eq.{}&select=alert_budget,alert_reward,alert_streak,notification_listener&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         user_id
     );
 
-    let res = state
+    let mut res = state
         .http_client
         .get(&url)
         .header("apikey", &state.config.supabase_secret_key)
@@ -235,7 +242,29 @@ async fn get_notification_settings(
 
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
-        return Err(anyhow!("user_settings SELECT 실패: {}", body));
+        if body.contains("alert_social") {
+            res = state
+                .http_client
+                .get(&fallback_url)
+                .header("apikey", &state.config.supabase_secret_key)
+                .header(
+                    "Authorization",
+                    format!("Bearer {}", state.config.supabase_secret_key),
+                )
+                .send()
+                .await
+                .context("user_settings fallback SELECT 요청 실패")?;
+
+            if !res.status().is_success() {
+                let fallback_body = res.text().await.unwrap_or_default();
+                return Err(anyhow!(
+                    "user_settings fallback SELECT 실패: {}",
+                    fallback_body
+                ));
+            }
+        } else {
+            return Err(anyhow!("user_settings SELECT 실패: {}", body));
+        }
     }
 
     let rows: Vec<UserSettingsRow> = res
@@ -257,14 +286,11 @@ async fn is_notification_enabled(
         return Ok(true);
     };
 
-    if settings.notification_listener == Some(false) {
-        return Ok(false);
-    }
-
     let enabled = match preference {
         NotificationPreference::Budget => settings.alert_budget,
         NotificationPreference::Reward => settings.alert_reward,
         NotificationPreference::Streak => settings.alert_streak,
+        NotificationPreference::Social => settings.alert_social.or(settings.notification_listener),
     };
 
     Ok(enabled.unwrap_or(true))
@@ -479,6 +505,34 @@ pub async fn notify_streak_if_needed(
     .await
 }
 
+pub async fn notify_streak_reminder_if_needed(
+    state: &AppState,
+    user_id: Uuid,
+    record_date: NaiveDate,
+) -> Result<()> {
+    if !is_notification_enabled(state, user_id, NotificationPreference::Streak).await? {
+        return Ok(());
+    }
+
+    let notification_type = format!(
+        "streak_reminder_{}_{}_{}",
+        record_date.year(),
+        record_date.month(),
+        record_date.day()
+    );
+    if notification_exists(state, user_id, &notification_type).await? {
+        return Ok(());
+    }
+
+    create_notification(
+        state,
+        user_id,
+        &notification_type,
+        "오늘 아직 소비 기록을 남기지 않았어요. 스트릭을 이어가보세요!",
+    )
+    .await
+}
+
 pub async fn notify_reward_granted_if_needed(
     state: &AppState,
     user_id: Uuid,
@@ -500,4 +554,34 @@ pub async fn notify_reward_granted_if_needed(
     }
 
     create_notification(state, user_id, &notification_type, message).await
+}
+
+pub async fn notify_social_if_enabled(
+    state: &AppState,
+    user_id: Uuid,
+    notification_type: &str,
+    message: &str,
+) -> Result<()> {
+    let enabled =
+        match is_notification_enabled(state, user_id, NotificationPreference::Social).await {
+            Ok(enabled) => enabled,
+            Err(error) => {
+                tracing::error!(
+                    "커뮤니티 알림 설정 조회 실패, 기본 허용 처리: user_id={}, error={}",
+                    user_id,
+                    error
+                );
+                true
+            }
+        };
+
+    if !enabled {
+        return Ok(());
+    }
+
+    if notification_exists(state, user_id, notification_type).await? {
+        return Ok(());
+    }
+
+    create_notification(state, user_id, notification_type, message).await
 }

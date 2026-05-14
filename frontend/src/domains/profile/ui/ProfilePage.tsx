@@ -142,7 +142,8 @@ export default function ProfilePage() {
           alertBudget: settings.alert_budget ?? true,
           alertReward: settings.alert_reward ?? true,
           alertStreak: settings.alert_streak ?? true,
-          socialActivityAlert: settings.notification_listener ?? true,
+          socialActivityAlert:
+            settings.alert_social ?? settings.notification_listener ?? true,
         });
 
         originalEmailRef.current = data.email ?? "";
@@ -320,13 +321,15 @@ export default function ProfilePage() {
         alert_budget: nextNotifications.alertBudget,
         alert_reward: nextNotifications.alertReward,
         alert_streak: nextNotifications.alertStreak,
-        notification_listener: nextNotifications.socialActivityAlert,
+        alert_social: nextNotifications.socialActivityAlert,
+        notification_listener: true,
       });
       setNotifications({
         alertBudget: updated.alert_budget ?? true,
         alertReward: updated.alert_reward ?? true,
         alertStreak: updated.alert_streak ?? true,
-        socialActivityAlert: updated.notification_listener ?? true,
+        socialActivityAlert:
+          updated.alert_social ?? updated.notification_listener ?? true,
       });
       toast.success("알림 설정이 변경되었습니다");
     } catch (error) {
