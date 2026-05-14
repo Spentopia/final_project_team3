@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
-import { Search, Send, Eye, Heart, ChevronUp, ChevronDown, Link2, Pencil, Trash2, X, Paperclip } from "lucide-react";
+import { Search, Send, Eye, Heart, ChevronUp, ChevronDown, Link2, Pencil, Trash2, X, Paperclip, Siren } from "lucide-react";
 import { toast } from "sonner";
 import { AxiosError } from "axios";
 import {
@@ -41,7 +41,6 @@ import {
   type PostSort,
 } from "@/domains/community/api/communityApi";
 import ReportDialog from "@/components/report/ReportDialog.tsx";
-import {Siren} from "lucide-react";
 
 // ── 타입 ─────────────────────────────────────────────────────
 
