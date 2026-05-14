@@ -34,6 +34,7 @@ pub struct UserSettings {
     pub alert_budget: Option<bool>,
     pub alert_reward: Option<bool>,
     pub alert_streak: Option<bool>,
+    pub alert_social: Option<bool>,
     pub notification_listener: Option<bool>,
     pub updated_at: Option<DateTime<Utc>>,
 }

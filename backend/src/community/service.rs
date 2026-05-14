@@ -26,6 +26,7 @@ use crate::{filter, state::AppState};
 
 const POST_TITLE_MAX_LENGTH: usize = 200;
 const POST_CONTENT_MAX_LENGTH: usize = 500;
+const NOTIFICATION_TITLE_MAX_LENGTH: usize = 18;
 
 // reactions 테이블에서 post_id만 가져오기 위한 응답 구조체.
 //
@@ -326,6 +327,62 @@ async fn get_post(state: &AppState, post_id: Uuid) -> Result<Post> {
         .into_iter()
         .next()
         .ok_or_else(|| anyhow!("게시물을 찾을 수 없습니다."))
+}
+
+async fn get_user_nickname_for_notification(state: &AppState, user_id: Uuid) -> String {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=nickname&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    #[derive(Deserialize)]
+    struct NicknameRow {
+        nickname: Option<String>,
+    }
+
+    let Ok(res) = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+    else {
+        return "누군가".to_string();
+    };
+
+    if !res.status().is_success() {
+        return "누군가".to_string();
+    }
+
+    let Ok(rows) = res.json::<Vec<NicknameRow>>().await else {
+        return "누군가".to_string();
+    };
+
+    rows.into_iter()
+        .next()
+        .and_then(|row| row.nickname)
+        .map(|nickname| nickname.trim().to_string())
+        .filter(|nickname| !nickname.is_empty())
+        .unwrap_or_else(|| "누군가".to_string())
+}
+
+fn truncate_notification_title(title: &str) -> String {
+    let trimmed = title.trim();
+    if trimmed.chars().count() <= NOTIFICATION_TITLE_MAX_LENGTH {
+        return trimmed.to_string();
+    }
+
+    let shortened = trimmed
+        .chars()
+        .take(NOTIFICATION_TITLE_MAX_LENGTH)
+        .collect::<String>();
+
+    format!("{}...", shortened)
 }
 
 // 현재 로그인한 사용자가 "현재 페이지에 표시된 게시글들 중"
@@ -1336,6 +1393,35 @@ pub async fn react_post(state: &AppState, user_id: Uuid, post_id: Uuid) -> Resul
         let body = res.text().await.unwrap_or_default();
         return Err(anyhow!("votes INSERT 실패: {}", body));
     }
+
+    if post.user_id != user_id {
+        let notification_type = format!(
+            "react_{}_{}",
+            &post_id.to_string()[..8],
+            &user_id.to_string()[..8]
+        );
+        let actor_nickname = get_user_nickname_for_notification(state, user_id).await;
+        let title = truncate_notification_title(&post.title);
+        let message = match post.post_type.as_str() {
+            "contest" => format!("{}님이 '{}' 게시글에 투표했습니다.", actor_nickname, title),
+            _ => format!(
+                "{}님이 '{}' 게시글에 좋아요를 눌렀습니다.",
+                actor_nickname, title
+            ),
+        };
+
+        if let Err(e) = crate::notification::service::notify_social_if_enabled(
+            state,
+            post.user_id,
+            &notification_type,
+            &message,
+        )
+        .await
+        {
+            tracing::error!("게시글 반응 알림 생성 실패: {}", e);
+        }
+    }
+
     Ok(())
 }
 
@@ -1508,6 +1594,27 @@ pub async fn create_comment(
         .ok_or_else(|| anyhow!("comments INSERT 결과가 비어있음"))?;
 
     let comment = get_comment(state, comment_id).await?;
+    if post.user_id != user_id {
+        let notification_type = format!("cmt_{}", &comment_id.to_string()[..8]);
+        let actor_nickname = get_user_nickname_for_notification(state, user_id).await;
+        let title = truncate_notification_title(&post.title);
+        let message = format!(
+            "{}님이 '{}' 게시글에 댓글을 남겼습니다.",
+            actor_nickname, title
+        );
+
+        if let Err(e) = crate::notification::service::notify_social_if_enabled(
+            state,
+            post.user_id,
+            &notification_type,
+            &message,
+        )
+        .await
+        {
+            tracing::error!("댓글 알림 생성 실패: {}", e);
+        }
+    }
+
     Ok(to_comment_response(state, comment).await)
 }
 

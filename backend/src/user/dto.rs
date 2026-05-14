@@ -87,6 +87,7 @@ pub struct UserSettingsResponse {
     pub alert_budget: Option<bool>,
     pub alert_reward: Option<bool>,
     pub alert_streak: Option<bool>,
+    pub alert_social: Option<bool>,
     pub notification_listener: Option<bool>,
 }
 
@@ -97,6 +98,7 @@ pub struct UpdateSettingsRequest {
     pub alert_budget: Option<bool>,
     pub alert_reward: Option<bool>,
     pub alert_streak: Option<bool>,
+    pub alert_social: Option<bool>,
     pub notification_listener: Option<bool>,
 }
 

@@ -18,3 +18,4 @@
 pub mod cleanup;
 pub mod contest_reward;
 pub mod scheduler;
+pub mod streak_reminder;

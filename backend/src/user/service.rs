@@ -209,6 +209,7 @@ pub async fn get_settings(state: &AppState, user_id: Uuid) -> Result<UserSetting
         alert_budget: Some(true),
         alert_reward: Some(true),
         alert_streak: Some(true),
+        alert_social: Some(true),
         notification_listener: Some(true),
         updated_at: None,
     });
@@ -217,6 +218,7 @@ pub async fn get_settings(state: &AppState, user_id: Uuid) -> Result<UserSetting
         alert_budget: s.alert_budget,
         alert_reward: s.alert_reward,
         alert_streak: s.alert_streak,
+        alert_social: s.alert_social,
         notification_listener: s.notification_listener,
     })
 }
@@ -251,6 +253,7 @@ pub async fn update_settings(
             "alert_budget": req.alert_budget,
             "alert_reward": req.alert_reward,
             "alert_streak": req.alert_streak,
+            "alert_social": req.alert_social,
             "notification_listener": req.notification_listener,
         }]))
         .send()
@@ -275,6 +278,7 @@ pub async fn update_settings(
         alert_budget: s.alert_budget,
         alert_reward: s.alert_reward,
         alert_streak: s.alert_streak,
+        alert_social: s.alert_social,
         notification_listener: s.notification_listener,
     })
 }

@@ -580,9 +580,12 @@ async fn create_admin_audit_log(
 /// view가 아니라 실제 테이블을 보는 이유:
 /// - 필요한 값은 status 하나뿐이다.
 /// - view 변경과 무관하게 안정적으로 동작한다.
-async fn get_content_report_status_by_id(state: &AppState, report_id: Uuid) -> Result<String> {
+async fn get_content_report_review_target_by_id(
+    state: &AppState,
+    report_id: Uuid,
+) -> Result<(String, Uuid)> {
     let url = format!(
-        "{}/rest/v1/content_reports?id=eq.{}&select=status&limit=1",
+        "{}/rest/v1/content_reports?id=eq.{}&select=status,reporter_id&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         report_id
     );
@@ -605,11 +608,12 @@ async fn get_content_report_status_by_id(state: &AppState, report_id: Uuid) -> R
     }
 
     #[derive(serde::Deserialize)]
-    struct StatusRow {
+    struct ReportReviewTargetRow {
         status: String,
+        reporter_id: Uuid,
     }
 
-    let rows: Vec<StatusRow> = res
+    let rows: Vec<ReportReviewTargetRow> = res
         .json()
         .await
         .context("신고 현재 상태 조회 응답 파싱 실패")?;
@@ -619,7 +623,7 @@ async fn get_content_report_status_by_id(state: &AppState, report_id: Uuid) -> R
         .next()
         .ok_or_else(|| anyhow!("신고를 찾을 수 없습니다."))?;
 
-    Ok(row.status)
+    Ok((row.status, row.reporter_id))
 }
 
 /// 관리자: 신고 상태 변경 공통 함수
@@ -643,7 +647,8 @@ async fn update_content_report_status(
     // 1. 변경 전 상태 조회.
     //
     // 감사 로그에 before_status를 남기기 위해 PATCH 전에 조회한다.
-    let before_status = get_content_report_status_by_id(state, report_id).await?;
+    let (before_status, reporter_id) =
+        get_content_report_review_target_by_id(state, report_id).await?;
 
     // 2. 이미 같은 상태라면 불필요한 중복 처리를 막는다.
     //
@@ -713,6 +718,32 @@ async fn update_content_report_status(
         }),
     )
     .await?;
+
+    let (notification_type, message) = match status {
+        "resolved" => (
+            format!("report_resolved_{}", &report_id.to_string()[..8]),
+            "접수하신 신고가 처리 완료되었어요.",
+        ),
+        "rejected" => (
+            format!("report_rejected_{}", &report_id.to_string()[..8]),
+            "접수하신 신고가 검토 후 반려되었어요.",
+        ),
+        _ => (
+            format!("report_status_{}_{}", status, &report_id.to_string()[..8]),
+            "접수하신 신고 상태가 변경되었어요.",
+        ),
+    };
+
+    if let Err(e) = crate::notification::service::create_notification(
+        state,
+        reporter_id,
+        &notification_type,
+        message,
+    )
+    .await
+    {
+        tracing::error!("신고 처리 결과 알림 생성 실패: {}", e);
+    }
 
     // 5. 최종 응답은 view에서 다시 조회한다.
     get_content_report_from_view_by_id(state, report_id).await

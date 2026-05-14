@@ -48,6 +48,7 @@ function formatRelativeTime(createdAt: string | null) {
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const { theme, setTheme } = useTheme();
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isNotificationSheetOpen, setIsNotificationSheetOpen] = useState(false);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
@@ -71,6 +72,32 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   useEffect(() => {
     void loadNotifications();
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!cancelled) {
+        setAuthUserId(data.user?.id ?? null);
+      }
+    };
+
+    void syncUser();
+
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUserId(session?.user.id ?? null);
+      setNotifications([]);
+      if (session?.user) {
+        void loadNotifications();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      data.subscription.unsubscribe();
+    };
   }, [loadNotifications]);
 
   useEffect(() => {
@@ -98,21 +125,17 @@ export default function Header({ onMenuClick }: HeaderProps) {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const setup = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (cancelled) return;
-      if (error || !data.user) return;
-
-      const userId = data.user.id;
+      if (!authUserId) return;
 
       channel = supabase
-        .channel(`notifications:${userId}`)
+        .channel(`notifications:${authUserId}`)
         .on(
           "postgres_changes",
           {
             event: "INSERT",
             schema: "public",
             table: "notifications",
-            filter: `user_id=eq.${userId}`,
+            filter: `user_id=eq.${authUserId}`,
           },
           (payload) => {
             const next = payload.new as NotificationItem;
@@ -135,7 +158,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         void supabase.removeChannel(channel);
       }
     };
-  }, []);
+  }, [authUserId]);
 
   const handleReadAll = async () => {
     try {
