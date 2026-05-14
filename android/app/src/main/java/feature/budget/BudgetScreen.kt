@@ -102,6 +102,11 @@ private fun budgetSoftCardBorderColor(): Color {
     return if (isBudgetDarkTheme()) Color(0xFF4C3B7A) else Color(0xFFBFDBFE)
 }
 
+@Composable
+private fun budgetPrimaryButtonColor(): Color {
+    return if (isBudgetDarkTheme()) Color(0xFF6D5BD0) else Color(0xFF3B82F6)
+}
+
 // 예산 설정 화면임
 // AI 추천 플랜/직접 조절/저장 흐름
 @Composable // 이 함수가 화면 UI를 그린다는 표시
@@ -573,8 +578,7 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
     isLoading: Boolean, // 로딩 여부를 받음
     onAiRecommendClick: () -> Unit // onAiRecommendClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
-    val isDark = isBudgetDarkTheme() // 다크모드인지 저장함
-    val buttonColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // AI 추천 버튼색을 모드별로 분리함
+    val buttonColor = budgetPrimaryButtonColor() // 오늘의 소비일기 카드와 어울리는 버튼 색을 씀
     Row( // 안쪽 UI를 가로로 배치함
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         horizontalArrangement = Arrangement.SpaceBetween, // horizontalArrangement 값을 정해줌
@@ -641,10 +645,13 @@ private fun AiPlanStatusCard( // AiPlanStatusCard 함수를 선언함
     isLoading: Boolean, // 로딩 여부를 받음
     onRetryClick: () -> Unit // onRetryClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val cardColor = budgetSoftCardColor() // AI 추천 상태 카드를 오늘의 소비일기 카드 계열로 맞춤
+    val cardBorderColor = budgetSoftCardBorderColor() // AI 추천 상태 카드 테두리색을 맞춤
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), // colors 값을 정해줌
+        colors = CardDefaults.cardColors(containerColor = cardColor), // colors 값을 정해줌
+        border = BorderStroke(1.dp, cardBorderColor), // AI 추천 카드 테두리색을 맞춤
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -674,8 +681,8 @@ private fun AiPlanStatusCard( // AiPlanStatusCard 함수를 선언함
                     onClick = onRetryClick, // onRetryClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
                     shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
                     colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                        containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer // contentColor 값을 정해줌
+                        containerColor = budgetPrimaryButtonColor(), // containerColor 값을 정해줌
+                        contentColor = Color.White // contentColor 값을 정해줌
                     )
                 ) { // 이 블록 안의 내용이 시작됨
                     Text( // 화면에 글자를 보여줌
@@ -694,13 +701,17 @@ private fun BudgetPlanCard( // BudgetPlanCard 함수를 선언함
     onApplyClick: () -> Unit // onApplyClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isBudgetDarkTheme() // 다크모드인지 저장함
+    val cardColor = budgetSoftCardColor() // AI 추천 플랜 카드를 오늘의 소비일기 카드 계열로 맞춤
+    val cardBorderColor = budgetSoftCardBorderColor() // AI 추천 플랜 카드 테두리색을 맞춤
+    val buttonColor = budgetPrimaryButtonColor() // 플랜 적용 버튼색을 통일함
 
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF7F8FA) // containerColor 값을 정해줌
+            containerColor = cardColor // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, cardBorderColor), // AI 추천 카드 테두리색을 맞춤
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -728,7 +739,7 @@ private fun BudgetPlanCard( // BudgetPlanCard 함수를 선언함
             InfoValueCard( // 내용을 카드 모양으로 묶어서 보여줌
                 label = "월 예산", // label 값을 정해줌
                 value = formatWon(plan.monthlyBudget), // 입력값을 정해줌
-                containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF7EEF9), // containerColor 값을 정해줌
+                containerColor = if (isDark) Color(0xFF20243A) else Color(0xFFFFFFFF), // containerColor 값을 정해줌
                 valueColor = MaterialTheme.colorScheme.onSurface // valueColor 값을 정해줌
             )
 
@@ -737,7 +748,7 @@ private fun BudgetPlanCard( // BudgetPlanCard 함수를 선언함
             InfoValueCard( // 내용을 카드 모양으로 묶어서 보여줌
                 label = "목표 저축", // label 값을 정해줌
                 value = formatWon(plan.savingGoal), // 입력값을 정해줌
-                containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE9F7EE), // containerColor 값을 정해줌
+                containerColor = if (isDark) Color(0xFF20243A) else Color(0xFFFFFFFF), // containerColor 값을 정해줌
                 valueColor = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF0E9F4B) // valueColor 값을 정해줌
             )
 
@@ -756,8 +767,8 @@ private fun BudgetPlanCard( // BudgetPlanCard 함수를 선언함
                 modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
                 shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
                 colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                    containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer // contentColor 값을 정해줌
+                    containerColor = buttonColor, // containerColor 값을 정해줌
+                    contentColor = Color.White // contentColor 값을 정해줌
                 ),
                 contentPadding = PaddingValues(vertical = 12.dp), // contentPadding 값을 정해줌
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp) // elevation 값을 정해줌
@@ -980,7 +991,7 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
                 modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
                 shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
                 colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                    containerColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB), // containerColor 값을 정해줌
+                    containerColor = budgetPrimaryButtonColor(), // containerColor 값을 정해줌
                     contentColor = Color.White // contentColor 값을 정해줌
                 ),
                 contentPadding = PaddingValues(vertical = 12.dp) // contentPadding 값을 정해줌

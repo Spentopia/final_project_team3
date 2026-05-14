@@ -174,7 +174,7 @@ private fun PlazaHeroCard( // PlazaHeroCard 함수를 선언함
     val heroBorderColor = if (isDark) Color(0xFF334155) else Color(0xFFBFDBFE) // hero 테두리색을 모드별로 분리함
     val heroContentColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A) // heroContentColor 값을 저장함
     val heroMutedContentColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF53657D) // heroMutedContentColor 값을 저장함
-    val pointColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // 버튼/아이콘 포인트 색을 모드별로 분리함
+    val pointColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF3B82F6) // 버튼/아이콘 포인트 색을 모드별로 분리함
 
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함

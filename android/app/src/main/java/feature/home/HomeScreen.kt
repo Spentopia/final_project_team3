@@ -143,6 +143,11 @@ private fun homeSoftCardBorderColor(): Color {
     return if (isHomeDarkTheme()) Color(0xFF4C3B7A) else Color(0xFFBFDBFE)
 }
 
+@Composable
+private fun homePrimaryButtonColor(): Color {
+    return if (isHomeDarkTheme()) Color(0xFF6D5BD0) else Color(0xFF3B82F6)
+}
+
 // --------------------------------------------------
 // UI에서 사용할 소비 항목 데이터 클래스입니다.
 // 기존 HomeScreen UI 구조를 최대한 유지하기 위해 남겨둡니다.
@@ -545,6 +550,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                 } // 블록 끝
             }, // 설정 구분
             confirmButton = { // 확인 버튼 영역을 시작함
+                val buttonColor = homePrimaryButtonColor()
                 TextButton( // 텍스트 버튼을 시작함
                     onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
                         showWalletDisconnectDialog = false // 지갑 해제 팝업을 닫음
@@ -553,7 +559,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                 ) { // 버튼 안의 내용이 시작됨
                     Text( // 버튼 텍스트를 시작함
                         text = "지갑 해제", // 버튼에 표시할 글자
-                        color = Color(0xFFE53935), // 글자 색상을 빨간색으로 설정함
+                        color = buttonColor, // 지갑 해제 버튼도 지정한 버튼 톤에 맞춤
                         fontWeight = FontWeight.Bold // 글자를 굵게 설정함
                     ) // 블록 끝
                 } // 블록 끝
@@ -578,9 +584,9 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
     walletProvider: String, // 지갑 제공자 이름을 받음
     onWalletConnectClick: () -> Unit = {} // 버튼을 눌렀을 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
-    val isDark = isHomeDarkTheme()
     val cardColor = homeSoftCardColor()
     val cardBorderColor = homeSoftCardBorderColor()
+    val buttonColor = homePrimaryButtonColor()
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
@@ -625,7 +631,7 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                 onClick = onWalletConnectClick, // color 값을 이 함수로 넘김
                 shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                 colors = ButtonDefaults.buttonColors( // 색상 스타일을 정함
-                    containerColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB),
+                    containerColor = buttonColor,
                     contentColor = Color.White
                 ),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp) // 버튼 안쪽 여백을 정함
@@ -1294,6 +1300,8 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
     onClick: () -> Unit
 ) { // 이 블록 안의 내용이 시작됨
     val totalScore = scoreState.totalScore.coerceIn(0, 100)
+    val cardColor = homeSoftCardColor()
+    val cardBorderColor = homeSoftCardBorderColor()
 
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier
@@ -1301,11 +1309,11 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
             .clickable(onClick = onClick), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
         colors = CardDefaults.cardColors( // 색상 스타일을 정함
-            containerColor = MaterialTheme.colorScheme.surfaceVariant // 배경색을 정함
+            containerColor = cardColor // 배경색을 정함
         ),
         border = BorderStroke( // border 값을 이 함수로 넘김
             1.dp, // border 값을 이 함수로 넘김
-            MaterialTheme.colorScheme.outlineVariant // 사용할 색상 값을 넣음
+            cardBorderColor // 사용할 색상 값을 넣음
         )
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 세로로 배치하는 영역을 시작함

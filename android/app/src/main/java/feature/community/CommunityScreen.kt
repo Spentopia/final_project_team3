@@ -491,7 +491,7 @@ private fun CommunityTopHeader( // CommunityTopHeader 함수를 선언함
     onWriteClick: () -> Unit // onWriteClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isCommunityDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
-    val buttonColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // 글쓰기 버튼색을 모드별로 분리함
+    val buttonColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF3B82F6) // 글쓰기 버튼색을 모드별로 분리함
     Row( // 안쪽 UI를 가로로 배치함
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         horizontalArrangement = Arrangement.SpaceBetween, // horizontalArrangement 값을 정해줌
@@ -545,7 +545,7 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
     onWriteClick: () -> Unit // onWriteClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isCommunityDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
-    val buttonColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // 참가 버튼색을 모드별로 분리함
+    val buttonColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF3B82F6) // 참가 버튼색을 모드별로 분리함
     val cardColor = communitySoftCardColor()
     val cardBorderColor = communitySoftCardBorderColor()
     val statusText = "진행중" // statusText 값을 저장함
@@ -913,7 +913,7 @@ private fun CommunityPaginationRow( // CommunityPaginationRow 함수를 선언�
     onPageSelected: (Int) -> Unit // onPageSelected 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isCommunityDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
-    val selectedColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // 페이지 선택 버튼색을 모드별로 분리함
+    val selectedColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF3B82F6) // 페이지 선택 버튼색을 모드별로 분리함
     val unselectedColor = if (isDark) Color(0xFF171A2B) else Color(0xFFEFF6FF) // 선택 안 된 페이지 배경색을 모드별로 분리함
     val unselectedBorderColor = if (isDark) Color(0xFF2E3352) else Color(0xFFBFDBFE) // 선택 안 된 페이지 테두리색을 모드별로 분리함
     val unselectedTextColor = if (isDark) Color(0xFFD8D6F5) else Color(0xFF1E3A8A) // 선택 안 된 페이지 글자색을 모드별로 분리함
