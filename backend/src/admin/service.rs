@@ -38,7 +38,7 @@
 
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
-use serde_json::json;
+use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::state::AppState;
