@@ -447,7 +447,7 @@ if (savedSelectedPlan && parsedPlans?.length) {
   }
 } // ← 이거 추가
 
-}, [monthKey, budgets]);
+}, [monthKey]);
 
   useEffect(() => {
   if (!monthKey) return;
