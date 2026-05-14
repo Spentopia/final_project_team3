@@ -799,7 +799,10 @@ while (heightLeft > 0) {
           <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
             <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">주간 소비 추이</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={weeklyData}>
+              <BarChart
+  data={weeklyData}
+  margin={{ top: 10, right: 20, left: 30, bottom: 10 }}
+>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="day" stroke="#6b7280" />
                 <YAxis stroke="#6b7280" />
@@ -826,7 +829,10 @@ while (heightLeft > 0) {
           <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
             <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">월간 소비 추이</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyData}>
+              <LineChart
+  data={monthlyData}
+  margin={{ top: 10, right: 20, left: 30, bottom: 10 }}
+>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="month" stroke="#6b7280" />
                 <YAxis stroke="#6b7280" />
