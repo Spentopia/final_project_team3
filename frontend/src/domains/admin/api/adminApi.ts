@@ -23,6 +23,13 @@ import {apiClient} from "@/shared/api/client.ts";
 // resolved : 처리 완료
 // rejected : 반려
 export type ContentReportStatus = "pending" | "resolved" | "rejected";
+export type ResolveReportActionType =
+    | "no_action"
+    | "post_deleted"
+    | "comment_deleted"
+    | "profile_image_change_requested"
+    | "profile_image_reset"
+    | "nickname_change_requested";
 
 // 신고 대상 타입
 //
@@ -402,10 +409,12 @@ export async function listAdminContentReports(
 
 // 신고 처리 완료
 export const resolveAdminContentReport = async (
-    reportId: string
+    reportId: string,
+    actionType: ResolveReportActionType = "no_action"
 ): Promise<AdminContentReportResponse> => {
     const res = await apiClient.patch(
-        `/api/admin/content-reports/${reportId}/resolve`
+        `/api/admin/content-reports/${reportId}/resolve`,
+        { action_type: actionType }
     );
 
     return res.data;

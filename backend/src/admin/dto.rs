@@ -95,6 +95,37 @@ pub struct AdminContentReportResponse {
     pub target_report_count: i64,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ResolveReportActionType {
+    NoAction,
+    PostDeleted,
+    CommentDeleted,
+    ProfileImageChangeRequested,
+    ProfileImageReset,
+    NicknameChangeRequested,
+}
+
+impl ResolveReportActionType {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ResolveReportActionType::NoAction => "no_action",
+            ResolveReportActionType::PostDeleted => "post_deleted",
+            ResolveReportActionType::CommentDeleted => "comment_deleted",
+            ResolveReportActionType::ProfileImageChangeRequested => {
+                "profile_image_change_requested"
+            }
+            ResolveReportActionType::ProfileImageReset => "profile_image_reset",
+            ResolveReportActionType::NicknameChangeRequested => "nickname_change_requested",
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct ResolveContentReportRequest {
+    pub action_type: Option<ResolveReportActionType>,
+}
+
 // ─────────────────────────────────────────────
 // 회원 관리 응답 DTO
 // ─────────────────────────────────────────────

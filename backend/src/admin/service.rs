@@ -46,8 +46,8 @@ use super::{
     dto::{
         AdminAuditLogResponse, AdminContentReportListResponse, AdminContentReportResponse,
         AdminContestResponse, AdminNoticeResponse, AdminUserListResponse, AdminUserResponse,
-        CreateAdminContestRequest, CreateAdminNoticeRequest, UpdateAdminContestRequest,
-        UpdateAdminContestStatusRequest, UpdateAdminNoticeRequest,
+        CreateAdminContestRequest, CreateAdminNoticeRequest, ResolveReportActionType,
+        UpdateAdminContestRequest, UpdateAdminContestStatusRequest, UpdateAdminNoticeRequest,
     },
     handler::{AdminUserQuery, ContentReportQuery},
     model::{AdminAuditLog, AdminContentReport, AdminContest, AdminNotice, AdminUser},
@@ -580,12 +580,19 @@ async fn create_admin_audit_log(
 /// view가 아니라 실제 테이블을 보는 이유:
 /// - 필요한 값은 status 하나뿐이다.
 /// - view 변경과 무관하게 안정적으로 동작한다.
+struct ContentReportReviewTarget {
+    status: String,
+    reporter_id: Uuid,
+    target_type: String,
+    target_id: Uuid,
+}
+
 async fn get_content_report_review_target_by_id(
     state: &AppState,
     report_id: Uuid,
-) -> Result<(String, Uuid)> {
+) -> Result<ContentReportReviewTarget> {
     let url = format!(
-        "{}/rest/v1/content_reports?id=eq.{}&select=status,reporter_id&limit=1",
+        "{}/rest/v1/content_reports?id=eq.{}&select=status,reporter_id,target_type,target_id&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         report_id
     );
@@ -611,6 +618,8 @@ async fn get_content_report_review_target_by_id(
     struct ReportReviewTargetRow {
         status: String,
         reporter_id: Uuid,
+        target_type: String,
+        target_id: Uuid,
     }
 
     let rows: Vec<ReportReviewTargetRow> = res
@@ -623,7 +632,121 @@ async fn get_content_report_review_target_by_id(
         .next()
         .ok_or_else(|| anyhow!("신고를 찾을 수 없습니다."))?;
 
-    Ok((row.status, row.reporter_id))
+    Ok(ContentReportReviewTarget {
+        status: row.status,
+        reporter_id: row.reporter_id,
+        target_type: row.target_type,
+        target_id: row.target_id,
+    })
+}
+
+async fn get_report_target_owner_id(
+    state: &AppState,
+    target_type: &str,
+    target_id: Uuid,
+) -> Result<Option<Uuid>> {
+    let base_url = state.config.supabase_url.trim_end_matches('/');
+    let (table, select) = match target_type {
+        "post" => ("posts", "user_id"),
+        "comment" => ("comments", "user_id"),
+        "user_nickname" | "user_profile" => return Ok(Some(target_id)),
+        _ => return Ok(None),
+    };
+
+    let url = format!(
+        "{}/rest/v1/{}?id=eq.{}&select={}&limit=1",
+        base_url, table, target_id, select
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("신고 대상 소유자 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("신고 대상 소유자 조회 실패: {}", body));
+    }
+
+    #[derive(serde::Deserialize)]
+    struct OwnerRow {
+        user_id: Uuid,
+    }
+
+    let rows: Vec<OwnerRow> = res
+        .json()
+        .await
+        .context("신고 대상 소유자 조회 응답 파싱 실패")?;
+
+    Ok(rows.into_iter().next().map(|row| row.user_id))
+}
+
+fn resolve_report_notification_messages(
+    action_type: ResolveReportActionType,
+    _target_type: &str,
+) -> (&'static str, Option<&'static str>) {
+    match action_type {
+        ResolveReportActionType::NoAction => {
+            ("접수하신 신고가 조치 없이 처리 완료되었습니다.", None)
+        }
+        ResolveReportActionType::PostDeleted => (
+            "신고해 주신 게시글을 검토한 결과, 운영 정책에 따라 조치가 완료되었습니다.",
+            Some(
+                "작성하신 게시글이 운영 정책 위반으로 삭제되었습니다. 반복 위반 시 계정 이용이 제한될 수 있습니다.",
+            ),
+        ),
+        ResolveReportActionType::CommentDeleted => (
+            "신고해 주신 댓글을 검토한 결과, 운영 정책에 따라 조치가 완료되었습니다.",
+            Some(
+                "작성하신 댓글이 운영 정책 위반으로 삭제되었습니다. 반복 위반 시 계정 이용이 제한될 수 있습니다.",
+            ),
+        ),
+        ResolveReportActionType::ProfileImageChangeRequested => (
+            "신고해 주신 프로필 사진을 검토한 결과, 운영 정책에 따라 변경 요청 조치가 완료되었습니다.",
+            Some(
+                "프로필 사진이 운영 정책 위반 가능성으로 신고되었습니다. 부적절한 이미지일 경우 프로필 사진을 변경해 주세요. 반복 위반 시 계정 이용이 제한될 수 있습니다.",
+            ),
+        ),
+        ResolveReportActionType::ProfileImageReset => (
+            "신고해 주신 프로필 사진을 검토한 결과, 운영 정책에 따라 조치가 완료되었습니다.",
+            Some(
+                "프로필 사진이 운영 정책 위반으로 기본 이미지로 변경되었습니다. 반복 위반 시 계정 이용이 제한될 수 있습니다.",
+            ),
+        ),
+        ResolveReportActionType::NicknameChangeRequested => (
+            "신고해 주신 닉네임을 검토한 결과, 운영 정책에 따라 변경 요청 조치가 완료되었습니다.",
+            Some(
+                "닉네임이 운영 정책 위반 가능성으로 신고되었습니다. 부적절한 표현이 포함되어 있다면 닉네임을 변경해 주세요. 반복 위반 시 계정 이용이 제한될 수 있습니다.",
+            ),
+        ),
+    }
+}
+
+fn validate_resolve_action_for_target(
+    action_type: ResolveReportActionType,
+    target_type: &str,
+) -> Result<()> {
+    let valid = match action_type {
+        ResolveReportActionType::NoAction => true,
+        ResolveReportActionType::PostDeleted => target_type == "post",
+        ResolveReportActionType::CommentDeleted => target_type == "comment",
+        ResolveReportActionType::ProfileImageChangeRequested
+        | ResolveReportActionType::ProfileImageReset => target_type == "user_profile",
+        ResolveReportActionType::NicknameChangeRequested => target_type == "user_nickname",
+    };
+
+    if valid {
+        Ok(())
+    } else {
+        Err(anyhow!("신고 대상과 처리 조치가 맞지 않습니다."))
+    }
 }
 
 /// 관리자: 신고 상태 변경 공통 함수
@@ -643,12 +766,17 @@ async fn update_content_report_status(
     admin_id: Uuid,
     report_id: Uuid,
     status: &str,
+    action_type: ResolveReportActionType,
 ) -> Result<AdminContentReportResponse> {
     // 1. 변경 전 상태 조회.
     //
     // 감사 로그에 before_status를 남기기 위해 PATCH 전에 조회한다.
-    let (before_status, reporter_id) =
-        get_content_report_review_target_by_id(state, report_id).await?;
+    let review_target = get_content_report_review_target_by_id(state, report_id).await?;
+    let before_status = review_target.status;
+
+    if status == "resolved" {
+        validate_resolve_action_for_target(action_type, &review_target.target_type)?;
+    }
 
     // 2. 이미 같은 상태라면 불필요한 중복 처리를 막는다.
     //
@@ -714,29 +842,64 @@ async fn update_content_report_status(
         serde_json::json!({
             "report_id": report_id,
             "reviewed_by": admin_id,
-            "reviewed_at": reviewed_at
+            "reviewed_at": reviewed_at,
+            "action_type": action_type.as_str()
         }),
     )
     .await?;
 
-    let (notification_type, message) = match status {
-        "resolved" => (
-            format!("report_resolved_{}", &report_id.to_string()[..8]),
-            "접수하신 신고가 처리 완료되었어요.",
-        ),
-        "rejected" => (
-            format!("report_rejected_{}", &report_id.to_string()[..8]),
+    let (notification_type, message) = if status == "resolved" {
+        let (reporter_message, target_message) =
+            resolve_report_notification_messages(action_type, &review_target.target_type);
+
+        if let Some(target_message) = target_message {
+            match get_report_target_owner_id(
+                state,
+                &review_target.target_type,
+                review_target.target_id,
+            )
+            .await
+            {
+                Ok(Some(owner_id)) if owner_id != review_target.reporter_id => {
+                    let target_notification_type =
+                        format!("report_target_{}", &report_id.to_string()[..8]);
+                    if let Err(e) = crate::notification::service::create_notification(
+                        state,
+                        owner_id,
+                        &target_notification_type,
+                        target_message,
+                    )
+                    .await
+                    {
+                        tracing::error!("신고 대상자 조치 알림 생성 실패: {}", e);
+                    }
+                }
+                Ok(_) => {}
+                Err(e) => {
+                    tracing::error!("신고 대상자 조회 실패: {}", e);
+                }
+            }
+        }
+
+        (
+            format!("report_res_{}", &report_id.to_string()[..8]),
+            reporter_message,
+        )
+    } else if status == "rejected" {
+        (
+            format!("report_rej_{}", &report_id.to_string()[..8]),
             "접수하신 신고가 검토 후 반려되었어요.",
-        ),
-        _ => (
-            format!("report_status_{}_{}", status, &report_id.to_string()[..8]),
+        )
+    } else {
+        (
+            format!("report_{}_{}", status, &report_id.to_string()[..8]),
             "접수하신 신고 상태가 변경되었어요.",
-        ),
+        )
     };
 
     if let Err(e) = crate::notification::service::create_notification(
         state,
-        reporter_id,
+        review_target.reporter_id,
         &notification_type,
         message,
     )
@@ -762,8 +925,16 @@ pub async fn resolve_content_report(
     state: &AppState,
     admin_id: Uuid,
     report_id: Uuid,
+    action_type: Option<ResolveReportActionType>,
 ) -> Result<AdminContentReportResponse> {
-    update_content_report_status(state, admin_id, report_id, "resolved").await
+    update_content_report_status(
+        state,
+        admin_id,
+        report_id,
+        "resolved",
+        action_type.unwrap_or(ResolveReportActionType::NoAction),
+    )
+    .await
 }
 
 /// 관리자: 신고 반려
@@ -779,7 +950,14 @@ pub async fn reject_content_report(
     admin_id: Uuid,
     report_id: Uuid,
 ) -> Result<AdminContentReportResponse> {
-    update_content_report_status(state, admin_id, report_id, "rejected").await
+    update_content_report_status(
+        state,
+        admin_id,
+        report_id,
+        "rejected",
+        ResolveReportActionType::NoAction,
+    )
+    .await
 }
 
 /// 관리자: 특정 신고의 감사 로그 조회
