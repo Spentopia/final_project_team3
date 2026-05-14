@@ -29,8 +29,6 @@
 // - filter::validate_nickname() 으로 길이 + 금칙어 한번에 검사
 // - 실패 시 400 + 구체적인 에러 메시지 반환
 
-
-
 use axum::{
     Json,
     extract::{Extension, Multipart, Query, State},
@@ -401,31 +399,34 @@ pub async fn wallet_login(
         &body.signature,
         "web",
     )
-        .await
-        .map_err(|e| {
-            // service에서 올라온 에러를 HTTP 상태코드로 변환
-            //
-            // 케이스 분기:
-            // - nonce/서명 관련 → 401 (인증 실패, 클라이언트 잘못)
-            // - 연동된 계정 없음 → 404 (탈퇴자 + 미연동 모두 포함)
-            //   ※ 보안상 둘을 구분해서 알려주지 않음
-            //   ※ 탈퇴자도 wallet_address가 NULL이라 자연스럽게 여기로 떨어짐
-            // - 그 외 → 500 (Supabase API 실패 등 서버 잘못)
-            let msg = e.to_string();
-            if msg.contains("nonce") || msg.contains("서명") {
-                tracing::warn!("지갑 로그인 실패 (인증): {}", msg);
-                (StatusCode::UNAUTHORIZED, msg)
-            } else if msg.contains("비활성화된 계정") || msg.contains("탈퇴한 계정") {
-                tracing::warn!("지갑 로그인 차단 (계정 상태): {}", msg);
-                (StatusCode::FORBIDDEN, msg)
-            } else if msg.contains("연동된 계정이 없습니다") {
-                tracing::info!("지갑 로그인 실패 (미연동/탈퇴): wallet={}", body.wallet_address);
-                (StatusCode::NOT_FOUND, msg)
-            } else {
-                tracing::error!("지갑 로그인 실패 (서버): {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, msg)
-            }
-        })?;
+    .await
+    .map_err(|e| {
+        // service에서 올라온 에러를 HTTP 상태코드로 변환
+        //
+        // 케이스 분기:
+        // - nonce/서명 관련 → 401 (인증 실패, 클라이언트 잘못)
+        // - 연동된 계정 없음 → 404 (탈퇴자 + 미연동 모두 포함)
+        //   ※ 보안상 둘을 구분해서 알려주지 않음
+        //   ※ 탈퇴자도 wallet_address가 NULL이라 자연스럽게 여기로 떨어짐
+        // - 그 외 → 500 (Supabase API 실패 등 서버 잘못)
+        let msg = e.to_string();
+        if msg.contains("nonce") || msg.contains("서명") {
+            tracing::warn!("지갑 로그인 실패 (인증): {}", msg);
+            (StatusCode::UNAUTHORIZED, msg)
+        } else if msg.contains("비활성화된 계정") || msg.contains("탈퇴한 계정") {
+            tracing::warn!("지갑 로그인 차단 (계정 상태): {}", msg);
+            (StatusCode::FORBIDDEN, msg)
+        } else if msg.contains("연동된 계정이 없습니다") {
+            tracing::info!(
+                "지갑 로그인 실패 (미연동/탈퇴): wallet={}",
+                body.wallet_address
+            );
+            (StatusCode::NOT_FOUND, msg)
+        } else {
+            tracing::error!("지갑 로그인 실패 (서버): {}", msg);
+            (StatusCode::INTERNAL_SERVER_ERROR, msg)
+        }
+    })?;
 
     tracing::info!("지갑 로그인 성공: wallet={}", body.wallet_address);
 
@@ -473,36 +474,36 @@ pub async fn wallet_login_app(
         &body.signature,
         "app",
     )
-        .await
-        .map_err(|e| {
-            // service에서 올라온 에러를 HTTP 상태코드로 변환
-            //
-            // 케이스 분기:
-            // - nonce/서명 관련         → 401 (인증 실패)
-            // - 연동된 계정 없음         → 404 (탈퇴자 + 미연동)
-            // - 회원가입 미완료          → 403 (앱 전용 차단)
-            // - 그 외                   → 500 (서버 에러)
-            let msg = e.to_string();
-            if msg.contains("nonce") || msg.contains("서명") {
-                tracing::warn!("앱 지갑 로그인 실패 (인증): {}", msg);
-                (StatusCode::UNAUTHORIZED, msg)
-            } else if msg.contains("비활성화된 계정") || msg.contains("탈퇴한 계정") {
-                tracing::warn!("앱 지갑 로그인 차단 (계정 상태): {}", msg);
-                (StatusCode::FORBIDDEN, msg)
-            } else if msg.contains("연동된 계정이 없습니다") {
-                tracing::info!(
-        "앱 지갑 로그인 실패 (미연동/탈퇴): wallet={}",
-        body.wallet_address
-    );
-                (StatusCode::NOT_FOUND, msg)
-            } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
-                tracing::warn!("앱 지갑 로그인 차단 (가입 미완료): {}", msg);
-                (StatusCode::FORBIDDEN, msg)
-            } else {
-                tracing::error!("앱 지갑 로그인 실패 (서버): {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, msg)
-            }
-        })?;
+    .await
+    .map_err(|e| {
+        // service에서 올라온 에러를 HTTP 상태코드로 변환
+        //
+        // 케이스 분기:
+        // - nonce/서명 관련         → 401 (인증 실패)
+        // - 연동된 계정 없음         → 404 (탈퇴자 + 미연동)
+        // - 회원가입 미완료          → 403 (앱 전용 차단)
+        // - 그 외                   → 500 (서버 에러)
+        let msg = e.to_string();
+        if msg.contains("nonce") || msg.contains("서명") {
+            tracing::warn!("앱 지갑 로그인 실패 (인증): {}", msg);
+            (StatusCode::UNAUTHORIZED, msg)
+        } else if msg.contains("비활성화된 계정") || msg.contains("탈퇴한 계정") {
+            tracing::warn!("앱 지갑 로그인 차단 (계정 상태): {}", msg);
+            (StatusCode::FORBIDDEN, msg)
+        } else if msg.contains("연동된 계정이 없습니다") {
+            tracing::info!(
+                "앱 지갑 로그인 실패 (미연동/탈퇴): wallet={}",
+                body.wallet_address
+            );
+            (StatusCode::NOT_FOUND, msg)
+        } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
+            tracing::warn!("앱 지갑 로그인 차단 (가입 미완료): {}", msg);
+            (StatusCode::FORBIDDEN, msg)
+        } else {
+            tracing::error!("앱 지갑 로그인 실패 (서버): {}", msg);
+            (StatusCode::INTERNAL_SERVER_ERROR, msg)
+        }
+    })?;
 
     let body = AppLoginResponse {
         access_token: response.access_token,
@@ -729,7 +730,7 @@ pub async fn get_me(
 // 탈퇴 처리 후 refresh 쿠키도 삭제해서 즉시 로그아웃 상태로 만듦
 pub async fn withdraw(
     State(state): State<AppState>,
-   Extension(user_id):Extension<Uuid>,
+    Extension(user_id): Extension<Uuid>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), (StatusCode, String)> {
     service::withdraw_user(&state, user_id).await.map_err(|e| {
         tracing::error!("회원탈퇴 실패: user_id={}, error={}", user_id, e);
@@ -1379,7 +1380,10 @@ pub async fn check_email(
         }
     }
 
-    Err((StatusCode::NOT_FOUND, "가입 가능한 이메일입니다.".to_string()))
+    Err((
+        StatusCode::NOT_FOUND,
+        "가입 가능한 이메일입니다.".to_string(),
+    ))
 }
 
 #[utoipa::path(
@@ -1590,7 +1594,8 @@ pub async fn kakao_login_app(
             if msg.contains("탈퇴") || msg.contains("비활성화된 계정") {
                 tracing::warn!("앱 카카오 로그인 차단 (계정 상태): {}", msg);
                 (StatusCode::FORBIDDEN, msg)
-            } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.") {
+            } else if msg.contains("웹에서 회원가입 완료 후 다시 이용해 주세요.")
+            {
                 tracing::warn!("앱 카카오 로그인 차단 (가입 미완료): {}", msg);
                 (StatusCode::FORBIDDEN, msg)
             } else {

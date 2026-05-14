@@ -148,7 +148,6 @@ pub struct AdminUserResponse {
     // public.users.id를 참조한다.
     pub inactive_by: Option<Uuid>,
 
-
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }

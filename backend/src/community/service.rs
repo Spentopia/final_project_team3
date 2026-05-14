@@ -8,17 +8,17 @@
 use anyhow::{Context, Result, anyhow};
 use axum::extract::Multipart;
 use chrono::Utc;
-use serde::{Deserialize,Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use super::{
     dto::{
         ChatResponse, CommentResponse, ContentReportResponse, ContestEventResponse,
-        CreateCommentRequest, CreateContentReportRequest, CreatePostRequest,
-        PostListResponse, PostResponse, PostSort, PostType,
-        UpdateCommentRequest, UpdatePostRequest, UploadCommunityImageResponse,
+        CreateCommentRequest, CreateContentReportRequest, CreatePostRequest, PostListResponse,
+        PostResponse, PostSort, PostType, UpdateCommentRequest, UpdatePostRequest,
+        UploadCommunityImageResponse,
     },
     model::{ChatbotLog, Comment, ContentReport, ContestEvent, Post},
 };
@@ -197,13 +197,7 @@ async fn to_post_response(
     // 단건에서는 캐시 효과가 크진 않지만, 함수 시그니처를 맞추기 위한 용도다.
     let mut profile_signed_url_cache: HashMap<String, Option<String>> = HashMap::new();
 
-    to_post_response_with_reacted(
-        state,
-        post,
-        is_reacted,
-        &mut profile_signed_url_cache,
-    )
-        .await
+    to_post_response_with_reacted(state, post, is_reacted, &mut profile_signed_url_cache).await
 }
 
 async fn to_comment_response_with_cache(
@@ -290,12 +284,7 @@ async fn to_comment_response(state: &AppState, comment: Comment) -> CommentRespo
     // 단건에서는 캐시 효과가 크지 않지만, 기존 호출부를 크게 안 바꾸기 위해 유지한다.
     let mut profile_signed_url_cache: HashMap<String, Option<String>> = HashMap::new();
 
-    to_comment_response_with_cache(
-        state,
-        comment,
-        &mut profile_signed_url_cache,
-    )
-        .await
+    to_comment_response_with_cache(state, comment, &mut profile_signed_url_cache).await
 }
 
 async fn ensure_admin(state: &AppState, user_id: Uuid) -> Result<()> {
@@ -360,7 +349,7 @@ async fn get_reacted_post_ids_by_user(
     state: &AppState,
     user_id: Uuid,
     post_ids: &[Uuid],
-) ->Result<HashSet<Uuid>> {
+) -> Result<HashSet<Uuid>> {
     // 현재 페이지에 게시글이 하나도 없으면 reactions를 조회할 필요가 없다.
     // 빈 in.() 쿼리를 만들면 Supabase/PostgREST 쪽에서 에러가 날 수 있으므로
     // 여기서 바로 빈 HashSet을 반환한다.
@@ -412,10 +401,7 @@ async fn get_reacted_post_ids_by_user(
     //
     // reacted_post_ids.contains(&post.id)
     Ok(rows.into_iter().map(|row| row.post_id).collect())
-
 }
-
-
 
 // 현재 로그인한 사용자가 특정 게시글에 이미 반응했는지 확인한다.
 //
@@ -1076,12 +1062,7 @@ pub async fn list_posts(
         let is_reacted = reacted_post_ids.contains(&post.id);
 
         items.push(
-            to_post_response_with_reacted(
-                state,
-                post,
-                is_reacted,
-                &mut profile_signed_url_cache,
-            )
+            to_post_response_with_reacted(state, post, is_reacted, &mut profile_signed_url_cache)
                 .await?,
         );
     }
@@ -1451,12 +1432,7 @@ pub async fn list_comments(state: &AppState, post_id: Uuid) -> Result<Vec<Commen
 
     for comment in comments {
         items.push(
-            to_comment_response_with_cache(
-                state,
-                comment,
-                &mut profile_signed_url_cache,
-            )
-                .await,
+            to_comment_response_with_cache(state, comment, &mut profile_signed_url_cache).await,
         );
     }
 
@@ -1717,7 +1693,6 @@ fn to_content_report_response(row: ContentReport) -> ContentReportResponse {
     }
 }
 
-
 /// 신고 상세 내용 검증
 ///
 /// 정책:
@@ -1734,7 +1709,6 @@ fn validate_report_detail(detail: Option<String>) -> Result<String> {
     Ok(detail.chars().take(500).collect())
 }
 
-
 /// 사용자 존재 여부 확인
 ///
 /// user_nickname / user_profile 신고에서 사용.
@@ -1742,7 +1716,7 @@ fn validate_report_detail(detail: Option<String>) -> Result<String> {
 /// 정책:
 /// - users.id 존재해야 함
 /// - is_active = true 사용자만 허용
-async fn ensure_user_exists(state: &AppState, user_id:Uuid) -> Result<Uuid> {
+async fn ensure_user_exists(state: &AppState, user_id: Uuid) -> Result<Uuid> {
     let url = format!(
         "{}/rest/v1/users?id=eq.{}&is_active=eq.true&select=id&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
@@ -1766,15 +1740,16 @@ async fn ensure_user_exists(state: &AppState, user_id:Uuid) -> Result<Uuid> {
         return Err(anyhow!("신고 대상 사용자 조회 실패: {}", body));
     }
 
-    let rows: Vec<Value> = res.json().await.context("신고 대상 사용자 조회 응답 파싱 실패")?;
+    let rows: Vec<Value> = res
+        .json()
+        .await
+        .context("신고 대상 사용자 조회 응답 파싱 실패")?;
 
     if rows.is_empty() {
         return Err(anyhow!("신고 대상을 찾을 수 없습니다."));
-
     }
 
     Ok(user_id)
-
 }
 
 // 신고 대상 존재 여부 확인 + 신고 대상의 소유자/작성자 user_id 반환
@@ -1890,8 +1865,7 @@ pub async fn create_content_report(
         let body = res.text().await.unwrap_or_default();
 
         // unique(reporter_id, target_type, target_id) 중복 처리
-        if body.contains("content_reports_unique_reporter_target")
-            || body.contains("duplicate key")
+        if body.contains("content_reports_unique_reporter_target") || body.contains("duplicate key")
         {
             return Err(anyhow!("이미 신고한 콘텐츠입니다."));
         }
@@ -1911,8 +1885,7 @@ pub async fn create_content_report(
 
     // 신고자에게 "신고 접수됨" 알림 발행 — report.id를 type에 포함해 중복 방지
     // 실패해도 신고 자체는 성공이므로 에러 로그만 남기고 진행
-    let reporter_notification_type =
-        format!("report_submitted_{}", &report.id.to_string()[..8]);
+    let reporter_notification_type = format!("report_submitted_{}", &report.id.to_string()[..8]);
     if let Err(e) = crate::notification::service::create_notification(
         state,
         reporter_id,

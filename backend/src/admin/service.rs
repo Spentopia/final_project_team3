@@ -36,7 +36,7 @@
 // - post_type = 'notice'인 row를 공지사항으로 본다.
 // - 삭제는 물리 삭제가 아니라 is_deleted = true, deleted_at = now()로 처리한다.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -44,15 +44,13 @@ use crate::state::AppState;
 
 use super::{
     dto::{
-        AdminContentReportResponse, AdminContentReportListResponse,
-        AdminUserResponse, AdminUserListResponse,
-        AdminNoticeResponse, CreateAdminNoticeRequest, UpdateAdminNoticeRequest,
-        AdminContestResponse, CreateAdminContestRequest,
-        UpdateAdminContestRequest, UpdateAdminContestStatusRequest,
-        AdminAuditLogResponse,
+        AdminAuditLogResponse, AdminContentReportListResponse, AdminContentReportResponse,
+        AdminContestResponse, AdminNoticeResponse, AdminUserListResponse, AdminUserResponse,
+        CreateAdminContestRequest, CreateAdminNoticeRequest, UpdateAdminContestRequest,
+        UpdateAdminContestStatusRequest, UpdateAdminNoticeRequest,
     },
-    handler::{ContentReportQuery, AdminUserQuery},
-    model::{AdminContentReport, AdminUser, AdminNotice, AdminContest, AdminAuditLog},
+    handler::{AdminUserQuery, ContentReportQuery},
+    model::{AdminAuditLog, AdminContentReport, AdminContest, AdminNotice, AdminUser},
 };
 
 /// DB/view 모델을 관리자 신고 응답 DTO로 변환한다.
@@ -284,7 +282,6 @@ fn normalize_end_date_filter(value: &str) -> String {
     }
 }
 
-
 /// 관리자: 신고 목록 조회 (페이지네이션 + 검색 + 필터 + 날짜 범위 + 정렬)
 ///
 /// API 예시:
@@ -507,8 +504,7 @@ pub async fn list_content_reports(
         .await
         .context("관리자 신고 목록 view SELECT 응답 역직렬화 실패")?;
 
-    let items: Vec<AdminContentReportResponse> =
-        rows.into_iter().map(to_report_response).collect();
+    let items: Vec<AdminContentReportResponse> = rows.into_iter().map(to_report_response).collect();
 
     Ok(AdminContentReportListResponse {
         items,
@@ -584,10 +580,7 @@ async fn create_admin_audit_log(
 /// view가 아니라 실제 테이블을 보는 이유:
 /// - 필요한 값은 status 하나뿐이다.
 /// - view 변경과 무관하게 안정적으로 동작한다.
-async fn get_content_report_status_by_id(
-    state: &AppState,
-    report_id: Uuid,
-) -> Result<String> {
+async fn get_content_report_status_by_id(state: &AppState, report_id: Uuid) -> Result<String> {
     let url = format!(
         "{}/rest/v1/content_reports?id=eq.{}&select=status&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
@@ -719,7 +712,7 @@ async fn update_content_report_status(
             "reviewed_at": reviewed_at
         }),
     )
-        .await?;
+    .await?;
 
     // 5. 최종 응답은 view에서 다시 조회한다.
     get_content_report_from_view_by_id(state, report_id).await
@@ -812,10 +805,7 @@ pub async fn list_content_report_audit_logs(
 /// - keyword가 있으면 nickname 또는 email 부분 일치 검색
 /// - 정렬: created_at desc (최신 가입자 먼저)
 /// - 페이지네이션: Range 헤더 + count=exact
-pub async fn list_users(
-    state: &AppState,
-    query: AdminUserQuery,
-) -> Result<AdminUserListResponse> {
+pub async fn list_users(state: &AppState, query: AdminUserQuery) -> Result<AdminUserListResponse> {
     // 페이지 / 페이지 크기 정규화.
     let page = query.page.unwrap_or(1).max(1);
     let page_size = query.page_size.unwrap_or(20).clamp(1, 100);
@@ -910,10 +900,7 @@ pub async fn list_users(
 // 핵심:
 // - 반드시 user_id=eq.{user_id} 조건을 넣어야 한다.
 // - 이 조건이 빠지면 모든 회원의 refresh session을 폐기하는 사고가 날 수 있다.
-async fn revoke_refresh_sessions_by_user_id(
-    state: &AppState,
-    user_id: Uuid,
-) -> Result<()> {
+async fn revoke_refresh_sessions_by_user_id(state: &AppState, user_id: Uuid) -> Result<()> {
     let now = Utc::now().to_rfc3339();
 
     // 핵심 조건:
@@ -952,19 +939,13 @@ async fn revoke_refresh_sessions_by_user_id(
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
 
-        return Err(anyhow!(
-            "특정 회원 refresh session 폐기 실패: {}",
-            body
-        ));
+        return Err(anyhow!("특정 회원 refresh session 폐기 실패: {}", body));
     }
 
     Ok(())
 }
 
-async fn get_admin_user_by_id(
-    state: &AppState,
-    user_id: Uuid,
-) -> Result<AdminUser> {
+async fn get_admin_user_by_id(state: &AppState, user_id: Uuid) -> Result<AdminUser> {
     let url = format!(
         "{}/rest/v1/users?id=eq.{}&select=*&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
@@ -998,7 +979,6 @@ async fn get_admin_user_by_id(
         .ok_or_else(|| anyhow!("회원을 찾을 수 없습니다."))
 }
 
-
 /// 관리자: 회원 활성/비활성 변경
 ///
 /// is_active = true  -> 활성
@@ -1030,7 +1010,9 @@ pub async fn update_user_active(
 
     // 2. 탈퇴자는 상태 변경 불가.
     if current_user.deleted_at.is_some() {
-        return Err(anyhow!("탈퇴한 회원은 활성/비활성 상태를 변경할 수 없습니다."));
+        return Err(anyhow!(
+            "탈퇴한 회원은 활성/비활성 상태를 변경할 수 없습니다."
+        ));
     }
 
     // 3. 운영자 계정은 상태 변경 불가.
@@ -1038,7 +1020,9 @@ pub async fn update_user_active(
     // 운영자를 비활성화하면 관리자 접근이 꼬일 수 있다.
     // 운영자 권한 회수는 별도 role 관리 기능으로 처리하는 것이 안전하다.
     if current_user.role_type.as_deref() == Some("admin") {
-        return Err(anyhow!("운영자 계정은 활성/비활성 상태를 변경할 수 없습니다."));
+        return Err(anyhow!(
+            "운영자 계정은 활성/비활성 상태를 변경할 수 없습니다."
+        ));
     }
 
     // 4. 같은 상태로 변경 요청한 경우.
@@ -1334,10 +1318,7 @@ pub async fn update_notice(
 /// - is_deleted = true
 /// - deleted_at = now()
 /// - updated_at = now()
-pub async fn delete_notice(
-    state: &AppState,
-    notice_id: Uuid,
-) -> Result<AdminNoticeResponse> {
+pub async fn delete_notice(state: &AppState, notice_id: Uuid) -> Result<AdminNoticeResponse> {
     let url = format!(
         "{}/rest/v1/posts?id=eq.{}&post_type=eq.notice&is_deleted=eq.false",
         state.config.supabase_url.trim_end_matches('/'),

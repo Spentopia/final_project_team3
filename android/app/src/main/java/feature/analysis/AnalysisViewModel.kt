@@ -434,6 +434,8 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
     }
 
     private fun buildAnalyzeReportRequest(state: AnalysisUiState): AnalyzeReportRequest { // buildAnalyzeReportRequest 함수를 선언함
+        val reportType = if (state.selectedPeriod == "주간") "weekly" else "monthly" // reportType 값을 정해줌
+        val (startDate, endDate) = createReportPeriodRange(state.selectedPeriod) // 기간 값을 정해줌
         val categoryData = state.categoryList.map { category -> // categoryData 값을 저장함
             AnalyzeCategoryDataRequest( // Analyze Category Data Request 함수를 실행함
                 name = category.name, // name 값을 정해줌
@@ -444,6 +446,9 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
         }
 
         return AnalyzeReportRequest( // 이 값을 함수 결과로 돌려줌
+            reportType = reportType, // reportType 값을 정해줌
+            startDate = startDate, // 시작일을 정해줌
+            endDate = endDate, // 종료일을 정해줌
             transactions = latestExpenseOnlyList.map { expense -> // transactions 값을 정해줌
                 AnalyzeTransactionRequest( // Analyze Transaction Request 함수를 실행함
                     date = expense.date, // 날짜를 정해줌

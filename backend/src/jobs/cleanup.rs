@@ -92,10 +92,7 @@ pub async fn cleanup_30day_withdrawals(state: &AppState) -> Result<usize> {
         return Err(anyhow!("Phase 2 (30일 쿨다운 정리) PATCH 실패: {}", err));
     }
 
-    let rows: Vec<WithdrawnUserRow> = resp
-        .json()
-        .await
-        .context("Phase 2 응답 파싱 실패")?;
+    let rows: Vec<WithdrawnUserRow> = resp.json().await.context("Phase 2 응답 파싱 실패")?;
 
     Ok(rows.len())
 }
@@ -150,10 +147,7 @@ pub async fn cleanup_5year_withdrawals(state: &AppState) -> Result<usize> {
         return Err(anyhow!("Phase 3 (5년 익명화) 대상 조회 실패: {}", err));
     }
 
-    let users: Vec<WithdrawnUserRow> = resp
-        .json()
-        .await
-        .context("Phase 3 대상 응답 파싱 실패")?;
+    let users: Vec<WithdrawnUserRow> = resp.json().await.context("Phase 3 대상 응답 파싱 실패")?;
 
     if users.is_empty() {
         tracing::info!("Phase 3 (5년 익명화): 대상 없음");
@@ -205,19 +199,19 @@ async fn anonymize_user(state: &AppState, user_id: Uuid) -> Result<()> {
     // 개인 식별성이 강하지만 거래/결제와 무관한 데이터들.
     // 5년 보관 의무 대상이 아니라 즉시 삭제 가능.
     let tables_to_delete = vec![
-        "user_settings",        // 알림 설정 등
-        "streaks",              // 출석 스트릭
-        "weekly_scores",        // 주간 성실도 점수
-        "notifications",        // 알림 이력
-        "chatbot_logs",         // 챗봇 대화 기록
-        "user_screenshots",     // 업로드 스크린샷
-        "user_items",           // 아바타 아이템 보유
-        "gacha_tickets",        // 가챠 티켓
-        "gacha_logs",           // 가챠 결과 (개인 식별성)
-        "budgets",              // 개인 예산 설정
-        "budget_categories",    // 예산 카테고리
-        "fixed_expenses",       // 개인 고정비
-        "reports",              // 개인 분석 리포트
+        "user_settings",     // 알림 설정 등
+        "streaks",           // 출석 스트릭
+        "weekly_scores",     // 주간 성실도 점수
+        "notifications",     // 알림 이력
+        "chatbot_logs",      // 챗봇 대화 기록
+        "user_screenshots",  // 업로드 스크린샷
+        "user_items",        // 아바타 아이템 보유
+        "gacha_tickets",     // 가챠 티켓
+        "gacha_logs",        // 가챠 결과 (개인 식별성)
+        "budgets",           // 개인 예산 설정
+        "budget_categories", // 예산 카테고리
+        "fixed_expenses",    // 개인 고정비
+        "reports",           // 개인 분석 리포트
     ];
 
     for table in tables_to_delete {

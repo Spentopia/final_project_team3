@@ -6,6 +6,22 @@ use serde_json::Value;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum ReportType {
+    Weekly,
+    Monthly,
+}
+
+impl ReportType {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Weekly => "weekly",
+            Self::Monthly => "monthly",
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct Transaction {
     pub date: String,
@@ -25,7 +41,7 @@ pub struct CategoryData {
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct GenerateReportRequest {
-    pub report_type: String,
+    pub report_type: ReportType,
 
     pub start_date: String,
 
