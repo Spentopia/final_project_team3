@@ -116,9 +116,6 @@ pub async fn analyze(state: &AppState, payload: AnalyzePayload) -> Result<Analyz
 
     let body = res.text().await.context("AI analyze body 읽기 실패")?;
 
-    println!("🔥 AI SERVER STATUS = {}", status);
-    println!("🔥 AI SERVER BODY = {}", body);
-
     if !status.is_success() {
         return Err(anyhow!("AI 서버 analyze 실패: {}", body));
     }
@@ -170,8 +167,6 @@ pub async fn budget_plan(state: &AppState, payload: BudgetPlanPayload) -> Result
         .text()
         .await
         .context("AI budget-plan 응답 body 읽기 실패")?;
-
-    println!("AI budget-plan 응답 원문: {}", body);
 
     serde_json::from_str::<BudgetPlanResult>(&body).context("AI budget-plan 응답 역직렬화 실패")
 }

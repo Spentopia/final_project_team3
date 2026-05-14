@@ -23,7 +23,7 @@ class AnalyzeService:
 
         return result
 
-# 🔥 여기부터 추가 (절대 위 코드 건드리지 말 것)
+# 리포트 생성
     @staticmethod
     def generate_report(data: dict):
         report_type = data.get("report_type", "monthly")
@@ -114,10 +114,7 @@ class AnalyzeService:
 
             return result
 
-        except Exception as e:
-            print("❌ JSON 파싱 실패:", e)
-            print("👉 GPT 응답:", content)
-
+        except Exception:
             return {
                 "good": "분석 결과를 불러오지 못했어요",
                 "warning": "데이터 해석 중 문제가 발생했어요",

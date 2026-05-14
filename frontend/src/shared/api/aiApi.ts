@@ -1,6 +1,8 @@
 import { apiClient } from "./client";
 
 export interface AnalyzeReportRequest {
+  analysis_kind: "report" | "pattern";
+
   report_type: "weekly" | "monthly";
 
   start_date: string;
@@ -48,11 +50,9 @@ export interface AnalyzeReportResponse {
 }
 
 export async function analyzeReport(
-  payload: AnalyzeReportRequest
+  payload: AnalyzeReportRequest,
+  xPayment?: string
 ): Promise<AnalyzeReportResponse> {
-
-  console.log("🔥 FINAL REQUEST =", JSON.stringify(payload, null, 2));
-
   try {
 
     const response = await apiClient.post(
@@ -61,6 +61,7 @@ export async function analyzeReport(
       {
         headers: {
           "Content-Type": "application/json",
+          ...(xPayment ? { "X-PAYMENT": xPayment } : {}),
         },
       }
     );
@@ -68,9 +69,6 @@ export async function analyzeReport(
     return response.data;
 
   } catch (error) {
-
-    console.error("AI 분석 실패:", error);
-
     throw error;
   }
 }

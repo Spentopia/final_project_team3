@@ -64,6 +64,15 @@ pub struct Config {
     // Solana RPC 엔드포인트 (Helius RPC URL 권장: https://devnet.helius-rpc.com/?api-key=xxx)
     pub solana_rpc_url: String,
 
+    // x402 분석 결제 설정
+    pub solana_x402_network: String,
+    pub solana_usdc_mint: String,
+    pub solana_platform_wallet: String,
+    pub analysis_weekly_price_micro: u64,
+    pub analysis_monthly_price_micro: u64,
+    pub analysis_weekly_free_limit: i32,
+    pub analysis_monthly_free_limit: i32,
+
     // Helius API 키 — Enhanced Transaction API 트랜잭션 검증에 사용
     pub helius_api_key: String,
 
@@ -87,6 +96,12 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> Result<Self> {
+        let helius_api_key =
+            std::env::var("HELIUS_API_KEY").context("HELIUS_API_KEY 환경변수 없음")?;
+        let solana_rpc_url = std::env::var("SOLANA_RPC_URL").unwrap_or_else(|_| {
+            format!("https://devnet.helius-rpc.com/?api-key={}", helius_api_key)
+        });
+
         Ok(Self {
             supabase_url: std::env::var("SUPABASE_URL").context("SUPABASE_URL 환경변수 없음")?,
 
@@ -139,11 +154,37 @@ impl Config {
             )
             .expect("SERVICE_LAUNCH_DATE 형식 오류. YYYY-MM-DD 형식으로 입력하세요."),
 
-            solana_rpc_url: std::env::var("SOLANA_RPC_URL")
-                .unwrap_or_else(|_| "https://devnet.helius-rpc.com".to_string()),
+            solana_rpc_url,
 
-            helius_api_key: std::env::var("HELIUS_API_KEY")
-                .context("HELIUS_API_KEY 환경변수 없음")?,
+            solana_x402_network: std::env::var("SOLANA_X402_NETWORK")
+                .unwrap_or_else(|_| "solana-devnet".to_string()),
+
+            solana_usdc_mint: std::env::var("SOLANA_USDC_MINT")
+                .unwrap_or_else(|_| "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU".to_string()),
+
+            solana_platform_wallet: std::env::var("SOLANA_PLATFORM_WALLET").unwrap_or_default(),
+
+            analysis_weekly_price_micro: std::env::var("ANALYSIS_WEEKLY_PRICE_MICRO")
+                .ok()
+                .and_then(|v| v.parse::<u64>().ok())
+                .unwrap_or(100_000),
+
+            analysis_monthly_price_micro: std::env::var("ANALYSIS_MONTHLY_PRICE_MICRO")
+                .ok()
+                .and_then(|v| v.parse::<u64>().ok())
+                .unwrap_or(200_000),
+
+            analysis_weekly_free_limit: std::env::var("ANALYSIS_WEEKLY_FREE_LIMIT")
+                .ok()
+                .and_then(|v| v.parse::<i32>().ok())
+                .unwrap_or(2),
+
+            analysis_monthly_free_limit: std::env::var("ANALYSIS_MONTHLY_FREE_LIMIT")
+                .ok()
+                .and_then(|v| v.parse::<i32>().ok())
+                .unwrap_or(4),
+
+            helius_api_key,
 
             solana_admin_keypair: std::env::var("SOLANA_ADMIN_KEYPAIR").unwrap_or_default(),
 

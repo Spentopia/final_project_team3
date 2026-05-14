@@ -57,18 +57,12 @@ class GenerateReportRequest(BaseModel):
 
 @router.post("/report")
 async def analyze_report(req: GenerateReportRequest):
-
-    print("🔥 PYTHON REQUEST =", req)
-
     result = AnalyzeService.generate_report(req.model_dump())
 
     return result
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
-    print("❌ VALIDATION ERROR =", exc.errors())
-    print("❌ BODY =", exc.body)
-
     return JSONResponse(
         status_code=422,
         content={"detail": exc.errors()},

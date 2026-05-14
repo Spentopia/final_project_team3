@@ -150,6 +150,7 @@ async fn main() {
             header::AUTHORIZATION,
             header::COOKIE,
             "x-client-type".parse().unwrap(),
+            "x-payment".parse().unwrap(),
         ])
         .allow_credentials(true);
 
