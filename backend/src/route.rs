@@ -312,6 +312,14 @@ pub fn create_router(state: AppState) -> Router {
             "/api/admin/contest/reward",
             post(reward::handler::grant_contest_reward),
         )
+        // ── 관리자 대시보드 ─────────────────────────────
+        //
+        // 관리자 첫 화면에서 사용할 운영 요약 지표.
+        // JWT + admin_middleware를 모두 통과한 관리자만 접근 가능하다.
+        .route(
+            "/api/admin/dashboard/stats",
+            get(admin::handler::get_dashboard_stats),
+        )
                 // ── 관리자 신고 관리 ─────────────────────────────
         .route(
             "/api/admin/content-reports",

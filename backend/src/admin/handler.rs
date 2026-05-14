@@ -151,6 +151,38 @@ fn map_admin_error(error: anyhow::Error) -> axum::response::Response {
     (StatusCode::INTERNAL_SERVER_ERROR, message).into_response()
 }
 
+/// 관리자: 대시보드 통계 조회
+///
+/// 관리자 첫 화면에서 보여줄 운영 지표를 조회한다.
+///
+/// 제공 지표:
+/// - 전체 회원 수
+/// - 활성 회원 수
+/// - 비활성 회원 수
+/// - 탈퇴 회원 수
+/// - 신고 상태별 수
+/// - 평균 신고 처리 시간
+#[utoipa::path(
+    get,
+    path = "/api/admin/dashboard/stats",
+    tag = "관리자",
+    responses(
+        (status = 200, description = "관리자 대시보드 통계 조회 성공", body = crate::admin::dto::AdminDashboardStatsResponse),
+        (status = 401, description = "인증 실패"),
+        (status = 403, description = "관리자 권한 없음")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn get_dashboard_stats(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    match service::get_dashboard_stats(&state).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_admin_error(e),
+    }
+}
+
+
 #[utoipa::path(
     get,
     path = "/api/admin/content-reports",

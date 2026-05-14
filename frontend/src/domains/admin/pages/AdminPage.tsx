@@ -56,6 +56,7 @@ import {
     createAdminNotice,
     createAdminContest,
     deleteAdminNotice,
+    getAdminDashboardStats,
     listAdminContentReports,
     listAdminContests,
     listAdminNotices,
@@ -69,6 +70,7 @@ import {
     type AdminContentReportResponse,
     type AdminContestResponse,
     type AdminContestStatus,
+    type AdminDashboardStatsResponse,
     type AdminReportAction,
     type AdminNoticeResponse,
     type AdminUserResponse,
@@ -245,10 +247,46 @@ export default function AdminPage() {
         setSearchParams(next, { replace: true });
     };
 
-    // 대시보드용 전체 신고 목록
+    // ─────────────────────────────────────────────
+    // 대시보드 통계 상태
+    // ─────────────────────────────────────────────
+    //
+    // dashboardStats:
+    // - GET /api/admin/dashboard/stats 응답.
+    // - 전체 회원 수, 활성/비활성/탈퇴 회원 수,
+    //   신고 상태별 수, 평균 신고 처리 시간을 담는다.
+    //
+    // isDashboardStatsLoading:
+    // - 통계 카드 영역 로딩 표시용.
+    //
+    // dashboardStatsError:
+    // - 통계 조회 실패 시 카드 영역에 표시할 에러 메시지.
+    const [dashboardStats, setDashboardStats] =
+        useState<AdminDashboardStatsResponse | null>(null);
+
+    const [isDashboardStatsLoading, setIsDashboardStatsLoading] =
+        useState(false);
+
+    const [dashboardStatsError, setDashboardStatsError] =
+        useState<string | null>(null);
+
+    // ─────────────────────────────────────────────
+    // 대시보드 최근 신고 목록 상태
+    // ─────────────────────────────────────────────
+    //
+    // dashboardReports:
+    // - 대시보드의 "최근 신고" 테이블에 보여줄 신고 목록.
+    // - 통계 카드와는 별개다.
+    // - 통계 카드는 GET /api/admin/dashboard/stats로 가져오고,
+    //   최근 신고 목록은 기존 listAdminContentReports로 가져온다.
+    //
+    // isDashboardReportsLoading:
+    // - 최근 신고 목록 영역 로딩 표시용.
+    // - 신고 관리 탭의 isReportsLoading과 구분한다.
     const [dashboardReports, setDashboardReports] = useState<
         AdminContentReportResponse[]
     >([]);
+
     const [isDashboardReportsLoading, setIsDashboardReportsLoading] =
         useState(false);
 
@@ -338,23 +376,6 @@ export default function AdminPage() {
     // 예: "2026-05-20T18:00"
     const [inactiveUntil, setInactiveUntil] = useState("");
 
-    // 대시보드 대기 신고 수.
-    const pendingReportCount = useMemo(() => {
-        return dashboardReports.filter((report) => report.status === "pending")
-            .length;
-    }, [dashboardReports]);
-
-    // 대시보드 활성 회원 수.
-    //
-    // 주의:
-    // users는 현재 페이지의 회원 목록이다.
-    // 따라서 activeUserCount는 "현재 페이지 기준 활성 회원 수"다.
-    //
-    // 전체 활성 회원 수가 필요하면 별도 통계 API가 필요하다.
-    const activeUserCount = useMemo(() => {
-        return users.filter((u) => u.is_active && !u.deleted_at).length;
-    }, [users]);
-
     const recentReports = useMemo(() => {
         return dashboardReports.slice(0, 5);
     }, [dashboardReports]);
@@ -393,6 +414,51 @@ export default function AdminPage() {
 
         return () => window.clearTimeout(timer);
     }, [userKeyword]);
+
+    // ─────────────────────────────────────────────
+    // 대시보드 통계 조회
+    // ─────────────────────────────────────────────
+    //
+    // 관리자 대시보드 카드에 표시할 운영 지표를 가져온다.
+    //
+    // 가져오는 값:
+    // - 전체 회원 수
+    // - 활성 회원 수
+    // - 비활성 회원 수
+    // - 탈퇴 회원 수
+    // - 대기중 신고 수
+    // - 처리완료 신고 수
+    // - 반려 신고 수
+    // - 평균 신고 처리 시간
+    //
+    // 실패해도 관리자 페이지 전체가 깨지지 않도록
+    // 통계 영역에만 에러 메시지를 표시한다.
+    const fetchDashboardStats = async () => {
+        setIsDashboardStatsLoading(true);
+        setDashboardStatsError(null);
+
+        try {
+            const data = await getAdminDashboardStats();
+
+            setDashboardStats(data);
+        } catch (error) {
+            console.error("관리자 대시보드 통계 조회 실패:", error);
+
+            setDashboardStats(null);
+            setDashboardStatsError("대시보드 통계를 불러오지 못했습니다.");
+        } finally {
+            setIsDashboardStatsLoading(false);
+        }
+    };
+
+    // 관리자 페이지 진입 시 대시보드 통계를 한 번 조회한다.
+    //
+    // activeTab이 dashboard일 때만 조회해도 되지만,
+    // 관리자 첫 진입 화면이 dashboard이므로 여기서는 mount 시 1회 조회한다.
+    // 새로고침 버튼은 AdminDashboard에서 onRefreshDashboardStats로 다시 호출한다.
+    useEffect(() => {
+        void fetchDashboardStats();
+    }, []);
 
     // ─────────────────────────────────────────────
     // 대시보드용 신고 목록 조회
@@ -1055,9 +1121,10 @@ export default function AdminPage() {
 
                     {activeTab === "dashboard" && (
                         <AdminDashboard
-                            pendingReportCount={pendingReportCount}
-                            totalUserCount={userTotalCount}
-                            activeUserCount={activeUserCount}
+                            dashboardStats={dashboardStats}
+                            isDashboardStatsLoading={isDashboardStatsLoading}
+                            dashboardStatsError={dashboardStatsError}
+                            onRefreshDashboardStats={() => void fetchDashboardStats()}
                             recentReports={recentReports}
                             isReportsLoading={isDashboardReportsLoading}
                             onTabChange={setAdminTab}
@@ -1147,9 +1214,7 @@ export default function AdminPage() {
                     report={selectedReport}
                     processingId={processingId}
                     onClose={() => setSelectedReport(null)}
-                    onResolve={(reportId, actionType) =>
-                        void handleResolveReport(reportId, actionType)
-                    }
+                    onResolve={(reportId) => void handleResolveReport(reportId)}
                     onReject={(reportId) => void handleRejectReport(reportId)}
                     onApplyAction={(reportId, action) =>
                         void handleApplyReportAction(reportId, action)
