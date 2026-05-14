@@ -83,6 +83,26 @@ interface Comment {
   updatedAt: string | null;
 }
 
+// 신고 모달에 넘길 신고 대상 옵션.
+//
+// ReportDialog는 targets 배열을 받아서
+// 사용자가 "무엇을 신고할지" 선택하게 만든다.
+//
+// 게시글 신고:
+// - 게시글
+// - 작성자 닉네임
+// - 작성자 프로필 사진
+//
+// 댓글/대댓글 신고:
+// - 댓글 내용
+// - 댓글 작성자 닉네임
+// - 댓글 작성자 프로필 사진
+type ReportTargetOption = {
+  type: ContentReportTargetType;
+  id: string;
+  label: string;
+};
+
 // ── 탭 정의 ──────────────────────────────────────────────────
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -349,14 +369,8 @@ export default function Community() {
   // 댓글 신고 버튼은 comment 하나만 넣음.
   //
   // null이면 모달 닫힘 상태.
-  const [reportTargets, setReportTargets] = useState<
-      {
-        type: ContentReportTargetType;
-        id: string;
-        label: string;
-      }[] | null
-  >(null);
-
+  const [reportTargets, setReportTargets] =
+      useState<ReportTargetOption[] | null>(null);
 
   const readPostsStorageKey = myUserId
     ? `${COMMUNITY_READ_POSTS_KEY_PREFIX}:${myUserId}`
@@ -916,28 +930,65 @@ export default function Community() {
   };
 
   // 신고 모달 열기
-  //
-  // targets 배열을 그대로 ReportDialog에 넘긴다.
-  //
-  // 게시글 신고 버튼:
-  // [
-  //   post,
-  //   user_nickname,
-  //   user_profile
-  // ]
-  //
-  // 댓글 신고 버튼:
-  // [
-  //   comment
-  // ]
-  const openReportDialog = (
-      targets: {
-        type: ContentReportTargetType;
-        id: string;
-        label: string;
-      }[]
-  ) => {
+//
+// targets 배열을 그대로 ReportDialog에 넘긴다.
+//
+// 게시글 신고 버튼:
+// [
+//   post,
+//   user_nickname,
+//   user_profile
+// ]
+//
+// 댓글/대댓글 신고 버튼:
+// [
+//   comment,
+//   user_nickname,
+//   user_profile
+// ]
+//
+// null이면 모달 닫힘 상태.
+  const openReportDialog = (targets: ReportTargetOption[]) => {
     setReportTargets(targets);
+  };
+
+// 댓글/대댓글 신고 대상 목록 생성.
+//
+// 댓글 UI에서 보이는 신고 버튼은 하나지만,
+// 실제 신고 대상은 3가지가 될 수 있다.
+//
+// 1. 댓글 내용 자체
+//    - target_type = "comment"
+//    - target_id = comment.id
+//
+// 2. 댓글 작성자 닉네임
+//    - target_type = "user_nickname"
+//    - target_id = comment.user_id
+//
+// 3. 댓글 작성자 프로필 사진
+//    - target_type = "user_profile"
+//    - target_id = comment.user_id
+//
+// 백엔드에서는 user_nickname/user_profile 신고 시
+// target_id를 users.id로 해석한다.
+  const getCommentReportTargets = (comment: Comment): ReportTargetOption[] => {
+    return [
+      {
+        type: "comment",
+        id: comment.id,
+        label: "댓글",
+      },
+      {
+        type: "user_nickname",
+        id: comment.user_id,
+        label: "댓글 작성자 닉네임",
+      },
+      {
+        type: "user_profile",
+        id: comment.user_id,
+        label: "댓글 작성자 프로필 사진",
+      },
+    ];
   };
 
   const handleReactPost = async (post: Post) => {
@@ -1465,22 +1516,16 @@ export default function Community() {
                                     </>
                                 ) : (
                                     /* 남 댓글 */
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            openReportDialog([
-                                              {
-                                                type: "comment",
-                                                id: comment.id,
-                                                label: "댓글",
-                                              },
-                                            ])
-                                        }
-                                        className="hover:text-red-500 transition-colors"
-                                        disabled={isCommentSubmitting}
-                                    >
-                                      <Siren className="h-5 w-5"/>
-                                    </button>
+
+                                  <button
+                                  type="button"
+                                    onClick={() => openReportDialog(getCommentReportTargets(comment))}
+                                  className="hover:text-red-500 transition-colors"
+                                  disabled={isCommentSubmitting}
+                                  title="댓글 신고"
+                                >
+                                  <Siren className="h-5 w-5" />`
+                              </button>
                                 )}
                               </div>
                             </div>
@@ -1635,19 +1680,12 @@ export default function Community() {
                                             /* 남 대댓글 */
                                             <button
                                                 type="button"
-                                                onClick={() =>
-                                                    openReportDialog([
-                                                      {
-                                                        type: "comment",
-                                                        id: reply.id,
-                                                        label: "댓글",
-                                                      },
-                                                    ])
-                                                }
+                                                onClick={() => openReportDialog(getCommentReportTargets(reply))}
                                                 className="hover:text-red-500 transition-colors"
                                                 disabled={isCommentSubmitting}
+                                                title="대댓글 신고"
                                             >
-                                              <Siren className="h-5 w-5"/>
+                                              <Siren className="h-5 w-5" />
                                             </button>
                                         )}
                                       </div>
@@ -1907,11 +1945,13 @@ export default function Community() {
 
               게시글 신고:
               - 게시글
-              - 닉네임
-              - 프로필 사진
+              - 작성자 닉네임
+              - 작성자 프로필 사진
 
-              댓글 신고:
+              댓글/대댓글 신고:
               - 댓글
+              - 댓글 작성자 닉네임
+              - 댓글 작성자 프로필 사진
           ------------------------------------------------ */}
           {reportTargets && (
               <ReportDialog

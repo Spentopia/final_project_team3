@@ -123,6 +123,25 @@ pub struct AdminContest {
     pub created_at: Option<DateTime<Utc>>,
 }
 
+
+// ─────────────────────────────────────────────
+// 신고 원본 row 조회용 모델
+// ─────────────────────────────────────────────
+//
+// apply-action에서는 view가 아니라 content_reports 원본 테이블을 조회한다.
+//
+// 이유:
+// - target_type / target_id / status만 있으면 실제 조치를 판단할 수 있음.
+// - 신고 처리 전 상태(before_status)를 감사 로그에 남겨야 함.
+#[derive(Debug, Deserialize)]
+pub struct ContentReportBaseRow {
+    pub id: Uuid,
+    pub reporter_id: Uuid,
+    pub target_type: String,
+    pub target_id: Uuid,
+    pub status: String,
+}
+
 // ─────────────────────────────────────────────
 // 관리자 감사 로그 모델
 // ─────────────────────────────────────────────
@@ -142,3 +161,73 @@ pub struct AdminAuditLog {
     pub metadata: serde_json::Value,
     pub created_at: Option<DateTime<Utc>>,
 }
+
+
+// ─────────────────────────────────────────────
+// 관리자 신고 대상 상세: 게시글 view row
+// ─────────────────────────────────────────────
+//
+// public.admin_post_targets_view 응답을 받기 위한 모델.
+//
+// target_type = "post" 신고일 때 사용한다.
+#[derive(Debug, serde::Deserialize)]
+pub struct AdminPostTargetRow {
+    pub id: Uuid,
+    pub author_id: Uuid,
+    pub author_nickname: Option<String>,
+    pub author_email: Option<String>,
+    pub author_profile_image: Option<String>,
+
+    pub title: Option<String>,
+    pub content: Option<String>,
+    pub image_url: Option<String>,
+
+    pub is_deleted: Option<bool>,
+    pub deleted_at: Option<DateTime<Utc>>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+// ─────────────────────────────────────────────
+// 관리자 신고 대상 상세: 댓글 view row
+// ─────────────────────────────────────────────
+//
+// public.admin_comment_targets_view 응답을 받기 위한 모델.
+//
+// target_type = "comment" 신고일 때 사용한다.
+#[derive(Debug, serde::Deserialize)]
+pub struct AdminCommentTargetRow {
+    pub id: Uuid,
+    pub post_id: Uuid,
+    pub parent_id: Option<Uuid>,
+
+    pub author_id: Uuid,
+    pub author_nickname: Option<String>,
+    pub author_email: Option<String>,
+    pub author_profile_image: Option<String>,
+
+    pub content: Option<String>,
+
+    pub is_deleted: Option<bool>,
+    pub deleted_at: Option<DateTime<Utc>>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+// ─────────────────────────────────────────────
+// 관리자 신고 대상 상세: 사용자 row
+// ─────────────────────────────────────────────
+//
+// user_profile / user_nickname 신고일 때 users 테이블에서 직접 조회한다.
+#[derive(Debug, serde::Deserialize)]
+pub struct AdminUserTargetRow {
+    pub id: Uuid,
+    pub email: Option<String>,
+    pub nickname: Option<String>,
+    pub profile_image: Option<String>,
+    pub is_active: Option<bool>,
+    pub deleted_at: Option<DateTime<Utc>>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+

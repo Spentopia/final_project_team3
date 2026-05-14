@@ -52,6 +52,7 @@ import AdminReportsPanel, {
 } from "@/domains/admin/components/AdminReportsPanel";
 
 import {
+    applyAdminContentReportAction,
     createAdminNotice,
     createAdminContest,
     deleteAdminNotice,
@@ -68,6 +69,7 @@ import {
     type AdminContentReportResponse,
     type AdminContestResponse,
     type AdminContestStatus,
+    type AdminReportAction,
     type AdminNoticeResponse,
     type AdminUserResponse,
     type ResolveReportActionType,
@@ -109,6 +111,23 @@ function getAdminTabFromUrl(tab: string | null): AdminTab {
     }
 
     return "dashboard";
+}
+
+function getReportActionSuccessMessage(action: AdminReportAction): string {
+    switch (action) {
+        case "delete_post":
+            return "게시글을 삭제하고 신고를 처리 완료했습니다.";
+        case "delete_comment":
+            return "댓글을 삭제하고 신고를 처리 완료했습니다.";
+        case "clear_profile_image":
+            return "프로필 사진을 기본 이미지로 변경하고 신고를 처리 완료했습니다.";
+        case "request_profile_image_change":
+            return "프로필 사진 변경 요청 조치를 처리 완료했습니다.";
+        case "request_nickname_change":
+            return "닉네임 변경 요청 조치를 처리 완료했습니다.";
+        default:
+            return "운영 조치를 완료했습니다.";
+    }
 }
 
 // ─────────────────────────────────────────────
@@ -567,6 +586,123 @@ export default function AdminPage() {
         };
     }, []);
 
+    // ─────────────────────────────────────────────
+// 신고 처리 후 현재 목록 상태 동기화
+// ─────────────────────────────────────────────
+//
+// 신고 처리/반려/운영 조치 후에는 updated.status가 바뀐다.
+//
+// 문제:
+// - 현재 필터가 "pending"인데 신고를 resolved/rejected로 바꿔도,
+//   단순 map 교체만 하면 pending 목록에 계속 남아 보인다.
+//
+// 해결:
+// - updated row가 현재 필터 조건에 맞으면 목록에서 교체
+// - 현재 필터 조건에 맞지 않으면 목록에서 제거
+//
+// 예:
+// - reportStatus = "pending"
+// - updated.status = "resolved"
+// → 현재 목록에서 제거
+    const syncUpdatedReportInCurrentList = (updated: AdminContentReportResponse) => {
+        const matchesCurrentFilter = (() => {
+            // 상태 필터
+            if (reportStatus !== "all" && updated.status !== reportStatus) {
+                return false;
+            }
+
+            // 신고 대상 타입 필터
+            if (
+                reportTargetType !== "all" &&
+                updated.target_type !== reportTargetType
+            ) {
+                return false;
+            }
+
+            // 신고 사유 필터
+            if (reportReason !== "all" && updated.reason !== reportReason) {
+                return false;
+            }
+
+            return true;
+        })();
+
+        setReports((prev) => {
+            const existsInCurrentPage = prev.some((report) => report.id === updated.id);
+
+            // 현재 필터에 맞지 않으면 목록에서 제거한다.
+            if (!matchesCurrentFilter) {
+                return prev.filter((report) => report.id !== updated.id);
+            }
+
+            // 현재 필터에 맞고 현재 페이지에 있으면 updated로 교체한다.
+            if (existsInCurrentPage) {
+                return prev.map((report) =>
+                    report.id === updated.id ? updated : report
+                );
+            }
+
+            // 현재 페이지에 없던 신고를 갑자기 추가하지는 않는다.
+            // 페이지네이션/정렬이 꼬일 수 있기 때문이다.
+            return prev;
+        });
+
+        // 현재 필터에서 빠지는 경우 totalCount도 1 감소시킨다.
+        //
+        // 예:
+        // pending 목록 총 15건
+        // 하나를 resolved 처리
+        // → pending 총 14건
+        if (!matchesCurrentFilter) {
+            setReportTotalCount((prev) => Math.max(0, prev - 1));
+        }
+
+        // 대시보드용 신고 목록은 필터 목록이 아니므로 단순 교체.
+        setDashboardReports((prev) =>
+            prev.map((report) => (report.id === updated.id ? updated : report))
+        );
+
+        // 상세 모달도 최신 상태로 갱신.
+        setSelectedReport((current) =>
+            current?.id === updated.id ? updated : current
+        );
+    };
+
+
+    // 신고 운영 조치 적용.
+    //
+    // 게시글 삭제, 댓글 삭제, 프로필 이미지 제거, 변경 요청 처리 같은
+    // 실제 운영 액션을 처리한다.
+    //
+    // 알림 제외 버전이므로 request_* action은
+    // 사용자 알림을 보내지는 않고, 신고 처리완료 + 감사 로그만 남긴다.
+    const handleApplyReportAction = async (
+        reportId: string,
+        action: AdminReportAction
+    ) => {
+        if (processingId) return;
+
+        setProcessingId(reportId);
+
+        try {
+            const updated = await applyAdminContentReportAction(reportId, {
+                action,
+            });
+
+            syncUpdatedReportInCurrentList(updated);
+            setSelectedReport(null);
+
+            toast.success(getReportActionSuccessMessage(action));
+        } catch (error) {
+            console.error("신고 운영 조치 실패:", error);
+            toast.error(
+                getAdminApiErrorMessage(error, "신고 운영 조치에 실패했습니다.")
+            );
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
     // 신고 처리 완료
     const handleResolveReport = async (
         reportId: string,
@@ -579,17 +715,8 @@ export default function AdminPage() {
         try {
             const updated = await resolveAdminContentReport(reportId, actionType);
 
-            setReports((prev) =>
-                prev.map((report) => (report.id === reportId ? updated : report))
-            );
-
-            setDashboardReports((prev) =>
-                prev.map((report) => (report.id === reportId ? updated : report))
-            );
-
-            setSelectedReport((current) =>
-                current?.id === reportId ? updated : current
-            );
+            syncUpdatedReportInCurrentList(updated);
+            setSelectedReport(null);
 
             toast.success("신고를 처리 완료했습니다.");
         } catch (error) {
@@ -609,17 +736,8 @@ export default function AdminPage() {
         try {
             const updated = await rejectAdminContentReport(reportId);
 
-            setReports((prev) =>
-                prev.map((report) => (report.id === reportId ? updated : report))
-            );
-
-            setDashboardReports((prev) =>
-                prev.map((report) => (report.id === reportId ? updated : report))
-            );
-
-            setSelectedReport((current) =>
-                current?.id === reportId ? updated : current
-            );
+            syncUpdatedReportInCurrentList(updated);
+            setSelectedReport(null);
 
             toast.success("신고를 반려했습니다.");
         } catch (error) {
@@ -961,7 +1079,6 @@ export default function AdminPage() {
                             totalCount={reportTotalCount}
                             pageSize={REPORTS_PAGE_SIZE}
                             isReportsLoading={isReportsLoading}
-                            processingId={processingId}
                             onReportStatusChange={setReportStatus}
                             onTargetTypeChange={setReportTargetType}
                             onReasonChange={setReportReason}
@@ -977,8 +1094,6 @@ export default function AdminPage() {
                             onSortChange={handleReportSortChange}
                             onPageChange={setReportPage}
                             onSelectReport={setSelectedReport}
-                            onResolveReport={handleResolveReport}
-                            onRejectReport={handleRejectReport}
                         />
                     )}
 
@@ -1036,6 +1151,9 @@ export default function AdminPage() {
                         void handleResolveReport(reportId, actionType)
                     }
                     onReject={(reportId) => void handleRejectReport(reportId)}
+                    onApplyAction={(reportId, action) =>
+                        void handleApplyReportAction(reportId, action)
+                    }
                 />
             )}
 

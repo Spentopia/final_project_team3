@@ -38,19 +38,42 @@
 
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
+use serde_json::json;
 use uuid::Uuid;
 
 use crate::state::AppState;
 
 use super::{
     dto::{
-        AdminAuditLogResponse, AdminContentReportListResponse, AdminContentReportResponse,
-        AdminContestResponse, AdminNoticeResponse, AdminUserListResponse, AdminUserResponse,
-        CreateAdminContestRequest, CreateAdminNoticeRequest, ResolveReportActionType,
-        UpdateAdminContestRequest, UpdateAdminContestStatusRequest, UpdateAdminNoticeRequest,
+        AdminAuditLogResponse,
+        AdminContentReportListResponse,
+        AdminContentReportResponse,
+        AdminContestResponse,
+        AdminNoticeResponse,
+        AdminReportAction,
+        AdminReportTargetDetailResponse,
+        AdminUserListResponse,
+        AdminUserResponse,
+        ApplyContentReportActionRequest,
+        CreateAdminContestRequest,
+        CreateAdminNoticeRequest,
+        ResolveReportActionType,
+        UpdateAdminContestRequest,
+        UpdateAdminContestStatusRequest,
+        UpdateAdminNoticeRequest,
     },
     handler::{AdminUserQuery, ContentReportQuery},
-    model::{AdminAuditLog, AdminContentReport, AdminContest, AdminNotice, AdminUser},
+    model::{
+        AdminAuditLog,
+        AdminCommentTargetRow,
+        AdminContentReport,
+        AdminContest,
+        AdminNotice,
+        AdminPostTargetRow,
+        AdminUser,
+        AdminUserTargetRow,
+        ContentReportBaseRow,
+    },
 };
 
 /// DB/view 모델을 관리자 신고 응답 DTO로 변환한다.
@@ -95,6 +118,113 @@ fn to_audit_log_response(row: AdminAuditLog) -> AdminAuditLogResponse {
         after_status: row.after_status,
         metadata: row.metadata,
         created_at: row.created_at,
+    }
+}
+
+/// 게시글 신고 대상 row를 프론트 응답 DTO로 변환한다.
+///
+/// author_profile_image_url:
+/// - 게시글 작성자 프로필 이미지를 관리자 모달에서 보여주기 위한 signed URL.
+async fn to_post_target_detail(
+    state: &AppState,
+    row: AdminPostTargetRow,
+) -> AdminReportTargetDetailResponse {
+    let author_profile_image_url = maybe_profile_image_signed_url(
+        state,
+        row.author_profile_image.as_deref(),
+    )
+        .await;
+
+    AdminReportTargetDetailResponse::Post {
+        id: row.id,
+
+        author_id: row.author_id,
+        author_nickname: row.author_nickname,
+        author_email: row.author_email,
+        author_profile_image: row.author_profile_image,
+        author_profile_image_url,
+
+        title: row.title,
+        content: row.content,
+        image_url: row.image_url,
+
+        is_deleted: row.is_deleted.unwrap_or(false),
+        deleted_at: row.deleted_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+    }
+}
+
+/// 댓글 신고 대상 row를 프론트 응답 DTO로 변환한다.
+async fn to_comment_target_detail(
+    state: &AppState,
+    row: AdminCommentTargetRow,
+) -> AdminReportTargetDetailResponse {
+    let author_profile_image_url = maybe_profile_image_signed_url(
+        state,
+        row.author_profile_image.as_deref(),
+    )
+        .await;
+
+    AdminReportTargetDetailResponse::Comment {
+        id: row.id,
+        post_id: row.post_id,
+        parent_id: row.parent_id,
+
+        author_id: row.author_id,
+        author_nickname: row.author_nickname,
+        author_email: row.author_email,
+        author_profile_image: row.author_profile_image,
+        author_profile_image_url,
+
+        content: row.content,
+
+        is_deleted: row.is_deleted.unwrap_or(false),
+        deleted_at: row.deleted_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+    }
+}
+
+/// 사용자 신고 대상 row를 프로필 사진 신고 응답 DTO로 변환한다.
+///
+/// profile_image_url:
+/// - users.profile_image path를 signed URL로 변환한 값.
+/// - 프론트는 이 값을 img src로 사용한다.
+async fn to_user_profile_target_detail(
+    state: &AppState,
+    row: AdminUserTargetRow,
+) -> AdminReportTargetDetailResponse {
+    let profile_image_url =
+        maybe_profile_image_signed_url(state, row.profile_image.as_deref()).await;
+
+    AdminReportTargetDetailResponse::UserProfile {
+        user_id: row.id,
+        nickname: row.nickname,
+        email: row.email,
+        profile_image: row.profile_image,
+        profile_image_url,
+        is_active: row.is_active.unwrap_or(true),
+        deleted_at: row.deleted_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+    }
+}
+
+/// 사용자 신고 대상 row를 닉네임 신고 응답 DTO로 변환한다.
+///
+/// 닉네임 신고는 현재 닉네임/이메일/계정 상태만 보여주면 충분하다.
+fn to_user_nickname_target_detail(
+    row: AdminUserTargetRow,
+) -> AdminReportTargetDetailResponse {
+    AdminReportTargetDetailResponse::UserNickname {
+        user_id: row.id,
+        nickname: row.nickname,
+        email: row.email,
+        is_active: row.is_active.unwrap_or(true),
+        deleted_at: row.deleted_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
     }
 }
 
@@ -749,6 +879,175 @@ fn validate_resolve_action_for_target(
     }
 }
 
+/// content_reports 원본 테이블에서 신고 정보를 조회한다.
+///
+/// apply-action에서는 다음 정보가 필요하다.
+/// - target_type: 어떤 대상 신고인지
+/// - target_id: 실제 조치 대상 id
+/// - status: 이미 처리된 신고인지 확인
+///
+/// view가 아니라 원본 테이블을 보는 이유:
+/// - 필요한 정보가 명확하고 적다.
+/// - 신고 상태 변경 전 before_status를 감사 로그에 남기기 좋다.
+async fn get_content_report_base_by_id(
+    state: &AppState,
+    report_id: Uuid,
+) -> Result<ContentReportBaseRow> {
+    let url = format!(
+        "{}/rest/v1/content_reports?id=eq.{}&select=id,reporter_id,target_type,target_id,status&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        report_id
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("신고 원본 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("신고 원본 조회 실패: {}", body));
+    }
+
+    let rows: Vec<ContentReportBaseRow> = res
+        .json()
+        .await
+        .context("신고 원본 조회 응답 파싱 실패")?;
+
+    rows.into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("신고를 찾을 수 없습니다."))
+}
+
+/// 관리자: 게시글 신고 대상 상세 조회.
+async fn get_admin_post_target_detail(
+    state: &AppState,
+    post_id: Uuid,
+) -> Result<AdminReportTargetDetailResponse> {
+    let url = format!(
+        "{}/rest/v1/admin_post_targets_view?id=eq.{}&select=id,author_id,author_nickname,author_email,author_profile_image,title,content,image_url,is_deleted,deleted_at,created_at,updated_at&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        post_id
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("관리자 게시글 신고 대상 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 게시글 신고 대상 조회 실패: {}", body));
+    }
+
+    let rows: Vec<AdminPostTargetRow> = res
+        .json()
+        .await
+        .context("관리자 게시글 신고 대상 응답 파싱 실패")?;
+
+    let row = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("신고 대상 게시글을 찾을 수 없습니다."))?;
+
+    Ok(to_post_target_detail(state, row).await)
+}
+
+/// 관리자: 댓글 신고 대상 상세 조회.
+async fn get_admin_comment_target_detail(
+    state: &AppState,
+    comment_id: Uuid,
+) -> Result<AdminReportTargetDetailResponse> {
+    let url = format!(
+        "{}/rest/v1/admin_comment_targets_view?id=eq.{}&select=id,post_id,parent_id,author_id,author_nickname,author_email,author_profile_image,content,is_deleted,deleted_at,created_at,updated_at&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        comment_id
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("관리자 댓글 신고 대상 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 댓글 신고 대상 조회 실패: {}", body));
+    }
+
+    let rows: Vec<AdminCommentTargetRow> = res
+        .json()
+        .await
+        .context("관리자 댓글 신고 대상 응답 파싱 실패")?;
+
+    let row = rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("신고 대상 댓글을 찾을 수 없습니다."))?;
+
+    Ok(to_comment_target_detail(state, row).await)
+}
+
+/// 관리자: 사용자 신고 대상 row 조회.
+///
+/// user_profile / user_nickname 신고에서 공통으로 사용한다.
+async fn get_admin_user_target_row(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<AdminUserTargetRow> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}&select=id,email,nickname,profile_image,is_active,deleted_at,created_at,updated_at&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .context("관리자 사용자 신고 대상 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 사용자 신고 대상 조회 실패: {}", body));
+    }
+
+    let rows: Vec<AdminUserTargetRow> = res
+        .json()
+        .await
+        .context("관리자 사용자 신고 대상 응답 파싱 실패")?;
+
+    rows.into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("신고 대상 사용자를 찾을 수 없습니다."))
+}
+
 /// 관리자: 신고 상태 변경 공통 함수
 ///
 /// resolve/reject가 하는 일이 거의 같기 때문에
@@ -937,6 +1236,220 @@ pub async fn resolve_content_report(
     .await
 }
 
+/// 신고를 처리완료 상태로 변경한다.
+///
+/// apply-action은 실제 운영 조치를 수행한 뒤 신고를 resolved 처리한다.
+/// 기존 resolve API와 역할은 비슷하지만,
+/// 여기서는 운영 조치 action과 감사 로그 metadata를 함께 관리하기 위해 별도 함수로 둔다.
+async fn mark_content_report_resolved_by_action(
+    state: &AppState,
+    admin_id: Uuid,
+    report_id: Uuid,
+    reviewed_at: &str,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/content_reports?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        report_id
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .json(&json!({
+            "status": "resolved",
+            "reviewed_by": admin_id,
+            "reviewed_at": reviewed_at
+        }))
+        .send()
+        .await
+        .context("운영 조치 후 신고 처리완료 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("운영 조치 후 신고 처리완료 실패: {}", body));
+    }
+
+    Ok(())
+}
+
+/// 사용자의 프로필 이미지를 기본 이미지로 되돌린다.
+///
+/// 주의:
+/// - profile_image를 null로 만들지 않는다.
+/// - 프로젝트 기본 프로필 이미지 경로가 "defaults/avatar.png"이므로
+///   운영자가 프로필 이미지를 제거하면 이 기본 이미지로 교체한다.
+///
+/// 왜 storage 파일을 직접 삭제하지 않는가?
+/// - 업로드된 파일이 다른 곳에서 참조될 수 있다.
+/// - storage object 삭제 권한/경로 처리까지 같이 하면 로직이 커진다.
+/// - 관리자 조치의 목적은 "사용자 화면에서 부적절한 이미지가 더 이상 보이지 않게 하는 것"이므로
+///   users.profile_image 값을 기본 이미지 경로로 바꾸는 것으로 충분하다.
+async fn clear_user_profile_image_by_admin(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/users?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            // 프로젝트 기본 프로필 이미지 경로.
+            //
+            // 기존 코드처럼 null로 두면 프론트에서 null 처리 분기가 필요하거나
+            // 이미지가 깨질 수 있다.
+            "profile_image": "defaults/avatar.png",
+
+            // users 테이블에 updated_at을 운영 중이라면 같이 갱신한다.
+            "updated_at": Utc::now().to_rfc3339()
+        }))
+        .send()
+        .await
+        .context("관리자 프로필 이미지 기본값 변경 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+
+        return Err(anyhow!(
+            "관리자 프로필 이미지 기본값 변경 실패: {}",
+            body
+        ));
+    }
+
+    Ok(())
+}
+
+/// 관리자: 신고에 실제 운영 조치를 적용한다.
+///
+/// API:
+/// PATCH /api/admin/content-reports/{id}/apply-action
+///
+/// 지원 action:
+/// - delete_post
+/// - delete_comment
+/// - clear_profile_image
+/// - request_profile_image_change
+/// - request_nickname_change
+///
+/// 알림 제외 버전 동작:
+/// - 게시글/댓글/프로필 이미지 제거는 실제 데이터 변경
+/// - 닉네임 변경 요청/프로필 사진 변경 요청은 실제 데이터 변경 없이
+///   신고 resolved 처리와 감사 로그 기록만 수행
+///
+/// 처리 흐름:
+/// 1. 신고 원본 조회
+/// 2. 이미 처리된 신고인지 확인
+/// 3. action과 target_type 매칭 검증
+/// 4. 실제 조치 수행
+/// 5. 신고 status = resolved 처리
+/// 6. 관리자 감사 로그 기록
+/// 7. 최신 신고 row를 view에서 다시 조회해 반환
+pub async fn apply_content_report_action(
+    state: &AppState,
+    admin_id: Uuid,
+    report_id: Uuid,
+    req: ApplyContentReportActionRequest,
+) -> Result<AdminContentReportResponse> {
+    // 1. 신고 원본 조회.
+    let report = get_content_report_base_by_id(state, report_id).await?;
+
+    // 2. 이미 처리된 신고인지 확인.
+    //
+    // 이미 resolved/rejected인 신고에 다시 운영 조치를 적용하면
+    // 중복 삭제/중복 감사 로그가 발생할 수 있다.
+    if report.status != "pending" {
+        return Err(anyhow!("이미 처리된 신고입니다."));
+    }
+
+    // 3. action과 target_type 검증.
+    validate_report_action_target(&req.action, &report.target_type)?;
+
+    // 4. 실제 운영 조치 수행.
+    //
+    // request_profile_image_change / request_nickname_change는
+    // 알림 기능을 제외했기 때문에 실제 데이터 변경은 없다.
+    // 대신 아래 감사 로그 metadata에 어떤 요청 조치를 했는지 기록한다.
+    match req.action {
+        AdminReportAction::DeletePost => {
+            soft_delete_post_by_admin(state, report.target_id).await?;
+        }
+        AdminReportAction::DeleteComment => {
+            soft_delete_comment_by_admin(state, report.target_id).await?;
+        }
+        AdminReportAction::ClearProfileImage => {
+            clear_user_profile_image_by_admin(state, report.target_id).await?;
+        }
+        AdminReportAction::RequestProfileImageChange => {
+            // 알림 제외 버전:
+            // 여기서는 실제 데이터 변경 없음.
+            // 나중에 알림 담당 기능과 연결하면 이 action에서 알림을 생성하면 됨.
+        }
+        AdminReportAction::RequestNicknameChange => {
+            // 알림 제외 버전:
+            // 여기서는 실제 데이터 변경 없음.
+            // 나중에 알림 담당 기능과 연결하면 이 action에서 알림을 생성하면 됨.
+        }
+    }
+
+    // 5. 신고 상태 resolved 처리.
+    let reviewed_at = Utc::now().to_rfc3339();
+
+    mark_content_report_resolved_by_action(
+        state,
+        admin_id,
+        report_id,
+        &reviewed_at,
+    )
+        .await?;
+
+    // 6. 감사 로그 기록.
+    //
+    // create_admin_audit_log는 이전에 감사 로그 기능 만들 때 추가한 함수다.
+    // 같은 service.rs 안에 있으면 private 함수여도 호출 가능하다.
+    create_admin_audit_log(
+        state,
+        admin_id,
+        "content_report_action_applied",
+        "content_report",
+        report_id,
+        Some(report.status.as_str()),
+        Some("resolved"),
+        json!({
+            "report_action": admin_report_action_as_str(&req.action),
+            "report_target_type": report.target_type,
+            "report_target_id": report.target_id,
+            "reviewed_by": admin_id,
+            "reviewed_at": reviewed_at,
+            "notification_excluded": true
+        }),
+    )
+        .await?;
+
+    // 7. 최신 신고 row 반환.
+    //
+    // get_content_report_from_view_by_id는 기존 신고 목록용 view에서
+    // reporter_nickname, reporter_email, target_report_count 등을 포함해서 조회하는 함수다.
+    get_content_report_from_view_by_id(state, report_id).await
+}
+
+
 /// 관리자: 신고 반려
 ///
 /// API:
@@ -1002,6 +1515,92 @@ pub async fn list_content_report_audit_logs(
         .context("관리자 감사 로그 목록 응답 파싱 실패")?;
 
     Ok(rows.into_iter().map(to_audit_log_response).collect())
+}
+
+/// 관리자: 신고 대상 상세 조회.
+///
+/// API:
+/// GET /api/admin/content-reports/{id}/target
+///
+/// 이 함수가 필요한 이유:
+/// - 신고 상세 모달에서 target_id만 보여주면 관리자가 판단할 수 없다.
+/// - 게시글이면 제목/내용/이미지,
+///   댓글이면 댓글 내용,
+///   프로필 신고면 현재 프로필 이미지,
+///   닉네임 신고면 현재 닉네임을 보여줘야 한다.
+///
+/// 처리 흐름:
+/// 1. 신고 ID로 content_reports 원본 row 조회
+/// 2. target_type 확인
+/// 3. target_type별 상세 조회
+pub async fn get_content_report_target_detail(
+    state: &AppState,
+    report_id: Uuid,
+) -> Result<AdminReportTargetDetailResponse> {
+    let report = get_content_report_base_by_id(state, report_id).await?;
+
+    match report.target_type.as_str() {
+        "post" => get_admin_post_target_detail(state, report.target_id).await,
+
+        "comment" => get_admin_comment_target_detail(state, report.target_id).await,
+
+        "user_profile" => {
+            let user = get_admin_user_target_row(state, report.target_id).await?;
+            Ok(to_user_profile_target_detail(state, user).await)
+        }
+
+        "user_nickname" => {
+            let user = get_admin_user_target_row(state, report.target_id).await?;
+            Ok(to_user_nickname_target_detail(user))
+        }
+
+        other => Err(anyhow!("지원하지 않는 신고 대상 타입입니다: {}", other)),
+    }
+}
+
+/// AdminReportAction을 감사 로그 metadata에 넣기 좋은 문자열로 변환한다.
+///
+/// 예:
+/// AdminReportAction::DeletePost -> "delete_post"
+fn admin_report_action_as_str(action: &AdminReportAction) -> &'static str {
+    match action {
+        AdminReportAction::DeletePost => "delete_post",
+        AdminReportAction::DeleteComment => "delete_comment",
+        AdminReportAction::ClearProfileImage => "clear_profile_image",
+        AdminReportAction::RequestProfileImageChange => "request_profile_image_change",
+        AdminReportAction::RequestNicknameChange => "request_nickname_change",
+    }
+}
+
+/// 신고 대상 타입과 운영 조치 action이 맞는지 검증한다.
+///
+/// 프론트에서 버튼을 target_type별로 다르게 보여줘도,
+/// 백엔드 검증은 반드시 필요하다.
+///
+/// 예:
+/// - 닉네임 신고인데 delete_post를 보내면 차단
+/// - 댓글 신고인데 clear_profile_image를 보내면 차단
+fn validate_report_action_target(
+    action: &AdminReportAction,
+    target_type: &str,
+) -> Result<()> {
+    let valid = match action {
+        AdminReportAction::DeletePost => target_type == "post",
+        AdminReportAction::DeleteComment => target_type == "comment",
+        AdminReportAction::ClearProfileImage => target_type == "user_profile",
+        AdminReportAction::RequestProfileImageChange => target_type == "user_profile",
+        AdminReportAction::RequestNicknameChange => target_type == "user_nickname",
+    };
+
+    if !valid {
+        return Err(anyhow!(
+            "신고 대상 타입과 운영 조치가 일치하지 않습니다. target_type={}, action={}",
+            target_type,
+            admin_report_action_as_str(action)
+        ));
+    }
+
+    Ok(())
 }
 
 /// 관리자: 회원 목록 조회 (페이지네이션 + 검색)
@@ -1824,4 +2423,181 @@ pub async fn update_contest_status(
         .ok_or_else(|| anyhow!("콘테스트를 찾을 수 없습니다."))?;
 
     Ok(to_contest_response(row))
+}
+
+/// 게시글을 soft delete 처리한다.
+///
+/// 물리 삭제하지 않는 이유:
+/// - 신고 처리 이력과 데이터 추적을 위해 원본 row를 남기는 게 좋다.
+/// - 복구/감사/분쟁 대응 가능성이 있다.
+async fn soft_delete_post_by_admin(
+    state: &AppState,
+    post_id: Uuid,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/posts?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        post_id
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .json(&json!({
+            "is_deleted": true,
+            "deleted_at": Utc::now().to_rfc3339()
+        }))
+        .send()
+        .await
+        .context("관리자 게시글 soft delete 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 게시글 soft delete 실패: {}", body));
+    }
+
+    Ok(())
+}
+
+/// 댓글을 soft delete 처리한다.
+///
+/// 부모 댓글을 삭제하면 자식 대댓글도 같이 삭제한다.
+/// 기존 프론트 댓글 삭제 로직도 부모 댓글 삭제 시 자식 대댓글을 함께 제거하므로,
+/// 관리자 조치도 같은 정책으로 맞춘다.
+///
+/// PostgREST or 문법:
+/// or=(id.eq.{comment_id},parent_id.eq.{comment_id})
+async fn soft_delete_comment_by_admin(
+    state: &AppState,
+    comment_id: Uuid,
+) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/comments?or=(id.eq.{},parent_id.eq.{})",
+        state.config.supabase_url.trim_end_matches('/'),
+        comment_id,
+        comment_id
+    );
+
+    let res = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .json(&json!({
+            "is_deleted": true,
+            "deleted_at": Utc::now().to_rfc3339()
+        }))
+        .send()
+        .await
+        .context("관리자 댓글 soft delete 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("관리자 댓글 soft delete 실패: {}", body));
+    }
+
+    Ok(())
+}
+
+/// 관리자 화면에서 프로필 이미지를 보여주기 위한 signed URL을 생성한다.
+///
+/// 왜 프론트에서 직접 URL을 만들지 않는가?
+/// - 프로필 이미지 버킷은 public이 아닐 수 있다.
+/// - 실제 버킷명은 config의 supabase_profile_image_bucket을 사용한다.
+/// - 커뮤니티 게시글/댓글 작성자 프로필 이미지도 백엔드에서 signed URL을 만들어 내려주는 구조다.
+///
+/// path 예:
+/// - "defaults/avatar.png"
+/// - "users/{user_id}/xxx.webp"
+///
+/// 반환:
+/// - Supabase signedURL이 상대경로로 오면 supabase_url을 붙여서 full URL로 변환한다.
+/// - 실패하면 호출부에서 .ok()로 None 처리할 수 있다.
+async fn create_admin_profile_image_signed_url(
+    state: &AppState,
+    path: &str,
+) -> Result<String> {
+    let path = path.trim();
+
+    if path.is_empty() {
+        return Err(anyhow!("프로필 이미지 path가 비어 있습니다"));
+    }
+
+    let url = format!(
+        "{}/storage/v1/object/sign/{}/{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        state.config.supabase_profile_image_bucket,
+        path,
+    );
+
+    let res = state
+        .http_client
+        .post(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .json(&json!({
+            "expiresIn": 60 * 60 * 24
+        }))
+        .send()
+        .await
+        .context("관리자 프로필 이미지 signed URL 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+
+        return Err(anyhow!(
+            "관리자 프로필 이미지 signed URL 실패: {}",
+            body
+        ));
+    }
+
+    let body: Value = res
+        .json()
+        .await
+        .context("관리자 프로필 이미지 signed URL 응답 파싱 실패")?;
+
+    let signed_url = body
+        .get("signedURL")
+        .or_else(|| body.get("signed_url"))
+        .and_then(|value| value.as_str())
+        .ok_or_else(|| anyhow!("관리자 프로필 이미지 signed URL 응답이 비어 있습니다"))?;
+
+    if signed_url.starts_with("http") {
+        Ok(signed_url.to_string())
+    } else {
+        Ok(format!(
+            "{}/storage/v1{}",
+            state.config.supabase_url.trim_end_matches('/'),
+            signed_url
+        ))
+    }
+}
+
+/// profile_image path를 signed URL로 변환한다.
+///
+/// 실패해도 신고 대상 상세 전체를 실패시키지는 않는다.
+/// 이미지 URL 생성 실패 때문에 텍스트 신고 내용까지 못 보는 건 운영상 불편하기 때문.
+async fn maybe_profile_image_signed_url(
+    state: &AppState,
+    path: Option<&str>,
+) -> Option<String> {
+    match path {
+        Some(path) if !path.trim().is_empty() => {
+            create_admin_profile_image_signed_url(state, path).await.ok()
+        }
+        _ => None,
+    }
 }

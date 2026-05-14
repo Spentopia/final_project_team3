@@ -25,8 +25,13 @@ use crate::state::AppState;
 
 use super::{
     dto::{
-        CreateAdminContestRequest, CreateAdminNoticeRequest, ResolveContentReportRequest,
-        UpdateAdminContestRequest, UpdateAdminContestStatusRequest, UpdateAdminNoticeRequest,
+        ApplyContentReportActionRequest,
+        CreateAdminContestRequest,
+        CreateAdminNoticeRequest,
+        ResolveContentReportRequest,
+        UpdateAdminContestRequest,
+        UpdateAdminContestStatusRequest,
+        UpdateAdminNoticeRequest,
         UpdateUserActiveRequest,
     },
     service,
@@ -136,6 +141,9 @@ fn map_admin_error(error: anyhow::Error) -> axum::response::Response {
         || message.contains("탈퇴한 회원은 활성/비활성")
         || message.contains("운영자 계정은 활성/비활성")
         || message.contains("비활성화 사유")
+        || message.contains("신고 대상과 처리 조치")
+        || message.contains("신고 대상 타입과 운영 조치")
+        || message.contains("이미 처리된 신고")
     {
         return (StatusCode::BAD_REQUEST, message).into_response();
     }
@@ -506,3 +514,75 @@ pub async fn update_contest_status(
         Err(e) => map_admin_error(e),
     }
 }
+
+
+/// 관리자: 신고에 실제 운영 조치 적용
+///
+/// 예:
+/// PATCH /api/admin/content-reports/{id}/apply-action
+/// {
+///   "action": "delete_post"
+/// }
+#[utoipa::path(
+    patch,
+    path = "/api/admin/content-reports/{id}/apply-action",
+    tag = "관리자",
+    params(
+        ("id" = Uuid, Path, description = "신고 ID")
+    ),
+    request_body = ApplyContentReportActionRequest,
+    responses(
+        (status = 200, description = "신고 운영 조치 적용 성공", body = crate::admin::dto::AdminContentReportResponse),
+        (status = 400, description = "잘못된 요청 또는 대상 타입 불일치"),
+        (status = 401, description = "인증 실패"),
+        (status = 403, description = "관리자 권한 없음"),
+        (status = 404, description = "신고 또는 대상 없음")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn apply_content_report_action(
+    State(state): State<AppState>,
+    Path(report_id): Path<Uuid>,
+    Extension(admin_id): Extension<Uuid>,
+    Json(req): Json<ApplyContentReportActionRequest>,
+) -> impl IntoResponse {
+    match service::apply_content_report_action(&state, admin_id, report_id, req).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_admin_error(e),
+    }
+}
+
+/// 관리자: 신고 대상 상세 조회
+///
+/// 신고 상세 모달에서 실제 신고당한 대상 정보를 보여주기 위한 API.
+///
+/// 예:
+/// - 게시글 신고: 게시글 제목/내용/이미지/작성자
+/// - 댓글 신고: 댓글 내용/작성자
+/// - 프로필 신고: 현재 프로필 이미지/사용자 정보
+/// - 닉네임 신고: 현재 닉네임/사용자 정보
+#[utoipa::path(
+    get,
+    path = "/api/admin/content-reports/{id}/target",
+    tag = "관리자",
+    params(
+        ("id" = Uuid, Path, description = "신고 ID")
+    ),
+    responses(
+        (status = 200, description = "신고 대상 상세 조회 성공", body = crate::admin::dto::AdminReportTargetDetailResponse),
+        (status = 401, description = "인증 실패"),
+        (status = 403, description = "관리자 권한 없음"),
+        (status = 404, description = "신고 또는 신고 대상 없음")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn get_content_report_target_detail(
+    State(state): State<AppState>,
+    Path(report_id): Path<Uuid>,
+) -> impl IntoResponse {
+    match service::get_content_report_target_detail(&state, report_id).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_admin_error(e),
+    }
+}
+

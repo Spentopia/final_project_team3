@@ -93,7 +93,6 @@ type AdminReportsPanelProps = {
     pageSize: number;
 
     isReportsLoading: boolean;
-    processingId: string | null;
 
     // 필터 핸들러
     onReportStatusChange: (status: ReportStatusFilter) => void;
@@ -109,8 +108,6 @@ type AdminReportsPanelProps = {
 
     // 신고 처리
     onSelectReport: (report: AdminContentReportResponse) => void;
-    onResolveReport: (reportId: string) => void;
-    onRejectReport: (reportId: string) => void;
 };
 
 const REPORT_FILTERS: Array<{ value: ReportStatusFilter; label: string }> = [
@@ -155,7 +152,6 @@ export default function AdminReportsPanel({
                                               totalCount,
                                               pageSize,
                                               isReportsLoading,
-                                              processingId,
                                               onReportStatusChange,
                                               onTargetTypeChange,
                                               onReasonChange,
@@ -165,8 +161,6 @@ export default function AdminReportsPanel({
                                               onSortChange,
                                               onPageChange,
                                               onSelectReport,
-                                              onResolveReport,
-                                              onRejectReport,
                                           }: AdminReportsPanelProps) {
     // 전체 페이지 수.
     //
@@ -326,7 +320,6 @@ export default function AdminReportsPanel({
                 ) : (
                     <div className="divide-y divide-border">
                         {reports.map((report) => {
-                            const isProcessing = processingId === report.id;
                             const accumulatedCount = report.target_report_count ?? 1;
 
                             return (
@@ -389,28 +382,6 @@ export default function AdminReportsPanel({
                                         >
                                             상세
                                         </button>
-
-                                        {report.status === "pending" && (
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    disabled={isProcessing}
-                                                    onClick={() => onResolveReport(report.id)}
-                                                    className="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
-                                                >
-                                                    처리완료
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    disabled={isProcessing}
-                                                    onClick={() => onRejectReport(report.id)}
-                                                    className="rounded-lg bg-rose-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
-                                                >
-                                                    반려
-                                                </button>
-                                            </>
-                                        )}
                                     </div>
                                 </div>
                             );

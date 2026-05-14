@@ -312,10 +312,14 @@ pub fn create_router(state: AppState) -> Router {
             "/api/admin/contest/reward",
             post(reward::handler::grant_contest_reward),
         )
-        // ── 관리자 신고 관리 ─────────────────────────────
+                // ── 관리자 신고 관리 ─────────────────────────────
         .route(
             "/api/admin/content-reports",
             get(admin::handler::list_content_reports),
+        )
+        .route(
+            "/api/admin/content-reports/:id/target",
+            get(admin::handler::get_content_report_target_detail),
         )
         .route(
             "/api/admin/content-reports/:id/resolve",
@@ -329,7 +333,14 @@ pub fn create_router(state: AppState) -> Router {
             "/api/admin/content-reports/:id/audit-logs",
             get(admin::handler::list_content_report_audit_logs),
         )
-        .route("/api/admin/users", get(admin::handler::list_users))
+        .route(
+            "/api/admin/content-reports/:id/apply-action",
+            patch(admin::handler::apply_content_report_action),
+        )
+        .route(
+            "/api/admin/users",
+            get(admin::handler::list_users),
+        )
         .route(
             "/api/admin/users/:id/active",
             patch(admin::handler::update_user_active),
