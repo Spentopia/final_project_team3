@@ -2,7 +2,9 @@
   isolation: isolate;
 }
 
-:global(html:not(.dark)) .heroCard {
+:global(html:not(.dark)) .heroCard,
+:global(html:not(.dark)) [data-slot="card"].heroCard,
+:global(html:not(.dark)) .spentopia-market-card-view.heroCard {
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(147, 197, 253, 0.32) !important;
@@ -16,7 +18,9 @@
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
-:global(html:not(.dark)) .heroCard::before {
+:global(html:not(.dark)) .heroCard::before,
+:global(html:not(.dark)) [data-slot="card"].heroCard::before,
+:global(html:not(.dark)) .spentopia-market-card-view.heroCard::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -28,7 +32,9 @@
     linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(219, 234, 254, 0.18));
 }
 
-:global(html:not(.dark)) .heroCard:hover {
+:global(html:not(.dark)) .heroCard:hover,
+:global(html:not(.dark)) [data-slot="card"].heroCard:hover,
+:global(html:not(.dark)) .spentopia-market-card-view.heroCard:hover {
   transform: translateY(-2px);
   border-color: rgba(59, 130, 246, 0.48) !important;
   box-shadow:
@@ -60,7 +66,9 @@
 }
 
 :global(html:not(.dark)) .plazaEntryButton,
-:global(html:not(.dark)) [data-slot="button"].plazaEntryButton {
+:global(html:not(.dark)) [data-slot="button"].plazaEntryButton,
+:global(html:not(.dark)) .spentopia-plaza-entry-button.plazaEntryButton,
+:global(html:not(.dark)) [data-slot="button"].spentopia-plaza-entry-button.plazaEntryButton {
   min-width: 18rem;
   height: 3rem;
   border: 1px solid rgba(59, 130, 246, 0.46) !important;
@@ -74,8 +82,12 @@
 
 :global(html:not(.dark)) .plazaEntryButton:hover,
 :global(html:not(.dark)) [data-slot="button"].plazaEntryButton:hover,
+:global(html:not(.dark)) .spentopia-plaza-entry-button.plazaEntryButton:hover,
+:global(html:not(.dark)) [data-slot="button"].spentopia-plaza-entry-button.plazaEntryButton:hover,
 :global(html:not(.dark)) .plazaEntryButton:focus-visible,
-:global(html:not(.dark)) [data-slot="button"].plazaEntryButton:focus-visible {
+:global(html:not(.dark)) [data-slot="button"].plazaEntryButton:focus-visible,
+:global(html:not(.dark)) .spentopia-plaza-entry-button.plazaEntryButton:focus-visible,
+:global(html:not(.dark)) [data-slot="button"].spentopia-plaza-entry-button.plazaEntryButton:focus-visible {
   transform: translateY(-2px);
   border-color: rgba(37, 99, 235, 0.6) !important;
   background: linear-gradient(135deg, #93c5fd 0%, #60a5fa 50%, #2563eb 100%) !important;
@@ -86,14 +98,18 @@
 }
 
 :global(html:not(.dark)) .plazaEntryButton:active,
-:global(html:not(.dark)) [data-slot="button"].plazaEntryButton:active {
+:global(html:not(.dark)) [data-slot="button"].plazaEntryButton:active,
+:global(html:not(.dark)) .spentopia-plaza-entry-button.plazaEntryButton:active,
+:global(html:not(.dark)) [data-slot="button"].spentopia-plaza-entry-button.plazaEntryButton:active {
   transform: translateY(0);
   border-color: rgba(37, 99, 235, 0.66) !important;
   background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
   color: #ffffff !important;
 }
 
-:global(html:not(.dark)) .plazaCard {
+:global(html:not(.dark)) .plazaCard,
+:global(html:not(.dark)) [data-slot="card"].plazaCard,
+:global(html:not(.dark)) .spentopia-market-card-view.plazaCard {
   border: 1px solid rgba(147, 197, 253, 0.28) !important;
   background: linear-gradient(135deg, rgba(248, 251, 255, 0.98) 0%, rgba(239, 246, 255, 0.96) 42%, rgba(219, 234, 254, 0.92) 100%) !important;
   box-shadow:
@@ -102,7 +118,9 @@
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
-:global(html:not(.dark)) .plazaCard:hover {
+:global(html:not(.dark)) .plazaCard:hover,
+:global(html:not(.dark)) [data-slot="card"].plazaCard:hover,
+:global(html:not(.dark)) .spentopia-market-card-view.plazaCard:hover {
   transform: translateY(-2px);
   border-color: rgba(59, 130, 246, 0.48) !important;
   box-shadow:
@@ -110,24 +128,33 @@
     0 4px 16px rgba(15, 23, 42, 0.06) !important;
 }
 
-:global(html:not(.dark)) .plazaCard:active {
+:global(html:not(.dark)) .plazaCard:active,
+:global(html:not(.dark)) [data-slot="card"].plazaCard:active,
+:global(html:not(.dark)) .spentopia-market-card-view.plazaCard:active {
   background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
   color: white;
 }
 
-:global(html:not(.dark)) .plazaCardMedium {
+:global(html:not(.dark)) .plazaCardMedium,
+:global(html:not(.dark)) [data-slot="card"].plazaCardMedium,
+:global(html:not(.dark)) .spentopia-market-card-view.plazaCardMedium {
   background: linear-gradient(135deg, rgba(248, 251, 255, 0.98) 0%, rgba(239, 246, 255, 0.96) 42%, rgba(219, 234, 254, 0.92) 100%) !important;
 }
 
-:global(html:not(.dark)) .plazaCardSoft {
+:global(html:not(.dark)) .plazaCardSoft,
+:global(html:not(.dark)) [data-slot="card"].plazaCardSoft,
+:global(html:not(.dark)) .spentopia-market-card-view.plazaCardSoft {
   background: linear-gradient(135deg, rgba(248, 251, 255, 0.98) 0%, rgba(239, 246, 255, 0.96) 42%, rgba(219, 234, 254, 0.92) 100%) !important;
 }
 
-:global(html:not(.dark)) .plazaCardComing {
+:global(html:not(.dark)) .plazaCardComing,
+:global(html:not(.dark)) [data-slot="card"].plazaCardComing,
+:global(html:not(.dark)) .spentopia-market-card-view.plazaCardComing {
   background: linear-gradient(135deg, rgba(248, 251, 255, 0.98) 0%, rgba(239, 246, 255, 0.96) 42%, rgba(219, 234, 254, 0.92) 100%) !important;
 }
 
-:global(html:not(.dark)) .plazaInnerCard {
+:global(html:not(.dark)) .plazaInnerCard,
+:global(html:not(.dark)) .spentopia-market-card-view.plazaInnerCard {
   border-color: rgba(147, 197, 253, 0.3) !important;
   background: linear-gradient(135deg, rgba(248, 251, 255, 0.96) 0%, rgba(239, 246, 255, 0.94) 48%, rgba(219, 234, 254, 0.9) 100%) !important;
   box-shadow:
@@ -136,7 +163,8 @@
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
-:global(html:not(.dark)) .plazaInnerCard:hover {
+:global(html:not(.dark)) .plazaInnerCard:hover,
+:global(html:not(.dark)) .spentopia-market-card-view.plazaInnerCard:hover {
   transform: translateY(-2px);
   border-color: rgba(59, 130, 246, 0.44) !important;
   box-shadow:
@@ -366,7 +394,9 @@
   }
 
   :global(html:not(.dark)) .plazaEntryButton,
-  :global(html:not(.dark)) [data-slot="button"].plazaEntryButton {
+  :global(html:not(.dark)) [data-slot="button"].plazaEntryButton,
+  :global(html:not(.dark)) .spentopia-plaza-entry-button.plazaEntryButton,
+  :global(html:not(.dark)) [data-slot="button"].spentopia-plaza-entry-button.plazaEntryButton {
     width: 100%;
     min-width: 0;
   }
