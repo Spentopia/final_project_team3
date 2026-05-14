@@ -447,7 +447,7 @@ if (savedSelectedPlan && parsedPlans?.length) {
   }
 } // ← 이거 추가
 
-}, [monthKey, budgets]);
+}, [monthKey]);
 
   useEffect(() => {
   if (!monthKey) return;
@@ -889,129 +889,117 @@ localStorage.setItem(
       </div>
 
       <div>
-  <h2 className="mb-4 flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100">
-    <Sparkles className="h-5 w-5 text-slate-700 dark:text-violet-300" />
-    AI 추천 플랜
-  </h2>
+        <h2 className="mb-4 flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100">
+  <Sparkles className="h-5 w-5 text-slate-700 dark:text-violet-300" />
+  AI 추천 플랜
+</h2>
 
-  <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-    기본 추천 플랜입니다. AI로 새로 추천받을 수 있어요.
-  </p>
+<p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+  기본 추천 플랜입니다. AI로 새로 추천받을 수 있어요.
+</p>
 
-  {aiPlans.length === 0 ? (
-    <Card className="border-none spentopia-surface-card p-6">
-      <div className="rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 px-6 py-20">
-        <div className="flex flex-col items-center justify-center text-center">
-          <Sparkles className="mb-5 h-10 w-10 text-slate-400 dark:text-violet-300" />
+        {aiPlans.length === 0 ? (
+  <Card className="border-none spentopia-surface-card p-6">
+    <div className="rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 px-6 py-20">
+      <div className="flex flex-col items-center justify-center text-center">
+        <Sparkles className="mb-5 h-10 w-10 text-slate-400 dark:text-violet-300" />
 
-          <h3 className="mb-3 text-2xl font-bold text-slate-900 dark:text-white">
-            아직 생성된 AI 플랜이 없어요
-          </h3>
+        <h3 className="mb-3 text-2xl font-bold text-slate-900 dark:text-white">
+          아직 생성된 AI 플랜이 없어요
+        </h3>
 
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            월 예산과 저축 목표를 입력한 뒤 AI 플랜 추천 버튼을 눌러보세요.
-          </p>
-        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          월 예산과 저축 목표를 입력한 뒤 AI 플랜 추천 버튼을 눌러보세요.
+        </p>
       </div>
-    </Card>
-  ) : (
-    <div className="grid gap-6 md:grid-cols-3">
-      {aiPlans.map((plan) => (
-        <Card
-          key={plan.id}
-          className={`border-2 spentopia-surface-card p-6 backdrop-blur-xl transition-all ${
-            selectedPlan === plan.id
-              ? "border-emerald-500 bg-emerald-50/60 shadow-2xl dark:border-emerald-400 dark:bg-emerald-900/10"
-              : "border-transparent hover:border-slate-300 dark:hover:border-[#7c3aed]/40"
-          }`}
-        >
-          <div className="mb-4">
-            <div className="mb-2 flex items-start justify-between">
-              <h3 className="font-bold text-gray-900 dark:text-gray-100">
-                {plan.name}
-              </h3>
+    </div>
+  </Card>
+) : (
+  <div className="grid gap-6 md:grid-cols-3">
+    {aiPlans.map((plan) => {
 
-              {selectedPlan === plan.id && (
-                <Badge className="bg-slate-900 text-white">
-                  적용중
-                </Badge>
-              )}
-            </div>
+  return (
+    <Card
+      key={plan.id}
+              className={`border-2 spentopia-surface-card p-6 backdrop-blur-xl transition-all  ${
+                selectedPlan === plan.id
+  ? "border-emerald-500 bg-emerald-50/60 shadow-2xl dark:border-emerald-400 dark:bg-emerald-900/10"
+                  : "border-transparent hover:border-slate-300 dark:hover:border-[#7c3aed]/40"
+              }`}
+            >
+              <div className="mb-4">
+                <div className="mb-2 flex items-start justify-between">
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">
+                    {plan.name}
+                  </h3>
+                  {selectedPlan === plan.id && (
+                    <Badge className="bg-slate-900 text-white">적용중</Badge>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {plan.description}
+                </p>
+              </div>
 
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              {plan.description}
-            </p>
-          </div>
-
-          <div className="mb-4 space-y-3">
-            <div className="flex items-center justify-between rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
-              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                월 예산
-              </span>
-
-              <span className="font-bold text-gray-900 dark:text-gray-100">
-                {Number(plan.budget || 0).toLocaleString()}원
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
-              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                목표 저축
-              </span>
-
-              <span className="font-bold text-emerald-700 dark:text-emerald-300">
-                {Number(plan.savings || 0).toLocaleString()}원
-              </span>
-            </div>
-          </div>
-
-          <div className="mb-4 space-y-2">
-            {plan.categories.map((cat) => {
-              const Icon =
-                iconMap[cat.name as keyof typeof iconMap] || Coffee;
-
-              return (
-                <div
-                  key={cat.name}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-4 w-4 text-gray-500" />
-
-                    <span className="text-gray-700 dark:text-gray-300">
-                      {cat.name}
-                    </span>
-                  </div>
-
-                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                    {Number(cat.amount || 0).toLocaleString()}원
+              <div className="mb-4 space-y-3">
+                <div className="flex items-center justify-between rounded-lg spentopia-soft-card p-3">
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">월 예산</span>
+                  <span className="font-bold text-gray-900 dark:text-gray-100">
+                    {Number(plan.budget || 0).toLocaleString()}원
                   </span>
                 </div>
-              );
-            })}
-          </div>
+                <div className="flex items-center justify-between rounded-lg spentopia-soft-card p-3">
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">목표 저축</span>
+                  <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                    {Number(plan.savings || 0).toLocaleString()}원
+                  </span>
+                </div>
+              </div>
 
-          <Button
-            type="button"
-            onClick={() => handleApplyPlan(plan.id)}
-            disabled={selectedPlan === plan.id}
-            className={`w-full transition-all duration-300 ${
-              selectedPlan === plan.id
-                ? "bg-emerald-600 hover:bg-emerald-600 text-white cursor-default"
-                : "spentopia-primary-button"
-            }`}
-          >
-            {selectedPlan === plan.id
-              ? "적용됨 ✓"
-              : "이 플랜 적용하기"}
-          </Button>
-        </Card>
-      ))}
-    </div>
-  )}
+              <div className="mb-4 space-y-2">
+                {plan.categories.map((cat) => {
+                  const Icon = iconMap[cat.name as keyof typeof iconMap] || Coffee;
+                  return (
+                    <div
+                      key={cat.name}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4 text-gray-500" />
+                        <span className="text-gray-700 dark:text-gray-300">
+                          {cat.name}
+                        </span>
+                      </div>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {Number(cat.amount || 0).toLocaleString()}원
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Button
+  type="button"
+  onClick={async () => {
+    await handleApplyPlan(plan.id);
+  }}
+  disabled={selectedPlan === plan.id}
+  className={`w-full transition-all duration-300 ${
+    selectedPlan === plan.id
+      ? "bg-emerald-600 hover:bg-emerald-600 text-white cursor-default"
+      : "spentopia-primary-button"
+  }`}
+>
+  {selectedPlan === plan.id ? "적용됨 ✓" : "이 플랜 적용하기"}
+</Button>
+                </Card>
+  );
+})}
+  </div>
+)}
 </div>
 
-      <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
+      <Card className="border-none spentopia-surface-card p-6 backdrop-blur-xl">
         <h2 className="mb-6 flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100">
           <Target className="h-5 w-5 text-slate-700 dark:text-violet-300" />
           맞춤 예산 설정
@@ -1135,9 +1123,8 @@ localStorage.setItem(
             </p>
 
             <Button
-              variant="outline"
               onClick={handleSaveCustomBudget}
-              className="w-full spentopia-light-nft-button"
+              className="w-full spentopia-primary-button"
             >
               <Wallet className="mr-2 h-4 w-4" />
               {selectedMonth + 1}월 맞춤 예산 저장
@@ -1145,7 +1132,7 @@ localStorage.setItem(
           </div>
 
           <div className="space-y-4">
-            <Card className="border-none spentopia-hero-card spentopia-nft-card-tone p-6">
+            <Card className="border-none spentopia-hero-card p-6">
               <p className="mb-1 text-sm opacity-90">현재 설정한 월 예산</p>
               <p className="text-3xl font-bold">
                 {Number(customBudget.monthly).toLocaleString()}원
@@ -1155,7 +1142,7 @@ localStorage.setItem(
               </p>
             </Card>
 
-            <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6">
+            <Card className="border-none spentopia-surface-card p-6">
               <div className="mb-4 flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-slate-700 dark:text-violet-300" />
                 <h3 className="font-bold text-gray-900 dark:text-gray-100">
@@ -1187,9 +1174,9 @@ localStorage.setItem(
 
                 <div className="pt-2">
                   {Number(customBudget.monthly) > 0 && (
-                    <div className="spentopia-xp-track h-3">
+                    <div className="h-3 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                       <div
-                        className="h-full spentopia-xp-bar"
+                        className="h-full bg-[linear-gradient(90deg,#334155,#475569,#64748b)] dark:bg-[linear-gradient(90deg,#090b16,#4338ca,#7c3aed)]"
                         style={{
                           width: `${Math.min(
                             100,
@@ -1207,7 +1194,7 @@ localStorage.setItem(
               </div>
             </Card>
 
-            <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6">
+            <Card className="border-none spentopia-surface-card p-6">
               <div className="mb-3 flex items-center gap-2">
                 <PiggyBank className="h-5 w-5 text-slate-700 dark:text-violet-300" />
                 <h3 className="font-bold">예산 설정 한마디</h3>
