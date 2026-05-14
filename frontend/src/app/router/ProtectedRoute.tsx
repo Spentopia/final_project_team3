@@ -34,7 +34,6 @@ interface ProtectedRouteProps {
 
 type AuthStatus = "loading" | "logged_in" | "need_profile" | "not_logged_in" | "forbidden" | "admin_redirect";
 
-let authCheckInFlight: Promise<AuthStatus> | null = null;
 let refreshRecoveryInFlight: Promise<boolean> | null = null;
 
 function recoverAccessTokenOnce() {
@@ -151,8 +150,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         // Supabase session은 정리
         try {
           await supabase.auth.signOut();
-        } catch (e) {
-          console.warn("Supabase signOut 실패:", e);
+        } catch {
+          // Supabase 세션 정리에 실패해도 앱 JWT 인증 흐름은 계속 진행한다.
         }
       }
     }
@@ -213,20 +212,15 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   useEffect(() => {
     let cancelled = false;
 
-    if (!authCheckInFlight) {
-      authCheckInFlight = checkAuth().finally(() => {
-        authCheckInFlight = null;
-      });
-    }
+    setStatus("loading");
 
-    void authCheckInFlight
+    void checkAuth()
       .then((nextStatus) => {
         if (!cancelled) {
           setStatus(nextStatus);
         }
       })
-      .catch((error) => {
-        console.error("인증 확인 실패:", error);
+      .catch(() => {
         authStorage.clear();
         if (!cancelled) {
           setStatus("not_logged_in");
@@ -236,7 +230,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [location.pathname]);
 
   if (status === "loading") {
     return (
