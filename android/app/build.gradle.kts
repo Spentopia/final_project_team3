@@ -40,9 +40,40 @@ val aiAnalyzeBaseUrl = localProperties.getProperty("AI_ANALYZE_BASE_URL") ?: "ht
 val nftMarketWebViewUrl = // 마켓 관련 값을 저장함
     localProperties.getProperty("NFT_MARKET_WEBVIEW_URL") ?: "http://10.0.2.2:5173/marketplace"
 
+// =====================================================
+// 릴리즈 서명 정보
+// -----------------------------------------------------
+// 실제 배포용 키 값은 git에 올리지 말고 android/local.properties에만 둡니다.
+//
+// RELEASE_STORE_FILE=../keystore/spentopia-release.jks
+// RELEASE_STORE_PASSWORD=your-store-password
+// RELEASE_KEY_ALIAS=spentopia
+// RELEASE_KEY_PASSWORD=your-key-password
+// =====================================================
+val releaseStoreFile = localProperties.getProperty("RELEASE_STORE_FILE") ?: "" // releaseStoreFile 값을 저장함
+val releaseStorePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD") ?: "" // releaseStorePassword 값을 저장함
+val releaseKeyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS") ?: "" // releaseKeyAlias 값을 저장함
+val releaseKeyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD") ?: "" // releaseKeyPassword 값을 저장함
+val hasReleaseSigningConfig = // 릴리즈 서명 정보가 모두 있는지 확인함
+    releaseStoreFile.isNotBlank() &&
+        releaseStorePassword.isNotBlank() &&
+        releaseKeyAlias.isNotBlank() &&
+        releaseKeyPassword.isNotBlank()
+
 android { // 이 블록 안의 내용이 시작됨
     namespace = "com.ict.spentopia" // namespace 값을 정해줌
     compileSdk = 36 // compileSdk 값을 정해줌
+
+    signingConfigs { // signingConfigs 값을 정해줌
+        if (hasReleaseSigningConfig) { // 릴리즈 서명 정보가 있을 때만 설정함
+            create("release") { // release 서명 설정을 만듦
+                storeFile = rootProject.file(releaseStoreFile) // storeFile 값을 정해줌
+                storePassword = releaseStorePassword // storePassword 값을 정해줌
+                keyAlias = releaseKeyAlias // keyAlias 값을 정해줌
+                keyPassword = releaseKeyPassword // keyPassword 값을 정해줌
+            }
+        }
+    }
 
     defaultConfig { // 이 블록 안의 내용이 시작됨
         applicationId = "com.ict.spentopia" // applicationId 값을 정해줌
@@ -93,8 +124,17 @@ android { // 이 블록 안의 내용이 시작됨
     }
 
     buildTypes { // 이 블록 안의 내용이 시작됨
+        debug { // debug 빌드 설정을 정함
+            manifestPlaceholders["usesCleartextTraffic"] = "true" // 로컬 개발 서버 접속을 위해 debug에서만 HTTP를 허용함
+        }
+
         release { // 이 블록 안의 내용이 시작됨
             isMinifyEnabled = false // false 값을 isMinifyEnabled인지 여부에 넣음
+            isDebuggable = false // false 값을 isDebuggable인지 여부에 넣음
+            manifestPlaceholders["usesCleartextTraffic"] = "false" // 배포 빌드에서는 HTTP 평문 통신을 막음
+            if (hasReleaseSigningConfig) { // 릴리즈 서명 정보가 있을 때만 서명 설정을 연결함
+                signingConfig = signingConfigs.getByName("release") // signingConfig 값을 정해줌
+            }
             proguardFiles( // proguard Files 함수를 실행함
                 getDefaultProguardFile("proguard-android-optimize.txt"), // get Default Proguard File 함수를 실행함
                 "proguard-rules.pro"

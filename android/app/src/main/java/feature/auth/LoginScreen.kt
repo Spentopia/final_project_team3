@@ -330,16 +330,9 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                 .padding(top = 8.dp, bottom = 8.dp), // .padding(top 값을 정해줌
             horizontalAlignment = Alignment.CenterHorizontally // horizontalAlignment 값을 정해줌
         ) { // 이 블록 안의 내용이 시작됨
-            if (isDarkTheme) { // 조건이 맞는지 확인함
-                SplashLikeLogoSection() // Splash Like Logo Section 함수를 실행함
-            } else { // 이 블록 안의 내용이 시작됨
-                Image( // 화면에 이미지를 보여줌
-                    painter = painterResource(id = R.drawable.ic_spentopia_logo), // painter 값을 정해줌
-                    contentDescription = stringResource(id = R.string.spentopia_logo_content_description), // contentDescription 값을 정해줌
-                    modifier = Modifier.size(200.dp), // UI 크기나 여백 같은 모양을 정함
-                    contentScale = ContentScale.Fit // contentScale 값을 정해줌
-                )
-            }
+            SplashLikeLogoSection(
+                isDarkTheme = isDarkTheme
+            ) // 다크/라이트 모드에 맞는 움직이는 로고 영역을 보여줌
 
             Spacer(modifier = Modifier.height(4.dp)) // UI 크기나 여백 같은 모양을 정함
 
@@ -367,7 +360,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                 placeholder = stringResource(id = R.string.login_email_placeholder), // placeholder 값을 정해줌
                 keyboardType = KeyboardType.Email, // keyboardType 값을 정해줌
                 leadingIcon = { // leadingIcon 값을 정해줌
-                    ShimmerLeadingIcon(imageVector = Icons.Outlined.Email) // 화면에 아이콘을 보여줌
+                    ShimmerLeadingIcon(imageVector = Icons.Outlined.Email, isDarkTheme = isDarkTheme) // 화면에 아이콘을 보여줌
                 }
             )
 
@@ -385,7 +378,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                     PasswordVisualTransformation() // Password Visual Transformation 함수를 실행함
                 },
                 leadingIcon = { // leadingIcon 값을 정해줌
-                    ShimmerLeadingIcon(imageVector = Icons.Outlined.Lock) // 화면에 아이콘을 보여줌
+                    ShimmerLeadingIcon(imageVector = Icons.Outlined.Lock, isDarkTheme = isDarkTheme) // 화면에 아이콘을 보여줌
                 },
                 trailingIcon = { // trailingIcon 값을 정해줌
                     IconButton( // 누를 수 있는 버튼을 만듦
@@ -632,8 +625,11 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
 }
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
-private fun SplashLikeLogoSection() { // SplashLikeLogoSection 함수를 선언함
+private fun SplashLikeLogoSection( // SplashLikeLogoSection 함수를 선언함
+    isDarkTheme: Boolean // 다크모드인지 라이트모드인지 받음
+) {
     val transition = rememberInfiniteTransition(label = "login-splash-logo") // 화면이 다시 그려져도 transition 값을 기억함
+
     val logoAlpha by transition.animateFloat( // logoAlpha 값을 저장함
         initialValue = 0.65f, // initialValue 값을 정해줌
         targetValue = 1f, // targetValue 값을 정해줌
@@ -643,6 +639,7 @@ private fun SplashLikeLogoSection() { // SplashLikeLogoSection 함수를 선언�
         ),
         label = "logo-alpha" // label 값을 정해줌
     )
+
     val logoScale by transition.animateFloat( // logoScale 값을 저장함
         initialValue = 0.96f, // initialValue 값을 정해줌
         targetValue = 1.04f, // targetValue 값을 정해줌
@@ -652,6 +649,7 @@ private fun SplashLikeLogoSection() { // SplashLikeLogoSection 함수를 선언�
         ),
         label = "logo-scale" // label 값을 정해줌
     )
+
     val sparkleAlpha by transition.animateFloat( // sparkleAlpha 값을 저장함
         initialValue = 0.28f, // initialValue 값을 정해줌
         targetValue = 0.82f, // targetValue 값을 정해줌
@@ -662,86 +660,121 @@ private fun SplashLikeLogoSection() { // SplashLikeLogoSection 함수를 선언�
         label = "sparkle-alpha" // label 값을 정해줌
     )
 
+    val glowColor1 = if (isDarkTheme) { // 다크모드인지 확인함
+        Color(0xFF7C3AED).copy(alpha = 0.42f) // 다크모드 보라색 빛을 정해줌
+    } else {
+        Color(0xFF93C5FD).copy(alpha = 0.42f) // 라이트모드 파란색 빛을 정해줌
+    }
+
+    val glowColor2 = if (isDarkTheme) { // 다크모드인지 확인함
+        Color(0xFF2F80ED).copy(alpha = 0.24f) // 다크모드 파란 빛을 정해줌
+    } else {
+        Color(0xFFE0F2FE).copy(alpha = 0.35f) // 라이트모드 연한 하늘빛을 정해줌
+    }
+
+    val sparkleColor1 = if (isDarkTheme) { // 다크모드인지 확인함
+        Color.White // 다크모드 별 색을 정해줌
+    } else {
+        Color(0xFF2563EB) // 라이트모드 진한 파란 별 색을 정해줌
+    }
+
+    val sparkleColor2 = if (isDarkTheme) { // 다크모드인지 확인함
+        Color(0xFFD8B4FE) // 다크모드 연보라 별 색을 정해줌
+    } else {
+        Color(0xFF60A5FA) // 라이트모드 밝은 파란 별 색을 정해줌
+    }
+
+    val sparkleColor3 = if (isDarkTheme) { // 다크모드인지 확인함
+        Color(0xFFC7D2FE) // 다크모드 연보라 파란 별 색을 정해줌
+    } else {
+        Color(0xFF93C5FD) // 라이트모드 연한 파란 별 색을 정해줌
+    }
+
     Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .size(220.dp),
         contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
-    ) { // 이 블록 안의 내용이 시작됨
+    ) {
         Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .size(200.dp)
-            .background(
-                brush = Brush.radialGradient( // brush 값을 정해줌
-                    colors = listOf( // colors 값을 정해줌
-                        Color(0xFF7C3AED).copy(alpha = 0.42f), // Color(0xFF7C3AED).copy(alpha 값을 정해줌
-                        Color(0xFF2F80ED).copy(alpha = 0.24f), // Color(0xFF2F80ED).copy(alpha 값을 정해줌
-                        Color.Transparent
-                    )
-                ),
-                shape = CircleShape // CircleShape 값을 shape 값에 넣음
-            )
+                .background(
+                    brush = Brush.radialGradient( // brush 값을 정해줌
+                        colors = listOf( // colors 값을 정해줌
+                            glowColor1, // 첫 번째 빛 색을 넣음
+                            glowColor2, // 두 번째 빛 색을 넣음
+                            Color.Transparent // 투명색을 넣음
+                        )
+                    ),
+                    shape = CircleShape // CircleShape 값을 shape 값에 넣음
+                )
         )
 
-        Text( // 화면에 글자를 보여줌
-            text = "✦", // text 값을 정해줌
-            fontSize = 20.sp, // fontSize 값을 정해줌
-            color = Color.White.copy(alpha = sparkleAlpha), // color 값을 정해줌
-            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
+        Text(
+            text = "✦",
+            fontSize = 20.sp,
+            color = sparkleColor1.copy(alpha = sparkleAlpha),
+            modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(start = 18.dp, top = 26.dp) // .padding(start 값을 정해줌
-        )
-        Text( // 화면에 글자를 보여줌
-            text = "✧", // text 값을 정해줌
-            fontSize = 18.sp, // fontSize 값을 정해줌
-            color = Color.White.copy(alpha = sparkleAlpha * 0.95f), // color 값을 정해줌
-            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-                .align(Alignment.TopEnd)
-                .padding(end = 22.dp, top = 44.dp) // .padding(end 값을 정해줌
-        )
-        Text( // 화면에 글자를 보여줌
-            text = "✦", // text 값을 정해줌
-            fontSize = 19.sp, // fontSize 값을 정해줌
-            color = Color.White.copy(alpha = sparkleAlpha * 0.82f), // color 값을 정해줌
-            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-                .align(Alignment.BottomStart)
-                .padding(start = 28.dp, bottom = 32.dp) // .padding(start 값을 정해줌
-        )
-        Text( // 화면에 글자를 보여줌
-            text = "✧", // text 값을 정해줌
-            fontSize = 16.sp, // fontSize 값을 정해줌
-            color = Color.White.copy(alpha = sparkleAlpha * 0.78f), // color 값을 정해줌
-            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-                .align(Alignment.BottomEnd)
-                .padding(end = 30.dp, bottom = 44.dp) // .padding(end 값을 정해줌
-        )
-        Text( // 화면에 글자를 보여줌
-            text = "✦", // text 값을 정해줌
-            fontSize = 14.sp, // fontSize 값을 정해줌
-            color = Color(0xFFD8B4FE).copy(alpha = sparkleAlpha * 0.85f), // color 값을 정해줌
-            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-                .align(Alignment.CenterStart)
-                .padding(start = 16.dp, top = 12.dp) // .padding(start 값을 정해줌
-        )
-        Text( // 화면에 글자를 보여줌
-            text = "✧", // text 값을 정해줌
-            fontSize = 13.sp, // fontSize 값을 정해줌
-            color = Color(0xFFC7D2FE).copy(alpha = sparkleAlpha * 0.8f), // color 값을 정해줌
-            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-                .align(Alignment.CenterEnd)
-                .padding(end = 16.dp, top = 4.dp) // .padding(end 값을 정해줌
+                .padding(start = 18.dp, top = 26.dp)
         )
 
-        Image( // 화면에 이미지를 보여줌
-            painter = painterResource(id = R.drawable.ic_spentopia_logo), // painter 값을 정해줌
-            contentDescription = null, // null 값을 contentDescription 값에 넣음
-            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
+        Text(
+            text = "✧",
+            fontSize = 18.sp,
+            color = sparkleColor1.copy(alpha = sparkleAlpha * 0.95f),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = 22.dp, top = 44.dp)
+        )
+
+        Text(
+            text = "✦",
+            fontSize = 19.sp,
+            color = sparkleColor1.copy(alpha = sparkleAlpha * 0.82f),
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 28.dp, bottom = 32.dp)
+        )
+
+        Text(
+            text = "✧",
+            fontSize = 16.sp,
+            color = sparkleColor1.copy(alpha = sparkleAlpha * 0.78f),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 30.dp, bottom = 44.dp)
+        )
+
+        Text(
+            text = "✦",
+            fontSize = 14.sp,
+            color = sparkleColor2.copy(alpha = sparkleAlpha * 0.85f),
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 16.dp, top = 12.dp)
+        )
+
+        Text(
+            text = "✧",
+            fontSize = 13.sp,
+            color = sparkleColor3.copy(alpha = sparkleAlpha * 0.8f),
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 16.dp, top = 4.dp)
+        )
+
+        Image(
+            painter = painterResource(id = R.drawable.ic_spentopia_logo),
+            contentDescription = null,
+            modifier = Modifier
                 .size(200.dp)
-                .graphicsLayer { // 이 블록 안의 내용이 시작됨
-                    alpha = logoAlpha // logoAlpha 값을 alpha 값에 넣음
-                    scaleX = logoScale // logoScale 값을 scaleX 값에 넣음
-                    scaleY = logoScale // logoScale 값을 scaleY 값에 넣음
+                .graphicsLayer {
+                    alpha = logoAlpha
+                    scaleX = logoScale
+                    scaleY = logoScale
                 },
-            contentScale = ContentScale.Fit // contentScale 값을 정해줌
+            contentScale = ContentScale.Fit
         )
     }
 }
@@ -1018,7 +1051,8 @@ private fun StaticButtonShine( // StaticButtonShine 함수를 선언함
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun ShimmerLeadingIcon( // ShimmerLeadingIcon 함수를 선언함
-    imageVector: androidx.compose.ui.graphics.vector.ImageVector // imageVector 값을 받음
+    imageVector: androidx.compose.ui.graphics.vector.ImageVector, // imageVector 값을 받음
+    isDarkTheme: Boolean // 다크모드인지 라이트모드인지 받음
 ) { // 이 블록 안의 내용이 시작됨
     val transition = rememberInfiniteTransition(label = "login-icon-shimmer") // 화면이 다시 그려져도 transition 값을 기억함
     val shimmerAlpha by transition.animateFloat( // shimmerAlpha 값을 저장함
@@ -1030,6 +1064,9 @@ private fun ShimmerLeadingIcon( // ShimmerLeadingIcon 함수를 선언함
         ),
         label = "icon-glow" // label 값을 정해줌
     )
+    val glowColor1 = if (isDarkTheme) SpentopiaGlowPurple else Color(0xFF93C5FD) // glowColor1 값을 모드별로 정함
+    val glowColor2 = if (isDarkTheme) SpentopiaMutedPurple else Color(0xFFE0F2FE) // glowColor2 값을 모드별로 정함
+    val iconTint = if (isDarkTheme) SpentopiaIconMuted else Color(0xFF2563EB) // iconTint 값을 모드별로 정함
 
     Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
@@ -1037,8 +1074,8 @@ private fun ShimmerLeadingIcon( // ShimmerLeadingIcon 함수를 선언함
             .background(
                 brush = Brush.radialGradient( // brush 값을 정해줌
                     colors = listOf( // colors 값을 정해줌
-                        SpentopiaGlowPurple.copy(alpha = shimmerAlpha), // SpentopiaGlowPurple.copy(alpha 값을 정해줌
-                        SpentopiaMutedPurple.copy(alpha = shimmerAlpha * 0.55f), // SpentopiaMutedPurple.copy(alpha 값을 정해줌
+                        glowColor1.copy(alpha = shimmerAlpha), // glowColor1.copy(alpha 값을 정해줌
+                        glowColor2.copy(alpha = shimmerAlpha * 0.55f), // glowColor2.copy(alpha 값을 정해줌
                         Color.Transparent
                     )
                 ),
@@ -1049,7 +1086,7 @@ private fun ShimmerLeadingIcon( // ShimmerLeadingIcon 함수를 선언함
         Icon( // 화면에 아이콘을 보여줌
             imageVector = imageVector, // imageVector 값을 imageVector 값에 넣음
             contentDescription = null, // null 값을 contentDescription 값에 넣음
-            tint = SpentopiaIconMuted // SpentopiaIconMuted 값을 tint 값에 넣음
+            tint = iconTint // iconTint 값을 tint 값에 넣음
         )
     }
 }

@@ -1,4 +1,4 @@
-package com.ict.spentopia.feature.auth // 이 파일이 속한 패키지 위치를 적음
+package com.ict.spentopia.feature.splash // 이 파일이 속한 패키지 위치를 적음
 
 // 스플래시 화면임
 // 앱 시작 전 썸네일 역할
@@ -37,7 +37,7 @@ import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple �
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple // SpentopiaNavyPurple 기능을 가져옴
 import kotlinx.coroutines.delay // delay 기능을 가져옴
 @Composable // 이 함수가 화면 UI를 그린다는 표시
-fun SplashScreen(navController: NavController) { // SplashScreen 함수를 선언함
+fun DarkSplashContent() { // SplashScreen 함수를 선언함
     val infiniteTransition = rememberInfiniteTransition(label = "splash") // 화면이 다시 그려져도 infiniteTransition 값을 기억함
 
     val alpha by infiniteTransition.animateFloat( // alpha 값을 저장함
@@ -130,13 +130,7 @@ fun SplashScreen(navController: NavController) { // SplashScreen 함수를 선�
         label = "sparkleAlpha7" // label 값을 정해줌
     )
 
-    LaunchedEffect(Unit) { // 화면이 열리거나 값이 바뀔 때 실행함
-        delay(4000) // delay 함수를 실행함 시간초 설정 4초뒤 로그인 화면으로 넘어감
-        navController.navigate("login") { // 다른 화면으로 이동함
-            popUpTo("splash") { inclusive = true } // inclusive 값을 정해줌
-            // 스플래시를 뒤로가기 기록에서 제거함
-        }
-    }
+
 
     Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
@@ -207,15 +201,15 @@ fun SplashScreen(navController: NavController) { // SplashScreen 함수를 선�
                 .graphicsLayer { this.alpha = sparkleAlpha4 } // this.alpha 값을 정해줌
         )
 
-            Text( // 화면에 글자를 보여줌
-                text = "✦", // text 값을 정해줌
-                fontSize = 12.sp, // fontSize 값을 정해줌
-                color = Color.White, // color 값을 정해줌
-                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-                    .align(Alignment.Center)
-                    .offset(x = 72.dp, y = (-142).dp) // .offset(x 값을 정해줌
-                    .graphicsLayer { this.alpha = sparkleAlpha5 } // this.alpha 값을 정해줌
-            )
+        Text( // 화면에 글자를 보여줌
+            text = "✦", // text 값을 정해줌
+            fontSize = 12.sp, // fontSize 값을 정해줌
+            color = Color.White, // color 값을 정해줌
+            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
+                .align(Alignment.Center)
+                .offset(x = 72.dp, y = (-142).dp) // .offset(x 값을 정해줌
+                .graphicsLayer { this.alpha = sparkleAlpha5 } // this.alpha 값을 정해줌
+        )
 
         Text( // 화면에 글자를 보여줌
             text = "✧", // text 값을 정해줌
@@ -264,7 +258,7 @@ fun SplashScreen(navController: NavController) { // SplashScreen 함수를 선�
             Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
 
             Text( // 화면에 글자를 보여줌
-                text = "내가 기록한 소비가 나를 만든다", // text 값을 정해줌
+                text = "지출을 관리하면 열리는 나만의 세계", // text 값을 정해줌
                 fontSize = 16.sp, // fontSize 값을 정해줌
                 color = Color(0xFFD1D5DB) // color 값을 정해줌
             )

@@ -75,7 +75,7 @@ import com.ict.spentopia.feature.analysis.AnalysisScreen // AnalysisScreen 기�
 import com.ict.spentopia.feature.auth.FindEmailScreen // FindEmailScreen 기능을 가져옴
 import com.ict.spentopia.feature.auth.FindPasswordScreen // FindPasswordScreen 기능을 가져옴
 import com.ict.spentopia.feature.auth.LoginScreen // LoginScreen 기능을 가져옴
-import com.ict.spentopia.feature.auth.SplashScreen // SplashScreen 기능을 가져옴
+import com.ict.spentopia.feature.splash.SplashScreen // SplashScreen 기능을 가져옴
 import com.ict.spentopia.feature.auth.connector.MwaBackpackConnector // MwaBackpackConnector 기능을 가져옴
 import com.ict.spentopia.feature.auth.connector.MwaPhantomConnector // MwaPhantomConnector 기능을 가져옴
 import com.ict.spentopia.feature.auth.connector.MwaSolflareConnector // MwaSolflareConnector 기능을 가져옴
@@ -574,9 +574,12 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                     startDestination = Route.Splash.route, // startDestination 값을 정해줌
                     modifier = Modifier.fillMaxSize() // UI 크기나 여백 같은 모양을 정함
                 ) { // 이 블록 안의 내용이 시작됨
-                composable(Route.Splash.route) { // 이 주소로 들어오면 보여줄 화면을 등록함
-                    SplashScreen(navController) // 스플래시 화면을 보여줌
-                }
+                    composable(Route.Splash.route) { // 이 주소로 들어오면 보여줄 화면을 등록함
+                        SplashScreen( // 스플래시 화면을 보여줌
+                            navController = navController,
+                            isDarkTheme = isDarkTheme
+                        )
+                    }
                 composable(Route.Login.route) { // 이 주소로 들어오면 보여줄 화면을 등록함
                     LoginScreen( // 로그인 화면을 보여줌
                         onLoginClick = { moveToHome() }, // onLoginClick 때 실행할 함수를 정해줌
