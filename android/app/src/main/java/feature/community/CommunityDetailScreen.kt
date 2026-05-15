@@ -80,6 +80,8 @@ import com.ict.spentopia.R // R 기능을 가져옴
 import coil.compose.AsyncImage // AsyncImage 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // 앱 다크모드 배경색을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
+import com.ict.spentopia.ui.theme.spentopiaAppButtonColor
+import com.ict.spentopia.ui.theme.spentopiaAppButtonContentColor
 
 @Composable
 private fun isCommunityDetailDarkTheme(): Boolean {
@@ -88,12 +90,12 @@ private fun isCommunityDetailDarkTheme(): Boolean {
 
 @Composable
 private fun communityDetailSoftCardColor(): Color {
-    return if (isCommunityDetailDarkTheme()) Color(0xFF171A2B) else Color(0xFFF8FBFF)
+    return if (isCommunityDetailDarkTheme()) Color(0xFF171A2B) else Color(0xFFF7FBFF)
 }
 
 @Composable
 private fun communityDetailSoftCardBorderColor(): Color {
-    return if (isCommunityDetailDarkTheme()) Color(0xFF4C3B7A) else Color(0xFFBFDBFE)
+    return if (isCommunityDetailDarkTheme()) Color(0xFF4C3B7A) else Color(0xFF7DD3FC)
 }
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
@@ -394,8 +396,8 @@ private fun CommunityDetailNotFoundScreen( // CommunityDetailNotFoundScreen 함�
                     onClick = onBackClick, // onBackClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
                     shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
                     colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                        containerColor = SpentopiaMutedPurple, // SpentopiaMutedPurple 값을 containerColor 값에 넣음
-                        contentColor = Color.White // contentColor 값을 정해줌
+                        containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer // contentColor 값을 정해줌
                     )
                 ) { // 이 블록 안의 내용이 시작됨
                     Text( // 화면에 글자를 보여줌
@@ -466,8 +468,8 @@ private fun CommunityDetailTopSection( // CommunityDetailTopSection 함수를 �
                         onClick = onEditModeToggle, // onEditModeToggle 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
                         shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
                         colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                            containerColor = SpentopiaMutedPurple, // SpentopiaMutedPurple 값을 containerColor 값에 넣음
-                            contentColor = Color.White // contentColor 값을 정해줌
+                            containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer // contentColor 값을 정해줌
                         ),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp) // contentPadding 값을 정해줌
                     ) { // 이 블록 안의 내용이 시작됨
@@ -904,8 +906,8 @@ private fun CommunityDetailActionCard( // CommunityDetailActionCard 함수를 �
                         modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
                         shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
                         colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                            containerColor = SpentopiaMutedPurple, // SpentopiaMutedPurple 값을 containerColor 값에 넣음
-                            contentColor = Color.White, // contentColor 값을 정해줌
+                            containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer, // contentColor 값을 정해줌
                             disabledContainerColor = MaterialTheme.colorScheme.outlineVariant, // disabledContainerColor 값을 정해줌
                             disabledContentColor = Color.White // disabledContentColor 값을 정해줌
                         ),
@@ -1043,8 +1045,8 @@ private fun CommunityCommentSection( // CommunityCommentSection 함수를 선언
                 modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
                 shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
                 colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                    containerColor = SpentopiaMutedPurple, // SpentopiaMutedPurple 값을 containerColor 값에 넣음
-                    contentColor = Color.White, // contentColor 값을 정해줌
+                    containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer, // contentColor 값을 정해줌
                     disabledContainerColor = MaterialTheme.colorScheme.outlineVariant, // disabledContainerColor 값을 정해줌
                     disabledContentColor = Color.White // disabledContentColor 값을 정해줌
                 ),
@@ -1253,7 +1255,8 @@ private fun CommunityReportDialog( // CommunityReportDialog 함수를 선언함
     val isDark = isCommunityDetailDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
     val dialogColor = communityDetailSoftCardColor() // 신고 다이얼로그 배경색을 정함
     val dialogBorderColor = communityDetailSoftCardBorderColor() // 신고 다이얼로그 테두리색을 정함
-    val selectedColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // 선택 버튼 색을 모드별로 분리함
+    val selectedColor = spentopiaAppButtonColor(isDark) // 선택 버튼 색을 모드별로 분리함
+    val selectedContentColor = spentopiaAppButtonContentColor(isDark)
     val unselectedColor = if (isDark) Color(0xFF111827) else Color(0xFFEFF6FF) // 미선택 버튼 색을 모드별로 분리함
     val unselectedTextColor = if (isDark) Color(0xFFD8D6F5) else Color(0xFF1E3A8A) // 미선택 버튼 글자색을 모드별로 분리함
     val inputContainerColor = if (isDark) Color(0xFF111827) else Color(0xFFFFFFFF) // 입력창 배경색을 모드별로 분리함
@@ -1386,7 +1389,7 @@ private fun CommunityReportDialog( // CommunityReportDialog 함수를 선언함
                 shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
                 colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
                     containerColor = selectedColor, // selectedColor 값을 containerColor 값에 넣음
-                    contentColor = Color.White, // contentColor 값을 정해줌
+                    contentColor = selectedContentColor, // contentColor 값을 정해줌
                     disabledContainerColor = if (isDark) Color(0xFF2E3352) else Color(0xFFDBEAFE), // disabledContainerColor 값을 정해줌
                     disabledContentColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B) // disabledContentColor 값을 정해줌
                 )

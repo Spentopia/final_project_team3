@@ -83,12 +83,12 @@ private fun isAnalysisDarkTheme(): Boolean {
 
 @Composable
 private fun analysisSoftCardColor(): Color {
-    return if (isAnalysisDarkTheme()) Color(0xFF171A2B) else Color(0xFFF8FBFF)
+    return if (isAnalysisDarkTheme()) Color(0xFF171A2B) else Color(0xFFF7FBFF)
 }
 
 @Composable
 private fun analysisSoftCardBorderColor(): Color {
-    return if (isAnalysisDarkTheme()) Color(0xFF4C3B7A) else Color(0xFFBFDBFE)
+    return if (isAnalysisDarkTheme()) Color(0xFF4C3B7A) else Color(0xFF7DD3FC)
 }
 
 // 소비분석 메인 화면임

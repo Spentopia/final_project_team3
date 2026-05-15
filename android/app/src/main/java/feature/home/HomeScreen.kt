@@ -115,6 +115,8 @@ import com.ict.spentopia.ui.theme.SpentopiaDarkBackground
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple
 import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
+import com.ict.spentopia.ui.theme.spentopiaAppButtonColor
+import com.ict.spentopia.ui.theme.spentopiaAppButtonContentColor
 
 // 숫자 포맷 및 날짜 계산 관련 import
 import kotlinx.coroutines.launch
@@ -135,17 +137,22 @@ private fun isHomeDarkTheme(): Boolean { // 다크 테마인지 true/false로 �
 
 @Composable
 private fun homeSoftCardColor(): Color {
-    return if (isHomeDarkTheme()) Color(0xFF171A2B) else Color(0xFFF8FBFF)
+    return if (isHomeDarkTheme()) Color(0xFF171A2B) else Color(0xFFF7FBFF)
 }
 
 @Composable
 private fun homeSoftCardBorderColor(): Color {
-    return if (isHomeDarkTheme()) Color(0xFF4C3B7A) else Color(0xFFBFDBFE)
+    return if (isHomeDarkTheme()) Color(0xFF4C3B7A) else Color(0xFF7DD3FC)
 }
 
 @Composable
 private fun homePrimaryButtonColor(): Color {
-    return if (isHomeDarkTheme()) Color(0xFF6D5BD0) else Color(0xFF3B82F6)
+    return spentopiaAppButtonColor(isHomeDarkTheme())
+}
+
+@Composable
+private fun homePrimaryButtonContentColor(): Color {
+    return spentopiaAppButtonContentColor(isHomeDarkTheme())
 }
 
 // --------------------------------------------------
@@ -632,7 +639,7 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                 shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                 colors = ButtonDefaults.buttonColors( // 색상 스타일을 정함
                     containerColor = buttonColor,
-                    contentColor = Color.White
+                    contentColor = homePrimaryButtonContentColor()
                 ),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp) // 버튼 안쪽 여백을 정함
             ) { // 이 블록 안의 내용이 시작됨
@@ -640,7 +647,7 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                     text = if (isWalletConnected) "연결 완료" else "지갑 연결", // 연결 상태에 따라 제목을 정함
                     fontSize = 13.sp, // 글자 크기를 정함
                     fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                    color = Color.White
+                    color = homePrimaryButtonContentColor()
                 )
             } // 블록 끝
         } // 블록 끝
@@ -1143,8 +1150,8 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
     onDeleteClick: () -> Unit // onDeleteClick 는 눌렀을 때 실행할 동작을 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isHomeDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
-    val itemCardColor = if (isDark) Color(0xFF171A2B) else Color(0xFFF8FBFF) // 소비 항목 카드 배경색을 오늘의 소비일기와 맞춤
-    val itemBorderColor = if (isDark) Color(0xFF4C3B7A) else Color(0xFFBFDBFE) // 소비 항목 카드 테두리색을 오늘의 소비일기와 맞춤
+    val itemCardColor = if (isDark) Color(0xFF171A2B) else Color(0xFFF7FBFF) // 소비 항목 카드 배경색을 오늘의 소비일기와 맞춤
+    val itemBorderColor = if (isDark) Color(0xFF4C3B7A) else Color(0xFF7DD3FC) // 소비 항목 카드 테두리색을 오늘의 소비일기와 맞춤
     val editColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB) // 수정 버튼 색을 모드별로 분리함
     val expenseAmountColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF1E3A8A) // 지출 금액 색을 모드별로 분리함
     Card( // 카드 모양 UI를 시작함
@@ -1572,7 +1579,8 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     val calendar = Calendar.getInstance() // 현재 날짜/시간 정보를 가진 Calendar 객체를 만듦
     val colorScheme = MaterialTheme.colorScheme
     val isDark = isHomeDarkTheme()
-    val primaryButtonColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB)
+    val primaryButtonColor = homePrimaryButtonColor()
+    val primaryButtonContentColor = homePrimaryButtonContentColor()
     val formCardColor = homeSoftCardColor()
     val formSurfaceColor = colorScheme.surfaceVariant
     val formBorderColor = colorScheme.outlineVariant
@@ -2312,7 +2320,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                         colors = ButtonDefaults.buttonColors( // 색상 스타일을 정함
                             containerColor = primaryButtonColor,
-                            contentColor = Color.White
+                            contentColor = primaryButtonContentColor
                         ),
                         contentPadding = PaddingValues(0.dp) // 버튼 안쪽 여백을 정함
                     ) { // 이 블록 안의 내용이 시작됨
@@ -2327,7 +2335,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         ) { // 이 블록 안의 내용이 시작됨
                             Text( // 글자를 화면에 보여주기 시작함
                                 text = if (isExpenseTab) "소비 수정 완료" else "수입 수정 완료", // 화면에 보여줄 글자를 정함
-                                color = Color.White, // 색상을 정함
+                                color = primaryButtonContentColor, // 색상을 정함
                                 fontSize = 17.sp, // 글자 크기를 정함
                                 fontWeight = FontWeight.Bold // 글자 두께를 정함
                             )
@@ -2366,7 +2374,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
                     colors = ButtonDefaults.buttonColors( // 색상 스타일을 정함
                         containerColor = primaryButtonColor,
-                        contentColor = Color.White
+                        contentColor = primaryButtonContentColor
                     ),
                     contentPadding = PaddingValues(0.dp) // 버튼 안쪽 여백을 정함
                 ) { // 이 블록 안의 내용이 시작됨
@@ -2381,7 +2389,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     ) { // 이 블록 안의 내용이 시작됨
                         Text( // 글자를 화면에 보여주기 시작함
                             text = if (isExpenseTab) "소비 입력 완료" else "수입 입력 완료", // 화면에 보여줄 글자를 정함
-                            color = Color.White, // 색상을 정함
+                            color = primaryButtonContentColor, // 색상을 정함
                             fontSize = 17.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.Bold // 글자 두께를 정함
                         )

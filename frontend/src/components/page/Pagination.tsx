@@ -177,7 +177,7 @@ export default function Pagination({
                         disabled={isActive}
                         className={`flex h-10 w-10 items-center justify-center rounded-lg border text-sm transition-colors ${
                             isActive
-                                ? "border-[#2563eb] bg-[#3b82f6] font-medium text-white shadow-[0_10px_22px_rgba(37,99,235,0.18)] dark:border-violet-300/45 dark:bg-[#2d1847] dark:text-white dark:shadow-[0_10px_24px_rgba(124,58,237,0.28)]"
+                                ? "border-[#2563eb]/30 bg-[#e0f2fe] font-medium text-[#1d4ed8] shadow-none dark:border-violet-300/45 dark:bg-[#2d1847] dark:text-white dark:shadow-[0_10px_24px_rgba(124,58,237,0.28)]"
                                 : "border-blue-100 bg-white text-blue-700 hover:border-blue-200 hover:bg-[#f0f7ff] dark:border-violet-300/25 dark:bg-[#111827] dark:text-violet-200 dark:hover:border-violet-300/45 dark:hover:bg-[#2d1847]"
                         }`}
                         aria-current={isActive ? "page" : undefined}

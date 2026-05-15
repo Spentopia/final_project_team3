@@ -51,6 +51,8 @@ import androidx.compose.ui.platform.LocalContext // LocalContext 기능을 가�
 import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // 앱 다크모드 배경색을 가져옴
+import com.ict.spentopia.ui.theme.spentopiaAppButtonColor
+import com.ict.spentopia.ui.theme.spentopiaAppButtonContentColor
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 fun PlazaScreen( // PlazaScreen 함수를 선언함
@@ -171,10 +173,11 @@ private fun PlazaHeroCard( // PlazaHeroCard 함수를 선언함
             end = Offset(800f, 800f)
         )
     }
-    val heroBorderColor = if (isDark) Color(0xFF334155) else Color(0xFFBFDBFE) // hero 테두리색을 모드별로 분리함
+    val heroBorderColor = if (isDark) Color(0xFF334155) else Color(0xFF7DD3FC) // hero 테두리색을 모드별로 분리함
     val heroContentColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A) // heroContentColor 값을 저장함
     val heroMutedContentColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF53657D) // heroMutedContentColor 값을 저장함
-    val pointColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF3B82F6) // 버튼/아이콘 포인트 색을 모드별로 분리함
+    val pointColor = spentopiaAppButtonColor(isDark) // 버튼/아이콘 포인트 색을 모드별로 분리함
+    val pointContentColor = spentopiaAppButtonContentColor(isDark)
 
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
@@ -212,7 +215,7 @@ private fun PlazaHeroCard( // PlazaHeroCard 함수를 선언함
                         Icon( // 화면에 아이콘을 보여줌
                             imageVector = Icons.Outlined.Games, // imageVector 값을 정해줌
                             contentDescription = null, // null 값을 contentDescription 값에 넣음
-                            tint = Color.White, // iconContentColor 값을 tint 값에 넣음
+                            tint = pointContentColor, // iconContentColor 값을 tint 값에 넣음
                             modifier = Modifier.size(36.dp) // UI 크기나 여백 같은 모양을 정함
                         )
                     }
@@ -242,7 +245,7 @@ private fun PlazaHeroCard( // PlazaHeroCard 함수를 선언함
                     shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
                     colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
                         containerColor = pointColor, // containerColor 값을 정해줌
-                        contentColor = Color.White // contentColor 값을 정해줌
+                        contentColor = pointContentColor // contentColor 값을 정해줌
                     ),
                     contentPadding = PaddingValues(vertical = 12.dp), // contentPadding 값을 정해줌
                     modifier = Modifier.fillMaxWidth() // UI 크기나 여백 같은 모양을 정함
@@ -259,7 +262,7 @@ private fun PlazaHeroCard( // PlazaHeroCard 함수를 선언함
                         Text( // 화면에 글자를 보여줌
                             text = "광장 입장하기", // text 값을 정해줌
                             fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
-                            color = Color.White
+                            color = pointContentColor
                         )
                     }
                 }
@@ -633,12 +636,12 @@ private fun isPlazaDarkTheme(): Boolean { // 앱 테마 기준으로 광장 다�
 
 @Composable
 private fun plazaSoftCardColor(): Color {
-    return if (isPlazaDarkTheme()) Color(0xFF171A2B) else Color(0xFFF8FBFF)
+    return if (isPlazaDarkTheme()) Color(0xFF171A2B) else Color(0xFFF7FBFF)
 }
 
 @Composable
 private fun plazaSoftCardBorderColor(): Color {
-    return if (isPlazaDarkTheme()) Color(0xFF4C3B7A) else Color(0xFFBFDBFE)
+    return if (isPlazaDarkTheme()) Color(0xFF4C3B7A) else Color(0xFF7DD3FC)
 }
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시

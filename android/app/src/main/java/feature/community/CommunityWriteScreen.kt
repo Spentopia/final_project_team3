@@ -66,6 +66,8 @@ import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
 import coil.compose.AsyncImage // AsyncImage 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // 앱 다크모드 배경색을 가져옴
+import com.ict.spentopia.ui.theme.spentopiaAppButtonColor
+import com.ict.spentopia.ui.theme.spentopiaAppButtonContentColor
 import java.io.File // File 기능을 가져옴
 import java.io.FileOutputStream // FileOutputStream 기능을 가져옴
 
@@ -547,7 +549,8 @@ private fun CommunityWriteSubmitSection( // CommunityWriteSubmitSection 함수�
 ) { // 이 블록 안의 내용이 시작됨
     val colorScheme = MaterialTheme.colorScheme // colorScheme 값을 저장함
     val isDark = isCommunityWriteDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
-    val buttonColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF2563EB) // 등록 버튼색을 모드별로 분리함
+    val buttonColor = spentopiaAppButtonColor(isDark) // 등록 버튼색을 모드별로 분리함
+    val buttonContentColor = spentopiaAppButtonContentColor(isDark)
 
     Button( // 누를 수 있는 버튼을 만듦
         onClick = onSubmitClick, // onSubmitClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
@@ -556,7 +559,7 @@ private fun CommunityWriteSubmitSection( // CommunityWriteSubmitSection 함수�
         shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
         colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
             containerColor = Color.Transparent, // containerColor 값을 정해줌
-            contentColor = Color.White, // contentColor 값을 정해줌
+            contentColor = buttonContentColor, // contentColor 값을 정해줌
             disabledContainerColor = MaterialTheme.colorScheme.outlineVariant, // disabledContainerColor 값을 정해줌
             disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant // disabledContentColor 값을 정해줌
         ),
@@ -576,7 +579,7 @@ private fun CommunityWriteSubmitSection( // CommunityWriteSubmitSection 함수�
                 text = "등록하기", // text 값을 정해줌
                 fontSize = 15.sp, // fontSize 값을 정해줌
                 fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
-                color = if (isEnabled) Color.White else MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
+                color = if (isEnabled) buttonContentColor else MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
             )
         }
     }

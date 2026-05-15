@@ -74,6 +74,8 @@ import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // 앱 다크모드 배경색을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
+import com.ict.spentopia.ui.theme.spentopiaAppButtonColor
+import com.ict.spentopia.ui.theme.spentopiaAppButtonContentColor
 
 // ------------------------------------------------------------
 // 커뮤니티 카테고리 enum 클래스입니다.
@@ -491,7 +493,8 @@ private fun CommunityTopHeader( // CommunityTopHeader 함수를 선언함
     onWriteClick: () -> Unit // onWriteClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isCommunityDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
-    val buttonColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF3B82F6) // 글쓰기 버튼색을 모드별로 분리함
+    val buttonColor = spentopiaAppButtonColor(isDark) // 글쓰기 버튼색을 모드별로 분리함
+    val buttonContentColor = spentopiaAppButtonContentColor(isDark)
     Row( // 안쪽 UI를 가로로 배치함
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         horizontalArrangement = Arrangement.SpaceBetween, // horizontalArrangement 값을 정해줌
@@ -524,7 +527,7 @@ private fun CommunityTopHeader( // CommunityTopHeader 함수를 선언함
             shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
             colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
                 containerColor = buttonColor, // containerColor 값을 정해줌
-                contentColor = Color.White // contentColor 값을 정해줌
+                contentColor = buttonContentColor // contentColor 값을 정해줌
             ),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp) // contentPadding 값을 정해줌
         ) { // 이 블록 안의 내용이 시작됨
@@ -532,7 +535,7 @@ private fun CommunityTopHeader( // CommunityTopHeader 함수를 선언함
                 text = "글쓰기", // text 값을 정해줌
                 fontSize = 12.sp, // fontSize 값을 정해줌
                 fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
-                color = Color.White
+                color = buttonContentColor
             )
         }
     }
@@ -545,7 +548,8 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
     onWriteClick: () -> Unit // onWriteClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isCommunityDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
-    val buttonColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF3B82F6) // 참가 버튼색을 모드별로 분리함
+    val buttonColor = spentopiaAppButtonColor(isDark) // 참가 버튼색을 모드별로 분리함
+    val buttonContentColor = spentopiaAppButtonContentColor(isDark)
     val cardColor = communitySoftCardColor()
     val cardBorderColor = communitySoftCardBorderColor()
     val statusText = "진행중" // statusText 값을 저장함
@@ -644,7 +648,7 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
                     shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
                     colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
                         containerColor = buttonColor, // buttonColor 값을 containerColor 값에 넣음
-                        contentColor = Color.White // contentColor 값을 정해줌
+                        contentColor = buttonContentColor // contentColor 값을 정해줌
                     ),
                     contentPadding = PaddingValues(vertical = 10.dp) // contentPadding 값을 정해줌
                 ) { // 이 블록 안의 내용이 시작됨
@@ -652,7 +656,7 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
                         text = "참가글 보기", // text 값을 정해줌
                         fontSize = 12.sp, // fontSize 값을 정해줌
                         fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
-                        color = Color.White
+                        color = buttonContentColor
                     )
                 }
 
@@ -662,7 +666,7 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
                     shape = RoundedCornerShape(10.dp), // shape 값을 정해줌
                     colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
                         containerColor = buttonColor, // containerColor 값을 정해줌
-                        contentColor = Color.White // contentColor 값을 정해줌
+                        contentColor = buttonContentColor // contentColor 값을 정해줌
                     ),
                     contentPadding = PaddingValues(vertical = 10.dp) // contentPadding 값을 정해줌
                 ) { // 이 블록 안의 내용이 시작됨
@@ -670,7 +674,7 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
                         text = "참가글 작성", // text 값을 정해줌
                         fontSize = 12.sp, // fontSize 값을 정해줌
                         fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
-                        color = Color.White
+                        color = buttonContentColor
                     )
                 }
             }
@@ -913,7 +917,8 @@ private fun CommunityPaginationRow( // CommunityPaginationRow 함수를 선언�
     onPageSelected: (Int) -> Unit // onPageSelected 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isCommunityDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
-    val selectedColor = if (isDark) Color(0xFF6D5BD0) else Color(0xFF3B82F6) // 페이지 선택 버튼색을 모드별로 분리함
+    val selectedColor = spentopiaAppButtonColor(isDark) // 페이지 선택 버튼색을 모드별로 분리함
+    val selectedTextColor = spentopiaAppButtonContentColor(isDark)
     val unselectedColor = if (isDark) Color(0xFF171A2B) else Color(0xFFEFF6FF) // 선택 안 된 페이지 배경색을 모드별로 분리함
     val unselectedBorderColor = if (isDark) Color(0xFF2E3352) else Color(0xFFBFDBFE) // 선택 안 된 페이지 테두리색을 모드별로 분리함
     val unselectedTextColor = if (isDark) Color(0xFFD8D6F5) else Color(0xFF1E3A8A) // 선택 안 된 페이지 글자색을 모드별로 분리함
@@ -948,7 +953,7 @@ private fun CommunityPaginationRow( // CommunityPaginationRow 함수를 선언�
                     text = page.toString(), // text 값을 정해줌
                     fontSize = 13.sp, // fontSize 값을 정해줌
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, // fontWeight 값을 정해줌
-                    color = if (isSelected) Color.White else unselectedTextColor // color 값을 정해줌
+                    color = if (isSelected) selectedTextColor else unselectedTextColor // color 값을 정해줌
                 )
             }
         }
@@ -994,12 +999,12 @@ private fun isCommunityDarkTheme(): Boolean { // 앱 테마 기준으로 커뮤�
 
 @Composable
 private fun communitySoftCardColor(): Color {
-    return if (isCommunityDarkTheme()) Color(0xFF171A2B) else Color(0xFFF8FBFF)
+    return if (isCommunityDarkTheme()) Color(0xFF171A2B) else Color(0xFFF7FBFF)
 }
 
 @Composable
 private fun communitySoftCardBorderColor(): Color {
-    return if (isCommunityDarkTheme()) Color(0xFF4C3B7A) else Color(0xFFBFDBFE)
+    return if (isCommunityDarkTheme()) Color(0xFF4C3B7A) else Color(0xFF7DD3FC)
 }
 
 private fun CommunityCategory.badgeLabel(): String { // CommunityCategory 함수를 선언함

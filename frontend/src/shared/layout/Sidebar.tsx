@@ -164,7 +164,7 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
         {/* 이용가이드 버튼 */}
         <Link
           to="/guide"
-          className="mt-6 flex w-full items-center justify-center rounded-xl border border-[#2563eb]/45 bg-[#3b82f6] px-4 py-3 font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] transition-all hover:-translate-y-0.5 hover:border-[#1d4ed8]/60 hover:bg-[#2563eb] hover:shadow-[0_14px_34px_rgba(37,99,235,0.22)] dark:!bg-[#2d1847] dark:!bg-none dark:border-violet-300/35 dark:text-violet-50 dark:shadow-lg dark:shadow-[#7c3aed]/20 dark:hover:border-violet-300/50 dark:hover:bg-[#3b245f]"
+          className="mt-6 flex w-full items-center justify-center rounded-xl border border-sidebar-border bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_48%,#dbeafe_100%)] px-4 py-3 font-semibold text-sidebar-foreground shadow-card transition-all hover:-translate-y-0.5 hover:border-[#2563eb]/30 hover:bg-[linear-gradient(135deg,#3b82f6,#2563eb)] hover:text-white hover:shadow-[0_14px_34px_rgba(37,99,235,0.18)] dark:!bg-[#2d1847] dark:!bg-none dark:border-violet-300/35 dark:text-violet-50 dark:shadow-lg dark:shadow-[#7c3aed]/20 dark:hover:border-violet-300/50 dark:hover:bg-[#3b245f]"
         >
           이용가이드
         </Link>

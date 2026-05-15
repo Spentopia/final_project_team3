@@ -83,6 +83,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle // ViewModel 상�
 import androidx.lifecycle.viewmodel.compose.viewModel // Compose에서 ViewModel 연결하는 도구를 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // SpentopiaDarkBackground 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple // SpentopiaGlowPurple 기능을 가져옴
+import com.ict.spentopia.ui.theme.spentopiaAppButtonColor
+import com.ict.spentopia.ui.theme.spentopiaAppButtonContentColor
 import java.util.Calendar // Calendar 기능을 가져옴
 
 private const val MAX_BUDGET_AMOUNT = 999_999_999_999L // 예산 관련 값을 저장함
@@ -94,17 +96,22 @@ private fun isBudgetDarkTheme(): Boolean { // isBudgetDarkTheme 함수를 선언
 
 @Composable
 private fun budgetSoftCardColor(): Color {
-    return if (isBudgetDarkTheme()) Color(0xFF171A2B) else Color(0xFFF8FBFF)
+    return if (isBudgetDarkTheme()) Color(0xFF171A2B) else Color(0xFFF7FBFF)
 }
 
 @Composable
 private fun budgetSoftCardBorderColor(): Color {
-    return if (isBudgetDarkTheme()) Color(0xFF4C3B7A) else Color(0xFFBFDBFE)
+    return if (isBudgetDarkTheme()) Color(0xFF4C3B7A) else Color(0xFF7DD3FC)
 }
 
 @Composable
 private fun budgetPrimaryButtonColor(): Color {
-    return if (isBudgetDarkTheme()) Color(0xFF6D5BD0) else Color(0xFF3B82F6)
+    return spentopiaAppButtonColor(isBudgetDarkTheme())
+}
+
+@Composable
+private fun budgetPrimaryButtonContentColor(): Color {
+    return spentopiaAppButtonContentColor(isBudgetDarkTheme())
 }
 
 // 예산 설정 화면임
@@ -579,6 +586,7 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
     onAiRecommendClick: () -> Unit // onAiRecommendClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val buttonColor = budgetPrimaryButtonColor() // 오늘의 소비일기 카드와 어울리는 버튼 색을 씀
+    val buttonContentColor = budgetPrimaryButtonContentColor()
     Row( // 안쪽 UI를 가로로 배치함
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         horizontalArrangement = Arrangement.SpaceBetween, // horizontalArrangement 값을 정해줌
@@ -612,7 +620,7 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
             shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
             colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
                 containerColor = buttonColor, // containerColor 값을 정해줌
-                contentColor = Color.White, // contentColor 값을 정해줌
+                contentColor = buttonContentColor, // contentColor 값을 정해줌
                 disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant, // disabledContainerColor 값을 정해줌
                 disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant // disabledContentColor 값을 정해줌
             ),
@@ -623,7 +631,7 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
                 CircularProgressIndicator( // Circular Progress Indicator 함수를 실행함
                     modifier = Modifier.size(14.dp), // UI 크기나 여백 같은 모양을 정함
                     strokeWidth = 2.dp, // strokeWidth 값을 정해줌
-                    color = Color.White // color 값을 정해줌
+                    color = buttonContentColor // color 값을 정해줌
                 )
                 Spacer(modifier = Modifier.width(6.dp)) // UI 크기나 여백 같은 모양을 정함
             }
@@ -632,7 +640,7 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
                 text = if (isLoading) "추천 중" else "AI 추천", // text 값을 정해줌
                 style = MaterialTheme.typography.bodyMedium, // style 값을 정해줌
                 fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
-                color = Color.White
+                color = buttonContentColor
             )
         }
     }
@@ -682,7 +690,7 @@ private fun AiPlanStatusCard( // AiPlanStatusCard 함수를 선언함
                     shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
                     colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
                         containerColor = budgetPrimaryButtonColor(), // containerColor 값을 정해줌
-                        contentColor = Color.White // contentColor 값을 정해줌
+                        contentColor = budgetPrimaryButtonContentColor() // contentColor 값을 정해줌
                     )
                 ) { // 이 블록 안의 내용이 시작됨
                     Text( // 화면에 글자를 보여줌
@@ -704,6 +712,7 @@ private fun BudgetPlanCard( // BudgetPlanCard 함수를 선언함
     val cardColor = budgetSoftCardColor() // AI 추천 플랜 카드를 오늘의 소비일기 카드 계열로 맞춤
     val cardBorderColor = budgetSoftCardBorderColor() // AI 추천 플랜 카드 테두리색을 맞춤
     val buttonColor = budgetPrimaryButtonColor() // 플랜 적용 버튼색을 통일함
+    val buttonContentColor = budgetPrimaryButtonContentColor()
 
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
@@ -768,7 +777,7 @@ private fun BudgetPlanCard( // BudgetPlanCard 함수를 선언함
                 shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
                 colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
                     containerColor = buttonColor, // containerColor 값을 정해줌
-                    contentColor = Color.White // contentColor 값을 정해줌
+                    contentColor = buttonContentColor // contentColor 값을 정해줌
                 ),
                 contentPadding = PaddingValues(vertical = 12.dp), // contentPadding 값을 정해줌
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp) // elevation 값을 정해줌
@@ -992,7 +1001,7 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
                 shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
                 colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
                     containerColor = budgetPrimaryButtonColor(), // containerColor 값을 정해줌
-                    contentColor = Color.White // contentColor 값을 정해줌
+                    contentColor = budgetPrimaryButtonContentColor() // contentColor 값을 정해줌
                 ),
                 contentPadding = PaddingValues(vertical = 12.dp) // contentPadding 값을 정해줌
             ) { // 이 블록 안의 내용이 시작됨
@@ -1000,7 +1009,7 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
                     text = "설정 저장", // text 값을 정해줌
                     style = MaterialTheme.typography.titleMedium, // style 값을 정해줌
                     fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
-                    color = Color.White
+                    color = budgetPrimaryButtonContentColor()
                 )
             }
         }
