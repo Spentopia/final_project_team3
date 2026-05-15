@@ -949,7 +949,6 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
                     color: chartTheme.tooltipText,
                   }}
                 />
-                <Bar dataKey="amount" fill={isPdfMode ? "#2563eb" : "url(#colorGradient)"} radius={[8, 8, 0, 0]} />
                 <Bar
   dataKey="amount"
   isAnimationActive={!isPdfMode} fill={isPdfMode ? "#2563eb" : "url(#colorGradient)"} radius={[8, 8, 0, 0]} />
