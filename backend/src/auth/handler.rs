@@ -1968,7 +1968,7 @@ fn extract_kakao_state_cookie(headers: &HeaderMap) -> Option<String> {
         })
 }
 fn should_use_secure_cookies(state: &AppState) -> bool {
-    matches!(
+    let is_production_env = matches!(
         state
             .config
             .environment
@@ -1976,7 +1976,11 @@ fn should_use_secure_cookies(state: &AppState) -> bool {
             .to_ascii_lowercase()
             .as_str(),
         "prod" | "production"
-    )
+    );
+
+    is_production_env
+        || state.config.frontend_origin.trim().starts_with("https://")
+        || state.config.cors_origin.trim().starts_with("https://")
 }
 
 fn refresh_cookie_same_site(state: &AppState) -> SameSite {
