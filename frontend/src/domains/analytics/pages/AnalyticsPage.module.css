@@ -28,43 +28,6 @@
   background-color: #6b7280;
 }
 
-/* PDF 모드에서는 안전한 색상만 사용 */
-.pdf-mode * {
-  background-image: none !important;
-  filter: none !important;
-}
-
-.pdf-mode {
-  background: #ffffff !important;
-}
-
-.pdf-mode h1,
-.pdf-mode h2,
-.pdf-mode h3,
-.pdf-mode p,
-.pdf-mode span {
-  color: #000 !important;
-}
-
-.pdf-mode * {
-  background: none !important;
-  background-color: #ffffff !important;
-  color: #000000 !important;
-  backdrop-filter: none !important;
-  filter: none !important;
-}
-
-.pdf-mode .bg-white\/80,
-.pdf-mode .bg-gradient-to-r,
-.pdf-mode .bg-gradient-to-br {
-  background: #ffffff !important;
-}
-
-.pdf-button {
-  background: #2563eb !important;
-  color: white !important;
-}
-
 .marketCard.marketCard.marketCard {
   border: 1px solid rgba(125, 211, 252, 0.62) !important;
   background-image:
@@ -77,6 +40,11 @@
     0 0 0 1px rgba(125, 211, 252, 0.34),
     0 18px 44px rgba(37, 99, 235, 0.12),
     0 4px 16px rgba(15, 23, 42, 0.06) !important;
+  background: #f8fbff !important;
+  border: 1px solid #dbe4f0 !important;
+
+  box-shadow:
+    0 2px 10px rgba(15, 23, 42, 0.04) !important;
 }
 
 .budgetGaugeTrack {
@@ -86,6 +54,10 @@
   box-shadow:
     inset 0 0 0 1px rgba(125, 211, 252, 0.42),
     0 8px 20px rgba(37, 99, 235, 0.08);
+  background: rgba(219, 234, 254, 0.9);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(37, 99, 235, 0.14);
 }
 
 .budgetGaugeFill {
@@ -93,15 +65,113 @@
   border-radius: inherit;
   background: linear-gradient(135deg, #38bdf8 0%, #2563eb 58%, #1e3a8a 100%);
   box-shadow: 0 0 14px rgba(37, 99, 235, 0.28);
+
+  background:
+    linear-gradient(135deg, #3b82f6, #2563eb);
+
+  box-shadow:
+    0 0 14px rgba(37, 99, 235, 0.34);
+
   transition: width 700ms ease;
 }
 
 :global(.dark) .budgetGaugeTrack {
   background: rgba(15, 23, 42, 0.92);
-  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.35);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(124, 58, 237, 0.35);
 }
 
 :global(.dark) .budgetGaugeFill {
-  background: linear-gradient(90deg, #38bdf8, #7c3aed, #a78bfa);
-  box-shadow: 0 0 18px rgba(124, 58, 237, 0.48);
+  background:
+    linear-gradient(90deg, #38bdf8, #7c3aed, #a78bfa);
+
+  box-shadow:
+    0 0 18px rgba(124, 58, 237, 0.48);
+}
+
+.pdfDownload * {
+  animation: none !important;
+  transition: none !important;
+}
+
+.pdfDownload .recharts-wrapper *,
+.pdfDownload svg {
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* 버튼 숨김 */
+.pdfDownload button {
+  display: none !important;
+}
+
+/* PDF 생성 전용 */
+:global(.pdf-mode) {
+  color-scheme: light !important;
+}
+
+/* dark mode 무력화 */
+:global(.pdf-mode .dark),
+:global(.pdf-mode.dark) {
+  color-scheme: light !important;
+}
+
+.pdfDownload {
+  width: 100% !important;
+  overflow: visible !important;
+}
+
+.categoryProgressTrack {
+  width: 100%;
+  height: 14px;
+  flex: 1;
+
+  overflow: hidden;
+  border-radius: 9999px;
+
+  background: #dbeafe;
+
+  position: relative;
+
+  border: 1px solid #bfdbfe;
+}
+
+.categoryProgressFill {
+  height: 100%;
+  min-width: 6px;
+
+  border-radius: inherit;
+
+  transition: width 0.7s ease;
+}
+
+.pdfModeCard {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.pdfMode {
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+.pdfMode * {
+  color: inherit !important;
+}
+
+.pdfDownload {
+  overflow: visible !important;
+}
+
+.pdfDownload .recharts-responsive-container {
+  min-height: 300px !important;
+}
+
+.pdfMode * {
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
 }

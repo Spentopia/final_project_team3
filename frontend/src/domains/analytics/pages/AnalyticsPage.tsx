@@ -320,6 +320,7 @@ const [isReportLoading, setIsReportLoading] = useState(false);
 const [isPatternLoading, setIsPatternLoading] = useState(false);
 
 const [isPdfMode, setIsPdfMode] = useState(false);
+const [isDownloading, setIsDownloading] = useState(false);
 
 const [selectedReportType, setSelectedReportType] = useState<AnalysisReportType>("weekly");
 const aiReport = aiReports[selectedReportType];
@@ -673,61 +674,141 @@ const handleShare = async () => {
 const handleDownload = async () => {
   if (!reportRef.current) return;
 
-  const sourceNode = reportRef.current;
-  const clonedNode = sourceNode.cloneNode(true) as HTMLElement;
-  const sourceWidth = sourceNode.getBoundingClientRect().width;
-
   try {
-    clonedNode.style.position = "fixed";
-    clonedNode.style.left = "-10000px";
-    clonedNode.style.top = "0";
-    clonedNode.style.width = `${sourceWidth}px`;
-    clonedNode.style.pointerEvents = "none";
-    clonedNode.style.zIndex = "-1";
-    document.body.appendChild(clonedNode);
+    setIsDownloading(true);
 
-    // 렌더 반영 대기
-    await new Promise((r) => setTimeout(r, 100));
+    // ✅ PDF 전용 모드 활성화
+    setIsPdfMode(true);
 
-    const canvas = await html2canvas(clonedNode, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
+    // 렌더링 기다리기
+    await new Promise((resolve) => setTimeout(resolve, 700));
+
+    if (!reportRef.current) return;
+
+const element = reportRef.current;
+
+    const canvas = await html2canvas(element, {
+  scale: 2,
+  useCORS: true,
+  backgroundColor: "#ffffff",
+
+  logging: false,
+
+  scrollX: 0,
+  scrollY: 0,
+
+  windowWidth: element.scrollWidth,
+  height: element.scrollHeight,
+  windowHeight: element.scrollHeight,
+
+  foreignObjectRendering: false,
+
+  removeContainer: true,
+
+  onclone: (clonedDoc) => {
+    // 모든 요소의 oklch 제거
+    const all = clonedDoc.querySelectorAll("*");
+
+    all.forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      const style = window.getComputedStyle(htmlEl);
+
+      // color
+      if (style.color.includes("oklch")) {
+        htmlEl.style.color = "#111827";
+      }
+
+      // background
+      if (style.backgroundColor.includes("oklch")) {
+        htmlEl.style.backgroundColor = "#ffffff";
+      }
+
+      // border
+      if (style.borderColor.includes("oklch")) {
+        htmlEl.style.borderColor = "#d1d5db";
+      }
+
+      // fill (svg)
+      if (style.fill.includes("oklch")) {
+        htmlEl.style.fill = "#2563eb";
+      }
+
+      // stroke (svg)
+      if (style.stroke.includes("oklch")) {
+        htmlEl.style.stroke = "#2563eb";
+      }
     });
+  },
+});
 
     const imgData = canvas.toDataURL("image/png");
+
     const pdf = new jsPDF("p", "mm", "a4");
 
-// 여백 설정
-const margin = 12;
+    const pdfWidth = 210;
+    const pdfHeight = 297;
 
-const imgWidth = 210 - margin * 2;
-const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const margin = 10;
 
-let heightLeft = imgHeight;
-let position = margin;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+const pageHeight = pdf.internal.pageSize.getHeight();
 
-// 첫 페이지
-pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
-heightLeft -= 297 - margin * 2;
+const imgWidth = pageWidth - margin * 2;
+const imgHeight = (canvas.height * imgWidth) / canvas.width
 
-// 다음 페이지들
-while (heightLeft > 0) {
-  position = margin - (imgHeight - heightLeft);
+    let heightLeft = imgHeight;
+    let position = margin;
 
-  pdf.addPage();
-  pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+    pdf.addImage(
+  imgData,
+  "PNG",
+  margin,
+  position,
+  imgWidth,
+  imgHeight,
+  undefined,
+  "FAST"
+);
 
-  heightLeft -= 297 - margin * 2;
-}
+    heightLeft -= pdfHeight - margin * 2;
+
+    while (heightLeft > 0) {
+      position = margin - (imgHeight - heightLeft);
+
+      pdf.addPage();
+
+      pdf.addImage(
+  imgData,
+  "PNG",
+  margin,
+  position,
+  imgWidth,
+  imgHeight,
+  undefined,
+  "FAST"
+);
+
+      heightLeft -= pdfHeight - margin * 2;
+    }
 
     pdf.save("소비_분석_리포트.pdf");
+
   } catch (err) {
-    toast.error("PDF를 생성하지 못했습니다.", {
+    console.error("PDF 생성 오류:", err);
+
+    toast.error("PDF 생성 실패", {
       description: "잠시 후 다시 시도해주세요.",
     });
+
   } finally {
-    clonedNode.remove();
+
+
+    // ✅ PDF 모드 해제
+    setIsPdfMode(false);
+
+    setIsDownloading(false);
+
+
   }
 };
 
@@ -738,21 +819,42 @@ while (heightLeft > 0) {
   const weekdayPatternData = buildWeekdayPatternData(thisMonthTransactions);
   const paymentPatternData = buildPaymentPatternData(thisMonthTransactions);
 
-  const marketCardStyle = {
-    border: "1px solid rgba(125, 211, 252, 0.62)",
-    backgroundImage:
-      "linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.96)), radial-gradient(circle at 12% 0%, rgba(125, 211, 252, 0.18), transparent 32%), radial-gradient(circle at 88% 8%, rgba(37, 99, 235, 0.1), transparent 30%)",
-    boxShadow:
-      "inset 0 1px 0 rgba(255, 255, 255, 0.96), inset 0 0 0 1px rgba(37, 99, 235, 0.07), 0 0 0 1px rgba(125, 211, 252, 0.34), 0 18px 44px rgba(37, 99, 235, 0.12), 0 4px 16px rgba(15, 23, 42, 0.06)",
-  };
+  const marketCardStyle = isPdfMode
+  ? {
+      border: "1px solid #dbe4f0",
+      background: "#f8fbff",
+      boxShadow: "0 2px 10px rgba(15, 23, 42, 0.04)",
+    }
+  : {
+      border: "1px solid rgba(125, 211, 252, 0.62)",
+      backgroundImage:
+        "linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.96)), radial-gradient(circle at 12% 0%, rgba(125, 211, 252, 0.18), transparent 32%), radial-gradient(circle at 88% 8%, rgba(37, 99, 235, 0.1), transparent 30%)",
+      boxShadow:
+        "inset 0 1px 0 rgba(255, 255, 255, 0.96), inset 0 0 0 1px rgba(37, 99, 235, 0.07), 0 0 0 1px rgba(125, 211, 252, 0.34), 0 18px 44px rgba(37, 99, 235, 0.12), 0 4px 16px rgba(15, 23, 42, 0.06)",
+    };
 
   return (
-    <div ref={reportRef} className="space-y-6">
+    <>
+    <div className="space-y-6">
+    <div
+  ref={reportRef}
+  className={`
+    ${isDownloading ? styles.pdfDownload : ""}
+    ${isPdfMode ? styles.pdfMode : ""}
+  `}
+>
+  <div>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">소비 패턴 분석</h1>
-          <p className="text-gray-600 dark:text-gray-300">AI가 분석한 당신의 소비 습관을 확인해보세요</p>
+          <h1
+  className={`mb-2 text-3xl font-bold ${
+    isPdfMode ? "text-black" : "text-gray-900 dark:text-gray-100"
+  }`}
+>소비 패턴 분석</h1>
+          <p className="mb-6 text-gray-600 dark:text-gray-300">
+  AI가 분석한 당신의 소비 습관을 확인해보세요
+</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleShare} className="spentopia-primary-button">
@@ -831,7 +933,7 @@ while (heightLeft > 0) {
         <TabsContent value="weekly" className="space-y-6">
           <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
             <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">주간 소비 추이</h3>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="99%" height={300}>
               <BarChart
   data={weeklyData}
   margin={{ top: 10, right: 20, left: 30, bottom: 10 }}
@@ -848,6 +950,9 @@ while (heightLeft > 0) {
                   }}
                 />
                 <Bar dataKey="amount" fill={isPdfMode ? "#2563eb" : "url(#colorGradient)"} radius={[8, 8, 0, 0]} />
+                <Bar
+  dataKey="amount"
+  isAnimationActive={!isPdfMode} fill={isPdfMode ? "#2563eb" : "url(#colorGradient)"} radius={[8, 8, 0, 0]} />
                 <defs>
                   <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={chartTheme.barStart} />
@@ -863,7 +968,7 @@ while (heightLeft > 0) {
         <TabsContent value="monthly" className="space-y-6">
           <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
             <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">월간 소비 추이</h3>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="99%" height={300}>
               <LineChart
   data={monthlyData}
   margin={{ top: 10, right: 20, left: 30, bottom: 10 }}
@@ -897,17 +1002,41 @@ while (heightLeft > 0) {
         <Card style={marketCardStyle} className={`${styles.marketCard} h-full min-h-[400px] flex flex-col border-none p-6 backdrop-blur-xl`}>
           <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">카테고리별 지출</h3>
           <div className="flex-1">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
+          <ResponsiveContainer width="100%" height={320}>
+            <PieChart margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
               <Pie
                 data={categoryData}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) =>
-  `${name} ${(percent * 100).toFixed(0)}%`
-}
-                outerRadius="80%"
+                label={({ name, percent, cx, cy, midAngle, innerRadius, outerRadius }) => {
+  const RADIAN = Math.PI / 180;
+
+  const radius =
+    Number(innerRadius) +
+    (Number(outerRadius) - Number(innerRadius)) * 1.25;
+
+  const x =
+    Number(cx) + radius * Math.cos(-Number(midAngle) * RADIAN);
+
+  const y =
+    Number(cy) + radius * Math.sin(-Number(midAngle) * RADIAN);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#111827"
+      textAnchor={x > Number(cx) ? "start" : "end"}
+      dominantBaseline="central"
+      fontSize={12}
+fontWeight={600}
+    >
+      {`${name} ${(Number(percent) * 100).toFixed(0)}%`}
+    </text>
+  );
+}}
+                outerRadius={110}
                 fill="#2563eb"
                 dataKey="value"
               >
@@ -943,18 +1072,24 @@ while (heightLeft > 0) {
 </span>
                   <span className="font-bold text-gray-900 dark:text-gray-100">{cat.amount.toLocaleString()}원</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                    <div
-  className="h-full"
-  style={{ width: `${cat.value}%`, backgroundColor: cat.color }}
-></div>
-                  </div>
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{cat.value}%</span>
-                </div>
-              </div>
+                <div className="flex items-center gap-3">
+  <div className={styles.categoryProgressTrack}>
+    <div
+      className={styles.categoryProgressFill}
+      style={{
+        width: `${cat.value}%`,
+        backgroundColor: cat.color,
+      }}
+    ></div>
+  </div>
+
+  <span className="min-w-[45px] text-sm font-semibold text-gray-700 dark:text-gray-200">
+    {cat.value}%
+  </span>
+</div>
+</div>
             ))}
-          </div>
+            </div>
         </Card>
       </div>
 
@@ -1063,6 +1198,9 @@ while (heightLeft > 0) {
 </div>
   )}
 </Card>
-    </div>
-  );
+          </div>
+</div>
+</div>
+</>
+);
 }
