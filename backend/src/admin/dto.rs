@@ -258,6 +258,56 @@ pub struct AdminUserResponse {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
+// ─────────────────────────────────────────────
+// 관리자 탈퇴 회원 모니터링 응답 DTO
+// ─────────────────────────────────────────────
+//
+// 탈퇴 회원 모니터링 탭에서 사용하는 응답.
+//
+// 기준:
+// - users.deleted_at is not null
+//
+// 화면에서 보여줄 것:
+// - 이메일 / 닉네임
+// - 탈퇴일
+// - 30일 재가입 제한 종료일
+// - 30일 제한 상태
+// - 5년 보관 만료 예정일
+// - 보관 만료까지 남은 일수
+#[derive(Debug, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct AdminWithdrawnUserResponse {
+    pub id: uuid::Uuid,
+
+    pub email: Option<String>,
+    pub nickname: Option<String>,
+
+    // 탈퇴 시각.
+    pub deleted_at: chrono::DateTime<chrono::Utc>,
+
+    // 가입일.
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+
+    // 30일 재가입 제한 종료 시각.
+    pub rejoin_cooldown_until: chrono::DateTime<chrono::Utc>,
+
+    // 현재 30일 재가입 제한 중인지 여부.
+    pub is_rejoin_cooldown_active: bool,
+
+    // 5년 보관 만료 예정일.
+    pub retention_expires_at: chrono::DateTime<chrono::Utc>,
+
+    // 보관 만료까지 남은 일수.
+    // 이미 만료일이 지났으면 0으로 내려준다.
+    pub retention_days_left: i64,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct AdminWithdrawnUserListResponse {
+    pub items: Vec<AdminWithdrawnUserResponse>,
+    pub total_count: i64,
+    pub page: i64,
+    pub page_size: i64,
+}
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateUserActiveRequest {
     // true  = 활성화

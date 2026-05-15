@@ -37,7 +37,7 @@
 // - 삭제는 물리 삭제가 아니라 is_deleted = true, deleted_at = now()로 처리한다.
 
 use anyhow::{Context, Result, anyhow};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, Duration, Months};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
@@ -55,6 +55,8 @@ use super::{
         AdminReportTargetDetailResponse,
         AdminUserListResponse,
         AdminUserResponse,
+        AdminWithdrawnUserResponse,
+        AdminWithdrawnUserListResponse,
         ApplyContentReportActionRequest,
         CreateAdminContestRequest,
         CreateAdminNoticeRequest,
@@ -259,6 +261,56 @@ fn to_user_response(row: AdminUser) -> AdminUserResponse {
         updated_at: row.updated_at,
     }
 }
+
+/// 탈퇴 회원 row를 탈퇴 회원 모니터링 응답 DTO로 변환한다.
+///
+/// 기준:
+/// - deleted_at이 반드시 있어야 탈퇴 회원이다.
+///
+/// 정책:
+/// - 30일 재가입 제한:
+///   deleted_at + 30 days
+///
+/// - 5년 보관 만료:
+///   deleted_at + 60 months
+///
+/// Months::new(60)을 사용하는 이유:
+/// - 단순 365 * 5일보다 달력 기준 5년에 더 가깝다.
+/// - 실패할 경우 안전하게 365*5일 fallback을 사용한다.
+fn to_withdrawn_user_response(row: AdminUser) -> Result<AdminWithdrawnUserResponse> {
+    let deleted_at = row
+        .deleted_at
+        .ok_or_else(|| anyhow!("탈퇴 회원이 아닙니다."))?;
+
+    let now = Utc::now();
+
+    let rejoin_cooldown_until = deleted_at + Duration::days(30);
+
+    let retention_expires_at = deleted_at
+        .checked_add_months(Months::new(60))
+        .unwrap_or_else(|| deleted_at + Duration::days(365 * 5));
+
+    let is_rejoin_cooldown_active = now < rejoin_cooldown_until;
+
+    let retention_days_left = if retention_expires_at > now {
+        (retention_expires_at - now).num_days()
+    } else {
+        0
+    };
+
+    Ok(AdminWithdrawnUserResponse {
+        id: row.id,
+        email: row.email,
+        nickname: row.nickname,
+        deleted_at,
+        created_at: row.created_at,
+        rejoin_cooldown_until,
+        is_rejoin_cooldown_active,
+        retention_expires_at,
+        retention_days_left,
+    })
+}
+
 
 /// posts row를 관리자 공지사항 응답 DTO로 변환한다.
 ///
@@ -1960,6 +2012,98 @@ pub async fn list_users(state: &AppState, query: AdminUserQuery) -> Result<Admin
         page_size,
     })
 }
+
+/// 관리자: 탈퇴 회원 모니터링 목록 조회.
+///
+/// API:
+/// GET /api/admin/users/withdrawn?page=1&page_size=20&keyword=test
+///
+/// 기준:
+/// - users.deleted_at is not null
+///
+/// 제공 목적:
+/// - 탈퇴 회원 보관 기간 관리
+/// - 30일 재가입 제한 상태 확인
+/// - 5년 보관 만료 예정일 확인
+///
+/// keyword:
+/// - nickname 또는 email 부분 검색
+pub async fn list_withdrawn_users(
+    state: &AppState,
+    query: AdminUserQuery,
+) -> Result<AdminWithdrawnUserListResponse> {
+    let page = query.page.unwrap_or(1).max(1);
+    let page_size = query.page_size.unwrap_or(20).clamp(1, 100);
+
+    let from = (page - 1) * page_size;
+    let to = from + page_size - 1;
+
+    let keyword = query
+        .keyword
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+
+    let mut url = format!(
+        "{}/rest/v1/users?select=*&deleted_at=not.is.null&order=deleted_at.desc",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    if let Some(keyword) = keyword {
+        let encoded = urlencoding::encode(&keyword);
+
+        url.push_str(&format!(
+            "&or=(nickname.ilike.*{}*,email.ilike.*{}*)",
+            encoded, encoded
+        ));
+    }
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Range-Unit", "items")
+        .header("Range", format!("{}-{}", from, to))
+        .header("Prefer", "count=exact")
+        .send()
+        .await
+        .context("관리자 탈퇴 회원 목록 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+
+        return Err(anyhow!("관리자 탈퇴 회원 목록 조회 실패: {}", body));
+    }
+
+    let total_count = res
+        .headers()
+        .get("content-range")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.rsplit('/').next())
+        .and_then(|value| value.parse::<i64>().ok())
+        .unwrap_or(0);
+
+    let rows: Vec<AdminUser> = res
+        .json()
+        .await
+        .context("관리자 탈퇴 회원 목록 응답 파싱 실패")?;
+
+    let items = rows
+        .into_iter()
+        .map(to_withdrawn_user_response)
+        .collect::<Result<Vec<_>>>()?;
+
+    Ok(AdminWithdrawnUserListResponse {
+        items,
+        total_count,
+        page,
+        page_size,
+    })
+}
+
 
 // ─────────────────────────────────────────────
 // 특정 회원의 refresh session 전체 폐기

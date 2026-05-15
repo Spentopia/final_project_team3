@@ -12,6 +12,7 @@ use axum::{
 };
 use std::sync::Arc;
 use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
+use tracing::Instrument;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -344,6 +345,10 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/api/admin/content-reports/:id/apply-action",
             patch(admin::handler::apply_content_report_action),
+        )
+        .route(
+            "/api/admin/users/withdrawn",
+            get(admin::handler::list_withdrawn_users),
         )
         .route(
             "/api/admin/users",
