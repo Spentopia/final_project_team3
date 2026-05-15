@@ -117,8 +117,10 @@ fn ensure_unity_request(headers: &HeaderMap) -> Result<(), (StatusCode, String)>
 /// - HttpOnly:
 ///   JS(document.cookie)로 읽지 못하게 해서 XSS로 refresh 탈취를 어렵게 함
 ///
-/// - SameSite=Lax:
-///   기본적인 CSRF 위험을 줄이기 위한 설정
+/// - SameSite:
+///   로컬 개발은 Lax, 배포는 None.
+///   배포에서 프론트/백엔드 origin이 서로 다른 사이트면
+///   XHR /auth/refresh 요청에 Lax 쿠키가 붙지 않는다.
 ///
 /// - Path=/auth:
 ///   refresh 쿠키가 /auth 하위 요청들에만 붙도록 제한
@@ -130,10 +132,11 @@ fn ensure_unity_request(headers: &HeaderMap) -> Result<(), (StatusCode, String)>
 fn build_refresh_cookie(state: &AppState, refresh_token: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
     let secure = should_use_secure_cookies(state);
+    let same_site = refresh_cookie_same_site(state);
 
     let cookie = Cookie::build(("spentopia_refresh", refresh_token.to_string()))
         .http_only(true)
-        .same_site(SameSite::Lax)
+        .same_site(same_site)
         .path("/auth")
         .secure(secure)
         .build();
@@ -141,7 +144,8 @@ fn build_refresh_cookie(state: &AppState, refresh_token: &str) -> HeaderMap {
     headers.append(SET_COOKIE, cookie.to_string().parse().unwrap());
 
     tracing::debug!(
-        "refresh 쿠키 발급: name=spentopia_refresh path=/auth same_site=Lax secure={}",
+        "refresh 쿠키 발급: name=spentopia_refresh path=/auth same_site={:?} secure={}",
+        same_site,
         secure
     );
 
@@ -154,10 +158,11 @@ fn build_refresh_cookie(state: &AppState, refresh_token: &str) -> HeaderMap {
 fn build_clear_refresh_cookie(state: &AppState) -> HeaderMap {
     let mut headers = HeaderMap::new();
     let secure = should_use_secure_cookies(state);
+    let same_site = refresh_cookie_same_site(state);
 
     let cookie = Cookie::build(("spentopia_refresh", "".to_string()))
         .http_only(true)
-        .same_site(SameSite::Lax)
+        .same_site(same_site)
         .path("/auth")
         .secure(secure)
         .max_age(cookie::time::Duration::seconds(0))
@@ -1972,6 +1977,14 @@ fn should_use_secure_cookies(state: &AppState) -> bool {
             .as_str(),
         "prod" | "production"
     )
+}
+
+fn refresh_cookie_same_site(state: &AppState) -> SameSite {
+    if should_use_secure_cookies(state) {
+        SameSite::None
+    } else {
+        SameSite::Lax
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
