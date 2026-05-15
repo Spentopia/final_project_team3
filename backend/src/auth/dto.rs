@@ -249,7 +249,7 @@ pub struct HandoffResponse {
 // ─────────────────────────────────────────────────────────────
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct HandoffExchangeRequest {
-    pub handoff_token: String,
+    pub auth_code: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

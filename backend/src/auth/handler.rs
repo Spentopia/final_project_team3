@@ -2119,7 +2119,7 @@ pub async fn exchange_handoff(
     Json(body): Json<HandoffExchangeRequest>,
 ) -> Result<Json<HandoffExchangeResponse>, (StatusCode, String)> {
     // ── 1) 입력 검증 ────────────────────────────────────────
-    if body.handoff_token.trim().is_empty() {
+    if body.auth_code.trim().is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
             "handoff_token을 입력해 주세요.".to_string(),
@@ -2132,7 +2132,7 @@ pub async fn exchange_handoff(
     // 주의:
     // target_service는 클라이언트 입력을 믿지 않고
     // 서버가 handoff_store에 저장해둔 값을 기준으로 검증한다.
-    let result = exchange_handoff_token(&state, &body.handoff_token)
+    let result = exchange_handoff_token(&state, &body.auth_code)
         .await
         .map_err(|e| {
             let msg = e.to_string();
