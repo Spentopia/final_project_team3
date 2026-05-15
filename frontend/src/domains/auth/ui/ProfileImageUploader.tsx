@@ -105,7 +105,7 @@ export default function ProfileImageUploader({
             {uploading ? "업로드 중..." : previewUrl ? "이미지 변경" : "이미지 업로드"}
           </Button>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            png, jpg, webp · 5MB 이하
+            png, jpg · 5MB 이하
           </p>
         </div>
       </div>
