@@ -16,15 +16,18 @@
     justify-content: space-between;
     gap: 24px;
     margin-bottom: 28px;
-    border: 1px solid rgba(15, 23, 42, 0.08);
+    border: 1px solid rgba(125, 211, 252, 0.62);
     border-radius: 8px;
     background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.86) 48%, rgba(224, 242, 254, 0.8)),
-        linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(147, 197, 253, 0.1) 52%, rgba(30, 58, 138, 0.08));
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.96)),
+        radial-gradient(circle at 10% 0%, rgba(125, 211, 252, 0.2), transparent 34%),
+        radial-gradient(circle at 92% 10%, rgba(37, 99, 235, 0.12), transparent 32%);
     padding: 28px;
     box-shadow:
-        0 10px 30px rgba(37, 99, 235, 0.06),
-        0 2px 10px rgba(15, 23, 42, 0.04);
+        inset 0 1px 0 rgba(255, 255, 255, 0.96),
+        0 0 0 1px rgba(37, 99, 235, 0.07),
+        0 18px 44px rgba(37, 99, 235, 0.12),
+        0 4px 16px rgba(15, 23, 42, 0.06);
 }
 
 .headerCopy {
@@ -74,11 +77,13 @@
 
 .summaryItem {
     min-width: 0;
-    border: 1px solid rgba(15, 23, 42, 0.08);
+    border: 1px solid rgba(191, 219, 254, 0.92);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.74);
+    background: rgba(255, 255, 255, 0.86);
     padding: 10px 12px;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 8px 20px rgba(37, 99, 235, 0.08);
 }
 
 .summaryItem strong {
@@ -99,10 +104,12 @@
 
 .createButton,
 .buyButton {
-    border: 1px solid rgba(15, 23, 42, 0.12);
-    background: rgba(255, 255, 255, 0.92);
-    color: #111827;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    border: 1px solid rgba(191, 219, 254, 0.95);
+    background: #f0f7ff;
+    color: #1d4ed8;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 10px 24px rgba(37, 99, 235, 0.1);
     transition:
         transform 0.16s ease,
         box-shadow 0.16s ease,
@@ -112,20 +119,33 @@
 .createButton {
     min-width: 112px;
     height: 44px;
+    border-color: rgba(37, 99, 235, 0.46);
     border-radius: 8px;
+    background: #38bdf8;
+    color: #0f172a;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.28),
+        0 12px 28px rgba(37, 99, 235, 0.18),
+        0 3px 12px rgba(15, 23, 42, 0.08);
     white-space: nowrap;
 }
 
 .createButton:hover,
 .buyButton:hover {
     transform: translateY(-1px);
-    border-color: rgba(37, 99, 235, 0.3);
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    color: #ffffff;
+    border-color: rgba(37, 99, 235, 0.36);
+    background: #e0f2fe;
+    color: #1e3a8a;
     filter: none;
     box-shadow:
-        0 14px 34px rgba(37, 99, 235, 0.2),
+        0 14px 34px rgba(37, 99, 235, 0.16),
         0 3px 12px rgba(15, 23, 42, 0.06);
+}
+
+.createButton:hover {
+    border-color: rgba(30, 58, 138, 0.72);
+    background: #0ea5e9;
+    color: #0f172a;
 }
 
 .marketSection {
@@ -156,11 +176,11 @@
 
 .sectionCount {
     flex-shrink: 0;
-    border: 1px solid rgba(15, 23, 42, 0.1);
+    border: 1px solid rgba(191, 219, 254, 0.9);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.72);
+    background: #f0f7ff;
     padding: 5px 11px;
-    color: #475569;
+    color: #1d4ed8;
     font-size: 0.75rem;
     font-weight: 700;
 }
@@ -175,11 +195,11 @@
     display: grid;
     place-items: center;
     min-height: 260px;
-    border: 1px dashed rgba(15, 23, 42, 0.16);
+    border: 1px dashed rgba(37, 99, 235, 0.28);
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 252, 0.72)),
-        repeating-linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0 1px, transparent 1px 14px);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(247, 251, 255, 0.82)),
+        repeating-linear-gradient(135deg, rgba(125, 211, 252, 0.12) 0 1px, transparent 1px 14px);
     color: #475569;
     text-align: center;
 }
@@ -201,14 +221,16 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid rgba(15, 23, 42, 0.1);
+    border: 1px solid rgba(125, 211, 252, 0.62);
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(247, 251, 255, 0.96)),
         #ffffff;
     box-shadow:
-        0 10px 30px rgba(37, 99, 235, 0.06),
-        0 2px 10px rgba(15, 23, 42, 0.04);
+        inset 0 1px 0 rgba(255, 255, 255, 0.96),
+        0 0 0 1px rgba(37, 99, 235, 0.07),
+        0 14px 34px rgba(37, 99, 235, 0.11),
+        0 3px 12px rgba(15, 23, 42, 0.06);
     transition:
         transform 0.18s ease,
         box-shadow 0.18s ease,
@@ -219,7 +241,8 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), transparent 38%, rgba(30, 58, 138, 0.08));
+    background:
+        linear-gradient(135deg, rgba(125, 211, 252, 0.2), transparent 36%, rgba(37, 99, 235, 0.1));
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.18s ease;
@@ -227,10 +250,12 @@
 
 .listingCard:hover {
     transform: translateY(-4px);
-    border-color: rgba(37, 99, 235, 0.3);
+    border-color: rgba(37, 99, 235, 0.44);
     box-shadow:
-        0 16px 40px rgba(37, 99, 235, 0.12),
-        0 4px 14px rgba(15, 23, 42, 0.08);
+        inset 0 1px 0 rgba(255, 255, 255, 0.96),
+        0 0 0 1px rgba(125, 211, 252, 0.34),
+        0 18px 46px rgba(37, 99, 235, 0.16),
+        0 5px 16px rgba(15, 23, 42, 0.08);
 }
 
 .listingCard:hover::before {
@@ -254,10 +279,10 @@
     aspect-ratio: 1 / 1;
     margin-bottom: 12px;
     overflow: hidden;
-    border: 1px solid rgba(15, 23, 42, 0.08);
+    border: 1px solid rgba(191, 219, 254, 0.9);
     border-radius: 8px;
     background:
-        linear-gradient(135deg, #e2e8f0, #f8fafc 50%, #dbeafe);
+        linear-gradient(135deg, #f7fbff, #ffffff 50%, #e0f2fe);
 }
 
 .imageWrapper::after {
@@ -311,9 +336,9 @@
 }
 
 .badgeRow :global(.border) {
-    border-color: rgba(15, 23, 42, 0.14);
-    background: rgba(255, 255, 255, 0.66);
-    color: #475569;
+    border-color: rgba(191, 219, 254, 0.95);
+    background: #f0f7ff;
+    color: #1d4ed8;
     font-weight: 700;
 }
 
@@ -343,8 +368,9 @@
 
 .purchaseConfirmButton {
     border-radius: 8px;
-    background: #0891b2;
-    color: #ffffff;
+    border: 1px solid rgba(37, 99, 235, 0.46);
+    background: #38bdf8;
+    color: #0f172a;
     font-weight: 800;
     transition:
         background-color 0.15s ease,
@@ -353,16 +379,20 @@
 }
 
 .purchaseConfirmButton:hover:not(:disabled) {
-    background: #0e7490;
-    box-shadow: 0 12px 28px rgba(8, 145, 178, 0.24);
+    background: #0ea5e9;
+    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22);
     transform: translateY(-1px);
 }
 
 .marketDialogContent {
     border-radius: 8px;
-    border-color: rgba(15, 23, 42, 0.12);
+    border-color: rgba(125, 211, 252, 0.62);
     background: rgba(255, 255, 255, 0.98);
-    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.96),
+        0 0 0 1px rgba(37, 99, 235, 0.07),
+        0 30px 80px rgba(15, 23, 42, 0.16),
+        0 16px 42px rgba(37, 99, 235, 0.12);
 }
 
 .dialogItemList {
@@ -388,9 +418,9 @@
     align-items: center;
     gap: 12px;
     padding: 10px;
-    border: 1px solid rgba(15, 23, 42, 0.1);
+    border: 1px solid rgba(191, 219, 254, 0.92);
     border-radius: 8px;
-    background: rgba(248, 250, 252, 0.74);
+    background: rgba(247, 251, 255, 0.78);
     cursor: pointer;
     transition:
         background-color 0.15s ease,
@@ -400,14 +430,14 @@
 
 .selectableItem:hover {
     transform: translateY(-1px);
-    border-color: rgba(37, 99, 235, 0.3);
+    border-color: rgba(37, 99, 235, 0.32);
     background-color: #eff6ff;
 }
 
 .selectableItemActive {
-    border-color: rgba(37, 99, 235, 0.58);
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    color: #ffffff;
+    border-color: rgba(37, 99, 235, 0.48);
+    background: #38bdf8;
+    color: #0f172a;
     box-shadow:
         0 10px 24px rgba(37, 99, 235, 0.22),
         inset 0 1px 0 rgba(255, 255, 255, 0.24);
@@ -416,7 +446,7 @@
 .selectableItemActive .selectableItemName,
 .selectableItemActive .sellerName,
 .selectableItemActive .itemPrice {
-    color: #ffffff;
+    color: #0f172a;
 }
 
 .selectableItemThumb {
@@ -425,7 +455,7 @@
     flex-shrink: 0;
     overflow: hidden;
     border-radius: 8px;
-    background: linear-gradient(135deg, #e2e8f0, #dbeafe);
+    background: linear-gradient(135deg, #f7fbff, #e0f2fe);
 }
 
 .selectableItemThumb img {
@@ -459,7 +489,7 @@
 
 .priceInput {
     width: 100%;
-    border: 1px solid rgba(15, 23, 42, 0.14);
+    border: 1px solid rgba(191, 219, 254, 0.95);
     border-radius: 8px;
     background: #ffffff;
     padding: 10px 12px;
@@ -473,7 +503,9 @@
 
 .priceInput:focus {
     border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+    box-shadow:
+        0 0 0 3px rgba(125, 211, 252, 0.22),
+        0 10px 24px rgba(37, 99, 235, 0.1);
 }
 
 .dialogDivider {

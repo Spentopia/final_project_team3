@@ -144,7 +144,7 @@ export default function Pagination({
                 type="button"
                 onClick={() => canGoPrev && onPageChange(currentPage - 1)}
                 disabled={!canGoPrev}
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-blue-100 bg-white text-blue-700 shadow-[0_6px_16px_rgba(37,99,235,0.08)] transition-colors hover:border-blue-200 hover:bg-[#f0f7ff] disabled:cursor-not-allowed disabled:opacity-40 dark:border-violet-300/25 dark:bg-[#111827] dark:text-violet-200 dark:shadow-[0_8px_18px_rgba(124,58,237,0.12)] dark:hover:border-violet-300/45 dark:hover:bg-[#2d1847]"
                 aria-label="이전 페이지"
             >
                 <ChevronLeft className="h-4 w-4" />
@@ -177,8 +177,8 @@ export default function Pagination({
                         disabled={isActive}
                         className={`flex h-10 w-10 items-center justify-center rounded-lg border text-sm transition-colors ${
                             isActive
-                                ? "border-cyan-500 bg-cyan-500 font-medium text-white"
-                                : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+                                ? "border-[#2563eb] bg-[#3b82f6] font-medium text-white shadow-[0_10px_22px_rgba(37,99,235,0.18)] dark:border-violet-300/45 dark:bg-[#2d1847] dark:text-white dark:shadow-[0_10px_24px_rgba(124,58,237,0.28)]"
+                                : "border-blue-100 bg-white text-blue-700 hover:border-blue-200 hover:bg-[#f0f7ff] dark:border-violet-300/25 dark:bg-[#111827] dark:text-violet-200 dark:hover:border-violet-300/45 dark:hover:bg-[#2d1847]"
                         }`}
                         aria-current={isActive ? "page" : undefined}
                     >
@@ -192,7 +192,7 @@ export default function Pagination({
                 type="button"
                 onClick={() => canGoNext && onPageChange(currentPage + 1)}
                 disabled={!canGoNext}
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-blue-100 bg-white text-blue-700 shadow-[0_6px_16px_rgba(37,99,235,0.08)] transition-colors hover:border-blue-200 hover:bg-[#f0f7ff] disabled:cursor-not-allowed disabled:opacity-40 dark:border-violet-300/25 dark:bg-[#111827] dark:text-violet-200 dark:shadow-[0_8px_18px_rgba(124,58,237,0.12)] dark:hover:border-violet-300/45 dark:hover:bg-[#2d1847]"
                 aria-label="다음 페이지"
             >
                 <ChevronRight className="h-4 w-4" />

@@ -211,12 +211,12 @@ export default function FindEmailPage() {
   const authPrimaryButtonClass =
     "spentopia-light-nft-button";
   const googleLoginButtonClass =
-    "w-full rounded-xl border border-gray-200 bg-white text-gray-900 hover:bg-gray-50 dark:border-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-50";
+    "w-full rounded-xl border border-sky-200/90 bg-white text-blue-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] hover:bg-[#f0f7ff] dark:border-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-50";
   const kakaoLoginButtonClass =
     "w-full rounded-xl border-0 bg-[#FEE500] text-[#191600] hover:bg-[#FEE500] dark:bg-[#FEE500] dark:text-[#191600] dark:hover:bg-[#FEE500]";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.16),transparent_34%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-[#090b16] dark:bg-none">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(125,211,252,0.18),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(37,99,235,0.08),transparent_30%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-[#090b16] dark:bg-none">
       <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 shadow-2xl backdrop-blur-xl dark:bg-[#0b1020]/95 dark:shadow-black/40">
         <div className="p-8">
           <div className="mb-8 flex flex-col items-center">
@@ -233,7 +233,7 @@ export default function FindEmailPage() {
                   <p className="text-gray-600 dark:text-gray-400">
                     등록된 이메일:
                   </p>
-                  <p className="text-xl font-bold text-[#1E1B4B] dark:text-[#c4b5fd]">
+                  <p className="text-xl font-bold text-[#1e3a8a] dark:text-[#c4b5fd]">
                     {result.masked_email}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -260,7 +260,7 @@ export default function FindEmailPage() {
                   <p className="text-gray-600 dark:text-gray-400">
                     등록된 이메일:
                   </p>
-                  <p className="text-xl font-bold text-[#1E1B4B] dark:text-[#c4b5fd]">
+                  <p className="text-xl font-bold text-[#1e3a8a] dark:text-[#c4b5fd]">
                     {result.masked_email}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -296,7 +296,7 @@ export default function FindEmailPage() {
                   <p className="text-gray-600 dark:text-gray-400">
                     등록된 이메일:
                   </p>
-                  <p className="text-xl font-bold text-[#1E1B4B] dark:text-[#c4b5fd]">
+                  <p className="text-xl font-bold text-[#1e3a8a] dark:text-[#c4b5fd]">
                     {result.masked_email}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -390,7 +390,7 @@ export default function FindEmailPage() {
               <div className="text-center">
                 <Link
                   to="/login"
-                  className="text-sm text-gray-500 hover:text-[#1E1B4B] dark:text-gray-400 dark:hover:text-[#c4b5fd]"
+                  className="text-sm text-gray-500 hover:text-[#2563eb] dark:text-gray-400 dark:hover:text-[#c4b5fd]"
                 >
                   로그인으로 돌아가기
                 </Link>

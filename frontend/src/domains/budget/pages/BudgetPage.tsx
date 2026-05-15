@@ -771,7 +771,7 @@ localStorage.setItem(
               size="icon"
               onClick={() => updateSelectedMonthByIndex(selectedMonthIndex - 1)}
               disabled={selectedMonthIndex <= 0}
-              className="h-9 w-9 rounded-lg border-slate-200 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800"
+              className="h-9 w-9 rounded-lg border-sky-200/90 bg-[#f0f7ff] text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] hover:border-blue-300 hover:bg-sky-100 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -780,19 +780,19 @@ localStorage.setItem(
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="flex h-9 w-[184px] items-center justify-between rounded-[13px] border border-slate-200 bg-white px-2.5 text-left text-slate-900 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-[#111827] dark:text-gray-100 dark:hover:bg-slate-800"
+                  className="flex h-9 w-[184px] items-center justify-between rounded-[13px] border border-sky-200/90 bg-white px-2.5 text-left text-blue-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] transition hover:border-blue-300 hover:bg-[#f0f7ff] dark:border-slate-700 dark:bg-[#111827] dark:text-gray-100 dark:hover:bg-slate-800"
                 >
                   <span className="flex items-center gap-1 text-sm font-semibold">
-                    <CalendarDays className="h-3.5 w-3.5 text-slate-500 dark:text-violet-300" />
+                    <CalendarDays className="h-3.5 w-3.5 text-blue-600 dark:text-violet-300" />
                     {currentMonthLabel}
                   </span>
-                  <ChevronDown className="h-3.5 w-3.5 text-slate-500 dark:text-gray-300" />
+                  <ChevronDown className="h-3.5 w-3.5 text-blue-600 dark:text-gray-300" />
                 </button>
               </PopoverTrigger>
               <PopoverContent
                 align="start"
                 sideOffset={6}
-                className="z-50 w-[264px] rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_12px_30px_rgba(15,23,42,0.12)] outline-none dark:border-slate-700 dark:bg-[#0b1020] dark:shadow-[0_18px_36px_rgba(0,0,0,0.35)]"
+                className="z-50 w-[264px] rounded-2xl border border-sky-200/90 bg-white p-2 shadow-[0_18px_44px_rgba(37,99,235,0.12),0_4px_16px_rgba(15,23,42,0.06)] outline-none dark:border-slate-700 dark:bg-[#0b1020] dark:shadow-[0_18px_36px_rgba(0,0,0,0.35)]"
               >
                 <div className="mb-1.5 flex items-center justify-between">
                   <Button
@@ -801,7 +801,7 @@ localStorage.setItem(
                     size="icon"
                     onClick={() => setSelectedYear((prev) => Math.max(MIN_YEAR, prev - 1))}
                     disabled={selectedYear <= MIN_YEAR}
-                    className="h-7 w-7 rounded-md border-slate-200 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800"
+                    className="h-7 w-7 rounded-md border-sky-200/90 bg-[#f0f7ff] text-blue-700 hover:border-blue-300 hover:bg-sky-100 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800"
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
                   </Button>
@@ -816,7 +816,7 @@ localStorage.setItem(
                     size="icon"
                     onClick={() => setSelectedYear((prev) => Math.min(MAX_YEAR, prev + 1))}
                     disabled={selectedYear >= MAX_YEAR}
-                    className="h-7 w-7 rounded-md border-slate-200 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800"
+                    className="h-7 w-7 rounded-md border-sky-200/90 bg-[#f0f7ff] text-blue-700 hover:border-blue-300 hover:bg-sky-100 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800"
                   >
                     <ChevronRight className="h-3.5 w-3.5" />
                   </Button>
@@ -843,10 +843,10 @@ localStorage.setItem(
         className={`flex h-9 items-center justify-center rounded-lg text-sm font-medium transition
           ${
             selected
-              ? "bg-slate-900 text-white dark:bg-violet-500"
+              ? "bg-sky-100 text-blue-800 ring-1 ring-blue-200 shadow-[0_8px_20px_rgba(37,99,235,0.12)] dark:bg-violet-500"
               : isFutureMonth
               ? "cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-gray-500"
-              : "text-slate-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-slate-800"
+              : "text-blue-800 hover:bg-sky-50 dark:text-gray-200 dark:hover:bg-slate-800"
           }
         `}
       >
@@ -865,7 +865,7 @@ localStorage.setItem(
               size="icon"
               onClick={() => updateSelectedMonthByIndex(selectedMonthIndex + 1)}
               disabled={selectedMonthIndex >= TOTAL_MONTHS - 1}
-              className="h-9 w-9 rounded-lg border-slate-200 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800"
+              className="h-9 w-9 rounded-lg border-sky-200/90 bg-[#f0f7ff] text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] hover:border-blue-300 hover:bg-sky-100 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -923,8 +923,8 @@ localStorage.setItem(
       key={plan.id}
               className={`border-2 spentopia-surface-card p-6 backdrop-blur-xl transition-all  ${
                 selectedPlan === plan.id
-  ? "border-emerald-500 bg-emerald-50/60 shadow-2xl dark:border-emerald-400 dark:bg-emerald-900/10"
-                  : "border-transparent hover:border-slate-300 dark:hover:border-[#7c3aed]/40"
+  ? "border-blue-400 bg-sky-50/70 shadow-[0_18px_44px_rgba(37,99,235,0.16)] dark:border-violet-400 dark:bg-violet-950/20 dark:shadow-[0_18px_44px_rgba(124,58,237,0.18)]"
+                  : "border-transparent hover:border-sky-300 dark:hover:border-[#7c3aed]/40"
               }`}
             >
               <div className="mb-4">
@@ -933,7 +933,7 @@ localStorage.setItem(
                     {plan.name}
                   </h3>
                   {selectedPlan === plan.id && (
-                    <Badge className="bg-slate-900 text-white">적용중</Badge>
+                    <Badge className="bg-[#3b82f6] text-white dark:bg-[#2d1847] dark:text-white">적용중</Badge>
                   )}
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -986,7 +986,7 @@ localStorage.setItem(
   disabled={selectedPlan === plan.id}
   className={`w-full transition-all duration-300 ${
     selectedPlan === plan.id
-      ? "bg-emerald-600 hover:bg-emerald-600 text-white cursor-default"
+      ? "bg-[#f0f7ff] border border-blue-200 text-blue-700 hover:bg-[#f0f7ff] cursor-default dark:border-violet-400/45 dark:bg-violet-950/35 dark:text-violet-100 dark:hover:bg-violet-950/35"
       : "spentopia-primary-button"
   }`}
 >
@@ -1174,9 +1174,9 @@ localStorage.setItem(
 
                 <div className="pt-2">
                   {Number(customBudget.monthly) > 0 && (
-                    <div className="h-3 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                    <div className="h-3 overflow-hidden rounded-full bg-sky-100 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.42),0_8px_20px_rgba(37,99,235,0.08)] dark:bg-gray-700">
                       <div
-                        className="h-full bg-[linear-gradient(90deg,#334155,#475569,#64748b)] dark:bg-[linear-gradient(90deg,#090b16,#4338ca,#7c3aed)]"
+                        className="h-full bg-[#3b82f6] shadow-[0_0_14px_rgba(37,99,235,0.28)] dark:bg-[#2d1847] dark:shadow-[0_0_16px_rgba(124,58,237,0.36)]"
                         style={{
                           width: `${Math.min(
                             100,

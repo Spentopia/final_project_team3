@@ -5,23 +5,25 @@
   --light-bg: #f8fbff;
   --light-surface: #ffffff;
   --light-card: #ffffff;
-  --light-card-soft: #f1f5f9;
-  --light-card-accent: #dbeafe;
-  --light-sky: #93c5fd;
+  --light-card-soft: #f7fbff;
+  --light-card-accent: #e0f2fe;
+  --light-sky: #7dd3fc;
   --light-blue: #2563eb;
   --light-navy: #1e3a8a;
-  --light-border: rgba(37, 99, 235, 0.22);
+  --light-border: rgba(125, 211, 252, 0.62);
   --light-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    0 14px 36px rgba(37, 99, 235, 0.1),
-    0 2px 10px rgba(15, 23, 42, 0.04);
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    inset 0 0 0 1px rgba(37, 99, 235, 0.07),
+    0 0 0 1px rgba(125, 211, 252, 0.34),
+    0 18px 44px rgba(37, 99, 235, 0.12),
+    0 4px 16px rgba(15, 23, 42, 0.06);
   --light-surface-bg:
-    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.9), transparent 34%),
-    radial-gradient(circle at 82% 18%, rgba(147, 197, 253, 0.34), transparent 36%),
-    linear-gradient(135deg, #eff6ff 0%, #dbeafe 38%, #f8fbff 62%, #bfdbfe 100%);
-  --light-soft-bg: linear-gradient(135deg, #f8fbff 0%, #e0f2fe 42%, #dbeafe 100%);
-  --light-action-bg: linear-gradient(135deg, #dbeafe 0%, #eff6ff 28%, #bfdbfe 58%, #93c5fd 100%);
-  --light-action-hover-bg: linear-gradient(135deg, #bfdbfe 0%, #dbeafe 32%, #93c5fd 68%, #60a5fa 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.96)),
+    radial-gradient(circle at 12% 0%, rgba(125, 211, 252, 0.18), transparent 32%),
+    radial-gradient(circle at 88% 8%, rgba(37, 99, 235, 0.1), transparent 30%);
+  --light-soft-bg: linear-gradient(135deg, #ffffff 0%, #f7fbff 48%, #eff6ff 100%);
+  --light-action-bg: #3b82f6;
+  --light-action-hover-bg: #2563eb;
   --background: var(--light-bg);
   --foreground: #0f172a;
   --card: var(--light-card);
@@ -64,9 +66,9 @@
   --luxury-gold-foreground: #3f3425;
   --luxury-emerald: var(--light-sky);
   --luxury-emerald-foreground: var(--light-navy);
-  --surface-subtle: rgba(239, 246, 255, 0.72);
+  --surface-subtle: rgba(240, 247, 255, 0.78);
   --surface-elevated: rgba(255, 255, 255, 0.94);
-  --border-subtle: rgba(37, 99, 235, 0.1);
+  --border-subtle: rgba(125, 211, 252, 0.36);
   --shadow-soft: var(--light-shadow);
   --shadow-card: var(--light-shadow);
   --spentopia-market-card-bg: var(--light-surface-bg);
@@ -393,17 +395,17 @@ html.dark .spentopia-nft-card-tone[data-slot="card"],
   }
 
   .spentopia-guide-icon {
-    background: linear-gradient(135deg, #dbeafe, #eff6ff) !important;
-    color: var(--light-navy) !important;
+    background: #e0f2fe !important;
+    color: #1d4ed8 !important;
     box-shadow: 0 8px 20px rgba(37, 99, 235, 0.14) !important;
-    border: 1px solid rgba(37, 99, 235, 0.18) !important;
+    border: 1px solid rgba(125, 211, 252, 0.72) !important;
   }
 
   .spentopia-step-badge {
-    background: var(--light-action-bg) !important;
-    color: #ffffff !important;
-    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.24) !important;
-    border: 1px solid rgba(255, 255, 255, 0.75) !important;
+    background: #38bdf8 !important;
+    color: #0f172a !important;
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.18) !important;
+    border: 1px solid rgba(125, 211, 252, 0.86) !important;
   }
 
   .spentopia-guide-label {
@@ -417,16 +419,16 @@ html.dark .spentopia-nft-card-tone[data-slot="card"],
   }
 
   .dark .spentopia-guide-icon {
-    background: linear-gradient(135deg, #090b16, #312e81 58%, #7c3aed) !important;
-    color: #a5f3fc !important;
+    background: #2d1847 !important;
+    color: #c4b5fd !important;
     border-color: rgba(124, 58, 237, 0.42) !important;
     box-shadow: 0 8px 22px rgba(124, 58, 237, 0.26) !important;
   }
 
   .dark .spentopia-step-badge {
-    background: linear-gradient(135deg, #22d3ee, #7c3aed) !important;
+    background: #7c3aed !important;
     color: #ffffff !important;
-    border-color: rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(196, 181, 253, 0.42) !important;
     box-shadow: 0 7px 18px rgba(124, 58, 237, 0.36) !important;
   }
 
@@ -596,18 +598,12 @@ html:not(.dark) .spentopia-market-light-soft,
 html:not(.dark) .spentopia-plan-light-card,
 html:not(.dark) .spentopia-dashboard-market-card,
 html:not(.dark) .spentopia-dashboard-market-inner {
-  border: 1px solid rgba(37, 99, 235, 0.22) !important;
+  border: 1px solid rgba(125, 211, 252, 0.62) !important;
   background-color: var(--light-card) !important;
   background:
-    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.9), transparent 34%),
-    radial-gradient(circle at 82% 18%, rgba(147, 197, 253, 0.34), transparent 36%),
-    linear-gradient(
-      135deg,
-      #eff6ff 0%,
-      #dbeafe 38%,
-      #f8fbff 62%,
-      #bfdbfe 100%
-    ) !important;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.96)),
+    radial-gradient(circle at 12% 0%, rgba(125, 211, 252, 0.18), transparent 32%),
+    radial-gradient(circle at 88% 8%, rgba(37, 99, 235, 0.1), transparent 30%) !important;
   box-shadow: var(--light-shadow) !important;
 }
 
@@ -615,25 +611,30 @@ html:not(.dark) .spentopia-soft-card,
 html:not(.dark) .spentopia-light-inner-card,
 html:not(.dark) .spentopia-market-light-soft,
 html:not(.dark) .spentopia-dashboard-market-inner {
-  border: 1px solid rgba(59, 130, 246, 0.24) !important;
+  border: 1px solid rgba(191, 219, 254, 0.9) !important;
   background-color: var(--light-card-soft) !important;
   background:
     linear-gradient(
       135deg,
-      #f8fbff 0%,
-      #e0f2fe 42%,
-      #dbeafe 100%
+      #ffffff 0%,
+      #f7fbff 48%,
+      #eff6ff 100%
     ) !important;
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    0 0 0 1px rgba(125, 211, 252, 0.22),
+    0 10px 28px rgba(37, 99, 235, 0.1),
+    0 2px 10px rgba(15, 23, 42, 0.05) !important;
 }
 
 html:not(.dark) .spentopia-primary-button {
-  border: 1.5px solid rgba(37, 99, 235, 0.45) !important;
+  border: 1px solid rgba(37, 99, 235, 0.46) !important;
   background: var(--light-action-bg) !important;
-  color: #0f172a !important;
+  color: #ffffff !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.75),
-    0 8px 20px rgba(37, 99, 235, 0.14) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 10px 24px rgba(37, 99, 235, 0.18),
+    0 2px 10px rgba(15, 23, 42, 0.08) !important;
 }
 
 html:not(.dark) .spentopia-primary-button:hover,
@@ -642,13 +643,13 @@ html:not(.dark) .spentopia-primary-button:focus-visible,
 html:not(.dark) [data-slot="button"].spentopia-primary-button:focus-visible,
 html:not(.dark) .spentopia-primary-button:active,
 html:not(.dark) [data-slot="button"].spentopia-primary-button:active {
-  border-color: rgba(37, 99, 235, 0.62) !important;
+  border-color: rgba(30, 58, 138, 0.72) !important;
   background: var(--light-action-hover-bg) !important;
-  color: #0f172a !important;
+  color: #ffffff !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
     0 12px 26px rgba(37, 99, 235, 0.18),
-    0 3px 12px rgba(15, 23, 42, 0.06) !important;
+    0 4px 14px rgba(15, 23, 42, 0.09) !important;
 }
 
 html:not(.dark) .spentopia-primary-fill {
@@ -656,12 +657,12 @@ html:not(.dark) .spentopia-primary-fill {
 }
 
 html:not(.dark) .spentopia-income-button {
-  border: 1.5px solid rgba(37, 99, 235, 0.45) !important;
-  background: var(--light-action-bg) !important;
-  color: #0f172a !important;
+  border: 1px solid rgba(191, 219, 254, 0.95) !important;
+  background: #f0f7ff !important;
+  color: #1d4ed8 !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.75),
-    0 8px 20px rgba(37, 99, 235, 0.14) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 8px 20px rgba(37, 99, 235, 0.1) !important;
 }
 
 html:not(.dark) .spentopia-income-button:hover,
@@ -670,12 +671,12 @@ html:not(.dark) .spentopia-income-button:focus-visible,
 html:not(.dark) [data-slot="button"].spentopia-income-button:focus-visible,
 html:not(.dark) .spentopia-income-button:active,
 html:not(.dark) [data-slot="button"].spentopia-income-button:active {
-  border-color: rgba(37, 99, 235, 0.62) !important;
-  background: var(--light-action-hover-bg) !important;
-  color: #0f172a !important;
+  border-color: rgba(37, 99, 235, 0.36) !important;
+  background: #e0f2fe !important;
+  color: #1e3a8a !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.78),
-    0 12px 26px rgba(37, 99, 235, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 12px 26px rgba(37, 99, 235, 0.14),
     0 3px 12px rgba(15, 23, 42, 0.06) !important;
 }
 
@@ -691,29 +692,34 @@ html:not(.dark) .spentopia-xp-bar {
 }
 
 html:not(.dark) .spentopia-market-card-view {
-  border: 1px solid rgba(37, 99, 235, 0.22) !important;
+  border: 1px solid rgba(125, 211, 252, 0.62) !important;
   background:
-    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.9), transparent 34%),
-    radial-gradient(circle at 82% 18%, rgba(147, 197, 253, 0.34), transparent 36%),
-    linear-gradient(135deg, #eff6ff 0%, #dbeafe 38%, #f8fbff 62%, #bfdbfe 100%) !important;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.96)),
+    radial-gradient(circle at 12% 0%, rgba(125, 211, 252, 0.18), transparent 32%),
+    radial-gradient(circle at 88% 8%, rgba(37, 99, 235, 0.1), transparent 30%) !important;
   box-shadow: var(--light-shadow) !important;
 }
 
 .dark .spentopia-market-card-view {
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(196, 181, 253, 0.32) !important;
   background: linear-gradient(135deg, #090b16, #111827 52%, #2d1847) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(124, 58, 237, 0.16),
+    0 16px 38px rgba(0, 0, 0, 0.28),
+    0 0 28px rgba(124, 58, 237, 0.14) !important;
 }
 
 html:not(.dark) .spentopia-market-card-action,
 html:not(.dark) [data-slot="button"].spentopia-market-card-action {
-  border: 1.5px solid rgba(37, 99, 235, 0.45) !important;
+  border: 1px solid rgba(37, 99, 235, 0.46) !important;
   background: var(--light-action-bg) !important;
   background-image: var(--light-action-bg) !important;
-  color: #0f172a !important;
+  color: #ffffff !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.75),
-    0 8px 20px rgba(37, 99, 235, 0.14) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 10px 24px rgba(37, 99, 235, 0.18),
+    0 2px 10px rgba(15, 23, 42, 0.08) !important;
 }
 
 html:not(.dark) .spentopia-market-card-action:hover,
@@ -722,31 +728,25 @@ html:not(.dark) .spentopia-market-card-action:focus-visible,
 html:not(.dark) [data-slot="button"].spentopia-market-card-action:focus-visible,
 html:not(.dark) .spentopia-market-card-action:active,
 html:not(.dark) [data-slot="button"].spentopia-market-card-action:active {
-  border-color: rgba(37, 99, 235, 0.62) !important;
+  border-color: rgba(30, 58, 138, 0.72) !important;
   background: var(--light-action-hover-bg) !important;
   background-image: var(--light-action-hover-bg) !important;
-  color: #0f172a !important;
+  color: #ffffff !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
     0 12px 26px rgba(37, 99, 235, 0.18),
-    0 3px 12px rgba(15, 23, 42, 0.06) !important;
+    0 4px 14px rgba(15, 23, 42, 0.09) !important;
 }
 
 html:not(.dark) .spentopia-light-nft-button,
 html:not(.dark) [data-slot="button"].spentopia-light-nft-button {
-  background:
-    linear-gradient(
-      135deg,
-      #dbeafe 0%,
-      #eff6ff 28%,
-      #bfdbfe 58%,
-      #93c5fd 100%
-    ) !important;
-  color: #0f172a !important;
-  border: 1.5px solid rgba(37, 99, 235, 0.45) !important;
+  background: #3b82f6 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(37, 99, 235, 0.32) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.75),
-    0 8px 20px rgba(37, 99, 235, 0.14) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    0 10px 24px rgba(37, 99, 235, 0.16),
+    0 2px 10px rgba(15, 23, 42, 0.06) !important;
   border-radius: 9999px !important;
 }
 
@@ -756,19 +756,12 @@ html:not(.dark) .spentopia-light-nft-button:focus-visible,
 html:not(.dark) [data-slot="button"].spentopia-light-nft-button:focus-visible,
 html:not(.dark) .spentopia-light-nft-button:active,
 html:not(.dark) [data-slot="button"].spentopia-light-nft-button:active {
-  background:
-    linear-gradient(
-      135deg,
-      #bfdbfe 0%,
-      #dbeafe 32%,
-      #93c5fd 68%,
-      #60a5fa 100%
-    ) !important;
-  color: #0f172a !important;
-  border-color: rgba(37, 99, 235, 0.62) !important;
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: rgba(30, 58, 138, 0.42) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.78),
-    0 12px 26px rgba(37, 99, 235, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 12px 26px rgba(37, 99, 235, 0.14),
     0 3px 12px rgba(15, 23, 42, 0.06) !important;
   filter: none;
 }
@@ -776,11 +769,12 @@ html:not(.dark) [data-slot="button"].spentopia-light-nft-button:active {
 html:not(.dark) .spentopia-plaza-entry-button,
 html:not(.dark) [data-slot="button"].spentopia-plaza-entry-button {
   background: var(--light-action-bg) !important;
-  color: #0f172a !important;
-  border: 1.5px solid rgba(37, 99, 235, 0.45) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(37, 99, 235, 0.46) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.75),
-    0 8px 20px rgba(37, 99, 235, 0.14) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 10px 24px rgba(37, 99, 235, 0.18),
+    0 2px 10px rgba(15, 23, 42, 0.08) !important;
   border-radius: 9999px !important;
 }
 
@@ -790,26 +784,26 @@ html:not(.dark) .spentopia-plaza-entry-button:focus-visible,
 html:not(.dark) [data-slot="button"].spentopia-plaza-entry-button:focus-visible,
 html:not(.dark) .spentopia-plaza-entry-button:active,
 html:not(.dark) [data-slot="button"].spentopia-plaza-entry-button:active {
-  border-color: rgba(37, 99, 235, 0.62) !important;
+  border-color: rgba(30, 58, 138, 0.72) !important;
   background: var(--light-action-hover-bg) !important;
-  color: #0f172a !important;
+  color: #ffffff !important;
   filter: none;
 }
 
 html:not(.dark) [data-slot="tabs-list"] {
-  border: 1px solid rgba(30, 58, 138, 0.12) !important;
-  background: #f1f5f9 !important;
+  border: 1px solid rgba(191, 219, 254, 0.86) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7) !important;
 }
 
 html:not(.dark) [data-slot="tabs-trigger"][data-state="active"],
 html:not(.dark) [data-slot="tabs-trigger"][aria-selected="true"] {
-  background: var(--light-action-bg) !important;
-  color: #ffffff !important;
-  border-color: rgba(37, 99, 235, 0.3) !important;
+  background: #e0f2fe !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(37, 99, 235, 0.22) !important;
   box-shadow:
-    0 10px 24px rgba(37, 99, 235, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
+    0 8px 20px rgba(37, 99, 235, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82) !important;
 }
 
 html:not(.dark) [data-slot="progress"] {
@@ -861,8 +855,113 @@ html:not(.dark) :is(.bg-cyan-500, .bg-cyan-600) {
 .dark .spentopia-market-card-action,
 .dark [data-slot="button"].spentopia-market-card-action {
   border-color: rgba(124, 58, 237, 0.35) !important;
-  background: linear-gradient(90deg, #090b16, #111827, #2d1847) !important;
-  background-image: linear-gradient(90deg, #090b16, #111827, #2d1847) !important;
+  background: #2d1847 !important;
+  background-image: none !important;
   color: #ffffff !important;
   box-shadow: 0 10px 24px rgba(124, 58, 237, 0.2) !important;
+}
+
+.dark [data-slot="card"],
+.dark .spentopia-card-bg,
+.dark .spentopia-nft-card-tone,
+.dark .spentopia-hero-card,
+.dark .spentopia-surface-card,
+.dark .spentopia-soft-card,
+.dark .spentopia-muted-panel,
+.dark .spentopia-market-light-card,
+.dark .spentopia-market-light-soft,
+.dark .spentopia-plan-light-card,
+.dark .spentopia-dashboard-market-card {
+  border-color: rgba(196, 181, 253, 0.3) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(124, 58, 237, 0.13),
+    0 16px 38px rgba(0, 0, 0, 0.26),
+    0 0 26px rgba(124, 58, 237, 0.12) !important;
+}
+
+.dark .spentopia-primary-button,
+.dark [data-slot="button"].spentopia-primary-button,
+.dark .spentopia-plaza-entry-button,
+.dark [data-slot="button"].spentopia-plaza-entry-button {
+  border-color: rgba(196, 181, 253, 0.48) !important;
+  background: #2d1847 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 12px 26px rgba(124, 58, 237, 0.32),
+    0 3px 12px rgba(0, 0, 0, 0.22) !important;
+}
+
+.dark .spentopia-primary-button:hover,
+.dark [data-slot="button"].spentopia-primary-button:hover,
+.dark .spentopia-primary-button:focus-visible,
+.dark [data-slot="button"].spentopia-primary-button:focus-visible,
+.dark .spentopia-primary-button:active,
+.dark [data-slot="button"].spentopia-primary-button:active,
+.dark .spentopia-plaza-entry-button:hover,
+.dark [data-slot="button"].spentopia-plaza-entry-button:hover,
+.dark .spentopia-plaza-entry-button:focus-visible,
+.dark [data-slot="button"].spentopia-plaza-entry-button:focus-visible,
+.dark .spentopia-plaza-entry-button:active,
+.dark [data-slot="button"].spentopia-plaza-entry-button:active {
+  border-color: rgba(221, 214, 254, 0.62) !important;
+  background: #3b245f !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 14px 30px rgba(124, 58, 237, 0.4),
+    0 4px 14px rgba(0, 0, 0, 0.26) !important;
+}
+
+.dark .spentopia-primary-fill,
+.dark .spentopia-income-button,
+.dark [data-slot="button"].spentopia-income-button {
+  border-color: rgba(196, 181, 253, 0.42) !important;
+  background: #2d1847 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 26px rgba(124, 58, 237, 0.28) !important;
+}
+
+.dark .spentopia-income-button:hover,
+.dark [data-slot="button"].spentopia-income-button:hover,
+.dark .spentopia-income-button:focus-visible,
+.dark [data-slot="button"].spentopia-income-button:focus-visible,
+.dark .spentopia-income-button:active,
+.dark [data-slot="button"].spentopia-income-button:active {
+  border-color: rgba(221, 214, 254, 0.58) !important;
+  background: #3b245f !important;
+  background-image: none !important;
+  color: #ffffff !important;
+}
+
+.dark .spentopia-light-nft-button,
+.dark [data-slot="button"].spentopia-light-nft-button {
+  border-color: rgba(196, 181, 253, 0.48) !important;
+  background: #2d1847 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 12px 26px rgba(124, 58, 237, 0.32),
+    0 3px 12px rgba(0, 0, 0, 0.22) !important;
+}
+
+.dark .spentopia-light-nft-button:hover,
+.dark [data-slot="button"].spentopia-light-nft-button:hover,
+.dark .spentopia-light-nft-button:focus-visible,
+.dark [data-slot="button"].spentopia-light-nft-button:focus-visible,
+.dark .spentopia-light-nft-button:active,
+.dark [data-slot="button"].spentopia-light-nft-button:active {
+  border-color: rgba(221, 214, 254, 0.62) !important;
+  background: #3b245f !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 14px 30px rgba(124, 58, 237, 0.4),
+    0 4px 14px rgba(0, 0, 0, 0.26) !important;
 }

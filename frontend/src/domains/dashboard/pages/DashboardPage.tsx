@@ -89,19 +89,20 @@ export default function DashboardPage() {
   const selectedDateStorageKey = "dashboard-selected-date";
   const entryTypeStorageKey = "dashboard-entry-type";
   const marketCardStyle = {
-    border: "1px solid rgba(37, 99, 235, 0.22)",
+    border: "1px solid rgba(125, 211, 252, 0.62)",
     backgroundColor: "#ffffff",
     backgroundImage:
-      "radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.9), transparent 34%), radial-gradient(circle at 82% 18%, rgba(147, 197, 253, 0.34), transparent 36%), linear-gradient(135deg, #eff6ff 0%, #dbeafe 38%, #f8fbff 62%, #bfdbfe 100%)",
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.96)), radial-gradient(circle at 12% 0%, rgba(125, 211, 252, 0.18), transparent 32%), radial-gradient(circle at 88% 8%, rgba(37, 99, 235, 0.1), transparent 30%)",
     boxShadow:
-      "inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 14px 36px rgba(37, 99, 235, 0.1), 0 2px 8px rgba(15, 23, 42, 0.04)",
+      "inset 0 1px 0 rgba(255, 255, 255, 0.96), inset 0 0 0 1px rgba(37, 99, 235, 0.07), 0 0 0 1px rgba(125, 211, 252, 0.34), 0 18px 44px rgba(37, 99, 235, 0.12), 0 4px 16px rgba(15, 23, 42, 0.06)",
   } as const;
   const marketInnerStyle = {
-    border: "1px solid rgba(59, 130, 246, 0.24)",
-    backgroundColor: "#f8fbff",
+    border: "1px solid rgba(191, 219, 254, 0.9)",
+    backgroundColor: "#f7fbff",
     backgroundImage:
-      "linear-gradient(135deg, #f8fbff 0%, #e0f2fe 42%, #dbeafe 100%)",
-    boxShadow: "0 8px 20px rgba(37, 99, 235, 0.08)",
+      "linear-gradient(135deg, #ffffff 0%, #f7fbff 48%, #eff6ff 100%)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255, 255, 255, 0.96), 0 0 0 1px rgba(125, 211, 252, 0.22), 0 10px 28px rgba(37, 99, 235, 0.1), 0 2px 10px rgba(15, 23, 42, 0.05)",
   } as const;
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
@@ -702,7 +703,7 @@ const currentBudget = budgets[monthKey] ?? budget;
               </h3>
             </div>
 
-            <div className="flex rounded-lg border border-gray-200 bg-gray-100 p-1 shadow-sm dark:border-gray-600 dark:bg-gray-700/60">
+            <div className="flex rounded-lg border border-sky-200/90 bg-[#f0f7ff] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] dark:border-gray-600 dark:bg-gray-700/60">
               <Button
                 type="button"
                 size="sm"
@@ -710,7 +711,7 @@ const currentBudget = budgets[monthKey] ?? budget;
                 className={
                   entryType === "expense"
                     ? "spentopia-primary-button"
-                    : "text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
+                    : "text-blue-700 hover:bg-sky-100/80 hover:text-blue-900 dark:text-gray-200 dark:hover:text-white"
                 }
                 onClick={() => {
                   setEntryType("expense");
@@ -726,7 +727,7 @@ const currentBudget = budgets[monthKey] ?? budget;
                 className={
                   entryType === "income"
                     ? "spentopia-income-button"
-                    : "text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
+                    : "text-blue-700 hover:bg-sky-100/80 hover:text-blue-900 dark:text-gray-200 dark:hover:text-white"
                 }
                 onClick={() => {
                   setEntryType("income");

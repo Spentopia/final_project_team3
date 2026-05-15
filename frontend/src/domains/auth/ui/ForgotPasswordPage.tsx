@@ -170,12 +170,12 @@ export default function ForgotPasswordPage() {
     "spentopia-light-nft-button";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.16),transparent_34%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-[#090b16] dark:bg-none">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(125,211,252,0.18),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(37,99,235,0.08),transparent_30%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-[#090b16] dark:bg-none">
       <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 shadow-2xl backdrop-blur-xl dark:bg-[#0b1020]/95 dark:shadow-black/40">
         <div className="p-8">
           <div className="mb-8 flex flex-col items-center">
             {sent ? (
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#dbeafe] shadow-lg shadow-blue-500/10 dark:bg-[#1E1B4B]">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-sky-200 bg-[#f0f7ff] shadow-lg shadow-blue-500/10 dark:bg-[#1E1B4B]">
                 <MailCheck className="h-8 w-8 text-[#1e3a8a] dark:text-white" />
               </div>
             ) : (
@@ -190,7 +190,7 @@ export default function ForgotPasswordPage() {
           {sent ? (
             <div className="space-y-4">
               
-              <div className="rounded-lg border border-[#bfdbfe] bg-[#eff6ff] p-4 dark:border-[#7c3aed]/40 dark:bg-[#1E1B4B]/30">
+              <div className="rounded-lg border border-sky-200 bg-[#f0f7ff] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] dark:border-[#7c3aed]/40 dark:bg-[#1E1B4B]/30">
                 <div className="mb-2 flex items-center gap-2">
                   <p className="text-sm font-semibold text-[#1e3a8a] dark:text-purple-100">
                     안내
@@ -256,7 +256,7 @@ export default function ForgotPasswordPage() {
               <div className="text-center">
                 <Link
                   to="/login"
-                  className="text-sm text-gray-500 hover:text-[#1E1B4B] dark:text-gray-400 dark:hover:text-[#c4b5fd]"
+                  className="text-sm text-gray-500 hover:text-[#2563eb] dark:text-gray-400 dark:hover:text-[#c4b5fd]"
                 >
                   로그인으로 돌아가기
                 </Link>

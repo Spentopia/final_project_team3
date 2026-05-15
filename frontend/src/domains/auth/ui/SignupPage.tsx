@@ -372,7 +372,7 @@ export default function Signup() {
       "spentopia-light-nft-button";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.16),transparent_34%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-[#090b16] dark:bg-none">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(125,211,252,0.18),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(37,99,235,0.08),transparent_30%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-[#090b16] dark:bg-none">
       <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 shadow-2xl backdrop-blur-xl dark:bg-[#0b1020]/95 dark:shadow-black/40">
         <div className="p-8">
           <div className="mb-8 flex flex-col items-center">
@@ -391,8 +391,8 @@ export default function Signup() {
                 key={s}
                 className={`h-2 flex-1 rounded-full ${
                   s <= step
-                    ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] dark:bg-[#1E1B4B]"
-                    : "bg-gray-200 dark:bg-gray-700"
+                    ? "bg-[#3b82f6] dark:bg-[#2d1847]"
+                    : "bg-sky-100 dark:bg-slate-700"
                 }`}
               />
             ))}
@@ -487,7 +487,7 @@ export default function Signup() {
                         onClick={handleGenerateNickname}
                         disabled={nicknameChecking}
                         title="랜덤 닉네임 생성"
-                        className="flex items-center justify-center rounded-md border border-gray-200 bg-white px-3 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
+                        className="flex items-center justify-center rounded-md border border-sky-200/90 bg-white px-3 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] transition-colors hover:bg-[#f0f7ff] disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
                     >
                       <Dices
                           className={`h-4 w-4 text-gray-500 dark:text-gray-400 ${
@@ -531,8 +531,8 @@ export default function Signup() {
                         onClick={() => updateFormData("avatar", avatar.id)}
                         className={`flex flex-col items-center justify-center rounded-xl border-2 p-4 transition-all ${
                           formData.avatar === avatar.id
-                            ? "border-[#2563eb] bg-[#eff6ff] shadow-lg dark:border-[#7c3aed] dark:bg-[#1E1B4B]/40"
-                            : "border-gray-200 hover:border-[#b9b2ff] dark:border-gray-700 dark:hover:border-[#7c3aed]"
+                            ? "border-[#2563eb] bg-[#eff6ff] shadow-[0_12px_28px_rgba(37,99,235,0.16)] dark:border-[#7c3aed] dark:bg-[#2d1847]"
+                            : "border-sky-200 hover:border-[#2563eb] hover:bg-[#f0f7ff] dark:border-slate-700 dark:hover:border-[#7c3aed] dark:hover:bg-[#2d1847]/70"
                         }`}
                       >
                         <span className="mb-2 text-4xl">{avatar.emoji}</span>
@@ -544,11 +544,11 @@ export default function Signup() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-[#d8d3ff] bg-[#f4f2ff] p-4 dark:border-[#7c3aed]/40 dark:bg-[#1E1B4B]/30">
-                  <p className="mb-2 font-bold text-[#1e3a8a] dark:text-purple-100">
+                <div className="rounded-lg border border-sky-200 bg-[#f0f7ff] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] dark:border-[#7c3aed]/40 dark:bg-[#2d1847]">
+                  <p className="mb-2 font-bold text-[#1e3a8a] dark:text-[#f5f3ff]">
                     🎁 가입 축하 선물!
                   </p>
-                  <p className="text-sm text-[#2563eb] dark:text-purple-300">
+                  <p className="text-sm text-[#2563eb] dark:text-[#c4b5fd]">
                     회원가입 완료 시 기본 아바타를 지급하고 프로필 설정을 바로 이어서
                     할 수 있어요.
                   </p>
@@ -592,7 +592,7 @@ export default function Signup() {
               이미 계정이 있으신가요?{" "}
               <Link
                 to="/login"
-                className="font-bold text-[#1E1B4B] hover:underline dark:text-[#c4b5fd]"
+                className="font-bold text-[#2563eb] hover:underline dark:text-[#c4b5fd]"
               >
                 로그인
               </Link>

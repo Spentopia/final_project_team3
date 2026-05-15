@@ -92,7 +92,7 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
               to={item.path}
               className={`relative flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${
                 isActive
-                  ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] before:absolute before:left-1.5 before:top-1/2 before:h-6 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-white/80 dark:bg-gradient-to-r dark:from-[#090b16] dark:via-[#111827] dark:to-[#2d1847] dark:text-white dark:shadow-lg dark:shadow-[#7c3aed]/20 dark:before:bg-luxury-gold"
+                  ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] before:absolute before:left-1.5 before:top-1/2 before:h-6 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-white/80 dark:!bg-[#2d1847] dark:!bg-none dark:border dark:border-violet-300/35 dark:text-violet-50 dark:shadow-lg dark:shadow-[#7c3aed]/20 dark:before:bg-[#a78bfa]"
                   : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
               }`}
             >
@@ -113,7 +113,7 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
             }}
             className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-all ${
               isProfileSectionActive
-                ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] before:absolute before:left-1.5 before:top-1/2 before:h-6 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-white/80 dark:bg-gradient-to-r dark:from-[#090b16] dark:via-[#111827] dark:to-[#2d1847] dark:text-white dark:shadow-lg dark:shadow-[#7c3aed]/20 dark:before:bg-luxury-gold"
+                ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] before:absolute before:left-1.5 before:top-1/2 before:h-6 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-white/80 dark:!bg-[#2d1847] dark:!bg-none dark:border dark:border-violet-300/35 dark:text-violet-50 dark:shadow-lg dark:shadow-[#7c3aed]/20 dark:before:bg-[#a78bfa]"
                 : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
             }`}
           >
@@ -135,7 +135,7 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
                     to={item.path}
                     className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
                       isActive
-                        ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white shadow-[0_8px_18px_rgba(37,99,235,0.18)] dark:bg-sidebar-accent dark:text-sidebar-accent-foreground"
+                        ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white shadow-[0_8px_18px_rgba(37,99,235,0.18)] dark:!bg-[#2d1847] dark:!bg-none dark:border dark:border-violet-300/30 dark:text-violet-50 dark:shadow-[#7c3aed]/18"
                         : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
                     }`}
                   >
@@ -164,7 +164,7 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
         {/* 이용가이드 버튼 */}
         <Link
           to="/guide"
-          className="mt-6 flex w-full items-center justify-center rounded-xl border border-sidebar-border bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_48%,#dbeafe_100%)] px-4 py-3 font-semibold text-sidebar-foreground shadow-card transition-all hover:-translate-y-0.5 hover:border-[#2563eb]/30 hover:bg-[linear-gradient(135deg,#3b82f6,#2563eb)] hover:text-white hover:shadow-[0_14px_34px_rgba(37,99,235,0.18)] dark:bg-gradient-to-r dark:from-[#090b16] dark:via-[#111827] dark:to-[#2d1847] dark:text-white dark:shadow-lg dark:shadow-[#7c3aed]/20 dark:hover:border-luxury-gold/30"
+          className="mt-6 flex w-full items-center justify-center rounded-xl border border-[#2563eb]/45 bg-[#3b82f6] px-4 py-3 font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] transition-all hover:-translate-y-0.5 hover:border-[#1d4ed8]/60 hover:bg-[#2563eb] hover:shadow-[0_14px_34px_rgba(37,99,235,0.22)] dark:!bg-[#2d1847] dark:!bg-none dark:border-violet-300/35 dark:text-violet-50 dark:shadow-lg dark:shadow-[#7c3aed]/20 dark:hover:border-violet-300/50 dark:hover:bg-[#3b245f]"
         >
           이용가이드
         </Link>

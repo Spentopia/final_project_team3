@@ -16,6 +16,7 @@ import { useRef } from "react";
 import type { AnalyzeReportRequest } from "@/shared/api/aiApi";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
 
 import {
   BarChart,
@@ -263,6 +264,7 @@ export default function Analytics() {
   const { transactions, replaceTransactions, budgets } = useFinance();
   const { connection } = useConnection();
   const { publicKey, signTransaction } = useWallet();
+  const { resolvedTheme } = useTheme();
 
 const reportRef = useRef<HTMLDivElement>(null);
 
@@ -362,6 +364,37 @@ const budgetUsage =
     ? Math.round((totalExpense / currentBudget) * 100)
     : 0;
 
+const isDarkMode = resolvedTheme === "dark" && !isPdfMode;
+const chartTheme = isDarkMode
+  ? {
+      axis: "#c4b5fd",
+      grid: "rgba(196, 181, 253, 0.22)",
+      tooltipBg: "#111827",
+      tooltipBorder: "rgba(196, 181, 253, 0.36)",
+      tooltipText: "#f8fafc",
+      barStart: "#a78bfa",
+      barMid: "#7c3aed",
+      barEnd: "#4c1d95",
+      line: "#a78bfa",
+      dotFill: "#7c3aed",
+      dotStroke: "#ddd6fe",
+      pie: ["#a78bfa", "#7c3aed", "#c084fc", "#22c55e", "#f59e0b", "#f87171"],
+    }
+  : {
+      axis: "#64748b",
+      grid: "#dbeafe",
+      tooltipBg: "#ffffff",
+      tooltipBorder: "#bfdbfe",
+      tooltipText: "#0f172a",
+      barStart: "#38bdf8",
+      barMid: "#2563eb",
+      barEnd: "#1e3a8a",
+      line: "#2563eb",
+      dotFill: "#38bdf8",
+      dotStroke: "#1e3a8a",
+      pie: ["#2563eb", "#38bdf8", "#22c55e", "#f59e0b", "#1e3a8a", "#ef4444"],
+    };
+
 // ✅ 3. 카테고리 계산
 const categoryTotals = thisMonthTransactions.reduce((acc, cur) => {
   const key = cur.category ?? "기타";
@@ -379,7 +412,7 @@ const topCategoryPercent = totalExpense
   : 0;
 
 // 파이 차트용 데이터
-const COLORS = ["#a855f7", "#ec4899", "#22c55e", "#f59e0b", "#3b82f6", "#ef4444"];
+const COLORS = chartTheme.pie;
 
 const categoryData = Object.entries(categoryTotals).map(([name, amount], index) => ({
   key: name,
@@ -706,11 +739,11 @@ while (heightLeft > 0) {
   const paymentPatternData = buildPaymentPatternData(thisMonthTransactions);
 
   const marketCardStyle = {
-    border: "1px solid rgba(37, 99, 235, 0.22)",
+    border: "1px solid rgba(125, 211, 252, 0.62)",
     backgroundImage:
-      "radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.9), transparent 34%), radial-gradient(circle at 82% 18%, rgba(147, 197, 253, 0.34), transparent 36%), linear-gradient(135deg, #eff6ff 0%, #dbeafe 38%, #f8fbff 62%, #bfdbfe 100%)",
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.96)), radial-gradient(circle at 12% 0%, rgba(125, 211, 252, 0.18), transparent 32%), radial-gradient(circle at 88% 8%, rgba(37, 99, 235, 0.1), transparent 30%)",
     boxShadow:
-      "inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 14px 36px rgba(37, 99, 235, 0.1), 0 2px 8px rgba(15, 23, 42, 0.04)",
+      "inset 0 1px 0 rgba(255, 255, 255, 0.96), inset 0 0 0 1px rgba(37, 99, 235, 0.07), 0 0 0 1px rgba(125, 211, 252, 0.34), 0 18px 44px rgba(37, 99, 235, 0.12), 0 4px 16px rgba(15, 23, 42, 0.06)",
   };
 
   return (
@@ -803,21 +836,23 @@ while (heightLeft > 0) {
   data={weeklyData}
   margin={{ top: 10, right: 20, left: 30, bottom: 10 }}
 >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="day" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} />
+                <XAxis dataKey="day" stroke={chartTheme.axis} />
+                <YAxis stroke={chartTheme.axis} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "white",
-                    border: "1px solid #e5e7eb",
+                    backgroundColor: chartTheme.tooltipBg,
+                    border: `1px solid ${chartTheme.tooltipBorder}`,
                     borderRadius: "8px",
+                    color: chartTheme.tooltipText,
                   }}
                 />
-                <Bar dataKey="amount" fill={isPdfMode ? "#8884d8" : "url(#colorGradient)"} radius={[8, 8, 0, 0]} />
+                <Bar dataKey="amount" fill={isPdfMode ? "#2563eb" : "url(#colorGradient)"} radius={[8, 8, 0, 0]} />
                 <defs>
                   <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#a855f7" />
-                    <stop offset="100%" stopColor="#ec4899" />
+                    <stop offset="0%" stopColor={chartTheme.barStart} />
+                    <stop offset="55%" stopColor={chartTheme.barMid} />
+                    <stop offset="100%" stopColor={chartTheme.barEnd} />
                   </linearGradient>
                 </defs>
               </BarChart>
@@ -833,22 +868,23 @@ while (heightLeft > 0) {
   data={monthlyData}
   margin={{ top: 10, right: 20, left: 30, bottom: 10 }}
 >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="month" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} />
+                <XAxis dataKey="month" stroke={chartTheme.axis} />
+                <YAxis stroke={chartTheme.axis} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "white",
-                    border: "1px solid #e5e7eb",
+                    backgroundColor: chartTheme.tooltipBg,
+                    border: `1px solid ${chartTheme.tooltipBorder}`,
                     borderRadius: "8px",
+                    color: chartTheme.tooltipText,
                   }}
                 />
                 <Line
   type="monotone"
   dataKey="amount"
-  stroke={isPdfMode ? "#8884d8" : "#a855f7"}
+  stroke={isPdfMode ? "#2563eb" : chartTheme.line}
   strokeWidth={3}
-  dot={{ fill: isPdfMode ? "#8884d8" : "#a855f7", r: 6 }}
+  dot={{ fill: isPdfMode ? "#2563eb" : chartTheme.dotFill, stroke: chartTheme.dotStroke, strokeWidth: 2, r: 6 }}
 />
               </LineChart>
             </ResponsiveContainer>
@@ -872,7 +908,7 @@ while (heightLeft > 0) {
   `${name} ${(percent * 100).toFixed(0)}%`
 }
                 outerRadius="80%"
-                fill="#8884d8"
+                fill="#2563eb"
                 dataKey="value"
               >
                 {categoryData.map((entry, index) => (
@@ -884,6 +920,12 @@ while (heightLeft > 0) {
     `${value}%`,
     CATEGORY_MAP[name as string]?.label ?? name,
   ]}
+  contentStyle={{
+    backgroundColor: chartTheme.tooltipBg,
+    border: `1px solid ${chartTheme.tooltipBorder}`,
+    borderRadius: "8px",
+    color: chartTheme.tooltipText,
+  }}
 />
             </PieChart>
           </ResponsiveContainer>
