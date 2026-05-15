@@ -59,6 +59,20 @@ export type AdminDashboardStatsResponse = {
     average_report_handle_minutes: number | null;
 };
 
+// 대시보드 날짜별 추이 포인트.
+//
+// 백엔드:
+// GET /api/admin/dashboard/trends
+export type AdminDashboardTrendPoint = {
+    date: string;
+    count: number;
+};
+
+export type AdminDashboardTrendsResponse = {
+    user_signup_trend: AdminDashboardTrendPoint[];
+    report_created_trend: AdminDashboardTrendPoint[];
+};
+
 // 관리자 신고 운영 조치 요청 body.
 export type ApplyAdminContentReportActionRequest = {
     action: AdminReportAction;
@@ -497,6 +511,18 @@ export const getAdminDashboardStats =
     async (): Promise<AdminDashboardStatsResponse> => {
         const res = await apiClient.get<AdminDashboardStatsResponse>(
             "/api/admin/dashboard/stats",
+        );
+
+        return res.data;
+    };
+
+// 관리자 대시보드 추이 그래프 조회.
+//
+// 최근 7일 가입자 추이와 최근 7일 신고 접수 추이를 가져온다.
+export const getAdminDashboardTrends =
+    async (): Promise<AdminDashboardTrendsResponse> => {
+        const res = await apiClient.get<AdminDashboardTrendsResponse>(
+            "/api/admin/dashboard/trends",
         );
 
         return res.data;

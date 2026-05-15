@@ -39,6 +39,7 @@ use crate::wallet;
         crate::admin::handler::list_content_report_audit_logs,
         crate::admin::handler::apply_content_report_action,
         crate::admin::handler::get_content_report_target_detail,
+        crate::admin::handler::get_dashboard_trends,
 
         // ── 인증 ──────────────────────────────────────────────
         crate::auth::handler::request_nonce,
@@ -140,6 +141,8 @@ use crate::wallet;
             admin::dto::ApplyContentReportActionRequest,
             admin::dto::AdminReportAction,
             admin::dto::AdminReportTargetDetailResponse,
+            admin::dto::AdminDashboardTrendPoint,
+            admin::dto::AdminDashboardTrendsResponse,
 
             // ── auth DTO ──────────────────────────────────────
             auth::dto::NonceRequest,

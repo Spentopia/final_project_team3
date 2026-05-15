@@ -282,19 +282,19 @@ pub struct AdminWithdrawnUserResponse {
     pub nickname: Option<String>,
 
     // 탈퇴 시각.
-    pub deleted_at: chrono::DateTime<chrono::Utc>,
+    pub deleted_at: DateTime<Utc>,
 
     // 가입일.
-    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub created_at: Option<DateTime<Utc>>,
 
     // 30일 재가입 제한 종료 시각.
-    pub rejoin_cooldown_until: chrono::DateTime<chrono::Utc>,
+    pub rejoin_cooldown_until: DateTime<Utc>,
 
     // 현재 30일 재가입 제한 중인지 여부.
     pub is_rejoin_cooldown_active: bool,
 
     // 5년 보관 만료 예정일.
-    pub retention_expires_at: chrono::DateTime<chrono::Utc>,
+    pub retention_expires_at: DateTime<Utc>,
 
     // 보관 만료까지 남은 일수.
     // 이미 만료일이 지났으면 0으로 내려준다.
@@ -600,6 +600,44 @@ pub struct AdminAuditLogResponse {
 
     // 로그 생성 시각.
     pub created_at: Option<DateTime<Utc>>,
+}
+
+// ─────────────────────────────────────────────
+// 관리자 대시보드 추이 그래프 DTO
+// ─────────────────────────────────────────────
+//
+// 대시보드 그래프에서 사용하는 날짜별 count 응답.
+//
+// 1차 그래프:
+// - 최근 7일 가입자 추이
+// - 최근 7일 신고 접수 추이
+//
+// date는 프론트에서 x축 라벨로 쓰기 좋게 YYYY-MM-DD 문자열로 내려준다.
+#[derive(Debug, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct AdminDashboardTrendPoint {
+    // 날짜 문자열.
+    //
+    // 예:
+    // "2026-05-15"
+    pub date: String,
+
+    // 해당 날짜의 건수.
+    pub count: i64,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct AdminDashboardTrendsResponse {
+    // 최근 7일 가입자 수.
+    //
+    // 기준:
+    // public.users.created_at
+    pub user_signup_trend: Vec<AdminDashboardTrendPoint>,
+
+    // 최근 7일 신고 접수 수.
+    //
+    // 기준:
+    // public.content_reports.created_at
+    pub report_created_trend: Vec<AdminDashboardTrendPoint>,
 }
 
 

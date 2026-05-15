@@ -183,6 +183,33 @@ pub async fn get_dashboard_stats(
 }
 
 
+/// 관리자: 대시보드 추이 그래프 조회
+///
+/// 관리자 대시보드에서 최근 7일 추이 그래프를 그리기 위한 데이터를 조회한다.
+///
+/// 제공 그래프:
+/// - 최근 7일 가입자 추이
+/// - 최근 7일 신고 접수 추이
+#[utoipa::path(
+    get,
+    path = "/api/admin/dashboard/trends",
+    tag = "관리자",
+    responses(
+        (status = 200, description = "관리자 대시보드 추이 조회 성공", body = crate::admin::dto::AdminDashboardTrendsResponse),
+        (status = 401, description = "인증 실패"),
+        (status = 403, description = "관리자 권한 없음")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn get_dashboard_trends(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    match service::get_dashboard_trends(&state).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_admin_error(e),
+    }
+}
+
 #[utoipa::path(
     get,
     path = "/api/admin/content-reports",
