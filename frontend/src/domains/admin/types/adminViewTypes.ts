@@ -27,5 +27,6 @@ export type AdminTab = "dashboard" | "reports" | "users" | "withdrawn" | "notice
 // 신고 상태 필터 타입.
 //
 // all은 DB status 값이 아니라 프론트 필터용 값.
-// 나머지는 백엔드/DB에서 사용하는 실제 신고 상태값이다.
+// 나머지는 백엔드/DB에서 사용하는 실제 신고 상태값이
+// 다.
 export type ReportStatusFilter = ContentReportStatus | "all";

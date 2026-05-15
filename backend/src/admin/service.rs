@@ -37,7 +37,7 @@
 // - 삭제는 물리 삭제가 아니라 is_deleted = true, deleted_at = now()로 처리한다.
 
 use anyhow::{Context, Result, anyhow};
-use chrono::{DateTime, Utc, Duration, Months};
+use chrono::{DateTime, Utc, Duration, Months, NaiveDate};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
@@ -50,6 +50,8 @@ use super::{
         AdminContentReportResponse,
         AdminContestResponse,
         AdminDashboardStatsResponse,
+        AdminDashboardTrendPoint,
+        AdminDashboardTrendsResponse,
         AdminNoticeResponse,
         AdminReportAction,
         AdminReportTargetDetailResponse,
@@ -738,6 +740,215 @@ pub async fn get_dashboard_stats(
         resolved_reports,
         rejected_reports,
         average_report_handle_minutes,
+    })
+}
+
+// ─────────────────────────────────────────────
+// 관리자 대시보드 추이 그래프
+// ─────────────────────────────────────────────
+//
+// 대시보드 하단 그래프에서 사용할 최근 7일 데이터를 만든다.
+//
+// 현재 그래프:
+// - 최근 7일 가입자 추이: users.created_at 기준
+// - 최근 7일 신고 접수 추이: content_reports.created_at 기준
+//
+// 주의:
+// - DAU/MAU는 활동 로그가 있어야 정확히 계산 가능하므로 여기서는 제외한다.
+// - 날짜별 0건인 날도 그래프에 보여주기 위해 Rust에서 0으로 채워준다.
+
+/// 최근 N일 날짜 목록을 만든다.
+///
+/// days = 7이면:
+/// - 오늘 포함
+/// - 오늘로부터 6일 전 ~ 오늘
+///
+/// 예:
+/// 오늘이 2026-05-15라면
+/// 2026-05-09 ~ 2026-05-15
+fn recent_date_range(days: i64) -> Vec<NaiveDate> {
+    let today = Utc::now().date_naive();
+    let start = today - Duration::days(days - 1);
+
+    (0..days)
+        .map(|offset| start + Duration::days(offset))
+        .collect()
+}
+
+/// NaiveDate를 YYYY-MM-DD 문자열로 변환한다.
+///
+/// 프론트 그래프 x축 라벨과 key로 사용한다.
+fn format_date_key(date: NaiveDate) -> String {
+    date.format("%Y-%m-%d").to_string()
+}
+
+/// 특정 테이블의 created_at 기준 최근 N일 count를 계산한다.
+///
+/// table:
+/// - "users"
+/// - "content_reports"
+///
+/// date_column:
+/// - 보통 "created_at"
+///
+/// 동작:
+/// 1. 최근 N일 날짜 목록 생성
+/// 2. 각 날짜를 0으로 초기화
+/// 3. Supabase REST에서 해당 기간의 created_at row 조회
+/// 4. Rust에서 날짜별 count 집계
+///
+/// 왜 0을 미리 채우는가?
+/// - 신고가 0건인 날도 그래프에는 날짜가 보여야 한다.
+/// - 그래야 막대 그래프가 날짜 순서대로 안정적으로 보인다.
+///
+/// 주의:
+/// - table/date_column은 외부 입력을 그대로 받는 용도가 아니다.
+/// - service 내부에서 고정된 테이블명/컬럼명만 넣어 호출한다.
+async fn get_created_at_daily_trend(
+    state: &AppState,
+    table: &str,
+    date_column: &str,
+    days: i64,
+) -> Result<Vec<AdminDashboardTrendPoint>> {
+    #[derive(Debug, serde::Deserialize)]
+    struct CreatedAtRow {
+        created_at: Option<DateTime<Utc>>,
+    }
+
+    let dates = recent_date_range(days);
+
+    let first_date = dates
+        .first()
+        .copied()
+        .ok_or_else(|| anyhow!("추이 그래프 날짜 범위를 만들 수 없습니다."))?;
+
+    let last_date = dates
+        .last()
+        .copied()
+        .ok_or_else(|| anyhow!("추이 그래프 날짜 범위를 만들 수 없습니다."))?;
+
+    // 첫날 00:00:00 UTC
+    let start_at = first_date
+        .and_hms_opt(0, 0, 0)
+        .ok_or_else(|| anyhow!("추이 시작 날짜 변환 실패"))?
+        .and_utc();
+
+    // 마지막 날 다음날 00:00:00 UTC
+    // lt 조건으로 사용해서 마지막 날 전체를 포함한다.
+    let end_at = (last_date + Duration::days(1))
+        .and_hms_opt(0, 0, 0)
+        .ok_or_else(|| anyhow!("추이 종료 날짜 변환 실패"))?
+        .and_utc();
+
+    // 날짜별 count를 0으로 초기화한다.
+    //
+    // BTreeMap을 쓰면 날짜 문자열 순서가 보장된다.
+    let mut counts = std::collections::BTreeMap::<String, i64>::new();
+
+    for date in &dates {
+        counts.insert(format_date_key(*date), 0);
+    }
+
+    // to_rfc3339()는 String을 새로 만든다.
+    //
+    // 아래처럼 바로 참조하면 안 된다:
+    // urlencoding::encode(&start_at.to_rfc3339())
+    //
+    // 이유:
+    // - start_at.to_rfc3339()가 임시 String을 만든다.
+    // - urlencoding::encode()는 그 String을 빌린 Cow<str>를 반환할 수 있다.
+    // - 그런데 임시 String은 그 줄이 끝나면 drop된다.
+    // - 이후 format!에서 start_encoded/end_encoded를 쓰려고 하면
+    //   이미 사라진 임시 값을 참조하는 상태가 되어
+    //   "temporary value dropped while borrowed" 에러가 난다.
+    //
+    // 해결:
+    // - to_rfc3339() 결과를 먼저 변수에 보관한다.
+    // - encode 결과도 into_owned()로 소유 String으로 만든다.
+    let start_at_rfc3339 = start_at.to_rfc3339();
+    let end_at_rfc3339 = end_at.to_rfc3339();
+
+    let start_encoded = urlencoding::encode(&start_at_rfc3339).into_owned();
+    let end_encoded = urlencoding::encode(&end_at_rfc3339).into_owned();
+
+    let url = format!(
+        "{}/rest/v1/{}?select={}&{}=gte.{}&{}=lt.{}&limit=10000",
+        state.config.supabase_url.trim_end_matches('/'),
+        table,
+        date_column,
+        date_column,
+        start_encoded,
+        date_column,
+        end_encoded
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .send()
+        .await
+        .with_context(|| format!("관리자 대시보드 추이 조회 요청 실패: {}", table))?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+
+        return Err(anyhow!(
+            "관리자 대시보드 추이 조회 실패: table={}, body={}",
+            table,
+            body
+        ));
+    }
+
+    let rows: Vec<CreatedAtRow> = res
+        .json()
+        .await
+        .with_context(|| format!("관리자 대시보드 추이 응답 파싱 실패: {}", table))?;
+
+    for row in rows {
+        let Some(created_at) = row.created_at else {
+            continue;
+        };
+
+        let key = format_date_key(created_at.date_naive());
+
+        if let Some(count) = counts.get_mut(&key) {
+            *count += 1;
+        }
+    }
+
+    let trend = counts
+        .into_iter()
+        .map(|(date, count)| AdminDashboardTrendPoint { date, count })
+        .collect();
+
+    Ok(trend)
+}
+
+/// 관리자: 대시보드 추이 그래프 조회.
+///
+/// API:
+/// GET /api/admin/dashboard/trends
+///
+/// 반환:
+/// - 최근 7일 가입자 추이
+/// - 최근 7일 신고 접수 추이
+pub async fn get_dashboard_trends(
+    state: &AppState,
+) -> Result<AdminDashboardTrendsResponse> {
+    let user_signup_trend =
+        get_created_at_daily_trend(state, "users", "created_at", 7).await?;
+
+    let report_created_trend =
+        get_created_at_daily_trend(state, "content_reports", "created_at", 7).await?;
+
+    Ok(AdminDashboardTrendsResponse {
+        user_signup_trend,
+        report_created_trend,
     })
 }
 

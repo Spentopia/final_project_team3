@@ -321,6 +321,10 @@ pub fn create_router(state: AppState) -> Router {
             "/api/admin/dashboard/stats",
             get(admin::handler::get_dashboard_stats),
         )
+        .route(
+            "/api/admin/dashboard/trends",
+            get(admin::handler::get_dashboard_trends),
+        )
                 // ── 관리자 신고 관리 ─────────────────────────────
         .route(
             "/api/admin/content-reports",

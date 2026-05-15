@@ -58,6 +58,7 @@ import {
     createAdminContest,
     deleteAdminNotice,
     getAdminDashboardStats,
+    getAdminDashboardTrends,
     listAdminContentReports,
     listAdminContests,
     listAdminNotices,
@@ -73,6 +74,7 @@ import {
     type AdminContestResponse,
     type AdminContestStatus,
     type AdminDashboardStatsResponse,
+    type AdminDashboardTrendsResponse,
     type AdminReportAction,
     type AdminNoticeResponse,
     type AdminUserResponse,
@@ -273,6 +275,28 @@ export default function AdminPage() {
         useState(false);
 
     const [dashboardStatsError, setDashboardStatsError] =
+        useState<string | null>(null);
+
+    // ─────────────────────────────────────────────
+    // 대시보드 추이 그래프 상태
+    // ─────────────────────────────────────────────
+    //
+    // dashboardTrends:
+    // - GET /api/admin/dashboard/trends 응답.
+    // - 최근 7일 가입자 추이와 신고 접수 추이를 담는다.
+    //
+    // isDashboardTrendsLoading:
+    // - 그래프 영역 로딩 표시용.
+    //
+    // dashboardTrendsError:
+    // - 그래프 조회 실패 시 그래프 영역에 표시할 에러 메시지.
+    const [dashboardTrends, setDashboardTrends] =
+        useState<AdminDashboardTrendsResponse | null>(null);
+
+    const [isDashboardTrendsLoading, setIsDashboardTrendsLoading] =
+        useState(false);
+
+    const [dashboardTrendsError, setDashboardTrendsError] =
         useState<string | null>(null);
 
     // ─────────────────────────────────────────────
@@ -499,6 +523,36 @@ export default function AdminPage() {
         }
     };
 
+    // ─────────────────────────────────────────────
+    // 대시보드 추이 그래프 조회
+    // ─────────────────────────────────────────────
+    //
+    // 관리자 대시보드의 그래프에 표시할 최근 7일 추이 데이터를 가져온다.
+    //
+    // 가져오는 값:
+    // - 최근 7일 가입자 추이
+    // - 최근 7일 신고 접수 추이
+    //
+    // 실패해도 대시보드 전체가 깨지지 않도록
+    // 그래프 영역에만 에러 메시지를 표시한다.
+    const fetchDashboardTrends = async () => {
+        setIsDashboardTrendsLoading(true);
+        setDashboardTrendsError(null);
+
+        try {
+            const data = await getAdminDashboardTrends();
+
+            setDashboardTrends(data);
+        } catch (error) {
+            console.error("관리자 대시보드 추이 조회 실패:", error);
+
+            setDashboardTrends(null);
+            setDashboardTrendsError("대시보드 추이 데이터를 불러오지 못했습니다.");
+        } finally {
+            setIsDashboardTrendsLoading(false);
+        }
+    };
+
     // 관리자 페이지 진입 시 대시보드 통계를 한 번 조회한다.
     //
     // activeTab이 dashboard일 때만 조회해도 되지만,
@@ -506,6 +560,7 @@ export default function AdminPage() {
     // 새로고침 버튼은 AdminDashboard에서 onRefreshDashboardStats로 다시 호출한다.
     useEffect(() => {
         void fetchDashboardStats();
+        void fetchDashboardTrends();
     }, []);
 
     // ─────────────────────────────────────────────
@@ -1215,7 +1270,13 @@ export default function AdminPage() {
                             dashboardStats={dashboardStats}
                             isDashboardStatsLoading={isDashboardStatsLoading}
                             dashboardStatsError={dashboardStatsError}
-                            onRefreshDashboardStats={() => void fetchDashboardStats()}
+                            dashboardTrends={dashboardTrends}
+                            isDashboardTrendsLoading={isDashboardTrendsLoading}
+                            dashboardTrendsError={dashboardTrendsError}
+                            onRefreshDashboardStats={() => {
+                                void fetchDashboardStats();
+                                void fetchDashboardTrends();
+                            }}
                             recentReports={recentReports}
                             isReportsLoading={isDashboardReportsLoading}
                             onTabChange={setAdminTab}
