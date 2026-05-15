@@ -1225,8 +1225,8 @@ export default function AdminPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[var(--surface)] text-foreground">
-            <div className="flex min-h-screen">
+        <div className="h-screen overflow-hidden bg-[var(--surface)] text-foreground">
+            <div className="flex h-screen">
                 <AdminSidebar
                     activeTab={activeTab}
                     onTabChange={setAdminTab}
@@ -1234,7 +1234,7 @@ export default function AdminPage() {
                     onLogout={() => void handleLogout()}
                 />
 
-                <main className="flex-1 overflow-y-auto p-8">
+                <main className="h-screen flex-1 overflow-y-auto p-8">
                     <div className="mb-8">
                         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-luxury-gold">
                             Admin Console
