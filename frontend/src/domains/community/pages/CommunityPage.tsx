@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, type FormEvent } from "react";
+import { useUser } from "@/shared/context/UserContext";
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -23,7 +24,6 @@ import {
   createCommunityPost,
   deleteComment,
   deleteCommunityPost,
-  getCommunityMe,
   getCommunityPost,
   listComments,
   listCommunityPosts,
@@ -246,6 +246,10 @@ function toComment(comment: CommentResponse): Comment {
 // ── 컴포넌트 ─────────────────────────────────────────────────
 
 export default function Community() {
+  const { user } = useUser();
+  const myUserId = user?.id ?? "";
+  const myRoleType = user?.role_type ?? "user";
+
   // ─────────────────────────────────────────────
 // URL 기반 상태 관리
 // ─────────────────────────────────────────────
@@ -301,8 +305,6 @@ export default function Community() {
   const [isWriteOpen, setIsWriteOpen]     = useState(false);
   const [isSubmitting, setIsSubmitting]   = useState(false);
   const [contests, setContests]           = useState<ContestResponse[]>([]);
-  const [myUserId, setMyUserId]           = useState("");
-  const [myRoleType, setMyRoleType]       = useState("user");
   const [writeType, setWriteType]         = useState<PostType>("request");
   const [writeTitle, setWriteTitle]       = useState("");
   const [writeContent, setWriteContent]   = useState("");
@@ -375,30 +377,6 @@ export default function Community() {
   const readPostsStorageKey = myUserId
     ? `${COMMUNITY_READ_POSTS_KEY_PREFIX}:${myUserId}`
     : "";
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function fetchMe() {
-      try {
-        const data = await getCommunityMe();
-        if (!ignore) {
-          setMyUserId(data.id);
-          setMyRoleType(data.role_type ?? "user");
-        }
-      } catch (error) {
-        if (!ignore) {
-          console.error("내 권한 조회 실패:", error);
-        }
-      }
-    }
-
-    void fetchMe();
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!readPostsStorageKey) return;

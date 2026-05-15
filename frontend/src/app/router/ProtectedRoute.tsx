@@ -27,6 +27,8 @@ import { supabase } from "@/shared/lib/supabase";
 import { authStorage } from "@/shared/lib/auth";
 import { apiClient } from "@/shared/api/client";
 import { initAuth } from "@/shared/lib/initAuth";
+import { useUser } from "@/shared/context/UserContext";
+import type { MeResponse } from "@/domains/auth/api/auth";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -87,6 +89,7 @@ function consumeWebViewTokenFromHash(): string | null {
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const location = useLocation();
+  const { user, setUser } = useUser();
 
   // Supabase session의 access_token을 백엔드 앱 JWT로 교환
   const exchangeSupabaseToken = async (accessToken: string) => {
@@ -162,10 +165,10 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       return "not_logged_in";
     }
 
-    // 6) /me 호출해서 실제 로그인 유저 정보 확인
+    // 6) /me 호출해서 실제 로그인 유저 정보 확인 후 전역 context에 저장
     const res = await apiClient.get("/me");
-
-    const me = res.data;
+    const me = res.data as MeResponse;
+    setUser(me);
 
     // ─────────────────────────────────────────────
 // 관리자 페이지 접근 검사
@@ -209,6 +212,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     return "logged_in";
   };
 
+  // 마운트 시 딱 한 번만 인증 확인 + /me 호출
+  // pathname이 바뀌어도 이 effect는 재실행되지 않음 → 탭 이동 시 429 방지
   useEffect(() => {
     let cancelled = false;
 
@@ -220,17 +225,41 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
           setStatus(nextStatus);
         }
       })
-      .catch(() => {
-        authStorage.clear();
-        if (!cancelled) {
-          setStatus("not_logged_in");
+      .catch((error) => {
+        if (cancelled) return;
+
+        const errStatus = (error as { response?: { status?: number } })?.response?.status;
+
+        // 429(과다 요청) / 5xx(서버 오류)는 인증 문제가 아님
+        // 토큰을 지우지 않고, 토큰 유무로만 상태 판단
+        if (errStatus === 429 || (errStatus !== undefined && errStatus >= 500)) {
+          setStatus(authStorage.getToken() ? "logged_in" : "not_logged_in");
+          return;
         }
+
+        authStorage.clear();
+        setStatus("not_logged_in");
       });
 
     return () => {
       cancelled = true;
     };
-  }, [location.pathname]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // pathname이 바뀔 때마다 캐시된 user로 redirect 판단 (API 호출 없음)
+  useEffect(() => {
+    if (!user || status === "loading") return;
+
+    if (location.pathname.startsWith("/admin")) {
+      setStatus(user.role_type !== "admin" ? "forbidden" : "logged_in");
+    } else if (user.role_type === "admin") {
+      setStatus("admin_redirect");
+    } else if (!user.profile_completed && location.pathname !== "/complete-profile") {
+      setStatus("need_profile");
+    } else {
+      setStatus("logged_in");
+    }
+  }, [location.pathname, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (status === "loading") {
     return (
