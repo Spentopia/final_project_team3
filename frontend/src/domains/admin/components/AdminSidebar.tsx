@@ -23,6 +23,7 @@ import {
     Shield,
     Trophy,
     Users,
+    UserX
 } from "lucide-react";
 
 import {
@@ -54,6 +55,7 @@ const menuItems: Array<{
     { tab: "dashboard", icon: BarChart3, label: "대시보드" },
     { tab: "reports", icon: AlertTriangle, label: "신고 관리" },
     { tab: "users", icon: Users, label: "회원 관리" },
+    { tab: "withdrawn", icon: UserX, label: "탈퇴 회원 관리" },
     { tab: "notices", icon: Megaphone, label: "공지사항 관리" },
     { tab: "contests", icon: Trophy, label: "콘테스트 관리" },
 ];

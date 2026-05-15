@@ -38,12 +38,13 @@ import { toast } from "sonner";
 
 import { signOut } from "@/domains/auth/api/auth";
 
-import AdminSidebar from "@/domains/admin/components/AdminSidebar";
-import AdminDashboard from "@/domains/admin/components/AdminDashboard";
-import AdminReportDetailModal from "@/domains/admin/components/AdminReportDetailModal";
-import AdminUsersPanel from "@/domains/admin/components/AdminUsersPanel";
-import AdminNoticesPanel from "@/domains/admin/components/AdminNoticesPanel";
+import AdminSidebar from "@/domains/admin/components/AdminSidebar.tsx";
+import AdminDashboard from "@/domains/admin/components/AdminDashboard.tsx";
+import AdminReportDetailModal from "@/domains/admin/components/AdminReportDetailModal.tsx";
+import AdminUsersPanel from "@/domains/admin/components/AdminUsersPanel.tsx";
+import AdminNoticesPanel from "@/domains/admin/components/AdminNoticesPanel.tsx";
 import AdminContestsPanel from "@/domains/admin/components/AdminContestsPanel.tsx";
+import AdminWithdrawnUsersPanel from "@/domains/admin/components/AdminWithdrawnUsersPanel.tsx";
 import AdminReportsPanel, {
     type ReportReasonFilter,
     type ReportTargetTypeFilter,
@@ -61,6 +62,7 @@ import {
     listAdminContests,
     listAdminNotices,
     listAdminUsers,
+    listAdminWithdrawnUsers,
     rejectAdminContentReport,
     resolveAdminContentReport,
     updateAdminContest,
@@ -74,6 +76,7 @@ import {
     type AdminReportAction,
     type AdminNoticeResponse,
     type AdminUserResponse,
+    type AdminWithdrawnUserResponse,
     type ResolveReportActionType,
 } from "@/domains/admin/api/adminApi";
 
@@ -106,6 +109,7 @@ function getAdminTabFromUrl(tab: string | null): AdminTab {
         tab === "dashboard" ||
         tab === "reports" ||
         tab === "users" ||
+        tab === "withdrawn" ||
         tab === "notices" ||
         tab === "contests"
     ) {
@@ -192,6 +196,7 @@ function toIsoFromDateTimeLocal(value: string): string | null {
 
 const REPORTS_PAGE_SIZE = 20;
 const USERS_PAGE_SIZE = 20;
+const WITHDRAWN_USERS_PAGE_SIZE = 20;
 
 export default function AdminPage() {
     const navigate = useNavigate();
@@ -352,6 +357,39 @@ export default function AdminPage() {
     const [userPage, setUserPage] = useState(1);
     const [isUsersLoading, setIsUsersLoading] = useState(false);
 
+    // ─────────────────────────────────────────────
+    // 탈퇴 회원 모니터링 상태
+    // ─────────────────────────────────────────────
+    //
+    // withdrawnUsers:
+    // - deleted_at이 있는 탈퇴 회원 목록.
+    //
+    // withdrawnUserKeyword:
+    // - 닉네임/이메일 검색어.
+    //
+    // debouncedWithdrawnUserKeyword:
+    // - API 과호출 방지를 위한 디바운스 검색어.
+    //
+    // withdrawnUserPage:
+    // - 탈퇴 회원 목록 페이지.
+    //
+    // withdrawnUserTotalCount:
+    // - 전체 탈퇴 회원 수.
+    //
+    // isWithdrawnUsersLoading:
+    // - 목록 로딩 상태.
+    const [withdrawnUsers, setWithdrawnUsers] = useState<
+        AdminWithdrawnUserResponse[]
+    >([]);
+
+    const [withdrawnUserKeyword, setWithdrawnUserKeyword] = useState("");
+    const [debouncedWithdrawnUserKeyword, setDebouncedWithdrawnUserKeyword] =
+        useState("");
+
+    const [withdrawnUserPage, setWithdrawnUserPage] = useState(1);
+    const [withdrawnUserTotalCount, setWithdrawnUserTotalCount] = useState(0);
+    const [isWithdrawnUsersLoading, setIsWithdrawnUsersLoading] = useState(false);
+
     // 공지사항 관리
     const [notices, setNotices] = useState<AdminNoticeResponse[]>([]);
     const [isNoticesLoading, setIsNoticesLoading] = useState(false);
@@ -414,6 +452,16 @@ export default function AdminPage() {
 
         return () => window.clearTimeout(timer);
     }, [userKeyword]);
+
+    // 탈퇴 회원 검색어 디바운스.
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setDebouncedWithdrawnUserKeyword(withdrawnUserKeyword.trim());
+            setWithdrawnUserPage(1);
+        }, 300);
+
+        return () => window.clearTimeout(timer);
+    }, [withdrawnUserKeyword]);
 
     // ─────────────────────────────────────────────
     // 대시보드 통계 조회
@@ -591,6 +639,46 @@ export default function AdminPage() {
             ignore = true;
         };
     }, [debouncedUserKeyword, userPage]);
+
+    // ─────────────────────────────────────────────
+// 탈퇴 회원 목록 조회
+// ─────────────────────────────────────────────
+//
+// 탈퇴 회원 모니터링 탭에서 사용하는 목록.
+// users.deleted_at is not null 인 회원만 조회한다.
+    useEffect(() => {
+        let ignore = false;
+
+        async function fetchWithdrawnUsers() {
+            setIsWithdrawnUsersLoading(true);
+
+            try {
+                const data = await listAdminWithdrawnUsers({
+                    keyword: debouncedWithdrawnUserKeyword || undefined,
+                    page: withdrawnUserPage,
+                    page_size: WITHDRAWN_USERS_PAGE_SIZE,
+                });
+
+                if (!ignore) {
+                    setWithdrawnUsers(data.items);
+                    setWithdrawnUserTotalCount(data.total_count);
+                }
+            } catch (error) {
+                console.error("관리자 탈퇴 회원 목록 조회 실패:", error);
+                toast.error("탈퇴 회원 목록을 불러오지 못했습니다.");
+            } finally {
+                if (!ignore) {
+                    setIsWithdrawnUsersLoading(false);
+                }
+            }
+        }
+
+        void fetchWithdrawnUsers();
+
+        return () => {
+            ignore = true;
+        };
+    }, [debouncedWithdrawnUserKeyword, withdrawnUserPage]);
 
     // 공지사항 목록 조회
     useEffect(() => {
@@ -1101,6 +1189,7 @@ export default function AdminPage() {
                             {activeTab === "dashboard" && "대시보드"}
                             {activeTab === "reports" && "신고 관리"}
                             {activeTab === "users" && "회원 관리"}
+                            {activeTab === "withdrawn" && "탈퇴 회원 모니터링"}
                             {activeTab === "notices" && "공지사항 관리"}
                             {activeTab === "contests" && "콘테스트 관리"}
                         </h2>
@@ -1112,6 +1201,8 @@ export default function AdminPage() {
                                 "접수된 신고를 확인하고 처리 상태를 변경합니다."}
                             {activeTab === "users" &&
                                 "가입 회원을 조회하고 활성 상태를 관리합니다."}
+                            {activeTab === "withdrawn" &&
+                                "탈퇴 회원의 보관 기간과 재가입 제한 상태를 확인합니다."}
                             {activeTab === "notices" &&
                                 "공지사항을 작성, 수정, 삭제합니다."}
                             {activeTab === "contests" &&
@@ -1176,6 +1267,19 @@ export default function AdminPage() {
                             onPageChange={setUserPage}
                             onUserKeywordChange={setUserKeyword}
                             onToggleUserActive={(u) => void handleToggleUserActive(u)}
+                        />
+                    )}
+
+                    {activeTab === "withdrawn" && (
+                        <AdminWithdrawnUsersPanel
+                            users={withdrawnUsers}
+                            keyword={withdrawnUserKeyword}
+                            isLoading={isWithdrawnUsersLoading}
+                            page={withdrawnUserPage}
+                            totalCount={withdrawnUserTotalCount}
+                            pageSize={WITHDRAWN_USERS_PAGE_SIZE}
+                            onKeywordChange={setWithdrawnUserKeyword}
+                            onPageChange={setWithdrawnUserPage}
                         />
                     )}
 

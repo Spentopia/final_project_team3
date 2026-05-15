@@ -466,6 +466,29 @@ export type UpdateAdminContestRequest = {
     reward_description?: string | null;
 };
 
+// 탈퇴 회원 모니터링 row.
+//
+// 백엔드:
+// GET /api/admin/users/withdrawn
+export type AdminWithdrawnUserResponse = {
+    id: string;
+    email: string | null;
+    nickname: string | null;
+    deleted_at: string;
+    created_at: string | null;
+    rejoin_cooldown_until: string;
+    is_rejoin_cooldown_active: boolean;
+    retention_expires_at: string;
+    retention_days_left: number;
+};
+
+export type AdminWithdrawnUserListResponse = {
+    items: AdminWithdrawnUserResponse[];
+    total_count: number;
+    page: number;
+    page_size: number;
+};
+
 
 // 관리자 대시보드 통계 조회.
 //
@@ -623,6 +646,19 @@ export async function listAdminUsers(
     });
     return res.data;
 }
+
+export const listAdminWithdrawnUsers = async (params?: {
+    keyword?: string;
+    page?: number;
+    page_size?: number;
+}): Promise<AdminWithdrawnUserListResponse> => {
+    const res = await apiClient.get<AdminWithdrawnUserListResponse>(
+        "/api/admin/users/withdrawn",
+        { params },
+    );
+
+    return res.data;
+};
 
 // 회원 활성/비활성 변경
 //

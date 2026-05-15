@@ -22,7 +22,7 @@ import type {ContentReportStatus} from "@/domains/admin/api/adminApi.ts";
 // 이유:
 // - 타입에 넣으면 해당 탭 화면도 반드시 분기 처리해야 해서,
 //   미구현 상태에서 불필요한 코드가 늘어난다.
-export type AdminTab = "dashboard" | "reports" | "users" | "notices" | "contests";
+export type AdminTab = "dashboard" | "reports" | "users" | "withdrawn" | "notices" | "contests";
 
 // 신고 상태 필터 타입.
 //

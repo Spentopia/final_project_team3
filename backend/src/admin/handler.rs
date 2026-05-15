@@ -322,6 +322,42 @@ pub async fn list_users(
     }
 }
 
+/// 관리자: 탈퇴 회원 모니터링 목록 조회
+///
+/// 탈퇴 회원 기준:
+/// - users.deleted_at is not null
+///
+/// 화면 제공 정보:
+/// - 탈퇴일
+/// - 30일 재가입 제한 상태
+/// - 5년 보관 만료 예정일
+/// - 보관 만료까지 남은 일수
+#[utoipa::path(
+    get,
+    path = "/api/admin/users/withdrawn",
+    tag = "관리자",
+    params(
+        ("page" = Option<i64>, Query, description = "페이지 번호"),
+        ("page_size" = Option<i64>, Query, description = "페이지 크기"),
+        ("keyword" = Option<String>, Query, description = "닉네임/이메일 검색어")
+    ),
+    responses(
+        (status = 200, description = "탈퇴 회원 목록 조회 성공", body = crate::admin::dto::AdminWithdrawnUserListResponse),
+        (status = 401, description = "인증 실패"),
+        (status = 403, description = "관리자 권한 없음")
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn list_withdrawn_users(
+    State(state): State<AppState>,
+    Query(query): Query<AdminUserQuery>,
+) -> impl IntoResponse {
+    match service::list_withdrawn_users(&state, query).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => map_admin_error(e),
+    }
+}
+
 #[utoipa::path(
     patch,
     path = "/api/admin/users/{id}/active",
