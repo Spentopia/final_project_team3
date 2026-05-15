@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { useUser } from "@/shared/context/UserContext";
 import AvatarPage from "@/domains/avatar/pages/AvatarPage";
 import { getUserItems } from "@/domains/avatar/api/avatarApi";
 import { useSptBalance } from "@/shared/hooks/useSptBalance";
@@ -45,6 +46,7 @@ type NotificationSettings = {
 export default function ProfilePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { refetchUser } = useUser();
   const isWebView = searchParams.get("webview") === "true";
   const [isEditing, setIsEditing] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
@@ -202,6 +204,7 @@ export default function ProfilePage() {
       const { path } = await uploadProfileImage(file);
       await updateUserProfile({ profile_image: path });
       setProfile((prev) => ({ ...prev, imagePath: path }));
+      await refetchUser();
       toast.success("프로필 사진이 변경되었습니다");
     } catch (error) {
       // 실패 시 로컬 미리보기 되돌리기
@@ -245,6 +248,9 @@ export default function ProfilePage() {
       }));
 
       setIsEditing(false);
+
+      // 닉네임 변경 시 전역 user context 갱신 → 커뮤니티 등 다른 페이지에 즉시 반영
+      await refetchUser();
 
       if (emailChanged) {
         // Supabase 직접 호출 → 새 이메일로 인증 메일 발송
