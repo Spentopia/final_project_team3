@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Bell, Gamepad2, Menu, Moon, Sun } from "lucide-react";
+import { Bell, Gamepad2, Menu, Moon, Sun, RefreshCw } from "lucide-react";
 import { ConnectWalletButton } from "@/domains/wallet/ui/ConnectWalletButton";
 import {
   getNotifications,
@@ -17,7 +17,7 @@ import {
   SheetTrigger,
 } from "../ui/sheet";
 import { useTheme } from "next-themes";
-import { startUnityGame } from "@/domains/unity/api/unityHandoff";
+import { createGameLoginCode } from "@/domains/unity/api/gameLoginCode";
 import { supabase } from "@/shared/lib/supabase";
 
 type HeaderProps = {
@@ -53,6 +53,32 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const [isNotificationSheetOpen, setIsNotificationSheetOpen] = useState(false);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [isMarkingRead, setIsMarkingRead] = useState(false);
+
+  // ─────────────────────────────────────────────
+  // Unity 게임 로그인 코드 상태
+  // ─────────────────────────────────────────────
+  //
+  // 기존에는 웹에서 Steam/Unity를 자동 실행하면서 handoff token을 넘기려 했지만,
+  // Steam 실행 인자 전달이 불안정해서 사용자가 직접 입력하는 코드 방식으로 변경했다.
+  //
+  // gameLoginCode:
+  // - 백엔드 /auth/handoff에서 발급받은 8자리 1회용 코드.
+  // - Unity 로그인 화면에 사용자가 직접 입력한다.
+  //
+  // gameLoginExpiresIn:
+  // - 코드 유효시간. 현재 백엔드 기준 60초.
+  //
+  // isGameCodeSheetOpen:
+  // - 코드 표시 Sheet 열림 여부.
+  //
+  // isCreatingGameLoginCode:
+  // - 코드 생성 요청 중 로딩 상태.
+  const [gameLoginCode, setGameLoginCode] = useState<string | null>(null);
+  const [gameLoginExpiresIn, setGameLoginExpiresIn] = useState<number | null>(null);
+  const [gameLoginRemainingSeconds, setGameLoginRemainingSeconds] =
+      useState<number | null>(null);
+  const [isGameCodeSheetOpen, setIsGameCodeSheetOpen] = useState(false);
+  const [isCreatingGameLoginCode, setIsCreatingGameLoginCode] = useState(false);
 
   const unreadCount = notifications.filter((notification) => !notification.is_read).length;
 
@@ -196,22 +222,67 @@ export default function Header({ onMenuClick }: HeaderProps) {
     }
   };
 
-  // 게임 실행 버튼 클릭 시
-  // 1) 백엔드에서 handoff token 발급
-  // 2) 커스텀 프로토콜로 유니티 exe 실행 시도
-  // 3) 프론트는 blur / visibilitychange로 실행 시도만 간접 감지
-  // 4) 실제 인증 교환은 exe가 /auth/handoff/exchange에서 수행
-  const handleStartGame = async () => {
+  // 게임 로그인 코드 생성 버튼 클릭 시
+  //
+  // 기존:
+  // - 웹에서 Steam/Unity 자동 실행
+  // - handoff token을 실행 인자로 전달
+  //
+  // 변경:
+  // - 웹에서는 8자리 게임 로그인 코드만 생성
+  // - 사용자는 Steam 라이브러리에서 게임을 직접 실행
+  // - Unity 로그인 화면에 이 코드를 입력
+  // - Unity가 /auth/handoff/exchange로 코드를 교환해 access/refresh를 받음
+  const handleCreateGameLoginCode = async () => {
     try {
-      await startUnityGame();
+      setIsCreatingGameLoginCode(true);
+
+      const result = await createGameLoginCode();
+
+      setGameLoginCode(result.code);
+      setGameLoginExpiresIn(result.expiresIn);
+      setGameLoginRemainingSeconds(result.expiresIn);
+      setIsGameCodeSheetOpen(true);
+
+      toast.success("게임 로그인 코드가 생성되었습니다.");
     } catch (error) {
-      console.error("게임 실행 실패:", error);
+      console.error("게임 로그인 코드 생성 실패:", error);
 
       toast.error(
-          error instanceof Error ? error.message : "게임 실행에 실패했어요."
+          error instanceof Error
+              ? error.message
+              : "게임 로그인 코드를 생성하지 못했습니다.",
       );
+    } finally {
+      setIsCreatingGameLoginCode(false);
     }
   };
+
+  // 게임 로그인 코드 남은 시간 카운트다운.
+  //
+  // gameLoginRemainingSeconds가 null이면 타이머를 돌리지 않는다.
+  // 0이 되면 코드가 만료된 것으로 보고 화면에는 만료 상태를 보여준다.
+  useEffect(() => {
+    if (gameLoginRemainingSeconds == null) {
+      return;
+    }
+
+    if (gameLoginRemainingSeconds <= 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setGameLoginRemainingSeconds((prev) => {
+        if (prev == null) {
+          return null;
+        }
+
+        return Math.max(prev - 1, 0);
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [gameLoginRemainingSeconds]);
 
   return (
     <header className="flex min-h-20 items-center justify-between border-b border-border bg-[var(--surface-elevated)] px-6 py-3 shadow-[0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-xl">
@@ -330,14 +401,103 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <ConnectWalletButton className="hidden sm:flex" />
         </div>
 
-        <Button
-          variant="outline"
-          onClick={handleStartGame}
-          className="h-14 rounded-lg border border-orange-300 bg-gradient-to-r from-orange-400 via-amber-500 to-orange-600 px-8 text-lg font-extrabold text-white shadow-xl shadow-orange-500/40 transition-all hover:-translate-y-0.5 hover:scale-[1.03] hover:from-orange-300 hover:via-amber-400 hover:to-orange-500 hover:shadow-orange-500/60 dark:border-orange-300/70 dark:shadow-orange-950/60"
+        <Sheet
+            open={isGameCodeSheetOpen}
+            onOpenChange={(open) => {
+              setIsGameCodeSheetOpen(open);
+
+              if (!open) {
+                setGameLoginCode(null);
+                setGameLoginExpiresIn(null);
+                setGameLoginRemainingSeconds(null);
+              }
+            }}
         >
-          <Gamepad2 className="mr-3 h-6 w-6" />
-          <span>게임시작</span>
-        </Button>
+          <SheetTrigger asChild>
+            <Button
+                variant="outline"
+                onClick={(event) => {
+                  // SheetTrigger는 기본적으로 클릭 시 Sheet를 열려고 한다.
+                  // 하지만 우리는 코드 생성 성공 후에만 Sheet를 열고 싶으므로
+                  // 기본 열림 동작을 막고, handleCreateGameLoginCode에서 직접 연다.
+                  event.preventDefault();
+                  void handleCreateGameLoginCode();
+                }}
+                disabled={isCreatingGameLoginCode}
+                className="h-14 rounded-lg border border-orange-300 bg-gradient-to-r from-orange-400 via-amber-500 to-orange-600 px-8 text-lg font-extrabold text-white shadow-xl shadow-orange-500/40 transition-all hover:-translate-y-0.5 hover:scale-[1.03] hover:from-orange-300 hover:via-amber-400 hover:to-orange-500 hover:shadow-orange-500/60 disabled:cursor-not-allowed disabled:opacity-70 dark:border-orange-300/70 dark:shadow-orange-950/60"
+            >
+              <Gamepad2 className="mr-3 h-6 w-6" />
+              <span>
+        {isCreatingGameLoginCode ? "코드 생성 중..." : "게임 코드 생성"}
+      </span>
+            </Button>
+          </SheetTrigger>
+
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>게임 로그인 코드</SheetTitle>
+            </SheetHeader>
+
+            <div className="mt-6 space-y-5">
+              <div className="relative rounded-2xl border border-cyan-200 bg-cyan-50 p-5 text-center dark:border-cyan-900/60 dark:bg-cyan-950/30">
+                {/* 코드 재생성 버튼 */}
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => void handleCreateGameLoginCode()}
+                    disabled={isCreatingGameLoginCode}
+                    title="코드 다시 생성"
+                    aria-label="코드 다시 생성"
+                    className="absolute right-3 top-1.5 h-9 w-9 rounded-full text-cyan-700 hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-cyan-300 dark:hover:bg-cyan-900/40"
+                >
+                  <RefreshCw
+                      className={[
+                        "h-4 w-4",
+                        isCreatingGameLoginCode ? "animate-spin" : "",
+                      ].join(" ")}
+                  />
+                </Button>
+
+                <div className="mt-6 rounded-2xl bg-white px-4 py-6 shadow-sm dark:bg-gray-900/80">
+                  <p
+                      className={[
+                        "select-all break-all text-4xl font-black tracking-[0.25em]",
+                        gameLoginRemainingSeconds === 0
+                            ? "text-gray-400 line-through dark:text-gray-500"
+                            : "text-cyan-600 dark:text-cyan-300",
+                      ].join(" ")}
+                  >
+                    {gameLoginCode ?? "--------"}
+                  </p>
+                </div>
+
+                <p
+                    className={[
+                      "mt-4 text-sm font-bold",
+                      gameLoginRemainingSeconds === 0
+                          ? "text-rose-600 dark:text-rose-300"
+                          : "text-cyan-700 dark:text-cyan-300",
+                    ].join(" ")}
+                >
+                  {gameLoginRemainingSeconds === 0
+                      ? "코드가 만료되었습니다. 새 코드를 생성해 주세요."
+                      : `남은 시간: ${gameLoginRemainingSeconds ?? gameLoginExpiresIn ?? 60}초`}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border bg-[var(--surface-subtle)] p-4 text-sm leading-6 text-muted-foreground">
+                <p className="font-semibold text-foreground">사용 방법</p>
+
+                <ol className="mt-2 list-decimal space-y-1 pl-5">
+                  <li>Steam 라이브러리에서 Spentopia 게임을 실행합니다.</li>
+                  <li>게임 로그인 화면의 입력창에 위 코드를 입력합니다.</li>
+                  <li>인증이 완료되면 게임에서 유저 정보와 아이템 정보를 불러옵니다.</li>
+                </ol>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </header>
   );

@@ -56,54 +56,57 @@ pub fn hash_handoff_token(token: &str) -> String {
     hex::encode(hasher.finalize())
 }
 
-// ─────────────────────────────────────────────────────────────
-// handoff token 발급
-//
-// 호출 시점: 웹에서 "게임 시작" 버튼 클릭
-// 전제: JWT 미들웨어를 통과한 상태 (user_id 확인됨)
-//
-// 동작:
-// 1) 64자리 랜덤 문자열 생성 (handoff token 원문)
-// 2) SHA-256 해시 계산
-// 3) HandoffEntry를 handoff_store에 저장
-//    - key: token_hash
-//    - 만료: 30초
-// 4) 원문 token을 프론트에 반환
-//    (프론트가 exe 실행용 프로토콜/런처에 실어 전달)
-//
-// 반환: handoff token 원문 (1회만 볼 수 있음)
-// ─────────────────────────────────────────────────────────────
+/// handoff token 발급.
+///
+/// 현재는 Steam 실행 인자 전달이 불안정하므로,
+/// 웹에서 긴 토큰을 자동 전달하는 방식이 아니라
+/// 사용자가 Unity에 직접 입력할 수 있는 8자리 게임 로그인 코드로 사용한다.
+///
+/// 정책:
+/// - 8자리 영문+숫자 코드
+/// - 60초 TTL
+/// - 원문은 저장하지 않고 SHA-256 hash만 저장
+/// - exchange 시 remove()로 먼저 선점해서 1회용 보장
+///
+/// 주의:
+/// - 함수명은 기존 호환을 위해 create_handoff_token 그대로 둔다.
+/// - 프론트/유니티/백엔드 DTO도 기존 handoff_token 필드를 그대로 쓴다.
+/// - 화면 문구만 "게임 로그인 코드"로 바꿔 보여주면 된다.
 pub fn create_handoff_token(state: &AppState, user_id: Uuid, target_service: &str) -> String {
-    // 64자리 랜덤 문자열 생성
-    // nonce(32자리)보다 길게 잡은 이유:
-    // handoff는 access+refresh 교환이 가능하므로 더 높은 엔트로피 필요
+    // 사용자가 직접 입력해야 하므로 64자 대신 8자리로 줄인다.
+    //
+    // Alphanumeric은 대소문자가 섞일 수 있다.
+    // Unity 입력 UX를 더 쉽게 하려면 나중에 대문자/숫자만 쓰는 방식으로 바꿀 수 있다.
     let token: String = rand::thread_rng()
         .sample_iter(&rand::distributions::Alphanumeric)
-        .take(64)
+        .take(8)
         .map(char::from)
         .collect();
 
     let token_hash = hash_handoff_token(&token);
 
-    // 메모리에 저장
-    // 30초 후 만료 → main.rs의 백그라운드 태스크가 정리
+    // 60초 후 만료.
+    //
+    // 기존 30초는 자동 실행 handoff 기준이었다.
+    // 지금은 사용자가 웹에서 코드를 보고 Unity에 직접 입력해야 하므로 60초로 늘린다.
     state.handoff_store.insert(
         token_hash,
         HandoffEntry {
             user_id,
             target_service: target_service.to_string(),
-            expires_at: SystemTime::now() + Duration::from_secs(30),
+            expires_at: SystemTime::now() + Duration::from_secs(60),
         },
     );
 
     tracing::info!(
-        "handoff token 발급: user_id={}, target={}",
+        "game login code 발급: user_id={}, target={}, ttl_secs=60",
         user_id,
         target_service
     );
 
-    // 원문 반환 (해시가 아님!)
-    // 프론트가 이 값을 exe 실행용 프로토콜/런처에 실어 전달
+    // 원문 반환.
+    // 프론트는 이 값을 화면에 크게 보여주고,
+    // Unity는 사용자가 입력한 값을 /auth/handoff/exchange로 보낸다.
     token
 }
 

@@ -2071,7 +2071,7 @@ pub async fn create_handoff(
     // ── 3) 응답 ─────────────────────────────────────────────
     Ok(Json(HandoffResponse {
         handoff_token: token,
-        expires_in: 30,
+        expires_in: 60,
     }))
 }
 
