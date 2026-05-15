@@ -350,11 +350,13 @@ async fn main() {
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:1113")
+    let port = std::env::var("PORT").unwrap_or_else(|_| "1113".to_string());
+    let addr = format!("0.0.0.0:{port}");
+    let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .expect("포트 바인딩 실패");
 
-    tracing::info!("서버 실행: http://localhost:1113");
+    tracing::info!("서버 실행: http://{}", addr);
 
     axum::serve(
         listener,
