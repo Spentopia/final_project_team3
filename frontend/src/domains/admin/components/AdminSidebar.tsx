@@ -67,7 +67,7 @@ export default function AdminSidebar({
                                          onLogout,
                                      }: AdminSidebarProps) {
     return (
-        <aside className="flex min-h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[8px_0_30px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+        <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[8px_0_30px_rgba(15,23,42,0.04)] backdrop-blur-xl">
             {/* Logo */}
             {/* 관리자 로고 / 타이틀 */}
             <div className="border-b border-sidebar-border px-5 py-5">
