@@ -44,6 +44,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape // 둥근 모서리 
 import androidx.compose.material.icons.Icons // 아이콘 묶음을 가져옴
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CalendarMonth // 달력 아이콘을 가져옴
+import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -137,12 +138,32 @@ private fun isHomeDarkTheme(): Boolean { // 다크 테마인지 true/false로 �
 
 @Composable
 private fun homeSoftCardColor(): Color {
-    return if (isHomeDarkTheme()) Color(0xFF171A2B) else Color(0xFFF7FBFF)
+    return if (isHomeDarkTheme()) Color(0xFF111A2A) else Color(0xFFF7FBFF)
 }
 
 @Composable
 private fun homeSoftCardBorderColor(): Color {
-    return if (isHomeDarkTheme()) Color(0xFF4C3B7A) else Color(0xFF7DD3FC)
+    return if (isHomeDarkTheme()) Color(0xFF8B5CF6).copy(alpha = 0.45f) else Color(0xFF7DD3FC)
+}
+
+@Composable
+private fun homeStatCardColor(): Color {
+    return if (isHomeDarkTheme()) Color(0xFF1A2233) else Color(0xFFF7FBFF)
+}
+
+@Composable
+private fun homeInputFieldColor(): Color {
+    return if (isHomeDarkTheme()) Color(0xFF1A2A3D) else MaterialTheme.colorScheme.surfaceVariant
+}
+
+@Composable
+private fun homeInputBorderColor(): Color {
+    return if (isHomeDarkTheme()) Color(0xFF8B5CF6).copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant
+}
+
+@Composable
+private fun homeDarkActionSurfaceColor(): Color {
+    return if (isHomeDarkTheme()) Color(0xFF1A2233) else MaterialTheme.colorScheme.surfaceVariant
 }
 
 @Composable
@@ -504,7 +525,8 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
             Card( // 카드 모양 UI를 시작함
                 modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
                 shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 색상 스타일을 정함
+                colors = CardDefaults.cardColors(containerColor = homeSoftCardColor()), // 색상 스타일을 정함
+                border = BorderStroke(1.dp, homeSoftCardBorderColor())
             ) { // 이 블록 안의 내용이 시작됨
                 CalendarCard( // 카드 모양 UI를 시작함
                     currentYear = currentYear, // colors 값을 이 함수로 넘김
@@ -710,7 +732,7 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
                             modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                                 .size(30.dp) // 가로세로 크기를 한 번에 정함
                                 .background( // 배경색이나 그라데이션을 넣음
-                                    color = MaterialTheme.colorScheme.surfaceVariant, // 색상을 정함
+                                    color = homeDarkActionSurfaceColor(), // 색상을 정함
                                     shape = RoundedCornerShape(10.dp) // 모서리 모양을 정함
                                 )
                                 .clickable { onCalendarClick() }, // 눌렀을 때 반응하도록 만듦
@@ -765,28 +787,28 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
                 SummaryMiniCard( // 카드 모양 UI를 시작함
                     title = "예산", // horizontalArrangement 값을 이 함수로 넘김
                     value = "${formatAmount(monthlyBudget)}원", // value 값을 이 함수로 넘김
-                    bgColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFDDF3F7), // 배경색 값을 넘김
+                    bgColor = if (isDark) homeStatCardColor() else Color(0xFFDDF3F7), // 배경색 값을 넘김
                     modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
                 )
 
                 SummaryMiniCard( // 카드 모양 UI를 시작함
                     title = "수입", // 수입 제목
                     value = "${formatAmount(monthlyIncome)}원", // 수입 값
-                    bgColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE8F7E8), // 배경색 값을 넘김
+                    bgColor = if (isDark) homeStatCardColor() else Color(0xFFE8F7E8), // 배경색 값을 넘김
                     modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
                 )
 
                 SummaryMiniCard( // 카드 모양 UI를 시작함
                     title = if (remainingBudget >= 0) "남은 예산" else "초과 예산", // modifier 값을 이 함수로 넘김
                     value = "${formatAmount(abs(remainingBudget))}원", // 음수를 양수로 바꿔 절댓값으로 만듦
-                    bgColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else if (remainingBudget >= 0) Color(0xFFE1EAFF) else Color(0xFFFFE3E3), // 배경색 값을 넘김
+                    bgColor = if (isDark) homeStatCardColor() else if (remainingBudget >= 0) Color(0xFFE1EAFF) else Color(0xFFFFE3E3), // 배경색 값을 넘김
                     modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
                 )
 
                 SummaryMiniCard( // 카드 모양 UI를 시작함
                     title = "사용률", // modifier 값을 이 함수로 넘김
                     value = usageRateText, // value 값을 이 함수로 넘김
-                    bgColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFDFF2EC), // 배경색 값을 넘김
+                    bgColor = if (isDark) homeStatCardColor() else Color(0xFFDFF2EC), // 배경색 값을 넘김
                     modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
                 )
             } // 블록 끝
@@ -805,7 +827,8 @@ private fun SummaryMiniCard( // SummaryMiniCard 함수 선언 시작
     Card( // 카드 모양 UI를 시작함
         modifier = modifier, // 이 UI의 크기·여백·배경 설정을 시작함
         shape = RoundedCornerShape(16.dp), // 모서리 모양을 정함
-        colors = CardDefaults.cardColors(containerColor = bgColor) // 색상 스타일을 정함
+        colors = CardDefaults.cardColors(containerColor = bgColor), // 색상 스타일을 정함
+        border = if (isDark) BorderStroke(1.dp, homeSoftCardBorderColor()) else null // 다크모드 미니 카드 테두리색을 맞춤
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 세로로 배치하는 영역을 시작함
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp) // 안쪽 여백 줄임
@@ -868,7 +891,8 @@ private fun CalendarCard( // CalendarCard 함수 선언 시작
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // 색상 스타일을 정함
+        colors = CardDefaults.cardColors(containerColor = homeSoftCardColor()), // 색상 스타일을 정함
+        border = BorderStroke(1.dp, homeSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 세로로 배치하는 영역을 시작함
             modifier = Modifier.padding(20.dp) // 안쪽이나 바깥 여백을 줌
@@ -1005,7 +1029,7 @@ private fun CalendarArrowButton( // CalendarArrowButton 함수 선언 시작
         modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
             .size(28.dp) // 가로세로 크기를 한 번에 정함
             .background( // 배경색이나 그라데이션을 넣음
-                color = MaterialTheme.colorScheme.surfaceVariant, // 색상을 정함
+                color = homeDarkActionSurfaceColor(), // 색상을 정함
                 shape = RoundedCornerShape(8.dp) // 모서리 모양을 정함
             )
             .clickable { onClick() }, // 눌렀을 때 반응하도록 만듦
@@ -1150,8 +1174,8 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
     onDeleteClick: () -> Unit // onDeleteClick 는 눌렀을 때 실행할 동작을 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isHomeDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
-    val itemCardColor = if (isDark) Color(0xFF171A2B) else Color(0xFFF7FBFF) // 소비 항목 카드 배경색을 오늘의 소비일기와 맞춤
-    val itemBorderColor = if (isDark) Color(0xFF4C3B7A) else Color(0xFF7DD3FC) // 소비 항목 카드 테두리색을 오늘의 소비일기와 맞춤
+    val itemCardColor = if (isDark) homeStatCardColor() else Color(0xFFF7FBFF) // 소비 항목 카드 배경색을 오늘의 소비일기와 맞춤
+    val itemBorderColor = if (isDark) homeSoftCardBorderColor() else Color(0xFF7DD3FC) // 소비 항목 카드 테두리색을 오늘의 소비일기와 맞춤
     val editColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB) // 수정 버튼 색을 모드별로 분리함
     val expenseAmountColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF1E3A8A) // 지출 금액 색을 모드별로 분리함
     Card( // 카드 모양 UI를 시작함
@@ -1215,8 +1239,8 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
                                 modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                                     .background( // 배경색이나 그라데이션을 넣음
                                     color = when (tag) {
-                                        "인증됨" -> Color(0xFFEFFCF3)
-                                        "미인증" -> Color(0xFFFFF7ED)
+                                        "인증됨" -> if (isDark) Color(0xFF143524) else Color(0xFFEFFCF3)
+                                        "미인증" -> if (isDark) Color(0xFF3A2418) else Color(0xFFFFF7ED)
                                         else -> MaterialTheme.colorScheme.surfaceVariant
                                     },
                                         shape = RoundedCornerShape(20.dp) // 모서리 모양을 정함
@@ -1405,7 +1429,8 @@ private fun WeeklyScoreDetailDialog(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = homeSoftCardColor()),
+            border = BorderStroke(1.dp, homeSoftCardBorderColor())
         ) {
             Column(
                 modifier = Modifier
@@ -1582,13 +1607,16 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     val primaryButtonColor = homePrimaryButtonColor()
     val primaryButtonContentColor = homePrimaryButtonContentColor()
     val formCardColor = homeSoftCardColor()
-    val formSurfaceColor = colorScheme.surfaceVariant
-    val formBorderColor = colorScheme.outlineVariant
+    val formSurfaceColor = homeInputFieldColor()
+    val formButtonSurfaceColor = homeDarkActionSurfaceColor()
+    val formBorderColor = homeInputBorderColor()
     val formPrimaryTextColor = colorScheme.onSurface
     val formSecondaryTextColor = colorScheme.onSurfaceVariant
     val formAccentColor = colorScheme.primary
     val formAccentContainerColor = colorScheme.primaryContainer
     val formAccentContainerTextColor = colorScheme.onPrimaryContainer
+    val incomeTabSelectedBackground = if (isDark) Color(0xFF142238) else Color(0xFFE0F2FE)
+    val incomeTabSelectedContentColor = if (isDark) Color(0xFF93C5FD) else Color(0xFF2563EB)
 
     var formDate by remember { mutableStateOf(selectedDate) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var isExpenseTab by remember { mutableStateOf(true) } // 입력 탭 상태를 보관함
@@ -1707,6 +1735,11 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         color = formSurfaceColor, // 색상을 정함
                         shape = RoundedCornerShape(14.dp) // 모서리 모양을 정함
                     )
+                    .border(
+                        width = 1.dp,
+                        color = formBorderColor,
+                        shape = RoundedCornerShape(14.dp)
+                    )
                     .padding(4.dp), // 안쪽이나 바깥 여백을 줌
                 horizontalArrangement = Arrangement.spacedBy(8.dp) // 가로 방향 간격과 정렬을 정함
             ) { // 이 블록 안의 내용이 시작됨
@@ -1716,6 +1749,11 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         .background( // 배경색이나 그라데이션을 넣음
                             color = if (isExpenseTab) formAccentContainerColor else Color.Transparent, // 색상을 정함
                             shape = RoundedCornerShape(12.dp) // 모서리 모양을 정함
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (isDark) formBorderColor else Color.Transparent,
+                            shape = RoundedCornerShape(12.dp)
                         )
                         .clickable { // 눌렀을 때 반응하도록 만듦
                             isExpenseTab = true // 소비 탭으로 바꿈
@@ -1750,8 +1788,13 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                         .weight(1f) // 남는 공간을 비율대로 차지하게 함
                         .background( // 배경색이나 그라데이션을 넣음
-                            color = if (!isExpenseTab) colorScheme.secondaryContainer else Color.Transparent, // 색상을 정함
+                            color = if (!isExpenseTab) incomeTabSelectedBackground else Color.Transparent, // 색상을 정함
                             shape = RoundedCornerShape(12.dp) // 모서리 모양을 정함
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (isDark) formBorderColor else Color.Transparent,
+                            shape = RoundedCornerShape(12.dp)
                         )
                         .clickable { // 눌렀을 때 반응하도록 만듦
                             isExpenseTab = false // 수입 탭으로 바꿈
@@ -1768,14 +1811,14 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                             imageVector = Icons.Default.Savings,
                             contentDescription = "수입 입력",
                             modifier = Modifier.size(17.dp),
-                            tint = if (!isExpenseTab) colorScheme.onSecondaryContainer else formSecondaryTextColor
+                            tint = if (!isExpenseTab) incomeTabSelectedContentColor else formSecondaryTextColor
                         )
 
                         Spacer(modifier = Modifier.width(6.dp))
 
                         Text( // 글자를 화면에 보여주기 시작함
                             text = "수입 입력", // 화면에 보여줄 글자를 정함
-                            color = if (!isExpenseTab) colorScheme.onSecondaryContainer else formSecondaryTextColor, // 색상을 정함
+                            color = if (!isExpenseTab) incomeTabSelectedContentColor else formSecondaryTextColor, // 색상을 정함
                             fontSize = 14.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.SemiBold // 글자 두께를 정함
                         )
@@ -1800,9 +1843,10 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 readOnly = true, // 직접 타이핑은 막고 보기만 하게 함
                 modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
                 trailingIcon = { // 입력칸 오른쪽에 붙을 아이콘 영역을 만듦
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = "📅", // 화면에 보여줄 글자를 정함
-                        fontSize = 18.sp // 글자 크기를 정함
+                    Icon( // 글자를 화면에 보여주기 시작함
+                        imageVector = Icons.Filled.EditCalendar,
+                        contentDescription = null,
+                        tint = formAccentColor
                     )
                 },
                 placeholder = { // 입력값이 없을 때 보여줄 안내문을 넣음
@@ -2035,7 +2079,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, formBorderColor),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = formSurfaceColor
+                            containerColor = formButtonSurfaceColor
                         )
                     ) {
                         Icon(
@@ -2060,7 +2104,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, formBorderColor),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = formSurfaceColor
+                            containerColor = formButtonSurfaceColor
                         )
                     ) {
                         Icon(
@@ -2276,9 +2320,9 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                             .weight(1f) // 남는 공간을 비율대로 차지하게 함
                             .height(54.dp), // 세로 길이를 정함
                         shape = RoundedCornerShape(14.dp), // 모서리 모양을 정함
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), // 바로 앞 설정을 이어서 적음
+                        border = BorderStroke(1.dp, formBorderColor), // 바로 앞 설정을 이어서 적음
                         colors = ButtonDefaults.outlinedButtonColors( // 색상 스타일을 정함
-                            containerColor = MaterialTheme.colorScheme.surface // 배경색을 정함
+                            containerColor = homeDarkActionSurfaceColor() // 배경색을 정함
                         )
                     ) { // 이 블록 안의 내용이 시작됨
                         Text( // 글자를 화면에 보여주기 시작함
@@ -2405,8 +2449,9 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
     val containerColor = homeSoftCardColor()
     val titleColor = MaterialTheme.colorScheme.onSurface
     val bodyColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val accentContainerColor = MaterialTheme.colorScheme.primaryContainer
-    val accentContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    val isDark = isHomeDarkTheme()
+    val accentContainerColor = if (isDark) homeStatCardColor() else MaterialTheme.colorScheme.primaryContainer
+    val accentContentColor = if (isDark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimaryContainer
 
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
@@ -2487,7 +2532,7 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                         )
                         .border( // 테두리를 그림
                             width = 1.5.dp, // point 값을 이 함수로 넘김
-                            color = MaterialTheme.colorScheme.outlineVariant, // 색상을 정함
+                            color = if (isDark) homeInputBorderColor() else MaterialTheme.colorScheme.outlineVariant, // 색상을 정함
                             shape = RoundedCornerShape(10.dp) // 모서리 모양을 정함
                         )
                         .padding(vertical = 8.dp, horizontal = 10.dp), // 안쪽이나 바깥 여백을 줌

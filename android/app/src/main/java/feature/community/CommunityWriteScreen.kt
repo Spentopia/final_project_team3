@@ -17,6 +17,7 @@ import android.graphics.Bitmap // 이미지 데이터 타입을 가져옴
 import androidx.activity.compose.rememberLauncherForActivityResult // rememberLauncherForActivityResult 기능을 가져옴
 import androidx.activity.result.contract.ActivityResultContracts // ActivityResultContracts 기능을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable // clickable 기능을 가져옴
 import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
 import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
@@ -48,6 +49,7 @@ import androidx.compose.material3.Card // Card 기능을 가져옴
 import androidx.compose.material3.CardDefaults // CardDefaults 기능을 가져옴
 import androidx.compose.material3.OutlinedTextField // OutlinedTextField 기능을 가져옴
 import androidx.compose.material3.OutlinedTextFieldDefaults // OutlinedTextFieldDefaults 기능을 가져옴
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme // MaterialTheme 기능을 가져옴
 import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
 import androidx.compose.runtime.Composable // Compose 화면 함수 표시를 가져옴
@@ -194,8 +196,9 @@ private fun CommunityWriteTopSection() { // CommunityWriteTopSection 함수를 �
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = communityWriteCardColor() // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, communityWriteCardBorderColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -230,8 +233,9 @@ private fun CommunityWriteCategoryCard( // CommunityWriteCategoryCard 함수를 
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = communityWriteCardColor() // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, communityWriteCardBorderColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -313,8 +317,9 @@ private fun CommunityWriteTitleCard( // CommunityWriteTitleCard 함수를 선언
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = communityWriteCardColor() // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, communityWriteCardBorderColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -342,14 +347,14 @@ private fun CommunityWriteTitleCard( // CommunityWriteTitleCard 함수를 선언
                 shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
                 singleLine = true, // true 값을 singleLine 값에 넣음
                 colors = OutlinedTextFieldDefaults.colors( // 사용자가 입력할 칸을 만듦
-                    focusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // focusedBorderColor 값을 정해줌
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // unfocusedBorderColor 값을 정해줌
+                    focusedBorderColor = communityWriteFieldBorderColor(), // focusedBorderColor 값을 정해줌
+                    unfocusedBorderColor = communityWriteFieldBorderColor(), // unfocusedBorderColor 값을 정해줌
                     focusedTextColor = MaterialTheme.colorScheme.onSurface, // focusedTextColor 값을 정해줌
                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface, // unfocusedTextColor 값을 정해줌
                     focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant, // focusedPlaceholderColor 값을 정해줌
                     unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant, // unfocusedPlaceholderColor 값을 정해줌
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant, // focusedContainerColor 값을 정해줌
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant // unfocusedContainerColor 값을 정해줌
+                    focusedContainerColor = communityWriteFieldSurfaceColor(), // focusedContainerColor 값을 정해줌
+                    unfocusedContainerColor = communityWriteFieldSurfaceColor() // unfocusedContainerColor 값을 정해줌
                 )
             )
         }
@@ -365,8 +370,9 @@ private fun CommunityWriteContentCard( // CommunityWriteContentCard 함수를 �
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = communityWriteCardColor() // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, communityWriteCardBorderColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -443,20 +449,22 @@ private fun CommunityWriteAttachmentCard( // CommunityWriteAttachmentCard 함수
             ) { // 이 블록 안의 내용이 시작됨
                 // 이미지 앨범 업로드 버튼입니다.
                 // image/*만 허용해서 사진만 고를 수 있습니다.
-                Button( // 누를 수 있는 버튼을 만듦
+                OutlinedButton( // 누를 수 있는 버튼을 만듦
                     onClick = onPickImageClick, // onPickImageClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
                     modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
                     shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
-                    colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant, // containerColor 값을 정해줌
-                        contentColor = MaterialTheme.colorScheme.onSurface // contentColor 값을 정해줌
+                    border = BorderStroke(1.dp, communityWriteActionBorderColor()),
+                    colors = ButtonDefaults.outlinedButtonColors( // colors 값을 정해줌
+                        containerColor = communityWriteActionSurfaceColor(), // containerColor 값을 정해줌
+                        contentColor = communityWriteActionContentColor() // contentColor 값을 정해줌
                     ),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp) // contentPadding 값을 정해줌
                 ) { // 이 블록 안의 내용이 시작됨
                     Icon( // 화면에 아이콘을 보여줌
                         imageVector = Icons.Filled.AttachFile, // imageVector 값을 정해줌
                         contentDescription = null, // null 값을 contentDescription 값에 넣음
-                        modifier = Modifier.size(18.dp) // UI 크기나 여백 같은 모양을 정함
+                        modifier = Modifier.size(18.dp), // UI 크기나 여백 같은 모양을 정함
+                        tint = communityWriteActionContentColor()
                     )
                     Spacer(modifier = Modifier.width(6.dp)) // UI 크기나 여백 같은 모양을 정함
                     Text( // 화면에 글자를 보여줌
@@ -468,20 +476,22 @@ private fun CommunityWriteAttachmentCard( // CommunityWriteAttachmentCard 함수
 
                 // 카메라 촬영 버튼입니다.
                 // 촬영한 이미지는 임시 Uri로 바꿔서 같은 흐름으로 처리합니다.
-                Button( // 누를 수 있는 버튼을 만듦
+                OutlinedButton( // 누를 수 있는 버튼을 만듦
                     onClick = onTakePhotoClick, // onTakePhotoClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
                     modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
                     shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
-                    colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                        containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer // contentColor 값을 정해줌
+                    border = BorderStroke(1.dp, communityWriteActionBorderColor()),
+                    colors = ButtonDefaults.outlinedButtonColors( // colors 값을 정해줌
+                        containerColor = communityWriteActionSurfaceColor(), // containerColor 값을 정해줌
+                        contentColor = communityWriteActionContentColor() // contentColor 값을 정해줌
                     ),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp) // contentPadding 값을 정해줌
                 ) { // 이 블록 안의 내용이 시작됨
                     Icon( // 화면에 아이콘을 보여줌
                         imageVector = Icons.Filled.PhotoCamera, // imageVector 값을 정해줌
                         contentDescription = null, // null 값을 contentDescription 값에 넣음
-                        modifier = Modifier.size(18.dp) // UI 크기나 여백 같은 모양을 정함
+                        modifier = Modifier.size(18.dp), // UI 크기나 여백 같은 모양을 정함
+                        tint = communityWriteActionContentColor()
                     )
                     Spacer(modifier = Modifier.width(6.dp)) // UI 크기나 여백 같은 모양을 정함
                     Text( // 화면에 글자를 보여줌
@@ -500,7 +510,7 @@ private fun CommunityWriteAttachmentCard( // CommunityWriteAttachmentCard 함수
                         .fillMaxWidth()
                         .height(180.dp)
                         .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant, // color 값을 정해줌
+                            color = communityWriteActionSurfaceColor(), // color 값을 정해줌
                             shape = RoundedCornerShape(14.dp) // shape 값을 정해줌
                         )
                 ) { // 이 블록 안의 내용이 시작됨
@@ -528,7 +538,8 @@ private fun CommunityWriteAttachmentCard( // CommunityWriteAttachmentCard 함수
                     Icon( // 화면에 아이콘을 보여줌
                         imageVector = Icons.Filled.DeleteOutline, // imageVector 값을 정해줌
                         contentDescription = null, // null 값을 contentDescription 값에 넣음
-                        modifier = Modifier.size(17.dp) // UI 크기나 여백 같은 모양을 정함
+                        modifier = Modifier.size(17.dp), // UI 크기나 여백 같은 모양을 정함
+                        tint = MaterialTheme.colorScheme.onErrorContainer
                     )
                     Spacer(modifier = Modifier.width(6.dp)) // UI 크기나 여백 같은 모양을 정함
                     Text( // 화면에 글자를 보여줌
@@ -540,6 +551,41 @@ private fun CommunityWriteAttachmentCard( // CommunityWriteAttachmentCard 함수
             }
         }
     }
+}
+
+@Composable
+private fun communityWriteCardColor(): Color {
+    return if (isCommunityWriteDarkTheme()) Color(0xFF111A2A) else MaterialTheme.colorScheme.surface
+}
+
+@Composable
+private fun communityWriteCardBorderColor(): Color {
+    return if (isCommunityWriteDarkTheme()) Color(0xFF8B5CF6).copy(alpha = 0.45f) else Color(0xFF93C5FD)
+}
+
+@Composable
+private fun communityWriteFieldSurfaceColor(): Color {
+    return if (isCommunityWriteDarkTheme()) Color(0xFF1A2A3D) else Color(0xFFEFF6FF)
+}
+
+@Composable
+private fun communityWriteFieldBorderColor(): Color {
+    return if (isCommunityWriteDarkTheme()) Color(0xFF8B5CF6).copy(alpha = 0.35f) else Color(0xFF93C5FD)
+}
+
+@Composable
+private fun communityWriteActionSurfaceColor(): Color {
+    return if (isCommunityWriteDarkTheme()) Color(0xFF1A2233) else Color(0xFFEFF6FF)
+}
+
+@Composable
+private fun communityWriteActionBorderColor(): Color {
+    return if (isCommunityWriteDarkTheme()) Color(0xFF8B5CF6).copy(alpha = 0.40f) else Color(0xFF60A5FA)
+}
+
+@Composable
+private fun communityWriteActionContentColor(): Color {
+    return if (isCommunityWriteDarkTheme()) Color(0xFFF8FAFC) else Color(0xFF1D4ED8)
 }
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시

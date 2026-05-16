@@ -23,6 +23,7 @@ import android.content.ClipboardManager // ClipboardManager 기능을 가져옴
 import android.content.Context // 현재 화면 정보 타입을 가져옴
 import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border // border 기능을 가져옴
 import androidx.compose.foundation.clickable // clickable 기능을 가져옴
 import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
@@ -90,12 +91,12 @@ private fun isCommunityDetailDarkTheme(): Boolean {
 
 @Composable
 private fun communityDetailSoftCardColor(): Color {
-    return if (isCommunityDetailDarkTheme()) Color(0xFF171A2B) else Color(0xFFF7FBFF)
+    return if (isCommunityDetailDarkTheme()) Color(0xFF111A2A) else Color(0xFFF7FBFF)
 }
 
 @Composable
 private fun communityDetailSoftCardBorderColor(): Color {
-    return if (isCommunityDetailDarkTheme()) Color(0xFF4C3B7A) else Color(0xFF7DD3FC)
+    return if (isCommunityDetailDarkTheme()) Color(0xFF8B5CF6).copy(alpha = 0.45f) else Color(0xFF7DD3FC)
 }
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
@@ -364,14 +365,15 @@ private fun CommunityDetailNotFoundScreen( // CommunityDetailNotFoundScreen 함�
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp) // verticalArrangement 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
-        Card( // 내용을 카드 모양으로 묶어서 보여줌
-            modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
-            shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
-            colors = CardDefaults.cardColors( // colors 값을 정해줌
-                containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp) // elevation 값을 정해줌
-        ) { // 이 블록 안의 내용이 시작됨
+    Card( // 내용을 카드 모양으로 묶어서 보여줌
+        modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+        shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
+        colors = CardDefaults.cardColors( // colors 값을 정해줌
+            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+        ),
+        border = BorderStroke(1.dp, communityDetailSoftCardBorderColor()),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp) // elevation 값을 정해줌
+    ) { // 이 블록 안의 내용이 시작됨
             Column( // 안쪽 UI를 세로로 배치함
                 modifier = Modifier.padding(18.dp) // UI 크기나 여백 같은 모양을 정함
             ) { // 이 블록 안의 내용이 시작됨
@@ -425,8 +427,9 @@ private fun CommunityDetailTopSection( // CommunityDetailTopSection 함수를 �
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = communityDetailSoftCardColor() // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, communityDetailSoftCardBorderColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -516,8 +519,9 @@ private fun CommunityDetailContentCard( // CommunityDetailContentCard 함수를 
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = communityDetailSoftCardColor() // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, communityDetailSoftCardBorderColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -651,13 +655,13 @@ private fun CommunityDetailContentCard( // CommunityDetailContentCard 함수를 
                 AsyncImage( // 화면에 이미지를 보여줌
                     model = post.imageUrl, // model 값을 정해줌
                     contentDescription = "첨부 이미지", // contentDescription 값을 정해줌
-                    modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-                        .fillMaxWidth()
-                        .height(220.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentScale = ContentScale.Crop // contentScale 값을 정해줌
-                )
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(communityDetailSoftCardColor()),
+                contentScale = ContentScale.Crop // contentScale 값을 정해줌
+            )
 
                 Spacer(modifier = Modifier.height(18.dp)) // UI 크기나 여백 같은 모양을 정함
             }
@@ -689,8 +693,9 @@ private fun CommunityDetailEditCard( // CommunityDetailEditCard 함수를 선언
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = communityDetailSoftCardColor() // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, communityDetailSoftCardBorderColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -826,8 +831,9 @@ private fun CommunityDetailActionCard( // CommunityDetailActionCard 함수를 �
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = communityDetailSoftCardColor() // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, communityDetailSoftCardBorderColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -970,8 +976,9 @@ private fun CommunityCommentSection( // CommunityCommentSection 함수를 선언
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surface // containerColor 값을 정해줌
+            containerColor = communityDetailSoftCardColor() // containerColor 값을 정해줌
         ),
+        border = BorderStroke(1.dp, communityDetailSoftCardBorderColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -1089,8 +1096,9 @@ private fun CommunityCommentItem( // CommunityCommentItem 함수를 선언함
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(16.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surfaceVariant // containerColor 값을 정해줌
-        )
+            containerColor = communityDetailSoftCardColor() // containerColor 값을 정해줌
+        ),
+        border = BorderStroke(1.dp, communityDetailSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier.padding(14.dp), // UI 크기나 여백 같은 모양을 정함
@@ -1217,8 +1225,9 @@ private fun CommunityDetailInfoChip( // CommunityDetailInfoChip 함수를 선언
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         shape = RoundedCornerShape(999.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = MaterialTheme.colorScheme.surfaceVariant // containerColor 값을 정해줌
-        )
+            containerColor = communityDetailSoftCardColor() // containerColor 값을 정해줌
+        ),
+        border = BorderStroke(1.dp, communityDetailSoftCardBorderColor())
     ) { // 이 블록 안의 내용이 시작됨
         Text( // 화면에 글자를 보여줌
             text = text, // text 값을 text 값에 넣음

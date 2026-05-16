@@ -96,12 +96,17 @@ private fun isBudgetDarkTheme(): Boolean { // isBudgetDarkTheme 함수를 선언
 
 @Composable
 private fun budgetSoftCardColor(): Color {
-    return if (isBudgetDarkTheme()) Color(0xFF171A2B) else Color(0xFFF7FBFF)
+    return if (isBudgetDarkTheme()) Color(0xFF111A2A) else Color(0xFFF7FBFF)
 }
 
 @Composable
 private fun budgetSoftCardBorderColor(): Color {
-    return if (isBudgetDarkTheme()) Color(0xFF4C3B7A) else Color(0xFF7DD3FC)
+    return if (isBudgetDarkTheme()) Color(0xFF8B5CF6).copy(alpha = 0.45f) else Color(0xFF7DD3FC)
+}
+
+@Composable
+private fun budgetSoftInnerCardColor(): Color {
+    return if (isBudgetDarkTheme()) Color(0xFF1A2233) else Color(0xFFFFFFFF)
 }
 
 @Composable
@@ -407,8 +412,9 @@ private fun MonthSelectorCard( // MonthSelectorCard 함수를 선언함
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF8FBFF) // containerColor 값을 정해줌
+            containerColor = if (isDark) budgetSoftCardColor() else Color(0xFFF8FBFF) // containerColor 값을 정해줌
         ),
+        border = if (isDark) BorderStroke(1.dp, budgetSoftCardBorderColor()) else null,
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Row( // 안쪽 UI를 가로로 배치함
@@ -456,6 +462,7 @@ private fun MonthPickerDialog( // MonthPickerDialog 함수를 선언함
     onDismiss: () -> Unit, // 닫을 때 실행할 함수를 받음
     onYearMonthSelected: (Int, Int) -> Unit
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isBudgetDarkTheme() // 다크모드인지 저장함
     val listState = rememberLazyListState() // 화면이 다시 그려져도 listState 값을 기억함
     var dialogYear by remember(selectedYear) { mutableIntStateOf(selectedYear) } // 화면이 다시 그려져도 dialogYear 값을 기억함
 
@@ -467,7 +474,8 @@ private fun MonthPickerDialog( // MonthPickerDialog 함수를 선언함
         Card( // 내용을 카드 모양으로 묶어서 보여줌
             modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
             shape = RoundedCornerShape(22.dp), // shape 값을 정해줌
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface) // colors 값을 정해줌
+            colors = CardDefaults.cardColors(containerColor = if (isDark) budgetSoftCardColor() else MaterialTheme.colorScheme.surface), // colors 값을 정해줌
+            border = if (isDark) BorderStroke(1.dp, budgetSoftCardBorderColor()) else null
         ) { // 이 블록 안의 내용이 시작됨
             Column( // 안쪽 UI를 세로로 배치함
                 modifier = Modifier // UI 크기나 여백 같은 모양을 정함
@@ -527,7 +535,7 @@ private fun MonthPickerDialog( // MonthPickerDialog 함수를 선언함
                         .fillMaxWidth()
                         .height(260.dp)
                         .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f), // color 값을 정해줌
+                            color = if (isDark) budgetSoftInnerCardColor() else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f), // color 값을 정해줌
                             shape = RoundedCornerShape(16.dp) // shape 값을 정해줌
                         )
                         .padding(vertical = 8.dp) // .padding(vertical 값을 정해줌
@@ -748,7 +756,7 @@ private fun BudgetPlanCard( // BudgetPlanCard 함수를 선언함
             InfoValueCard( // 내용을 카드 모양으로 묶어서 보여줌
                 label = "월 예산", // label 값을 정해줌
                 value = formatWon(plan.monthlyBudget), // 입력값을 정해줌
-                containerColor = if (isDark) Color(0xFF20243A) else Color(0xFFFFFFFF), // containerColor 값을 정해줌
+                containerColor = budgetSoftInnerCardColor(), // containerColor 값을 정해줌
                 valueColor = MaterialTheme.colorScheme.onSurface // valueColor 값을 정해줌
             )
 
@@ -757,7 +765,7 @@ private fun BudgetPlanCard( // BudgetPlanCard 함수를 선언함
             InfoValueCard( // 내용을 카드 모양으로 묶어서 보여줌
                 label = "목표 저축", // label 값을 정해줌
                 value = formatWon(plan.savingGoal), // 입력값을 정해줌
-                containerColor = if (isDark) Color(0xFF20243A) else Color(0xFFFFFFFF), // containerColor 값을 정해줌
+                containerColor = budgetSoftInnerCardColor(), // containerColor 값을 정해줌
                 valueColor = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF0E9F4B) // valueColor 값을 정해줌
             )
 
@@ -897,8 +905,9 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF7F8FA) // containerColor 값을 정해줌
-        )
+            containerColor = if (isDark) budgetSoftCardColor() else Color(0xFFF7F8FA) // containerColor 값을 정해줌
+        ),
+        border = if (isDark) BorderStroke(1.dp, budgetSoftCardBorderColor()) else null
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
@@ -1389,8 +1398,9 @@ private fun CurrentMonthlyBudgetCard( // CurrentMonthlyBudgetCard 함수를 선�
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF7F8FA) // containerColor 값을 정해줌
+            containerColor = if (isDark) budgetSoftCardColor() else Color(0xFFF7F8FA) // containerColor 값을 정해줌
         ),
+        border = if (isDark) BorderStroke(1.dp, budgetSoftCardBorderColor()) else null,
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -1455,12 +1465,12 @@ private fun BudgetCommentCard( // BudgetCommentCard 함수를 선언함
             .fillMaxWidth()
             .border(
                 width = 1.dp, // width 값을 정해줌
-                color = MaterialTheme.colorScheme.outlineVariant, // color 값을 정해줌
+                color = if (isDark) budgetSoftCardBorderColor() else MaterialTheme.colorScheme.outlineVariant, // color 값을 정해줌
                 shape = RoundedCornerShape(20.dp) // shape 값을 정해줌
             ),
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF8FBFF) // containerColor 값을 정해줌
+            containerColor = if (isDark) budgetSoftCardColor() else Color(0xFFF8FBFF) // containerColor 값을 정해줌
         )
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
@@ -1524,8 +1534,9 @@ private fun BudgetAnalysisCard( // BudgetAnalysisCard 함수를 선언함
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF8FBFF) // containerColor 값을 정해줌
-        )
+            containerColor = if (isDark) budgetSoftCardColor() else Color(0xFFF8FBFF) // containerColor 값을 정해줌
+        ),
+        border = if (isDark) BorderStroke(1.dp, budgetSoftCardBorderColor()) else null
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
@@ -1607,12 +1618,12 @@ private fun SavingTipCard( // SavingTipCard 함수를 선언함
             .fillMaxWidth()
             .border(
                 width = 1.dp, // width 값을 정해줌
-                color = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE6DDC8), // color 값을 정해줌
+                color = if (isDark) budgetSoftCardBorderColor() else Color(0xFFE6DDC8), // color 값을 정해줌
                 shape = RoundedCornerShape(20.dp) // shape 값을 정해줌
             ),
         shape = RoundedCornerShape(20.dp), // shape 값을 정해줌
         colors = CardDefaults.cardColors( // colors 값을 정해줌
-            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF8F1DD) // containerColor 값을 정해줌
+            containerColor = if (isDark) budgetSoftCardColor() else Color(0xFFF8F1DD) // containerColor 값을 정해줌
         )
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함

@@ -176,8 +176,8 @@ private fun PlazaHeroCard( // PlazaHeroCard 함수를 선언함
     val heroBorderColor = if (isDark) Color(0xFF334155) else Color(0xFF7DD3FC) // hero 테두리색을 모드별로 분리함
     val heroContentColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A) // heroContentColor 값을 저장함
     val heroMutedContentColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF53657D) // heroMutedContentColor 값을 저장함
-    val pointColor = spentopiaAppButtonColor(isDark) // 버튼/아이콘 포인트 색을 모드별로 분리함
-    val pointContentColor = spentopiaAppButtonContentColor(isDark)
+    val pointColor = if (isDark) spentopiaAppButtonColor(true) else Color(0xFF2563EB) // 라이트모드에서는 배경 위에서 버튼이 확실히 보이게 함
+    val pointContentColor = if (isDark) spentopiaAppButtonContentColor(true) else Color.White
 
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
@@ -273,35 +273,20 @@ private fun PlazaHeroCard( // PlazaHeroCard 함수를 선언함
 
 @Composable
 private fun BoxScope.PlazaLightDecorations() {
-    PlazaGlowOrb(
+    PlazaSparkle(
         modifier = Modifier
-            .align(Alignment.TopEnd)
-            .size(112.dp),
-        colors = listOf(
-            Color(0xFF93C5FD).copy(alpha = 0.38f),
-            Color(0xFFDBEAFE).copy(alpha = 0.18f),
-            Color.Transparent
-        )
+            .align(Alignment.TopEnd),
+        color = Color(0xFF93C5FD).copy(alpha = 0.42f)
     )
-    PlazaGlowOrb(
+    PlazaSparkle(
         modifier = Modifier
-            .align(Alignment.BottomStart)
-            .size(92.dp),
-        colors = listOf(
-            Color(0xFFBAE6FD).copy(alpha = 0.44f),
-            Color(0xFFE0F2FE).copy(alpha = 0.2f),
-            Color.Transparent
-        )
+            .align(Alignment.BottomStart),
+        color = Color(0xFFBAE6FD).copy(alpha = 0.36f)
     )
-    PlazaGlowOrb(
+    PlazaSparkle(
         modifier = Modifier
-            .align(Alignment.TopStart)
-            .size(74.dp),
-        colors = listOf(
-            Color.White.copy(alpha = 0.58f),
-            Color(0xFFDBEAFE).copy(alpha = 0.18f),
-            Color.Transparent
-        )
+            .align(Alignment.TopStart),
+        color = Color.White.copy(alpha = 0.52f)
     )
     PlazaSparkle(
         modifier = Modifier
@@ -312,25 +297,15 @@ private fun BoxScope.PlazaLightDecorations() {
 
 @Composable
 private fun BoxScope.PlazaDarkDecorations() {
-    PlazaGlowOrb(
+    PlazaSparkle(
         modifier = Modifier
-            .align(Alignment.TopEnd)
-            .size(118.dp),
-        colors = listOf(
-            Color(0xFF6D5BD0).copy(alpha = 0.34f),
-            Color(0xFF312E81).copy(alpha = 0.18f),
-            Color.Transparent
-        )
+            .align(Alignment.TopEnd),
+        color = Color(0xFFC4B5FD).copy(alpha = 0.58f)
     )
-    PlazaGlowOrb(
+    PlazaSparkle(
         modifier = Modifier
-            .align(Alignment.BottomStart)
-            .size(96.dp),
-        colors = listOf(
-            Color(0xFF22D3EE).copy(alpha = 0.24f),
-            Color(0xFF1E1B4B).copy(alpha = 0.16f),
-            Color.Transparent
-        )
+            .align(Alignment.BottomStart),
+        color = Color(0xFF22D3EE).copy(alpha = 0.34f)
     )
     PlazaSparkle(
         modifier = Modifier
@@ -381,16 +356,17 @@ private fun PlazaSparkle(
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun PlazaFeatureCard() { // PlazaFeatureCard 함수를 선언함
+    val isDark = isPlazaDarkTheme()
     SectionCard(title = "광장 기능") { // 내용을 카드 모양으로 묶어서 보여줌
         FeatureRow( // 안쪽 UI를 가로로 배치함
             icon = { // icon 값을 정해줌
                 Icon( // 화면에 아이콘을 보여줌
                     imageVector = Icons.Outlined.Groups, // imageVector 값을 정해줌
                     contentDescription = null, // null 값을 contentDescription 값에 넣음
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant // tint 값을 정해줌
+                    tint = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB) // tint 값을 정해줌
                 )
             },
-            iconBg = MaterialTheme.colorScheme.surfaceVariant, // iconBg 값을 정해줌
+            iconBg = if (isDark) Color(0xFF1A2233) else Color(0xFFE0F2FE), // iconBg 값을 정해줌
             title = "아바타 이동 & 채팅", // 제목을 정해줌
             description = "내 아바타를 움직이며 다른 유저들과 실시간 채팅을 즐겨보세요" // description 값을 정해줌
         )
@@ -402,10 +378,10 @@ private fun PlazaFeatureCard() { // PlazaFeatureCard 함수를 선언함
                 Icon( // 화면에 아이콘을 보여줌
                     imageVector = Icons.Outlined.Extension, // imageVector 값을 정해줌
                     contentDescription = null, // null 값을 contentDescription 값에 넣음
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant // tint 값을 정해줌
+                    tint = if (isDark) Color(0xFF93C5FD) else Color(0xFF0EA5E9) // tint 값을 정해줌
                 )
             },
-            iconBg = MaterialTheme.colorScheme.surfaceVariant, // iconBg 값을 정해줌
+            iconBg = if (isDark) Color(0xFF142238) else Color(0xFFE0F7FF), // iconBg 값을 정해줌
             title = "커스터마이징 반영", // 제목을 정해줌
             description = "내 아바타에 적용한 모든 아이템이 3D로 표현돼요" // description 값을 정해줌
         )
@@ -417,10 +393,10 @@ private fun PlazaFeatureCard() { // PlazaFeatureCard 함수를 선언함
                 Icon( // 화면에 아이콘을 보여줌
                     imageVector = Icons.Outlined.EmojiEvents, // imageVector 값을 정해줌
                     contentDescription = null, // null 값을 contentDescription 값에 넣음
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant // tint 값을 정해줌
+                    tint = if (isDark) Color(0xFFFACC15) else Color(0xFFD97706) // tint 값을 정해줌
                 )
             },
-            iconBg = MaterialTheme.colorScheme.surfaceVariant, // iconBg 값을 정해줌
+            iconBg = if (isDark) Color(0xFF2B2414) else Color(0xFFFFF7D6), // iconBg 값을 정해줌
             title = "프리미엄 공간", // 제목을 정해줌
             description = "특별한 칭호와 전용 부스를 획득할 수 있어요" // description 값을 정해줌
         )
@@ -502,6 +478,7 @@ private fun PlazaTipsCard() { // PlazaTipsCard 함수를 선언함
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun PlazaUpcomingCard() { // PlazaUpcomingCard 함수를 선언함
+    val isDark = isPlazaDarkTheme()
     Column { // 안쪽 UI를 세로로 배치함
         Text( // 화면에 글자를 보여줌
             text = "곧 추가될 기능", // text 값을 정해줌
@@ -518,13 +495,13 @@ private fun PlazaUpcomingCard() { // PlazaUpcomingCard 함수를 선언함
                 Icon( // 화면에 아이콘을 보여줌
                     imageVector = Icons.Outlined.Star, // imageVector 값을 정해줌
                     contentDescription = null, // null 값을 contentDescription 값에 넣음
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer // tint 값을 정해줌
+                    tint = if (isDark) Color(0xFFFACC15) else Color(0xFFD97706) // tint 값을 정해줌
                 )
             },
             title = "미니게임", // 제목을 정해줌
             description = "다양한 미니게임으로 SPT 획득", // description 값을 정해줌
             borderColor = plazaSoftCardBorderColor(), // borderColor 값을 정해줌
-            backgroundColor = plazaSoftCardColor() // backgroundColor 값을 정해줌
+            backgroundColor = if (isDark) Color(0xFF1A2233) else Color(0xFFFFF7D6) // backgroundColor 값을 정해줌
         )
 
         Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
@@ -534,13 +511,13 @@ private fun PlazaUpcomingCard() { // PlazaUpcomingCard 함수를 선언함
                 Icon( // 화면에 아이콘을 보여줌
                     imageVector = Icons.Outlined.Groups, // imageVector 값을 정해줌
                     contentDescription = null, // null 값을 contentDescription 값에 넣음
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer // tint 값을 정해줌
+                    tint = if (isDark) Color(0xFFC4B5FD) else Color(0xFF7C3AED) // tint 값을 정해줌
                 )
             },
             title = "길드 시스템", // 제목을 정해줌
             description = "친구들과 길드를 만들어보세요", // description 값을 정해줌
             borderColor = plazaSoftCardBorderColor(), // borderColor 값을 정해줌
-            backgroundColor = plazaSoftCardColor() // backgroundColor 값을 정해줌
+            backgroundColor = if (isDark) Color(0xFF1A2233) else Color(0xFFEDE9FE) // backgroundColor 값을 정해줌
         )
 
         Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
@@ -550,13 +527,13 @@ private fun PlazaUpcomingCard() { // PlazaUpcomingCard 함수를 선언함
                 Icon( // 화면에 아이콘을 보여줌
                     imageVector = Icons.Outlined.Campaign, // imageVector 값을 정해줌
                     contentDescription = null, // null 값을 contentDescription 값에 넣음
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer // tint 값을 정해줌
+                    tint = if (isDark) Color(0xFF93C5FD) else Color(0xFF2563EB) // tint 값을 정해줌
                 )
             },
             title = "이벤트 홀", // 제목을 정해줌
             description = "특별 이벤트 전용 공간", // description 값을 정해줌
             borderColor = plazaSoftCardBorderColor(), // borderColor 값을 정해줌
-            backgroundColor = plazaSoftCardColor() // backgroundColor 값을 정해줌
+            backgroundColor = if (isDark) Color(0xFF142238) else Color(0xFFE0F2FE) // backgroundColor 값을 정해줌
         )
     }
 }
@@ -636,12 +613,12 @@ private fun isPlazaDarkTheme(): Boolean { // 앱 테마 기준으로 광장 다�
 
 @Composable
 private fun plazaSoftCardColor(): Color {
-    return if (isPlazaDarkTheme()) Color(0xFF171A2B) else Color(0xFFF7FBFF)
+    return if (isPlazaDarkTheme()) Color(0xFF111A2A) else Color(0xFFF7FBFF)
 }
 
 @Composable
 private fun plazaSoftCardBorderColor(): Color {
-    return if (isPlazaDarkTheme()) Color(0xFF4C3B7A) else Color(0xFF7DD3FC)
+    return if (isPlazaDarkTheme()) Color(0xFF8B5CF6).copy(alpha = 0.45f) else Color(0xFF7DD3FC)
 }
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
