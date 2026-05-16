@@ -117,8 +117,10 @@ fn ensure_unity_request(headers: &HeaderMap) -> Result<(), (StatusCode, String)>
 /// - HttpOnly:
 ///   JS(document.cookie)로 읽지 못하게 해서 XSS로 refresh 탈취를 어렵게 함
 ///
-/// - SameSite=Lax:
-///   기본적인 CSRF 위험을 줄이기 위한 설정
+/// - SameSite:
+///   로컬 개발은 Lax, 배포는 None.
+///   배포에서 프론트/백엔드 origin이 서로 다른 사이트면
+///   XHR /auth/refresh 요청에 Lax 쿠키가 붙지 않는다.
 ///
 /// - Path=/auth:
 ///   refresh 쿠키가 /auth 하위 요청들에만 붙도록 제한
@@ -130,10 +132,11 @@ fn ensure_unity_request(headers: &HeaderMap) -> Result<(), (StatusCode, String)>
 fn build_refresh_cookie(state: &AppState, refresh_token: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
     let secure = should_use_secure_cookies(state);
+    let same_site = refresh_cookie_same_site(state);
 
     let cookie = Cookie::build(("spentopia_refresh", refresh_token.to_string()))
         .http_only(true)
-        .same_site(SameSite::Lax)
+        .same_site(same_site)
         .path("/auth")
         .secure(secure)
         .build();
@@ -141,7 +144,8 @@ fn build_refresh_cookie(state: &AppState, refresh_token: &str) -> HeaderMap {
     headers.append(SET_COOKIE, cookie.to_string().parse().unwrap());
 
     tracing::debug!(
-        "refresh 쿠키 발급: name=spentopia_refresh path=/auth same_site=Lax secure={}",
+        "refresh 쿠키 발급: name=spentopia_refresh path=/auth same_site={:?} secure={}",
+        same_site,
         secure
     );
 
@@ -154,10 +158,11 @@ fn build_refresh_cookie(state: &AppState, refresh_token: &str) -> HeaderMap {
 fn build_clear_refresh_cookie(state: &AppState) -> HeaderMap {
     let mut headers = HeaderMap::new();
     let secure = should_use_secure_cookies(state);
+    let same_site = refresh_cookie_same_site(state);
 
     let cookie = Cookie::build(("spentopia_refresh", "".to_string()))
         .http_only(true)
-        .same_site(SameSite::Lax)
+        .same_site(same_site)
         .path("/auth")
         .secure(secure)
         .max_age(cookie::time::Duration::seconds(0))
@@ -1963,7 +1968,7 @@ fn extract_kakao_state_cookie(headers: &HeaderMap) -> Option<String> {
         })
 }
 fn should_use_secure_cookies(state: &AppState) -> bool {
-    matches!(
+    let is_production_env = matches!(
         state
             .config
             .environment
@@ -1971,7 +1976,19 @@ fn should_use_secure_cookies(state: &AppState) -> bool {
             .to_ascii_lowercase()
             .as_str(),
         "prod" | "production"
-    )
+    );
+
+    is_production_env
+        || state.config.frontend_origin.trim().starts_with("https://")
+        || state.config.cors_origin.trim().starts_with("https://")
+}
+
+fn refresh_cookie_same_site(state: &AppState) -> SameSite {
+    if should_use_secure_cookies(state) {
+        SameSite::None
+    } else {
+        SameSite::Lax
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2119,7 +2136,7 @@ pub async fn exchange_handoff(
     Json(body): Json<HandoffExchangeRequest>,
 ) -> Result<Json<HandoffExchangeResponse>, (StatusCode, String)> {
     // ── 1) 입력 검증 ────────────────────────────────────────
-    if body.handoff_token.trim().is_empty() {
+    if body.auth_code.trim().is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
             "handoff_token을 입력해 주세요.".to_string(),
@@ -2132,7 +2149,7 @@ pub async fn exchange_handoff(
     // 주의:
     // target_service는 클라이언트 입력을 믿지 않고
     // 서버가 handoff_store에 저장해둔 값을 기준으로 검증한다.
-    let result = exchange_handoff_token(&state, &body.handoff_token)
+    let result = exchange_handoff_token(&state, &body.auth_code)
         .await
         .map_err(|e| {
             let msg = e.to_string();

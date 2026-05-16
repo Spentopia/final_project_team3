@@ -323,6 +323,7 @@ const [isPdfMode, setIsPdfMode] = useState(false);
 const [isDownloading, setIsDownloading] = useState(false);
 
 const [selectedReportType, setSelectedReportType] = useState<AnalysisReportType>("weekly");
+const isAnalysisBusy = isReportLoading || isPatternLoading;
 const aiReport = aiReports[selectedReportType];
 const patternReport = patternReports[selectedReportType];
 
@@ -587,7 +588,7 @@ const requestPaidAnalysis = async (payload: AnalyzeReportRequest) => {
 };
 
 const handleGenerateReport = async () => {
-  if (thisMonthTransactions.length === 0) return;
+  if (thisMonthTransactions.length === 0 || isAnalysisBusy) return;
 
   try {
     setIsReportLoading(true);
@@ -617,7 +618,7 @@ const handleGenerateReport = async () => {
 };
 
 const handleGeneratePattern = async () => {
-  if (thisMonthTransactions.length === 0) return;
+  if (thisMonthTransactions.length === 0 || isAnalysisBusy) return;
 
   try {
     setIsPatternLoading(true);
@@ -922,12 +923,16 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
       {/* Main Charts */}
       <Tabs
         value={selectedReportType}
-        onValueChange={(value) => setSelectedReportType(value as AnalysisReportType)}
+        onValueChange={(value) => {
+          if (!isAnalysisBusy) {
+            setSelectedReportType(value as AnalysisReportType);
+          }
+        }}
         className="space-y-6"
       >
         <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="weekly">주간</TabsTrigger>
-          <TabsTrigger value="monthly">월간</TabsTrigger>
+          <TabsTrigger value="weekly" disabled={isAnalysisBusy}>주간</TabsTrigger>
+          <TabsTrigger value="monthly" disabled={isAnalysisBusy}>월간</TabsTrigger>
         </TabsList>
 
         <TabsContent value="weekly" className="space-y-6">
@@ -1106,7 +1111,7 @@ fontWeight={600}
 
     <Button
       onClick={handleGenerateReport}
-      disabled={isReportLoading}
+      disabled={isAnalysisBusy}
       className="spentopia-primary-button"
     >
       {isReportLoading ? "AI 분석 중..." : "AI 분석 시작"}
@@ -1164,7 +1169,7 @@ fontWeight={600}
 
   <Button
     onClick={handleGeneratePattern}
-    disabled={isPatternLoading}
+    disabled={isAnalysisBusy}
     className="spentopia-primary-button"
   >
     {isPatternLoading ? "AI 분석 중..." : "AI 분석 시작"}
