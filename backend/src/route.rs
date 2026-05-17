@@ -30,6 +30,7 @@ use crate::payment;
 use crate::report;
 use crate::reward;
 use crate::state::AppState;
+use crate::system;
 use crate::user;
 use crate::wallet;
 
@@ -37,6 +38,10 @@ pub fn create_router(state: AppState) -> Router {
     // ── 공개 라우트 ─────────────────────────────────────────
     let public_routes = Router::new()
         .route("/health", get(|| async { "ok" }))
+        .route(
+            "/api/system/status",
+            get(system::handler::get_system_status),
+        )
         .route("/auth/exchange", post(auth::handler::exchange_token))
         .route(
             "/auth/app/exchange",
@@ -312,6 +317,10 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/api/admin/contest/reward",
             post(reward::handler::grant_contest_reward),
+        )
+        .route(
+            "/api/admin/system/status",
+            patch(system::handler::update_system_status),
         )
         // ── 관리자 대시보드 ─────────────────────────────
         //

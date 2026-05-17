@@ -15,6 +15,7 @@
 // - 시연용 운영 대시보드에는 충분히 깔끔하게 보인다.
 
 import { Card } from "@/shared/ui/card";
+import AdminSystemStatusCard from "@/domains/admin/components/AdminSystemStatusCard";
 
 import {
     Bar,
@@ -414,6 +415,8 @@ export default function AdminDashboard({
                         </div>
                     )}
             </Card>
+
+            <AdminSystemStatusCard />
 
             {/* 추이 그래프 */}
             {isDashboardTrendsLoading && (
