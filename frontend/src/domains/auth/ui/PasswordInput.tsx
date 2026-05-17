@@ -29,7 +29,7 @@ export default function PasswordInput({
         onClick={() => setVisible((prev) => !prev)}
         aria-label={visible ? "비밀번호 숨기기" : "비밀번호 보기"}
       >
-        {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        {visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
       </Button>
     </div>
   );
