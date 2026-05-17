@@ -5,6 +5,7 @@ use utoipa::OpenApi;
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 
 use crate::admin;
+use crate::system;
 use crate::auth;
 use crate::avatar;
 use crate::budget;
@@ -40,6 +41,8 @@ use crate::wallet;
         crate::admin::handler::apply_content_report_action,
         crate::admin::handler::get_content_report_target_detail,
         crate::admin::handler::get_dashboard_trends,
+        crate::system::handler::get_system_status,
+        crate::system::handler::update_system_status,
 
         // ── 인증 ──────────────────────────────────────────────
         crate::auth::handler::request_nonce,
@@ -249,6 +252,10 @@ use crate::wallet;
             market::dto::ListingResponse,
             market::dto::PurchaseRequest,
             market::dto::TransactionResponse,
+
+            // system
+            system::dto::SystemStatusResponse,
+            system::dto::UpdateSystemStatusRequest,
         )
     ),
     tags(

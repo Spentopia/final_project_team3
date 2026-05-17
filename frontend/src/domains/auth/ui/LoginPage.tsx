@@ -19,6 +19,11 @@ import PasswordInput from "@/domains/auth/ui/PasswordInput";
 import { authStorage } from "@/shared/lib/auth";
 import { WalletLoginButton } from "@/domains/auth/ui/WalletLoginButton";
 import { useTheme } from "next-themes";
+import SystemStatusBanner from "@/components/system/SystemStatusBanner.tsx";
+import {
+  getSystemStatus,
+  type SystemStatusResponse,
+} from "@/shared/api/systemStatusApi";
 
 type SocialLoginProvider = "google" | "kakao";
 
@@ -68,6 +73,37 @@ export default function Login() {
     } finally {
       sessionStorage.removeItem("account_inactive_info");
     }
+  }, []);
+
+  const [systemStatus, setSystemStatus] =
+      useState<SystemStatusResponse | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function fetchSystemStatus() {
+      try {
+        const data = await getSystemStatus();
+
+        if (!ignore) {
+          setSystemStatus(data);
+        }
+      } catch (error) {
+        // 로그인 자체를 막는 기능이 아니므로,
+        // 상태 조회 실패가 로그인 페이지 전체 에러가 되면 안 된다.
+        console.error("서비스 상태 공지 조회 실패:", error);
+
+        if (!ignore) {
+          setSystemStatus(null);
+        }
+      }
+    }
+
+    void fetchSystemStatus();
+
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const loginButtonClass = "w-full rounded-xl spentopia-light-nft-button";
@@ -185,6 +221,13 @@ export default function Login() {
                 지출을 관리하면 열리는 나만의 세계
               </p>
             </div>
+
+            {/* 서비스 상태 공지 배너 */}
+            {systemStatus?.enabled && (
+                <div className="mb-5">
+                  <SystemStatusBanner status={systemStatus} />
+                </div>
+            )}
 
             {/* 비활성 계정 상세 안내 */}
             {inactiveInfo && (
