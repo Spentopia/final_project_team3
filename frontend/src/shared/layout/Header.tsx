@@ -14,6 +14,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
   SheetTrigger,
 } from "../ui/sheet";
 import { useTheme } from "next-themes";
@@ -352,6 +353,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     {isMarkingRead ? "처리 중..." : "모두 읽음"}
                   </Button>
                 </div>
+                <SheetDescription className="sr-only">알림</SheetDescription>
               </SheetHeader>
 
               <div className="mt-6 space-y-4">
@@ -436,6 +438,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <SheetContent>
             <SheetHeader>
               <SheetTitle>게임 로그인 코드</SheetTitle>
+              <SheetDescription className="sr-only">게임 코드</SheetDescription>
             </SheetHeader>
 
             <div className="mt-6 space-y-5">
