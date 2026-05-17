@@ -2141,6 +2141,11 @@ pub async fn check_profile_availability(
     
     crate::filter::validate_nickname(nickname).map_err(|msg| anyhow!(msg))?;
 
+    // 전화번호 형식 검증 추가
+    if !is_valid_kr_phone(phone) {
+        return Err(anyhow!("올바른 휴대폰 번호를 입력해 주세요."));
+    }
+
     let normalized_nickname = nickname.trim();
     let formatted_phone = format_phone(phone);
 
@@ -2225,6 +2230,19 @@ fn mask_email(email: &str) -> String {
     let masked_local = format!("{}***", &local[..visible]);
 
     format!("{}@{}", masked_local, domain)
+}
+
+// 한국 휴대전화 번호 유효성 검증
+//
+// 01로 시작하는 11자리 숫자만 허용.
+// 010 외 번호(011/016/017/018/019)는 2G 종료(2021)로
+// 현재 신규 발급은 없지만, 010 번호 고갈로 향후 재활용
+// 가능성이 있어 01X 전체를 허용.
+pub fn is_valid_kr_phone(phone: &str) -> bool {
+    let digits: String = phone.chars().filter(|c| c.is_ascii_digit()).collect();
+    digits.len() == 11
+        && digits.starts_with("01")
+        && digits.chars().all(|c| c.is_ascii_digit())
 }
 
 // 전화번호 포맷 함수
