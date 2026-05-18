@@ -21,10 +21,9 @@ const SLOT_LABELS: Record<string, string> = {
     hair: "헤어",
     top: "상의",
     bottom: "하의",
-    gloves: "장갑",
     shoes: "신발",
     weapon: "무기",
-    glasses: "안경",
+    hat: "모자",
 };
 
 function SkeletonCard() {

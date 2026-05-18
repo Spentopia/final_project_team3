@@ -74,7 +74,7 @@ pub struct UserItemResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct EquipItemRequest {
     pub inventory_id: Uuid, // user_items.id
-    pub slot_name: String,  // hair / top / bottom / gloves / shoes / weapon / glasses
+    pub slot_name: String,  // hair / top / bottom / shoes / weapon / hat
 }
 
 // DELETE /api/avatar/equipment/:slot_name — 슬롯 해제

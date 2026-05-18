@@ -193,6 +193,10 @@ pub async fn equip_item(
             let msg = e.to_string();
             if msg.contains("본인 소유가 아닙니다") {
                 (StatusCode::FORBIDDEN, msg).into_response()
+            } else if msg.contains("지원하지 않는 아바타 슬롯입니다")
+                || msg.contains("아이템 카테고리와 장착 슬롯이 일치하지 않습니다")
+            {
+                (StatusCode::BAD_REQUEST, msg).into_response()
             } else {
                 (StatusCode::INTERNAL_SERVER_ERROR, msg).into_response()
             }
@@ -221,6 +225,13 @@ pub async fn unequip_item(
             Json(serde_json::json!({"message": "슬롯 해제 완료"})),
         )
             .into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => {
+            let msg = e.to_string();
+            if msg.contains("지원하지 않는 아바타 슬롯입니다") {
+                (StatusCode::BAD_REQUEST, msg).into_response()
+            } else {
+                (StatusCode::INTERNAL_SERVER_ERROR, msg).into_response()
+            }
+        }
     }
 }
