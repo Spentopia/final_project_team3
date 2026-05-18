@@ -415,6 +415,7 @@ export default function AdminDashboard({
                     )}
             </Card>
 
+
             {/* 추이 그래프 */}
             {isDashboardTrendsLoading && (
                 <Card className="border-none bg-white/80 p-5 shadow-card dark:bg-gray-800/80">

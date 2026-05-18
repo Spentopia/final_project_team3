@@ -5,12 +5,17 @@ import { Gamepad2, Users, Crown, Sparkles, Play } from "lucide-react";
 import styles from "./PlazaPage.module.css";
 
 export default function Plaza() {
+
+  // 2. 대용량 바이러스 경고창을 강제로 패스하는 다이렉트 다운로드 주소 조합
+  const CatboxUrl = `https://files.catbox.moe/fx7c6p.zip`;
+
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">광장</h1>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">다운로드</h1>
           <p className="text-gray-600 dark:text-gray-300">아바타와 함께 다른 유저들을 만나보세요</p>
         </div>
         <Badge className="bg-white text-slate-900 ring-1 ring-slate-200 dark:bg-[#090b16] dark:text-white dark:ring-[#7c3aed]/35">PC 전용</Badge>
@@ -29,13 +34,21 @@ export default function Plaza() {
           <div className={`${styles.heroIconCircle} mx-auto mb-4 flex h-16 w-16 items-center justify-center`}>
             <Gamepad2 className="h-16 w-16 dark:text-violet-300" />
           </div>
-          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">Unity WebGL 광장</h2>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">Spentopia 세계에 오신것을 환영합니다</h2>
           <p className="mb-6 text-gray-700 dark:text-gray-300">
             PC 웹에서 Unity 기반의 3D 가상 공간을 체험하세요
           </p>
-          <Button size="lg" variant="secondary" className={`${styles.plazaEntryButton} spentopia-plaza-entry-button`}>
-            <Play className="mr-2 h-5 w-5" />
-            광장 입장하기
+          {/* Unity WebGL Info Card 내부에 있는 버튼을 아래처럼 변경하세요 */}
+          <Button
+              size="lg"
+              variant="secondary"
+              className={`${styles.plazaEntryButton} spentopia-plaza-entry-button`}
+              asChild
+          >
+            <a href={CatboxUrl}>
+              <Play className="mr-2 h-5 w-5" />
+              다운로드
+            </a>
           </Button>
         </div>
       </Card>
@@ -43,7 +56,7 @@ export default function Plaza() {
       <div className="grid gap-6 md:grid-cols-2">
         {/* Features */}
         <Card className={`${styles.plazaCard} ${styles.plazaCardMedium} border-none spentopia-market-card-view p-6 backdrop-blur-xl`}>
-          <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">광장 기능</h3>
+          <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">게임 기능</h3>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-[#0f172a]">

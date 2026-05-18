@@ -799,6 +799,14 @@ pub async fn complete_profile(
         ));
     }
 
+    // 전화번호 형식 검증 추가
+    if !service::is_valid_kr_phone(&body.phone) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "올바른 휴대폰 번호를 입력해 주세요.".to_string(),
+        ));
+    }
+
     let url = format!(
         "{}/rest/v1/users?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
@@ -953,6 +961,7 @@ pub async fn check_profile_availability(
                 || msg.contains("이미 사용 중인 전화번호입니다")
                 || msg.contains("닉네임은")
                 || msg.contains("사용할 수 없는 닉네임입니다")
+                || msg.contains("올바른 휴대폰 번호")
             {
                 return (StatusCode::BAD_REQUEST, msg);
             }

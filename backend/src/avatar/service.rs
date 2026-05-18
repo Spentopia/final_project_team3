@@ -27,6 +27,12 @@ use super::dto::{
 use crate::clients::solana_client;
 use crate::state::AppState;
 
+const SUPPORTED_AVATAR_SLOTS: &[&str] = &["hair", "top", "bottom", "shoes", "weapon", "hat"];
+
+fn is_supported_avatar_slot(slot_name: &str) -> bool {
+    SUPPORTED_AVATAR_SLOTS.contains(&slot_name)
+}
+
 async fn ensure_nft_record_not_reused(
     state: &AppState,
     table: &str,
@@ -518,6 +524,7 @@ pub async fn get_user_items(
     // avatar_items 중첩 객체의 필드를 flat하게 꺼내 ResponseDTO에 채운다.
     let items = raw
         .into_iter()
+        .filter(|r| is_supported_avatar_slot(&r.item_master.category))
         .map(|r| UserItemResponse {
             id: r.id,
             item_id: r.item_id,
@@ -547,9 +554,16 @@ pub async fn get_user_items(
 //   inventory_id가 실제로 본인(user_id) 소유인지 먼저 확인한다.
 //   다른 유저의 inventory_id를 넘겨도 소유권 체크에서 차단된다.
 pub async fn equip_item(state: &AppState, user_id: Uuid, req: EquipItemRequest) -> Result<()> {
+    if !is_supported_avatar_slot(&req.slot_name) {
+        return Err(anyhow!(
+            "지원하지 않는 아바타 슬롯입니다: {}",
+            req.slot_name
+        ));
+    }
+
     // 1. inventory_id가 본인 소유인지 확인
     let check_url = format!(
-        "{}/rest/v1/user_inventory?id=eq.{}&user_id=eq.{}&select=id&limit=1",
+        "{}/rest/v1/user_inventory?id=eq.{}&user_id=eq.{}&select=id,item_master(category)&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         req.inventory_id,
         user_id,
@@ -574,12 +588,32 @@ pub async fn equip_item(state: &AppState, user_id: Uuid, req: EquipItemRequest) 
         ));
     }
 
-    let rows: Vec<serde_json::Value> = check_res
+    #[derive(Deserialize)]
+    struct ItemMasterCategory {
+        category: String,
+    }
+
+    #[derive(Deserialize)]
+    struct InventoryCategoryRow {
+        item_master: ItemMasterCategory,
+    }
+
+    let rows: Vec<InventoryCategoryRow> = check_res
         .json()
         .await
         .context("user_items 소유권 확인 파싱 실패")?;
-    if rows.is_empty() {
-        return Err(anyhow!("해당 아이템이 없거나 본인 소유가 아닙니다"));
+    let item_category = match rows.into_iter().next() {
+        Some(row) => row.item_master.category,
+        None => {
+            return Err(anyhow!("해당 아이템이 없거나 본인 소유가 아닙니다"));
+        }
+    };
+    if item_category != req.slot_name.as_str() {
+        return Err(anyhow!(
+            "아이템 카테고리와 장착 슬롯이 일치하지 않습니다: item={}, slot={}",
+            item_category,
+            req.slot_name
+        ));
     }
 
     let previous_inventory_id = find_equipped_inventory_id(state, user_id, &req.slot_name).await?;
@@ -640,6 +674,10 @@ pub async fn equip_item(state: &AppState, user_id: Uuid, req: EquipItemRequest) 
 // 지정한 슬롯의 inventory_id를 NULL로 설정 (슬롯 비우기).
 // 행 자체는 남겨두고 inventory_id만 NULL 처리한다.
 pub async fn unequip_item(state: &AppState, user_id: Uuid, slot_name: &str) -> Result<()> {
+    if !is_supported_avatar_slot(slot_name) {
+        return Err(anyhow!("지원하지 않는 아바타 슬롯입니다: {}", slot_name));
+    }
+
     let previous_inventory_id = find_equipped_inventory_id(state, user_id, slot_name).await?;
 
     let url = format!(
@@ -824,6 +862,7 @@ pub async fn get_equipment(state: &AppState, user_id: Uuid) -> Result<Vec<Equipm
 
     let slots = raw
         .into_iter()
+        .filter(|r| is_supported_avatar_slot(&r.slot_name))
         .map(|r| {
             let item = r.user_inventory;
             EquipmentSlotResponse {
@@ -926,6 +965,13 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
             None
         };
 
+        if avatar_item
+            .as_ref()
+            .is_some_and(|item| !is_supported_avatar_slot(&item.category))
+        {
+            continue;
+        }
+
         owned.push(OwnedNftResponse {
             mint_address,
             item_id: avatar_item.as_ref().map(|item| item.id),
@@ -988,6 +1034,7 @@ pub async fn sync_owned_nfts(state: &AppState, user_id: Uuid) -> Result<SyncOwne
         id: Uuid,
         metadata_uri: Option<String>,
         name: String,
+        category: String,
     }
 
     #[derive(Deserialize)]
@@ -1125,7 +1172,7 @@ pub async fn sync_owned_nfts(state: &AppState, user_id: Uuid) -> Result<SyncOwne
         )
     };
     let item_lookup_url = format!(
-        "{}/rest/v1/item_master?{}&select=id,metadata_uri,name",
+        "{}/rest/v1/item_master?{}&select=id,metadata_uri,name,category",
         state.config.supabase_url.trim_end_matches('/'),
         item_filter
     );
@@ -1156,6 +1203,9 @@ pub async fn sync_owned_nfts(state: &AppState, user_id: Uuid) -> Result<SyncOwne
     let mut item_by_metadata_uri: HashMap<String, Uuid> = HashMap::new();
     let mut item_by_name: HashMap<String, Uuid> = HashMap::new();
     for item in item_rows {
+        if !is_supported_avatar_slot(&item.category) {
+            continue;
+        }
         if let Some(metadata_uri) = item.metadata_uri.filter(|v| !v.trim().is_empty()) {
             item_by_metadata_uri.insert(metadata_uri, item.id);
         }

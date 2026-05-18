@@ -1,12 +1,10 @@
 from fastapi import APIRouter, Request
-from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from app.services.analyze_service import AnalyzeService
 from typing import List, Literal, Optional
 
-app = FastAPI()
 router = APIRouter()
 
 
@@ -60,10 +58,3 @@ async def analyze_report(req: GenerateReportRequest):
     result = AnalyzeService.generate_report(req.model_dump())
 
     return result
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors()},
-    )

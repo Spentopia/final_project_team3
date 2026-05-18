@@ -36,7 +36,6 @@ import {
 import {
   TrendingDown,
   Download,
-  Share2,
   Sparkles,
 } from "lucide-react";
 import {
@@ -647,31 +646,6 @@ const handleGeneratePattern = async () => {
   }
 };
 
-const handleShare = async () => {
-  const text = `
-📊 소비 분석 결과
-총 지출: ${totalExpense.toLocaleString()}원
-일 평균: ${dailyAverage.toLocaleString()}원
-예산 사용률: ${budgetUsage}%
-`;
-
-  try {
-    if (navigator.share) {
-      await navigator.share({
-        title: "소비 분석 리포트",
-        text,
-        url: window.location.href,
-      });
-    } else {
-      await navigator.clipboard.writeText(text);
-    }
-  } catch (err) {
-    toast.error("공유에 실패했습니다.", {
-      description: "잠시 후 다시 시도해주세요.",
-    });
-  }
-};
-
 const handleDownload = async () => {
   if (!reportRef.current) return;
 
@@ -689,7 +663,7 @@ const handleDownload = async () => {
 const element = reportRef.current;
 
     const canvas = await html2canvas(element, {
-  scale: 2,
+  scale: 3,
   useCORS: true,
   backgroundColor: "#ffffff",
 
@@ -698,7 +672,9 @@ const element = reportRef.current;
   scrollX: 0,
   scrollY: 0,
 
-  windowWidth: element.scrollWidth,
+  width: 1400,
+  windowWidth: 1400,
+
   height: element.scrollHeight,
   windowHeight: element.scrollHeight,
 
@@ -836,12 +812,13 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
 
   return (
     <>
-    <div className="space-y-6">
+    <div className={isPdfMode ? "space-y-3" : "space-y-6"}>
     <div
   ref={reportRef}
   className={`
     ${isDownloading ? styles.pdfDownload : ""}
     ${isPdfMode ? styles.pdfMode : ""}
+    ${isPdfMode ? styles.pdfFixedLayout : ""}
   `}
 >
   <div>
@@ -858,18 +835,14 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
 </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleShare} className="spentopia-primary-button">
-            <Share2 className="mr-2 h-4 w-4" />
-            공유
-          </Button>
-          <Button
-  className={isPdfMode ? "bg-slate-900 text-white" : "spentopia-primary-button"}
-  onClick={handleDownload}
->
-            <Download className="mr-2 h-4 w-4" />
-            리포트 다운로드
-          </Button>
-        </div>
+  <Button
+    className={isPdfMode ? "bg-slate-900 text-white" : "spentopia-primary-button"}
+    onClick={handleDownload}
+  >
+    <Download className="mr-2 h-4 w-4" />
+    리포트 다운로드
+  </Button>
+</div>
       </div>
 
       {/* Summary Cards */}
@@ -928,17 +901,23 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
             setSelectedReportType(value as AnalysisReportType);
           }
         }}
-        className="space-y-6"
       >
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="weekly" disabled={isAnalysisBusy}>주간</TabsTrigger>
-          <TabsTrigger value="monthly" disabled={isAnalysisBusy}>월간</TabsTrigger>
-        </TabsList>
+        {!isPdfMode && (
+  <TabsList className="grid w-full max-w-md grid-cols-2">
+    <TabsTrigger value="weekly" disabled={isAnalysisBusy}>
+      주간
+    </TabsTrigger>
+
+    <TabsTrigger value="monthly" disabled={isAnalysisBusy}>
+      월간
+    </TabsTrigger>
+  </TabsList>
+)}
 
         <TabsContent value="weekly" className="space-y-6">
           <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
             <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">주간 소비 추이</h3>
-            <ResponsiveContainer width="99%" height={300}>
+            <ResponsiveContainer width="99%" height={isPdfMode ? 220 : 300}>
               <BarChart
   data={weeklyData}
   margin={{ top: 10, right: 20, left: 30, bottom: 10 }}
@@ -972,7 +951,7 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
         <TabsContent value="monthly" className="space-y-6">
           <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
             <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">월간 소비 추이</h3>
-            <ResponsiveContainer width="99%" height={300}>
+            <ResponsiveContainer width="99%" height={isPdfMode ? 220 : 300}>
               <LineChart
   data={monthlyData}
   margin={{ top: 10, right: 20, left: 30, bottom: 10 }}
@@ -1003,7 +982,11 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
 
       {/* Category Analysis */}
       <div className="grid gap-6 lg:grid-cols-2 items-stretch">
-        <Card style={marketCardStyle} className={`${styles.marketCard} h-full min-h-[400px] flex flex-col border-none p-6 backdrop-blur-xl`}>
+        <Card style={marketCardStyle} className={`${styles.marketCard} h-full ${isPdfMode ? "" : "min-h-[400px]"}
+  flex flex-col
+  border-none
+  ${isPdfMode ? "p-4" : "p-6"}
+  backdrop-blur-xl`}>
           <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">카테고리별 지출</h3>
           <div className="flex-1">
           <ResponsiveContainer width="100%" height={320}>
@@ -1012,34 +995,6 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
                 data={categoryData}
                 cx="50%"
                 cy="50%"
-                labelLine={false}
-                label={({ name, percent, cx, cy, midAngle, innerRadius, outerRadius }) => {
-  const RADIAN = Math.PI / 180;
-
-  const radius =
-    Number(innerRadius) +
-    (Number(outerRadius) - Number(innerRadius)) * 1.25;
-
-  const x =
-    Number(cx) + radius * Math.cos(-Number(midAngle) * RADIAN);
-
-  const y =
-    Number(cy) + radius * Math.sin(-Number(midAngle) * RADIAN);
-
-  return (
-    <text
-      x={x}
-      y={y}
-      fill="#111827"
-      textAnchor={x > Number(cx) ? "start" : "end"}
-      dominantBaseline="central"
-      fontSize={12}
-fontWeight={600}
-    >
-      {`${name} ${(Number(percent) * 100).toFixed(0)}%`}
-    </text>
-  );
-}}
                 outerRadius={110}
                 fill="#2563eb"
                 dataKey="value"
@@ -1062,10 +1017,35 @@ fontWeight={600}
 />
             </PieChart>
           </ResponsiveContainer>
+          <div className="mt-6 grid grid-cols-2 gap-3">
+  {categoryData.map((cat) => (
+    <div
+      key={cat.name}
+      className="flex items-center gap-2"
+    >
+      <div
+        className="h-3 w-3 rounded-full"
+        style={{ backgroundColor: cat.color }}
+      />
+
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+        {cat.name}
+      </span>
+
+      <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
+        {cat.value}%
+      </span>
+    </div>
+  ))}
+</div>
           </div>
         </Card>
 
-        <Card style={marketCardStyle} className={`${styles.marketCard} h-full min-h-[400px] border-none p-6 backdrop-blur-xl`}>
+        <Card style={marketCardStyle} className={`${styles.marketCard} h-full ${isPdfMode ? "" : "min-h-[400px]"}
+  flex flex-col
+  border-none
+  ${isPdfMode ? "p-4" : "p-6"}
+  backdrop-blur-xl`}>
           <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">카테고리 상세</h3>
           <div className="space-y-4">
             {categoryData.map((cat) => (

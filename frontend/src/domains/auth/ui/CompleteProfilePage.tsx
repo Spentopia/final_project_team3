@@ -25,7 +25,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
 import { Sparkles, Dices } from "lucide-react";
-import { formatPhone } from "@/shared/lib/phone";
+import { formatPhone, isValidPhone } from "@/shared/lib/phone";
 
 const NICKNAME_PREFIXES = [
   "플렉스", "제로", "갓생", "흑자", "스마트", "럭키", "코어", "알뜰", "골든", "메타",
@@ -138,6 +138,12 @@ export default function CompleteProfilePage() {
       // 전화번호 필수 검사
       if (!formData.phone.trim()) {
         toast.error("전화번호를 입력해주세요.");
+        return;
+      }
+
+      // 추가
+      if (!isValidPhone(formData.phone)) {
+        toast.error("올바른 휴대폰 번호를 입력해주세요.");
         return;
       }
 

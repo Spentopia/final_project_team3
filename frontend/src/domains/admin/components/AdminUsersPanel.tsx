@@ -186,14 +186,14 @@ export default function AdminUsersPanel({
                         - 닉네임/이메일은 truncate 처리
                         - row hover로 커뮤니티처럼 부드러운 느낌 추가
                     */}
-                    <table className="min-w-[960px] w-full table-fixed text-sm">
+                    <table className="min-w-[1120px] w-full table-fixed text-sm">
                         <colgroup>
-                            <col className="w-[150px]" />
-                            <col className="w-[300px]" />
-                            <col className="w-[170px]" />
-                            <col className="w-[100px]" />
-                            <col className="w-[100px]" />
-                            <col className="w-[140px]" />
+                            <col className="w-[170px]" /> {/* 닉네임 */}
+                            <col className="w-[260px]" /> {/* 이메일 */}
+                            <col className="w-[170px]" /> {/* 가입일 */}
+                            <col className="w-[280px]" /> {/* 상태 + 비활성 정보 */}
+                            <col className="w-[110px]" /> {/* 역할 */}
+                            <col className="w-[130px]" /> {/* 관리 */}
                         </colgroup>
 
                         <thead className="bg-[var(--surface-subtle)] text-left text-sm font-bold text-muted-foreground">
@@ -237,37 +237,50 @@ export default function AdminUsersPanel({
                                     </span>
                                 </td>
 
-                                <td className="min-w-[220px] px-4 py-3 align-middle">
-                                    <span
-                                        className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${getUserStatusClassName(user)}`}
-                                        title={user.deleted_at ? `탈퇴일: ${formatDateTime(user.deleted_at)}` : undefined}
-                                    >
-                                        {getUserStatusLabel(user)}
-                                    </span>
+                                <td className="px-4 py-3 align-middle">
+                                    <div className="space-y-2">
+                                        <span
+                                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${getUserStatusClassName(user)}`}
+                                            title={
+                                                user.deleted_at
+                                                    ? `탈퇴일: ${formatDateTime(user.deleted_at)}`
+                                                    : undefined
+                                            }
+                                        >
+                                            {getUserStatusLabel(user)}
+                                        </span>
 
-                                    {!user.is_active && !user.deleted_at && (
-                                        <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                                            <p className="whitespace-nowrap">
-                                                {user.inactive_until
-                                                    ? `해제 예정: ${formatDateTime(user.inactive_until)}`
-                                                    : "해제 예정: 미정"}
-                                            </p>
-
-                                            {user.inactive_reason && (
-                                                <p
-                                                    className="mt-0.5 max-w-[220px] truncate"
-                                                    title={user.inactive_reason}
-                                                >
-                                                    사유: {user.inactive_reason}
+                                        {!user.is_active && !user.deleted_at && (
+                                            <div className="max-w-[250px] rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+                                                <p className="whitespace-nowrap">
+                                                    <span className="font-semibold">해제 예정: </span>
+                                                    {user.inactive_until
+                                                        ? formatDateTime(user.inactive_until)
+                                                        : "미정"}
                                                 </p>
-                                            )}
-                                        </div>
-                                    )}
+
+                                                <p
+                                                    className="mt-1 line-clamp-2 break-words"
+                                                    title={user.inactive_reason || "미정"}
+                                                >
+                                                    <span className="font-semibold">사유: </span>
+                                                    {user.inactive_reason || "미정"}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </td>
 
-                                <td className="px-4 py-3 align-middle text-muted-foreground">
-                                    <span className="block truncate">
-                                        {getTextValue(user, ["role_type"], "user")}
+                                <td className="px-4 py-3 align-middle">
+                                    <span
+                                        className={[
+                                            "inline-flex rounded-full px-2.5 py-1 text-xs font-bold",
+                                            user.role_type === "admin"
+                                                ? "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"
+                                                : "bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-300",
+                                        ].join(" ")}
+                                    >
+                                        {user.role_type === "admin" ? "관리자" : "일반회원"}
                                     </span>
                                 </td>
 

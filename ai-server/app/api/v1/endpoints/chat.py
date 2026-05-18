@@ -7,6 +7,7 @@ router = APIRouter()
 class ChatRequest(BaseModel):
     message: str
 
+@router.post("")
 @router.post("/")
 def chat(request: ChatRequest):
     return ChatService.chat(request.message)

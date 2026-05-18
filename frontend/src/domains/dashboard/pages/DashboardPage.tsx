@@ -929,8 +929,8 @@ const currentBudget = budgets[monthKey] ?? budget;
               style={marketInnerStyle}
               className={`${styles.marketInner} mt-3 rounded-lg border border-slate-200 p-2 text-center dark:border-[#7c3aed]/35`}
             >
-              <p className="font-bold text-amber-700 dark:text-violet-100">주간 성실도 90점 이상 시</p>
-              <p className="text-xs text-amber-600 dark:text-violet-200">랜덤 아바타 뽑기권 지급!</p>
+              <p className="font-bold text-amber-700 dark:text-violet-100">주간 성실도 60점 이상 시</p>
+              <p className="text-xs text-amber-600 dark:text-violet-200">SPT 토큰 및 아바타 지급!</p>
             </div>
           </div>
         </div>

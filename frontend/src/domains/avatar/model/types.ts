@@ -4,7 +4,7 @@ export interface UserItemResponse {
     id: string;
     item_id: string;
     name: string;
-    category: string; // hair / top / bottom / gloves / shoes / weapon / glasses
+    category: string; // hair / top / bottom / shoes / weapon / hat
     slot_name: string | null;
     image_url: string;
     metadata_uri: string | null;

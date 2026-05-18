@@ -36,7 +36,7 @@ import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
 import type { FormEvent } from "react";
 import { Dices } from "lucide-react";
-import { formatPhone } from "@/shared/lib/phone";
+import { formatPhone, isValidPhone } from "@/shared/lib/phone";
 import { toast } from "sonner";
 
 const NICKNAME_PREFIXES = [
@@ -314,6 +314,12 @@ export default function Signup() {
 
       if (!formData.phone.trim()) {
         toast.error("전화번호를 입력해주세요.");
+        return;
+      }
+
+      // 추가
+      if (!isValidPhone(formData.phone)) {
+        toast.error("올바른 휴대폰 번호를 입력해주세요.");
         return;
       }
 

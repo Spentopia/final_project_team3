@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from app.api.v1.endpoints import analyze, history, chat, receipt
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.endpoints.ai_plan import router as ai_plan_router
-from app.routers.report import router as report_router
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi import Request
@@ -14,7 +13,6 @@ app = FastAPI()
 
 # 프론트 개발 서버에서 AI 서버를 직접 호출할 수 있도록 CORS를 허용한다.
 # 배포 환경에서는 실제 프론트 도메인 기준으로 더 좁게 관리하는 편이 안전하다.
-app.include_router(report_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
