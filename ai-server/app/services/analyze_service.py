@@ -40,12 +40,10 @@ class AnalyzeService:
         - report_type이 monthly이면 월간 소비 구조와 다음 달 예측을 중심으로 분석
         - start_date부터 end_date까지의 기간만 기준으로 분석
         - 각 항목 최소 5~7문장
-        - 실제 금융 리포트처럼 자연스럽게 작성
         - 소비 금액과 소비 패턴 반드시 언급
         - 예산 대비 사용률 분석 포함
         - 가장 많이 소비한 카테고리 분석 포함
         - 절약 가능한 항목 제안 포함
-        - 너무 짧은 답변 금지
         - 반드시 한국어로 작성
 
         반드시 아래 JSON 형식으로 반환:
@@ -75,7 +73,8 @@ class AnalyzeService:
                     "content": prompt
                 }
             ],
-            max_tokens=1000,
+            max_tokens=500,
+            temperature=0.2,
             response_format={"type": "json_object"},
         )
 

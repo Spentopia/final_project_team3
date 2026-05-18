@@ -1,4 +1,5 @@
 import json
+from app.utils.json_utils import safe_json_loads
 
 from app.clients.openai_client import OpenAIClient
 
@@ -292,13 +293,13 @@ async def generate_ai_plans(payload: dict):
                     {"role": "system", "content": "너는 가계부 예산 추천 전문가다. 사용자의 실제 예산과 고정 지출을 기반으로 현실적인 월간 배분 플랜을 JSON으로만 반환한다."},
                     {"role": "user", "content": prompt},
                 ],
-                max_tokens=1200,
-                temperature=0.4,
+                max_tokens=400,
+                temperature=0.2,
             )
             content = response.choices[0].message.content
             if not content:
                 continue
-            data = json.loads(content)
+            data = safe_json_loads(content)
             break
         except Exception as error:
             last_error = error
