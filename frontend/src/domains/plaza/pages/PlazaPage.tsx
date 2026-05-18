@@ -5,18 +5,17 @@ import { Gamepad2, Users, Crown, Sparkles, Play } from "lucide-react";
 import styles from "./PlazaPage.module.css";
 
 export default function Plaza() {
-  // 1. 🚨 구글 드라이브에서 공유한 ZIP 파일의 ID를 여기에 입력하세요!
-  const fileId = '1GB_v4G2FHY7dYIjAWLXZsNxpi5kCfKGh';
 
   // 2. 대용량 바이러스 경고창을 강제로 패스하는 다이렉트 다운로드 주소 조합
-  const bypassUrl = `https://drive.google.com/uc?export=download&confirm=t&id=${fileId}`;
+  const CatboxUrl = `https://files.catbox.moe/fx7c6p.zip`;
+
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">광장</h1>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">다운로드</h1>
           <p className="text-gray-600 dark:text-gray-300">아바타와 함께 다른 유저들을 만나보세요</p>
         </div>
         <Badge className="bg-white text-slate-900 ring-1 ring-slate-200 dark:bg-[#090b16] dark:text-white dark:ring-[#7c3aed]/35">PC 전용</Badge>
@@ -35,17 +34,18 @@ export default function Plaza() {
           <div className={`${styles.heroIconCircle} mx-auto mb-4 flex h-16 w-16 items-center justify-center`}>
             <Gamepad2 className="h-16 w-16 dark:text-violet-300" />
           </div>
-          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">Unity WebGL 광장</h2>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">Spentopia 세계에 오신것을 환영합니다</h2>
           <p className="mb-6 text-gray-700 dark:text-gray-300">
             PC 웹에서 Unity 기반의 3D 가상 공간을 체험하세요
           </p>
+          {/* Unity WebGL Info Card 내부에 있는 버튼을 아래처럼 변경하세요 */}
           <Button
               size="lg"
               variant="secondary"
               className={`${styles.plazaEntryButton} spentopia-plaza-entry-button`}
               asChild
           >
-            <a href={bypassUrl}>
+            <a href={CatboxUrl}>
               <Play className="mr-2 h-5 w-5" />
               다운로드
             </a>

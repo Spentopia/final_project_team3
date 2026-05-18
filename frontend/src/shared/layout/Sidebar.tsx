@@ -29,7 +29,7 @@ const menuItems = [
   { path: "/budget", icon: Wallet, label: "예산 설정" },
   { path: "/analytics", icon: BarChart3, label: "소비 분석" },
   { path: "/marketplace", icon: Store, label: "NFT 마켓" },
-  { path: "/plaza", icon: Gamepad2, label: "광장" },
+  { path: "/plaza", icon: Gamepad2, label: "다운로드" },
   { path: "/community", icon: Users, label: "커뮤니티" },
 ];
 
