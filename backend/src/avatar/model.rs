@@ -25,7 +25,7 @@ pub struct Avatar {
 pub struct AvatarItem {
     pub id: Uuid,
     pub name: String,
-    pub category: String, // hair / top / bottom / gloves / shoes / weapon / glasses
+    pub category: String, // hair / top / bottom / shoes / weapon / hat
     pub image_url: String,
     pub visual_parts: Option<serde_json::Value>, // 장착 시 캐릭터 적용 이미지/모델 경로 JSON
     pub created_at: Option<DateTime<Utc>>,
@@ -50,7 +50,7 @@ pub struct UserItem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserEquipment {
     pub user_id: Uuid,
-    pub slot_name: String, // hair / top / bottom / gloves / shoes / weapon / glasses ENUM
+    pub slot_name: String, // hair / top / bottom / shoes / weapon / hat ENUM
     pub inventory_id: Option<Uuid>, // user_items.id 참조 (NULL = 슬롯 비어있음)
     pub equipped_at: Option<DateTime<Utc>>,
     pub is_visible: bool,
