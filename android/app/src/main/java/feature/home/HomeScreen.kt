@@ -2542,14 +2542,14 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                         horizontalAlignment = Alignment.CenterHorizontally // contentAlignment 값을 이 함수로 넘김
                     ) { // 이 블록 안의 내용이 시작됨
                         Text( // 글자를 화면에 보여주기 시작함
-                            text = "주간 성실도 90점 이상 시", // 화면에 보여줄 글자를 정함
+                            text = "주간 성실도 60점 이상 시", // 화면에 보여줄 글자를 정함
                             fontSize = 12.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.Bold, // 글자 두께를 정함
                             color = accentContentColor // 색상을 정함
                         )
 
                         Text( // 글자를 화면에 보여주기 시작함
-                            text = "영수증 인증 완료 시 보상이 지급됩니다.", // 화면에 보여줄 글자를 정함
+                            text = "SPT 토큰 및 아바타 지급!", // 화면에 보여줄 글자를 정함
                             fontSize = 11.sp, // 글자 크기를 정함
                             color = accentContentColor.copy(alpha = 0.78f) // 색상을 정함
                         )
