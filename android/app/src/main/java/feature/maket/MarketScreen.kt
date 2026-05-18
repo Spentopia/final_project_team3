@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxWidth // fillMaxWidth 기능을
 import androidx.compose.foundation.layout.height // height 기능을 가져옴
 import androidx.compose.foundation.layout.padding // padding 기능을 가져옴
 import androidx.compose.material3.Button // 버튼 컴포넌트를 가져옴
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator // CircularProgressIndicator 기능을 가져옴
 import androidx.compose.material3.MaterialTheme // MaterialTheme 기능을 가져옴
 import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
@@ -50,6 +51,9 @@ import com.ict.spentopia.BuildConfig // BuildConfig 기능을 가져옴
 import com.ict.spentopia.data.remote.RetrofitClient // RetrofitClient 기능을 가져옴
 import com.ict.spentopia.data.remote.WebviewIssueRequest // WebviewIssueRequest 기능을 가져옴
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // SolanaWalletType 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaDarkBackground
+import com.ict.spentopia.ui.theme.spentopiaAppButtonColor
+import com.ict.spentopia.ui.theme.spentopiaAppButtonContentColor
 import kotlinx.coroutines.delay // delay 기능을 가져옴
 import org.json.JSONObject // JSONObject 기능을 가져옴
 
@@ -368,6 +372,7 @@ private fun MarketWebViewError( // MarketWebViewError 함수를 선언함
             .padding(24.dp),
         contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
+        val isDark = MaterialTheme.colorScheme.background == SpentopiaDarkBackground
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
             horizontalAlignment = Alignment.CenterHorizontally // horizontalAlignment 값을 정해줌
@@ -385,7 +390,13 @@ private fun MarketWebViewError( // MarketWebViewError 함수를 선언함
                 color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
             )
             Spacer(modifier = Modifier.height(16.dp)) // UI 크기나 여백 같은 모양을 정함
-            Button(onClick = onRetry) { // 누를 수 있는 버튼을 만듦
+            Button(
+                onClick = onRetry,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = spentopiaAppButtonColor(isDark),
+                    contentColor = spentopiaAppButtonContentColor(isDark)
+                )
+            ) { // 누를 수 있는 버튼을 만듦
                 Text(text = "다시 시도") // 화면에 글자를 보여줌
             }
         }

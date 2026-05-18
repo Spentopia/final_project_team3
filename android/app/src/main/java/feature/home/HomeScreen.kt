@@ -579,16 +579,17 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                 } // 블록 끝
             }, // 설정 구분
             confirmButton = { // 확인 버튼 영역을 시작함
-                val buttonColor = homePrimaryButtonColor()
                 TextButton( // 텍스트 버튼을 시작함
                     onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
                         showWalletDisconnectDialog = false // 지갑 해제 팝업을 닫음
                         onWalletDisconnectClick() // 지갑 해제 동작을 실행함
-                    } // 블록 끝
+                    }, // 블록 끝
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
                 ) { // 버튼 안의 내용이 시작됨
                     Text( // 버튼 텍스트를 시작함
                         text = "지갑 해제", // 버튼에 표시할 글자
-                        color = buttonColor, // 지갑 해제 버튼도 지정한 버튼 톤에 맞춤
                         fontWeight = FontWeight.Bold // 글자를 굵게 설정함
                     ) // 블록 끝
                 } // 블록 끝
@@ -597,9 +598,12 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                 TextButton( // 텍스트 버튼을 시작함
                     onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
                         showWalletDisconnectDialog = false // 지갑 해제 팝업을 닫음
-                    } // 블록 끝
+                    }, // 블록 끝
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
                 ) { // 버튼 안의 내용이 시작됨
-                    Text(text = "취소") // 취소 버튼 글자를 표시함
+                    Text(text = "취소", fontWeight = FontWeight.SemiBold) // 취소 버튼 글자를 표시함
                 } // 블록 끝
             } // 블록 끝
         ) // 블록 끝
