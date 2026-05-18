@@ -43,7 +43,14 @@ pub mod user;
 pub mod wallet;
 pub mod system;
 
-use axum::http::{HeaderValue, Method, header};
+use axum::{
+    extract::ConnectInfo,
+    http::{header, HeaderMap, HeaderValue, Method},
+    response::IntoResponse,
+    routing::get,
+    Json,
+};
+use serde_json::json;
 use std::net::SocketAddr;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
@@ -76,6 +83,89 @@ fn is_vite_dev_origin(origin: &HeaderValue) -> bool {
         || host.starts_with("10.")
         || host.starts_with("172.")
         || host.starts_with("192.168.")
+}
+
+// ─────────────────────────────────────────────────────────────
+// IP 디버그용 임시 엔드포인트
+//
+// 목적:
+// - Railway + Cloudflare Proxied 환경에서 실제 사용자 IP가
+//   어떤 헤더로 들어오는지 확인한다.
+// - 특히 CF-Connecting-IP가 진짜 사용자 IP인지 확인한다.
+// - X-Forwarded-For 위조가 가능한지도 확인한다.
+//
+// 주의:
+// - 테스트 끝나면 반드시 삭제.
+// - 운영 환경에 계속 열어두면 프록시/인프라 헤더가 노출된다.
+// ─────────────────────────────────────────────────────────────
+async fn debug_ip_handler(
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    let x_forwarded_for = headers
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("(없음)");
+
+    let x_real_ip = headers
+        .get("x-real-ip")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("(없음)");
+
+    let cf_connecting_ip = headers
+        .get("cf-connecting-ip")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("(없음)");
+
+    let cf_ray = headers
+        .get("cf-ray")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("(없음)");
+
+    let railway_edge = headers
+        .get("x-railway-edge")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("(없음)");
+
+    // X-Forwarded-For는 "IP1, IP2, IP3" 형태로 여러 개 들어올 수 있음.
+    // 공격자가 X-Forwarded-For를 위조하면 맨 앞 값이 가짜일 수 있어서
+    // leftmost/rightmost를 둘 다 확인한다.
+    let xff_list: Vec<&str> = x_forwarded_for
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty() && *s != "(없음)")
+        .collect();
+
+    let xff_leftmost = xff_list.first().copied().unwrap_or("(없음)");
+    let xff_rightmost = xff_list.last().copied().unwrap_or("(없음)");
+
+    tracing::info!(
+        "IP DEBUG | peer_addr={} | x-forwarded-for={} | xff_leftmost={} | xff_rightmost={} | x-real-ip={} | cf-connecting-ip={} | cf-ray={} | x-railway-edge={}",
+        peer_addr,
+        x_forwarded_for,
+        xff_leftmost,
+        xff_rightmost,
+        x_real_ip,
+        cf_connecting_ip,
+        cf_ray,
+        railway_edge,
+    );
+
+    Json(json!({
+        "peer_addr": peer_addr.to_string(),
+
+        "x_forwarded_for_raw": x_forwarded_for,
+        "x_forwarded_for_list": xff_list,
+        "x_forwarded_for_leftmost": xff_leftmost,
+        "x_forwarded_for_rightmost": xff_rightmost,
+
+        "x_real_ip": x_real_ip,
+
+        "cf_connecting_ip": cf_connecting_ip,
+        "cf_ray": cf_ray,
+
+        "x_railway_edge": railway_edge
+    }))
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -347,6 +437,9 @@ async fn main() {
     tracing::info!("회원탈퇴 정리 배치 스케줄러 등록 완료 (매일 KST 03:00)");
 
     let app = route::create_router(state)
+        // IP 디버그용 임시 라우트
+        // Cloudflare/Railway에서 실제 IP 헤더 확인 후 삭제할 것
+        .route("/debug/ip", get(debug_ip_handler))
         .layer(governor_limiter)
         .layer(cors)
         .layer(TraceLayer::new_for_http());
