@@ -36,7 +36,6 @@ import {
 import {
   TrendingDown,
   Download,
-  Share2,
   Sparkles,
 } from "lucide-react";
 import {
@@ -647,31 +646,6 @@ const handleGeneratePattern = async () => {
   }
 };
 
-const handleShare = async () => {
-  const text = `
-📊 소비 분석 결과
-총 지출: ${totalExpense.toLocaleString()}원
-일 평균: ${dailyAverage.toLocaleString()}원
-예산 사용률: ${budgetUsage}%
-`;
-
-  try {
-    if (navigator.share) {
-      await navigator.share({
-        title: "소비 분석 리포트",
-        text,
-        url: window.location.href,
-      });
-    } else {
-      await navigator.clipboard.writeText(text);
-    }
-  } catch (err) {
-    toast.error("공유에 실패했습니다.", {
-      description: "잠시 후 다시 시도해주세요.",
-    });
-  }
-};
-
 const handleDownload = async () => {
   if (!reportRef.current) return;
 
@@ -861,18 +835,14 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
 </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleShare} className="spentopia-primary-button">
-            <Share2 className="mr-2 h-4 w-4" />
-            공유
-          </Button>
-          <Button
-  className={isPdfMode ? "bg-slate-900 text-white" : "spentopia-primary-button"}
-  onClick={handleDownload}
->
-            <Download className="mr-2 h-4 w-4" />
-            리포트 다운로드
-          </Button>
-        </div>
+  <Button
+    className={isPdfMode ? "bg-slate-900 text-white" : "spentopia-primary-button"}
+    onClick={handleDownload}
+  >
+    <Download className="mr-2 h-4 w-4" />
+    리포트 다운로드
+  </Button>
+</div>
       </div>
 
       {/* Summary Cards */}
