@@ -42,6 +42,7 @@ mod state;
 pub mod user;
 pub mod wallet;
 pub mod system;
+mod rate_limit;
 
 use axum::{
     extract::ConnectInfo,
@@ -55,6 +56,7 @@ use std::net::SocketAddr;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
+use crate::rate_limit::CloudflareRailwayIpExtractor;
 
 fn is_vite_dev_origin(origin: &HeaderValue) -> bool {
     let Ok(origin) = origin.to_str() else {
@@ -85,88 +87,6 @@ fn is_vite_dev_origin(origin: &HeaderValue) -> bool {
         || host.starts_with("192.168.")
 }
 
-// ─────────────────────────────────────────────────────────────
-// IP 디버그용 임시 엔드포인트
-//
-// 목적:
-// - Railway + Cloudflare Proxied 환경에서 실제 사용자 IP가
-//   어떤 헤더로 들어오는지 확인한다.
-// - 특히 CF-Connecting-IP가 진짜 사용자 IP인지 확인한다.
-// - X-Forwarded-For 위조가 가능한지도 확인한다.
-//
-// 주의:
-// - 테스트 끝나면 반드시 삭제.
-// - 운영 환경에 계속 열어두면 프록시/인프라 헤더가 노출된다.
-// ─────────────────────────────────────────────────────────────
-async fn debug_ip_handler(
-    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let x_forwarded_for = headers
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("(없음)");
-
-    let x_real_ip = headers
-        .get("x-real-ip")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("(없음)");
-
-    let cf_connecting_ip = headers
-        .get("cf-connecting-ip")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("(없음)");
-
-    let cf_ray = headers
-        .get("cf-ray")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("(없음)");
-
-    let railway_edge = headers
-        .get("x-railway-edge")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("(없음)");
-
-    // X-Forwarded-For는 "IP1, IP2, IP3" 형태로 여러 개 들어올 수 있음.
-    // 공격자가 X-Forwarded-For를 위조하면 맨 앞 값이 가짜일 수 있어서
-    // leftmost/rightmost를 둘 다 확인한다.
-    let xff_list: Vec<&str> = x_forwarded_for
-        .split(',')
-        .map(str::trim)
-        .filter(|s| !s.is_empty() && *s != "(없음)")
-        .collect();
-
-    let xff_leftmost = xff_list.first().copied().unwrap_or("(없음)");
-    let xff_rightmost = xff_list.last().copied().unwrap_or("(없음)");
-
-    tracing::info!(
-        "IP DEBUG | peer_addr={} | x-forwarded-for={} | xff_leftmost={} | xff_rightmost={} | x-real-ip={} | cf-connecting-ip={} | cf-ray={} | x-railway-edge={}",
-        peer_addr,
-        x_forwarded_for,
-        xff_leftmost,
-        xff_rightmost,
-        x_real_ip,
-        cf_connecting_ip,
-        cf_ray,
-        railway_edge,
-    );
-
-    Json(json!({
-        "peer_addr": peer_addr.to_string(),
-
-        "x_forwarded_for_raw": x_forwarded_for,
-        "x_forwarded_for_list": xff_list,
-        "x_forwarded_for_leftmost": xff_leftmost,
-        "x_forwarded_for_rightmost": xff_rightmost,
-
-        "x_real_ip": x_real_ip,
-
-        "cf_connecting_ip": cf_connecting_ip,
-        "cf_ray": cf_ray,
-
-        "x_railway_edge": railway_edge
-    }))
-}
 
 // ─────────────────────────────────────────────────────────────
 // Rate Limiting 관련 import
@@ -284,32 +204,35 @@ async fn main() {
     // ─────────────────────────────────────────────────────────
     // Rate Limiting 설정
     //
-    // token bucket 알고리즘:
-    // - 버킷에 토큰이 있으면 요청 통과, 없으면 429 Too Many Requests
-    // - per_second(2): 매초 2개의 토큰이 버킷에 보충됨
-    // - burst_size(5): 버킷에 최대 5개까지 누적 가능
+    // 기존 문제:
+    // - 기본 PeerIpKeyExtractor는 peer_addr 기준으로 요청자를 구분한다.
+    // - Railway 뒤에서는 peer_addr가 실제 사용자 IP가 아니라
+    //   Railway 내부 프록시 IP, 예: 100.64.x.x 로 잡힌다.
+    // - 그러면 사용자별 IP rate limit이 제대로 동작하지 않을 수 있다.
     //
-    // 실제 동작:
-    // - 버킷이 가득 찬 상태에서 연속 5회 요청 가능
-    // - 이후부터는 초당 2회로 제한
-    // - 일반 사용자가 체감할 일은 거의 없음
-    //   (사람이 1초에 로그인 5번 누를 일은 없으니까)
-    // - 공격자의 무차별 대입은 초당 2회로 제한됨
+    // SmartIpKeyExtractor를 쓰지 않는 이유:
+    // - SmartIpKeyExtractor는 x-forwarded-for를 먼저 본다.
+    // - 네 위조 테스트에서 x-forwarded-for leftmost가 8.8.8.8로 조작 가능했다.
+    // - 따라서 공격자가 X-Forwarded-For를 바꿔 보내면
+    //   다른 IP인 척하면서 rate limit을 우회할 수 있다.
     //
-    // IP 기반 식별:
-    // - 기본적으로 요청의 소스 IP(peer_addr)를 기준으로 버킷 분리
-    // - 같은 IP에서 오는 요청끼리 버킷을 공유
-    // - 서로 다른 IP는 각각 독립된 버킷을 가짐
+    // 현재 선택:
+    // - Cloudflare Proxied 상태이므로 CF-Connecting-IP를 1순위로 사용.
+    // - fallback으로 X-Real-IP 사용.
+    // - X-Forwarded-For는 사용하지 않음.
     //
-    // 주의:
-    // - 프록시/로드밸런서 뒤에 있으면 모든 요청이 같은 IP로 보일 수 있음
-    // - 그 경우 X-Forwarded-For 기반으로 바꿔야 함
-    //   (GovernorConfigBuilder에 key_extractor 설정)
-    // - 지금은 로컬 시연이니까 기본값(peer_addr)으로 충분
+    // 제한값:
+    // - per_second(20): 초당 20개 토큰 보충
+    // - burst_size(60): 한 번에 최대 60개까지 허용
+    //
+    // 기존 50/200은 개발 편의성에는 좋지만 배포 환경에서는 너무 널널함.
+    // 20/60은 일반 페이지 로딩, API 여러 개 동시 호출에는 충분하고,
+    // 비정상적인 반복 요청은 429로 막기 시작하는 값.
     // ─────────────────────────────────────────────────────────
     let governor_conf = GovernorConfigBuilder::default()
-        .per_second(50) // 초당 50개 토큰 보충
-        .burst_size(200) // 최대 200개까지 누적 (개발 환경 + React Strict Mode 대응)
+        .key_extractor(CloudflareRailwayIpExtractor)
+        .per_second(20)
+        .burst_size(60)
         .finish()
         .unwrap();
 
@@ -439,7 +362,6 @@ async fn main() {
     let app = route::create_router(state)
         // IP 디버그용 임시 라우트
         // Cloudflare/Railway에서 실제 IP 헤더 확인 후 삭제할 것
-        .route("/debug/ip", get(debug_ip_handler))
         .layer(governor_limiter)
         .layer(cors)
         .layer(TraceLayer::new_for_http());
