@@ -5,6 +5,12 @@ import { Gamepad2, Users, Crown, Sparkles, Play } from "lucide-react";
 import styles from "./PlazaPage.module.css";
 
 export default function Plaza() {
+  // 1. 🚨 구글 드라이브에서 공유한 ZIP 파일의 ID를 여기에 입력하세요!
+  const fileId = '1GB_v4G2FHY7dYIjAWLXZsNxpi5kCfKGh';
+
+  // 2. 대용량 바이러스 경고창을 강제로 패스하는 다이렉트 다운로드 주소 조합
+  const bypassUrl = `https://drive.google.com/uc?export=download&confirm=t&id=${fileId}`;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -33,9 +39,16 @@ export default function Plaza() {
           <p className="mb-6 text-gray-700 dark:text-gray-300">
             PC 웹에서 Unity 기반의 3D 가상 공간을 체험하세요
           </p>
-          <Button size="lg" variant="secondary" className={`${styles.plazaEntryButton} spentopia-plaza-entry-button`}>
-            <Play className="mr-2 h-5 w-5" />
-            광장 입장하기
+          <Button
+              size="lg"
+              variant="secondary"
+              className={`${styles.plazaEntryButton} spentopia-plaza-entry-button`}
+              asChild
+          >
+            <a href={bypassUrl}>
+              <Play className="mr-2 h-5 w-5" />
+              다운로드
+            </a>
           </Button>
         </div>
       </Card>
@@ -43,7 +56,7 @@ export default function Plaza() {
       <div className="grid gap-6 md:grid-cols-2">
         {/* Features */}
         <Card className={`${styles.plazaCard} ${styles.plazaCardMedium} border-none spentopia-market-card-view p-6 backdrop-blur-xl`}>
-          <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">광장 기능</h3>
+          <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">게임 기능</h3>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-[#0f172a]">
