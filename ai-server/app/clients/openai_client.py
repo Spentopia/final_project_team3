@@ -1,4 +1,3 @@
-from app.utils.json_utils import safe_json_loads
 import os
 import json
 import base64
@@ -15,11 +14,7 @@ VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini")
 
 
 class OpenAIClient:
-    client = OpenAI(
-        api_key=os.getenv("OPENAI_API_KEY"),
-        timeout=20.0,
-        max_retries=1,
-    )
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     @staticmethod
     def analyze(spending: str):
@@ -51,7 +46,7 @@ class OpenAIClient:
                 ],
             )
 
-            return safe_json_loads(response.choices[0].message.content)
+            return json.loads(response.choices[0].message.content)
 
         except Exception as e:
             return {
@@ -151,7 +146,7 @@ class OpenAIClient:
                 ],
             )
 
-            return safe_json_loads(response.choices[0].message.content)
+            return json.loads(response.choices[0].message.content)
 
         except Exception as e:
             # OCR 실패도 응답 스키마를 최대한 유지하면
