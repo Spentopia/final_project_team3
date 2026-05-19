@@ -129,8 +129,8 @@ pub fn create_router(state: AppState) -> (Router, Router, Router) {
     let user_rate_limit = Arc::new(
         GovernorConfigBuilder::default()
             .key_extractor(UserIdExtractor)
-            .per_second(10)
-            .burst_size(100)
+            .per_second(30)
+            .burst_size(300)
             .finish()
             .unwrap(),
     );
