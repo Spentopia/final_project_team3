@@ -7,12 +7,9 @@
 //   - 그 경우 /signup-pending 으로 이동
 //   - 추가: Turnstile 사람 인증 통과 후에만 회원가입 진행
 //
-// Step 2: 닉네임 + 전화번호 + 프로필 이미지 입력
+// Step 2: 닉네임 + 전화번호 + 프로필 이미지 입력 → completeProfile() 호출 → 메인으로
 //   - 프로필 이미지는 useProfileImage 훅으로 관리
 //   - 파일 선택 시 로컬 미리보기만 보여주고
-//   - Step 3 완료 시 서버에 업로드
-//
-// Step 3: 아바타 선택 → completeProfile() 호출 → 메인으로
 //   - 이미지가 선택되어 있으면 먼저 업로드 후 path를 받아서
 //   - completeProfile에 profileImage로 전달
 
@@ -106,15 +103,6 @@ function generateNickname(): string {
   return `${prefix}${suffix}${num}`.slice(0, NICKNAME_MAX_LENGTH);
 }
 
-const avatarOptions = [
-  { id: 1, name: "해피", emoji: "😊" },
-  { id: 2, name: "쿨가이", emoji: "😎" },
-  { id: 3, name: "러블리", emoji: "🥰" },
-  { id: 4, name: "파이터", emoji: "💪" },
-  { id: 5, name: "스마일", emoji: "😄" },
-  { id: 6, name: "로봇", emoji: "🤖" },
-];
-
 declare global {
   interface Window {
     turnstile?: {
@@ -149,7 +137,6 @@ export default function Signup() {
     confirmPassword: "",
     phone: "",
     nickname: "",
-    avatar: 1,
   });
 
   // Turnstile 상태
@@ -295,7 +282,7 @@ export default function Signup() {
       return;
     }
 
-    // ── Step 2 -> Step 3 ────────────────────────────────────
+    // ── Step 2: 프로필 저장 ──────────────────────────────────
     if (step === 2) {
       const nickname = formData.nickname.trim();
 
@@ -331,36 +318,22 @@ export default function Signup() {
           phone: formData.phone,
         });
 
-        // trim된 닉네임을 formData에도 반영해서
-        // Step 3 completeProfile()에도 동일한 값이 들어가게 한다.
-        updateFormData("nickname", nickname);
+        const imagePath = await profileImage.upload();
 
-        setStep(3);
+        await completeProfile({
+          nickname,
+          phone: formData.phone,
+          profileImage: imagePath || undefined,
+        });
+
+        navigate("/");
       } catch (error: any) {
-        toast.error(error.message || "중복 확인에 실패했습니다");
+        toast.error(error.message || "프로필 저장 실패");
       } finally {
         setLoading(false);
       }
 
       return;
-    }
-
-    // ── Step 3: 프로필 저장 ──────────────────────────────────
-    setLoading(true);
-    try {
-      const imagePath = await profileImage.upload();
-
-      await completeProfile({
-        nickname: formData.nickname,
-        phone: formData.phone,
-        profileImage: imagePath || undefined,
-      });
-
-      navigate("/");
-    } catch (error: any) {
-      toast.error(error.message || "프로필 저장 실패");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -370,7 +343,7 @@ export default function Signup() {
     }
   };
 
-  const updateFormData = (field: string, value: string | number) => {
+  const updateFormData = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });
   };
 
@@ -387,12 +360,12 @@ export default function Signup() {
               회원가입
             </h1>
             <p className="text-center text-gray-600 dark:text-gray-400">
-              Step {step} / 3
+              Step {step} / 2
             </p>
           </div>
 
           <div className="mb-6 flex gap-2">
-            {[1, 2, 3].map((s) => (
+            {[1, 2].map((s) => (
               <div
                 key={s}
                 className={`h-2 flex-1 rounded-full ${
@@ -521,47 +494,6 @@ export default function Signup() {
               </>
             )}
 
-            {step === 3 && (
-              <>
-                <div>
-                  <Label>아바타 캐릭터 선택</Label>
-                  <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                    Spentopia에서 사용할 아바타를 선택해주세요
-                  </p>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    {avatarOptions.map((avatar) => (
-                      <button
-                        key={avatar.id}
-                        type="button"
-                        onClick={() => updateFormData("avatar", avatar.id)}
-                        className={`flex flex-col items-center justify-center rounded-xl border-2 p-4 transition-all ${
-                          formData.avatar === avatar.id
-                            ? "border-[#2563eb] bg-[#eff6ff] shadow-[0_12px_28px_rgba(37,99,235,0.16)] dark:border-[#7c3aed] dark:bg-[#2d1847]"
-                            : "border-sky-200 hover:border-[#2563eb] hover:bg-[#f0f7ff] dark:border-slate-700 dark:hover:border-[#7c3aed] dark:hover:bg-[#2d1847]/70"
-                        }`}
-                      >
-                        <span className="mb-2 text-4xl">{avatar.emoji}</span>
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {avatar.name}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-lg border border-sky-200 bg-[#f0f7ff] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] dark:border-[#7c3aed]/40 dark:bg-[#2d1847]">
-                  <p className="mb-2 font-bold text-[#1e3a8a] dark:text-[#f5f3ff]">
-                    🎁 가입 축하 선물!
-                  </p>
-                  <p className="text-sm text-[#2563eb] dark:text-[#c4b5fd]">
-                    회원가입 완료 시 기본 아바타를 지급하고 프로필 설정을 바로 이어서
-                    할 수 있어요.
-                  </p>
-                </div>
-              </>
-            )}
-
             <div className="flex gap-3 pt-4">
               {step > 1 && (
                 <Button
@@ -586,7 +518,7 @@ export default function Signup() {
               >
                 {loading || profileImage.uploading
                   ? "처리 중..."
-                  : step === 3
+                  : step === 2
                     ? "가입 완료"
                     : "다음"}
               </Button>

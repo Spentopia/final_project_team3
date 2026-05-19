@@ -1,6 +1,6 @@
 // domains/auth/ui/CompleteProfilePage.tsx
 // ─────────────────────────────────────────────────────────────
-// 소셜 로그인 후 프로필 완성 페이지 (2단계)
+// 소셜 로그인 후 프로필 완성 페이지
 //
 // 소셜 로그인(구글/카카오)으로 처음 가입하면:
 // - auth.users에는 row가 생김
@@ -8,8 +8,7 @@
 //   닉네임/전화번호는 비어있음
 // - ProtectedRoute가 profile_completed=false를 감지해서 여기로 보냄
 //
-// Step 1: 닉네임 + 전화번호 + 프로필 이미지 입력
-// Step 2: 아바타 선택 → completeProfile() 호출
+// 닉네임 + 전화번호 + 프로필 이미지 입력 → completeProfile() 호출
 //   → 이미지가 선택되어 있으면 먼저 업로드 후 path를 받아서
 //   → completeProfile에 profileImage로 전달
 //   → public.users UPDATE → profile_completed = true → 메인으로
@@ -81,18 +80,8 @@ function generateNickname(): string {
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
-const avatarOptions = [
-  { id: 1, name: "해피", emoji: "😊" },
-  { id: 2, name: "쿨가이", emoji: "😎" },
-  { id: 3, name: "러블리", emoji: "🥰" },
-  { id: 4, name: "파이터", emoji: "💪" },
-  { id: 5, name: "스마일", emoji: "😄" },
-  { id: 6, name: "로봇", emoji: "🤖" },
-];
-
 export default function CompleteProfilePage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [nicknameChecking, setNicknameChecking] = useState(false);
 
@@ -102,7 +91,6 @@ export default function CompleteProfilePage() {
   const [formData, setFormData] = useState({
     phone: "",
     nickname: "",
-    avatar: 1,
   });
 
   const handleNext = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -110,79 +98,49 @@ export default function CompleteProfilePage() {
 
     if (loading) return;
 
-    // ─────────────────────────────────────────────
-    // Step 1 → Step 2
-    // 닉네임/전화번호 입력 후 중복 확인
-    // ─────────────────────────────────────────────
-    if (step === 1) {
-      const nickname = formData.nickname.trim();
+    const nickname = formData.nickname.trim();
 
-      // 닉네임 필수 검사
-      if (!nickname) {
-        toast.error("닉네임을 입력해주세요.");
-        return;
-      }
-
-      // 닉네임 길이 검사
-      //
-      // 백엔드 validate_nickname() 기준과 맞춘다.
-      // 프론트에서도 먼저 막아야 사용자가 Step 2까지 갔다가 실패하지 않는다.
-      if (
-          nickname.length < NICKNAME_MIN_LENGTH ||
-          nickname.length > NICKNAME_MAX_LENGTH
-      ) {
-        toast.error("닉네임은 2~8자까지 입력할 수 있습니다.");
-        return;
-      }
-
-      // 전화번호 필수 검사
-      if (!formData.phone.trim()) {
-        toast.error("전화번호를 입력해주세요.");
-        return;
-      }
-
-      // 추가
-      if (!isValidPhone(formData.phone)) {
-        toast.error("올바른 휴대폰 번호를 입력해주세요.");
-        return;
-      }
-
-      setLoading(true);
-
-      try {
-        // 닉네임/전화번호 중복 확인
-        //
-        // nickname은 trim된 값을 보낸다.
-        // formData.nickname을 그대로 보내면 앞뒤 공백이 포함될 수 있다.
-        await checkProfileAvailability({
-          nickname,
-          phone: formData.phone,
-        });
-
-        // trim된 닉네임을 formData에도 반영한다.
-        //
-        // 이유:
-        // Step 2에서 completeProfile() 호출할 때
-        // 앞뒤 공백이 제거된 동일한 닉네임이 저장되게 하기 위함.
-        updateFormData("nickname", nickname);
-
-        setStep(2);
-      } catch (error: any) {
-        toast.error(error.message || "중복 확인에 실패했습니다");
-      } finally {
-        setLoading(false);
-      }
-
+    // 닉네임 필수 검사
+    if (!nickname) {
+      toast.error("닉네임을 입력해주세요.");
       return;
     }
 
-    // ─────────────────────────────────────────────
-    // Step 2
-    // 아바타 선택 완료 → 프로필 저장
-    // ─────────────────────────────────────────────
+    // 닉네임 길이 검사
+    //
+    // 백엔드 validate_nickname() 기준과 맞춘다.
+    if (
+        nickname.length < NICKNAME_MIN_LENGTH ||
+        nickname.length > NICKNAME_MAX_LENGTH
+    ) {
+      toast.error("닉네임은 2~8자까지 입력할 수 있습니다.");
+      return;
+    }
+
+    // 전화번호 필수 검사
+    if (!formData.phone.trim()) {
+      toast.error("전화번호를 입력해주세요.");
+      return;
+    }
+
+    // 추가
+    if (!isValidPhone(formData.phone)) {
+      toast.error("올바른 휴대폰 번호를 입력해주세요.");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // 닉네임/전화번호 중복 확인
+      //
+      // nickname은 trim된 값을 보낸다.
+      // formData.nickname을 그대로 보내면 앞뒤 공백이 포함될 수 있다.
+      await checkProfileAvailability({
+        nickname,
+        phone: formData.phone,
+      });
+
       // 프로필 이미지 업로드
       //
       // 사용자가 이미지를 선택하지 않았다면
@@ -191,7 +149,7 @@ export default function CompleteProfilePage() {
       const imagePath = await profileImage.upload();
 
       const result = await completeProfile({
-        nickname: formData.nickname.trim(),
+        nickname,
         phone: formData.phone,
         profileImage: imagePath || undefined,
       });
@@ -206,10 +164,6 @@ export default function CompleteProfilePage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleBack = () => {
-    if (step > 1) setStep(step - 1);
   };
 
   // 다른 계정으로 로그인하기
@@ -254,7 +208,7 @@ export default function CompleteProfilePage() {
     }
   };
 
-  const updateFormData = (field: string, value: string | number) => {
+  const updateFormData = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });
   };
 
@@ -270,142 +224,73 @@ export default function CompleteProfilePage() {
             <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
               프로필 완성
             </h1>
-            <p className="text-center text-gray-600 dark:text-gray-400">
-              Step {step} / 2
-            </p>
-          </div>
-
-          <div className="mb-6 flex gap-2">
-            {[1, 2].map((s) => (
-              <div
-                key={s}
-                className={`h-2 flex-1 rounded-full ${
-                  s <= step
-                    ? "bg-[#3b82f6] dark:bg-[#2d1847]"
-                    : "bg-sky-100 dark:bg-slate-700"
-                }`}
-              />
-            ))}
           </div>
 
           <form onSubmit={handleNext} className="space-y-4">
-            {step === 1 && (
-              <>
-                <div>
-                  <Label htmlFor="phone">전화번호</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="010-1234-5678"
-                    value={formData.phone}
-                    onChange={(e) => updateFormData("phone", formatPhone(e.target.value))}
-                    maxLength={13}
-                    className="mt-1"
-                  />
-                </div>
+            <div>
+              <Label htmlFor="phone">전화번호</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="010-1234-5678"
+                value={formData.phone}
+                onChange={(e) => updateFormData("phone", formatPhone(e.target.value))}
+                maxLength={13}
+                className="mt-1"
+              />
+            </div>
 
-                <div>
-                  <Label htmlFor="nickname">닉네임</Label>
-                  <div className="mt-1 flex gap-2">
-                    <Input
-                        id="nickname"
-                        type="text"
-                        placeholder="2~8자 닉네임을 입력해주세요"
-                        value={formData.nickname}
-                        maxLength={NICKNAME_MAX_LENGTH}
-                        onChange={(e) =>
-                            updateFormData(
-                                "nickname",
-                                e.target.value.slice(0, NICKNAME_MAX_LENGTH)
-                            )
-                        }
-                    />
-                    <button
-                      type="button"
-                      onClick={handleGenerateNickname}
-                      disabled={nicknameChecking}
-                      title="랜덤 닉네임 생성"
-                      className="flex items-center justify-center rounded-md border border-sky-200/90 bg-white px-3 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] transition-colors hover:bg-[#f0f7ff] disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
-                    >
-                      <Dices className={`h-4 w-4 text-gray-500 dark:text-gray-400 ${nicknameChecking ? "animate-spin" : ""}`} />
-                    </button>
-                  </div>
-                </div>
+            <div>
+              <Label htmlFor="nickname">닉네임</Label>
+              <div className="mt-1 flex gap-2">
+                <Input
+                    id="nickname"
+                    type="text"
+                    placeholder="2~8자 닉네임을 입력해주세요"
+                    value={formData.nickname}
+                    maxLength={NICKNAME_MAX_LENGTH}
+                    onChange={(e) =>
+                        updateFormData(
+                            "nickname",
+                            e.target.value.slice(0, NICKNAME_MAX_LENGTH)
+                        )
+                    }
+                />
+                <button
+                  type="button"
+                  onClick={handleGenerateNickname}
+                  disabled={nicknameChecking}
+                  title="랜덤 닉네임 생성"
+                  className="flex items-center justify-center rounded-md border border-sky-200/90 bg-white px-3 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] transition-colors hover:bg-[#f0f7ff] disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
+                >
+                  <Dices className={`h-4 w-4 text-gray-500 dark:text-gray-400 ${nicknameChecking ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            </div>
 
-                <div>
-                  <Label>프로필 이미지 (선택)</Label>
-                  <div className="mt-2">
-                    <ProfileImageUploader
-                      previewUrl={profileImage.previewUrl}
-                      uploading={profileImage.uploading}
-                      error={profileImage.error}
-                      onFileSelect={profileImage.handleFileSelect}
-                    />
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    나중에 설정할 수 있어요
-                  </p>
-                </div>
-              </>
-            )}
-
-            {step === 2 && (
-              <>
-                <div>
-                  <Label>아바타 캐릭터 선택</Label>
-                  <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                    Spentopia에서 사용할 아바타를 선택해주세요
-                  </p>
-                  <div className="grid grid-cols-3 gap-3">
-                    {avatarOptions.map((avatar) => (
-                      <button
-                        key={avatar.id}
-                        type="button"
-                        onClick={() => updateFormData("avatar", avatar.id)}
-                        className={`flex flex-col items-center justify-center rounded-xl border-2 p-4 transition-all ${
-                          formData.avatar === avatar.id
-                            ? "border-[#2563eb] bg-[#eff6ff] shadow-[0_12px_28px_rgba(37,99,235,0.16)] dark:border-[#7c3aed] dark:bg-[#2d1847]"
-                            : "border-sky-200 hover:border-[#2563eb] hover:bg-[#f0f7ff] dark:border-slate-700 dark:hover:border-[#7c3aed] dark:hover:bg-[#2d1847]/70"
-                        }`}
-                      >
-                        <span className="mb-2 text-4xl">{avatar.emoji}</span>
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{avatar.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-lg border border-sky-200 bg-[#f0f7ff] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] dark:border-[#7c3aed]/40 dark:bg-[#2d1847]">
-                  <p className="mb-2 font-bold text-[#1e3a8a] dark:text-[#f5f3ff]">🎁 프로필 완성 선물!</p>
-                  <p className="text-sm text-[#2563eb] dark:text-[#c4b5fd]">
-                    프로필 완성 시 기본 아바타를 지급하고 바로 서비스를 이용할 수 있어요.
-                  </p>
-                </div>
-              </>
-            )}
+            <div>
+              <Label>프로필 이미지 (선택)</Label>
+              <div className="mt-2">
+                <ProfileImageUploader
+                  previewUrl={profileImage.previewUrl}
+                  uploading={profileImage.uploading}
+                  error={profileImage.error}
+                  onFileSelect={profileImage.handleFileSelect}
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                나중에 설정할 수 있어요
+              </p>
+            </div>
 
             <div className="flex gap-3 pt-4">
-              {step > 1 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleBack}
-                  className={`flex-1 ${authPrimaryButtonClass}`}
-                >
-                  이전
-                </Button>
-              )}
               <Button
                 type="submit"
                 disabled={loading || profileImage.uploading}
                 variant="outline"
                 className={`flex-1 ${authPrimaryButtonClass}`}
               >
-                {loading || profileImage.uploading
-                  ? "처리 중..."
-                  : step === 2
-                    ? "완료"
-                    : "다음"}
+                {loading || profileImage.uploading ? "처리 중..." : "완료"}
               </Button>
             </div>
           </form>
