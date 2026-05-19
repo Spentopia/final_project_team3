@@ -50,6 +50,7 @@ import { Separator } from "@/shared/ui/separator";
 // 도메인 간 훅 참조 — 상대경로(..) 대신 절대경로(@/)로 명확하게
 import { useAvatarItems } from "@/domains/avatar/hooks/useAvatarItems";
 import { getOwnedNfts, syncOwnedNfts } from "@/domains/avatar/api/avatarApi";
+import { abandonPendingListing } from "@/domains/marketplace/api/marketApi";
 import { useMarket } from "../hooks/useMarket";
 
 // 타입도 도메인 간 참조
@@ -81,6 +82,18 @@ function getMarketplaceErrorMessage(error: unknown, fallback: string): string {
     return error;
   }
   return fallback;
+}
+
+function isWalletRejectionError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("user rejected") ||
+    normalized.includes("rejected by user") ||
+    normalized.includes("user denied") ||
+    normalized.includes("transaction rejected") ||
+    normalized.includes("요청을 거부")
+  );
 }
 
 // ────────────────────────────────────────────────────────────
@@ -475,10 +488,13 @@ export default function MarketplacePage() {
     }
 
     setListingOnChain(true);
+    let pendingListing: ListingResponse | null = null;
     try {
       const listing = await createListing(itemId, priceSpt);
       if (!listing) return;
+      pendingListing = listing;
 
+      toast.info("지갑에서 판매 등록을 승인해 주세요.");
       const { signature, escrowAddress } = await listNftOnChain({
         connection,
         publicKey,
@@ -495,6 +511,20 @@ export default function MarketplacePage() {
       }
       void refetchItems();
     } catch (error) {
+      if (pendingListing && isWalletRejectionError(error)) {
+        try {
+          await abandonPendingListing(pendingListing.id);
+          await syncInventoryAfterMarketChange();
+          toast.info("판매 등록이 취소되었습니다. NFT는 등록 가능 목록에 다시 반영됩니다.");
+        } catch (cleanupError) {
+          await refetchItems();
+          await refreshOwnedNftCount();
+          console.error("[abandonPendingListing]", cleanupError);
+          toast.error("판매 등록 취소 처리에 실패했습니다. 관리자에게 문의해 주세요.");
+        }
+        return;
+      }
+
       toast.error(getMarketplaceErrorMessage(error, "온체인 판매 등록 중 오류가 발생했습니다."));
     } finally {
       setListingOnChain(false);

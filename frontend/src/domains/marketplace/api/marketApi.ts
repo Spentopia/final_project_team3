@@ -75,6 +75,16 @@ export async function updateEscrow(
     }
 }
 
+// PATCH /api/market/listings/:id/abandon
+// list_nft 온체인 서명 전에 지갑 거부/오류가 난 pending 등록 요청을 폐기
+export async function abandonPendingListing(listingId: string): Promise<void> {
+    try {
+        await apiClient.patch(`/api/market/listings/${listingId}/abandon`);
+    } catch (error: unknown) {
+        throw parseAxiosError(error, "판매 등록 요청 폐기 실패");
+    }
+}
+
 // DELETE /api/market/listings/:id
 // cancel_listing 온체인 트랜잭션 완료 후 DB 상태를 "cancelled"로 변경
 export async function cancelListing(listingId: string, txSignature: string): Promise<void> {

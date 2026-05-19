@@ -882,6 +882,54 @@ pub async fn cancel_listing(
     Ok(())
 }
 
+pub async fn abandon_pending_listing(
+    state: &AppState,
+    user_id: Uuid,
+    listing_id: Uuid,
+) -> Result<()> {
+    let patch_url = format!(
+        "{}/rest/v1/market_listings?id=eq.{}&seller_id=eq.{}&status=eq.pending_onchain&escrow_address=is.null",
+        state.config.supabase_url.trim_end_matches('/'),
+        listing_id,
+        user_id,
+    );
+
+    let patch_res = state
+        .http_client
+        .patch(&patch_url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .header("Prefer", "return=representation")
+        .json(&serde_json::json!({
+            "status": "cancelled",
+        }))
+        .send()
+        .await
+        .context("pending_onchain 판매 등록 폐기 PATCH 요청 실패")?;
+
+    if !patch_res.status().is_success() {
+        return Err(anyhow!(
+            "pending_onchain 판매 등록 폐기 실패: {}",
+            patch_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let updated: Vec<MarketListing> = patch_res
+        .json()
+        .await
+        .context("pending_onchain 판매 등록 폐기 응답 역직렬화 실패")?;
+    if updated.is_empty() {
+        return Err(anyhow!(
+            "폐기할 pending_onchain 판매 등록이 없습니다. 이미 처리됐거나 상태가 변경되었습니다"
+        ));
+    }
+
+    Ok(())
+}
+
 // purchase
 //
 /// 마켓 아이템을 구매한다.

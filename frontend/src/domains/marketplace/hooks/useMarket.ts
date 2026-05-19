@@ -62,7 +62,6 @@ export function useMarket(): UseMarketReturn{
         try{
             const newListing = await createListingApi({item_id: itemId, price_spt:priceSpt});
 
-            toast.success("판매 등록 요청이 생성되었습니다.");
             return newListing;
         }catch (err){
             const message = err instanceof Error ? err.message : "판매 등록 중 오류가 발생했습니다.";

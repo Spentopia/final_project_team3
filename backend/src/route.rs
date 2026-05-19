@@ -415,6 +415,10 @@ pub fn create_router(state: AppState) -> (Router, Router, Router) {
             patch(market::handler::update_escrow),
         )
         .route(
+            "/api/market/listings/:id/abandon",
+            patch(market::handler::abandon_pending_listing),
+        )
+        .route(
             "/api/market/listings/:id",
             delete(market::handler::cancel_listing),
         )

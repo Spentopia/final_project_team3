@@ -235,6 +235,28 @@ pub async fn cancel_listing(
     }
 }
 
+#[utoipa::path(
+    patch, path = "/api/market/listings/{id}/abandon",
+    tag = "마켓",
+    params(("id" = Uuid, Path, description = "listing ID")),
+    responses((status = 200, description = "pending 판매 등록 폐기 성공")),
+    security(("bearer_auth" = []))
+)]
+pub async fn abandon_pending_listing(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Path(listing_id): Path<Uuid>,
+) -> impl IntoResponse {
+    match service::abandon_pending_listing(&state, user_id, listing_id).await {
+        Ok(_) => (
+            StatusCode::OK,
+            Json(serde_json::json!({"message": "판매 등록 요청이 폐기되었습니다."})),
+        )
+            .into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
 // 로컬 요청 DTO
 //
 // update_escrow 전용 요청 바디.
