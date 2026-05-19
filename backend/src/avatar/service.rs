@@ -43,7 +43,7 @@ async fn get_open_listing_item_ids_for_user(
     }
 
     let url = format!(
-        "{}/rest/v1/market_listings?seller_id=eq.{}&status=in.(pending_onchain,active)&select=item_id",
+        "{}/rest/v1/market_listings?seller_id=eq.{}&status=eq.active&escrow_address=not.is.null&select=item_id",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
@@ -73,55 +73,6 @@ async fn get_open_listing_item_ids_for_user(
         .context("market_listings 활성 판매 아이템 역직렬화 실패")?
         .into_iter()
         .map(|row| row.item_id)
-        .collect())
-}
-
-async fn get_open_listing_mints_for_user(
-    state: &AppState,
-    user_id: Uuid,
-) -> Result<std::collections::HashSet<String>> {
-    #[derive(Deserialize)]
-    struct ActiveListingInventoryRow {
-        nft_mint_address: Option<String>,
-    }
-
-    #[derive(Deserialize)]
-    struct ActiveListingRow {
-        user_inventory: ActiveListingInventoryRow,
-    }
-
-    let url = format!(
-        "{}/rest/v1/market_listings?seller_id=eq.{}&status=in.(pending_onchain,active)&select=user_inventory!item_id(nft_mint_address)",
-        state.config.supabase_url.trim_end_matches('/'),
-        user_id,
-    );
-
-    let res = state
-        .http_client
-        .get(&url)
-        .header(
-            "Authorization",
-            format!("Bearer {}", state.config.supabase_secret_key),
-        )
-        .header("apikey", &state.config.supabase_secret_key)
-        .send()
-        .await
-        .context("market_listings 활성 판매 NFT 조회 요청 실패")?;
-
-    if !res.status().is_success() {
-        return Err(anyhow!(
-            "market_listings 활성 판매 NFT 조회 실패: {}",
-            res.text().await.unwrap_or_default()
-        ));
-    }
-
-    Ok(res
-        .json::<Vec<ActiveListingRow>>()
-        .await
-        .context("market_listings 활성 판매 NFT 역직렬화 실패")?
-        .into_iter()
-        .filter_map(|row| row.user_inventory.nft_mint_address)
-        .filter(|mint| !mint.trim().is_empty())
         .collect())
 }
 
@@ -1012,14 +963,9 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
     .await
     .context("지갑 NFT 조회 실패")?;
 
-    let open_listing_mints = get_open_listing_mints_for_user(state, user_id).await?;
-
     let mut owned = Vec::with_capacity(assets.len());
     for asset in assets {
         let mint_address = asset["id"].as_str().unwrap_or_default().to_string();
-        if open_listing_mints.contains(&mint_address) {
-            continue;
-        }
         let metadata_uri = asset["content"]["json_uri"].as_str().map(str::to_string);
         let fallback_name = asset["content"]["metadata"]["name"]
             .as_str()
@@ -1332,7 +1278,8 @@ pub async fn sync_owned_nfts(state: &AppState, user_id: Uuid) -> Result<SyncOwne
     }
 
     let mut inserts = Vec::new();
-    let mut listing_item_ids_to_close = Vec::new();
+    let mut listing_item_ids_to_cancel = Vec::new();
+    let mut listing_item_ids_to_sold = Vec::new();
 
     for asset in normalized_assets {
         if let Some(existing) = existing_by_mint.get(&asset.mint_address) {
@@ -1376,10 +1323,11 @@ pub async fn sync_owned_nfts(state: &AppState, user_id: Uuid) -> Result<SyncOwne
                     ));
                 }
 
-                listing_item_ids_to_close.push(existing.id);
+                listing_item_ids_to_sold.push(existing.id);
                 synced_count += 1;
                 continue;
             }
+            listing_item_ids_to_cancel.push(existing.id);
             skipped_count += 1;
             continue;
         }
@@ -1420,14 +1368,49 @@ pub async fn sync_owned_nfts(state: &AppState, user_id: Uuid) -> Result<SyncOwne
         });
     }
 
-    if !listing_item_ids_to_close.is_empty() {
-        let item_id_filter = listing_item_ids_to_close
+    if !listing_item_ids_to_cancel.is_empty() {
+        let item_id_filter = listing_item_ids_to_cancel
             .iter()
             .map(Uuid::to_string)
             .collect::<Vec<_>>()
             .join(",");
         let listing_update_url = format!(
-            "{}/rest/v1/market_listings?item_id=in.({})&status=eq.active",
+            "{}/rest/v1/market_listings?item_id=in.({})&status=in.(pending_onchain,active)",
+            state.config.supabase_url.trim_end_matches('/'),
+            item_id_filter
+        );
+        let listing_update_res = state
+            .http_client
+            .patch(&listing_update_url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", state.config.supabase_secret_key),
+            )
+            .header("apikey", &state.config.supabase_secret_key)
+            .header("Prefer", "return=minimal")
+            .json(&serde_json::json!({
+                "status": "cancelled",
+            }))
+            .send()
+            .await
+            .context("market_listings NFT 지갑 복귀 상태 일괄 PATCH 요청 실패")?;
+
+        if !listing_update_res.status().is_success() {
+            tracing::error!(
+                "market_listings NFT 지갑 복귀 상태 일괄 PATCH 실패: {}",
+                listing_update_res.text().await.unwrap_or_default()
+            );
+        }
+    }
+
+    if !listing_item_ids_to_sold.is_empty() {
+        let item_id_filter = listing_item_ids_to_sold
+            .iter()
+            .map(Uuid::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        let listing_update_url = format!(
+            "{}/rest/v1/market_listings?item_id=in.({})&status=in.(pending_onchain,active)",
             state.config.supabase_url.trim_end_matches('/'),
             item_id_filter
         );
