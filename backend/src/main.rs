@@ -358,11 +358,31 @@ async fn main() {
     // ─────────────────────────────────────────────────────────
     jobs::scheduler::start(state.clone());
     tracing::info!("회원탈퇴 정리 배치 스케줄러 등록 완료 (매일 KST 03:00)");
+    // ─────────────────────────────────────────────────────────
+    // 라우터 구성 + 레이어 적용
+    //
+    // route::create_router는 두 개의 Router를 반환:
+    //   - health_router : rate limit 없음 (헬스/공지)
+    //   - main_router   : 나머지 전부 (sensitive/public/protected/admin)
+    //
+    // main_router에만 governor_limiter를 걸어서
+    // /api/system/status는 학원 18명이 동시에 앱 켜도 안 막히게 한다.
+    //
+    // 최종 layer 순서 (요청이 통과하는 순서):
+    //   요청 → TraceLayer → CorsLayer →
+    //      ├── /health, /api/system/status → 핸들러 (rate limit 없음)
+    //      └── 그 외 모든 라우트 → governor_limiter → 핸들러
+    //
+    // axum에서 .layer()는 나중에 추가한 게 바깥에 감싸진다.
+    // 그래서 코드상으로는 cors, trace가 아래에 있지만 실행은 먼저 됨.
+    // ─────────────────────────────────────────────────────────
+    let (health_router, main_router) = route::create_router(state);
 
-    let app = route::create_router(state)
-        // IP 디버그용 임시 라우트
-        // Cloudflare/Railway에서 실제 IP 헤더 확인 후 삭제할 것
-        .layer(governor_limiter)
+    let app = axum::Router::new()
+        // health_router는 governor 바깥에 둠 → rate limit 안 걸림
+        .merge(health_router)
+        // main_router에만 governor_limiter 적용
+        .merge(main_router.layer(governor_limiter))
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 
