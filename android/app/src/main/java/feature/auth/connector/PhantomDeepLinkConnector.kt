@@ -36,7 +36,7 @@ class PhantomDeepLinkConnector( // PhantomDeepLinkConnector 기능을 묶어둔 
 
         val uri = Uri.parse("https://phantom.app/ul/v1/connect") // 이미지 주소를 저장함
             .buildUpon()
-            .appendQueryParameter("app_url", "https://spentopia.com")
+            .appendQueryParameter("app_url", "https://spentopia.net")
             .appendQueryParameter("cluster", "devnet")
             .appendQueryParameter(
                 "dapp_encryption_public_key",

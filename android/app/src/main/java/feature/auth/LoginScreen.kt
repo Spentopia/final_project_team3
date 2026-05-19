@@ -587,9 +587,10 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                 val isCustomScheme = // 앱 전용 주소인지 저장함
                     uri.scheme == "spentopia" && uri.host == "kakao-callback" // uri.scheme 값을 정해줌
 
+                val apiBaseUri = Uri.parse(BuildConfig.API_BASE_URL) // apiBaseUri 값을 저장함
                 val isHttpCallback = // 웹 콜백 주소인지 저장함
-                    uri.scheme == "http" && // uri.scheme 값을 정해줌
-                            uri.host == "10.0.2.2" && // uri.host 값을 정해줌
+                    (uri.scheme == "http" || uri.scheme == "https") && // uri.scheme 값을 정해줌
+                            uri.host == apiBaseUri.host && // uri.host 값을 정해줌
                             uri.path == "/auth/kakao/callback" // uri.path 값을 정해줌
 
                 if (isCustomScheme || isHttpCallback) { // 조건이 맞는지 확인함

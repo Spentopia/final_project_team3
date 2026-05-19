@@ -86,7 +86,11 @@ import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
 import androidx.compose.ui.layout.ContentScale // 이미지 채우는 방식을 가져옴
 import androidx.compose.ui.platform.LocalContext // 현재 화면 Context를 가져오는 도구를 가져옴
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight // 글자 두께 설정을 가져옴
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
 import androidx.compose.ui.window.Dialog // 팝업 창 컴포넌트를 가져옴
@@ -768,11 +772,12 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
                 } // 블록 끝
 
                 Column(horizontalAlignment = Alignment.End) { // 이 블록의 내용이 여기서 시작됨
-                    Text( // 글자를 화면에 보여주기 시작함
+                    FinancialAmountText( // 금액 글자를 한 줄로 보여줌
                         text = "${formatAmount(currentMonthTotalExpense)}원", // 화면에 보여줄 글자를 정함
-                        fontSize = 28.sp, // 글자 크기를 정함
-                        fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                        color = MaterialTheme.colorScheme.onSurface // 색상을 정함
+                        color = MaterialTheme.colorScheme.onSurface, // 색상을 정함
+                        maxFontSize = 28.sp, // 가장 큰 글자 크기를 정함
+                        minFontSize = 20.sp, // 가장 작은 글자 크기를 정함
+                        lineHeight = 32.sp // 줄 높이를 정함
                     )
                     Text( // 글자를 화면에 보여주기 시작함
                         text = changeRateText, // 화면에 보여줄 글자를 정함
@@ -835,25 +840,67 @@ private fun SummaryMiniCard( // SummaryMiniCard 함수 선언 시작
         border = if (isDark) BorderStroke(1.dp, homeSoftCardBorderColor()) else null // 다크모드 미니 카드 테두리색을 맞춤
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 세로로 배치하는 영역을 시작함
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp) // 안쪽 여백 줄임
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 12.dp) // 안쪽 여백 줄임
         ) { // 이 블록 안의 내용이 시작됨
             Text( // 글자를 화면에 보여주기 시작함
                 text = title, // 화면에 보여줄 글자를 정함
                 fontSize = 11.sp, // 글자 크기를 줄임
+                fontWeight = FontWeight.SemiBold, // 제목 글자 두께를 정함
                 color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF315072), // 색상을 정함
-                maxLines = 1 // 한 줄만 표시
+                maxLines = 1, // 한 줄만 표시
+                softWrap = false, // 자동 줄바꿈을 막음
+                overflow = TextOverflow.Ellipsis // 넘치면 말줄임표 처리
             )
             Spacer(modifier = Modifier.height(6.dp)) // 컴포넌트 사이에 빈 공간을 넣음
-            Text( // 글자를 화면에 보여주기 시작함
+            FinancialAmountText( // 금액 글자를 한 줄로 보여줌
                 text = value, // 화면에 보여줄 글자를 정함
-                fontSize = 14.sp, // 글자 크기를 줄임
-                fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
                 color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF22406A), // 색상을 정함
+                maxFontSize = 14.sp, // 가장 큰 글자 크기를 정함
+                minFontSize = 8.sp, // 가장 작은 글자 크기를 정함
                 lineHeight = 18.sp // 줄 높이 줄임
             )
         } // 블록 끝
     } // 블록 끝
 } // 블록 끝
+
+@Composable
+private fun FinancialAmountText(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color,
+    maxFontSize: TextUnit,
+    minFontSize: TextUnit,
+    lineHeight: TextUnit,
+    fontWeight: FontWeight = FontWeight.Bold,
+    textAlign: TextAlign = TextAlign.End
+) {
+    val fontSize = remember(text, maxFontSize, minFontSize) {
+        val adjustedSize = when {
+            text.length >= 13 -> minFontSize.value
+            text.length >= 11 -> minFontSize.value + 1f
+            text.length >= 9 -> minFontSize.value + 2f
+            else -> maxFontSize.value
+        }
+        adjustedSize.coerceIn(minFontSize.value, maxFontSize.value).sp
+    }
+
+    Text(
+        text = text,
+        modifier = modifier,
+        color = color,
+        fontSize = fontSize,
+        fontWeight = fontWeight,
+        lineHeight = lineHeight,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = textAlign,
+        style = TextStyle(fontFeatureSettings = "tnum")
+    )
+}
 
 // 카테고리가 "수입"인지 판별하는 함수
 private fun isIncomeCategory(category: String): Boolean {

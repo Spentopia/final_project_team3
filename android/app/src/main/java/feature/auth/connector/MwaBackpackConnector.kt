@@ -12,7 +12,7 @@ class MwaBackpackConnector : SolanaWalletConnector { // MwaBackpackConnector 기
 
     private val walletAdapter = MobileWalletAdapter( // 지갑 관련 값을 저장함
         connectionIdentity = ConnectionIdentity( // connectionIdentity 값을 정해줌
-            identityUri = Uri.parse("https://spentopia.com"), // identityUri 값을 정해줌
+            identityUri = Uri.parse("https://spentopia.net"), // identityUri 값을 정해줌
             iconUri = Uri.parse("icon.png"), // iconUri 값을 정해줌
             identityName = "Spentopia" // identityName 값을 정해줌
         )

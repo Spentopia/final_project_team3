@@ -28,17 +28,17 @@ val localProperties = Properties().apply { // localProperties 값을 저장함
 val googleWebClientId = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID") ?: "" // googleWebClientId 값을 저장함
 
 // local.properties에서 백엔드 API 주소를 가져옵니다.
-// 값이 없으면 안드로이드 에뮬레이터에서 로컬 PC 백엔드에 접근하는 기본 주소를 사용
-val apiBaseUrl = localProperties.getProperty("API_BASE_URL") ?: "http://10.0.2.2:1113/" // apiBaseUrl 값을 저장함
+// 값이 없으면 배포 백엔드 주소를 사용합니다.
+val apiBaseUrl = localProperties.getProperty("API_BASE_URL") ?: "https://api.spentopia.net/" // apiBaseUrl 값을 저장함
 
 // Android에서 AI 분석 서버를 직접 호출할 때 사용할 주소입니다.
-// 웹 프론트의 http://localhost:8000/api/v1/analyze/report 와 같은 서버
-val aiAnalyzeBaseUrl = localProperties.getProperty("AI_ANALYZE_BASE_URL") ?: "http://10.0.2.2:8000/" // aiAnalyzeBaseUrl 값을 저장함
+// 웹 프론트의 AI API와 같은 서버입니다.
+val aiAnalyzeBaseUrl = localProperties.getProperty("AI_ANALYZE_BASE_URL") ?: "https://ai.spentopia.net/" // aiAnalyzeBaseUrl 값을 저장함
 
 // Android WebView에서 열 NFT 마켓 웹 URL
-// 로컬 에뮬레이터에서는 localhost 대신 10.0.2.2를 사용
+// 값이 없으면 배포 프론트엔드 주소를 사용합니다.
 val nftMarketWebViewUrl = // 마켓 관련 값을 저장함
-    localProperties.getProperty("NFT_MARKET_WEBVIEW_URL") ?: "http://10.0.2.2:5173/marketplace"
+    localProperties.getProperty("NFT_MARKET_WEBVIEW_URL") ?: "https://spentopia.net/marketplace"
 
 // =====================================================
 // 릴리즈 서명 정보
@@ -101,7 +101,7 @@ android { // 이 블록 안의 내용이 시작됨
         )
 
         // RetrofitClient에서 사용할 백엔드 기본 주소입니다.
-        // android/local.properties에 API_BASE_URL=http://10.0.2.2:1113/ 처럼 적으면 여기로 들어옵니다.
+        // android/local.properties에 API_BASE_URL=https://api.spentopia.net/ 처럼 적으면 여기로 들어옵니다.
         buildConfigField( // build Config Field 함수를 실행함
             "String",
             "API_BASE_URL",
@@ -115,7 +115,7 @@ android { // 이 블록 안의 내용이 시작됨
         )
 
         // MarketScreen WebView에서 로드할 NFT 마켓 웹 페이지 주소
-        // android/local.properties에 NFT_MARKET_WEBVIEW_URL=http://10.0.2.2:5173/marketplace 처럼 설정할 수 있습니다.
+        // android/local.properties에 NFT_MARKET_WEBVIEW_URL=https://spentopia.net/marketplace 처럼 설정할 수 있습니다.
         buildConfigField( // build Config Field 함수를 실행함
             "String",
             "NFT_MARKET_WEBVIEW_URL",
