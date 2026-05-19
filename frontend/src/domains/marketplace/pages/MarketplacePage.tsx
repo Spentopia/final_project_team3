@@ -49,7 +49,7 @@ import { Separator } from "@/shared/ui/separator";
 
 // 도메인 간 훅 참조 — 상대경로(..) 대신 절대경로(@/)로 명확하게
 import { useAvatarItems } from "@/domains/avatar/hooks/useAvatarItems";
-import { syncOwnedNfts } from "@/domains/avatar/api/avatarApi";
+import { getOwnedNfts, syncOwnedNfts } from "@/domains/avatar/api/avatarApi";
 import { useMarket } from "../hooks/useMarket";
 
 // 타입도 도메인 간 참조
@@ -376,7 +376,9 @@ export default function MarketplacePage() {
   const [listingOnChain, setListingOnChain] = useState(false);
   const [cancellingOnChain, setCancellingOnChain] = useState(false);
   const [pendingAvailablePurchaseCount, setPendingAvailablePurchaseCount] = useState(0);
-  const syncingOwnedNfts = false;
+  const [ownedNftCount, setOwnedNftCount] = useState<number | null>(null);
+  const [ownedNftLoading, setOwnedNftLoading] = useState(false);
+  const syncingOwnedNfts = ownedNftLoading;
   const purchaseBalanceShortage = Boolean(
     purchaseTarget &&
       walletAddress &&
@@ -384,10 +386,27 @@ export default function MarketplacePage() {
       (sptBalance ?? 0) < purchaseTarget.price_spt,
   );
 
+  const refreshOwnedNftCount = async () => {
+    setOwnedNftLoading(true);
+    try {
+      const ownedNfts = await getOwnedNfts();
+      setOwnedNftCount(ownedNfts.length);
+    } catch {
+      setOwnedNftCount(null);
+    } finally {
+      setOwnedNftLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshOwnedNftCount();
+  }, [walletAddress]);
+
   const syncInventoryAfterMarketChange = async () => {
     // 구매/취소 API가 성공했다면 DB 상태는 이미 바뀌었으므로
     // 카운트 반영은 온체인 인덱싱을 기다리지 않고 먼저 즉시 당긴다.
     await refetchItems();
+    await refreshOwnedNftCount();
     setPendingAvailablePurchaseCount(0);
 
     // 온체인 보정 동기화는 카운트 표시와 분리해서 한 번만 늦게 실행한다.
@@ -471,6 +490,8 @@ export default function MarketplacePage() {
       const escrowSaved = await updateEscrow(listing.id, escrowAddress, signature);
       if (!escrowSaved) {
         toast.error("온체인 판매 등록은 완료됐지만 DB 에스크로 저장에 실패했습니다. 다시 동기화가 필요합니다.");
+      } else {
+        setOwnedNftCount((count) => (count === null ? null : Math.max(count - 1, 0)));
       }
       void refetchItems();
     } catch (error) {
@@ -585,7 +606,7 @@ export default function MarketplacePage() {
               </div>
               <div className={styles.summaryItem}>
                 <span className={styles.summaryLabel}>등록 가능</span>
-                <strong>{(nftItems.length + pendingAvailablePurchaseCount).toLocaleString()}</strong>
+                <strong>{((ownedNftCount ?? nftItems.length) + pendingAvailablePurchaseCount).toLocaleString()}</strong>
               </div>
               <div className={styles.summaryItem}>
                 <span className={styles.summaryLabel}>내 SPT</span>
