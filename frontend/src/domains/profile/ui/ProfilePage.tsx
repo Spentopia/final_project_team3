@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useUser } from "@/shared/context/UserContext";
 import AvatarPage from "@/domains/avatar/pages/AvatarPage";
-import { getOwnedNfts } from "@/domains/avatar/api/avatarApi";
+import { getOwnedNfts, syncOwnedNfts } from "@/domains/avatar/api/avatarApi";
 import { useSptBalance } from "@/shared/hooks/useSptBalance";
 import { withdrawAccount } from "@/domains/auth/api/auth";
 import { Card } from "@/shared/ui/card";
@@ -106,12 +106,31 @@ export default function ProfilePage() {
   });
   const [isSavingNotifications, setIsSavingNotifications] = useState(false);
 
-  // 마이페이지 진입 시 보유 NFT 수 조회.
-  // 지갑 NFT 동기화는 RootLayout이 연결 지갑 단위로 한 번만 담당한다.
+  // 마이페이지 진입 시 서버에 연동된 지갑 기준으로 NFT를 먼저 동기화한 뒤 수량을 조회한다.
+  // Android WebView에서는 지갑 어댑터 연결 이벤트가 없을 수 있어 이 화면에서도 직접 처리한다.
   useEffect(() => {
-    void getOwnedNfts()
-      .then((items) => setNftCount(items.length))
-      .catch(() => setNftCount(0));
+    let cancelled = false;
+
+    const loadNftCount = async () => {
+      setNftCount(null);
+      try {
+        await syncOwnedNfts({ force: true });
+        const items = await getOwnedNfts();
+        if (!cancelled) {
+          setNftCount(items.length);
+        }
+      } catch {
+        if (!cancelled) {
+          setNftCount(0);
+        }
+      }
+    };
+
+    void loadNftCount();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {

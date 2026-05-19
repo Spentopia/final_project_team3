@@ -460,7 +460,10 @@ export default function MarketplacePage() {
     // 짧은 연속 호출은 Helius/백엔드 rate limit을 건드릴 수 있다.
     window.setTimeout(() => {
       void syncOwnedNfts({ force: true })
-        .then(() => refetchItems())
+        .then(async () => {
+          await refetchItems();
+          await refreshOwnedNftCount();
+        })
         .catch(() => {});
     }, 5000);
   };
