@@ -66,19 +66,22 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
     <aside className="flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[8px_0_30px_rgba(15,23,42,0.04)] backdrop-blur-xl">
       
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
+      <Link
+          to="/"
+          className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6 transition-opacity hover:opacity-80"
+      >
         <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-sidebar-border bg-card shadow-card">
           <img
-            src="/favicon.svg"
-            alt="Spentopia"
-            className="h-8 w-8 object-contain"
+              src="/favicon.svg"
+              alt="Spentopia"
+              className="h-8 w-8 object-contain"
           />
         </div>
         <div>
           <h1 className="font-bold text-sidebar-foreground">Spentopia</h1>
           <p className="text-xs text-[#52647e] dark:text-muted-foreground">소비를 자산으로</p>
         </div>
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
