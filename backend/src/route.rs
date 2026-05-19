@@ -109,6 +109,54 @@ pub fn create_router(state: AppState) -> (Router, Router) {
             .unwrap(),
     );
 
+    // ─────────────────────────────────────────────────────
+    // 3) auth_routes : 로그인/토큰 교환용 빡빡한 rate limit
+    //
+    // brute-force 공격 방어가 목적.
+    //
+    // 대상:
+    //   - /auth/exchange, /auth/wallet/login, /auth/kakao/login 등
+    //     비번/토큰/서명 검증으로 로그인 시도하는 엔드포인트
+    //   - /auth/refresh : refresh token 탈취 시도 방어
+    //   - /auth/wallet/nonce : nonce 발급 후 signature 검증 단계로 가는 시작점
+    //
+    // 제한값 결정 근거:
+    //   - burst 50: 학원 20명 동시 로그인 시연 안전 통과 (20개 사용, 여유 30)
+    //   - 5초당 1개 회복: 정상 사용자는 영향 없음 (5초 안에 5번 로그인 시도 안 함)
+    //                      공격자 1만개 dictionary는 14시간 소요
+    //
+    // 제외:
+    //   - /auth/logout : 공격 가치 없음
+    //   - /auth/kakao/callback : OAuth 브라우저 리다이렉트 (사용자 한 명당 1회)
+    //   - /auth/handoff/exchange : 30초 TTL로 자체 방어 있음
+    //   이들은 전역 governor(50/sec, burst 200)만 받음
+    // ─────────────────────────────────────────────────────
+    let auth_attempt_rate_limit = Arc::new(
+        GovernorConfigBuilder::default()
+            .key_extractor(CloudflareRailwayIpExtractor)
+            .per_millisecond(5_000)
+            .burst_size(50)
+            .finish()
+            .unwrap(),
+    );
+
+    let auth_routes = Router::new()
+        .route("/auth/exchange", post(auth::handler::exchange_token))
+        .route("/auth/app/exchange", post(auth::handler::exchange_token_app))
+        .route("/auth/wallet/nonce", post(auth::handler::request_nonce))
+        .route("/auth/wallet/login", post(auth::handler::wallet_login))
+        .route("/auth/app/wallet/login", post(auth::handler::wallet_login_app))
+        .route("/auth/kakao/start", post(auth::handler::kakao_start))
+        .route("/auth/app/kakao/start", post(auth::handler::kakao_start_app))
+        .route("/auth/kakao/login", post(auth::handler::kakao_login))
+        .route("/auth/app/kakao/login", post(auth::handler::kakao_login_app))
+        .route("/auth/refresh", post(auth::handler::refresh_token))
+        .route("/auth/app/refresh", post(auth::handler::refresh_token_app))
+        .route("/auth/unity/refresh", post(auth::handler::refresh_token_unity))
+        .layer(GovernorLayer {
+            config: auth_attempt_rate_limit,
+        });
+
     let sensitive_routes = Router::new()
         .route("/auth/find-email", post(auth::handler::find_email))
         .route("/auth/check-email", post(auth::handler::check_email))
@@ -125,54 +173,20 @@ pub fn create_router(state: AppState) -> (Router, Router) {
         });
 
     // ─────────────────────────────────────────────────────
-    // 3) public_routes : 인증 불필요, 표준 rate limit 대상
+    // 4) public_routes : 인증 불필요, 표준 rate limit
     //
-    // 로그인/회원가입/토큰 교환 등.
-    // main.rs에서 main_router에 governor_limiter를 걸면
-    // 이 그룹도 표준 rate limit(50/sec, burst 200)을 받게 됨.
+    // 로그인 시도가 아니라 부수적인 공개 엔드포인트.
+    // (로그아웃, OAuth 콜백, handoff exchange)
     //
-    // 따로 layer를 걸 필요 없음.
+    // brute-force 위험 없음 → 전역 governor만 받음.
     // ─────────────────────────────────────────────────────
     let public_routes = Router::new()
-        .route("/auth/exchange", post(auth::handler::exchange_token))
-        .route(
-            "/auth/app/exchange",
-            post(auth::handler::exchange_token_app),
-        )
-        .route("/auth/wallet/nonce", post(auth::handler::request_nonce))
-        .route("/auth/refresh", post(auth::handler::refresh_token))
-        .route("/auth/app/refresh", post(auth::handler::refresh_token_app))
-        .route(
-            "/auth/unity/refresh",
-            post(auth::handler::refresh_token_unity),
-        )
         .route("/auth/logout", post(auth::handler::logout))
         .route("/auth/app/logout", post(auth::handler::logout_app))
         .route("/auth/unity/logout", post(auth::handler::logout_unity))
-        .route("/auth/wallet/login", post(auth::handler::wallet_login))
-        .route(
-            "/auth/app/wallet/login",
-            post(auth::handler::wallet_login_app),
-        )
-        .route("/auth/kakao/start", post(auth::handler::kakao_start))
-        .route(
-            "/auth/app/kakao/start",
-            post(auth::handler::kakao_start_app),
-        )
-        .route("/auth/kakao/login", post(auth::handler::kakao_login))
-        .route(
-            "/auth/app/kakao/login",
-            post(auth::handler::kakao_login_app),
-        )
         .route("/auth/kakao/callback", get(auth::handler::kakao_callback))
-        .route(
-            "/auth/webview/callback",
-            get(auth::handler::webview_callback),
-        )
-        .route(
-            "/auth/handoff/exchange",
-            post(auth::handler::exchange_handoff),
-        );
+        .route("/auth/webview/callback", get(auth::handler::webview_callback))
+        .route("/auth/handoff/exchange", post(auth::handler::exchange_handoff));
 
     // ─────────────────────────────────────────────────────
     // 4) protected_routes : JWT 필수
@@ -493,6 +507,7 @@ pub fn create_router(state: AppState) -> (Router, Router) {
     // ─────────────────────────────────────────────────────
     let main_router = Router::new()
         .merge(sensitive_routes)
+        .merge(auth_routes)         // ← 추가
         .merge(public_routes)
         .merge(protected_routes)
         .merge(admin_routes)
