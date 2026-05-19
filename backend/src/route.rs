@@ -88,21 +88,23 @@ pub fn create_router(state: AppState) -> (Router, Router) {
     //   "이 이메일이 우리 서비스에 가입돼 있는가?"를 알아내는 공격.
     //
     // 제한값 결정 근거:
-    //   - burst 60: 학원/회사망 같은 공용 IP 환경에서
-    //                동시에 18명 정도가 회원가입 시도해도 통과
-    //                (1인당 평균 3개 호출 × 18 = 54)
-    //   - 10초당 1개 회복: 정상 사용자는 영향 없고,
-    //                       공격자 1만개 enumeration은 28시간 소요
+    //   - burst 120: 학원/회사망 같은 공용 IP 환경에서
+    //                 20명이 동시에 회원가입 시연해도 여유 통과
+    //                 (1인당 평균 4개 × 20명 = 80, 안전마진 1.5배)
+    //   - 5초당 1개 회복: 정상 사용자는 영향 없고,
+    //                      공격자 1만개 enumeration은 14시간 소요
     //
     // 공통 버킷 주의:
     //   4개 엔드포인트가 토큰을 공유함.
     //   check-email 30번 쓰면 check-nickname burst도 30 줄어듦.
+    //
+    // 더 빡빡한 방어가 필요하면 Cloudflare WAF에서 별도 룰 추가.
     // ─────────────────────────────────────────────────────
     let enumeration_rate_limit = Arc::new(
         GovernorConfigBuilder::default()
             .key_extractor(CloudflareRailwayIpExtractor)
-            .per_millisecond(10_000)
-            .burst_size(60)
+            .per_millisecond(5_000)
+            .burst_size(120)
             .finish()
             .unwrap(),
     );
