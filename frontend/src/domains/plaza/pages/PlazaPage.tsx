@@ -159,15 +159,16 @@ export default function Plaza() {
               },
               {
                 step: "STEP 03",
-                title: "게임 리소스 설치",
-                desc: "최신 패치와 추가 에셋을 다운로드합니다.",
-                icon: <CheckCircle className="w-4 h-4 text-amber-500" />
+                title: "게임 실행",
+                desc: "스펜토피아(Spentopia) 세계로 입장합니다.",
+                icon: <Play className="w-4 h-4 text-emerald-500" />
               },
               {
                 step: "STEP 04",
-                title: "게임 실행",
-                desc: "스마트 광장(Plaza)으로 입장합니다.",
-                icon: <Play className="w-4 h-4 text-emerald-500" />
+                title: "오류 발생 시",
+                desc: "라이브러리 촤측 하단 게임추가 클릭 -> Steam 외부 게임 추가 -> .exe파일 등록.",
+                icon: <CheckCircle className="w-4 h-4 text-amber-500" />
+
               },
             ].map((item, i) => (
                 <div key={i} className={`${styles.plazaInnerCard} flex items-center justify-between rounded-lg spentopia-market-card-view p-4 transition-all hover:bg-gray-50/50 dark:hover:bg-gray-800/50`}>
