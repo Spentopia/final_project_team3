@@ -231,8 +231,8 @@ async fn main() {
     // ─────────────────────────────────────────────────────────
     let governor_conf = GovernorConfigBuilder::default()
         .key_extractor(CloudflareRailwayIpExtractor)
-        .per_second(50)
-        .burst_size(200)
+        .per_second(500)
+        .burst_size(5000)
         .finish()
         .unwrap();
 
