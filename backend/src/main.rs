@@ -369,13 +369,22 @@ async fn main() {
     // axum에서 .layer()는 나중에 추가한 게 바깥에 감싸진다.
     // 그래서 코드상으로는 cors, trace가 아래에 있지만 실행은 먼저 됨.
     // ─────────────────────────────────────────────────────────
-    let (health_router, main_router) = route::create_router(state);
+    let (health_router, ip_limited_router, protected_router) = route::create_router(state);
 
     let app = axum::Router::new()
-        // health_router는 governor 바깥에 둠 → rate limit 안 걸림
+        // /health, /api/system/status
+        // 상태 확인용이라 rate limit 없음
         .merge(health_router)
-        // main_router에만 governor_limiter 적용
-        .merge(main_router.layer(governor_limiter))
+
+        // 로그인/회원가입/민감 API/관리자/Swagger 등
+        // IP 기준 전역 governor 적용
+        .merge(ip_limited_router.layer(governor_limiter))
+
+        // 로그인 후 일반 API
+        // IP 기준 전역 governor를 적용하지 않음
+        // protected_routes 내부의 user_id 기준 governor만 적용됨
+        .merge(protected_router)
+
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 

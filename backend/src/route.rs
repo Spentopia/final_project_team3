@@ -52,7 +52,7 @@ use crate::wallet;
 /// 반환값: (health_router, main_router)
 /// - health_router: rate limit이 걸리면 안 되는 헬스/공지 엔드포인트
 /// - main_router : 나머지 전부. main.rs에서 governor_limiter를 추가로 감쌈.
-pub fn create_router(state: AppState) -> (Router, Router) {
+pub fn create_router(state: AppState) -> (Router, Router, Router) {
     // ─────────────────────────────────────────────────────
     // 1) health_routes : rate limit 없음
     //
@@ -161,7 +161,7 @@ pub fn create_router(state: AppState) -> (Router, Router) {
         GovernorConfigBuilder::default()
             .key_extractor(CloudflareRailwayIpExtractor)
             .per_millisecond(5_000)
-            .burst_size(50)
+            .burst_size(80)
             .finish()
             .unwrap(),
     );
@@ -546,14 +546,20 @@ pub fn create_router(state: AppState) -> (Router, Router) {
     // governor_limiter와 이중으로 적용되지만,
     // 더 빡빡한 쪽(자체 layer)이 먼저 막으므로 실질적으로 자체값이 적용됨.
     // ─────────────────────────────────────────────────────
-    let main_router = Router::new()
+    // IP 기준 전역 governor를 받을 라우터.
+    // 로그인 전/공개/관리자/민감 API만 여기에 둔다.
+    let ip_limited_router = Router::new()
         .merge(sensitive_routes)
-        .merge(auth_routes)         // ← 추가
+        .merge(auth_routes)
         .merge(public_routes)
-        .merge(protected_routes)
         .merge(admin_routes)
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-        .with_state(state);
+        .with_state(state.clone());
 
-    (health_routes, main_router)
+    // protected_routes는 user_id 기준 governor만 받도록 별도 반환.
+    // 학원/회사/카페 같은 공용 IP 환경에서 여러 사용자가 같은 공인 IP로 묶여도,
+    // 로그인 후 API는 user_id별로 분리되게 하기 위함.
+    let protected_router = protected_routes.with_state(state);
+
+    (health_routes, ip_limited_router, protected_router)
 }
