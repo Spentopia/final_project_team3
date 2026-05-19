@@ -111,6 +111,7 @@ use crate::auth::app_jwt::{generate_token_pair, verify_app_refresh_token};
 use crate::auth::refresh_store::{
     create_refresh_session, revoke_refresh_session, revoke_refresh_session_as_reused,
     revoke_refresh_session_for_rotation, verify_refresh_session,
+    verify_refresh_session_with_rotation_grace,
 };
 
 /// 로그인 성공 시 공통으로 반환할 내부 결과
@@ -182,6 +183,7 @@ struct PublicUserProfileStatusRow {
 
 const APP_SIGNUP_REQUIRED_MESSAGE: &str = "웹에서 회원가입 완료 후 다시 이용해 주세요.";
 const REJOIN_COOLDOWN_DAYS: i64 = 30;
+const REFRESH_ROTATION_GRACE_SECONDS: i64 = 5;
 
 /// UTC DateTime을 한국 시간 기준 문자열로 변환한다.
 ///
@@ -458,19 +460,71 @@ pub async fn rotate_refresh_token(
     // 를 모두 확인한다.
     let session = match verify_refresh_session(state, session_id, refresh_token).await {
         Ok(session) => session,
+
         Err(e) => {
             let msg = e.to_string();
 
-            // reuse 감지 시엔 보수적으로 한 번 더 revoke 처리.
+            // ─────────────────────────────────────────────────────
+            // refresh rotation grace window
             //
-            // 예:
-            // - 이미 rotation된 refresh token을 누군가 다시 사용
-            // - 토큰 재사용 공격 가능성
-            if msg.contains("reuse") || msg.contains("이미 교체된 refresh token") {
-                let _ = revoke_refresh_session_as_reused(state, session_id).await;
-            }
+            // 새로고침 연타나 브라우저 요청 경합으로
+            // 이미 rotation된 refresh token A가 아주 짧은 시간 안에
+            // 한 번 더 서버에 도착할 수 있다.
+            //
+            // 기존:
+            //   A가 revoked 상태면 즉시 401
+            //
+            // 변경:
+            //   A가 방금 rotation된 세션이고
+            //   A.replaced_by_session_id가 가리키는 최신 세션이 아직 살아있으면
+            //   그 최신 세션을 기준으로 다시 rotation한다.
+            //
+            // 단, 오래된 revoked token이나 로그아웃/탈퇴로 폐기된 token은
+            // grace 대상이 아니므로 기존처럼 실패한다.
+            // ─────────────────────────────────────────────────────
+            let maybe_rotation_race = msg.contains("이미 폐기된 refresh session")
+                || msg.contains("이미 교체된 refresh token")
+                || msg.contains("reuse");
 
-            return Err(e);
+            if maybe_rotation_race {
+                match verify_refresh_session_with_rotation_grace(
+                    state,
+                    session_id,
+                    refresh_token,
+                    REFRESH_ROTATION_GRACE_SECONDS,
+                )
+                    .await
+                {
+                    Ok(grace_session) => {
+                        tracing::warn!(
+                        original_session_id = %session_id,
+                        active_session_id = %grace_session.id,
+                        user_id = %grace_session.user_id,
+                        "refresh rotation grace 적용"
+                    );
+
+                        grace_session
+                    }
+
+                    Err(grace_error) => {
+                        tracing::warn!(
+                        original_session_id = %session_id,
+                        error = %msg,
+                        grace_error = %grace_error,
+                        "refresh rotation grace 실패"
+                    );
+
+                        // grace 대상도 아니면 기존 reuse detection 정책 유지.
+                        if msg.contains("reuse") || msg.contains("이미 교체된 refresh token") {
+                            let _ = revoke_refresh_session_as_reused(state, session_id).await;
+                        }
+
+                        return Err(e);
+                    }
+                }
+            } else {
+                return Err(e);
+            }
         }
     };
 
@@ -480,6 +534,10 @@ pub async fn rotate_refresh_token(
     // - web에서 발급된 refresh token을 app refresh endpoint에 넣는 것 차단
     if session.client_type != client_type {
         return Err(anyhow!("refresh client_type 불일치"));
+    }
+
+    if session.user_id != user_id {
+        return Err(anyhow!("refresh user_id 불일치"));
     }
 
     // 4) 새 access/refresh 발급 전 계정 상태 확인.
@@ -509,9 +567,9 @@ pub async fn rotate_refresh_token(
     // 8) 기존 refresh session revoke.
     //
     // rotation이므로 replaced_by_session_id에 새 세션 ID 기록.
-    if let Err(e) = revoke_refresh_session_for_rotation(state, session_id, new_session_id).await {
+    if let Err(e) = revoke_refresh_session_for_rotation(state, session.id, new_session_id).await {
         // 같은 refresh token으로 동시에 들어온 요청 중 늦게 온 쪽이면
-        // 여기서 실패한다.
+        // 여기서 실패할 수 있다.
         //
         // 이미 만든 새 세션은 클라이언트에 반환하지 않으므로
         // best-effort로 폐기해 DB에 살아있는 고아 세션을 남기지 않는다.
