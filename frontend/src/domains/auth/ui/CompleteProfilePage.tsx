@@ -24,7 +24,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card } from "@/shared/ui/card";
-import { Sparkles, Dices } from "lucide-react";
+import { Dices } from "lucide-react";
 import { formatPhone, isValidPhone } from "@/shared/lib/phone";
 
 const NICKNAME_PREFIXES = [
@@ -258,17 +258,20 @@ export default function CompleteProfilePage() {
     setFormData({ ...formData, [field]: value });
   };
 
+  const authPrimaryButtonClass =
+      "spentopia-light-nft-button";
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.16),transparent_34%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-gradient-to-br dark:from-cyan-900 dark:via-blue-900 dark:to-teal-900">
-      <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(125,211,252,0.18),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(37,99,235,0.08),transparent_30%),linear-gradient(180deg,#f8fbff_0%,#ffffff_48%,#eff6ff_100%)] p-4 dark:bg-[#090b16] dark:bg-none">
+      <Card className="w-full max-w-md overflow-hidden border-none bg-white/95 shadow-2xl backdrop-blur-xl dark:bg-[#0b1020]/95 dark:shadow-black/40">
         <div className="p-8">
           <div className="mb-8 flex flex-col items-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#60a5fa] to-[#2563eb] shadow-lg shadow-blue-500/20">
-              <Sparkles className="h-8 w-8 text-white" />
-            </div>
-            <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">프로필 완성</h1>
+            <img src="/favicon.svg" alt="Spentopia" className="mb-4 h-16 w-16" />
+            <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
+              프로필 완성
+            </h1>
             <p className="text-center text-gray-600 dark:text-gray-400">
-              거의 다 왔어요! Step {step} / 2
+              Step {step} / 2
             </p>
           </div>
 
@@ -277,15 +280,30 @@ export default function CompleteProfilePage() {
               <div
                 key={s}
                 className={`h-2 flex-1 rounded-full ${
-                  s <= step ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)]" : "bg-gray-200 dark:bg-gray-700"
+                  s <= step
+                    ? "bg-[#3b82f6] dark:bg-[#2d1847]"
+                    : "bg-sky-100 dark:bg-slate-700"
                 }`}
-              ></div>
+              />
             ))}
           </div>
 
           <form onSubmit={handleNext} className="space-y-4">
             {step === 1 && (
               <>
+                <div>
+                  <Label htmlFor="phone">전화번호</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="010-1234-5678"
+                    value={formData.phone}
+                    onChange={(e) => updateFormData("phone", formatPhone(e.target.value))}
+                    maxLength={13}
+                    className="mt-1"
+                  />
+                </div>
+
                 <div>
                   <Label htmlFor="nickname">닉네임</Label>
                   <div className="mt-1 flex gap-2">
@@ -307,28 +325,13 @@ export default function CompleteProfilePage() {
                       onClick={handleGenerateNickname}
                       disabled={nicknameChecking}
                       title="랜덤 닉네임 생성"
-                      className="flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                      className="flex items-center justify-center rounded-md border border-sky-200/90 bg-white px-3 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] transition-colors hover:bg-[#f0f7ff] disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
                     >
                       <Dices className={`h-4 w-4 text-gray-500 dark:text-gray-400 ${nicknameChecking ? "animate-spin" : ""}`} />
                     </button>
                   </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="phone">전화번호</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="010-1234-5678"
-                    value={formData.phone}
-                    onChange={(e) => updateFormData("phone", formatPhone(e.target.value))}
-                    
-                    maxLength={13}
-                    className="mt-1"
-                  />
-                </div>
-
-                {/* ── 프로필 이미지 업로드 ────────────────────── */}
                 <div>
                   <Label>프로필 이미지 (선택)</Label>
                   <div className="mt-2">
@@ -339,6 +342,9 @@ export default function CompleteProfilePage() {
                       onFileSelect={profileImage.handleFileSelect}
                     />
                   </div>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    나중에 설정할 수 있어요
+                  </p>
                 </div>
               </>
             )}
@@ -358,8 +364,8 @@ export default function CompleteProfilePage() {
                         onClick={() => updateFormData("avatar", avatar.id)}
                         className={`flex flex-col items-center justify-center rounded-xl border-2 p-4 transition-all ${
                           formData.avatar === avatar.id
-                            ? "border-[#2563eb] bg-[#eff6ff] dark:bg-cyan-900/30 shadow-lg"
-                            : "border-gray-200 dark:border-gray-700 hover:border-[#93c5fd] dark:hover:border-cyan-600"
+                            ? "border-[#2563eb] bg-[#eff6ff] shadow-[0_12px_28px_rgba(37,99,235,0.16)] dark:border-[#7c3aed] dark:bg-[#2d1847]"
+                            : "border-sky-200 hover:border-[#2563eb] hover:bg-[#f0f7ff] dark:border-slate-700 dark:hover:border-[#7c3aed] dark:hover:bg-[#2d1847]/70"
                         }`}
                       >
                         <span className="mb-2 text-4xl">{avatar.emoji}</span>
@@ -369,10 +375,10 @@ export default function CompleteProfilePage() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-[#bfdbfe] bg-[#eff6ff] dark:border-cyan-700 dark:bg-cyan-900/30 p-4">
-                  <p className="mb-2 font-bold text-[#1e3a8a] dark:text-purple-100">🎁 가입 축하 선물!</p>
-                  <p className="text-sm text-[#2563eb] dark:text-purple-300">
-                    프로필 완성 시 기본 아바타를 지급해드려요!
+                <div className="rounded-lg border border-sky-200 bg-[#f0f7ff] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_rgba(37,99,235,0.08)] dark:border-[#7c3aed]/40 dark:bg-[#2d1847]">
+                  <p className="mb-2 font-bold text-[#1e3a8a] dark:text-[#f5f3ff]">🎁 프로필 완성 선물!</p>
+                  <p className="text-sm text-[#2563eb] dark:text-[#c4b5fd]">
+                    프로필 완성 시 기본 아바타를 지급하고 바로 서비스를 이용할 수 있어요.
                   </p>
                 </div>
               </>
@@ -380,7 +386,12 @@ export default function CompleteProfilePage() {
 
             <div className="flex gap-3 pt-4">
               {step > 1 && (
-                <Button type="button" variant="outline" onClick={handleBack} className="flex-1 spentopia-light-nft-button">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBack}
+                  className={`flex-1 ${authPrimaryButtonClass}`}
+                >
                   이전
                 </Button>
               )}
@@ -388,10 +399,10 @@ export default function CompleteProfilePage() {
                 type="submit"
                 disabled={loading || profileImage.uploading}
                 variant="outline"
-                className="flex-1 spentopia-light-nft-button"
+                className={`flex-1 ${authPrimaryButtonClass}`}
               >
                 {loading || profileImage.uploading
-                  ? "저장 중..."
+                  ? "처리 중..."
                   : step === 2
                     ? "완료"
                     : "다음"}
@@ -400,11 +411,11 @@ export default function CompleteProfilePage() {
           </form>
 
           {/* 다른 계정으로 로그인하기 — 잘못된 소셜 계정으로 들어온 경우 탈출 */}
-          <div className="mt-4 text-center">
+          <div className="mt-6 text-center">
             <button
               type="button"
               onClick={handleSwitchAccount}
-              className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline underline-offset-2 transition-colors"
+              className="text-sm font-bold text-[#2563eb] underline underline-offset-2 transition-colors hover:text-[#1d4ed8] dark:text-[#c4b5fd] dark:hover:text-[#ddd6fe]"
             >
               다른 계정으로 로그인하기
             </button>
