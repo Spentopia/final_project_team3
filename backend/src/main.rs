@@ -202,37 +202,30 @@ async fn main() {
         .allow_credentials(true);
 
     // ─────────────────────────────────────────────────────────
-    // Rate Limiting 설정
+    // 전역 Rate Limiting (IP 기준)
     //
-    // 기존 문제:
-    // - 기본 PeerIpKeyExtractor는 peer_addr 기준으로 요청자를 구분한다.
-    // - Railway 뒤에서는 peer_addr가 실제 사용자 IP가 아니라
-    //   Railway 내부 프록시 IP, 예: 100.64.x.x 로 잡힌다.
-    // - 그러면 사용자별 IP rate limit이 제대로 동작하지 않을 수 있다.
+    // 모든 main_router 호출에 적용되는 베이스라인 limit.
+    // protected_routes는 user_id 기준 governor도 같이 거치므로
+    // 두 limit 중 더 빡빡한 쪽이 먼저 막는다.
     //
-    // SmartIpKeyExtractor를 쓰지 않는 이유:
-    // - SmartIpKeyExtractor는 x-forwarded-for를 먼저 본다.
-    // - 네 위조 테스트에서 x-forwarded-for leftmost가 8.8.8.8로 조작 가능했다.
-    // - 따라서 공격자가 X-Forwarded-For를 바꿔 보내면
-    //   다른 IP인 척하면서 rate limit을 우회할 수 있다.
+    // 이 전역 governor의 역할:
+    //   - 학원/회사망 30명 이상이 동시 사용해도 IP 총량 방어
+    //   - 가짜 JWT 시도(401 떨어지는 트래픽) 같은 비정상 패턴 방어
+    //   - sensitive/auth는 자체 layer가 더 빡빡해서 거기서 먼저 막힘
     //
-    // 현재 선택:
-    // - Cloudflare Proxied 상태이므로 CF-Connecting-IP를 1순위로 사용.
-    // - fallback으로 X-Real-IP 사용.
-    // - X-Forwarded-For는 사용하지 않음.
+    // 값 변경 이유 (50/200 → 100/500):
+    //   user_id rate limit 도입으로 protected_routes는 사용자 단위로 분리됨.
+    //   따라서 IP 단위는 "공용 IP 전체 부하" 기준으로 더 넉넉하게 잡아도 됨.
+    //   학원 30명 × 평균 10개 동시 호출 = 300개 → burst 500 안전 마진.
     //
     // 제한값:
-    // - per_second(20): 초당 20개 토큰 보충
-    // - burst_size(60): 한 번에 최대 60개까지 허용
-    //
-    // 기존 50/200은 개발 편의성에는 좋지만 배포 환경에서는 너무 널널함.
-    // 20/60은 일반 페이지 로딩, API 여러 개 동시 호출에는 충분하고,
-    // 비정상적인 반복 요청은 429로 막기 시작하는 값.
+    //   - per_second(100): 초당 100개 토큰 보충
+    //   - burst_size(500): 한 번에 최대 500개까지 허용
     // ─────────────────────────────────────────────────────────
     let governor_conf = GovernorConfigBuilder::default()
         .key_extractor(CloudflareRailwayIpExtractor)
-        .per_second(50)
-        .burst_size(200)
+        .per_second(100)
+        .burst_size(500)
         .finish()
         .unwrap();
 

@@ -39,6 +39,7 @@ use tower_governor::{
     errors::GovernorError,
     key_extractor::KeyExtractor,
 };
+use uuid::Uuid;
 
 /// Cloudflare + Railway 환경 전용 IP 추출기.
 ///
@@ -142,4 +143,61 @@ impl KeyExtractor for CloudflareRailwayIpExtractor {
 /// - " 182.220.224.48 "
 fn parse_ip(raw: &str) -> Option<IpAddr> {
     raw.trim().parse::<IpAddr>().ok()
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UserIdExtractor
+//
+// JWT 검증 후 request extension에 들어있는 user_id(UUID)를
+// rate limit key로 사용한다.
+//
+// 어디 쓰는가:
+//   protected_routes (JWT 필수 라우트) 전용.
+//
+// 왜 필요한가:
+//   IP 기반 rate limit은 학원/회사망 같은 공용 NAT 환경에서
+//   "한 IP = 여러 사용자"라 잘못 묶임.
+//   user_id 기반으로 가면 같은 IP에서 20명이 동시에 써도
+//   각자 자기 버킷을 가져서 분리된다.
+//
+// 사용 조건 (중요):
+//   이 extractor를 쓰는 GovernorLayer는 반드시
+//   jwt_middleware보다 안쪽에 박혀있어야 한다.
+//
+//   jwt_middleware가 먼저 실행돼서
+//     request.extensions_mut().insert(user_id)
+//   로 user_id를 박은 다음,
+//   이 extractor가 그 값을 꺼내쓰는 순서.
+//
+// route.rs 예시 (마지막 부분):
+//   let protected_routes = Router::new()
+//       .route(...)
+//       .route(...)
+//       .layer(GovernorLayer { config: user_rate_limit })  ← 안쪽 (먼저 박음)
+//       .route_layer(middleware::from_fn_with_state(
+//           state.clone(),
+//           auth::middleware::jwt_middleware,
+//       ));                                                 ← 바깥 (먼저 실행)
+//
+// axum의 layer는 나중에 추가한 게 바깥쪽에서 감싸므로,
+// 위 코드에서 jwt_middleware가 먼저 실행되어 extension을 채우고,
+// 그 다음 GovernorLayer가 extension에서 user_id를 읽는다.
+//
+// fallback 없음:
+//   user_id 추출 실패 = JWT 검증 통과했는데 extension 비어있음
+//   = 코드 버그 (정상 흐름에선 발생 불가)
+//   → UnableToExtractKey 에러로 명시적 처리
+// ═══════════════════════════════════════════════════════════════
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UserIdExtractor;
+
+impl KeyExtractor for UserIdExtractor {
+    type Key = Uuid;
+
+    fn extract<T>(&self, req: &Request<T>) -> Result<Self::Key, GovernorError> {
+        req.extensions()
+            .get::<Uuid>()
+            .copied()
+            .ok_or(GovernorError::UnableToExtractKey)
+    }
 }

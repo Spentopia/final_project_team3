@@ -39,7 +39,7 @@ use crate::market;
 use crate::notification;
 use crate::openapi::ApiDoc;
 use crate::payment;
-use crate::rate_limit::CloudflareRailwayIpExtractor;
+use crate::rate_limit::{CloudflareRailwayIpExtractor, UserIdExtractor};
 use crate::report;
 use crate::reward;
 use crate::state::AppState;
@@ -105,6 +105,32 @@ pub fn create_router(state: AppState) -> (Router, Router) {
             .key_extractor(CloudflareRailwayIpExtractor)
             .per_millisecond(5_000)
             .burst_size(120)
+            .finish()
+            .unwrap(),
+    );
+
+    // ─────────────────────────────────────────────────────
+    // user_id 기준 rate limit (protected_routes 용)
+    //
+    // IP가 아니라 사용자 단위로 카운트한다.
+    // 같은 IP에서 18~20명이 동시에 써도 각자 자기 버킷을 가짐.
+    //
+    // 제한값 결정 근거:
+    //   - burst 100: 한 사용자가 페이지 진입(7~8개 API) 후
+    //                새로고침 10번 연타해도 통과 (5×7 = 35개)
+    //                → 정상 사용에 영향 없음
+    //   - 1초당 10개 회복: 빠른 페이지 전환에도 따라잡음
+    //   - 봇 행동(분당 600+ 요청)은 burst 100 소진 후 차단
+    //
+    // admin_routes는 별도로 적용하지 않음:
+    //   관리자는 신뢰된 사용자이고 대시보드 등에서 많은 호출 발생 가능.
+    //   전역 IP 기준 governor로 충분.
+    // ─────────────────────────────────────────────────────
+    let user_rate_limit = Arc::new(
+        GovernorConfigBuilder::default()
+            .key_extractor(UserIdExtractor)
+            .per_second(10)
+            .burst_size(100)
             .finish()
             .unwrap(),
     );
@@ -393,6 +419,21 @@ pub fn create_router(state: AppState) -> (Router, Router) {
             delete(market::handler::cancel_listing),
         )
         .route("/api/market/purchase", post(market::handler::purchase))
+        // ───────────────────────────────────────────────
+        // user_id 기준 rate limit
+        //
+        // jwt_middleware보다 안쪽에 박혀있다.
+        // → 실행 순서: 요청 → jwt_middleware → 이 governor → 핸들러
+        //
+        // jwt_middleware가 user_id를 extension에 박은 다음,
+        // UserIdExtractor가 extension에서 그걸 꺼내 key로 사용.
+        //
+        // 같은 학원 IP에서 20명이 써도 각자 분리된 limit을 받음.
+        // ───────────────────────────────────────────────
+        .layer(GovernorLayer {
+            config: user_rate_limit.clone(),
+        })
+        // JWT 미들웨어: 위 모든 라우트에 적용 (가장 바깥 = 먼저 실행)
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth::middleware::jwt_middleware,
