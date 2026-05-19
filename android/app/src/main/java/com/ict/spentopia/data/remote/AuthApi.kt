@@ -42,6 +42,15 @@ data class WebviewIssueResponse( // WebviewIssueResponse 데이터를 묶어둘 
     val expires_in: Int // 만료 시간을 저장함
 )
 
+data class HandoffRequest( // HandoffRequest 데이터를 묶어둘 클래스 시작
+    val target_service: String = "unity" // 게임 로그인 코드를 사용할 대상을 저장함
+)
+
+data class HandoffResponse( // HandoffResponse 데이터를 묶어둘 클래스 시작
+    val handoff_token: String, // 화면에 표시할 게임 로그인 코드를 저장함
+    val expires_in: Int // 코드 만료 시간을 초 단위로 저장함
+)
+
 interface AuthApi { // AuthApi에서 꼭 만들어야 할 함수 규칙을 정함
 
     @POST("/auth/app/exchange") // 서버에 데이터를 보내는 API 주소를 적음
@@ -66,4 +75,10 @@ interface AuthApi { // AuthApi에서 꼭 만들어야 할 함수 규칙을 정�
         @Header("X-Client-Type") clientType: String = "app", // 이 값을 서버 요청 헤더에 넣는다는 표시
         @Body request: WebviewIssueRequest // 이 값을 서버 요청 본문에 넣는다는 표시
     ): WebviewIssueResponse
+
+    @POST("/auth/handoff") // 서버에 데이터를 보내는 API 주소를 적음
+    suspend fun issueGameLoginCode( // issueGameLoginCode 함수를 선언함
+        @Header("X-Client-Type") clientType: String = "app", // 앱 요청임을 서버에 알려줌
+        @Body request: HandoffRequest = HandoffRequest() // Unity 게임 로그인 코드 발급 요청
+    ): HandoffResponse
 }
