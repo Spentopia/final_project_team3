@@ -33,6 +33,98 @@ fn is_supported_avatar_slot(slot_name: &str) -> bool {
     SUPPORTED_AVATAR_SLOTS.contains(&slot_name)
 }
 
+async fn get_active_listing_item_ids_for_user(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<std::collections::HashSet<Uuid>> {
+    #[derive(Deserialize)]
+    struct ActiveListingRow {
+        item_id: Uuid,
+    }
+
+    let url = format!(
+        "{}/rest/v1/market_listings?seller_id=eq.{}&status=eq.active&select=item_id",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("market_listings 활성 판매 아이템 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "market_listings 활성 판매 아이템 조회 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    Ok(res
+        .json::<Vec<ActiveListingRow>>()
+        .await
+        .context("market_listings 활성 판매 아이템 역직렬화 실패")?
+        .into_iter()
+        .map(|row| row.item_id)
+        .collect())
+}
+
+async fn get_active_listing_mints_for_user(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<std::collections::HashSet<String>> {
+    #[derive(Deserialize)]
+    struct ActiveListingInventoryRow {
+        nft_mint_address: Option<String>,
+    }
+
+    #[derive(Deserialize)]
+    struct ActiveListingRow {
+        user_inventory: ActiveListingInventoryRow,
+    }
+
+    let url = format!(
+        "{}/rest/v1/market_listings?seller_id=eq.{}&status=eq.active&select=user_inventory!item_id(nft_mint_address)",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("market_listings 활성 판매 NFT 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "market_listings 활성 판매 NFT 조회 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    Ok(res
+        .json::<Vec<ActiveListingRow>>()
+        .await
+        .context("market_listings 활성 판매 NFT 역직렬화 실패")?
+        .into_iter()
+        .filter_map(|row| row.user_inventory.nft_mint_address)
+        .filter(|mint| !mint.trim().is_empty())
+        .collect())
+}
+
 async fn ensure_nft_record_not_reused(
     state: &AppState,
     table: &str,
@@ -517,6 +609,8 @@ pub async fn get_user_items(
         return Err(anyhow!("user_items SELECT 실패: {}", body));
     }
 
+    let active_listing_item_ids = get_active_listing_item_ids_for_user(state, user_id).await?;
+
     // Vec<UserItemRaw> 역직렬화
     let raw: Vec<UserItemRaw> = res.json().await.context("user_items 역직렬화 실패")?;
 
@@ -525,6 +619,7 @@ pub async fn get_user_items(
     let items = raw
         .into_iter()
         .filter(|r| is_supported_avatar_slot(&r.item_master.category))
+        .filter(|r| !active_listing_item_ids.contains(&r.id))
         .map(|r| UserItemResponse {
             id: r.id,
             item_id: r.item_id,
@@ -911,9 +1006,14 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
     .await
     .context("컬렉션 NFT 조회 실패")?;
 
+    let active_listing_mints = get_active_listing_mints_for_user(state, user_id).await?;
+
     let mut owned = Vec::with_capacity(assets.len());
     for asset in assets {
         let mint_address = asset["id"].as_str().unwrap_or_default().to_string();
+        if active_listing_mints.contains(&mint_address) {
+            continue;
+        }
         let metadata_uri = asset["content"]["json_uri"].as_str().map(str::to_string);
         let fallback_name = asset["content"]["metadata"]["name"]
             .as_str()
