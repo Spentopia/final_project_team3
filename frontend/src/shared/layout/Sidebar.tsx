@@ -68,18 +68,19 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
       {/* Logo */}
       <Link
           to="/"
-          className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6 transition-opacity hover:opacity-80"
+          className="relative z-50 flex h-16 w-full cursor-pointer items-center gap-3 border-b border-sidebar-border px-6 transition-all hover:opacity-80 active:scale-[0.98]"
+          style={{ pointerEvents: 'auto' }} // 브라우저가 간혹 이벤트를 차단하는 것을 방지
       >
-        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-sidebar-border bg-card shadow-card">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-sidebar-border bg-card shadow-card">
           <img
               src="/favicon.svg"
               alt="Spentopia"
               className="h-8 w-8 object-contain"
           />
         </div>
-        <div>
-          <h1 className="font-bold text-sidebar-foreground">Spentopia</h1>
-          <p className="text-xs text-[#52647e] dark:text-muted-foreground">소비를 자산으로</p>
+        <div className="pointer-events-none"> {/* 내부 글씨 때문에 클릭이 씹히는 현상 방지 */}
+          <h1 className="font-bold text-sidebar-foreground text-sm leading-tight">Spentopia</h1>
+          <p className="text-[11px] text-[#52647e] dark:text-muted-foreground mt-0.5">소비를 자산으로</p>
         </div>
       </Link>
 
