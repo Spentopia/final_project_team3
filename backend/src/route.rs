@@ -27,6 +27,7 @@ use crate::market;
 use crate::notification;
 use crate::openapi::ApiDoc;
 use crate::payment;
+use crate::rate_limit::CloudflareRailwayIpExtractor;
 use crate::report;
 use crate::reward;
 use crate::state::AppState;
@@ -84,11 +85,12 @@ pub fn create_router(state: AppState) -> Router {
             "/auth/handoff/exchange",
             post(auth::handler::exchange_handoff),
         );
-    // ── 열거 공격 방어 전용 rate limit ───────────────────────────
+
     let enumeration_rate_limit = Arc::new(
         GovernorConfigBuilder::default()
+            .key_extractor(CloudflareRailwayIpExtractor)
             .per_millisecond(30_000)
-            .burst_size(3)
+            .burst_size(20)
             .finish()
             .unwrap(),
     );
