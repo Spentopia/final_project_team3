@@ -802,6 +802,15 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
       background: "#f8fbff",
       boxShadow: "0 2px 10px rgba(15, 23, 42, 0.04)",
     }
+  : isDarkMode
+  ? {
+      border: "1px solid rgba(167, 139, 250, 0.34)",
+      color: "#f8fafc",
+      background:
+        "linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.96)), radial-gradient(circle at 12% 0%, rgba(124, 58, 237, 0.18), transparent 34%), radial-gradient(circle at 88% 8%, rgba(56, 189, 248, 0.08), transparent 30%)",
+      boxShadow:
+        "inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(167, 139, 250, 0.08), 0 0 0 1px rgba(124, 58, 237, 0.16), 0 18px 44px rgba(0, 0, 0, 0.28), 0 4px 18px rgba(124, 58, 237, 0.12)",
+    }
   : {
       border: "1px solid rgba(125, 211, 252, 0.62)",
       backgroundImage:
@@ -809,6 +818,35 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
       boxShadow:
         "inset 0 1px 0 rgba(255, 255, 255, 0.96), inset 0 0 0 1px rgba(37, 99, 235, 0.07), 0 0 0 1px rgba(125, 211, 252, 0.34), 0 18px 44px rgba(37, 99, 235, 0.12), 0 4px 16px rgba(15, 23, 42, 0.06)",
     };
+
+  const aiResultCardStyle = isDarkMode
+    ? {
+        border: "1px solid rgba(167, 139, 250, 0.34)",
+        background:
+          "linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.96))",
+        color: "#f8fafc",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 28px rgba(0,0,0,0.24)",
+      }
+    : {
+        border: "1px solid #dbe4f0",
+        background: "#ffffff",
+        color: "#111827",
+        boxShadow: "0 2px 10px rgba(15, 23, 42, 0.04)",
+      };
+
+  const aiEmptyStateStyle = isDarkMode
+    ? {
+        borderColor: "rgba(167, 139, 250, 0.34)",
+        background: "rgba(15, 23, 42, 0.62)",
+        color: "#cbd5e1",
+      }
+    : {
+        borderColor: "#d1d5db",
+        background: "#ffffff",
+        color: "#6b7280",
+      };
+  const aiHeadingStyle = { color: isDarkMode ? "#f8fafc" : "#111827" };
+  const aiBodyStyle = { color: isDarkMode ? "#cbd5e1" : "#374151" };
 
   return (
     <>
@@ -1101,38 +1139,38 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
   {aiReport ? (
   <div className="grid gap-4 md:grid-cols-2">
 
-    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
-      <h4 className="font-bold text-gray-900 dark:text-white">👍 좋은 점</h4>
-      <p className="text-sm text-gray-700 dark:text-gray-300">
+    <div style={aiResultCardStyle} className="rounded-lg p-4">
+      <h4 style={aiHeadingStyle} className="font-bold">👍 좋은 점</h4>
+      <p style={aiBodyStyle} className="text-sm">
         {aiReport.good}
       </p>
     </div>
 
-    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
-      <h4 className="font-bold text-gray-900 dark:text-white">⚠️ 주의</h4>
-      <p className="text-sm text-gray-700 dark:text-gray-300">
+    <div style={aiResultCardStyle} className="rounded-lg p-4">
+      <h4 style={aiHeadingStyle} className="font-bold">⚠️ 주의</h4>
+      <p style={aiBodyStyle} className="text-sm">
         {aiReport.warning}
       </p>
     </div>
 
-    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
-      <h4 className="font-bold text-gray-900 dark:text-white">💡 조언</h4>
-      <p className="text-sm text-gray-700 dark:text-gray-300">
+    <div style={aiResultCardStyle} className="rounded-lg p-4">
+      <h4 style={aiHeadingStyle} className="font-bold">💡 조언</h4>
+      <p style={aiBodyStyle} className="text-sm">
         {aiReport.advice}
       </p>
     </div>
 
-    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
-      <h4 className="font-bold text-gray-900 dark:text-white">📈 예측</h4>
-      <p className="text-sm text-gray-700 dark:text-gray-300">
+    <div style={aiResultCardStyle} className="rounded-lg p-4">
+      <h4 style={aiHeadingStyle} className="font-bold">📈 예측</h4>
+      <p style={aiBodyStyle} className="text-sm">
         {aiReport.prediction}
       </p>
     </div>
 
   </div>
 ) : (
-  <div className="rounded-xl border-2 border-dashed border-gray-300 p-10 text-center">
-    <p className="text-gray-500 dark:text-gray-400">
+  <div style={aiEmptyStateStyle} className="rounded-xl border-2 border-dashed p-10 text-center">
+    <p>
       아직 AI 소비 분석 리포트가 생성되지 않았습니다
     </p>
   </div>
@@ -1159,24 +1197,24 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
   {patternReport ? (
     <div className="grid gap-6 md:grid-cols-2">
 
-      <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-5`}>
-        <h4 className="mb-2 font-bold text-gray-900 dark:text-white">📊 분석</h4>
-        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+      <div style={aiResultCardStyle} className="rounded-lg p-5">
+        <h4 style={aiHeadingStyle} className="mb-2 font-bold">📊 분석</h4>
+        <p style={aiBodyStyle} className="text-sm leading-relaxed">
   {(patternReport.pattern ?? "").replace("소비 패턴 분석:", "")}
 </p>
       </div>
 
-      <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-5`}>
-        <h4 className="mb-2 font-bold text-gray-900 dark:text-white">💡 개선 방안</h4>
-        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+      <div style={aiResultCardStyle} className="rounded-lg p-5">
+        <h4 style={aiHeadingStyle} className="mb-2 font-bold">💡 개선 방안</h4>
+        <p style={aiBodyStyle} className="text-sm leading-relaxed">
           {patternReport.improvement}
         </p>
       </div>
 
     </div>
   ) : (
-    <div className="rounded-xl border-2 border-dashed border-gray-300 p-10 text-center">
-  <p className="text-gray-500 dark:text-gray-400">
+    <div style={aiEmptyStateStyle} className="rounded-xl border-2 border-dashed p-10 text-center">
+  <p>
     아직 AI 소비 패턴 분석이 생성되지 않았습니다
   </p>
 </div>
