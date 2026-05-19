@@ -1051,11 +1051,10 @@ pub async fn mint_avatar_nft_to_user(
     Ok((signature, mint_address))
 }
 
-pub async fn get_collection_assets_by_owner(
+pub async fn get_assets_by_owner(
     rpc_url: &str,
     client: &reqwest::Client,
     owner_wallet_b58: &str,
-    collection_mint_b58: &str,
 ) -> Result<Vec<serde_json::Value>> {
     let response = client
         .post(rpc_url)
@@ -1095,6 +1094,17 @@ pub async fn get_collection_assets_by_owner(
         .as_array()
         .cloned()
         .unwrap_or_default();
+
+    Ok(items)
+}
+
+pub async fn get_collection_assets_by_owner(
+    rpc_url: &str,
+    client: &reqwest::Client,
+    owner_wallet_b58: &str,
+    collection_mint_b58: &str,
+) -> Result<Vec<serde_json::Value>> {
+    let items = get_assets_by_owner(rpc_url, client, owner_wallet_b58).await?;
 
     let filtered = items
         .into_iter()

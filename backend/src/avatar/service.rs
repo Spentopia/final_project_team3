@@ -986,6 +986,16 @@ pub async fn get_equipment(state: &AppState, user_id: Uuid) -> Result<Vec<Equipm
     Ok(slots)
 }
 
+fn asset_belongs_to_collection(asset: &serde_json::Value, collection_mint: &str) -> bool {
+    !collection_mint.is_empty()
+        && asset["grouping"].as_array().is_some_and(|groups| {
+            groups.iter().any(|group| {
+                group["group_key"].as_str() == Some("collection")
+                    && group["group_value"].as_str() == Some(collection_mint)
+            })
+        })
+}
+
 pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<OwnedNftResponse>> {
     let wallet_address = match get_user_wallet_optional(state, user_id).await? {
         Some(wallet) => wallet,
@@ -993,18 +1003,14 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
     };
 
     let collection_mint = state.config.solana_avatar_collection_mint.trim();
-    if collection_mint.is_empty() {
-        return Ok(Vec::new());
-    }
 
-    let assets = solana_client::get_collection_assets_by_owner(
+    let assets = solana_client::get_assets_by_owner(
         &state.config.solana_rpc_url,
         &state.http_client,
         &wallet_address,
-        collection_mint,
     )
     .await
-    .context("컬렉션 NFT 조회 실패")?;
+    .context("지갑 NFT 조회 실패")?;
 
     let open_listing_mints = get_open_listing_mints_for_user(state, user_id).await?;
 
@@ -1032,11 +1038,25 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
             metadata_uri: Option<String>,
         }
 
-        let avatar_item = if let Some(uri) = metadata_uri.as_deref() {
+        let is_collection_asset = asset_belongs_to_collection(&asset, collection_mint);
+        let item_filter = match metadata_uri.as_deref().filter(|v| !v.trim().is_empty()) {
+            Some(uri) if !fallback_name.trim().is_empty() => Some(format!(
+                "or=(metadata_uri.eq.{},name.eq.{})",
+                urlencoding::encode(uri),
+                urlencoding::encode(&fallback_name)
+            )),
+            Some(uri) => Some(format!("metadata_uri=eq.{}", urlencoding::encode(uri))),
+            None if !fallback_name.trim().is_empty() => {
+                Some(format!("name=eq.{}", urlencoding::encode(&fallback_name)))
+            }
+            None => None,
+        };
+
+        let avatar_item = if let Some(filter) = item_filter {
             let lookup_url = format!(
-                "{}/rest/v1/item_master?metadata_uri=eq.{}&select=id,name,category,image_url,metadata_uri&limit=1",
+                "{}/rest/v1/item_master?{}&select=id,name,category,image_url,metadata_uri&limit=1",
                 state.config.supabase_url.trim_end_matches('/'),
-                urlencoding::encode(uri)
+                filter
             );
 
             let lookup_res = state
@@ -1064,6 +1084,10 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
         } else {
             None
         };
+
+        if !is_collection_asset && avatar_item.is_none() {
+            continue;
+        }
 
         if avatar_item
             .as_ref()
@@ -1106,21 +1130,14 @@ pub async fn sync_owned_nfts(state: &AppState, user_id: Uuid) -> Result<SyncOwne
     };
 
     let collection_mint = state.config.solana_avatar_collection_mint.trim();
-    if collection_mint.is_empty() {
-        return Ok(SyncOwnedNftsResponse {
-            synced_count: 0,
-            skipped_count: 0,
-        });
-    }
 
-    let assets = solana_client::get_collection_assets_by_owner(
+    let assets = solana_client::get_assets_by_owner(
         &state.config.solana_rpc_url,
         &state.http_client,
         &wallet_address,
-        collection_mint,
     )
     .await
-    .context("컬렉션 NFT 동기화 조회 실패")?;
+    .context("지갑 NFT 동기화 조회 실패")?;
 
     #[derive(Clone)]
     struct ChainNftAsset {
