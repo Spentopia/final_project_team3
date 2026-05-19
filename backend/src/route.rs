@@ -90,7 +90,7 @@ pub fn create_router(state: AppState) -> Router {
         GovernorConfigBuilder::default()
             .key_extractor(CloudflareRailwayIpExtractor)
             .per_millisecond(30_000)
-            .burst_size(20)
+            .burst_size(500)
             .finish()
             .unwrap(),
     );
