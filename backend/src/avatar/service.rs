@@ -33,7 +33,7 @@ fn is_supported_avatar_slot(slot_name: &str) -> bool {
     SUPPORTED_AVATAR_SLOTS.contains(&slot_name)
 }
 
-async fn get_active_listing_item_ids_for_user(
+async fn get_open_listing_item_ids_for_user(
     state: &AppState,
     user_id: Uuid,
 ) -> Result<std::collections::HashSet<Uuid>> {
@@ -43,7 +43,7 @@ async fn get_active_listing_item_ids_for_user(
     }
 
     let url = format!(
-        "{}/rest/v1/market_listings?seller_id=eq.{}&status=eq.active&select=item_id",
+        "{}/rest/v1/market_listings?seller_id=eq.{}&status=in.(pending_onchain,active)&select=item_id",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
@@ -76,7 +76,7 @@ async fn get_active_listing_item_ids_for_user(
         .collect())
 }
 
-async fn get_active_listing_mints_for_user(
+async fn get_open_listing_mints_for_user(
     state: &AppState,
     user_id: Uuid,
 ) -> Result<std::collections::HashSet<String>> {
@@ -91,7 +91,7 @@ async fn get_active_listing_mints_for_user(
     }
 
     let url = format!(
-        "{}/rest/v1/market_listings?seller_id=eq.{}&status=eq.active&select=user_inventory!item_id(nft_mint_address)",
+        "{}/rest/v1/market_listings?seller_id=eq.{}&status=in.(pending_onchain,active)&select=user_inventory!item_id(nft_mint_address)",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
@@ -609,7 +609,7 @@ pub async fn get_user_items(
         return Err(anyhow!("user_items SELECT 실패: {}", body));
     }
 
-    let active_listing_item_ids = get_active_listing_item_ids_for_user(state, user_id).await?;
+    let open_listing_item_ids = get_open_listing_item_ids_for_user(state, user_id).await?;
 
     // Vec<UserItemRaw> 역직렬화
     let raw: Vec<UserItemRaw> = res.json().await.context("user_items 역직렬화 실패")?;
@@ -619,7 +619,7 @@ pub async fn get_user_items(
     let items = raw
         .into_iter()
         .filter(|r| is_supported_avatar_slot(&r.item_master.category))
-        .filter(|r| !active_listing_item_ids.contains(&r.id))
+        .filter(|r| !open_listing_item_ids.contains(&r.id))
         .map(|r| UserItemResponse {
             id: r.id,
             item_id: r.item_id,
@@ -1006,12 +1006,12 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
     .await
     .context("컬렉션 NFT 조회 실패")?;
 
-    let active_listing_mints = get_active_listing_mints_for_user(state, user_id).await?;
+    let open_listing_mints = get_open_listing_mints_for_user(state, user_id).await?;
 
     let mut owned = Vec::with_capacity(assets.len());
     for asset in assets {
         let mint_address = asset["id"].as_str().unwrap_or_default().to_string();
-        if active_listing_mints.contains(&mint_address) {
+        if open_listing_mints.contains(&mint_address) {
             continue;
         }
         let metadata_uri = asset["content"]["json_uri"].as_str().map(str::to_string);

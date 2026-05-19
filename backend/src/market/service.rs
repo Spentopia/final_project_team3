@@ -74,6 +74,159 @@ struct UserItemNftRow {
     nft_mint_address: Option<String>,
 }
 
+async fn repair_pending_onchain_listings(state: &AppState) -> Result<()> {
+    #[derive(Deserialize)]
+    struct PendingListingInventoryRow {
+        nft_mint_address: Option<String>,
+    }
+
+    #[derive(Deserialize)]
+    struct PendingListingSellerRow {
+        wallet_address: Option<String>,
+    }
+
+    #[derive(Deserialize)]
+    struct PendingListingRow {
+        id: Uuid,
+        price_spt: i32,
+        user_inventory: PendingListingInventoryRow,
+        users: PendingListingSellerRow,
+    }
+
+    let url = format!(
+        "{}/rest/v1/market_listings?status=eq.pending_onchain&select=id,price_spt,user_inventory!item_id(nft_mint_address),users!seller_id(wallet_address)&limit=20",
+        state.config.supabase_url.trim_end_matches('/'),
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("pending_onchain market_listings 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        tracing::warn!(
+            "pending_onchain market_listings 조회 실패: {}",
+            res.text().await.unwrap_or_default()
+        );
+        return Ok(());
+    }
+
+    let rows: Vec<PendingListingRow> = res
+        .json()
+        .await
+        .context("pending_onchain market_listings 역직렬화 실패")?;
+
+    for row in rows {
+        let Some(seller_wallet) = row.users.wallet_address.as_deref() else {
+            continue;
+        };
+        let Some(nft_mint) = row.user_inventory.nft_mint_address.as_deref() else {
+            continue;
+        };
+
+        let listing_pda = match solana_client::derive_listing_address(
+            seller_wallet,
+            nft_mint,
+            &state.config.solana_program_id,
+        ) {
+            Ok(value) => value,
+            Err(err) => {
+                tracing::warn!("pending listing PDA 계산 실패: listing_id={} err={}", row.id, err);
+                continue;
+            }
+        };
+        let escrow_address = match solana_client::derive_escrow_address(
+            &listing_pda,
+            &state.config.solana_program_id,
+        ) {
+            Ok(value) => value,
+            Err(err) => {
+                tracing::warn!("pending escrow PDA 계산 실패: listing_id={} err={}", row.id, err);
+                continue;
+            }
+        };
+
+        let listing_exists = match solana_client::account_exists(
+            &state.config.solana_rpc_url,
+            &state.http_client,
+            &listing_pda,
+        )
+        .await
+        {
+            Ok(value) => value,
+            Err(err) => {
+                tracing::warn!("pending listing 온체인 조회 실패: listing_id={} err={}", row.id, err);
+                continue;
+            }
+        };
+        if !listing_exists {
+            continue;
+        }
+
+        let escrow_amount = match solana_client::get_spl_token_account_amount(
+            &state.config.solana_rpc_url,
+            &state.http_client,
+            &escrow_address,
+        )
+        .await
+        {
+            Ok(value) => value.unwrap_or(0),
+            Err(err) => {
+                tracing::warn!("pending escrow 온체인 조회 실패: listing_id={} err={}", row.id, err);
+                continue;
+            }
+        };
+        if escrow_amount < 1 {
+            continue;
+        }
+
+        let patch_url = format!(
+            "{}/rest/v1/market_listings?id=eq.{}&status=eq.pending_onchain",
+            state.config.supabase_url.trim_end_matches('/'),
+            row.id,
+        );
+        let patch_res = state
+            .http_client
+            .patch(&patch_url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", state.config.supabase_secret_key),
+            )
+            .header("apikey", &state.config.supabase_secret_key)
+            .header("Prefer", "return=minimal")
+            .json(&serde_json::json!({
+                "escrow_address": escrow_address,
+                "status": "active",
+            }))
+            .send()
+            .await
+            .context("pending_onchain market_listings 복구 PATCH 요청 실패")?;
+
+        if patch_res.status().is_success() {
+            tracing::info!(
+                "pending_onchain listing 복구 완료: listing_id={} price_spt={}",
+                row.id,
+                row.price_spt
+            );
+        } else {
+            tracing::warn!(
+                "pending_onchain market_listings 복구 PATCH 실패: listing_id={} body={}",
+                row.id,
+                patch_res.text().await.unwrap_or_default()
+            );
+        }
+    }
+
+    Ok(())
+}
+
 async fn get_user_wallet(state: &AppState, user_id: Uuid) -> Result<String> {
     let url = format!(
         "{}/rest/v1/users?id=eq.{}&select=wallet_address",
@@ -153,6 +306,43 @@ async fn get_user_item_nft(state: &AppState, user_id: Uuid, user_item_id: Uuid) 
         .ok_or_else(|| anyhow!("NFT mint 주소가 없는 아이템입니다"))
 }
 
+async fn ensure_item_not_open_listing(state: &AppState, user_item_id: Uuid) -> Result<()> {
+    let url = format!(
+        "{}/rest/v1/market_listings?item_id=eq.{}&status=in.(pending_onchain,active)&select=id,status&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_item_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("market_listings 중복 판매 등록 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "market_listings 중복 판매 등록 조회 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rows: Vec<serde_json::Value> = res
+        .json()
+        .await
+        .context("market_listings 중복 판매 등록 역직렬화 실패")?;
+    if !rows.is_empty() {
+        return Err(anyhow!("이미 판매 등록 중인 NFT입니다"));
+    }
+
+    Ok(())
+}
+
 // create_listing
 //
 /// public.market_listings에 판매 등록 row를 생성하고 ListingResponse를 반환한다.
@@ -174,6 +364,7 @@ pub async fn create_listing(
 
     let seller_wallet = get_user_wallet(state, user_id).await?;
     let nft_mint_address = get_user_item_nft(state, user_id, req.item_id).await?;
+    ensure_item_not_open_listing(state, req.item_id).await?;
     solana_client::derive_listing_address(
         &seller_wallet,
         &nft_mint_address,
@@ -304,6 +495,10 @@ async fn fetch_listing_response(state: &AppState, listing_id: Uuid) -> Result<Li
 ///
 /// 페이지네이션 없이 전체 반환 (아이템 수가 적은 MVP 단계 기준).
 pub async fn get_listings(state: &AppState) -> Result<Vec<ListingResponse>> {
+    if let Err(err) = repair_pending_onchain_listings(state).await {
+        tracing::warn!("pending_onchain listing 복구 중 오류: {}", err);
+    }
+
     let url = format!(
         "{}/rest/v1/market_listings?status=eq.active&escrow_address=not.is.null&select=*,users!seller_id(nickname,wallet_address),user_inventory!item_id(nft_mint_address,item_master(name,image_url,category))&order=listed_at.desc",
         state.config.supabase_url.trim_end_matches('/'),

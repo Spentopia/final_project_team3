@@ -393,10 +393,10 @@ export default function MarketplacePage() {
     // 온체인 보정 동기화는 카운트 표시와 분리해서 한 번만 늦게 실행한다.
     // 짧은 연속 호출은 Helius/백엔드 rate limit을 건드릴 수 있다.
     window.setTimeout(() => {
-      void syncOwnedNfts({ force: true })
+      void syncOwnedNfts()
         .then(() => refetchItems())
         .catch(() => {});
-    }, 1800);
+    }, 5000);
   };
 
   // ──────────────────────────────────────────────────────────

@@ -206,6 +206,74 @@ pub fn derive_escrow_address(listing_b58: &str, program_id_str: &str) -> Result<
     Ok(bs58::encode(escrow).into_string())
 }
 
+async fn get_account_data(
+    rpc_url: &str,
+    client: &reqwest::Client,
+    account_b58: &str,
+) -> Result<Option<Vec<u8>>> {
+    let res: serde_json::Value = client
+        .post(rpc_url)
+        .json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getAccountInfo",
+            "params": [
+                account_b58,
+                {"encoding": "base64", "commitment": "confirmed"}
+            ]
+        }))
+        .send()
+        .await
+        .context("getAccountInfo 요청 실패")?
+        .json()
+        .await
+        .context("getAccountInfo 파싱 실패")?;
+
+    if let Some(err) = res.get("error") {
+        return Err(anyhow!("getAccountInfo 실패: {}", err));
+    }
+
+    if res["result"]["value"].is_null() {
+        return Ok(None);
+    }
+
+    let data_b64 = res["result"]["value"]["data"]
+        .as_array()
+        .and_then(|arr| arr.first())
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow!("getAccountInfo data 필드 없음"))?;
+
+    Ok(Some(base64_decode(data_b64)?))
+}
+
+pub async fn account_exists(
+    rpc_url: &str,
+    client: &reqwest::Client,
+    account_b58: &str,
+) -> Result<bool> {
+    Ok(get_account_data(rpc_url, client, account_b58)
+        .await?
+        .is_some())
+}
+
+pub async fn get_spl_token_account_amount(
+    rpc_url: &str,
+    client: &reqwest::Client,
+    token_account_b58: &str,
+) -> Result<Option<u64>> {
+    let Some(data) = get_account_data(rpc_url, client, token_account_b58).await? else {
+        return Ok(None);
+    };
+
+    let amount_bytes: [u8; 8] = data
+        .get(64..72)
+        .ok_or_else(|| anyhow!("SPL token account amount 데이터 길이 부족"))?
+        .try_into()
+        .map_err(|_| anyhow!("SPL token account amount 파싱 실패"))?;
+
+    Ok(Some(u64::from_le_bytes(amount_bytes)))
+}
+
 pub async fn get_platform_fee_rate(
     rpc_url: &str,
     client: &reqwest::Client,
