@@ -388,10 +388,12 @@ export default function MarketplacePage() {
   const [cancelTarget, setCancelTarget] = useState<ListingResponse | null>(null);
   const [listingOnChain, setListingOnChain] = useState(false);
   const [cancellingOnChain, setCancellingOnChain] = useState(false);
+  const [openingCreateDialog, setOpeningCreateDialog] = useState(false);
+  const [initialNftSyncing, setInitialNftSyncing] = useState(false);
   const [pendingAvailablePurchaseCount, setPendingAvailablePurchaseCount] = useState(0);
   const [ownedNftCount, setOwnedNftCount] = useState<number | null>(null);
   const [ownedNftLoading, setOwnedNftLoading] = useState(false);
-  const syncingOwnedNfts = ownedNftLoading;
+  const syncingOwnedNfts = ownedNftLoading || initialNftSyncing;
   const purchaseBalanceShortage = Boolean(
     purchaseTarget &&
       walletAddress &&
@@ -412,8 +414,40 @@ export default function MarketplacePage() {
   };
 
   useEffect(() => {
-    void refreshOwnedNftCount();
-  }, [walletAddress]);
+    let cancelled = false;
+
+    const syncInitialNfts = async () => {
+      if (!walletAddress) {
+        setOwnedNftCount(null);
+        return;
+      }
+
+      setInitialNftSyncing(true);
+      try {
+        await syncOwnedNfts({ force: true });
+        if (cancelled) return;
+        await refetchItems();
+        if (cancelled) return;
+        await refreshOwnedNftCount();
+      } catch (error) {
+        console.error("[initial nft sync]", error);
+        if (!cancelled) {
+          toast.error("NFT 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+          await refreshOwnedNftCount();
+        }
+      } finally {
+        if (!cancelled) {
+          setInitialNftSyncing(false);
+        }
+      }
+    };
+
+    void syncInitialNfts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [walletAddress, refetchItems]);
 
   const syncInventoryAfterMarketChange = async () => {
     // 구매/취소 API가 성공했다면 DB 상태는 이미 바뀌었으므로
@@ -425,10 +459,30 @@ export default function MarketplacePage() {
     // 온체인 보정 동기화는 카운트 표시와 분리해서 한 번만 늦게 실행한다.
     // 짧은 연속 호출은 Helius/백엔드 rate limit을 건드릴 수 있다.
     window.setTimeout(() => {
-      void syncOwnedNfts()
+      void syncOwnedNfts({ force: true })
         .then(() => refetchItems())
         .catch(() => {});
     }, 5000);
+  };
+
+  const handleOpenCreateDialog = async () => {
+    if (!walletAddress) {
+      toast.error("판매 등록을 하려면 먼저 계정에 지갑을 연동해 주세요.");
+      return;
+    }
+
+    setOpeningCreateDialog(true);
+    try {
+      await syncOwnedNfts({ force: true });
+      await refetchItems();
+      await refreshOwnedNftCount();
+      setIsCreateDialogOpen(true);
+    } catch (error) {
+      console.error("[syncOwnedNfts before create listing]", error);
+      toast.error("NFT 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setOpeningCreateDialog(false);
+    }
   };
 
   // ──────────────────────────────────────────────────────────
@@ -651,8 +705,12 @@ export default function MarketplacePage() {
             </div>
 
             {/* 판매 등록 버튼 → Dialog 열기 */}
-            <Button className={styles.createButton} onClick={() => setIsCreateDialogOpen(true)}>
-              판매 등록
+            <Button
+              className={styles.createButton}
+              onClick={handleOpenCreateDialog}
+              disabled={openingCreateDialog}
+            >
+              {openingCreateDialog ? "불러오는 중..." : "판매 등록"}
             </Button>
           </div>
         </div>
@@ -698,7 +756,7 @@ export default function MarketplacePage() {
             open={isCreateDialogOpen}
             onClose={() => setIsCreateDialogOpen(false)}
             nftItems={nftItems}         // 필터링된 NFT 아이템 목록 전달
-            itemsLoading={itemsLoading || syncingOwnedNfts} // 아이템/NFT 동기화 중이면 다이얼로그 내 로딩 표시
+            itemsLoading={itemsLoading || syncingOwnedNfts || openingCreateDialog} // 아이템/NFT 동기화 중이면 다이얼로그 내 로딩 표시
             onSubmit={handleCreateListing}
             submitting={creatingListing || updatingEscrow || listingOnChain} // 등록 중이면 버튼 비활성화
         />
