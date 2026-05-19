@@ -1,8 +1,10 @@
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
-import { Gamepad2, Users, Crown, Sparkles, Play } from "lucide-react";
+import { Gamepad2, Crown } from "lucide-react";
 import styles from "./PlazaPage.module.css";
+import { Download, Play, Key, CheckCircle } from "lucide-react"; // 예시 아이콘 (필요에 따라 변경 가능)
+import { Check, Sparkles, Move, Users, UserPlus, Shirt } from "lucide-react"; // 필요한 아이콘 라이브러리 사용
 
 export default function Plaza() {
 
@@ -77,7 +79,7 @@ export default function Plaza() {
               <div>
                 <h4 className="mb-1 font-bold text-gray-900 dark:text-gray-100">커스터마이징 반영</h4>
                 <p className="text-sm text-gray-700 dark:text-gray-300">
-                  내 아바타에 적용한 모든 아이템이 3D로 표현돼요
+                  내 아바타가 획득한 코디 아이템을 착용할 수 있어요
                 </p>
               </div>
             </div>
@@ -87,9 +89,9 @@ export default function Plaza() {
                 <Crown className="h-5 w-5 text-slate-700 dark:text-violet-300" />
               </div>
               <div>
-                <h4 className="mb-1 font-bold text-gray-900 dark:text-gray-100">프리미엄 공간</h4>
+                <h4 className="mb-1 font-bold text-gray-900 dark:text-gray-100">프리미엄 아이템</h4>
                 <p className="text-sm text-gray-700 dark:text-gray-300">
-                  특별한 칭호와 전용 부스를 획득할 수 있어요
+                  성실하게 가계부를 작성하면 특별한 코디 아이템을 받을 수 있어요
                 </p>
               </div>
             </div>
@@ -119,47 +121,133 @@ export default function Plaza() {
           </div>
 
           <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700 dark:bg-violet-950/20 dark:text-violet-200">
-            💡 모바일에서는 광장 기능을 이용할 수 없습니다
+            💡 모바일에서는 게임을 이용할 수 없습니다
           </div>
         </Card>
 
         {/* Online Users */}
+        {/* Game Installation Guide */}
         <Card className={`${styles.plazaCard} ${styles.plazaCardSoft} border-none spentopia-market-card-view p-6 backdrop-blur-xl`}>
-          <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">현재 접속 중</h3>
-          <div className="mb-4 flex items-center gap-2">
-            <div className="h-3 w-3 animate-pulse rounded-full bg-green-500"></div>
-            <span className="font-bold text-gray-900 dark:text-gray-100">124명</span>
-            <span className="text-sm text-gray-700 dark:text-gray-300">접속 중</span>
+          {/* 헤더 영역 */}
+          <div className="mb-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">게임 설치 가이드</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">안정적인 플레이를 위해 순서대로 진행해 주세요.</p>
           </div>
-          <div className="space-y-2">
+
+          {/* 필수 조건 (기존 '접속 중' 라인을 스팀 확인 라인으로 변경) */}
+          <div className="mb-5 flex items-center gap-2 rounded-lg bg-green-500/10 p-3 border border-green-500/20">
+            <div className="h-2 w-2 animate-pulse rounded-full bg-green-500"></div>
+            <span className="text-sm font-semibold text-green-700 dark:text-green-400">
+      STEAM 클라이언트 설치 및 로그인이 필요합니다.
+    </span>
+          </div>
+
+          {/* 설치 절차 리스트 */}
+          <div className="space-y-3">
             {[
-              { name: "절약왕", avatar: "💰", status: "광장 중앙" },
-              { name: "패션왕", avatar: "👗", status: "프리미엄 존" },
-              { name: "목표달성", avatar: "🎯", status: "채팅 중" },
-              { name: "알뜰맨", avatar: "🏃", status: "광장 입구" },
-            ].map((user, i) => (
-              <div key={i} className={`${styles.plazaInnerCard} flex items-center justify-between rounded-lg spentopia-market-card-view p-3`}>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{user.avatar}</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{user.name}</span>
+              {
+                step: "STEP 01",
+                title: "클라이언트 다운로드",
+                desc: "설치 파일을 다운로드하고 실행합니다.",
+                icon: <Download className="w-4 h-4 text-blue-500" />
+              },
+              {
+                step: "STEP 02",
+                title: "스팀 계정 연동 및 인증",
+                desc: "스팀 라이브러리에 게임을 등록합니다.",
+                icon: <Key className="w-4 h-4 text-purple-500" />
+              },
+              {
+                step: "STEP 03",
+                title: "게임 실행",
+                desc: "스펜토피아(Spentopia) 세계로 입장합니다.",
+                icon: <Play className="w-4 h-4 text-emerald-500" />
+              },
+              {
+                step: "STEP 04",
+                title: "오류 발생 시",
+                desc: "라이브러리 촤측 하단 게임추가 클릭 -> Steam 외부 게임 추가 -> .exe파일 등록.",
+                icon: <CheckCircle className="w-4 h-4 text-amber-500" />
+
+              },
+            ].map((item, i) => (
+                <div key={i} className={`${styles.plazaInnerCard} flex items-center justify-between rounded-lg spentopia-market-card-view p-4 transition-all hover:bg-gray-50/50 dark:hover:bg-gray-800/50`}>
+                  <div className="flex items-center gap-3">
+                    {/* 아이콘 배경 (색감에 맞게 은은한 서클 처리) */}
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
+                      {item.icon}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{item.title}</h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{item.desc}</p>
+                    </div>
+                  </div>
+
+                  {/* 우측 STEP 표시 뱃지 */}
+                  <Badge variant="secondary" className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-none">
+                    {item.step}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="text-xs text-gray-700 dark:text-gray-200">
-                  {user.status}
-                </Badge>
-              </div>
             ))}
           </div>
         </Card>
 
         {/* Tips */}
         <Card className={`${styles.plazaCard} ${styles.plazaCardSoft} border-none spentopia-market-card-view p-6 backdrop-blur-xl`}>
-          <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">광장 이용 팁</h3>
-          <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-            <li>• WASD 키로 아바타를 움직일 수 있어요</li>
-            <li>• 다른 유저 클릭 시 1:1 채팅이 가능해요</li>
-            <li>• 특정 구역에서는 미니게임을 즐길 수 있어요</li>
-            <li>• 성실도 점수가 높으면 특별한 공간이 열려요</li>
-            <li>• 친구 추가 기능으로 함께 즐겨보세요</li>
+          {/* 헤더 영역 - 반짝이는 아이콘으로 포인트 */}
+          <div className="mb-5 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base">광장 이용 팁</h3>
+          </div>
+
+          {/* 리스트 영역 */}
+          <ul className="space-y-3">
+            {[
+              {
+                text: "방향키로 아바타를 움직일 수 있어요",
+                highlight: "방향키",
+                icon: <Move className="w-4 h-4 text-blue-500" />
+              },
+              {
+                text: "다른 유저와 같은 서버에서 채팅이 가능해요",
+                highlight: "같은 서버에서 채팅",
+                icon: <Users className="w-4 h-4 text-emerald-500" />
+              },
+              {
+                text: "STEAM 친구기능으로 자유롭게 친구를 초대할 수 있어요",
+                highlight: "STEAM 친구기능",
+                icon: <UserPlus className="w-4 h-4 text-indigo-500" />
+              },
+              {
+                text: "내가 꾸민 캐릭터를 저장해서 친구들에게 자랑할 수 있어요",
+                highlight: "캐릭터를 저장",
+                icon: <Shirt className="w-4 h-4 text-pink-500" />
+              },
+            ].map((tip, i) => (
+                <li
+                    key={i}
+                    className="flex items-start gap-3 rounded-lg p-2.5 transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-800/40"
+                >
+                  {/* 아이콘 배경 배경 (둥근 사각형) */}
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800 mt-0.5">
+                    {tip.icon}
+                  </div>
+
+                  {/* 텍스트 (주요 키워드 강조 처리) */}
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                    {tip.text.split(tip.highlight).map((part, index, array) => (
+                        <span key={index}>
+              {part}
+                          {index < array.length - 1 && (
+                              <strong className="font-semibold text-gray-900 dark:text-gray-100 underline decoration-gray-300 dark:decoration-gray-600 underline-offset-4">
+                                {tip.highlight}
+                              </strong>
+                          )}
+            </span>
+                    ))}
+                  </p>
+                </li>
+            ))}
           </ul>
         </Card>
       </div>
