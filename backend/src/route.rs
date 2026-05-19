@@ -80,30 +80,29 @@ pub fn create_router(state: AppState) -> (Router, Router) {
         .with_state(state.clone());
 
     // ─────────────────────────────────────────────────────
-    // 2) sensitive_routes : 열거 공격 방어용 빡빡한 rate limit
+    // 2) sensitive_routes : 열거 공격 방어 + 공용 IP 환경 배려
     //
     // "열거 공격"이란:
     //   공격자가 /auth/check-email 같은 엔드포인트에
     //   이메일을 하나씩 바꿔가며 호출해서
     //   "이 이메일이 우리 서비스에 가입돼 있는가?"를 알아내는 공격.
     //
-    //   예: "vip@company.com 가입돼있네 → 이 이메일로 피싱 보내자"
+    // 제한값 결정 근거:
+    //   - burst 60: 학원/회사망 같은 공용 IP 환경에서
+    //                동시에 18명 정도가 회원가입 시도해도 통과
+    //                (1인당 평균 3개 호출 × 18 = 54)
+    //   - 10초당 1개 회복: 정상 사용자는 영향 없고,
+    //                       공격자 1만개 enumeration은 28시간 소요
     //
-    // 그래서 같은 IP에서 30초 동안 20번이 상한.
-    // 일반 사용자는 회원가입 한 번 할 때 이메일/닉네임 확인을
-    // 합쳐도 5번 미만이므로 영향 없음.
-    //
-    // 이 layer는 sensitive_routes 안에 박혀있어서,
-    // main.rs에서 main_router 바깥에 governor_limiter를 또 걸어도
-    // sensitive_routes는 이중으로 layer가 적용된다.
-    // → 두 limit 중 더 빡빡한 쪽(이쪽)이 먼저 막으므로
-    //   실질적으로 이 값이 적용된다.
+    // 공통 버킷 주의:
+    //   4개 엔드포인트가 토큰을 공유함.
+    //   check-email 30번 쓰면 check-nickname burst도 30 줄어듦.
     // ─────────────────────────────────────────────────────
     let enumeration_rate_limit = Arc::new(
         GovernorConfigBuilder::default()
             .key_extractor(CloudflareRailwayIpExtractor)
-            .per_millisecond(30_000)
-            .burst_size(20)
+            .per_millisecond(10_000)
+            .burst_size(60)
             .finish()
             .unwrap(),
     );
