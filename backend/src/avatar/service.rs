@@ -510,8 +510,10 @@ pub async fn get_user_items(
     // PostgREST embedding URL:
     //  user_items?user_id=eq.{user_id} → 본인 아이템만 필터
     //  &select=*.avatar_items(...) → avatar_items 테이블 JOIN
+    // 유니티는 응답 배열 순서대로 인벤토리 칸을 채우므로 결정적 정렬이 필요하다.
+    // 획득 순서(acquired_at) 오름차순 → id 보조정렬로 항상 같은 순서 보장.
     let url = format!(
-        "{}/rest/v1/user_inventory?user_id=eq.{}&select=*,item_master(name,image_url,metadata_uri,category,visual_parts)",
+        "{}/rest/v1/user_inventory?user_id=eq.{}&select=*,item_master(name,image_url,metadata_uri,category,visual_parts)&order=acquired_at.asc.nullsfirst,id.asc",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
     );
@@ -590,27 +592,30 @@ pub async fn get_user_items(
         .collect();
 
     // 인게임 표시용 중복 제거: 같은 item_id(NFT/일반 무관)는 1개만 노출.
-    // 장착된 행을 우선 유지하고, 없으면 첫 행을 유지한다.
+    // 위치는 "첫 등장(가장 먼저 획득한 행)" 기준으로 고정해 유니티 칸이 흔들리지 않게 한다.
+    // 단, 같은 아이템 중 장착된 행이 있으면 그 행 데이터(id/장착상태)를 대표로 올려
+    // 장착 상태와 equip 대상 inventory_id가 정확히 유지되도록 한다.
     // (마켓/지갑 경로는 별도 함수라 개별 NFT는 그대로 유지됨)
-    let mut keep_idx: std::collections::HashMap<Uuid, usize> = std::collections::HashMap::new();
-    for (i, it) in items.iter().enumerate() {
-        match keep_idx.get(&it.item_id) {
-            Some(&prev) => {
-                if it.is_equipped == Some(true) && items[prev].is_equipped != Some(true) {
-                    keep_idx.insert(it.item_id, i);
+    let mut order: Vec<Uuid> = Vec::new();
+    let mut chosen: std::collections::HashMap<Uuid, UserItemResponse> =
+        std::collections::HashMap::new();
+    for it in items {
+        match chosen.get_mut(&it.item_id) {
+            Some(existing) => {
+                // 대표가 미장착인데 새 행이 장착이면 장착 행으로 교체 (위치는 그대로)
+                if existing.is_equipped != Some(true) && it.is_equipped == Some(true) {
+                    *existing = it;
                 }
             }
             None => {
-                keep_idx.insert(it.item_id, i);
+                order.push(it.item_id);
+                chosen.insert(it.item_id, it);
             }
         }
     }
-    let keep: std::collections::HashSet<usize> = keep_idx.into_values().collect();
-    let items: Vec<UserItemResponse> = items
+    let items: Vec<UserItemResponse> = order
         .into_iter()
-        .enumerate()
-        .filter(|(i, _)| keep.contains(i))
-        .map(|(_, it)| it)
+        .filter_map(|item_id| chosen.remove(&item_id))
         .collect();
 
     Ok(items)
