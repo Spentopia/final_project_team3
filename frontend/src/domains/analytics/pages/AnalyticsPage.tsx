@@ -318,7 +318,6 @@ const [isReportLoading, setIsReportLoading] = useState(false);
 
 const [isPatternLoading, setIsPatternLoading] = useState(false);
 
-const [isPdfMode, setIsPdfMode] = useState(false);
 const [isDownloading, setIsDownloading] = useState(false);
 
 const [selectedReportType, setSelectedReportType] = useState<AnalysisReportType>("weekly");
@@ -365,7 +364,8 @@ const budgetUsage =
     ? Math.round((totalExpense / currentBudget) * 100)
     : 0;
 
-const isDarkMode = resolvedTheme === "dark" && !isPdfMode;
+const isPdfMode = false;
+const isDarkMode = resolvedTheme === "dark";
 const chartTheme = isDarkMode
   ? {
       axis: "#c4b5fd",
@@ -649,74 +649,78 @@ const handleGeneratePattern = async () => {
 const handleDownload = async () => {
   if (!reportRef.current) return;
 
+  let clonedElement: HTMLDivElement | null = null;
+
   try {
     setIsDownloading(true);
 
-    // ✅ PDF 전용 모드 활성화
-    setIsPdfMode(true);
+    const element = reportRef.current;
+    clonedElement = element.cloneNode(true) as HTMLDivElement;
+    clonedElement.dataset.pdfCaptureRoot = "true";
+    clonedElement.classList.add(styles.pdfDownload, styles.pdfMode, styles.pdfFixedLayout);
+    clonedElement.style.position = "fixed";
+    clonedElement.style.left = "-20000px";
+    clonedElement.style.top = "0";
+    clonedElement.style.zIndex = "-1";
+    clonedElement.style.pointerEvents = "none";
+    clonedElement.style.width = "1400px";
+    clonedElement.style.minWidth = "1400px";
+    clonedElement.style.maxWidth = "1400px";
+    document.body.appendChild(clonedElement);
 
-    // 렌더링 기다리기
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
-    if (!reportRef.current) return;
+    const canvas = await html2canvas(clonedElement, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+      scrollX: 0,
+      scrollY: 0,
+      width: clonedElement.scrollWidth,
+      windowWidth: clonedElement.scrollWidth,
+      height: clonedElement.scrollHeight,
+      windowHeight: clonedElement.scrollHeight,
+      foreignObjectRendering: false,
+      removeContainer: true,
+      onclone: (clonedDoc) => {
+        const captureRoot = clonedDoc.querySelector("[data-pdf-capture-root=\"true\"]") as HTMLElement | null;
 
-const element = reportRef.current;
+        if (captureRoot) {
+          captureRoot.style.transform = "none";
+          captureRoot.style.opacity = "1";
+        }
 
-    const canvas = await html2canvas(element, {
-  scale: 3,
-  useCORS: true,
-  backgroundColor: "#ffffff",
+        const all = clonedDoc.querySelectorAll("*");
 
-  logging: false,
+        all.forEach((el) => {
+          const htmlEl = el as HTMLElement;
+          const style = clonedDoc.defaultView?.getComputedStyle(htmlEl);
 
-  scrollX: 0,
-  scrollY: 0,
+          if (!style) return;
 
-  width: 1400,
-  windowWidth: 1400,
+          if (style.color.includes("oklch")) {
+            htmlEl.style.color = "#111827";
+          }
 
-  height: element.scrollHeight,
-  windowHeight: element.scrollHeight,
+          if (style.backgroundColor.includes("oklch")) {
+            htmlEl.style.backgroundColor = "#ffffff";
+          }
 
-  foreignObjectRendering: false,
+          if (style.borderColor.includes("oklch")) {
+            htmlEl.style.borderColor = "#d1d5db";
+          }
 
-  removeContainer: true,
+          if (style.fill.includes("oklch")) {
+            htmlEl.style.fill = "#2563eb";
+          }
 
-  onclone: (clonedDoc) => {
-    // 모든 요소의 oklch 제거
-    const all = clonedDoc.querySelectorAll("*");
-
-    all.forEach((el) => {
-      const htmlEl = el as HTMLElement;
-      const style = window.getComputedStyle(htmlEl);
-
-      // color
-      if (style.color.includes("oklch")) {
-        htmlEl.style.color = "#111827";
-      }
-
-      // background
-      if (style.backgroundColor.includes("oklch")) {
-        htmlEl.style.backgroundColor = "#ffffff";
-      }
-
-      // border
-      if (style.borderColor.includes("oklch")) {
-        htmlEl.style.borderColor = "#d1d5db";
-      }
-
-      // fill (svg)
-      if (style.fill.includes("oklch")) {
-        htmlEl.style.fill = "#2563eb";
-      }
-
-      // stroke (svg)
-      if (style.stroke.includes("oklch")) {
-        htmlEl.style.stroke = "#2563eb";
-      }
+          if (style.stroke.includes("oklch")) {
+            htmlEl.style.stroke = "#2563eb";
+          }
+        });
+      },
     });
-  },
-});
 
     const imgData = canvas.toDataURL("image/png");
 
@@ -778,14 +782,8 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
     });
 
   } finally {
-
-
-    // ✅ PDF 모드 해제
-    setIsPdfMode(false);
-
+    clonedElement?.remove();
     setIsDownloading(false);
-
-
   }
 };
 
