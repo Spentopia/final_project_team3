@@ -15,6 +15,14 @@ use uuid::Uuid;
 use super::{dto::ContestRewardRequest, service};
 use crate::state::AppState;
 
+fn error_chain_message(error: &anyhow::Error) -> String {
+    error
+        .chain()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(": ")
+}
+
 // ────────────────────────────────────────────────────────────
 // 기존 핸들러 3개 — 변경 없음
 // ────────────────────────────────────────────────────────────
@@ -102,7 +110,8 @@ pub async fn open_box(
     match service::open_box(&state, user_id).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => {
-            let msg = e.to_string();
+            tracing::error!("open_box 실패: {}", error_chain_message(&e));
+            let msg = error_chain_message(&e);
             if msg.contains("열 수 있는 상자가 없습니다")
                 || msg.contains("지급 가능한 일반 아이템이 없습니다")
                 || msg.contains("지급 가능한 NFT 아이템이 없습니다")
