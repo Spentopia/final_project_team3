@@ -2,7 +2,7 @@
 // 유저 프로필, 설정 비즈니스 로직
 // 변경사항:
 // - update_profile: nickname 변경 시 validate_nickname() 으로
-//   길이(2~8자) + 금칙어 한번에 검증
+//   길이(2~10자) + 금칙어 한번에 검증
 
 use anyhow::{Context, Result, anyhow};
 use serde::Serialize;

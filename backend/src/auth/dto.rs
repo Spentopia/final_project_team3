@@ -303,3 +303,33 @@ pub struct WebviewIssueResponse {
 pub struct WebviewCallbackQuery {
     pub token: String,
 }
+
+// ═══════════════════════════════════════════════════════════════
+// 닉네임 batch 중복확인 DTO
+//
+// 사용처: POST /profile/check-nicknames-batch
+//
+// 왜 batch 형태로 만들었나:
+//   - 프론트 주사위 버튼이 기존엔 닉네임 1개씩 최대 5번 API 호출
+//   - sensitive bucket(IP 기준)을 빠르게 소진하는 원인
+//   - batch로 묶으면 1번 호출로 5개 검증 가능
+//   - 35명 공용 IP 환경에서 sensitive bucket 부담 1/5로 감소
+//
+// 동작:
+//   요청: { "nicknames": ["alpha01", "beta02", "gamma03", ...] }
+//   응답: { "available": "beta02" } 또는 { "available": null }
+//
+// 백엔드는 받은 순서대로 검사해서 처음 사용 가능한 것을 반환.
+// 모두 중복이면 null 반환 → 프론트가 다시 시도하도록 안내.
+// ═══════════════════════════════════════════════════════════════
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CheckNicknamesBatchRequest {
+    /// 검사할 닉네임 후보 목록 (1~10개)
+    pub nicknames: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CheckNicknamesBatchResponse {
+    /// 사용 가능한 첫 번째 닉네임. 모두 중복이면 null.
+    pub available: Option<String>,
+}

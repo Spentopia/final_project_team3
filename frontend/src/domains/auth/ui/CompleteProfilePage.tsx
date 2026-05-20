@@ -16,7 +16,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { completeProfile, checkProfileAvailability, checkNicknameAvailable, signOut } from "@/domains/auth/api/auth";
+import {
+  completeProfile,
+  checkProfileAvailability,
+  checkNicknamesBatch,
+  signOut,
+} from "@/domains/auth/api/auth";
 import { useProfileImage } from "@/domains/auth/hooks/useProfileImage";
 import ProfileImageUploader from "@/domains/auth/ui/ProfileImageUploader";
 import { Button } from "@/shared/ui/button";
@@ -36,48 +41,52 @@ const NICKNAME_SUFFIXES = [
 ];
 
 const NICKNAME_MIN_LENGTH = 2;
-const NICKNAME_MAX_LENGTH = 8;
-const NICKNAME_RANDOM_NUMBER_DIGITS = 2;
+const NICKNAME_MAX_LENGTH = 10;
+const NICKNAME_RANDOM_NUMBER_DIGITS = 3;
 
 function generateNickname(): string {
   // 랜덤 닉네임 정책:
-  // - prefix + suffix + 숫자 2자리
-  // - 전체 길이 8자 이하만 허용
+  // - prefix + suffix + 숫자 3자리
+  // - 전체 길이 10자 이하만 허용
   //
-  // 예:
-  // - 알뜰존05       OK
-  // - 리얼라운지05   길이에 따라 OK
-  // - 알뜰로프트05   8자 초과면 후보에서 제외
+  // 변경 이력:
+  //   - 숫자 2자리 → 3자리 (10자 정책 변경 + 조합 수 10배 증가)
   //
-  // 핵심:
-  // slice로 억지로 자르는 방식이 아니라,
-  // 처음부터 8자 이하 후보만 만들어서 그중 하나를 반환한다.
-  const candidates: string[] = [];
+  // 매번 호출 시 1개씩 랜덤 생성.
+  // 시도 100번 안에 10자 이하 조합을 찾으면 반환.
+  // 거의 모든 prefix/suffix 조합이 10자 이내라 사실상 1~2번 시도면 끝.
 
-  for (const prefix of NICKNAME_PREFIXES) {
-    for (const suffix of NICKNAME_SUFFIXES) {
-      for (let i = 0; i < 100; i += 1) {
-        const num = i
-            .toString()
-            .padStart(NICKNAME_RANDOM_NUMBER_DIGITS, "0");
+  for (let i = 0; i < 100; i += 1) {
+    const prefix =
+        NICKNAME_PREFIXES[Math.floor(Math.random() * NICKNAME_PREFIXES.length)];
 
-        const candidate = `${prefix}${suffix}${num}`;
+    const suffix =
+        NICKNAME_SUFFIXES[Math.floor(Math.random() * NICKNAME_SUFFIXES.length)];
 
-        if (candidate.length <= NICKNAME_MAX_LENGTH) {
-          candidates.push(candidate);
-        }
-      }
+    const num = Math.floor(Math.random() * 1000)
+        .toString()
+        .padStart(NICKNAME_RANDOM_NUMBER_DIGITS, "0");
+
+    const candidate = `${prefix}${suffix}${num}`;
+
+    if (candidate.length <= NICKNAME_MAX_LENGTH) {
+      return candidate;
     }
   }
 
-  // 방어 코드.
-  // 현재 prefix/suffix 배열 기준으로 candidates가 비어 있을 가능성은 낮지만,
-  // 나중에 긴 단어만 남게 되면 빈 배열이 될 수 있으므로 fallback을 둔다.
-  if (candidates.length === 0) {
-    return "픽존00";
-  }
+  // 안전 fallback (위 반복에서 못 찾으면)
+  const shortPrefixes = NICKNAME_PREFIXES.filter((value) => value.length <= 3);
+  const shortSuffixes = NICKNAME_SUFFIXES.filter((value) => value.length <= 3);
 
-  return candidates[Math.floor(Math.random() * candidates.length)];
+  const prefix =
+      shortPrefixes[Math.floor(Math.random() * shortPrefixes.length)] ?? "픽";
+
+  const suffix =
+      shortSuffixes[Math.floor(Math.random() * shortSuffixes.length)] ?? "존";
+
+  const num = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+
+  return `${prefix}${suffix}${num}`.slice(0, NICKNAME_MAX_LENGTH);
 }
 
 export default function CompleteProfilePage() {
@@ -113,7 +122,7 @@ export default function CompleteProfilePage() {
         nickname.length < NICKNAME_MIN_LENGTH ||
         nickname.length > NICKNAME_MAX_LENGTH
     ) {
-      toast.error("닉네임은 2~8자까지 입력할 수 있습니다.");
+      toast.error("닉네임은 2~10자까지 입력할 수 있습니다.");
       return;
     }
 
@@ -178,30 +187,70 @@ export default function CompleteProfilePage() {
   };
 
   const handleGenerateNickname = async () => {
+    // ─────────────────────────────────────────────────────
+    // 주사위 버튼: 사용 가능한 닉네임 batch 조회
+    //
+    // 변경 이전:
+    //   for 루프로 닉네임 1개 생성 → 백엔드 1번 호출 → 중복이면 다음 후보
+    //   → 운 나쁘면 1번 클릭당 최대 5번 API 호출
+    //   → 35명 동시 클릭 시 sensitive bucket 최대 175개 소비
+    //
+    // 변경 이후:
+    //   서로 다른 후보 5개 생성 → batch API에 한 번에 전달
+    //   → 백엔드가 DB IN 쿼리 1번으로 모두 검증
+    //   → 1번 클릭당 정확히 1번 API 호출
+    //   → 35명 동시 클릭 시 sensitive bucket 35개 소비 (1/5로 감소)
+    //
+    // UX:
+    //   백엔드가 5개 중 처음 사용 가능한 것을 반환하므로
+    //   사용자가 받는 닉네임은 거의 항상 "쓸 수 있는 것".
+    //   5개 다 중복인 매우 드문 케이스만 다시 누르도록 안내.
+    // ─────────────────────────────────────────────────────
     setNicknameChecking(true);
 
     try {
-      for (let i = 0; i < 5; i += 1) {
+      // 후보 5개 생성 (서로 다른 값 보장)
+      //
+      // generateNickname()이 우연히 같은 값을 두 번 만들 수 있어서
+      // Set으로 중복 제거하며 정확히 5개를 모음.
+      // 매우 드물지만 무한 루프 방지용 시도 횟수 제한도 둠.
+      const candidates: string[] = [];
+      const seen = new Set<string>();
+      let attempts = 0;
+      const MAX_ATTEMPTS = 50;
+
+      while (candidates.length < 5 && attempts < MAX_ATTEMPTS) {
+        attempts += 1;
         const candidate = generateNickname();
 
-        // generateNickname()에서 이미 8자 이하만 반환하지만,
-        // 혹시 나중에 로직이 바뀌어도 긴 닉네임이 들어가지 않도록 한 번 더 방어한다.
+        // generateNickname() 안에서 이미 10자 이하만 반환하지만
+        // 방어 코드 유지 (정책 변경에 강건)
         if (candidate.length > NICKNAME_MAX_LENGTH) {
           continue;
         }
 
-        const available = await checkNicknameAvailable(candidate);
-
-        if (available) {
-          updateFormData("nickname", candidate);
-          return;
+        if (!seen.has(candidate)) {
+          seen.add(candidate);
+          candidates.push(candidate);
         }
       }
 
-      // 5회 모두 중복이면 중복 여부는 제출 시 다시 확인된다.
-      // 그래도 길이는 반드시 8자 이하인 값만 사용한다.
-      updateFormData("nickname", generateNickname());
+      // batch API 호출 (1번)
+      const available = await checkNicknamesBatch(candidates);
+
+      if (available) {
+        updateFormData("nickname", available);
+        return;
+      }
+
+      // 5개 후보가 전부 중복인 매우 드문 케이스
+      // 검증 안 된 값을 강제로 채우는 대신 사용자한테 알림
+      toast.error("이미 사용 중인 닉네임만 나왔어요. 다시 시도해 주세요.");
     } catch {
+      // 네트워크 오류 / 429 / 5xx 등
+      // fallback: 검증 없이 닉네임 채움
+      // → 사용자가 "완료" 눌렀을 때 complete_profile이 다시 검증함
+      //   (백엔드 unique 제약이 최종 안전망)
       updateFormData("nickname", generateNickname());
     } finally {
       setNicknameChecking(false);
@@ -246,7 +295,7 @@ export default function CompleteProfilePage() {
                 <Input
                     id="nickname"
                     type="text"
-                    placeholder="2~8자 닉네임을 입력해주세요"
+                    placeholder="2~10자 닉네임을 입력해주세요"
                     value={formData.nickname}
                     maxLength={NICKNAME_MAX_LENGTH}
                     onChange={(e) =>

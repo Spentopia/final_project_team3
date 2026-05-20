@@ -12,7 +12,7 @@
 // - mask()            : 금칙어를 *로 치환 (게시글 마스킹 선택 시)
 //
 // 닉네임 정책:
-// - 최소 2자, 최대 8자
+// - 최소 2자, 최대 10자
 // - 앞뒤 공백 불허 (trim 후 길이 체크)
 // - 금칙어 포함 불허
 //
@@ -43,7 +43,7 @@ static AC: Lazy<AhoCorasick> = Lazy::new(|| {
 // 검사 순서:
 // 1) 앞뒤 공백
 // 2) 최소 길이 (2자)
-// 3) 최대 길이 (8자)
+// 3) 최대 길이 (10자)
 // 4) 금칙어
 pub fn validate_nickname(nickname: &str) -> Result<(), &'static str> {
     let trimmed = nickname.trim();
@@ -54,17 +54,15 @@ pub fn validate_nickname(nickname: &str) -> Result<(), &'static str> {
     }
 
     // 2~3) 길이 체크
-    // chars().count() 사용 - 한글은 바이트가 3이므로 len() 쓰면 안됨
     let char_count = trimmed.chars().count();
     if char_count < 2 {
         return Err("닉네임은 최소 2자 이상이어야 합니다.");
     }
-    if char_count > 8 {
-        return Err("닉네임은 최대 8자까지 입니다.");
+    if char_count > 10 {
+        return Err("닉네임은 최대 10자까지 입니다.");
     }
 
     // 4) 금칙어 체크
-    // 공백 제거 + 소문자 정규화 후 검사
     let normalized = trimmed.replace(' ', "").to_lowercase();
     if AC.find(normalized.as_str()).is_some() {
         return Err("사용할 수 없는 닉네임입니다.");

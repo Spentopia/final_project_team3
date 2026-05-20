@@ -388,6 +388,37 @@ export const checkNicknameAvailable = async (nickname: string): Promise<boolean>
   return res.data?.available === true;
 };
 
+/**
+ * 닉네임 batch 중복확인
+ *
+ * 여러 닉네임 후보를 한 번에 보내고, 처음 사용 가능한 것을 받음.
+ * 모두 중복이면 null.
+ *
+ * 왜 사용:
+ *   주사위 버튼이 기존엔 1개씩 최대 5번 호출 → sensitive bucket 빠르게 소진
+ *   batch로 1회 호출로 단축 → 35명 공용 IP 환경에서도 안전
+ *
+ * 동작:
+ *   요청: ["alpha01", "beta02", "gamma03", "delta04", "epsilon05"]
+ *   응답: "beta02" (alpha01은 중복이고 beta02부터 가능한 경우)
+ *   또는 null (5개 모두 중복인 매우 드문 경우)
+ *
+ * 주의:
+ *   이 API는 "예약"이 아니라 "현재 시점 조회"임.
+ *   응답 후 다른 사용자가 그 닉네임을 먼저 저장할 수 있음.
+ *   최종 unique 보장은 complete_profile 시점에 백엔드가 담당.
+ */
+export const checkNicknamesBatch = async (
+    nicknames: string[]
+): Promise<string | null> => {
+  const res = await apiClient.post<{ available: string | null }>(
+      "/profile/check-nicknames-batch",
+      { nicknames }
+  );
+
+  return res.data.available;
+};
+
 export const checkProfileAvailability = async (params: {
   nickname: string;
   phone: string;

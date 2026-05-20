@@ -20,7 +20,7 @@ import {
   signUp,
   completeProfile,
   checkProfileAvailability,
-  checkNicknameAvailable,
+  checkNicknamesBatch,
 } from "@/domains/auth/api/auth";
 import { validateEmail } from "@/domains/auth/lib/email";
 import { validatePassword } from "@/domains/auth/lib/password";
@@ -46,23 +46,23 @@ const NICKNAME_SUFFIXES = [
 ];
 
 const NICKNAME_MIN_LENGTH = 2;
-const NICKNAME_MAX_LENGTH = 8;
-const NICKNAME_RANDOM_NUMBER_DIGITS = 2;
+const NICKNAME_MAX_LENGTH = 10;
+const NICKNAME_RANDOM_NUMBER_DIGITS = 3;
 
 function generateNickname(): string {
   // 랜덤 닉네임 정책:
-  // - prefix + suffix + 숫자 2자리
-  // - 전체 길이 8자 이하만 허용
+  // - prefix + suffix + 숫자 3자리
+  // - 전체 길이 10자 이하만 허용
   //
   // 예:
-  // - 리얼존07       → OK
-  // - 갓생라운지42   → OK/길이에 따라 판단
-  // - 데이터라운지42 → 8자 초과면 제외
+  // - 리얼존007       → OK
+  // - 갓생라운지042   → OK/길이에 따라 판단
+  // - 데이터라운지042 → 10자 초과면 제외
   //
   // 주의:
   // input maxLength만 믿으면 안 된다.
   // 주사위 버튼이 직접 formData.nickname에 값을 넣기 때문에
-  // 생성 단계에서 8자 이하만 나오게 해야 한다.
+  // 생성 단계에서 10자 이하만 나오게 해야 한다.
 
   for (let i = 0; i < 100; i += 1) {
     const prefix =
@@ -71,8 +71,8 @@ function generateNickname(): string {
     const suffix =
         NICKNAME_SUFFIXES[Math.floor(Math.random() * NICKNAME_SUFFIXES.length)];
 
-    // 숫자 2자리: 00 ~ 99
-    const num = Math.floor(Math.random() * 100)
+    // 숫자 3자리: 000 ~ 999
+    const num = Math.floor(Math.random() * 1000)
         .toString()
         .padStart(NICKNAME_RANDOM_NUMBER_DIGITS, "0");
 
@@ -85,12 +85,12 @@ function generateNickname(): string {
 
   // 안전 fallback.
   //
-  // 위 반복에서 혹시라도 8자 이하 조합을 못 찾으면
+  // 위 반복에서 혹시라도 10자 이하 조합을 못 찾으면
   // 짧은 조합으로 강제 생성한다.
   // 현재 배열 기준으로는 거의 여기까지 오지 않지만,
   // 나중에 긴 prefix/suffix가 추가될 수 있으므로 방어 코드를 둔다.
-  const shortPrefixes = NICKNAME_PREFIXES.filter((value) => value.length <= 2);
-  const shortSuffixes = NICKNAME_SUFFIXES.filter((value) => value.length <= 2);
+  const shortPrefixes = NICKNAME_PREFIXES.filter((value) => value.length <= 3);
+  const shortSuffixes = NICKNAME_SUFFIXES.filter((value) => value.length <= 3);
 
   const prefix =
       shortPrefixes[Math.floor(Math.random() * shortPrefixes.length)] ?? "픽";
@@ -98,7 +98,7 @@ function generateNickname(): string {
   const suffix =
       shortSuffixes[Math.floor(Math.random() * shortSuffixes.length)] ?? "존";
 
-  const num = Math.floor(Math.random() * 100).toString().padStart(2, "0");
+  const num = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
 
   return `${prefix}${suffix}${num}`.slice(0, NICKNAME_MAX_LENGTH);
 }
@@ -196,18 +196,44 @@ export default function Signup() {
   const [nicknameChecking, setNicknameChecking] = useState(false);
 
   const handleGenerateNickname = async () => {
+    // ─────────────────────────────────────────────────────
+    // 주사위 버튼: 사용 가능한 닉네임 batch 조회
+    //
+    // (자세한 설명은 CompleteProfilePage.tsx 동일 함수 참조)
+    //
+    // 한 줄 요약: 1번 클릭 = 1번 API 호출.
+    // batch로 5개 한 번에 검증하고 사용 가능한 첫 번째 반환.
+    // ─────────────────────────────────────────────────────
     setNicknameChecking(true);
+
     try {
-      for (let i = 0; i < 5; i++) {
+      const candidates: string[] = [];
+      const seen = new Set<string>();
+      let attempts = 0;
+      const MAX_ATTEMPTS = 50;
+
+      while (candidates.length < 5 && attempts < MAX_ATTEMPTS) {
+        attempts += 1;
         const candidate = generateNickname();
-        const available = await checkNicknameAvailable(candidate);
-        if (available) {
-          updateFormData("nickname", candidate);
-          return;
+
+        if (candidate.length > NICKNAME_MAX_LENGTH) {
+          continue;
+        }
+
+        if (!seen.has(candidate)) {
+          seen.add(candidate);
+          candidates.push(candidate);
         }
       }
-      // 5회 모두 중복이면 마지막 생성값으로 설정 (제출 시 재확인됨)
-      updateFormData("nickname", generateNickname());
+
+      const available = await checkNicknamesBatch(candidates);
+
+      if (available) {
+        updateFormData("nickname", available);
+        return;
+      }
+
+      toast.error("이미 사용 중인 닉네임만 나왔어요. 다시 시도해 주세요.");
     } catch {
       updateFormData("nickname", generateNickname());
     } finally {
@@ -295,7 +321,7 @@ export default function Signup() {
           nickname.length < NICKNAME_MIN_LENGTH ||
           nickname.length > NICKNAME_MAX_LENGTH
       ) {
-        toast.error("닉네임은 2~8자까지 입력할 수 있습니다.");
+        toast.error("닉네임은 2~10자까지 입력할 수 있습니다.");
         return;
       }
 
@@ -450,7 +476,7 @@ export default function Signup() {
                     <Input
                         id="nickname"
                         type="text"
-                        placeholder="2~8자 닉네임을 입력해주세요"
+                        placeholder="2~10자 닉네임을 입력해주세요"
                         value={formData.nickname}
                         maxLength={NICKNAME_MAX_LENGTH}
                         onChange={(e) =>

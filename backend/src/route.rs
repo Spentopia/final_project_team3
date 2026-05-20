@@ -82,29 +82,36 @@ pub fn create_router(state: AppState) -> (Router, Router, Router) {
     // ─────────────────────────────────────────────────────
     // 2) sensitive_routes : 열거 공격 방어 + 공용 IP 환경 배려
     //
-    // "열거 공격"이란:
-    //   공격자가 /auth/check-email 같은 엔드포인트에
-    //   이메일을 하나씩 바꿔가며 호출해서
-    //   "이 이메일이 우리 서비스에 가입돼 있는가?"를 알아내는 공격.
+    // 대상:
+    //   - /auth/check-email
+    //   - /auth/find-email
+    //   - /auth/check-reset-password-email
+    //   - /profile/check-nickname
+    //   - /profile/check-nicknames-batch  (batch 추가)
     //
-    // 제한값 결정 근거:
-    //   - burst 120: 학원/회사망 같은 공용 IP 환경에서
-    //                 20명이 동시에 회원가입 시연해도 여유 통과
-    //                 (1인당 평균 4개 × 20명 = 80, 안전마진 1.5배)
-    //   - 5초당 1개 회복: 정상 사용자는 영향 없고,
-    //                      공격자 1만개 enumeration은 14시간 소요
+    // 제한값 결정 근거 (35명 공용 IP 기준):
+    //   - burst 200: 35명이 회원가입 흐름을 동시에 진행해도 안전
+    //                  · 이메일 확인 1회 = 35
+    //                  · 닉네임 확인 1~2회 = 35~70
+    //                  · 주사위 batch (5개 후보 한 번에) × 일부 = 최대 35
+    //                  · 합계 ~140, burst 200 안전 마진 60
+    //   - 5초당 1개 회복: 정상 사용자 영향 없음
+    //                      enumeration 공격 1만 시도 시 약 78분 봉인
     //
     // 공통 버킷 주의:
-    //   4개 엔드포인트가 토큰을 공유함.
-    //   check-email 30번 쓰면 check-nickname burst도 30 줄어듦.
+    //   5개 엔드포인트가 토큰을 공유함.
+    //   batch API도 같은 버킷이지만 1회 호출로 5개 검증 가능 → 부담 1/5로 감소.
     //
-    // 더 빡빡한 방어가 필요하면 Cloudflare WAF에서 별도 룰 추가.
+    // 이전 → 현재 변경 이력:
+    //   초기 20/30초 → 60/10초 → 120/5초 → 200/5초 (현재)
+    //   batch API 적용으로 호출 빈도 감소했지만,
+    //   공용 IP 환경 35명 시연 안전 마진까지 고려해 200 유지.
     // ─────────────────────────────────────────────────────
     let enumeration_rate_limit = Arc::new(
         GovernorConfigBuilder::default()
             .key_extractor(CloudflareRailwayIpExtractor)
             .per_millisecond(5_000)
-            .burst_size(120)
+            .burst_size(200)
             .finish()
             .unwrap(),
     );
@@ -147,7 +154,8 @@ pub fn create_router(state: AppState) -> (Router, Router, Router) {
     //   - /auth/wallet/nonce : nonce 발급 후 signature 검증 단계로 가는 시작점
     //
     // 제한값 결정 근거:
-    //   - burst 50: 학원 20명 동시 로그인 시연 안전 통과 (20개 사용, 여유 30)
+    //   - burst 160: 공용 IP 35명 동시 로그인 시연 안전 통과
+    //                (카카오/월렛 로그인 흐름에서 70~100개 수준, 재시도 여유 포함)
     //   - 5초당 1개 회복: 정상 사용자는 영향 없음 (5초 안에 5번 로그인 시도 안 함)
     //                      공격자 1만개 dictionary는 14시간 소요
     //
@@ -161,7 +169,7 @@ pub fn create_router(state: AppState) -> (Router, Router, Router) {
         GovernorConfigBuilder::default()
             .key_extractor(CloudflareRailwayIpExtractor)
             .per_millisecond(5_000)
-            .burst_size(80)
+            .burst_size(160)
             .finish()
             .unwrap(),
     );
@@ -189,6 +197,12 @@ pub fn create_router(state: AppState) -> (Router, Router, Router) {
         .route(
             "/profile/check-nickname",
             post(auth::handler::check_nickname),
+        )
+        // batch API: 닉네임 후보 여러 개 한 번에 검증
+        // (주사위 버튼이 5번 호출 → 1번 호출로 단축)
+        .route(
+            "/profile/check-nicknames-batch",
+            post(auth::handler::check_nicknames_batch),
         )
         .route(
             "/auth/check-reset-password-email",

@@ -46,7 +46,8 @@ use crate::auth::dto::{
     AppKakaoStartResponse, AppLoginResponse, AppRefreshResponse, CheckEmailRequest,
     CheckEmailResponse, CheckProfileAvailabilityRequest, CheckResetPasswordEmailRequest,
     CheckResetPasswordEmailResponse, CompleteProfileRequest, CompleteProfileResponse,
-    ExchangeTokenRequest, FindEmailRequest, FindEmailResponse, HandoffExchangeRequest,
+    CheckNicknamesBatchRequest, CheckNicknamesBatchResponse, ExchangeTokenRequest,
+    FindEmailRequest, FindEmailResponse, HandoffExchangeRequest,
     HandoffExchangeResponse, HandoffRequest, HandoffResponse, KakaoLoginRequest,
     KakaoStartResponse, NonceRequest, NonceResponse, ProfileImageUrlQuery, ProfileImageUrlResponse,
     RefreshRequest, WalletLoginRequest, WebLoginResponse, WebRefreshResponse, WebviewCallbackQuery,
@@ -758,7 +759,7 @@ pub async fn withdraw(
 //
 // 변경사항:
 // - filter::validate_nickname() 으로 닉네임 검증 추가
-//   검사 순서: 앞뒤공백 → 길이(2~8자) → 금칙어
+//   검사 순서: 앞뒤공백 → 길이(2~10자) → 금칙어
 // - 기존 nickname.trim().is_empty() 체크는 validate_nickname이 커버하므로 제거
 #[utoipa::path(
     patch,
@@ -787,7 +788,7 @@ pub async fn complete_profile(
         ));
     }
 
-    // 닉네임 검증: 앞뒤공백 → 길이(2~8자) → 금칙어
+    // 닉네임 검증: 앞뒤공백 → 길이(2~10자) → 금칙어
     // 실패 시 구체적인 에러 메시지를 그대로 400으로 반환
     filter::validate_nickname(&body.nickname)
         .map_err(|msg| (StatusCode::BAD_REQUEST, msg.to_string()))?;
@@ -1203,6 +1204,198 @@ pub async fn get_profile_image_signed_url(
 
     Ok(Json(ProfileImageUrlResponse { signed_url }))
 }
+
+// ═══════════════════════════════════════════════════════════════
+// [닉네임 batch 중복확인] POST /profile/check-nicknames-batch
+// ═══════════════════════════════════════════════════════════════
+//
+// 여러 닉네임 후보를 한 번에 검증하고, 처음 사용 가능한 것을 반환.
+//
+// 흐름:
+//   1. 프론트가 generateNickname()으로 후보 5개 생성
+//   2. 이 API에 5개 묶어서 보냄
+//   3. 백엔드가 DB IN 쿼리 1번으로 모두 확인
+//   4. 받은 순서대로 처음 사용 가능한 닉네임 반환
+//   5. 모두 중복이면 null
+//
+// 검증 (3단계):
+//   1) 후보 개수: 1~10개
+//   2) PostgREST IN 문법 특수문자 차단: " , ( )
+//      → validate_nickname()은 길이/공백/금칙어만 보지
+//        구문 안전성은 안 챙기므로 batch에서 별도 차단 필수
+//   3) 기존 validate_nickname()으로 일반 검증 (길이, 금칙어 등)
+//
+// 성능:
+//   - PostgREST IN 쿼리 1번으로 다중 검증
+//   - 5개 후보 = DB 왕복 1번
+//
+// 주의:
+//   이 API는 "예약"이 아니라 "현재 시점 조회"임.
+//   응답 후 다른 사용자가 그 닉네임을 먼저 저장할 수 있음.
+//   최종 보호는 complete_profile + users.nickname UNIQUE 제약이 담당.
+// ═══════════════════════════════════════════════════════════════
+#[utoipa::path(
+    post,
+    path = "/profile/check-nicknames-batch",
+    tag = "프로필",
+    request_body = CheckNicknamesBatchRequest,
+    responses(
+        (status = 200, description = "닉네임 batch 검사 완료", body = CheckNicknamesBatchResponse),
+        (status = 400, description = "잘못된 닉네임 후보 (개수/길이/형식/특수문자 위반)"),
+        (status = 500, description = "DB 조회 실패")
+    )
+)]
+pub async fn check_nicknames_batch(
+    State(state): State<AppState>,
+    Json(req): Json<CheckNicknamesBatchRequest>,
+) -> Result<Json<CheckNicknamesBatchResponse>, (StatusCode, String)> {
+    use std::collections::HashSet;
+
+    // ── 1) 후보 개수 검증 ────────────────────────────────
+    //
+    // 1개 미만: 의미 없음
+    // 10개 초과: 단일 요청으로 너무 많은 enumeration 시도 가능 → 악용 위험
+    if req.nicknames.is_empty() || req.nicknames.len() > 10 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "후보 닉네임은 1~10개까지 보낼 수 있습니다.".to_string(),
+        ));
+    }
+
+    // ── 2) 각 닉네임 검증 + trim + 중복 제거 ────────────
+    //
+    // 검증 순서:
+    //   a. trim
+    //   b. PostgREST IN 문법 특수문자 차단 (보안)
+    //   c. validate_nickname() (길이/금칙어 등 기존 로직 재사용)
+    //   d. HashSet으로 후보 간 중복 제거
+    //
+    // 특수문자 차단이 별도로 필요한 이유:
+    //   validate_nickname()은 닉네임 정책(길이/공백/금칙어)만 검증함.
+    //   PostgREST IN 절 구문 안전성은 따로 챙겨줘야 함.
+    //   닉네임에 " , ( ) 가 들어가면 IN 절이 깨질 수 있음.
+    let mut candidates = Vec::new();
+    let mut seen = HashSet::new();
+
+    for raw in req.nicknames {
+        let nickname = raw.trim().to_string();
+
+        if nickname.is_empty() {
+            continue;
+        }
+
+        // PostgREST IN 문법 특수문자 차단
+        //
+        // 정상 닉네임엔 이런 문자가 들어올 일이 없음.
+        // 프론트 generateNickname()도 한글+숫자만 생성.
+        // 들어왔다면 악의적 요청 또는 버그.
+        if nickname.chars().any(|c| matches!(c, '"' | ',' | '(' | ')')) {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "닉네임에 사용할 수 없는 문자가 포함되어 있습니다.".to_string(),
+            ));
+        }
+
+        // 기존 닉네임 검증 로직 재사용
+        // (길이 2~10자, 앞뒤 공백, 금칙어 등 일관성 보장)
+        if let Err(message) = filter::validate_nickname(&nickname) {
+            return Err((StatusCode::BAD_REQUEST, message.to_string()));
+        }
+
+        // HashSet.insert는 새로 들어간 경우만 true
+        if seen.insert(nickname.clone()) {
+            candidates.push(nickname);
+        }
+    }
+
+    if candidates.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "검사할 닉네임이 없습니다.".to_string(),
+        ));
+    }
+
+    // ── 3) PostgREST IN 필터 생성 ──────────────────────
+    //
+    // 위 검증으로 특수문자가 없는 게 보장되므로
+    // 안심하고 따옴표로 감싸서 IN 필터 만듦.
+    //
+    // 예: in.("닉네임1","닉네임2","닉네임3")
+    let in_filter = format!(
+        "in.({})",
+        candidates
+            .iter()
+            .map(|n| format!("\"{}\"", n))
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+
+    // ── 4) Supabase REST API 호출 ──────────────────────
+    //
+    // reqwest의 .query()로 URL 인코딩 자동 처리.
+    let url = format!(
+        "{}/rest/v1/users",
+        state.config.supabase_url.trim_end_matches('/')
+    );
+
+    let resp = state
+        .http_client
+        .get(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .query(&[
+            ("nickname", in_filter.as_str()),
+            ("select", "nickname"),
+        ])
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!("닉네임 batch 조회 요청 실패: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "닉네임 검증에 실패했습니다.".to_string(),
+            )
+        })?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        // DB 에러 원문은 로그에만 남기고 사용자에게는 노출 안 함
+        tracing::error!("닉네임 batch 조회 응답 실패: {}", err);
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "닉네임 검증에 실패했습니다.".to_string(),
+        ));
+    }
+
+    // ── 5) 응답 파싱 → "이미 사용 중인 닉네임" Set 만들기 ─
+    #[derive(serde::Deserialize)]
+    struct NicknameRow {
+        nickname: String,
+    }
+
+    let rows: Vec<NicknameRow> = resp.json().await.map_err(|e| {
+        tracing::error!("닉네임 batch 응답 파싱 실패: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "닉네임 검증 결과 파싱에 실패했습니다.".to_string(),
+        )
+    })?;
+
+    let taken: HashSet<String> = rows.into_iter().map(|row| row.nickname).collect();
+
+    // ── 6) 처음 사용 가능한 닉네임 찾기 ────────────────
+    //
+    // candidates 순서 유지하면서 taken에 없는 첫 번째 값 반환.
+    let available = candidates
+        .into_iter()
+        .find(|nickname| !taken.contains(nickname));
+
+    Ok(Json(CheckNicknamesBatchResponse { available }))
+}
+
 
 // ═══════════════════════════════════════════════════════════════
 // [이메일 찾기] POST /auth/find-email
