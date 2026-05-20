@@ -129,6 +129,10 @@
   display: none !important;
 }
 
+.pdfDownload [role="tablist"] {
+  display: none !important;
+}
+
 /* PDF 생성 전용 */
 :global(.pdf-mode) {
   color-scheme: light !important;
@@ -181,10 +185,6 @@
   color: #111827 !important;
 }
 
-.pdfMode * {
-  color: inherit !important;
-}
-
 .pdfDownload {
   overflow: visible !important;
 }
@@ -197,6 +197,12 @@
   box-shadow: none !important;
   filter: none !important;
   backdrop-filter: none !important;
+}
+
+.pdfMode .recharts-text,
+.pdfMode .recharts-cartesian-axis-tick-value,
+.pdfMode .recharts-legend-item-text {
+  fill: #111827 !important;
 }
 
 /* =========================
