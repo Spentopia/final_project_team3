@@ -101,6 +101,7 @@ pub struct EquipmentSlotResponse {
 pub struct OwnedNftResponse {
     pub mint_address: String,
     pub item_id: Option<Uuid>,
+    pub inventory_id: Option<Uuid>, // user_inventory.id — 판매 등록(market_listings.item_id FK)용
     pub name: String,
     pub category: Option<String>,
     pub image_url: Option<String>,

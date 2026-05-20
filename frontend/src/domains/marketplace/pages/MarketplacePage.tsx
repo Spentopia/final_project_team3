@@ -54,8 +54,17 @@ import { abandonPendingListing } from "@/domains/marketplace/api/marketApi";
 import { useMarket } from "../hooks/useMarket";
 
 // 타입도 도메인 간 참조
-import type { UserItemResponse } from "@/domains/avatar/model/types";
+import type { OwnedNftResponse } from "@/domains/avatar/model/types";
 import type { ListingResponse } from "../model/types";
+
+// 판매 등록 다이얼로그용 최소 NFT 형태 (온체인 보유 NFT 기준)
+interface SellableNft {
+  inventoryId: string; // user_inventory.id — createListing에 전달
+  mintAddress: string; // 온체인 list_nft에 전달
+  name: string;
+  imageUrl: string | null;
+  category: string | null;
+}
 import { buyNftOnChain, cancelListingOnChain, listNftOnChain } from "../lib/marketplaceSolana";
 import { useSptBalance } from "@/shared/hooks/useSptBalance";
 import { getUserProfile } from "@/domains/profile/api/profile";
@@ -108,7 +117,7 @@ function isWalletRejectionError(error: unknown): boolean {
 interface CreateListingDialogProps {
   open: boolean;
   onClose: () => void;
-  nftItems: UserItemResponse[];  // is_nft === true 필터링된 목록 (부모에서 전달)
+  nftItems: SellableNft[];  // 온체인 보유 NFT 목록 (부모에서 전달)
   itemsLoading: boolean;
   onSubmit: (itemId: string, priceSpt: number) => Promise<void>;
   submitting: boolean;           // 등록 API 호출 중 여부 → 버튼 비활성화
@@ -180,20 +189,20 @@ function CreateListingDialog({
                 <p className={styles.dialogEmptyText}>판매 가능한 NFT 아이템이 없습니다.</p>
             ) : (
                 nftItems.map((item) => {
-                  const isSelected = selectedItemId === item.id;
+                  const isSelected = selectedItemId === item.inventoryId;
                   return (
                       <div
-                          key={item.id}
+                          key={item.mintAddress}
                           className={[
                             styles.selectableItem,
                             isSelected ? styles.selectableItemActive : "",
                           ].join(" ")}
-                          onClick={() => setSelectedItemId(item.id)}
+                          onClick={() => setSelectedItemId(item.inventoryId)}
                       >
                         {/* 썸네일 */}
                         <div className={styles.selectableItemThumb}>
-                          {item.image_url ? (
-                              <img src={item.image_url} alt={item.name} />
+                          {item.imageUrl ? (
+                              <img src={item.imageUrl} alt={item.name} />
                           ) : (
                               <div /> // 이미지 없으면 빈 div (CSS에서 bg-gray 처리)
                           )}
@@ -203,7 +212,7 @@ function CreateListingDialog({
                         <div className={styles.selectableItemInfo}>
                           <p className={styles.selectableItemName}>{item.name}</p>
                           <Badge variant="outline">
-                            {categoryLabel[item.category] ?? item.category}
+                            {(item.category && (categoryLabel[item.category] ?? item.category)) ?? "NFT"}
                           </Badge>
                         </div>
                       </div>
@@ -341,7 +350,7 @@ export default function MarketplacePage() {
   const { connection } = useConnection();
   const { publicKey, connected, sendTransaction } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
-  const { items, loading: itemsLoading, refetch: refetchItems } = useAvatarItems();
+  const { refetch: refetchItems } = useAvatarItems();
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const { sptBalance, sptLoading, refreshSptBalance } = useSptBalance(walletAddress);
 
@@ -392,6 +401,7 @@ export default function MarketplacePage() {
   const [initialNftSyncing, setInitialNftSyncing] = useState(false);
   const [pendingAvailablePurchaseCount, setPendingAvailablePurchaseCount] = useState(0);
   const [ownedNftCount, setOwnedNftCount] = useState<number | null>(null);
+  const [ownedNfts, setOwnedNfts] = useState<OwnedNftResponse[]>([]);
   const [ownedNftLoading, setOwnedNftLoading] = useState(false);
   const syncingOwnedNfts = ownedNftLoading || initialNftSyncing;
   const purchaseBalanceShortage = Boolean(
@@ -404,9 +414,11 @@ export default function MarketplacePage() {
   const refreshOwnedNftCount = async () => {
     setOwnedNftLoading(true);
     try {
-      const ownedNfts = await getOwnedNfts();
-      setOwnedNftCount(ownedNfts.length);
+      const fetched = await getOwnedNfts();
+      setOwnedNfts(fetched);
+      setOwnedNftCount(fetched.length);
     } catch {
+      setOwnedNfts([]);
       setOwnedNftCount(null);
     } finally {
       setOwnedNftLoading(false);
@@ -418,6 +430,7 @@ export default function MarketplacePage() {
 
     const syncInitialNfts = async () => {
       if (!walletAddress) {
+        setOwnedNfts([]);
         setOwnedNftCount(null);
         return;
       }
@@ -523,11 +536,18 @@ export default function MarketplacePage() {
       .filter(Boolean),
   );
 
-  const nftItems = items.filter((item) => {
-    if (item.is_nft !== true || !item.nft_mint_address) return false;
-    if (myListedMints.has(item.nft_mint_address)) return false; // 이미 판매 등록됨
-    return true;
-  });
+  // 판매 목록은 온체인 보유 NFT(Helius 동기화) 기준.
+  // - inventory_id 있어야 판매 등록 가능 (market_listings.item_id FK)
+  // - 이미 마켓에 등록된 mint는 제외
+  const nftItems: SellableNft[] = ownedNfts
+    .filter((nft) => !!nft.inventory_id && !myListedMints.has(nft.mint_address))
+    .map((nft) => ({
+      inventoryId: nft.inventory_id as string,
+      mintAddress: nft.mint_address,
+      name: nft.name,
+      imageUrl: nft.image_url,
+      category: nft.category,
+    }));
 
   // ──────────────────────────────────────────────────────────
   // 판매 등록 핸들러
@@ -538,8 +558,8 @@ export default function MarketplacePage() {
       return;
     }
 
-    const item = nftItems.find((candidate) => candidate.id === itemId);
-    if (!item?.nft_mint_address) {
+    const item = nftItems.find((candidate) => candidate.inventoryId === itemId);
+    if (!item?.mintAddress) {
       toast.error("NFT mint 주소가 없는 아이템은 판매 등록할 수 없습니다.");
       return;
     }
@@ -556,7 +576,7 @@ export default function MarketplacePage() {
         connection,
         publicKey,
         sendTransaction,
-        nftMintAddress: item.nft_mint_address,
+        nftMintAddress: item.mintAddress,
         priceSpt,
       });
 
@@ -758,8 +778,8 @@ export default function MarketplacePage() {
         <CreateListingDialog
             open={isCreateDialogOpen}
             onClose={() => setIsCreateDialogOpen(false)}
-            nftItems={nftItems}         // 필터링된 NFT 아이템 목록 전달
-            itemsLoading={itemsLoading || syncingOwnedNfts || openingCreateDialog} // 아이템/NFT 동기화 중이면 다이얼로그 내 로딩 표시
+            nftItems={nftItems}         // 온체인 보유 NFT 목록 전달
+            itemsLoading={syncingOwnedNfts || openingCreateDialog} // NFT 동기화 중이면 다이얼로그 내 로딩 표시
             onSubmit={handleCreateListing}
             submitting={creatingListing || updatingEscrow || listingOnChain} // 등록 중이면 버튼 비활성화
         />

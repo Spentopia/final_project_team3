@@ -21,6 +21,7 @@ export interface UserItemResponse {
 export interface OwnedNftResponse {
     mint_address: string;
     item_id: string | null;
+    inventory_id: string | null; // user_inventory.id — 판매 등록용
     name: string;
     category: string | null;
     image_url: string | null;
