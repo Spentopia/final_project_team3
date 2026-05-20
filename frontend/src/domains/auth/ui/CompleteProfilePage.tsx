@@ -277,19 +277,6 @@ export default function CompleteProfilePage() {
 
           <form onSubmit={handleNext} className="space-y-4">
             <div>
-              <Label htmlFor="phone">전화번호</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="010-1234-5678"
-                value={formData.phone}
-                onChange={(e) => updateFormData("phone", formatPhone(e.target.value))}
-                maxLength={13}
-                className="mt-1"
-              />
-            </div>
-
-            <div>
               <Label htmlFor="nickname">닉네임</Label>
               <div className="mt-1 flex gap-2">
                 <Input
@@ -315,6 +302,19 @@ export default function CompleteProfilePage() {
                   <Dices className={`h-4 w-4 text-gray-500 dark:text-gray-400 ${nicknameChecking ? "animate-spin" : ""}`} />
                 </button>
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="phone">전화번호</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="010-1234-5678"
+                value={formData.phone}
+                onChange={(e) => updateFormData("phone", formatPhone(e.target.value))}
+                maxLength={13}
+                className="mt-1"
+              />
             </div>
 
             <div>
