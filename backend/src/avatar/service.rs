@@ -972,6 +972,53 @@ fn asset_belongs_to_collection(asset: &serde_json::Value, collection_mint: &str)
         })
 }
 
+// 유저의 NFT user_inventory 행을 mint_address → inventory_id 맵으로 조회.
+async fn fetch_inventory_id_by_mint(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<std::collections::HashMap<String, Uuid>> {
+    #[derive(Deserialize)]
+    struct InventoryNftRow {
+        id: Uuid,
+        nft_mint_address: Option<String>,
+    }
+
+    let url = format!(
+        "{}/rest/v1/user_inventory?user_id=eq.{}&is_nft=eq.true&nft_mint_address=not.is.null&select=id,nft_mint_address",
+        state.config.supabase_url.trim_end_matches('/'),
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("user_inventory NFT mint 매핑 조회 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "user_inventory NFT mint 매핑 조회 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rows: Vec<InventoryNftRow> = res
+        .json()
+        .await
+        .context("user_inventory NFT mint 매핑 역직렬화 실패")?;
+
+    Ok(rows
+        .into_iter()
+        .filter_map(|r| r.nft_mint_address.map(|mint| (mint, r.id)))
+        .collect())
+}
+
 pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<OwnedNftResponse>> {
     let wallet_address = match get_user_wallet_optional(state, user_id).await? {
         Some(wallet) => wallet,
@@ -987,6 +1034,10 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
     )
     .await
     .context("지갑 NFT 조회 실패")?;
+
+    // 판매 등록(market_listings.item_id → user_inventory.id FK)에 쓰려면
+    // 온체인 mint_address ↔ user_inventory.id 매핑이 필요하다. 한 번에 조회.
+    let inventory_by_mint = fetch_inventory_id_by_mint(state, user_id).await?;
 
     let mut owned = Vec::with_capacity(assets.len());
     for asset in assets {
@@ -1060,16 +1111,15 @@ pub async fn get_owned_nfts(state: &AppState, user_id: Uuid) -> Result<Vec<Owned
             continue;
         }
 
-        if avatar_item
-            .as_ref()
-            .is_some_and(|item| !is_supported_avatar_slot(&item.category))
-        {
-            continue;
-        }
+        // 온체인 보유 NFT는 슬롯 지원 여부와 무관하게 모두 노출한다.
+        // (인게임 장착은 별도로 슬롯 검증 — 여기선 보유/판매 기준이라 필터하지 않음)
+
+        let inventory_id = inventory_by_mint.get(&mint_address).copied();
 
         owned.push(OwnedNftResponse {
             mint_address,
             item_id: avatar_item.as_ref().map(|item| item.id),
+            inventory_id,
             name: avatar_item
                 .as_ref()
                 .map(|item| item.name.clone())
