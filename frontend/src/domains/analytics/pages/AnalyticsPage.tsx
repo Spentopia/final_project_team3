@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { analyzeReport } from "@/shared/api/aiApi";
 import { isSolana402Body, sendSolanaX402Payment } from "@/shared/api/solanaX402";
 import { useState } from "react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { useRef } from "react";
 import type { AnalyzeReportRequest } from "@/shared/api/aiApi";
@@ -55,6 +55,74 @@ type AIReport = {
 type AnalysisReportType = AnalyzeReportRequest["report_type"];
 type AnalysisKind = AnalyzeReportRequest["analysis_kind"];
 type ReportStateByPeriod = Record<AnalysisReportType, AIReport | null>;
+
+const UNSUPPORTED_CSS_COLOR_RE = /oklch|oklab|lab\(|lch\(|color\(/i;
+
+const resolveCssColor = (value: string) => {
+  if (!value || !UNSUPPORTED_CSS_COLOR_RE.test(value)) return value;
+
+  const probe = document.createElement("div");
+  probe.style.color = value;
+  document.body.appendChild(probe);
+  const resolved = window.getComputedStyle(probe).color || value;
+  probe.remove();
+  return resolved;
+};
+
+const sanitizeCssValue = (property: string, value: string) => {
+  if (!value) return value;
+  if (!UNSUPPORTED_CSS_COLOR_RE.test(value)) return value;
+
+  if (
+    property.includes("color") ||
+    property === "fill" ||
+    property === "stroke" ||
+    property === "caret-color" ||
+    property === "text-decoration-color"
+  ) {
+    return resolveCssColor(value);
+  }
+
+  if (property === "background-image") {
+    return "none";
+  }
+
+  if (property.includes("shadow")) {
+    return "none";
+  }
+
+  return value;
+};
+
+const inlineComputedStyles = (source: Element, target: Element) => {
+  if (!(source instanceof HTMLElement || source instanceof SVGElement)) return;
+  if (!(target instanceof HTMLElement || target instanceof SVGElement)) return;
+
+  const computed = window.getComputedStyle(source);
+
+  for (const property of Array.from(computed)) {
+    const value = sanitizeCssValue(property, computed.getPropertyValue(property));
+    if (!value) continue;
+    (target as HTMLElement).style.setProperty(property, value, computed.getPropertyPriority(property));
+  }
+
+  if (source instanceof SVGElement && target instanceof SVGElement) {
+    const bboxWidth = source.getBoundingClientRect().width;
+    const bboxHeight = source.getBoundingClientRect().height;
+
+    if (bboxWidth > 0) target.setAttribute("width", `${bboxWidth}`);
+    if (bboxHeight > 0) target.setAttribute("height", `${bboxHeight}`);
+  }
+
+  const sourceChildren = Array.from(source.children);
+  const targetChildren = Array.from(target.children);
+
+  sourceChildren.forEach((child, index) => {
+    const targetChild = targetChildren[index];
+    if (!targetChild) return;
+    inlineComputedStyles(child, targetChild);
+  });
+};
 
 
 const WEEKLY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -318,6 +386,7 @@ const [isReportLoading, setIsReportLoading] = useState(false);
 
 const [isPatternLoading, setIsPatternLoading] = useState(false);
 
+const [isPdfMode, setIsPdfMode] = useState(false);
 const [isDownloading, setIsDownloading] = useState(false);
 
 const [selectedReportType, setSelectedReportType] = useState<AnalysisReportType>("weekly");
@@ -364,8 +433,7 @@ const budgetUsage =
     ? Math.round((totalExpense / currentBudget) * 100)
     : 0;
 
-const isPdfMode = false;
-const isDarkMode = resolvedTheme === "dark";
+const isDarkMode = resolvedTheme === "dark" && !isPdfMode;
 const chartTheme = isDarkMode
   ? {
       axis: "#c4b5fd",
@@ -647,143 +715,146 @@ const handleGeneratePattern = async () => {
 };
 
 const handleDownload = async () => {
-  if (!reportRef.current) return;
+  const element = reportRef.current;
 
-  let clonedElement: HTMLDivElement | null = null;
+  if (!element) {
+    toast.error("PDF 생성 실패", {
+      description: "캡처할 리포트 영역을 찾지 못했습니다.",
+    });
+    return;
+  }
+
+  if (isDownloading) return;
+
+  const previousScrollY = window.scrollY;
+  let clonedRoot: HTMLDivElement | null = null;
+  let captureShell: HTMLDivElement | null = null;
 
   try {
     setIsDownloading(true);
-
-    const element = reportRef.current;
-    clonedElement = element.cloneNode(true) as HTMLDivElement;
-    clonedElement.dataset.pdfCaptureRoot = "true";
-    clonedElement.classList.add(styles.pdfDownload, styles.pdfMode, styles.pdfFixedLayout);
-    clonedElement.style.position = "fixed";
-    clonedElement.style.left = "-20000px";
-    clonedElement.style.top = "0";
-    clonedElement.style.zIndex = "-1";
-    clonedElement.style.pointerEvents = "none";
-    clonedElement.style.width = "1400px";
-    clonedElement.style.minWidth = "1400px";
-    clonedElement.style.maxWidth = "1400px";
-    document.body.appendChild(clonedElement);
-
+    await document.fonts?.ready;
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
-    const canvas = await html2canvas(clonedElement, {
-      scale: 3,
+    clonedRoot = element.cloneNode(true) as HTMLDivElement;
+    inlineComputedStyles(element, clonedRoot);
+    clonedRoot.classList.add(styles.pdfDownload, styles.pdfMode, styles.pdfFixedLayout);
+    const sourceWidth = Math.ceil(element.getBoundingClientRect().width);
+    clonedRoot.style.width = `${sourceWidth}px`;
+    clonedRoot.style.maxWidth = `${sourceWidth}px`;
+    clonedRoot.style.minWidth = `${sourceWidth}px`;
+    clonedRoot.style.margin = "0 auto";
+    clonedRoot.style.display = "block";
+    clonedRoot.style.background = window.getComputedStyle(element).backgroundColor || "#ffffff";
+
+    clonedRoot
+      .querySelectorAll<HTMLElement>("[data-html2canvas-ignore='true']")
+      .forEach((node) => {
+        node.style.display = "none";
+      });
+
+    clonedRoot
+      .querySelectorAll<HTMLElement>("[data-pdf-force-text='black']")
+      .forEach((node) => {
+        node.style.color = "#111827";
+        node.style.fill = "#111827";
+        node.style.stroke = "#111827";
+      });
+
+    clonedRoot
+      .querySelectorAll<HTMLElement>("[data-pdf-force-button='light']")
+      .forEach((node) => {
+        node.style.color = "#111827";
+        node.style.background = "#f8fafc";
+        node.style.backgroundImage = "none";
+        node.style.border = "1px solid rgba(148, 163, 184, 0.45)";
+        node.style.boxShadow = "none";
+      });
+
+    captureShell = document.createElement("div");
+    captureShell.style.position = "fixed";
+    captureShell.style.left = "-100000px";
+    captureShell.style.top = "0";
+    captureShell.style.pointerEvents = "none";
+    captureShell.style.zIndex = "-1";
+    captureShell.style.background = "#ffffff";
+    captureShell.style.display = "flex";
+    captureShell.style.justifyContent = "center";
+    captureShell.style.alignItems = "flex-start";
+    captureShell.style.padding = "0";
+    captureShell.style.margin = "0";
+    captureShell.style.width = `${sourceWidth}px`;
+    captureShell.style.minWidth = `${sourceWidth}px`;
+    captureShell.style.maxWidth = `${sourceWidth}px`;
+    captureShell.appendChild(clonedRoot);
+    document.body.appendChild(captureShell);
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+
+    const captureWidth = Math.max(captureShell.scrollWidth, captureShell.offsetWidth);
+    const captureHeight = Math.max(captureShell.scrollHeight, captureShell.offsetHeight);
+
+    const canvas = await html2canvas(captureShell, {
+      scale: 2,
       useCORS: true,
+      allowTaint: false,
       backgroundColor: "#ffffff",
       logging: false,
       scrollX: 0,
       scrollY: 0,
-      width: clonedElement.scrollWidth,
-      windowWidth: clonedElement.scrollWidth,
-      height: clonedElement.scrollHeight,
-      windowHeight: clonedElement.scrollHeight,
-      foreignObjectRendering: false,
+      windowWidth: captureWidth,
+      windowHeight: captureHeight,
+      width: captureWidth,
+      height: captureHeight,
       removeContainer: true,
-      onclone: (clonedDoc) => {
-        const captureRoot = clonedDoc.querySelector("[data-pdf-capture-root=\"true\"]") as HTMLElement | null;
-
-        if (captureRoot) {
-          captureRoot.style.transform = "none";
-          captureRoot.style.opacity = "1";
-        }
-
-        const all = clonedDoc.querySelectorAll("*");
-
-        all.forEach((el) => {
-          const htmlEl = el as HTMLElement;
-          const style = clonedDoc.defaultView?.getComputedStyle(htmlEl);
-
-          if (!style) return;
-
-          if (style.color.includes("oklch")) {
-            htmlEl.style.color = "#111827";
-          }
-
-          if (style.backgroundColor.includes("oklch")) {
-            htmlEl.style.backgroundColor = "#ffffff";
-          }
-
-          if (style.borderColor.includes("oklch")) {
-            htmlEl.style.borderColor = "#d1d5db";
-          }
-
-          if (style.fill.includes("oklch")) {
-            htmlEl.style.fill = "#2563eb";
-          }
-
-          if (style.stroke.includes("oklch")) {
-            htmlEl.style.stroke = "#2563eb";
-          }
-        });
+      ignoreElements: (target) => {
+        if (!(target instanceof HTMLElement)) return false;
+        return target.dataset.html2canvasIgnore === "true";
       },
     });
 
-    const imgData = canvas.toDataURL("image/png");
+    captureShell.remove();
+    captureShell = null;
+    clonedRoot = null;
 
-    const pdf = new jsPDF("p", "mm", "a4");
 
-    const pdfWidth = 210;
-    const pdfHeight = 297;
-
-    const margin = 10;
-
-    const pageWidth = pdf.internal.pageSize.getWidth();
-const pageHeight = pdf.internal.pageSize.getHeight();
-
-const imgWidth = pageWidth - margin * 2;
-const imgHeight = (canvas.height * imgWidth) / canvas.width
-
-    let heightLeft = imgHeight;
-    let position = margin;
-
-    pdf.addImage(
-  imgData,
-  "PNG",
-  margin,
-  position,
-  imgWidth,
-  imgHeight,
-  undefined,
-  "FAST"
-);
-
-    heightLeft -= pdfHeight - margin * 2;
-
-    while (heightLeft > 0) {
-      position = margin - (imgHeight - heightLeft);
-
-      pdf.addPage();
-
-      pdf.addImage(
-  imgData,
-  "PNG",
-  margin,
-  position,
-  imgWidth,
-  imgHeight,
-  undefined,
-  "FAST"
-);
-
-      heightLeft -= pdfHeight - margin * 2;
+    if (canvas.width === 0 || canvas.height === 0) {
+      throw new Error("PDF 캡처 결과가 비어 있습니다.");
     }
 
-    pdf.save("소비_분석_리포트.pdf");
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
 
-  } catch (err) {
-    console.error("PDF 생성 오류:", err);
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 12;
+    const maxWidth = pageWidth - margin * 2;
+    const maxHeight = pageHeight - margin * 2;
+    const widthScale = maxWidth / canvas.width;
+    const heightScale = maxHeight / canvas.height;
+    const scale = Math.min(widthScale, heightScale);
+
+    const imgWidth = canvas.width * scale;
+    const imgHeight = canvas.height * scale;
+    const x = (pageWidth - imgWidth) / 2;
+    const y = (pageHeight - imgHeight) / 2;
+
+    pdf.addImage(imgData, "PNG", x, y, imgWidth, imgHeight, undefined, "FAST");
+
+    pdf.save("spentopia_report.pdf");
+    toast.success("PDF 다운로드가 완료되었습니다.");
+  } catch (error) {
+    console.error("[PDF] 생성 오류:", error);
 
     toast.error("PDF 생성 실패", {
-      description: "잠시 후 다시 시도해주세요.",
+      description:
+        error instanceof Error
+          ? error.message
+          : "콘솔 오류를 확인해주세요.",
     });
-
   } finally {
-    clonedElement?.remove();
+    captureShell?.remove();
+    clonedRoot?.remove();
     setIsDownloading(false);
+    window.scrollTo({ top: previousScrollY });
   }
 };
 
@@ -862,21 +933,26 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
       <div className="flex items-center justify-between">
         <div>
           <h1
+  data-pdf-force-text="black"
   className={`mb-2 text-3xl font-bold ${
     isPdfMode ? "text-black" : "text-gray-900 dark:text-gray-100"
   }`}
->소비 패턴 분석</h1>
-          <p className="mb-6 text-gray-600 dark:text-gray-300">
+>
+소비 패턴 분석</h1>
+          <p data-pdf-force-text="black" className="mb-6 text-gray-600 dark:text-gray-300">
   AI가 분석한 당신의 소비 습관을 확인해보세요
 </p>
         </div>
         <div className="flex gap-2">
   <Button
-    className={isPdfMode ? "bg-slate-900 text-white" : "spentopia-primary-button"}
+    type="button"
+    data-pdf-force-button="light"
+    disabled={isDownloading}
+    className="spentopia-primary-button"
     onClick={handleDownload}
   >
     <Download className="mr-2 h-4 w-4" />
-    리포트 다운로드
+    {isDownloading ? "다운로드 준비 중..." : "리포트 다운로드"}
   </Button>
 </div>
       </div>
