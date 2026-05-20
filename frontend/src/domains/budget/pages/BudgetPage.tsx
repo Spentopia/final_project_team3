@@ -615,31 +615,20 @@ try {
         name: PLAN_ORDER_LABELS[idx] ?? plan.name,
       }));
 
-    const appliedPlanId =
-  localStorage.getItem(getSelectedPlanStorageKey(monthKey));
+    // 새 AI 플랜 전체 교체
+setAiPlans(mappedPlans);
 
-let finalPlans = [...mappedPlans];
-
-// 적용중인 플랜 유지
-if (appliedPlanId) {
-  const appliedIndex = aiPlans.findIndex(
-    (p) => p.id === appliedPlanId
-  );
-
-  const appliedPlan = aiPlans[appliedIndex];
-
-  if (appliedIndex !== -1 && appliedPlan) {
-    finalPlans[appliedIndex] = appliedPlan;
-  }
-}
-
-// ✅ state 저장
-setAiPlans(finalPlans);
-
-// ✅ localStorage 즉시 저장
+// localStorage 저장
 localStorage.setItem(
   getAiPlansStorageKey(monthKey),
-  JSON.stringify(finalPlans)
+  JSON.stringify(mappedPlans)
+);
+
+// 기존 적용 플랜 초기화
+setSelectedPlan(null);
+
+localStorage.removeItem(
+  getSelectedPlanStorageKey(monthKey)
 );
 
     toast.success("AI 플랜 생성 완료!");
