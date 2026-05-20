@@ -4,6 +4,24 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        try {
+          var params = new URLSearchParams(window.location.search);
+          var theme = params.get("theme");
+          if (theme !== "dark" && theme !== "light") {
+            theme = window.localStorage.getItem("theme");
+          }
+          if (theme === "dark" || theme === "light") {
+            window.localStorage.setItem("theme", theme);
+            document.documentElement.classList.toggle("dark", theme === "dark");
+            document.documentElement.style.colorScheme = theme;
+          }
+        } catch (error) {
+          console.error("theme bootstrap failed", error);
+        }
+      })();
+    </script>
     <title>Spentopia</title>
   </head>
   <body>

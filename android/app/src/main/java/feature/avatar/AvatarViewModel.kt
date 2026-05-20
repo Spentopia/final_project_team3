@@ -1,6 +1,10 @@
 package com.ict.spentopia.feature.avatar // 이 파일이 속한 패키지 위치를 적음
 
 import androidx.lifecycle.ViewModel // ViewModel 기능을 가져옴
+import androidx.lifecycle.viewModelScope // ViewModel 코루틴 범위를 가져옴
+import com.ict.spentopia.data.remote.RetrofitClient // 서버 통신 도구를 가져옴
+import com.ict.spentopia.data.remote.UserAvatarItemResponse // 아바타 아이템 응답을 가져옴
+import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
 import kotlinx.coroutines.flow.MutableStateFlow // 바뀌는 상태값 도구를 가져옴
 import kotlinx.coroutines.flow.StateFlow // 읽기 전용 상태값 도구를 가져옴
 import kotlinx.coroutines.flow.asStateFlow // asStateFlow 기능을 가져옴
@@ -14,6 +18,117 @@ class AvatarViewModel : ViewModel() { // AvatarViewModel 기능을 묶어둔 클
 
     // 외부 상태
     val uiState: StateFlow<AvatarUiState> = _uiState.asStateFlow() // 화면에서 화면 상태를 읽을 수 있게 열어둠
+
+    init {
+        loadUserItems() // 화면이 처음 만들어질 때 서버에서 내 아바타 아이템을 불러옴
+    }
+
+    private fun loadUserItems() { // 서버에서 내 아바타 아이템을 불러옴
+        viewModelScope.launch {
+            try {
+                val items = RetrofitClient.avatarApi.getUserItems()
+                if (items.isNotEmpty()) {
+                    applyUserItems(items)
+                }
+            } catch (_: Exception) {
+                // 실패 시 기존 더미 화면을 유지한다.
+            }
+        }
+    }
+
+    private fun applyUserItems(items: List<UserAvatarItemResponse>) { // 서버 아이템을 화면 상태로 바꿈
+        val mappedItems = items.map { item ->
+            val category = toAvatarCategory(item.category)
+            AvatarItemUi(
+                name = item.name,
+                rarity = if (item.is_nft == true) "NFT" else "일반",
+                selected = item.is_equipped == true,
+                locked = false,
+                id = item.id,
+                imageUrl = item.image_url.orEmpty(),
+                categoryKey = item.category,
+                categoryLabel = category.label,
+                acquiredAt = item.acquired_at?.take(10).orEmpty(),
+                isNft = item.is_nft == true,
+                mintAddress = item.nft_mint_address.orEmpty(),
+                metadataUri = item.metadata_uri.orEmpty()
+            )
+        }
+
+        val sections = items
+            .groupBy { toAvatarCategory(it.category) }
+            .map { (category, categoryItems) ->
+                AvatarItemSectionUi(
+                    category = category,
+                    title = category.label,
+                    items = categoryItems.mapIndexed { index, item ->
+                        AvatarItemUi(
+                            emoji = emojiForCategory(category),
+                            name = item.name,
+                            rarity = if (item.is_nft == true) "NFT" else "일반",
+                            selected = item.is_equipped == true || index == 0,
+                            locked = false
+                        )
+                    }
+                )
+            }
+            .sortedBy { it.category.ordinal }
+
+        _uiState.update { currentState ->
+            currentState.copy(
+                allItems = mappedItems,
+                ownedItemCount = items.size,
+                totalItemCount = items.size,
+                itemSections = sections,
+                preview = buildPreviewFromSections(sections, currentState.preview),
+                summary = currentState.summary.copy(
+                    equippedItemCount = "${items.count { it.is_equipped == true }}개",
+                    acquiredDate = items.mapNotNull { it.acquired_at?.take(10) }.maxOrNull() ?: "-"
+                )
+            )
+        }
+    }
+
+    private fun toAvatarCategory(category: String): AvatarCategory { // 서버 카테고리를 화면 카테고리로 바꿈
+        return when (category.lowercase()) {
+            "body" -> AvatarCategory.BODY
+            "hair" -> AvatarCategory.HAIR
+            "hat" -> AvatarCategory.HAT
+            "face" -> AvatarCategory.FACE
+            "top" -> AvatarCategory.TOP
+            "bottom" -> AvatarCategory.BOTTOM
+            "shoes" -> AvatarCategory.SHOES
+            "clothes" -> AvatarCategory.CLOTHES
+            "weapon" -> AvatarCategory.WEAPON
+            "accessory" -> AvatarCategory.ACCESSORY
+            else -> AvatarCategory.ACCESSORY
+        }
+    }
+
+    private fun emojiForCategory(category: AvatarCategory): String { // 카테고리 기본 아이콘을 돌려줌
+        return when (category) {
+            AvatarCategory.BODY -> "🧍"
+            AvatarCategory.HAIR -> "👱"
+            AvatarCategory.FACE -> "😊"
+            AvatarCategory.CLOTHES -> "👕"
+            AvatarCategory.ACCESSORY -> "✨"
+            AvatarCategory.TOP -> "👕"
+            AvatarCategory.BOTTOM -> "👖"
+            AvatarCategory.SHOES -> "신발"
+            AvatarCategory.WEAPON -> "무기"
+            AvatarCategory.HAT -> "모자"
+            AvatarCategory.ALL -> "🎒"
+        }
+    }
+
+    fun selectMainTab(tab: AvatarMainTab) { // 일반/NFT 탭을 바꿈
+        _uiState.update { currentState ->
+            currentState.copy(
+                selectedMainTab = tab,
+                selectedCategory = AvatarCategory.ALL
+            )
+        }
+    }
 
     // 카테고리 변경
     fun selectCategory(category: AvatarCategory) { // selectCategory 함수를 선언함

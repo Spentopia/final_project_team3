@@ -67,7 +67,8 @@ fun MarketScreen( // MarketScreen 함수를 선언함
     onWalletConnectClick: (SolanaWalletType) -> Unit = {}, // 지갑 관련 값을 받음
     onNavigateBack: () -> Unit = {}, // onNavigateBack 때 실행할 함수를 받음
     webPath: String = "/nft-market", // webPath 값을 받음
-    screenTitle: String = "NFT 마켓" // screenTitle 값을 받음
+    screenTitle: String = "NFT 마켓", // screenTitle 값을 받음
+    isDarkTheme: Boolean = false // 앱 다크모드 값을 받음
 ) { // 이 블록 안의 내용이 시작됨
     val context = LocalContext.current // 현재 화면 정보를 저장함
     val prefs = remember(context) { // 화면이 다시 그려져도 간단 저장소를 기억함
@@ -112,7 +113,7 @@ fun MarketScreen( // MarketScreen 함수를 선언함
         isLoading = true // true 값을 로딩 여부에 넣음
 
         runCatching { // 이 블록 안의 내용이 시작됨
-            val redirectPath = buildFrontendWebViewRedirectPath(webPath) // redirectPath 값을 저장함
+            val redirectPath = buildFrontendWebViewRedirectPath(webPath, isDarkTheme) // redirectPath 값을 저장함
             val issuedToken = RetrofitClient.authApi // 토큰 값을 저장함
                 .issueWebviewToken(request = WebviewIssueRequest(redirect_path = redirectPath)) // 토큰 값을 정해줌
                 .webview_token
@@ -194,7 +195,8 @@ fun MarketScreen( // MarketScreen 함수를 선언함
                                             accessToken = accessToken, // 접근 토큰을 접근 토큰에 넣음
                                             walletAddress = walletAddress, // 지갑 주소를 지갑 주소에 넣음
                                             walletProvider = walletProvider, // 지갑 이름을 지갑 이름에 넣음
-                                            isWalletConnected = isWalletConnected // 지갑 값을 요청값에 넣음
+                                            isWalletConnected = isWalletConnected, // 지갑 값을 요청값에 넣음
+                                            isDarkTheme = isDarkTheme // 앱 테마 값을 웹뷰에 전달함
                                         )
                                     }
                                 }
@@ -247,7 +249,8 @@ fun MarketScreen( // MarketScreen 함수를 선언함
                                         accessToken = accessToken, // 접근 토큰을 접근 토큰에 넣음
                                         walletAddress = walletAddress, // 지갑 주소를 지갑 주소에 넣음
                                         walletProvider = walletProvider, // 지갑 이름을 지갑 이름에 넣음
-                                        isWalletConnected = isWalletConnected // 지갑 값을 요청값에 넣음
+                                        isWalletConnected = isWalletConnected, // 지갑 값을 요청값에 넣음
+                                        isDarkTheme = isDarkTheme // 앱 테마 값을 웹뷰에 전달함
                                     )
                                 }
 
@@ -324,7 +327,8 @@ fun MarketScreen( // MarketScreen 함수를 선언함
                                 accessToken = accessToken, // 접근 토큰을 접근 토큰에 넣음
                                 walletAddress = walletAddress, // 지갑 주소를 지갑 주소에 넣음
                                 walletProvider = walletProvider, // 지갑 이름을 지갑 이름에 넣음
-                                isWalletConnected = isWalletConnected // 지갑 값을 요청값에 넣음
+                                isWalletConnected = isWalletConnected, // 지갑 값을 요청값에 넣음
+                                isDarkTheme = isDarkTheme // 앱 테마 값을 웹뷰에 전달함
                             )
                         }
                     }
@@ -419,12 +423,13 @@ private fun WebView.configureMarketWebView() { // WebView 함수를 선언함
     setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true) // set Renderer Priority Policy 함수를 실행함
 }
 
-private fun buildFrontendWebViewRedirectPath(webPath: String): String { // buildFrontendWebViewRedirectPath 함수를 선언함
+private fun buildFrontendWebViewRedirectPath(webPath: String, isDarkTheme: Boolean): String { // buildFrontendWebViewRedirectPath 함수를 선언함
     val normalizedPath = if (webPath.startsWith("/")) webPath else "/$webPath" // normalizedPath 값을 저장함
 
     return Uri.Builder() // 이 값을 함수 결과로 돌려줌
         .path(normalizedPath)
         .appendQueryParameter("webview", "true")
+        .appendQueryParameter("theme", if (isDarkTheme) "dark" else "light")
         .build()
         .toString()
 }
@@ -471,7 +476,8 @@ private fun WebView.injectMarketSessionIfReady( // WebView 함수를 선언함
     accessToken: String, // 접근 토큰을 받음
     walletAddress: String, // 지갑 주소를 받음
     walletProvider: String, // 지갑 이름을 받음
-    isWalletConnected: Boolean // 지갑 관련 값을 받음
+    isWalletConnected: Boolean, // 지갑 관련 값을 받음
+    isDarkTheme: Boolean // 앱 다크모드 값을 받음
 ) { // 이 블록 안의 내용이 시작됨
     val currentUrl = url.orEmpty() // currentUrl 값을 저장함
     if (!currentUrl.startsWith("http://") && !currentUrl.startsWith("https://")) { // 조건이 맞는지 확인함
@@ -492,8 +498,17 @@ private fun WebView.injectMarketSessionIfReady( // WebView 함수를 선언함
         window.localStorage.setItem('spentopia_wallet_connected', ${JSONObject.quote(isWalletConnected.toString())});
         window.localStorage.setItem('spentopia_wallet_address', ${JSONObject.quote(walletAddress)});
         window.localStorage.setItem('spentopia_wallet_provider', ${JSONObject.quote(walletProvider)});
+        window.localStorage.setItem('theme', ${JSONObject.quote(if (isDarkTheme) "dark" else "light")});
       } catch (e) {
         console.error('localStorage set failed', e);
+      }
+
+      try {
+        var root = document.documentElement;
+        root.classList.toggle('dark', $isDarkTheme);
+        root.style.colorScheme = ${JSONObject.quote(if (isDarkTheme) "dark" else "light")};
+      } catch (e) {
+        console.error('theme apply failed', e);
       }
 
       window.dispatchEvent(new CustomEvent('spentopiaAndroidSession', {
@@ -501,12 +516,20 @@ private fun WebView.injectMarketSessionIfReady( // WebView 함수를 선언함
           accessToken: ${JSONObject.quote(accessToken)},
           walletAddress: ${JSONObject.quote(walletAddress)},
           walletProvider: ${JSONObject.quote(walletProvider)},
-          walletConnected: $isWalletConnected
+          walletConnected: $isWalletConnected,
+          theme: ${JSONObject.quote(if (isDarkTheme) "dark" else "light")}
+        }
+      }));
+
+      window.dispatchEvent(new CustomEvent('spentopiaAndroidThemeChanged', {
+        detail: {
+          theme: ${JSONObject.quote(if (isDarkTheme) "dark" else "light")},
+          dark: $isDarkTheme
         }
       }));
     })();
 """.trimIndent()
 
-    Log.d(MARKET_WEBVIEW_TAG, "injectMarketSession tokenPresent=${accessToken.isNotBlank()}") // 개발자가 확인할 로그를 찍음
+    Log.d(MARKET_WEBVIEW_TAG, "injectMarketSession tokenPresent=${accessToken.isNotBlank()} dark=$isDarkTheme") // 개발자가 확인할 로그를 찍음
     evaluateJavascript(script, null) // evaluate Javascript 함수를 실행함
 }

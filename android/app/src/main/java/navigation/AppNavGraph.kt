@@ -90,6 +90,7 @@ import com.ict.spentopia.feature.community.CommunityViewModel // CommunityViewMo
 import com.ict.spentopia.feature.community.CommunityWriteScreen // CommunityWriteScreen 기능을 가져옴
 import com.ict.spentopia.feature.home.HomeScreen // HomeScreen 기능을 가져옴
 import com.ict.spentopia.feature.market.MarketScreen // MarketScreen 기능을 가져옴
+import com.ict.spentopia.feature.mypage.ProfileAvatarScreen // ProfileAvatarScreen 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender // ActivityResultSender 기능을 가져옴
 import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
@@ -643,14 +644,12 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                 composable(Route.Analysis.route) { AnalysisScreen() } // 이 주소로 들어오면 보여줄 화면을 등록함
 
                 composable(Route.ProfileAvatar.route) { // 이 주소로 들어오면 보여줄 화면을 등록함
-                    MarketScreen( // 마켓 화면을 보여줌
+                    ProfileAvatarScreen( // 마이페이지와 아바타 아이템 네이티브 화면을 보여줌
                         isWalletConnected = walletConnected, // 지갑 값을 요청값에 넣음
                         walletAddress = walletAddress, // 지갑 주소를 지갑 주소에 넣음
                         walletProvider = walletProvider, // 지갑 이름을 지갑 이름에 넣음
                         onWalletConnectClick = { walletType -> startWalletReconnect(walletType) }, // 지갑 관련 값을 정해줌
-                        onNavigateBack = { navController.popBackStack() }, // onNavigateBack 때 실행할 함수를 정해줌
-                        webPath = "/profile", // webPath 값을 정해줌
-                        screenTitle = "마이페이지" // screenTitle 값을 정해줌
+                        onWalletDisconnectClick = { startWalletUnlink() } // 지갑 해제 값을 정해줌
                     )
                 }
 
@@ -662,7 +661,8 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                         onWalletConnectClick = { walletType -> startWalletReconnect(walletType) }, // 지갑 관련 값을 정해줌
                         onNavigateBack = { navController.popBackStack() }, // onNavigateBack 때 실행할 함수를 정해줌
                         webPath = "/nft-market", // webPath 값을 정해줌
-                        screenTitle = "NFT 마켓" // screenTitle 값을 정해줌
+                        screenTitle = "NFT 마켓", // screenTitle 값을 정해줌
+                        isDarkTheme = isDarkTheme // 앱 테마 값을 웹뷰에 전달함
                     )
                 }
 

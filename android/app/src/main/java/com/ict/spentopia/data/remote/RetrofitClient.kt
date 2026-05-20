@@ -347,6 +347,15 @@ object RetrofitClient { // RetrofitClient를 앱에서 하나만 쓰게 만듦
             .create(UserSettingsApi::class.java)
     }
 
+    val avatarApi: AvatarApi by lazy { // avatarApi 값을 저장함
+        Retrofit.Builder() // 서버 통신 도구를 설정함
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(AvatarApi::class.java)
+    }
+
     val aiAnalyzeApi: AiAnalyzeApi by lazy { // aiAnalyzeApi 값을 저장함
         Retrofit.Builder() // 서버 통신 도구를 설정함
             .baseUrl(AI_ANALYZE_BASE_URL)

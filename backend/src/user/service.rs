@@ -86,6 +86,11 @@ pub async fn update_profile(
         }
     }
 
+    let is_social_login = current_user.login_provider.as_deref() != Some("email");
+    if is_social_login && req.phone.as_deref() != current_user.phone.as_deref() {
+        return Err(anyhow!("소셜 로그인 계정은 전화번호를 변경할 수 없습니다"));
+    }
+
     // 이메일 변경은 프론트에서 supabase.auth.updateUser로 직접 처리
     // public.users PATCH
     let url = format!(

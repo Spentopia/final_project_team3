@@ -40,7 +40,7 @@ data class MemberInfoUi( // MemberInfoUi 데이터를 묶어둘 클래스 시작
 )
 
 // ------------------------------------------------------------
-// 소셜 연동 정보 UI 모델
+// 소셜 연동 정보 UI 모델1
 // ------------------------------------------------------------
 // 카카오 / 네이버 / 구글 등의 연동 상태를 담는다.
 // ------------------------------------------------------------
@@ -84,6 +84,7 @@ data class ProfileSummaryUi( // ProfileSummaryUi 데이터를 묶어둘 클래�
     val streakText: String = "", // streakText 값을 저장함
     val sptBalanceText: String = "", // sptBalanceText 값을 저장함
     val avatarCountText: String = "", // 아바타 관련 값을 저장함
+    val loginProviderText: String = "", // 로그인 방식을 저장함
     val profileImageUri: String = "" // profileImageUri 값을 저장함
 )
 
@@ -99,5 +100,6 @@ data class MyPageUiState( // MyPageUiState 데이터를 묶어둘 클래스 시�
     val socialAccounts: List<SocialAccountUi> = emptyList(), // socialAccounts 값을 저장함
     val notificationSetting: NotificationSettingUi = NotificationSettingUi(), // notificationSetting 값을 저장함
     val walletUi: WalletUi = WalletUi(), // 지갑 관련 값을 저장함
+    val isSocialLogin: Boolean = false, // 소셜 로그인 계정인지 저장함
     val isEditMode: Boolean = false // 수정 모드인지 저장함
 )

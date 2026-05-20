@@ -9,7 +9,12 @@ enum class AvatarCategory( // AvatarCategory에서 고를 수 있는 값들을 �
     HAIR("헤어"), // HAIR 함수를 실행함
     FACE("표정"), // FACE 함수를 실행함
     CLOTHES("옷"), // CLOTHES 함수를 실행함
-    ACCESSORY("액세서리") // ACCESSORY 함수를 실행함
+    ACCESSORY("액세서리"), // ACCESSORY 함수를 실행함
+    TOP("상의"), // TOP 함수를 실행함
+    BOTTOM("하의"), // BOTTOM 함수를 실행함
+    SHOES("신발"), // SHOES 함수를 실행함
+    WEAPON("무기"), // WEAPON 함수를 실행함
+    HAT("모자") // HAT 함수를 실행함
 }
 
 // 액션 버튼 모델
@@ -43,11 +48,19 @@ data class AvatarRewardUi( // AvatarRewardUi 데이터를 묶어둘 클래스 �
 
 // 아이템 모델
 data class AvatarItemUi( // AvatarItemUi 데이터를 묶어둘 클래스 시작
-    val emoji: String, // emoji 값을 저장함
+    val emoji: String = "", // emoji 값을 저장함
     val name: String, // name 값을 저장함
     val rarity: String, // rarity 값을 저장함
     val selected: Boolean, // selected 값을 저장함
-    val locked: Boolean // locked 값을 저장함
+    val locked: Boolean, // locked 값을 저장함
+    val id: String = "", // id 값을 저장함
+    val imageUrl: String = "", // 이미지 주소를 저장함
+    val categoryKey: String = "", // 서버 카테고리 값을 저장함
+    val categoryLabel: String = "", // 화면 카테고리 값을 저장함
+    val acquiredAt: String = "", // 획득일을 저장함
+    val isNft: Boolean = false, // NFT 여부를 저장함
+    val mintAddress: String = "", // NFT mint 주소를 저장함
+    val metadataUri: String = "" // metadata 주소를 저장함
 )
 
 // 아이템 섹션 모델
@@ -73,7 +86,7 @@ data class AvatarMethodUi( // AvatarMethodUi 데이터를 묶어둘 클래스 �
 
 // 화면 상태
 data class AvatarUiState( // AvatarUiState 데이터를 묶어둘 클래스 시작
-    val screenTitle: String = "내 아바타", // screenTitle 값을 저장함
+    val screenTitle: String = "내 아바타 아이템", // screenTitle 값을 저장함
     val ownedItemCount: Int = 10, // ownedItemCount 값을 저장함
     val totalItemCount: Int = 19, // totalItemCount 값을 저장함
     val selectedCategory: AvatarCategory = AvatarCategory.ALL, // selectedCategory 값을 저장함
@@ -95,7 +108,17 @@ data class AvatarUiState( // AvatarUiState 데이터를 묶어둘 클래스 시�
         progress = 0.63f, // progress 값을 정해줌
         description = "성실도 점수 25점만 더 모으면 랜덤 아바타!" // description 값을 정해줌
     ),
-    val categories: List<AvatarCategory> = AvatarCategory.entries, // categories 값을 저장함
+    val categories: List<AvatarCategory> = listOf( // 웹 화면의 슬롯 필터를 저장함
+        AvatarCategory.ALL,
+        AvatarCategory.HAIR,
+        AvatarCategory.TOP,
+        AvatarCategory.BOTTOM,
+        AvatarCategory.SHOES,
+        AvatarCategory.WEAPON,
+        AvatarCategory.HAT
+    ),
+    val selectedMainTab: AvatarMainTab = AvatarMainTab.NORMAL, // 일반/NFT 탭을 저장함
+    val allItems: List<AvatarItemUi> = emptyList(), // 전체 아이템을 저장함
     val itemSections: List<AvatarItemSectionUi> = emptyList(), // itemSections 값을 저장함
     val collectionProgressList: List<AvatarCollectionProgressUi> = emptyList(), // collectionProgressList 값을 저장함
     val methodList: List<AvatarMethodUi> = emptyList() // methodList 값을 저장함
@@ -111,6 +134,13 @@ data class AvatarUiState( // AvatarUiState 데이터를 묶어둘 클래스 시�
         } else { // 이 블록 안의 내용이 시작됨
             itemSections.filter { it.category == selectedCategory } // it.category 값을 정해줌
         }
+}
+
+enum class AvatarMainTab( // 아바타 아이템 탭 종류를 묶음
+    val label: String // label 값을 저장함
+) {
+    NORMAL("일반 아이템"),
+    NFT("NFT 아이템")
 }
 
 // 더미 상태

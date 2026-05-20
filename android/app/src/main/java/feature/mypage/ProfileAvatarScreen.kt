@@ -1,6 +1,7 @@
 package com.ict.spentopia.feature.mypage // 이 파일이 속한 패키지 위치를 적음
 
 import androidx.compose.foundation.background // background 기능을 가져옴
+import androidx.compose.foundation.border // border 기능을 가져옴
 import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
 import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
 import androidx.compose.foundation.layout.Row // 가로 배치 레이아웃을 가져옴
@@ -41,7 +42,8 @@ fun ProfileAvatarScreen( // ProfileAvatarScreen 함수를 선언함
     isWalletConnected: Boolean = false, // 지갑 관련 값을 받음
     walletAddress: String = "", // 지갑 주소를 받음
     walletProvider: String = "", // 지갑 이름을 받음
-    onWalletConnectClick: (SolanaWalletType) -> Unit = {} // 지갑 관련 값을 받음
+    onWalletConnectClick: (SolanaWalletType) -> Unit = {}, // 지갑 관련 값을 받음
+    onWalletDisconnectClick: () -> Unit = {} // 지갑 해제 값을 받음
 ) { // 이 블록 안의 내용이 시작됨
     var selectedTab by remember { mutableStateOf(ProfileTab.MY_PAGE) } // 화면에서 바뀔 selectedTab 값을 저장함
 
@@ -52,11 +54,16 @@ fun ProfileAvatarScreen( // ProfileAvatarScreen 함수를 선언함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .clip(RoundedCornerShape(999.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    shape = RoundedCornerShape(999.dp)
+                )
                 .padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp) // horizontalArrangement 값을 정해줌
         ) { // 이 블록 안의 내용이 시작됨
             ProfileTabButton( // 누를 수 있는 버튼을 만듦
-                text = "마이페이지", // text 값을 정해줌
+                text = "내 프로필", // text 값을 정해줌
                 selected = selectedTab == ProfileTab.MY_PAGE, // selected 값을 정해줌
                 onClick = { // 눌렀을 때 실행할 함수를 정해줌
                     selectedTab = ProfileTab.MY_PAGE // selectedTab 값을 정해줌
@@ -64,7 +71,7 @@ fun ProfileAvatarScreen( // ProfileAvatarScreen 함수를 선언함
             )
 
             ProfileTabButton( // 누를 수 있는 버튼을 만듦
-                text = "내 아바타", // text 값을 정해줌
+                text = "내 아바타 아이템", // text 값을 정해줌
                 selected = selectedTab == ProfileTab.AVATAR, // selected 값을 정해줌
                 onClick = { // 눌렀을 때 실행할 함수를 정해줌
                     selectedTab = ProfileTab.AVATAR // selectedTab 값을 정해줌
@@ -81,7 +88,8 @@ fun ProfileAvatarScreen( // ProfileAvatarScreen 함수를 선언함
                     isWalletConnected = isWalletConnected, // 지갑 값을 요청값에 넣음
                     walletAddress = walletAddress, // 지갑 주소를 지갑 주소에 넣음
                     walletProvider = walletProvider, // 지갑 이름을 지갑 이름에 넣음
-                    onWalletConnectClick = onWalletConnectClick // 지갑 값을 요청값에 넣음
+                    onWalletConnectClick = onWalletConnectClick, // 지갑 값을 요청값에 넣음
+                    onWalletDisconnectClick = onWalletDisconnectClick // 지갑 해제 값을 요청값에 넣음
                 )
             }
 
@@ -109,6 +117,11 @@ private fun ProfileTabButton( // ProfileTabButton 함수를 선언함
         interactionSource = interactionSource, // interactionSource 값을 interactionSource 값에 넣음
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .clip(RoundedCornerShape(999.dp))
+            .border(
+                width = if (selected) 1.dp else 0.dp,
+                color = if (selected) MaterialTheme.colorScheme.outline else Color.Transparent,
+                shape = RoundedCornerShape(999.dp)
+            )
             .background(
                 if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent // 조건이 맞는지 확인함
             )
