@@ -258,14 +258,20 @@ pub async fn verify_receipt_ocr(
                             .into_response();
                     }
 
-                    if let Err(e) =
-                        crate::reward::service::increment_box_count(&state, user_id).await
-                    {
-                        return (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            format!("상자 오픈권 지급 실패: {}", e),
-                        )
-                            .into_response();
+                    // 뽑기권은 "당일(오늘 날짜) 영수증"만 지급한다.
+                    // 과거 날짜 영수증은 인증(receipt_verified)/성실도 반영은 되지만
+                    // box_count는 올라가지 않는다.
+                    let today = chrono::Local::now().date_naive();
+                    if receipt_date == today {
+                        if let Err(e) =
+                            crate::reward::service::increment_box_count(&state, user_id).await
+                        {
+                            return (
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                                format!("상자 오픈권 지급 실패: {}", e),
+                            )
+                                .into_response();
+                        }
                     }
 
                     let state_clone = state.clone();

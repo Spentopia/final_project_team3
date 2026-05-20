@@ -9,10 +9,7 @@
 
 use anyhow::{Context, Result, anyhow};
 use chrono::{Datelike, Local, NaiveDate};
-use rand::{
-    distributions::{Distribution, WeightedIndex},
-    seq::SliceRandom,
-};
+use rand::{Rng, seq::SliceRandom};
 use uuid::Uuid;
 
 use crate::clients::solana_client;
@@ -1352,8 +1349,15 @@ pub async fn get_current_weekly_score(
 }
 
 pub async fn get_box_count(state: &AppState, user_id: Uuid) -> Result<BoxCountResponse> {
+    let box_count = fetch_box_count(state, user_id).await?;
+    let daily_earned = crate::expense::service::count_today_verified_receipts(state, user_id)
+        .await
+        .map_err(|e| anyhow!(e))? as i32;
+
     Ok(BoxCountResponse {
-        box_count: fetch_box_count(state, user_id).await?,
+        box_count,
+        daily_earned,
+        daily_limit: crate::expense::service::DAILY_RECEIPT_LIMIT as i32,
     })
 }
 
@@ -1387,20 +1391,7 @@ pub async fn open_box(state: &AppState, user_id: Uuid) -> Result<OpenBoxResponse
     };
 
     match grant_result {
-        Ok(item) => Ok(match item {
-            Some(item) => OpenBoxResponse {
-                remaining_box_count: claimed_count,
-                is_win: true,
-                message: "아바타를 획득했습니다".to_string(),
-                item: Some(item),
-            },
-            None => OpenBoxResponse {
-                remaining_box_count: claimed_count,
-                is_win: false,
-                message: "꽝입니다".to_string(),
-                item: None,
-            },
-        }),
+        Ok(reward) => Ok(build_open_box_response(claimed_count, reward)),
         Err(e) => {
             if let Err(refund_err) = increment_box_count(state, user_id).await {
                 tracing::error!(
@@ -1415,10 +1406,49 @@ pub async fn open_box(state: &AppState, user_id: Uuid) -> Result<OpenBoxResponse
     }
 }
 
-async fn open_box_for_normal_user(
-    state: &AppState,
-    user_id: Uuid,
-) -> Result<Option<UnityAvatarItemResponse>> {
+// 상자 보상 종류
+enum BoxReward {
+    Miss,
+    Spt { amount: i32 },
+    Avatar(UnityAvatarItemResponse),
+}
+
+fn build_open_box_response(remaining_box_count: i32, reward: BoxReward) -> OpenBoxResponse {
+    match reward {
+        BoxReward::Miss => OpenBoxResponse {
+            remaining_box_count,
+            reward_type: "miss".to_string(),
+            is_win: false,
+            message: "꽝입니다".to_string(),
+            spt_amount: None,
+            item: None,
+        },
+        BoxReward::Spt { amount } => OpenBoxResponse {
+            remaining_box_count,
+            reward_type: "spt".to_string(),
+            is_win: true,
+            message: format!("{} SPT를 획득했습니다", amount),
+            spt_amount: Some(amount),
+            item: None,
+        },
+        BoxReward::Avatar(item) => OpenBoxResponse {
+            remaining_box_count,
+            reward_type: "avatar".to_string(),
+            is_win: true,
+            message: "아바타를 획득했습니다".to_string(),
+            spt_amount: None,
+            item: Some(item),
+        },
+    }
+}
+
+// 지갑 미연동 유저: 90% 꽝 / 10% 일반 아바타(균등 랜덤, 중복 제외)
+async fn open_box_for_normal_user(state: &AppState, user_id: Uuid) -> Result<BoxReward> {
+    let roll = rand::thread_rng().gen_range(0..100);
+    if roll < 90 {
+        return Ok(BoxReward::Miss);
+    }
+
     let items = fetch_box_items(state, "normal").await?;
     if items.is_empty() {
         return Err(anyhow!("지급 가능한 일반 아이템이 없습니다"));
@@ -1430,43 +1460,75 @@ async fn open_box_for_normal_user(
         .filter(|item| !owned.contains(&item.id))
         .collect();
 
-    if candidates.is_empty() {
-        return Ok(None);
-    }
-
-    let Some(item) = draw_box_item(&candidates, state.config.reward_box_miss_weight)? else {
-        return Ok(None);
+    // 줄 수 있는 미보유 아이템이 없으면 꽝 처리
+    let Some(item) = candidates.choose(&mut rand::thread_rng()).cloned() else {
+        return Ok(BoxReward::Miss);
     };
 
     let inventory_id =
         insert_user_inventory(state, user_id, item.id, false, None, None, None).await?;
 
-    Ok(Some(UnityAvatarItemResponse {
+    Ok(BoxReward::Avatar(UnityAvatarItemResponse {
         inventory_id,
         item_id: item.id,
         name: item.name,
+        image_url: item.image_url,
         is_equipped: false,
         slot_name: item.category,
     }))
 }
 
+// 지갑 연동 유저: 70% 꽝 / 20% SPT(5~10) / 10% NFT 아바타(균등 랜덤)
 async fn open_box_for_nft_user(
     state: &AppState,
     user_id: Uuid,
     wallet_address: &str,
-) -> Result<Option<UnityAvatarItemResponse>> {
-    let items = fetch_box_items(state, "nft").await?;
-    if items.is_empty() {
-        return Err(anyhow!("지급 가능한 NFT 아이템이 없습니다"));
+) -> Result<BoxReward> {
+    let roll = rand::thread_rng().gen_range(0..100);
+    if roll < 70 {
+        return Ok(BoxReward::Miss);
+    }
+    if roll < 90 {
+        let amount = grant_box_spt(state, wallet_address).await?;
+        return Ok(BoxReward::Spt { amount });
     }
 
-    let Some(item) = draw_box_item(&items, state.config.reward_box_miss_weight)? else {
-        return Ok(None);
+    let items = fetch_box_items(state, "nft").await?;
+    let Some(item) = items.choose(&mut rand::thread_rng()).cloned() else {
+        return Err(anyhow!("지급 가능한 NFT 아이템이 없습니다"));
     };
 
-    Ok(Some(
+    Ok(BoxReward::Avatar(
         mint_and_insert_box_nft_avatar_item(state, user_id, wallet_address, item).await?,
     ))
+}
+
+// 상자 SPT 보상 지급: 온체인 민팅만 수행 (DB에 저장하지 않음).
+// SPT 잔액의 진실의 원천은 온체인이며, 프론트는 온체인 잔액을 직접 읽는다.
+// 민팅 실패 시 에러를 던져 호출부(open_box)에서 box_count가 환불되게 한다.
+// 반환: 지급한 SPT 수량
+async fn grant_box_spt(state: &AppState, wallet_address: &str) -> Result<i32> {
+    if state.config.solana_admin_keypair.is_empty() {
+        return Err(anyhow!(
+            "SPT 보상을 지급하려면 SOLANA_ADMIN_KEYPAIR가 필요합니다"
+        ));
+    }
+
+    let amount: i32 = rand::thread_rng().gen_range(5..=10);
+    let amount_base_units = amount as u64 * solana_client::SPT_DECIMALS;
+
+    solana_client::mint_spt_to_user(
+        &state.config.solana_rpc_url,
+        &state.http_client,
+        &state.config.solana_admin_keypair,
+        wallet_address,
+        &state.config.solana_program_id,
+        amount_base_units,
+    )
+    .await
+    .context("상자 SPT 온체인 민팅 실패")?;
+
+    Ok(amount)
 }
 
 async fn fetch_box_items(state: &AppState, item_type: &str) -> Result<Vec<BoxItemRow>> {
@@ -1538,23 +1600,6 @@ async fn fetch_owned_normal_item_ids(
     Ok(owned_rows.into_iter().map(|row| row.item_id).collect())
 }
 
-fn draw_box_item(items: &[BoxItemRow], miss_weight: u32) -> Result<Option<BoxItemRow>> {
-    let mut weights: Vec<u32> = items
-        .iter()
-        .map(|item| item.drop_weight.unwrap_or(1))
-        .collect();
-    weights.push(miss_weight);
-
-    let distribution = WeightedIndex::new(&weights).context("상자 확률 가중치 생성 실패")?;
-    let selected = distribution.sample(&mut rand::thread_rng());
-
-    if selected == items.len() {
-        Ok(None)
-    } else {
-        Ok(Some(items[selected].clone()))
-    }
-}
-
 async fn mint_and_insert_box_nft_avatar_item(
     state: &AppState,
     user_id: Uuid,
@@ -1610,6 +1655,7 @@ async fn mint_and_insert_box_nft_avatar_item(
         inventory_id,
         item_id: item.id,
         name: item.name,
+        image_url: item.image_url,
         is_equipped: false,
         slot_name: item.category,
     })
@@ -1706,7 +1752,6 @@ struct BoxItemRow {
     category: String,
     image_url: String,
     metadata_uri: Option<String>,
-    drop_weight: Option<u32>,
 }
 
 #[derive(serde::Deserialize)]

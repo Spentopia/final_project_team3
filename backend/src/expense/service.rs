@@ -408,20 +408,20 @@ pub enum ReceiptLimitError {
     Internal(String), // 500
 }
 
-/// 영수증 OCR 전 호출. 하루 3건 초과 or expense_id 중복이면 에러 반환.
-/// receipts 테이블에 user_id 컬럼이 있다고 가정.
-/// uploaded_at 범위 필터로 오늘 건수 조회 (receipt_date 컬럼 없음).
-pub async fn check_receipt_limit(
+/// 하루에 영수증 인증으로 뽑기권을 받을 수 있는 최대 횟수.
+/// 당일(오늘 날짜) 영수증 인증 1건당 상자 1개, 하루 최대 3개.
+pub const DAILY_RECEIPT_LIMIT: usize = 3;
+
+/// 오늘(expense_date = 오늘) 인증 완료된 소비 건수.
+/// 당일 영수증만 카운트되므로 "오늘 받은 뽑기권 수"와 동일하다.
+pub async fn count_today_verified_receipts(
     state: &AppState,
     user_id: Uuid,
-    expense_id: Option<Uuid>,
-) -> Result<(), ReceiptLimitError> {
+) -> Result<usize, String> {
     let base_url = state.config.supabase_url.trim_end_matches('/');
     let key = &state.config.supabase_secret_key;
-
     let today = chrono::Local::now().date_naive();
 
-    // ── 오늘 날짜 소비 중 receipt_verified = true 건수 조회 ──
     let count_url = format!(
         "{}/rest/v1/expenses?user_id=eq.{}&expense_date=eq.{}&receipt_verified=eq.true&transaction_type=eq.expense&select=id",
         base_url, user_id, today
@@ -435,14 +435,11 @@ pub async fn check_receipt_limit(
         .header("Prefer", "count=exact")
         .send()
         .await
-        .map_err(|e| ReceiptLimitError::Internal(e.to_string()))?;
+        .map_err(|e| e.to_string())?;
 
     if !count_res.status().is_success() {
         let body = count_res.text().await.unwrap_or_default();
-        return Err(ReceiptLimitError::Internal(format!(
-            "오늘 영수증 인증 건수 조회 실패: {}",
-            body
-        )));
+        return Err(format!("오늘 영수증 인증 건수 조회 실패: {}", body));
     }
 
     let total_count = count_res
@@ -453,7 +450,26 @@ pub async fn check_receipt_limit(
         .and_then(|n| n.parse::<usize>().ok())
         .unwrap_or(0);
 
-    if total_count >= 3 {
+    Ok(total_count)
+}
+
+/// 영수증 OCR 전 호출. 하루 3건 초과 or expense_id 중복이면 에러 반환.
+/// receipts 테이블에 user_id 컬럼이 있다고 가정.
+/// uploaded_at 범위 필터로 오늘 건수 조회 (receipt_date 컬럼 없음).
+pub async fn check_receipt_limit(
+    state: &AppState,
+    user_id: Uuid,
+    expense_id: Option<Uuid>,
+) -> Result<(), ReceiptLimitError> {
+    let base_url = state.config.supabase_url.trim_end_matches('/');
+    let key = &state.config.supabase_secret_key;
+
+    // ── 오늘 날짜 소비 중 receipt_verified = true 건수 조회 ──
+    let total_count = count_today_verified_receipts(state, user_id)
+        .await
+        .map_err(ReceiptLimitError::Internal)?;
+
+    if total_count >= DAILY_RECEIPT_LIMIT {
         return Err(ReceiptLimitError::TooMany);
     }
 
