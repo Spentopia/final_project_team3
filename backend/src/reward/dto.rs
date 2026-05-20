@@ -66,6 +66,8 @@ pub struct ContestRewardRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct BoxCountResponse {
     pub box_count: i32,
+    pub daily_earned: i32, // 오늘 당일 영수증 인증으로 받은 뽑기권 수
+    pub daily_limit: i32,  // 하루 최대 (당일 영수증 인증) 뽑기권 수
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -73,6 +75,7 @@ pub struct UnityAvatarItemResponse {
     pub inventory_id: Uuid,
     pub item_id: Uuid,
     pub name: String,
+    pub image_url: String,
     pub is_equipped: bool,
     pub slot_name: String,
 }
@@ -80,7 +83,9 @@ pub struct UnityAvatarItemResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct OpenBoxResponse {
     pub remaining_box_count: i32,
+    pub reward_type: String, // "miss" | "spt" | "avatar"
     pub is_win: bool,
     pub message: String,
+    pub spt_amount: Option<i32>,
     pub item: Option<UnityAvatarItemResponse>,
 }

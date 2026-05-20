@@ -12,6 +12,7 @@
 use anyhow::{Context, Result, anyhow};
 use ed25519_dalek::{Signer, SigningKey};
 use sha2::{Digest, Sha256};
+use tokio::time::{Duration, sleep};
 
 // ── 고정 주소 상수 ─────────────────────────────────────────────
 const TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
@@ -19,6 +20,8 @@ const ASSOC_TOKEN_PROGRAM_ID: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8k
 const SYSTEM_PROGRAM_ID: &str = "11111111111111111111111111111111";
 const METADATA_PROGRAM_ID: &str = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
 const SYSVAR_INSTRUCTIONS_ID: &str = "Sysvar1nstructions1111111111111111111111111";
+const COMPUTE_BUDGET_PROGRAM_ID: &str = "ComputeBudget111111111111111111111111111111";
+const MINT_AVATAR_COMPUTE_UNIT_LIMIT: u32 = 400_000;
 
 // ── PDA seeds (스마트 컨트랙트 constants.rs와 동일) ───────────────
 const PLATFORM_CONFIG_SEED: &[u8] = b"platform_config";
@@ -400,7 +403,25 @@ pub async fn check_signature_confirmed(
     client: &reqwest::Client,
     signature: &str,
 ) -> Result<()> {
-    check_signature_status(rpc_url, client, signature, "confirmed").await
+    let mut last_error = None;
+
+    for attempt in 0..30 {
+        match check_signature_status(rpc_url, client, signature, "confirmed").await {
+            Ok(()) => return Ok(()),
+            Err(err) => {
+                let msg = err.to_string();
+                if msg.contains("트랜잭션 실패 확인됨") {
+                    return Err(err);
+                }
+                last_error = Some(err);
+                if attempt < 29 {
+                    sleep(Duration::from_secs(1)).await;
+                }
+            }
+        }
+    }
+
+    Err(last_error.unwrap_or_else(|| anyhow!("트랜잭션 confirmed 확인 실패: {}", signature)))
 }
 
 // 유저 제출 트랜잭션 최종 확인용 (불가역 보장)
@@ -812,6 +833,7 @@ fn build_mint_avatar_tx(
     let token_program = decode_pubkey(TOKEN_PROGRAM_ID).unwrap();
     let assoc_token_prog = decode_pubkey(ASSOC_TOKEN_PROGRAM_ID).unwrap();
     let system_program = decode_pubkey(SYSTEM_PROGRAM_ID).unwrap();
+    let compute_budget_program = decode_pubkey(COMPUTE_BUDGET_PROGRAM_ID).unwrap();
 
     let accounts: &[[u8; 32]] = &[
         *admin_pubkey,              // 0 writable signer
@@ -831,6 +853,7 @@ fn build_mint_avatar_tx(
         assoc_token_prog,           // 14 readonly
         system_program,             // 15 readonly
         *program_id,                // 16 readonly program
+        compute_budget_program,     // 17 readonly program
     ];
 
     let ix_accounts: &[u8] = &[
@@ -853,13 +876,18 @@ fn build_mint_avatar_tx(
     ];
 
     let mut msg = Vec::new();
-    msg.extend_from_slice(&[1u8, 0u8, 10u8]);
+    msg.extend_from_slice(&[1u8, 0u8, 11u8]);
     msg.extend(compact_u16(accounts.len()));
     for acc in accounts {
         msg.extend_from_slice(acc);
     }
     msg.extend_from_slice(recent_blockhash);
-    msg.extend(compact_u16(1));
+    msg.extend(compact_u16(2));
+    msg.push(17u8);
+    msg.extend(compact_u16(0));
+    msg.extend(compact_u16(5));
+    msg.push(2u8);
+    msg.extend_from_slice(&MINT_AVATAR_COMPUTE_UNIT_LIMIT.to_le_bytes());
     msg.push(16u8);
     msg.extend(compact_u16(ix_accounts.len()));
     msg.extend_from_slice(ix_accounts);

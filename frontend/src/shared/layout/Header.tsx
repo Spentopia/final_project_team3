@@ -340,13 +340,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
             </SheetTrigger>
 
             <SheetContent>
-              <SheetHeader>
-                <div className="flex items-center justify-between gap-3">
+              <SheetHeader className="pr-12">
+                <div className="flex items-center justify-between gap-6">
                   <SheetTitle>알림</SheetTitle>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="mr-2"
                     disabled={unreadCount === 0 || isMarkingRead}
                     onClick={() => void handleReadAll()}
                   >

@@ -32,6 +32,9 @@ import {
   TrendingUp,
   Zap,
   Trash2, // 👈 추가
+  Gift,
+  X,
+  Sparkles,
 } from "lucide-react";
 import { format, isValid, parse } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -40,6 +43,12 @@ import {
   getMonthlyExpenseTotal,
   getMonthlyIncomeTotal,
 } from "@/shared/utils/finance";
+import {
+  getRewardBoxCount,
+  openRewardBox,
+  type OpenBoxResponse,
+  type RewardBoxItemResponse,
+} from "@/shared/api/rewardApi";
 
 interface Expense {
   id: string | number;
@@ -51,6 +60,8 @@ interface Expense {
   receipt?: boolean;
   diary?: string;
 }
+
+type GachaPhase = "ready" | "opening" | "revealed";
 
 const toDashboardExpense = (savedExpense: CreateExpenseResponse): Expense => ({
   id: savedExpense.id,
@@ -182,6 +193,29 @@ export default function DashboardPage() {
   const [ocrResult, setOcrResult] = useState<ReceiptOcrResponse | null>(null);
   const [isReceiptVerified, setIsReceiptVerified] = useState(false);
   const [ocrError, setOcrError] = useState("");
+  const [boxCount, setBoxCount] = useState(0);
+  const [boxCountLoading, setBoxCountLoading] = useState(false);
+  const [dailyEarned, setDailyEarned] = useState(0);
+  const [dailyLimit, setDailyLimit] = useState(3);
+  const [isGachaOpen, setIsGachaOpen] = useState(false);
+  const [gachaPhase, setGachaPhase] = useState<GachaPhase>("ready");
+  const [selectedReward, setSelectedReward] = useState<RewardBoxItemResponse | null>(null);
+  const [boxResult, setBoxResult] = useState<OpenBoxResponse | null>(null);
+
+  const loadBoxCount = async () => {
+    try {
+      setBoxCountLoading(true);
+      const data = await getRewardBoxCount();
+      setBoxCount(data.box_count);
+      setDailyEarned(data.daily_earned);
+      setDailyLimit(data.daily_limit);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "상자 개수를 불러오지 못했습니다.";
+      toast.error(message);
+    } finally {
+      setBoxCountLoading(false);
+    }
+  };
 
   const applyOcrAutofill = (result: ReceiptOcrResponse) => {
     if (result.ocr.receipt_date) {
@@ -273,6 +307,7 @@ export default function DashboardPage() {
     };
 
     void loadExpenses();
+    void loadBoxCount();
 
     return () => {
       cancelled = true;
@@ -286,6 +321,54 @@ export default function DashboardPage() {
     }
 
     await runReceiptOcr(receiptFile);
+  };
+
+  const openGacha = () => {
+    if (boxCount <= 0) {
+      toast.error("사용 가능한 아바타 뽑기권이 없습니다.");
+      return;
+    }
+
+    setSelectedReward(null);
+    setBoxResult(null);
+    setGachaPhase("ready");
+    setIsGachaOpen(true);
+  };
+
+  const handleOpenBox = async () => {
+    setGachaPhase("opening");
+    setSelectedReward(null);
+    setBoxResult(null);
+
+    try {
+      const [result] = await Promise.all([
+        openRewardBox(),
+        new Promise((resolve) => window.setTimeout(resolve, 1400)),
+      ]);
+
+      setBoxCount(result.remaining_box_count);
+      setSelectedReward(result.item);
+      setBoxResult(result);
+      setGachaPhase("revealed");
+
+      if (result.reward_type === "spt") {
+        toast.success(result.message || `${result.spt_amount ?? 0} SPT를 획득했습니다.`);
+      } else if (!result.is_win) {
+        toast.message(result.message || "이번 상자는 비어있었습니다.");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "상자를 열지 못했습니다.";
+      toast.error(message);
+      setGachaPhase("ready");
+      void loadBoxCount();
+    }
+  };
+
+  const closeGacha = () => {
+    setIsGachaOpen(false);
+    setGachaPhase("ready");
+    setSelectedReward(null);
+    setBoxResult(null);
   };
 
   const handleAddExpense = async () => {
@@ -337,6 +420,17 @@ export default function DashboardPage() {
           serverReceiptVerified = ocrResult.verification.is_verified;
           if (serverReceiptVerified) {
             window.dispatchEvent(new CustomEvent("spentopia:score-refresh"));
+            // 뽑기권은 당일(오늘 날짜) 영수증만 지급됨 → 서버 기준으로 다시 조회
+            const todayStr = format(new Date(), "yyyy-MM-dd");
+            const isTodayReceipt = ocrResult.ocr.receipt_date === todayStr;
+            await loadBoxCount();
+            if (isTodayReceipt) {
+              toast.success("아바타 뽑기권 1개가 지급되었습니다.");
+            } else {
+              toast.message(
+                "영수증 인증은 완료됐지만, 당일(오늘 날짜) 영수증이 아니어서 뽑기권은 지급되지 않았어요."
+              );
+            }
           }
         } catch (ocrError) {
           // OCR 재호출 실패 → 소비는 유지, 영수증 인증만 미반영
@@ -905,6 +999,32 @@ const currentBudget = budgets[monthKey] ?? budget;
               <Plus className="mr-2 h-4 w-4" />
               {saveLoading ? "저장 중..." : entryType === "income" ? "수입 입력 완료" : "소비 입력 완료"}
             </Button>
+
+            {entryType === "expense" && (
+              <div className={styles.gachaEntry}>
+                <div className={styles.gachaEntryInfo}>
+                  <span className={styles.gachaEntryLabel}>아바타 뽑기</span>
+                  <span className={styles.gachaEntryCount}>
+                    {boxCountLoading ? "확인 중" : `보유 ${boxCount}개`}
+                  </span>
+                  <span className={styles.gachaEntryHint}>
+                    {dailyEarned >= dailyLimit
+                      ? "오늘 받을 수 있는 상자를 모두 받았어요"
+                      : `당일 영수증 인증 시 오늘 상자 ${dailyLimit - dailyEarned}개 더 획득 가능`}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className={styles.gachaEntryButton}
+                  onClick={openGacha}
+                  disabled={boxCountLoading || boxCount <= 0}
+                >
+                  <Gift className="mr-2 h-4 w-4" />
+                  뽑기
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -935,6 +1055,128 @@ const currentBudget = budgets[monthKey] ?? budget;
           </div>
         </div>
       </div>
+
+      {isGachaOpen && (
+        <div className={styles.gachaOverlay} role="dialog" aria-modal="true" aria-label="아바타 뽑기">
+          <div className={styles.gachaModal}>
+            <button
+              type="button"
+              className={styles.gachaClose}
+              onClick={closeGacha}
+              aria-label="닫기"
+              disabled={gachaPhase === "opening"}
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className={styles.gachaHeader}>
+              <span className={styles.gachaKicker}>Reward Box</span>
+              <h3>아바타 뽑기</h3>
+            </div>
+
+            <div className={`${styles.chestStage} ${gachaPhase === "opening" ? styles.chestStageOpening : ""} ${gachaPhase === "revealed" ? styles.chestStageRevealed : ""}`}>
+              <div className={styles.burstRing} />
+              <div className={styles.lightColumn} />
+              <div className={styles.sparkField}>
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
+              <img
+                className={styles.chestImage}
+                src={gachaPhase === "revealed" ? "/openbox-ui.png" : "/closebox-ui.png"}
+                alt=""
+                draggable={false}
+              />
+            </div>
+
+            {gachaPhase !== "revealed" ? (
+              <div className={styles.gachaActions}>
+                <p>상자를 열면 지갑 연결 상태에 맞춰 아이템이 지급됩니다.</p>
+                <div className={styles.gachaButtonRow}>
+                  <Button
+                    type="button"
+                    className={styles.openBoxButton}
+                    onClick={handleOpenBox}
+                    disabled={gachaPhase === "opening"}
+                  >
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    {gachaPhase === "opening" ? "열리는 중..." : "상자 열기"}
+                  </Button>
+                  <div className={styles.dropRateInfo}>
+                    <button
+                      type="button"
+                      className={styles.dropRateButton}
+                      aria-label="획득 확률 보기"
+                    >
+                      확률 보기
+                    </button>
+                    <div className={styles.dropRateTooltip} role="tooltip">
+                      <p className={styles.dropRateTitle}>지갑 연결 (NFT)</p>
+                      <ul>
+                        <li><span>NFT 아바타</span><span>10%</span></li>
+                        <li><span>SPT 토큰 (5~10)</span><span>20%</span></li>
+                        <li><span>꽝</span><span>70%</span></li>
+                      </ul>
+                      <p className={styles.dropRateTitle}>지갑 미연결 (일반)</p>
+                      <ul>
+                        <li><span>일반 아바타</span><span>10%</span></li>
+                        <li><span>꽝</span><span>90%</span></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.rewardResult}>
+                {boxResult?.reward_type === "spt" ? (
+                  <div className={styles.rewardSpt}>
+                    <span className={styles.rewardSptAmount}>
+                      {boxResult.spt_amount ?? 0}
+                    </span>
+                    <span className={styles.rewardSptUnit}>SPT</span>
+                  </div>
+                ) : selectedReward?.image_url ? (
+                  <img
+                    className={styles.rewardItemImage}
+                    src={selectedReward.image_url}
+                    alt={selectedReward.name}
+                    draggable={false}
+                  />
+                ) : (
+                  <div className={styles.rewardAvatar}>
+                    <div className={styles.rewardAvatarHead} />
+                    <div className={styles.rewardAvatarBody} />
+                  </div>
+                )}
+                <div className={styles.rewardCopy}>
+                  <h4>
+                    {boxResult?.reward_type === "spt"
+                      ? `${boxResult.spt_amount ?? 0} SPT`
+                      : selectedReward?.name ?? "보상 없음"}
+                  </h4>
+                  <p>
+                    {boxResult?.reward_type === "spt"
+                      ? "SPT 토큰을 획득했습니다."
+                      : selectedReward
+                        ? `${selectedReward.slot_name} 아이템을 획득했습니다.`
+                        : "이번 상자는 비어있었습니다."}
+                  </p>
+                </div>
+                <Button type="button" variant="outline" onClick={closeGacha}>
+                  확인
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

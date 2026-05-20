@@ -567,7 +567,7 @@ pub async fn get_user_items(
 
     // UserItemRaw → UserItemResponse 매핑
     // avatar_items 중첩 객체의 필드를 flat하게 꺼내 ResponseDTO에 채운다.
-    let items = raw
+    let items: Vec<UserItemResponse> = raw
         .into_iter()
         .filter(|r| is_supported_avatar_slot(&r.item_master.category))
         .filter(|r| !open_listing_item_ids.contains(&r.id))
@@ -588,6 +588,31 @@ pub async fn get_user_items(
             category: r.item_master.category,
         })
         .collect();
+
+    // 인게임 표시용 중복 제거: 같은 item_id(NFT/일반 무관)는 1개만 노출.
+    // 장착된 행을 우선 유지하고, 없으면 첫 행을 유지한다.
+    // (마켓/지갑 경로는 별도 함수라 개별 NFT는 그대로 유지됨)
+    let mut keep_idx: std::collections::HashMap<Uuid, usize> = std::collections::HashMap::new();
+    for (i, it) in items.iter().enumerate() {
+        match keep_idx.get(&it.item_id) {
+            Some(&prev) => {
+                if it.is_equipped == Some(true) && items[prev].is_equipped != Some(true) {
+                    keep_idx.insert(it.item_id, i);
+                }
+            }
+            None => {
+                keep_idx.insert(it.item_id, i);
+            }
+        }
+    }
+    let keep: std::collections::HashSet<usize> = keep_idx.into_values().collect();
+    let items: Vec<UserItemResponse> = items
+        .into_iter()
+        .enumerate()
+        .filter(|(i, _)| keep.contains(i))
+        .map(|(_, it)| it)
+        .collect();
+
     Ok(items)
 }
 
