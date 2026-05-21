@@ -1,9 +1,17 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import { getMe, type MeResponse } from "@/domains/auth/api/auth";
 
 type UserContextValue = {
   user: MeResponse | null;
-  setUser: (user: MeResponse | null) => void;
+  setUser: Dispatch<SetStateAction<MeResponse | null>>;
   refetchUser: () => Promise<void>;
 };
 
