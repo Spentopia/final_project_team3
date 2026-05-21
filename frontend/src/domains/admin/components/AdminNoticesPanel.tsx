@@ -19,7 +19,6 @@ import { Card } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 
 import type { AdminNoticeResponse } from "@/domains/admin/api/adminApi";
-import AdminSystemStatusCard from "@/domains/admin/components/AdminSystemStatusCard";
 
 import { formatDateTime } from "@/domains/admin/utils/adminViewUtils";
 
@@ -98,19 +97,6 @@ export default function AdminNoticesPanel({
 
     return (
         <div className="space-y-6">
-            {/*
-            서비스 상태 공지 카드
-
-            위치:
-            - 공지사항 관리 탭 최상단
-
-            역할:
-            - 로그인 화면에 띄울 점검/장애 배너를 관리한다.
-            - 일반 공지사항 작성/목록과 같은 "공지사항 관리" 메뉴 안에 두되,
-              데이터 구조는 기존 system_status API를 사용한다.
-        */}
-            <AdminSystemStatusCard />
-
             {/* 기존 공지 작성/목록 영역 */}
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 {/* 작성/수정 폼 */}
