@@ -143,6 +143,7 @@ function CreateListingDialog({
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const clickPauseTimerRef = useRef<number | null>(null);
   const [isCarouselControlHovered, setIsCarouselControlHovered] = useState(false);
+  const [isCarouselItemHovered, setIsCarouselItemHovered] = useState(false);
   const [isCarouselClickPaused, setIsCarouselClickPaused] = useState(false);
   // price를 number가 아닌 string으로 관리하는 이유:
   //   - input value는 항상 string
@@ -161,10 +162,16 @@ function CreateListingDialog({
       !item.category ||
       !sellableCategoryOrder.includes(item.category as typeof sellableCategoryOrder[number])
   ).length;
-  const carouselItems = nftItems;
+  const carouselItems = nftItems.length > 1 ? [...nftItems, ...nftItems] : nftItems;
 
   useEffect(() => {
-    if (!open || nftItems.length <= 1 || isCarouselControlHovered || isCarouselClickPaused) {
+    if (
+      !open ||
+      nftItems.length <= 1 ||
+      isCarouselControlHovered ||
+      isCarouselItemHovered ||
+      isCarouselClickPaused
+    ) {
       return;
     }
 
@@ -172,16 +179,16 @@ function CreateListingDialog({
       const node = carouselRef.current;
       if (!node || node.scrollWidth <= node.clientWidth) return;
 
-      const maxScrollLeft = node.scrollWidth - node.clientWidth;
-      if (node.scrollLeft >= maxScrollLeft - 1) {
-        node.scrollTo({ left: 0, behavior: "smooth" });
+      const resetPoint = node.scrollWidth / 2;
+      if (node.scrollLeft >= resetPoint) {
+        node.scrollLeft -= resetPoint;
       } else {
         node.scrollLeft += 1;
       }
     }, 28);
 
     return () => window.clearInterval(interval);
-  }, [open, nftItems.length, isCarouselControlHovered, isCarouselClickPaused]);
+  }, [open, nftItems.length, isCarouselControlHovered, isCarouselItemHovered, isCarouselClickPaused]);
 
   useEffect(() => {
     return () => {
@@ -207,15 +214,18 @@ function CreateListingDialog({
     if (!node) return;
 
     const itemWidth = node.querySelector<HTMLElement>(`.${styles.carouselItem}`)?.offsetWidth ?? 156;
-    const maxScrollLeft = node.scrollWidth - node.clientWidth;
-    const targetLeft = direction === "right"
-      ? node.scrollLeft + itemWidth + 12
-      : node.scrollLeft - itemWidth - 12;
+    const itemStep = itemWidth + 12;
+    const resetPoint = node.scrollWidth / 2;
+    if (resetPoint > 0 && node.scrollLeft >= resetPoint) {
+      node.scrollLeft -= resetPoint;
+    }
+
+    if (direction === "left" && node.scrollLeft - itemStep < 0 && resetPoint > 0) {
+      node.scrollLeft += resetPoint;
+    }
 
     node.scrollBy({
-      left: direction === "right"
-        ? targetLeft > maxScrollLeft ? -node.scrollLeft : itemWidth + 12
-        : targetLeft < 0 ? maxScrollLeft - node.scrollLeft : -(itemWidth + 12),
+      left: direction === "right" ? itemStep : -itemStep,
       behavior: "smooth",
     });
     pauseAfterCarouselClick();
@@ -226,6 +236,7 @@ function CreateListingDialog({
     setSelectedItemId("");
     setPrice("");
     setIsCarouselControlHovered(false);
+    setIsCarouselItemHovered(false);
     setIsCarouselClickPaused(false);
     onClose();
   };
@@ -314,6 +325,10 @@ function CreateListingDialog({
                             styles.carouselItem,
                             isSelected ? styles.carouselItemActive : "",
                           ].join(" ")}
+                          onMouseEnter={() => setIsCarouselItemHovered(true)}
+                          onMouseLeave={() => setIsCarouselItemHovered(false)}
+                          onFocus={() => setIsCarouselItemHovered(true)}
+                          onBlur={() => setIsCarouselItemHovered(false)}
                           onClick={() => setSelectedItemId(item.inventoryId)}
                         >
                           <div className={styles.carouselItemThumb}>
