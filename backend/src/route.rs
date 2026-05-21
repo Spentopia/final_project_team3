@@ -396,7 +396,7 @@ pub fn create_router(state: AppState) -> (Router, Router, Router) {
         )
         .route(
             "/api/unity/avatar/inventory",
-            get(avatar::handler::get_user_items),
+            get(avatar::handler::get_user_game_items),
         )
         .route("/api/unity/avatar/equip", post(avatar::handler::equip_item))
         // ── 아바타 / 아이템 ───────────────────────────────
@@ -406,6 +406,10 @@ pub fn create_router(state: AppState) -> (Router, Router, Router) {
             post(avatar::handler::transfer_nft),
         )
         .route("/api/avatar/items", get(avatar::handler::get_user_items))
+        .route(
+            "/api/avatar/game/items",
+            get(avatar::handler::get_user_game_items),
+        )
         .route("/api/avatar/nfts", get(avatar::handler::get_owned_nfts))
         .route(
             "/api/avatar/nfts/sync",

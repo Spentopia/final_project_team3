@@ -121,6 +121,7 @@ use crate::wallet;
         crate::avatar::handler::mint_nft,
         crate::avatar::handler::transfer_nft,
         crate::avatar::handler::get_user_items,
+        crate::avatar::handler::get_user_game_items,
 
         // ── 마켓 ──────────────────────────────────────────────
         crate::market::handler::create_listing,

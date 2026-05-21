@@ -591,14 +591,20 @@ pub async fn get_user_items(
         })
         .collect();
 
-    // 인게임 표시용 중복 제거: 같은 item_id(NFT/일반 무관)는 1개만 노출.
-    // 위치는 "첫 등장(가장 먼저 획득한 행)" 기준으로 고정해 유니티 칸이 흔들리지 않게 한다.
-    // 단, 같은 아이템 중 장착된 행이 있으면 그 행 데이터(id/장착상태)를 대표로 올려
-    // 장착 상태와 equip 대상 inventory_id가 정확히 유지되도록 한다.
-    // (마켓/지갑 경로는 별도 함수라 개별 NFT는 그대로 유지됨)
+    Ok(items)
+}
+
+pub async fn get_user_game_items(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<Vec<UserItemResponse>> {
+    let items = get_user_items(state, user_id).await?;
+
+    // 인게임 표시용 중복 제거: 같은 item_id(NFT/일반 무관)는 1개만 노출한다.
+    // 배열 자체를 압축해서 반환해야 유니티가 응답 인덱스대로 슬롯을 채워도 빈칸이 생기지 않는다.
+    // 단, 같은 아이템 중 장착된 행이 있으면 그 행 데이터(id/장착상태)를 대표로 올린다.
     let mut order: Vec<Uuid> = Vec::new();
-    let mut chosen: std::collections::HashMap<Uuid, UserItemResponse> =
-        std::collections::HashMap::new();
+    let mut chosen: HashMap<Uuid, UserItemResponse> = HashMap::new();
     for it in items {
         match chosen.get_mut(&it.item_id) {
             Some(existing) => {

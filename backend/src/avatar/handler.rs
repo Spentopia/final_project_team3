@@ -113,6 +113,22 @@ pub async fn get_user_items(
 }
 
 #[utoipa::path(
+    get, path = "/api/avatar/game/items",
+    tag = "아바타",
+    responses((status = 200, description = "인게임용 보유 아이템 목록 조회 성공")),
+    security(("bearer_auth" = []))
+)]
+pub async fn get_user_game_items(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+) -> impl IntoResponse {
+    match service::get_user_game_items(&state, user_id).await {
+        Ok(items) => (StatusCode::OK, Json(items)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[utoipa::path(
     get, path = "/api/avatar/nfts",
     tag = "아바타",
     responses((status = 200, description = "연결된 지갑의 컬렉션 NFT 조회 성공")),
