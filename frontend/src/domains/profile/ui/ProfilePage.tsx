@@ -236,11 +236,24 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
+    const nickname = profile.nickname;
+    const trimmedNickname = nickname.trim();
+
+    if (!trimmedNickname) {
+      toast.error("닉네임을 입력해주세요");
+      return;
+    }
+
+    if (nickname !== trimmedNickname) {
+      toast.error("닉네임 앞뒤에 공백을 사용할 수 없습니다");
+      return;
+    }
+
     try {
       setIsSaving(true);
 
       const updated = await updateUserProfile({
-        nickname: profile.nickname || undefined,
+        nickname,
         introduction: profile.bio.trim() ? profile.bio.trim() : null,
       });
 
