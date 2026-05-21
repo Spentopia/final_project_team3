@@ -16,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
-import { Search, Send, Eye, Heart, ChevronUp, ChevronDown, Link2, Pencil, Trash2, X, Paperclip, Siren } from "lucide-react";
+import { Search, Send, Eye, Heart, ChevronUp, ChevronDown, Pencil, Trash2, X, Paperclip, Siren } from "lucide-react";
 import { toast } from "sonner";
 import { AxiosError } from "axios";
 import {
@@ -1266,16 +1266,7 @@ export default function Community() {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-5 text-sm text-gray-400 dark:text-gray-500">
-                  <button
-                      onClick={() => {
-                        void navigator.clipboard.writeText(window.location.href);
-                        toast.success("링크가 복사되었습니다");
-                      }}
-                      className="flex items-center gap-1 hover:text-cyan-500 transition-colors"
-                  >
-                    <Link2 className="relative top-0.5 h-5 w-5" />
-                  </button>
+                <div className="flex items-center gap-3 text-sm text-gray-400 dark:text-gray-500">
                   {/* 신고 버튼
     ------------------------------------------------
     게시글 상세에서만 보이는 신고 버튼.
@@ -1317,9 +1308,9 @@ export default function Community() {
                                 },
                               ])
                           }
-                          className="flex items-center gap-1 hover:text-red-500 transition-colors"
+                          className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
                       >
-                        <Siren className="h-5 w-5" />
+                        <Siren className="h-6 w-6" />
                       </button>
                   )}
                   {canModifySelectedPost && (
@@ -1498,11 +1489,11 @@ export default function Community() {
                                   <button
                                   type="button"
                                     onClick={() => openReportDialog(getCommentReportTargets(comment))}
-                                  className="hover:text-red-500 transition-colors"
+                                  className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
                                   disabled={isCommentSubmitting}
                                   title="댓글 신고"
                                 >
-                                  <Siren className="h-5 w-5" />`
+                                  <Siren className="h-6 w-6" />
                               </button>
                                 )}
                               </div>
@@ -1659,11 +1650,11 @@ export default function Community() {
                                             <button
                                                 type="button"
                                                 onClick={() => openReportDialog(getCommentReportTargets(reply))}
-                                                className="hover:text-red-500 transition-colors"
+                                                className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
                                                 disabled={isCommentSubmitting}
                                                 title="대댓글 신고"
                                             >
-                                              <Siren className="h-5 w-5" />
+                                              <Siren className="h-6 w-6" />
                                             </button>
                                         )}
                                       </div>
