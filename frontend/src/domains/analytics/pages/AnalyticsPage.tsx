@@ -57,6 +57,8 @@ type AnalysisKind = AnalyzeReportRequest["analysis_kind"];
 type ReportStateByPeriod = Record<AnalysisReportType, AIReport | null>;
 
 const UNSUPPORTED_CSS_COLOR_RE = /oklch|oklab|lab\(|lch\(|color\(/i;
+const WALLET_REQUIRED_PAYMENT_MESSAGE =
+  "추가 분석을 하기 위해서는 결제가 필요합니다. 먼저 지갑을 연결해주세요.";
 
 const resolveCssColor = (value: string) => {
   if (!value || !UNSUPPORTED_CSS_COLOR_RE.test(value)) return value;
@@ -648,6 +650,7 @@ const getFriendlyAnalysisErrorMessage = (error: unknown) => {
     if (error.message.includes("관리자에게 문의")) return error.message;
     if (error.message.includes("잔액")) return error.message;
     if (error.message.includes("서명")) return error.message;
+    if (error.message.includes("추가 분석")) return error.message;
     if (error.message.includes("지갑")) return error.message;
   }
 
@@ -657,6 +660,9 @@ const getFriendlyAnalysisErrorMessage = (error: unknown) => {
 
   return "분석을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.";
 };
+
+const isWalletRequiredPaymentError = (error: unknown) =>
+  error instanceof Error && error.message === WALLET_REQUIRED_PAYMENT_MESSAGE;
 
 const requestPaidAnalysis = async (payload: AnalyzeReportRequest) => {
   const cacheKey = await getPaymentCacheKey(payload);
@@ -690,9 +696,16 @@ const requestPaidAnalysis = async (payload: AnalyzeReportRequest) => {
     const amount = requirement
       ? (Number(requirement.maxAmountRequired) / 1_000_000).toFixed(2)
       : "";
+    const paymentDescription = amount
+      ? `${amount} USDC 결제가 필요합니다.`
+      : "결제가 필요합니다.";
+
+    if (!publicKey || !signTransaction) {
+      throw new Error(WALLET_REQUIRED_PAYMENT_MESSAGE);
+    }
 
     toast.info("무료 분석 횟수를 모두 사용했어요.", {
-      description: `${amount} USDC 결제가 필요합니다. 지갑 창이 열리면 결제 내용을 확인하고 서명해주세요.`,
+      description: `${paymentDescription} 지갑 창이 열리면 결제 내용을 확인하고 서명해주세요.`,
     });
 
     const paymentHeader = await sendSolanaX402Payment({
@@ -743,6 +756,13 @@ const handleGenerateReport = async () => {
       },
     }));
   } catch (error) {
+    if (isWalletRequiredPaymentError(error)) {
+      toast.error("추가 분석을 하기 위해서는 결제가 필요합니다.", {
+        description: "먼저 지갑을 연결해주세요.",
+      });
+      return;
+    }
+
     toast.error("AI 분석 리포트를 생성하지 못했습니다.", {
       description: getFriendlyAnalysisErrorMessage(error),
     });
@@ -773,6 +793,13 @@ const handleGeneratePattern = async () => {
       },
     }));
   } catch (error) {
+    if (isWalletRequiredPaymentError(error)) {
+      toast.error("추가 분석을 하기 위해서는 결제가 필요합니다.", {
+        description: "먼저 지갑을 연결해주세요.",
+      });
+      return;
+    }
+
     toast.error("AI 소비 패턴 분석을 생성하지 못했습니다.", {
       description: getFriendlyAnalysisErrorMessage(error),
     });

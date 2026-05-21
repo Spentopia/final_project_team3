@@ -43,7 +43,6 @@ import androidx.compose.material.icons.filled.Subway // Subway 기능을 가져�
 import androidx.compose.material.icons.filled.TrendingUp // TrendingUp 기능을 가져옴
 import androidx.compose.material.icons.filled.VolunteerActivism // VolunteerActivism 기능을 가져옴
 import androidx.compose.material.icons.filled.Warning // Warning 기능을 가져옴
-import androidx.compose.material3.AlertDialog // AlertDialog 기능을 가져옴
 import androidx.compose.material3.Button // 버튼 컴포넌트를 가져옴
 import androidx.compose.material3.ButtonDefaults // ButtonDefaults 기능을 가져옴
 import androidx.compose.material3.Card // Card 기능을 가져옴
@@ -336,31 +335,13 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
                 )
             }
 
-            if (pendingApplyPlan != null) { // 조건이 맞는지 확인함
-                AlertDialog( // AlertDialog 함수를 실행함
-                    onDismissRequest = { pendingApplyPlan = null }, // 닫을 때 실행할 함수를 정해줌
-                    title = {
-                        Text(text = "예산 설정") // text 값을 정해줌
-                    },
-                    text = {
-                        Text(text = "예산 설정은 월 1회만 적용 가능합니다. 이 플랜을 적용하시겠습니까?") // text 값을 정해줌
-                    },
-                    confirmButton = {
-                        TextButton( // TextButton 함수를 실행함
-                            onClick = {
-                                pendingApplyPlan?.let { plan ->
-                                    viewModel.applyPlan(plan) // 선택한 플랜을 적용함
-                                }
-                                pendingApplyPlan = null // 확인 대기 플랜을 비움
-                            }
-                        ) {
-                            Text(text = "적용") // text 값을 정해줌
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { pendingApplyPlan = null }) { // 누를 수 있는 버튼을 만듦
-                            Text(text = "취소") // text 값을 정해줌
-                        }
+            pendingApplyPlan?.let { plan -> // 조건이 맞는지 확인함
+                BudgetApplyPlanDialog( // Budget Apply Plan Dialog 함수를 실행함
+                    plan = plan, // 선택한 플랜을 넣음
+                    onDismiss = { pendingApplyPlan = null }, // 닫을 때 실행할 함수를 정해줌
+                    onConfirm = {
+                        viewModel.applyPlan(plan) // 선택한 플랜을 적용함
+                        pendingApplyPlan = null // 확인 대기 플랜을 비움
                     }
                 )
             }
@@ -621,6 +602,129 @@ private fun MonthPickerDialog( // MonthPickerDialog 함수를 선언함
                                 )
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable // 이 함수가 화면 UI를 그린다는 표시
+private fun BudgetApplyPlanDialog( // BudgetApplyPlanDialog 함수를 선언함
+    plan: BudgetPlanUiData, // 추천 플랜을 받음
+    onDismiss: () -> Unit, // 닫을 때 실행할 함수를 받음
+    onConfirm: () -> Unit // 적용할 때 실행할 함수를 받음
+) { // 이 블록 안의 내용이 시작됨
+    val progressBrush = Brush.linearGradient( // 성실도 팝업과 같은 느낌의 진행 색상임
+        colors = listOf(
+            MaterialTheme.colorScheme.primary,
+            SpentopiaGlowPurple
+        )
+    )
+
+    Dialog(onDismissRequest = onDismiss) { // Dialog 함수를 실행함
+        Card( // 내용을 카드 모양으로 묶어서 보여줌
+            modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+            shape = RoundedCornerShape(24.dp), // shape 값을 정해줌
+            colors = CardDefaults.cardColors(containerColor = budgetSoftCardColor()), // colors 값을 정해줌
+            border = BorderStroke(1.dp, budgetSoftCardBorderColor()) // border 값을 정해줌
+        ) { // 이 블록 안의 내용이 시작됨
+            Column( // 안쪽 UI를 세로로 배치함
+                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp) // verticalArrangement 값을 정해줌
+            ) { // 이 블록 안의 내용이 시작됨
+                Row( // 안쪽 UI를 가로로 배치함
+                    modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+                    horizontalArrangement = Arrangement.SpaceBetween, // horizontalArrangement 값을 정해줌
+                    verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
+                ) { // 이 블록 안의 내용이 시작됨
+                    Text( // 화면에 글자를 보여줌
+                        text = "예산 플랜 적용", // text 값을 정해줌
+                        style = MaterialTheme.typography.titleLarge, // style 값을 정해줌
+                        fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                        color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
+                    )
+
+                    TextButton(onClick = onDismiss) { // 누를 수 있는 버튼을 만듦
+                        Text(text = "닫기") // text 값을 정해줌
+                    }
+                }
+
+                Text( // 화면에 글자를 보여줌
+                    text = plan.title, // text 값을 정해줌
+                    style = MaterialTheme.typography.headlineSmall, // style 값을 정해줌
+                    fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
+                    color = MaterialTheme.colorScheme.primary // color 값을 정해줌
+                )
+
+                Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+                    modifier = Modifier // UI 크기나 여백 같은 모양을 정함
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(999.dp)
+                        )
+                ) { // 이 블록 안의 내용이 시작됨
+                    Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
+                        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
+                            .fillMaxWidth()
+                            .height(12.dp)
+                            .background(
+                                brush = progressBrush,
+                                shape = RoundedCornerShape(999.dp)
+                            )
+                    )
+                }
+
+                InfoValueCard( // 내용을 카드 모양으로 묶어서 보여줌
+                    label = "월 예산", // label 값을 정해줌
+                    value = formatWon(plan.monthlyBudget), // 입력값을 정해줌
+                    containerColor = budgetSoftInnerCardColor(), // containerColor 값을 정해줌
+                    valueColor = MaterialTheme.colorScheme.onSurface // valueColor 값을 정해줌
+                )
+
+                InfoValueCard( // 내용을 카드 모양으로 묶어서 보여줌
+                    label = "목표 저축", // label 값을 정해줌
+                    value = formatWon(plan.savingGoal), // 입력값을 정해줌
+                    containerColor = budgetSoftInnerCardColor(), // containerColor 값을 정해줌
+                    valueColor = MaterialTheme.colorScheme.onSurface // valueColor 값을 정해줌
+                )
+
+                Text( // 화면에 글자를 보여줌
+                    text = "예산 설정은 월 1회만 적용 가능합니다. 이 플랜을 적용하시겠습니까?", // text 값을 정해줌
+                    style = MaterialTheme.typography.bodyMedium, // style 값을 정해줌
+                    color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
+                )
+
+                Row( // 안쪽 UI를 가로로 배치함
+                    modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
+                    horizontalArrangement = Arrangement.spacedBy(10.dp) // horizontalArrangement 값을 정해줌
+                ) { // 이 블록 안의 내용이 시작됨
+                    Button( // 누를 수 있는 버튼을 만듦
+                        onClick = onDismiss, // onDismiss 값을 눌렀을 때 실행할 함수에 넣음
+                        modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
+                        shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
+                        colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) { // 이 블록 안의 내용이 시작됨
+                        Text(text = "취소", fontWeight = FontWeight.Bold) // text 값을 정해줌
+                    }
+
+                    Button( // 누를 수 있는 버튼을 만듦
+                        onClick = onConfirm, // onConfirm 값을 눌렀을 때 실행할 함수에 넣음
+                        modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
+                        shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
+                        colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
+                            containerColor = budgetPrimaryButtonColor(),
+                            contentColor = budgetPrimaryButtonContentColor()
+                        )
+                    ) { // 이 블록 안의 내용이 시작됨
+                        Text(text = "적용", fontWeight = FontWeight.Bold) // text 값을 정해줌
                     }
                 }
             }

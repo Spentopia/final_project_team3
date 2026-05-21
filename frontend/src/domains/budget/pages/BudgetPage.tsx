@@ -8,6 +8,13 @@ import { Label } from "@/shared/ui/label";
 import { Slider } from "@/shared/ui/slider";
 import { Badge } from "@/shared/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/ui/dialog";
 import { apiClient } from "@/shared/api/client";
 import {
   Wallet,
@@ -24,6 +31,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  Zap,
   LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -304,6 +312,7 @@ export default function BudgetPage() {
 });
   const [customBudget, setCustomBudget] = useState<CustomBudget>(createEmptyBudget);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [pendingApplyPlanId, setPendingApplyPlanId] = useState<string | null>(null);
   const [isBudgetLocked, setIsBudgetLocked] = useState(() =>
     localStorage.getItem(
       getBudgetLockStorageKey(
@@ -487,12 +496,6 @@ if (savedSelectedPlan && parsedPlans?.length) {
   const plan = aiPlans.find((p) => p.id === planId);
   if (!plan) return;
 
-  const confirmed = window.confirm(
-    "예산 설정은 월 1회만 적용 가능합니다. 이 플랜을 적용하시겠습니까?"
-  );
-
-  if (!confirmed) return;
-
   try {
     const month = selectedMonth + 1;
 
@@ -559,6 +562,10 @@ setMonthlyBudget(monthKey, plan.budget);
     toast.error("플랜 적용 실패");
   }
 };
+
+  const pendingApplyPlan = pendingApplyPlanId
+    ? aiPlans.find((plan) => plan.id === pendingApplyPlanId) ?? null
+    : null;
 
   const [loading, setLoading] = useState(false);
 
@@ -1013,8 +1020,8 @@ localStorage.removeItem(
 
               <Button
   type="button"
-  onClick={async () => {
-    await handleApplyPlan(plan.id);
+  onClick={() => {
+    setPendingApplyPlanId(plan.id);
   }}
   disabled={selectedPlan === plan.id || !canEditBudget}
   className={`w-full transition-all duration-300 ${
@@ -1248,6 +1255,72 @@ localStorage.removeItem(
           </div>
         </div>
       </Card>
+
+      <Dialog
+        open={pendingApplyPlan !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingApplyPlanId(null);
+        }}
+      >
+        <DialogContent className="max-w-md overflow-hidden border-border bg-card p-0 shadow-soft">
+          <div className="p-6 text-card-foreground">
+            <DialogHeader>
+              <div className="mb-4 flex items-center justify-between">
+                <DialogTitle className="text-xl font-bold">예산 플랜 적용</DialogTitle>
+                <Zap className="h-5 w-5 text-[#2563eb] dark:text-luxury-gold" />
+              </div>
+            </DialogHeader>
+
+            <p className="mb-2 text-3xl font-extrabold text-slate-900 dark:text-gray-100">
+              {pendingApplyPlan?.name ?? "선택한 플랜"}
+            </p>
+            <div className="mb-5 h-3 overflow-hidden rounded-full bg-[#dbeafe] shadow-inner dark:bg-slate-800">
+              <div className="h-full w-full rounded-full bg-[linear-gradient(135deg,#3b82f6,#2563eb)] shadow-[0_0_14px_rgba(37,99,235,0.34)] dark:bg-[linear-gradient(90deg,#0f172a,#4338ca,#7c3aed)] dark:shadow-[0_0_18px_rgba(124,58,237,0.6)]" />
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span>월 예산</span>
+                <span className="font-bold">
+                  {Number(pendingApplyPlan?.budget ?? 0).toLocaleString()}원
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>목표 저축</span>
+                <span className="font-bold">
+                  {Number(pendingApplyPlan?.savings ?? 0).toLocaleString()}원
+                </span>
+              </div>
+            </div>
+
+            <p className="mt-5 text-sm leading-6 text-muted-foreground">
+              예산 설정은 월 1회만 적용 가능합니다. 이 플랜을 적용하시겠습니까?
+            </p>
+
+            <DialogFooter className="mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPendingApplyPlanId(null)}
+              >
+                취소
+              </Button>
+              <Button
+                type="button"
+                className="spentopia-primary-button"
+                onClick={async () => {
+                  if (!pendingApplyPlan) return;
+                  const planId = pendingApplyPlan.id;
+                  setPendingApplyPlanId(null);
+                  await handleApplyPlan(planId);
+                }}
+              >
+                적용
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
