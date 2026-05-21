@@ -605,6 +605,16 @@ fn validate_post_type(req: &CreatePostRequest) -> Result<()> {
                     "아바타 콘테스트 게시글에는 contest_id가 필요합니다."
                 ));
             }
+
+            if req
+                .image_url
+                .as_deref()
+                .map(str::trim)
+                .unwrap_or("")
+                .is_empty()
+            {
+                return Err(anyhow!("아바타 콘테스트 게시글에는 이미지가 필요합니다."));
+            }
         }
     }
 
