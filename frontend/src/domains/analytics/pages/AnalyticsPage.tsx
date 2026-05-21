@@ -167,7 +167,7 @@ const parseRgbColor = (value: string): [number, number, number] | null => {
   ];
 };
 
-const PDF_CAPTURE_WIDTH = 1080;
+const PDF_CAPTURE_MIN_WIDTH = 1400;
 
 
 const WEEKLY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -828,14 +828,19 @@ const handleDownload = async () => {
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
     const { backgroundColor, backgroundImage } = getCaptureBackgroundStyles(element);
+    const captureLayoutWidth = Math.ceil(
+      Math.max(element.scrollWidth, element.getBoundingClientRect().width, PDF_CAPTURE_MIN_WIDTH),
+    );
+
     const clonedRoot = element.cloneNode(true) as HTMLDivElement;
     inlineComputedStyles(element, clonedRoot);
     clonedRoot.classList.add(styles.pdfDownload, styles.pdfMode, styles.pdfFixedLayout);
-    clonedRoot.style.width = `${PDF_CAPTURE_WIDTH}px`;
-    clonedRoot.style.minWidth = `${PDF_CAPTURE_WIDTH}px`;
-    clonedRoot.style.maxWidth = `${PDF_CAPTURE_WIDTH}px`;
+    clonedRoot.style.width = `${captureLayoutWidth}px`;
+    clonedRoot.style.minWidth = `${captureLayoutWidth}px`;
+    clonedRoot.style.maxWidth = `${captureLayoutWidth}px`;
     clonedRoot.style.margin = "0 auto";
     clonedRoot.style.display = "block";
+    clonedRoot.style.boxSizing = "border-box";
     clonedRoot.style.backgroundColor = backgroundColor;
     clonedRoot.style.backgroundImage = backgroundImage;
     clonedRoot.style.colorScheme = resolvedTheme === "dark" ? "dark" : "light";
@@ -852,14 +857,15 @@ const handleDownload = async () => {
     captureShell.style.top = "0";
     captureShell.style.pointerEvents = "none";
     captureShell.style.zIndex = "-1";
-    captureShell.style.width = `${PDF_CAPTURE_WIDTH + 96}px`;
-    captureShell.style.minWidth = `${PDF_CAPTURE_WIDTH + 96}px`;
-    captureShell.style.maxWidth = `${PDF_CAPTURE_WIDTH + 96}px`;
-    captureShell.style.padding = "48px";
+    captureShell.style.width = "auto";
+    captureShell.style.minWidth = `${captureLayoutWidth + 112}px`;
+    captureShell.style.maxWidth = "none";
+    captureShell.style.padding = "48px 56px";
     captureShell.style.margin = "0";
     captureShell.style.display = "flex";
     captureShell.style.justifyContent = "center";
     captureShell.style.alignItems = "flex-start";
+    captureShell.style.boxSizing = "border-box";
     captureShell.style.backgroundColor = backgroundColor;
     captureShell.style.backgroundImage = backgroundImage;
     captureShell.appendChild(clonedRoot);
@@ -867,8 +873,16 @@ const handleDownload = async () => {
 
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
-    const captureWidth = Math.ceil(captureShell.getBoundingClientRect().width);
-    const captureHeight = Math.ceil(captureShell.scrollHeight || captureShell.getBoundingClientRect().height);
+    const captureWidth = Math.ceil(
+      Math.max(
+        captureShell.scrollWidth,
+        captureShell.getBoundingClientRect().width,
+        clonedRoot.scrollWidth + 112,
+      ),
+    );
+    const captureHeight = Math.ceil(
+      Math.max(captureShell.scrollHeight, captureShell.getBoundingClientRect().height),
+    );
 
     const canvas = await html2canvas(captureShell, {
       scale: 2,
