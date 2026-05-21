@@ -162,7 +162,20 @@ function CreateListingDialog({
       !item.category ||
       !sellableCategoryOrder.includes(item.category as typeof sellableCategoryOrder[number])
   ).length;
-  const carouselItems = nftItems.length > 1 ? [...nftItems, ...nftItems] : nftItems;
+  const carouselRepeatCount = nftItems.length > 1 ? 3 : 1;
+  const carouselItems = Array.from({ length: carouselRepeatCount }, () => nftItems).flat();
+
+  useEffect(() => {
+    if (!open) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      if (carouselRef.current) {
+        carouselRef.current.scrollLeft = 0;
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [open, nftItems.length]);
 
   useEffect(() => {
     if (
@@ -179,16 +192,23 @@ function CreateListingDialog({
       const node = carouselRef.current;
       if (!node || node.scrollWidth <= node.clientWidth) return;
 
-      const resetPoint = node.scrollWidth / 2;
-      if (node.scrollLeft >= resetPoint) {
-        node.scrollLeft -= resetPoint;
+      const loopWidth = node.scrollWidth / carouselRepeatCount;
+      if (node.scrollLeft >= loopWidth) {
+        node.scrollLeft -= loopWidth;
       } else {
         node.scrollLeft += 1;
       }
     }, 28);
 
     return () => window.clearInterval(interval);
-  }, [open, nftItems.length, isCarouselControlHovered, isCarouselItemHovered, isCarouselClickPaused]);
+  }, [
+    open,
+    nftItems.length,
+    carouselRepeatCount,
+    isCarouselControlHovered,
+    isCarouselItemHovered,
+    isCarouselClickPaused,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -215,13 +235,13 @@ function CreateListingDialog({
 
     const itemWidth = node.querySelector<HTMLElement>(`.${styles.carouselItem}`)?.offsetWidth ?? 156;
     const itemStep = itemWidth + 12;
-    const resetPoint = node.scrollWidth / 2;
-    if (resetPoint > 0 && node.scrollLeft >= resetPoint) {
-      node.scrollLeft -= resetPoint;
+    const loopWidth = node.scrollWidth / carouselRepeatCount;
+    if (loopWidth > 0 && node.scrollLeft >= loopWidth) {
+      node.scrollLeft -= loopWidth;
     }
 
-    if (direction === "left" && node.scrollLeft - itemStep < 0 && resetPoint > 0) {
-      node.scrollLeft += resetPoint;
+    if (direction === "left" && node.scrollLeft - itemStep < 0 && loopWidth > 0) {
+      node.scrollLeft += loopWidth;
     }
 
     node.scrollBy({
