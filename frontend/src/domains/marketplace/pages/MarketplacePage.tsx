@@ -161,7 +161,7 @@ function CreateListingDialog({
       !item.category ||
       !sellableCategoryOrder.includes(item.category as typeof sellableCategoryOrder[number])
   ).length;
-  const carouselItems = nftItems.length > 1 ? [...nftItems, ...nftItems] : nftItems;
+  const carouselItems = nftItems;
 
   useEffect(() => {
     if (!open || nftItems.length <= 1 || isCarouselControlHovered || isCarouselClickPaused) {
@@ -172,9 +172,9 @@ function CreateListingDialog({
       const node = carouselRef.current;
       if (!node || node.scrollWidth <= node.clientWidth) return;
 
-      const resetPoint = node.scrollWidth / 2;
-      if (node.scrollLeft >= resetPoint) {
-        node.scrollLeft = 0;
+      const maxScrollLeft = node.scrollWidth - node.clientWidth;
+      if (node.scrollLeft >= maxScrollLeft - 1) {
+        node.scrollTo({ left: 0, behavior: "smooth" });
       } else {
         node.scrollLeft += 1;
       }
@@ -207,8 +207,15 @@ function CreateListingDialog({
     if (!node) return;
 
     const itemWidth = node.querySelector<HTMLElement>(`.${styles.carouselItem}`)?.offsetWidth ?? 156;
+    const maxScrollLeft = node.scrollWidth - node.clientWidth;
+    const targetLeft = direction === "right"
+      ? node.scrollLeft + itemWidth + 12
+      : node.scrollLeft - itemWidth - 12;
+
     node.scrollBy({
-      left: direction === "right" ? itemWidth + 12 : -(itemWidth + 12),
+      left: direction === "right"
+        ? targetLeft > maxScrollLeft ? -node.scrollLeft : itemWidth + 12
+        : targetLeft < 0 ? maxScrollLeft - node.scrollLeft : -(itemWidth + 12),
       behavior: "smooth",
     });
     pauseAfterCarouselClick();
