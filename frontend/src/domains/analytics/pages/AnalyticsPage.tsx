@@ -13,6 +13,7 @@ import { useState } from "react";
 import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { useRef } from "react";
+import { flushSync } from "react-dom";
 import type { AnalyzeReportRequest } from "@/shared/api/aiApi";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
@@ -164,6 +165,8 @@ const parseRgbColor = (value: string): [number, number, number] | null => {
     Number(match[3]),
   ];
 };
+
+const PDF_CAPTURE_WIDTH = 1080;
 
 
 const WEEKLY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -491,7 +494,7 @@ const budgetUsage =
     ? Math.round((totalExpense / currentBudget) * 100)
     : 0;
 
-const isDarkMode = resolvedTheme === "dark" && !isPdfMode;
+const isDarkMode = resolvedTheme === "dark";
 const chartTheme = isDarkMode
   ? {
       axis: "#c4b5fd",
@@ -796,23 +799,67 @@ const handleDownload = async () => {
   const previousBackgroundImage = element.style.backgroundImage;
   const previousColorScheme = element.style.colorScheme;
 
+  const previousWidth = element.style.width;
+  const previousMinWidth = element.style.minWidth;
+  const previousMaxWidth = element.style.maxWidth;
+  const previousMargin = element.style.margin;
+  let captureShell: HTMLDivElement | null = null;
+
   try {
-    setIsDownloading(true);
+    flushSync(() => {
+      setIsDownloading(true);
+      setIsPdfMode(true);
+    });
     await document.fonts?.ready;
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
     const { backgroundColor, backgroundImage } = getCaptureBackgroundStyles(element);
-    element.classList.add(styles.pdfDownload, styles.pdfFixedLayout);
+    element.classList.add(styles.pdfDownload, styles.pdfMode, styles.pdfFixedLayout);
     element.style.backgroundColor = backgroundColor;
     element.style.backgroundImage = backgroundImage;
     element.style.colorScheme = resolvedTheme === "dark" ? "dark" : "light";
+    element.style.width = `${PDF_CAPTURE_WIDTH}px`;
+    element.style.minWidth = `${PDF_CAPTURE_WIDTH}px`;
+    element.style.maxWidth = `${PDF_CAPTURE_WIDTH}px`;
+    element.style.margin = "0 auto";
+
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+
+    const clonedRoot = element.cloneNode(true) as HTMLDivElement;
+    inlineComputedStyles(element, clonedRoot);
+    clonedRoot.style.width = `${PDF_CAPTURE_WIDTH}px`;
+    clonedRoot.style.minWidth = `${PDF_CAPTURE_WIDTH}px`;
+    clonedRoot.style.maxWidth = `${PDF_CAPTURE_WIDTH}px`;
+    clonedRoot.style.margin = "0 auto";
+    clonedRoot.style.display = "block";
+
+    captureShell = document.createElement("div");
+    captureShell.style.position = "fixed";
+    captureShell.style.left = "-100000px";
+    captureShell.style.top = "0";
+    captureShell.style.pointerEvents = "none";
+    captureShell.style.zIndex = "-1";
+    captureShell.style.width = `${PDF_CAPTURE_WIDTH + 96}px`;
+    captureShell.style.minWidth = `${PDF_CAPTURE_WIDTH + 96}px`;
+    captureShell.style.maxWidth = `${PDF_CAPTURE_WIDTH + 96}px`;
+    captureShell.style.padding = "48px";
+    captureShell.style.margin = "0";
+    captureShell.style.display = "flex";
+    captureShell.style.justifyContent = "center";
+    captureShell.style.alignItems = "flex-start";
+    captureShell.style.backgroundColor = backgroundColor;
+    captureShell.style.backgroundImage = backgroundImage;
+    captureShell.appendChild(clonedRoot);
+    document.body.appendChild(captureShell);
 
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
-    const captureWidth = Math.ceil(element.scrollWidth || element.getBoundingClientRect().width);
-    const captureHeight = Math.ceil(element.scrollHeight || element.getBoundingClientRect().height);
+    const captureWidth = Math.ceil(captureShell.getBoundingClientRect().width);
+    const captureHeight = Math.ceil(captureShell.scrollHeight || captureShell.getBoundingClientRect().height);
 
-    const canvas = await html2canvas(element, {
+    const canvas = await html2canvas(captureShell, {
       scale: 2,
       useCORS: true,
       allowTaint: false,
@@ -835,33 +882,31 @@ const handleDownload = async () => {
       throw new Error("PDF 캡처 결과가 비어 있습니다.");
     }
 
-    const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF("p", "mm", "a4");
 
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 0;
-    const maxWidth = pageWidth - margin * 2;
-    const maxHeight = pageHeight - margin * 2;
-    const widthScale = maxWidth / canvas.width;
-    const heightScale = maxHeight / canvas.height;
-    const scale = Math.min(widthScale, heightScale);
-
-    const imgWidth = canvas.width * scale;
-    const imgHeight = canvas.height * scale;
-    const x = (pageWidth - imgWidth) / 2;
-    const y = (pageHeight - imgHeight) / 2;
-
     const pdfBackgroundColor = parseRgbColor(backgroundColor);
     if (pdfBackgroundColor) {
       pdf.setFillColor(...pdfBackgroundColor);
       pdf.rect(0, 0, pageWidth, pageHeight, "F");
     }
 
+    const pagePadding = 8;
+    const drawableWidth = pageWidth - pagePadding * 2;
+    const drawableHeight = pageHeight - pagePadding * 2;
+    const widthScale = drawableWidth / canvas.width;
+    const heightScale = drawableHeight / canvas.height;
+    const scale = Math.min(widthScale, heightScale);
+    const imgWidth = canvas.width * scale;
+    const imgHeight = canvas.height * scale;
+    const x = (pageWidth - imgWidth) / 2;
+    const y = (pageHeight - imgHeight) / 2;
+    const imgData = canvas.toDataURL("image/png");
     pdf.addImage(imgData, "PNG", x, y, imgWidth, imgHeight, undefined, "FAST");
 
-    pdf.save("spentopia_report_darktest_local.pdf");
-    toast.success("PDF 다운로드가 완료되었습니다. [local-debug]");
+    pdf.save("spentopia_report.pdf");
+    toast.success("PDF 다운로드가 완료되었습니다.");
   } catch (error) {
     console.error("[PDF] 생성 오류:", error);
 
@@ -872,11 +917,19 @@ const handleDownload = async () => {
           : "콘솔 오류를 확인해주세요.",
     });
   } finally {
-    element.classList.remove(styles.pdfDownload, styles.pdfFixedLayout);
+    captureShell?.remove();
+    element.classList.remove(styles.pdfDownload, styles.pdfMode, styles.pdfFixedLayout);
     element.style.backgroundColor = previousBackgroundColor;
     element.style.backgroundImage = previousBackgroundImage;
     element.style.colorScheme = previousColorScheme;
-    setIsDownloading(false);
+    element.style.width = previousWidth;
+    element.style.minWidth = previousMinWidth;
+    element.style.maxWidth = previousMaxWidth;
+    element.style.margin = previousMargin;
+    flushSync(() => {
+      setIsPdfMode(false);
+      setIsDownloading(false);
+    });
     window.scrollTo({ top: previousScrollY });
   }
 };
@@ -888,13 +941,7 @@ const handleDownload = async () => {
   const weekdayPatternData = buildWeekdayPatternData(thisMonthTransactions);
   const paymentPatternData = buildPaymentPatternData(thisMonthTransactions);
 
-  const marketCardStyle = isPdfMode
-  ? {
-      border: "1px solid #dbe4f0",
-      background: "#f8fbff",
-      boxShadow: "0 2px 10px rgba(15, 23, 42, 0.04)",
-    }
-  : isDarkMode
+  const marketCardStyle = isDarkMode
   ? {
       border: "1px solid rgba(167, 139, 250, 0.34)",
       color: "#f8fafc",
@@ -946,6 +993,9 @@ const handleDownload = async () => {
         color: "#f8fafc",
         borderRadius: "24px",
         padding: "24px",
+        width: "100%",
+        maxWidth: isPdfMode ? `${PDF_CAPTURE_WIDTH}px` : "1200px",
+        margin: "0 auto",
       }
     : {
         background:
@@ -953,6 +1003,9 @@ const handleDownload = async () => {
         color: "#111827",
         borderRadius: "24px",
         padding: "24px",
+        width: "100%",
+        maxWidth: isPdfMode ? `${PDF_CAPTURE_WIDTH}px` : "1200px",
+        margin: "0 auto",
       };
 
   return (
@@ -974,7 +1027,7 @@ const handleDownload = async () => {
           <h1
   data-pdf-force-text="black"
   className={`mb-2 text-3xl font-bold ${
-    isPdfMode ? "text-black" : "text-gray-900 dark:text-gray-100"
+    isPdfMode ? (isDarkMode ? "text-gray-100" : "text-black") : "text-gray-900 dark:text-gray-100"
   }`}
 >
 소비 패턴 분석</h1>
