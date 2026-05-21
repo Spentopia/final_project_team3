@@ -728,6 +728,11 @@ export default function Community() {
       return;
     }
 
+    if (writeType === "contest" && !writeFile) {
+      toast.error("아바타 콘테스트 게시글은 사진을 첨부해주세요");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -2279,12 +2284,12 @@ export default function Community() {
                   {/* 첨부파일 */}
                   <div className="flex min-h-[52px]">
                     <span className="w-24 flex-shrink-0 flex items-center justify-center text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700">
-                      첨부파일
+                      첨부파일{writeType === "contest" ? " *" : ""}
                     </span>
                     <div className="flex-1 flex items-center gap-3 px-4 py-3">
                       <label className="flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded border border-gray-200 dark:border-gray-600 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors select-none">
                         <Paperclip className="h-3.5 w-3.5" />
-                        이미지 첨부
+                        {writeType === "contest" ? "이미지 첨부 필수" : "이미지 첨부"}
                         <input
                           type="file"
                           accept="image/png,image/jpeg,image/webp"
