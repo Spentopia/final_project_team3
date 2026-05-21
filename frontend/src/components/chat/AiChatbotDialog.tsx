@@ -95,15 +95,15 @@ export default function AiChatbotDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[720px] gap-0 overflow-hidden p-0">
-        <DialogHeader className="border-b bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 p-5 text-white">
+      <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[720px] gap-0 overflow-hidden border-sky-200/80 bg-white p-0 shadow-[0_18px_44px_rgba(37,99,235,0.14)] dark:border-violet-300/25 dark:bg-[#0b1020] dark:shadow-[0_18px_44px_rgba(124,58,237,0.18)]">
+        <DialogHeader className="border-b border-sky-200/80 bg-[linear-gradient(135deg,#eff6ff,#dbeafe_46%,#bfdbfe)] p-5 text-slate-900 dark:border-violet-300/20 dark:bg-[linear-gradient(135deg,#0f172a,#2d1847_54%,#4c1d95)] dark:text-violet-50">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-blue-200 bg-white/70 text-blue-700 shadow-[0_8px_20px_rgba(37,99,235,0.14)] dark:border-violet-300/30 dark:bg-white/10 dark:text-violet-100 dark:shadow-[0_8px_22px_rgba(124,58,237,0.24)]">
               <Bot className="h-6 w-6" />
             </div>
             <div>
               <DialogTitle>AI 챗바타 상담</DialogTitle>
-              <DialogDescription className="text-white/85">
+              <DialogDescription className="text-slate-600 dark:text-violet-100/80">
                 소비 고민을 짧게 남기면 바로 답변해드려요.
               </DialogDescription>
             </div>
@@ -121,7 +121,7 @@ export default function AiChatbotDialog({ open, onOpenChange }: Props) {
                   className={cn("flex gap-3", isUser && "justify-end")}
                 >
                   {!isUser && (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-200">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-violet-950/60 dark:text-violet-200">
                       <Bot className="h-4 w-4" />
                     </div>
                   )}
@@ -130,7 +130,7 @@ export default function AiChatbotDialog({ open, onOpenChange }: Props) {
                     className={cn(
                       "max-w-[78%] whitespace-pre-wrap rounded-lg px-4 py-3 text-sm leading-relaxed",
                       isUser
-                        ? "bg-cyan-600 text-white"
+                        ? "bg-[#2563eb] text-white shadow-[0_8px_20px_rgba(37,99,235,0.18)] dark:bg-[#2d1847] dark:text-violet-50 dark:shadow-[0_8px_20px_rgba(124,58,237,0.2)]"
                         : "border bg-white text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100",
                     )}
                   >
@@ -138,7 +138,7 @@ export default function AiChatbotDialog({ open, onOpenChange }: Props) {
                   </div>
 
                   {isUser && (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-violet-950/60 dark:text-violet-200">
                       <User className="h-4 w-4" />
                     </div>
                   )}
@@ -148,7 +148,7 @@ export default function AiChatbotDialog({ open, onOpenChange }: Props) {
 
             {loading && (
               <div className="flex gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-200">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-violet-950/60 dark:text-violet-200">
                   <Bot className="h-4 w-4" />
                 </div>
                 <div className="flex items-center gap-2 rounded-lg border bg-white px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
@@ -172,7 +172,7 @@ export default function AiChatbotDialog({ open, onOpenChange }: Props) {
               />
               <Button
                 type="submit"
-                className="h-[52px] bg-gradient-to-r from-slate-900 via-cyan-600 to-teal-500 px-4 text-white shadow-lg shadow-cyan-700/20"
+                className="h-[52px] bg-[linear-gradient(135deg,#3b82f6,#2563eb)] px-4 text-white shadow-lg shadow-blue-700/20 hover:brightness-105 dark:bg-[linear-gradient(135deg,#0f172a,#4338ca,#7c3aed)] dark:shadow-violet-900/30"
                 disabled={loading || !input.trim()}
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
