@@ -34,6 +34,43 @@ fn is_supported_avatar_slot(slot_name: &str) -> bool {
     SUPPORTED_AVATAR_SLOTS.contains(&slot_name)
 }
 
+fn normalize_inventory_key_part(value: &str) -> String {
+    value.trim().to_lowercase()
+}
+
+fn game_inventory_dedupe_key(item: &UserItemResponse) -> String {
+    let category = normalize_inventory_key_part(&item.category);
+    let name = normalize_inventory_key_part(&item.name);
+    if !name.is_empty() {
+        return format!("name:{}:{}", category, name);
+    }
+
+    if let Some(visual_parts) = &item.visual_parts {
+        return format!("visual:{}:{}", category, visual_parts);
+    }
+
+    format!("item:{}", item.item_id)
+}
+
+fn should_replace_game_inventory_item(
+    existing: &UserItemResponse,
+    candidate: &UserItemResponse,
+) -> bool {
+    match (existing.is_equipped == Some(true), candidate.is_equipped == Some(true)) {
+        (false, true) => return true,
+        (true, false) => return false,
+        _ => {}
+    }
+
+    match (existing.is_nft == Some(true), candidate.is_nft == Some(true)) {
+        (false, true) => return true,
+        (true, false) => return false,
+        _ => {}
+    }
+
+    false
+}
+
 async fn get_open_listing_item_ids_for_user(
     state: &AppState,
     user_id: Uuid,
@@ -601,28 +638,30 @@ pub async fn get_user_game_items(
 ) -> Result<Vec<UnityInventoryItemResponse>> {
     let items = get_user_items(state, user_id).await?;
 
-    // 인게임 표시용 중복 제거: 같은 item_id(NFT/일반 무관)는 1개만 노출한다.
+    // 인게임 표시용 중복 제거: 같은 아바타 파츠(NFT/일반 무관)는 1개만 노출한다.
+    // NFT 동기화로 같은 외형이 다른 item_id로 들어올 수 있어 item_id만으로는 부족하다.
+    // category + name이 같으면 같은 외형으로 보고, 이름이 없으면 visual_parts로 한 번 더 묶는다.
     // 배열 자체를 압축해서 반환해야 유니티가 응답 인덱스대로 슬롯을 채워도 빈칸이 생기지 않는다.
-    // 단, 같은 아이템 중 장착된 행이 있으면 그 행 데이터(id/장착상태)를 대표로 올린다.
-    let mut order: Vec<Uuid> = Vec::new();
-    let mut chosen: HashMap<Uuid, UserItemResponse> = HashMap::new();
+    // 대표 행은 장착된 아이템을 우선하고, 장착 상태가 같으면 NFT 행을 우선한다.
+    let mut order: Vec<String> = Vec::new();
+    let mut chosen: HashMap<String, UserItemResponse> = HashMap::new();
     for it in items {
-        match chosen.get_mut(&it.item_id) {
+        let key = game_inventory_dedupe_key(&it);
+        match chosen.get_mut(&key) {
             Some(existing) => {
-                // 대표가 미장착인데 새 행이 장착이면 장착 행으로 교체 (위치는 그대로)
-                if existing.is_equipped != Some(true) && it.is_equipped == Some(true) {
+                if should_replace_game_inventory_item(existing, &it) {
                     *existing = it;
                 }
             }
             None => {
-                order.push(it.item_id);
-                chosen.insert(it.item_id, it);
+                order.push(key.clone());
+                chosen.insert(key, it);
             }
         }
     }
     let items: Vec<UnityInventoryItemResponse> = order
         .into_iter()
-        .filter_map(|item_id| chosen.remove(&item_id))
+        .filter_map(|key| chosen.remove(&key))
         .map(|item| UnityInventoryItemResponse {
             id: item.id,
             inventory_id: item.id,
