@@ -34,6 +34,7 @@ import {
 const CUSTOM_BUDGET_STORAGE_PREFIX = "customBudget";
 const SELECTED_PLAN_STORAGE_PREFIX = "selectedPlan";
 const AI_PLANS_STORAGE_PREFIX = "aiPlans";
+const BUDGET_LOCK_STORAGE_PREFIX = "budgetLocked";
 
 
 type PlanCategory = {
@@ -114,6 +115,9 @@ const getSelectedPlanStorageKey = (monthKey: string) =>
 
 const getAiPlansStorageKey = (monthKey: string) =>
   `${AI_PLANS_STORAGE_PREFIX}:${monthKey}`;
+
+const getBudgetLockStorageKey = (monthKey: string) =>
+  `${BUDGET_LOCK_STORAGE_PREFIX}:${monthKey}`;
 
 const getMonthKeyFromParts = (year: number, month: number) =>
   `${year}-${String(month + 1).padStart(2, "0")}`;
@@ -300,9 +304,20 @@ export default function BudgetPage() {
 });
   const [customBudget, setCustomBudget] = useState<CustomBudget>(createEmptyBudget);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [isBudgetLocked, setIsBudgetLocked] = useState(() =>
+    localStorage.getItem(
+      getBudgetLockStorageKey(
+        `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
+      )
+    ) === "true"
+  );
   const selectedMonthDate = new Date(selectedYear, selectedMonth, 1);
   const monthlyIncomeBudget = getMonthlyIncomeTotal(transactions, selectedMonthDate);
   const currentBudget = budgets[monthKey] || monthlyIncomeBudget || 0;
+  const canEditBudget = !isBudgetLocked;
+  const budgetDisabledMessage = isBudgetLocked
+    ? "이번 달 예산 설정이 완료되었습니다. 예산 설정은 월 1회만 가능합니다."
+    : "예산 설정은 월 1회만 가능합니다.";
 
   useEffect(() => {
     const savedBudget = localStorage.getItem(getCustomBudgetStorageKey(monthKey));
@@ -423,6 +438,7 @@ if (parsedPlans && parsedPlans.length > 0) {
 
 // 이미 위에서 읽은 값 사용
 setSelectedPlan(savedSelectedPlan ?? null);
+setIsBudgetLocked(localStorage.getItem(getBudgetLockStorageKey(monthKey)) === "true");
 
 if (savedSelectedPlan && parsedPlans?.length) {
   const appliedPlan = parsedPlans.find(
@@ -463,8 +479,19 @@ if (savedSelectedPlan && parsedPlans?.length) {
 
   console.log("🔥 클릭된 planId:", planId);
 
+  if (!canEditBudget) {
+    toast.error(budgetDisabledMessage);
+    return;
+  }
+
   const plan = aiPlans.find((p) => p.id === planId);
   if (!plan) return;
+
+  const confirmed = window.confirm(
+    "예산 설정은 월 1회만 적용 가능합니다. 이 플랜을 적용하시겠습니까?"
+  );
+
+  if (!confirmed) return;
 
   try {
     const month = selectedMonth + 1;
@@ -510,6 +537,9 @@ localStorage.setItem(
   planId
 );
 
+localStorage.setItem(getBudgetLockStorageKey(monthKey), "true");
+setIsBudgetLocked(true);
+
 console.log("✅ selectedPlan 저장:", planId);
 
 setMonthlyBudget(monthKey, plan.budget);
@@ -533,6 +563,11 @@ setMonthlyBudget(monthKey, plan.budget);
   const [loading, setLoading] = useState(false);
 
   const handleGenerateAiPlans = async () => {
+  if (!canEditBudget) {
+    toast.error(budgetDisabledMessage);
+    return;
+  }
+
   const sourceBudget = currentBudget || customBudget.monthly;
 
   if (!sourceBudget || sourceBudget <= 0) {
@@ -641,6 +676,11 @@ localStorage.removeItem(
 };
 
   const handleSaveCustomBudget = () => {
+  if (!canEditBudget) {
+    toast.error(budgetDisabledMessage);
+    return;
+  }
+
   const monthlyBudget = Number(customBudget.monthly) || 0;
 
   if (monthlyBudget < 300000) {
@@ -654,6 +694,9 @@ localStorage.removeItem(
     getCustomBudgetStorageKey(monthKey),
     JSON.stringify(customBudget)
   );
+
+  localStorage.setItem(getBudgetLockStorageKey(monthKey), "true");
+  setIsBudgetLocked(true);
 
   toast.success(
     `${selectedYear}년 ${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`
@@ -870,8 +913,9 @@ localStorage.removeItem(
 
         <Button
           onClick={handleGenerateAiPlans}
-          disabled={loading}
+          disabled={loading || !canEditBudget}
           className="spentopia-primary-button"
+          title={!canEditBudget ? budgetDisabledMessage : undefined}
         >
           {loading ? "AI 생성 중..." : "AI 플랜 추천"}
         </Button>
@@ -972,9 +1016,9 @@ localStorage.removeItem(
   onClick={async () => {
     await handleApplyPlan(plan.id);
   }}
-  disabled={selectedPlan === plan.id}
+  disabled={selectedPlan === plan.id || !canEditBudget}
   className={`w-full transition-all duration-300 ${
-    selectedPlan === plan.id
+    selectedPlan === plan.id || !canEditBudget
       ? "bg-[#f0f7ff] border border-blue-200 text-blue-700 hover:bg-[#f0f7ff] cursor-default dark:border-violet-400/45 dark:bg-violet-950/35 dark:text-violet-100 dark:hover:bg-violet-950/35"
       : "spentopia-primary-button"
   }`}
@@ -1113,7 +1157,9 @@ localStorage.removeItem(
 
             <Button
               onClick={handleSaveCustomBudget}
+              disabled={!canEditBudget}
               className="w-full spentopia-primary-button"
+              title={!canEditBudget ? budgetDisabledMessage : undefined}
             >
               <Wallet className="mr-2 h-4 w-4" />
               {selectedMonth + 1}월 맞춤 예산 저장

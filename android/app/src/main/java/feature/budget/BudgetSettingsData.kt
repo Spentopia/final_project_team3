@@ -20,5 +20,8 @@ data class BudgetSettingsData( // BudgetSettingsData 데이터를 묶어둘 클�
     val livingBudget: Long = 120000L, // 생활비 예산을 저장함
 
     // 여가/취미비
-    val hobbyBudget: Long = 100000L // 취미 예산을 저장함
+    val hobbyBudget: Long = 100000L, // 취미 예산을 저장함
+
+    // 이번 달 예산 적용 완료 여부를 월 단위로 저장함
+    val lockedMonthKey: String = "" // 예: 2026-05
 )
