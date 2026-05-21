@@ -993,9 +993,13 @@ const handleDownload = async () => {
         color: "#f8fafc",
         borderRadius: "24px",
         padding: "24px",
-        width: "100%",
-        maxWidth: isPdfMode ? `${PDF_CAPTURE_WIDTH}px` : "1200px",
-        margin: "0 auto",
+        ...(isPdfMode
+          ? {
+              width: "100%",
+              maxWidth: `${PDF_CAPTURE_WIDTH}px`,
+              margin: "0 auto",
+            }
+          : {}),
       }
     : {
         background:
@@ -1003,9 +1007,13 @@ const handleDownload = async () => {
         color: "#111827",
         borderRadius: "24px",
         padding: "24px",
-        width: "100%",
-        maxWidth: isPdfMode ? `${PDF_CAPTURE_WIDTH}px` : "1200px",
-        margin: "0 auto",
+        ...(isPdfMode
+          ? {
+              width: "100%",
+              maxWidth: `${PDF_CAPTURE_WIDTH}px`,
+              margin: "0 auto",
+            }
+          : {}),
       };
 
   return (
