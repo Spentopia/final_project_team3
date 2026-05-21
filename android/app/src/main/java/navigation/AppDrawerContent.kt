@@ -37,6 +37,8 @@ fun AppDrawerContent( // AppDrawerContent 함수를 선언함
     onCommunityClick: () -> Unit, // 커뮤니티 관련 값을 받음
     onLogoutClick: () -> Unit // onLogoutClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = MaterialTheme.colorScheme.background == SpentopiaDarkBackground
+    val brandColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
     Column( // 안쪽 UI를 세로로 배치함
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxHeight()
@@ -56,7 +58,7 @@ fun AppDrawerContent( // AppDrawerContent 함수를 선언함
                     text = "Spentopia", // text 값을 정해줌
                     style = MaterialTheme.typography.headlineSmall, // style 값을 정해줌
                     fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
-                    color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
+                    color = brandColor // color 값을 정해줌
                 )
                 Text( // 화면에 글자를 보여줌
                     text = "원하는 메뉴로 바로 이동해보세요", // text 값을 정해줌

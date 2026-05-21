@@ -579,7 +579,7 @@ private fun SectionCard(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = colors.title
+                color = colors.accent
             )
             Spacer(modifier = Modifier.height(16.dp))
             content()
@@ -719,11 +719,16 @@ private fun IconBox(
     surface: Color? = null
 ) {
     val colors = plazaColors() // 아이콘 박스 기본 색상을 가져옴
+    val borderColor = if (colors.isDark) {
+        colors.accent.copy(alpha = 0.58f)
+    } else {
+        colors.border
+    }
     Box( // 아이콘을 둥근 사각형 안에 넣어 보여줌
         modifier = Modifier
             .size(42.dp)
             .background(surface ?: colors.iconSurface, RoundedCornerShape(12.dp))
-            .border(1.dp, (tint ?: colors.accent).copy(alpha = 0.22f), RoundedCornerShape(12.dp)),
+            .border(1.dp, borderColor, RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = null, tint = tint ?: colors.accent, modifier = Modifier.size(22.dp)) // 전달받은 아이콘을 보여줌

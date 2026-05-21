@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding // navigationBar
 import androidx.compose.foundation.layout.padding // padding 기능을 가져옴
 import androidx.compose.foundation.layout.Row // 가로 배치 레이아웃을 가져옴
 import androidx.compose.foundation.layout.size // size 기능을 가져옴
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons // Icons 기능을 가져옴
 import androidx.compose.material.icons.filled.Menu // Menu 기능을 가져옴
 import androidx.compose.material.icons.filled.NotificationsNone // NotificationsNone 기능을 가져옴
@@ -91,6 +92,7 @@ import com.ict.spentopia.feature.community.CommunityWriteScreen // CommunityWrit
 import com.ict.spentopia.feature.home.HomeScreen // HomeScreen 기능을 가져옴
 import com.ict.spentopia.feature.market.MarketScreen // MarketScreen 기능을 가져옴
 import com.ict.spentopia.feature.mypage.ProfileAvatarScreen // ProfileAvatarScreen 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaDarkBackground
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender // ActivityResultSender 기능을 가져옴
 import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
@@ -519,11 +521,13 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
             contentColor = MaterialTheme.colorScheme.onBackground, // contentColor 값을 정해줌
             topBar = { // topBar 값을 정해줌
                 if (shouldShowDrawer) { // 조건이 맞는지 확인함
+                    val isDark = MaterialTheme.colorScheme.background == SpentopiaDarkBackground
+                    val brandColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
                     CenterAlignedTopAppBar( // 가운데 제목이 있는 상단바를 보여줌
                         title = { // 제목을 정해줌
                             Text( // 화면에 글자를 보여줌
                                 text = "Spentopia", // text 값을 정해줌
-                                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
+                                color = brandColor // color 값을 정해줌
                             )
                         },
                         navigationIcon = { // navigationIcon 값을 정해줌

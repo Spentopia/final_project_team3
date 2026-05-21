@@ -44,10 +44,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape // 둥근 모서리 
 import androidx.compose.material.icons.Icons // 아이콘 묶음을 가져옴
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CalendarMonth // 달력 아이콘을 가져옴
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.PieChart
+import androidx.compose.material.icons.outlined.TrendingUp
 
 // Material3 관련 import
 import androidx.compose.material3.Button // 버튼 컴포넌트를 가져옴
@@ -83,6 +87,7 @@ import androidx.compose.ui.Modifier // UI 크기·색·여백 설정 도구를 �
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush // 그라데이션 같은 색칠 도구를 가져옴
 import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale // 이미지 채우는 방식을 가져옴
 import androidx.compose.ui.platform.LocalContext // 현재 화면 Context를 가져오는 도구를 가져옴
 import androidx.compose.ui.res.painterResource
@@ -142,17 +147,17 @@ private fun isHomeDarkTheme(): Boolean { // 다크 테마인지 true/false로 �
 
 @Composable
 private fun homeSoftCardColor(): Color {
-    return if (isHomeDarkTheme()) Color(0xFF111A2A) else Color(0xFFF7FBFF)
+    return if (isHomeDarkTheme()) Color(0xFF171A2B) else Color(0xFFF7FBFF)
 }
 
 @Composable
 private fun homeSoftCardBorderColor(): Color {
-    return if (isHomeDarkTheme()) Color(0xFF8B5CF6).copy(alpha = 0.45f) else Color(0xFF7DD3FC)
+    return if (isHomeDarkTheme()) Color(0xFF4C3B7A) else Color(0xFF7DD3FC)
 }
 
 @Composable
 private fun homeStatCardColor(): Color {
-    return if (isHomeDarkTheme()) Color(0xFF1A2233) else Color(0xFFF7FBFF)
+    return if (isHomeDarkTheme()) Color(0xFF1F2437) else Color(0xFFF7FBFF)
 }
 
 @Composable
@@ -621,6 +626,7 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
     walletProvider: String, // 지갑 제공자 이름을 받음
     onWalletConnectClick: () -> Unit = {} // 버튼을 눌렀을 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isHomeDarkTheme()
     val cardColor = homeSoftCardColor()
     val cardBorderColor = homeSoftCardBorderColor()
     val buttonColor = homePrimaryButtonColor()
@@ -649,7 +655,11 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                     text = if (isWalletConnected) "지갑 연결됨" else "NFT 거래 및 토큰 교환 지갑", // 연결 상태에 따라 제목을 정함
                     fontSize = 16.sp, // 글자 크기를 정함
                     fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                    color = MaterialTheme.colorScheme.onSurface // 색상을 정함
+                    color = if (isWalletConnected) {
+                        if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    } // 색상을 정함
                 )
                 Text( // 글자를 화면에 보여주기 시작함
                     text = if (isWalletConnected) { // 조건이 참일 때 연결 정보를 보여줌
@@ -658,7 +668,11 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                         "팬텀 지갑 연결이 필요합니다" // 연결 안내 문구를 보여줌
                     },
                     fontSize = 13.sp, // 글자 크기를 정함
-                    color = if (isWalletConnected) Color(0xFF16A34A) else MaterialTheme.colorScheme.onSurfaceVariant // 연결 여부에 따라 글자색을 정함
+                    color = if (isWalletConnected) {
+                        if (isDark) Color(0xFFBBF7D0) else Color(0xFF166534)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } // 연결 여부에 따라 글자색을 정함
                 )
             } // 블록 끝
 
@@ -764,11 +778,6 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
 
                     Spacer(modifier = Modifier.height(6.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = "이번 달 소비 내역 · ${currentMonthExpenseCount}건", // 화면에 보여줄 글자를 정함
-                        fontSize = 13.sp, // 글자 크기를 정함
-                        color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
-                    )
                 } // 블록 끝
 
                 Column(horizontalAlignment = Alignment.End) { // 이 블록의 내용이 여기서 시작됨
@@ -789,36 +798,48 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
 
             Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-            Row( // 가로로 배치하는 영역을 시작함
+            Column( // 세로로 배치하는 영역을 시작함
                 modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
-                horizontalArrangement = Arrangement.spacedBy(12.dp) // 가로 방향 간격과 정렬을 정함
+                verticalArrangement = Arrangement.spacedBy(12.dp) // 세로 방향 간격을 정함
             ) { // 이 블록 안의 내용이 시작됨
-                SummaryMiniCard( // 카드 모양 UI를 시작함
-                    title = "예산", // horizontalArrangement 값을 이 함수로 넘김
+                SummaryWideCard( // 카드 모양 UI를 시작함
+                    icon = Icons.Outlined.AccountBalanceWallet,
+                    title = "예산", // 제목 값을 넘김
                     value = "${formatAmount(monthlyBudget)}원", // value 값을 이 함수로 넘김
-                    bgColor = if (isDark) homeStatCardColor() else Color(0xFFDDF3F7), // 배경색 값을 넘김
-                    modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
+                    bgColor = homeSoftCardColor(), // 배경색 값을 넘김
+                    borderColor = homeSoftCardBorderColor(),
+                    valueColor = if (isDark) Color(0xFFE0F2FE) else Color(0xFF075985)
                 )
 
-                SummaryMiniCard( // 카드 모양 UI를 시작함
+                SummaryWideCard( // 카드 모양 UI를 시작함
+                    icon = Icons.Filled.Savings,
                     title = "수입", // 수입 제목
                     value = "${formatAmount(monthlyIncome)}원", // 수입 값
-                    bgColor = if (isDark) homeStatCardColor() else Color(0xFFE8F7E8), // 배경색 값을 넘김
-                    modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
+                    bgColor = homeSoftCardColor(), // 배경색 값을 넘김
+                    borderColor = homeSoftCardBorderColor(),
+                    valueColor = if (isDark) Color(0xFFDCFCE7) else Color(0xFF166534)
                 )
 
-                SummaryMiniCard( // 카드 모양 UI를 시작함
+                SummaryWideCard( // 카드 모양 UI를 시작함
+                    icon = Icons.Outlined.TrendingUp,
                     title = if (remainingBudget >= 0) "남은 예산" else "초과 예산", // modifier 값을 이 함수로 넘김
                     value = "${formatAmount(abs(remainingBudget))}원", // 음수를 양수로 바꿔 절댓값으로 만듦
-                    bgColor = if (isDark) homeStatCardColor() else if (remainingBudget >= 0) Color(0xFFE1EAFF) else Color(0xFFFFE3E3), // 배경색 값을 넘김
-                    modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
+                    bgColor = homeSoftCardColor(), // 배경색 값을 넘김
+                    borderColor = homeSoftCardBorderColor(),
+                    valueColor = if (isDark) {
+                        if (remainingBudget >= 0) Color(0xFFE0E7FF) else Color(0xFFFECACA)
+                    } else {
+                        if (remainingBudget >= 0) Color(0xFF3730A3) else Color(0xFFB91C1C)
+                    }
                 )
 
-                SummaryMiniCard( // 카드 모양 UI를 시작함
+                SummaryWideCard( // 카드 모양 UI를 시작함
+                    icon = Icons.Outlined.PieChart,
                     title = "사용률", // modifier 값을 이 함수로 넘김
                     value = usageRateText, // value 값을 이 함수로 넘김
-                    bgColor = if (isDark) homeStatCardColor() else Color(0xFFDFF2EC), // 배경색 값을 넘김
-                    modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함
+                    bgColor = homeSoftCardColor(), // 배경색 값을 넘김
+                    borderColor = homeSoftCardBorderColor(),
+                    valueColor = if (isDark) Color(0xFFCCFBF1) else Color(0xFF0F766E)
                 )
             } // 블록 끝
         } // 블록 끝
@@ -826,41 +847,77 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
 } // 블록 끝
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
-private fun SummaryMiniCard( // SummaryMiniCard 함수 선언 시작
+private fun SummaryWideCard( // SummaryWideCard 함수 선언 시작
+    icon: ImageVector,
     title: String, // title 값을 함수 밖에서 받아옴
     value: String, // value 값을 함수 밖에서 받아옴
     bgColor: Color, // bgColor 값을 함수 밖에서 받아옴
+    borderColor: Color, // borderColor 값을 함수 밖에서 받아옴
+    valueColor: Color, // valueColor 값을 함수 밖에서 받아옴
     modifier: Modifier = Modifier // Modifier 값을 이 함수로 넘김
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isHomeDarkTheme()
     Card( // 카드 모양 UI를 시작함
-        modifier = modifier, // 이 UI의 크기·여백·배경 설정을 시작함
-        shape = RoundedCornerShape(16.dp), // 모서리 모양을 정함
+        modifier = modifier
+            .fillMaxWidth()
+            .height(72.dp), // 이 UI의 크기·여백·배경 설정을 시작함
+        shape = RoundedCornerShape(20.dp), // 모서리 모양을 정함
         colors = CardDefaults.cardColors(containerColor = bgColor), // 색상 스타일을 정함
-        border = if (isDark) BorderStroke(1.dp, homeSoftCardBorderColor()) else null // 다크모드 미니 카드 테두리색을 맞춤
+        border = BorderStroke(1.dp, borderColor) // 카드 테두리색을 정함
     ) { // 이 블록 안의 내용이 시작됨
-        Column( // 세로로 배치하는 영역을 시작함
+        Row( // 가로로 배치하는 영역을 시작함
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 12.dp) // 안쪽 여백 줄임
+                .fillMaxSize()
+                .padding(horizontal = 14.dp, vertical = 10.dp), // 안쪽 여백을 정함
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) { // 이 블록 안의 내용이 시작됨
-            Text( // 글자를 화면에 보여주기 시작함
-                text = title, // 화면에 보여줄 글자를 정함
-                fontSize = 11.sp, // 글자 크기를 줄임
-                fontWeight = FontWeight.SemiBold, // 제목 글자 두께를 정함
-                color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF315072), // 색상을 정함
-                maxLines = 1, // 한 줄만 표시
-                softWrap = false, // 자동 줄바꿈을 막음
-                overflow = TextOverflow.Ellipsis // 넘치면 말줄임표 처리
-            )
-            Spacer(modifier = Modifier.height(6.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            color = if (isDark) Color(0xFF2B2143) else Color(0xFFE0F2FE),
+                            shape = androidx.compose.foundation.shape.CircleShape
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (isDark) Color(0xFFC4B5FD).copy(alpha = 0.45f) else Color(0xFF7DD3FC),
+                            shape = androidx.compose.foundation.shape.CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Text( // 글자를 화면에 보여주기 시작함
+                    text = title, // 화면에 보여줄 글자를 정함
+                    fontSize = 13.sp, // 글자 크기를 정함
+                    fontWeight = FontWeight.SemiBold, // 제목 글자 두께를 정함
+                    color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569), // 색상을 정함
+                    maxLines = 1, // 한 줄만 표시
+                    softWrap = false, // 자동 줄바꿈을 막음
+                    overflow = TextOverflow.Ellipsis // 넘치면 말줄임표 처리
+                )
+            }
+
             FinancialAmountText( // 금액 글자를 한 줄로 보여줌
                 text = value, // 화면에 보여줄 글자를 정함
-                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
-                color = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF22406A), // 색상을 정함
-                maxFontSize = 14.sp, // 가장 큰 글자 크기를 정함
-                minFontSize = 8.sp, // 가장 작은 글자 크기를 정함
-                lineHeight = 18.sp // 줄 높이 줄임
+                modifier = Modifier.weight(1.15f), // 오른쪽 영역을 확보함
+                color = valueColor, // 색상을 정함
+                maxFontSize = 23.sp, // 가장 큰 글자 크기를 정함
+                minFontSize = 16.sp, // 가장 작은 글자 크기를 정함
+                lineHeight = 26.sp // 줄 높이를 정함
             )
         } // 블록 끝
     } // 블록 끝
@@ -905,10 +962,17 @@ private fun FinancialAmountText(
 // 카테고리가 "수입"인지 판별하는 함수
 private fun isIncomeCategory(category: String): Boolean {
     return category in listOf(
+        "salary",
+        "allowance",
+        "bonus",
+        "side_job",
+        "investment",
+        "income_other",
         "월급",
         "용돈",
+        "보너스",
         "부수입",
-        "환급",
+        "투자",
         "기타수입"
     )
 }
@@ -1102,10 +1166,13 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
     onEditExpense: (ExpenseItemData) -> Unit, // onEditExpense 는 눌렀을 때 실행할 동작을 받음
     onDeleteExpense: (Long) -> Unit // onDeleteExpense 는 눌렀을 때 실행할 동작을 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isHomeDarkTheme()
     val cardColor = homeSoftCardColor() // 소비내역 카드 배경색을 오늘의 소비일기와 맞춤
     val cardBorderColor = homeSoftCardBorderColor() // 소비내역 카드 테두리색을 오늘의 소비일기와 맞춤
     val diaryCardColor = homeSoftCardColor() // 소비일기 카드 배경색을 정함
     val diaryBorderColor = homeSoftCardBorderColor() // 소비일기 카드 테두리색을 정함
+    val dateTitleColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF1D4ED8)
+    val emptyTextColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569)
     val filteredList = expenseList.filter { it.date == selectedDate } // 조건에 맞는 항목만 남김
     val totalAmount = filteredList // 선택한 날짜의 지출 항목 금액만 더함
         .filter { isExpenseItem(it) } // 수입 항목은 제외하고 지출 항목만 남김
@@ -1123,16 +1190,16 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
         ) { // 이 블록 안의 내용이 시작됨
             Text( // 글자를 화면에 보여주기 시작함
                 text = formatDisplayDate(selectedDate), // 화면에 보여줄 글자를 정함
-                fontSize = 22.sp, // 글자 크기를 정함
-                fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                color = MaterialTheme.colorScheme.onSurface // 색상을 정함
+                fontSize = 23.sp, // 글자 크기를 정함
+                fontWeight = FontWeight.ExtraBold, // 글자 두께를 정함
+                color = dateTitleColor // 색상을 정함
             )
 
             Spacer(modifier = Modifier.height(6.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
             Text( // 글자를 화면에 보여주기 시작함
                 text = "총 ${formatAmount(totalAmount)}원 · ${filteredList.count { isExpenseItem(it) }}건", // 화면에 보여줄 글자를 정함
-                fontSize = 14.sp, // 글자 크기를 정함
+                fontSize = 15.sp, // 글자 크기를 정함
                 color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
             )
 
@@ -1142,7 +1209,7 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
                 Text( // 글자를 화면에 보여주기 시작함
                     text = "이 날짜에는 아직 저장된 소비 내역이 없어요", // 화면에 보여줄 글자를 정함
                     fontSize = 14.sp, // 글자 크기를 정함
-                    color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
+                    color = emptyTextColor // 색상을 정함
                 )
             } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
                 filteredList.forEachIndexed { index, item -> // 목록이나 범위를 하나씩 돌면서 처리함
@@ -1161,9 +1228,6 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
                             null
                         },
                         iconColors = getCategoryColors(item.category), // iconColors 값을 이 함수로 넘김
-                        onEditClick = { // onEditClick 값을 이 함수로 넘김
-                            onEditExpense(item) // 함수를 호출해 값을 넣음
-                        },
                         onDeleteClick = { // onDeleteClick 값을 이 함수로 넘김
                             onDeleteExpense(item.id) // 함수를 호출해 값을 넣음
                         } // 블록 끝
@@ -1221,14 +1285,15 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
     amount: String, // amount 값을 함수 밖에서 받아옴
     tag: String?, // tag 값을 함수 밖에서 받아옴
     iconColors: List<Color>, // iconColors 값을 함수 밖에서 받아옴
-    onEditClick: () -> Unit, // onEditClick 는 눌렀을 때 실행할 동작을 받음
     onDeleteClick: () -> Unit // onDeleteClick 는 눌렀을 때 실행할 동작을 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isHomeDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
-    val itemCardColor = if (isDark) homeStatCardColor() else Color(0xFFF7FBFF) // 소비 항목 카드 배경색을 오늘의 소비일기와 맞춤
-    val itemBorderColor = if (isDark) homeSoftCardBorderColor() else Color(0xFF7DD3FC) // 소비 항목 카드 테두리색을 오늘의 소비일기와 맞춤
-    val editColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB) // 수정 버튼 색을 모드별로 분리함
-    val expenseAmountColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF1E3A8A) // 지출 금액 색을 모드별로 분리함
+    val itemCardColor = homeSoftCardColor() // 소비 항목 카드 배경색을 모드별로 맞춤
+    val itemBorderColor = homeSoftCardBorderColor() // 소비 항목 카드 테두리색을 맞춤
+    val expenseAmountColor = if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C) // 지출 금액 색을 모드별로 분리함
+    val incomeAmountColor = if (isDark) Color(0xFF86EFAC) else Color(0xFF15803D) // 수입 금액 색을 모드별로 분리함
+    val deleteIconColor = if (isDark) Color(0xFFFCA5A5) else Color(0xFFDC2626)
+    val deleteIconSurface = if (isDark) Color(0xFF3A1D22) else Color(0xFFFFE3E3)
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(18.dp), // 모서리 모양을 정함
@@ -1269,18 +1334,19 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
                 ) { // 이 블록 안의 내용이 시작됨
                     Text( // 글자를 화면에 보여주기 시작함
                         text = title, // 화면에 보여줄 글자를 정함
-                        fontSize = 16.sp, // 글자 크기를 정함
-                        fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                        color = MaterialTheme.colorScheme.onSurface // 색상을 정함
+                        fontSize = 17.sp, // 글자 크기를 정함
+                        fontWeight = FontWeight.ExtraBold, // 글자 두께를 정함
+                        color = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A) // 색상을 정함
                     )
 
                     Spacer(modifier = Modifier.height(4.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
                     Row(verticalAlignment = Alignment.CenterVertically) { // 이 블록의 내용이 여기서 시작됨
                         Text( // 글자를 화면에 보여주기 시작함
-                            text = category, // 화면에 보여줄 글자를 정함
-                            fontSize = 13.sp, // 글자 크기를 정함
-                            color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
+                            text = getCategoryLabel(category), // 화면에 보여줄 글자를 정함
+                            fontSize = 14.sp, // 글자 크기를 정함
+                            fontWeight = FontWeight.Medium,
+                            color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569) // 색상을 정함
                         )
 
                         if (tag != null) { // 조건이 참일 때만 아래 코드를 실행함
@@ -1316,46 +1382,38 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
 
                 Spacer(modifier = Modifier.width(12.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                Text( // 글자를 화면에 보여주기 시작함
-                    text = amount, // 화면에 보여줄 글자를 정함
-                    fontSize = 16.sp, // 글자 크기를 정함
-                    fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                    color = if (amount.startsWith("+")) Color(0xFF00C896) else expenseAmountColor // 수입이면 초록색, 지출이면 기본색으로 표시함
-                )
-            } // 블록 끝
-
-            Spacer(modifier = Modifier.height(10.dp)) // 컴포넌트 사이에 빈 공간을 넣음
-
-            Row( // 가로로 배치하는 영역을 시작함
-                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
-                horizontalArrangement = Arrangement.End // 가로 방향 간격과 정렬을 정함
-            ) { // 이 블록 안의 내용이 시작됨
-                TextButton( // 눌렀을 때 동작하는 버튼을 만듦
-                    onClick = onEditClick // horizontalArrangement 값을 이 함수로 넘김
-                ) { // 이 블록 안의 내용이 시작됨
+                Column(
+                    horizontalAlignment = Alignment.End
+                ) {
                     Text( // 글자를 화면에 보여주기 시작함
-                        text = "수정", // 화면에 보여줄 글자를 정함
-                        color = editColor, // 색상을 정함
-                        fontSize = 13.sp, // 글자 크기를 정함
-                        fontWeight = FontWeight.SemiBold // 글자 두께를 정함
+                        text = amount, // 화면에 보여줄 글자를 정함
+                        fontSize = 17.sp, // 글자 크기를 정함
+                        fontWeight = FontWeight.ExtraBold, // 글자 두께를 정함
+                        color = if (amount.startsWith("+")) incomeAmountColor else expenseAmountColor // 수입이면 초록색, 지출이면 지출색으로 표시함
                     )
-                } // 블록 끝
 
-                TextButton( // 눌렀을 때 동작하는 버튼을 만듦
-                    onClick = onDeleteClick // fontWeight 값을 이 함수로 넘김
-                ) { // 이 블록 안의 내용이 시작됨
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = "삭제", // 화면에 보여줄 글자를 정함
-                        color = Color(0xFFE53935), // 색상을 정함
-                        fontSize = 13.sp, // 글자 크기를 정함
-                        fontWeight = FontWeight.SemiBold // 글자 두께를 정함
-                    )
-                } // 블록 끝
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(deleteIconSurface, RoundedCornerShape(12.dp))
+                            .border(1.dp, deleteIconColor.copy(alpha = 0.28f), RoundedCornerShape(12.dp))
+                            .clickable { onDeleteClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "삭제",
+                            tint = deleteIconColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             } // 블록 끝
         } // 블록 끝
     } // 블록 끝
 } // 블록 끝
-
 private fun resolveReceiptVerificationError(error: Exception): String {
     if (error is HttpException) {
         val serverMessage = error.response()?.errorBody()?.string()?.trim().orEmpty()
@@ -1663,9 +1721,9 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     val formBorderColor = homeInputBorderColor()
     val formPrimaryTextColor = colorScheme.onSurface
     val formSecondaryTextColor = colorScheme.onSurfaceVariant
-    val formAccentColor = colorScheme.primary
-    val formAccentContainerColor = colorScheme.primaryContainer
-    val formAccentContainerTextColor = colorScheme.onPrimaryContainer
+    val formAccentColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
+    val expenseTabSelectedBackground = if (isDark) Color(0xFF2B2143) else Color(0xFFE0F2FE)
+    val expenseTabSelectedContentColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
     val incomeTabSelectedBackground = if (isDark) Color(0xFF142238) else Color(0xFFE0F2FE)
     val incomeTabSelectedContentColor = if (isDark) Color(0xFF93C5FD) else Color(0xFF2563EB)
 
@@ -1682,8 +1740,8 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     var pendingServerExpenseId by remember { mutableStateOf("") } // 새 기록 저장 전 OCR을 위해 먼저 만든 서버 UUID입니다.
     var diary by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var expanded by remember { mutableStateOf(false) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
-    val expenseCategoryList = listOf("식비", "교통", "쇼핑", "카페", "기타") // 소비 카테고리 목록을 만듦
-    val incomeCategoryList = listOf("월급", "용돈", "부수입", "환급", "기타수입") // 수입 카테고리 목록을 만듦
+    val expenseCategoryList = listOf("식비", "교통", "쇼핑", "여가", "의료", "교육", "공과금", "기타") // 소비 카테고리 목록을 만듦
+    val incomeCategoryList = listOf("월급", "용돈", "보너스", "부수입", "투자", "기타수입") // 수입 카테고리 목록을 만듦
 
     val galleryLauncher = rememberLauncherForActivityResult( // 갤러리 같은 외부 화면 결과를 받을 준비를 함
         contract = ActivityResultContracts.GetContent() // 파일이나 이미지를 하나 고르는 규칙을 씀
@@ -1747,6 +1805,14 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
         expanded = false // 드롭다운 상태를 닫음
     } // 블록 끝
 
+    val writeTitle = if (editingExpense == null) {
+        if (isExpenseTab) "소비 입력하기" else "수입 입력하기"
+    } else {
+        if (isExpenseTab) "소비 수정하기" else "수입 수정하기"
+    }
+    val writeIcon = if (isExpenseTab) Icons.Default.ShoppingCart else Icons.Default.Savings
+    val writeTitleColor = if (isExpenseTab) expenseTabSelectedContentColor else incomeTabSelectedContentColor
+
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
@@ -1758,12 +1824,25 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
         Column( // 세로로 배치하는 영역을 시작함
             modifier = Modifier.padding(20.dp) // 안쪽이나 바깥 여백을 줌
         ) { // 이 블록 안의 내용이 시작됨
-            Text( // 글자를 화면에 보여주기 시작함
-                text = if (editingExpense == null) "기록 입력하기" else "기록 수정하기", // 화면에 보여줄 글자를 정함
-                fontSize = 20.sp, // 글자 크기를 정함
-                fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                color = MaterialTheme.colorScheme.onSurface // 색상을 정함
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = writeIcon,
+                    contentDescription = writeTitle,
+                    tint = writeTitleColor,
+                    modifier = Modifier.size(23.dp)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text( // 글자를 화면에 보여주기 시작함
+                    text = writeTitle, // 화면에 보여줄 글자를 정함
+                    fontSize = 21.sp, // 글자 크기를 정함
+                    fontWeight = FontWeight.ExtraBold, // 글자 두께를 정함
+                    color = writeTitleColor // 색상을 정함
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
@@ -1798,7 +1877,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                     modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                         .weight(1f) // 남는 공간을 비율대로 차지하게 함
                         .background( // 배경색이나 그라데이션을 넣음
-                            color = if (isExpenseTab) formAccentContainerColor else Color.Transparent, // 색상을 정함
+                            color = if (isExpenseTab) expenseTabSelectedBackground else Color.Transparent, // 색상을 정함
                             shape = RoundedCornerShape(12.dp) // 모서리 모양을 정함
                         )
                         .border(
@@ -1821,14 +1900,14 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                             imageVector = Icons.Default.ShoppingCart,
                             contentDescription = "소비 입력",
                             modifier = Modifier.size(17.dp),
-                            tint = if (isExpenseTab) formAccentContainerTextColor else formSecondaryTextColor
+                            tint = if (isExpenseTab) expenseTabSelectedContentColor else formSecondaryTextColor
                         )
 
                         Spacer(modifier = Modifier.width(6.dp))
 
                         Text( // 글자를 화면에 보여주기 시작함
                             text = "소비 입력", // 화면에 보여줄 글자를 정함
-                            color = if (isExpenseTab) formAccentContainerTextColor else formSecondaryTextColor, // 색상을 정함
+                            color = if (isExpenseTab) expenseTabSelectedContentColor else formSecondaryTextColor, // 색상을 정함
                             fontSize = 14.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.SemiBold // 글자 두께를 정함
                         )
@@ -2007,7 +2086,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                 onExpandedChange = { expanded = !expanded } // onExpandedChange 값을 이 함수로 넘김
             ) { // 이 블록 안의 내용이 시작됨
                 OutlinedTextField( // 테두리 있는 입력칸을 만듦
-                    value = if (isExpenseTab) selectedExpenseCategory else selectedIncomeCategory, // 표시할 카테고리를 정함
+                    value = getCategoryLabel(if (isExpenseTab) selectedExpenseCategory else selectedIncomeCategory), // 표시할 카테고리를 정함
                     onValueChange = { }, // 입력값이 바뀔 때 처리할 코드를 적음
                     readOnly = true, // 직접 타이핑은 막고 보기만 하게 함
                     modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
@@ -2045,7 +2124,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         expenseCategoryList.forEach { category -> // 목록이나 범위를 하나씩 돌면서 처리함
                             DropdownMenuItem( // 드롭다운 메뉴 항목 하나를 만듦
                                 text = { // 화면에 보여줄 글자를 정함
-                                    Text(text = category) // 글자를 화면에 보여주기 시작함
+                                    Text(text = getCategoryLabel(category)) // 글자를 화면에 보여주기 시작함
                                 },
                                 onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
                                     selectedExpenseCategory = category // 카테고리를 바꿈
@@ -2057,7 +2136,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         incomeCategoryList.forEach { category -> // 목록이나 범위를 하나씩 돌면서 처리함
                             DropdownMenuItem( // 드롭다운 메뉴 항목 하나를 만듦
                                 text = { // 화면에 보여줄 글자를 정함
-                                    Text(text = category) // 글자를 화면에 보여주기 시작함
+                                    Text(text = getCategoryLabel(category)) // 글자를 화면에 보여주기 시작함
                                 },
                                 onClick = { // 버튼을 눌렀을 때 실행할 코드를 시작함
                                     selectedIncomeCategory = category // 카테고리를 바꿈
@@ -2712,20 +2791,82 @@ private fun formatWalletAddress(address: String): String { // formatWalletAddres
 
 private fun getCategoryEmoji(category: String): String { // getCategoryEmoji 함수 시작
     return when (category) { // 이 블록의 내용이 여기서 시작됨
+        "food",
         "식비" -> "🍔" // 이 조건이면 오른쪽 값을 선택함
+        "transport",
         "교통" -> "🚕" // 이 조건이면 오른쪽 값을 선택함
+        "shopping",
         "쇼핑" -> "🛍️" // 이 조건이면 오른쪽 값을 선택함
-        "카페" -> "☕" // 이 조건이면 오른쪽 값을 선택함
+        "entertainment",
+        "여가" -> "🎮"
+        "health",
+        "의료" -> "💊"
+        "education",
+        "교육" -> "📚"
+        "utility",
+        "공과금" -> "💡"
+        "salary",
+        "월급" -> "💼"
+        "allowance",
+        "용돈" -> "💵"
+        "bonus",
+        "보너스" -> "🎁"
+        "side_job",
+        "부수입" -> "🧩"
+        "investment",
+        "투자" -> "📈"
         else -> "💸" // 이 조건이면 오른쪽 값을 선택함
     } // 블록 끝
 } // 블록 끝
 
+private fun getCategoryLabel(category: String): String {
+    return when (category) {
+        "food" -> "식비"
+        "transport" -> "교통"
+        "shopping" -> "쇼핑"
+        "entertainment" -> "여가"
+        "health" -> "의료"
+        "education" -> "교육"
+        "utility" -> "공과금"
+        "salary" -> "월급"
+        "allowance" -> "용돈"
+        "bonus" -> "보너스"
+        "side_job" -> "부수입"
+        "investment" -> "투자"
+        "income_other" -> "기타수입"
+        "기타수입" -> "기타"
+        "other" -> "기타"
+        else -> category
+    }
+}
+
 private fun getCategoryColors(category: String): List<Color> { // getCategoryColors 함수 시작
     return when (category) { // 이 블록의 내용이 여기서 시작됨
+        "food",
         "식비" -> listOf(Color(0xFFFF8A00), Color(0xFFFF5C00)) // 값 여러 개를 묶은 목록을 만듦
+        "transport",
         "교통" -> listOf(Color(0xFF4C8DFF), Color(0xFF2F6BFF)) // 값 여러 개를 묶은 목록을 만듦
+        "shopping",
         "쇼핑" -> listOf(Color(0xFFFF6BAA), Color(0xFFFF4D8D)) // 값 여러 개를 묶은 목록을 만듦
-        "카페" -> listOf(Color(0xFF9C6BFF), Color(0xFF7A4DFF)) // 값 여러 개를 묶은 목록을 만듦
+        "entertainment",
+        "여가" -> listOf(Color(0xFF22D3EE), Color(0xFF0891B2))
+        "health",
+        "의료" -> listOf(Color(0xFF4ADE80), Color(0xFF16A34A))
+        "education",
+        "교육" -> listOf(Color(0xFF818CF8), Color(0xFF4F46E5))
+        "utility",
+        "공과금" -> listOf(Color(0xFFFACC15), Color(0xFFEAB308))
+        "salary",
+        "allowance",
+        "bonus",
+        "side_job",
+        "investment",
+        "월급",
+        "용돈",
+        "보너스",
+        "부수입",
+        "투자",
+        "기타수입" -> listOf(Color(0xFF34D399), Color(0xFF059669))
         else -> listOf(Color(0xFF22C55E), Color(0xFF16A34A)) // 값 여러 개를 묶은 목록을 만듦
     } // 블록 끝
 } // 블록 끝
@@ -2735,14 +2876,31 @@ private fun createExpenseTitle(category: String, memo: String): String { // crea
         memo // 바로 앞 설정을 이어서 적음
     } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
         when (category) { // 값에 따라 경우를 나눔
+            "food",
             "식비" -> "식사" // 이 조건이면 오른쪽 값을 선택함
+            "transport",
             "교통" -> "이동" // 이 조건이면 오른쪽 값을 선택함
+            "shopping",
             "쇼핑" -> "쇼핑" // 이 조건이면 오른쪽 값을 선택함
-            "카페" -> "카페" // 이 조건이면 오른쪽 값을 선택함
+            "entertainment",
+            "여가" -> "여가" // 이 조건이면 오른쪽 값을 선택함
+            "health",
+            "의료" -> "의료" // 이 조건이면 오른쪽 값을 선택함
+            "education",
+            "교육" -> "교육" // 이 조건이면 오른쪽 값을 선택함
+            "utility",
+            "공과금" -> "공과금" // 이 조건이면 오른쪽 값을 선택함
+            "salary",
             "월급" -> "월급" // 수입 카테고리 제목을 수입 이름 그대로 보여줌
+            "allowance",
             "용돈" -> "용돈" // 수입 카테고리 제목을 수입 이름 그대로 보여줌
+            "bonus",
+            "보너스" -> "보너스" // 수입 카테고리 제목을 수입 이름 그대로 보여줌
+            "side_job",
             "부수입" -> "부수입" // 수입 카테고리 제목을 수입 이름 그대로 보여줌
-            "환급" -> "환급" // 수입 카테고리 제목을 수입 이름 그대로 보여줌
+            "investment",
+            "투자" -> "투자" // 수입 카테고리 제목을 수입 이름 그대로 보여줌
+            "income_other",
             "기타수입" -> "기타 수입" // 수입 카테고리 제목을 수입 이름 그대로 보여줌
             else -> "기타" // 이 조건이면 오른쪽 값을 선택함
         } // 블록 끝

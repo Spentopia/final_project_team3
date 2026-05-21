@@ -515,7 +515,7 @@ private fun CommunityTopHeader( // CommunityTopHeader 함수를 선언함
             Text( // 화면에 글자를 보여줌
                 text = "다른 사용자들과 소통하고 경험을 나눠보세요", // text 값을 정해줌
                 fontSize = 12.sp, // fontSize 값을 정해줌
-                color = MaterialTheme.colorScheme.onSurfaceVariant, // color 값을 정해줌
+                color = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB), // color 값을 정해줌
                 lineHeight = 18.sp // lineHeight 값을 정해줌
             )
         }

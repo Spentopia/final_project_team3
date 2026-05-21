@@ -301,6 +301,10 @@ fun GradientSummaryCard( // GradientSummaryCard 함수를 선언함
     valueText: String, // valueText 값을 받음
     subText: String // subText 값을 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isAnalysisDarkTheme()
+    val titleColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
+    val valueColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val subTextColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569)
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
@@ -330,20 +334,21 @@ fun GradientSummaryCard( // GradientSummaryCard 함수를 선언함
                 Text( // 화면에 글자를 보여줌
                     text = title, // 제목을 text 값에 넣음
                     fontSize = 13.sp, // fontSize 값을 정해줌
-                    color = MaterialTheme.colorScheme.onPrimaryContainer // color 값을 정해줌
+                    fontWeight = FontWeight.SemiBold,
+                    color = titleColor // color 값을 정해줌
                 )
 
                 Text( // 화면에 글자를 보여줌
                     text = valueText, // valueText 값을 text 값에 넣음
                     fontSize = 34.sp, // fontSize 값을 정해줌
                     fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
-                    color = MaterialTheme.colorScheme.onPrimaryContainer // color 값을 정해줌
+                    color = valueColor // color 값을 정해줌
                 )
 
                 Text( // 화면에 글자를 보여줌
                     text = subText, // subText 값을 text 값에 넣음
                     fontSize = 12.sp, // fontSize 값을 정해줌
-                    color = MaterialTheme.colorScheme.onPrimaryContainer // color 값을 정해줌
+                    color = subTextColor // color 값을 정해줌
                 )
             }
         }
@@ -357,6 +362,10 @@ fun WhiteSummaryCard( // WhiteSummaryCard 함수를 선언함
     valueText: String, // valueText 값을 받음
     subText: String // subText 값을 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isAnalysisDarkTheme()
+    val titleColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
+    val valueColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val subTextColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569)
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
@@ -370,20 +379,21 @@ fun WhiteSummaryCard( // WhiteSummaryCard 함수를 선언함
             Text( // 화면에 글자를 보여줌
                 text = title, // 제목을 text 값에 넣음
                 fontSize = 13.sp, // fontSize 값을 정해줌
-                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
+                fontWeight = FontWeight.SemiBold,
+                color = titleColor // color 값을 정해줌
             )
 
             Text( // 화면에 글자를 보여줌
                 text = valueText, // valueText 값을 text 값에 넣음
                 fontSize = 22.sp, // fontSize 값을 정해줌
                 fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
-                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
+                color = valueColor // color 값을 정해줌
             )
 
             Text( // 화면에 글자를 보여줌
                 text = subText, // subText 값을 text 값에 넣음
                 fontSize = 12.sp, // fontSize 값을 정해줌
-                color = MaterialTheme.colorScheme.primary // color 값을 정해줌
+                color = subTextColor // color 값을 정해줌
             )
         }
     }
@@ -397,6 +407,8 @@ fun BudgetUsageCard( // BudgetUsageCard 함수를 선언함
     val percentText = (usageRate * 100).roundToInt() // percentText 값을 저장함
     val progress = usageRate.coerceIn(0f, 1f) // progress 값을 저장함
     val isDark = isAnalysisDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
+    val titleColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
+    val percentColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
     val waveShift by rememberInfiniteTransition().animateFloat( // 게이지 안의 빛이 계속 흐르게 만듦
         initialValue = 0f,
         targetValue = 1f,
@@ -438,14 +450,15 @@ fun BudgetUsageCard( // BudgetUsageCard 함수를 선언함
             Text( // 화면에 글자를 보여줌
                 text = "예산 사용률", // text 값을 정해줌
                 fontSize = 13.sp, // fontSize 값을 정해줌
-                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
+                fontWeight = FontWeight.SemiBold,
+                color = titleColor // color 값을 정해줌
             )
 
             Text( // 화면에 글자를 보여줌
                 text = "${percentText}%", // text 값을 정해줌
                 fontSize = 22.sp, // fontSize 값을 정해줌
                 fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
-                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
+                color = percentColor // color 값을 정해줌
             )
 
             Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
@@ -484,6 +497,10 @@ fun TopCategoryCard( // TopCategoryCard 함수를 선언함
     categoryName: String, // categoryName 값을 받음
     ratio: Float // ratio 값을 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isAnalysisDarkTheme()
+    val titleColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
+    val valueColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val ratioColor = if (isDark) Color(0xFFBAE6FD) else Color(0xFF0369A1)
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
@@ -497,7 +514,8 @@ fun TopCategoryCard( // TopCategoryCard 함수를 선언함
             Text( // 화면에 글자를 보여줌
                 text = "최대 소비 카테고리", // text 값을 정해줌
                 fontSize = 13.sp, // fontSize 값을 정해줌
-                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
+                fontWeight = FontWeight.SemiBold,
+                color = titleColor // color 값을 정해줌
             )
 
             Row( // 안쪽 UI를 가로로 배치함
@@ -513,14 +531,15 @@ fun TopCategoryCard( // TopCategoryCard 함수를 선언함
                     text = categoryName, // categoryName 값을 text 값에 넣음
                     fontSize = 22.sp, // fontSize 값을 정해줌
                     fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
-                    color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
+                    color = valueColor // color 값을 정해줌
                 )
             }
 
             Text( // 화면에 글자를 보여줌
                 text = "전체의 ${(ratio * 100).roundToInt()}%", // text 값을 정해줌
                 fontSize = 13.sp, // fontSize 값을 정해줌
-                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
+                fontWeight = FontWeight.SemiBold,
+                color = ratioColor // color 값을 정해줌
             )
         }
     }
@@ -1319,11 +1338,14 @@ fun AiReportStatusText( // AiReportStatusText 함수를 선언함
     message: String, // 메시지를 받음
     isError: Boolean = false // 오류 여부를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isAnalysisDarkTheme()
+    val titleColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
+    val messageColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569)
     Text( // 화면에 글자를 보여줌
         text = title, // 제목을 text 값에 넣음
         fontSize = 16.sp, // fontSize 값을 정해줌
         fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
-        color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
+        color = titleColor // color 값을 정해줌
     )
 
     Text( // 화면에 글자를 보여줌
@@ -1333,7 +1355,7 @@ fun AiReportStatusText( // AiReportStatusText 함수를 선언함
         color = if (isError) { // color 값을 정해줌
             Color(0xFFE53935) // Color 함수를 실행함
         } else { // 이 블록 안의 내용이 시작됨
-            MaterialTheme.colorScheme.onSurfaceVariant
+            messageColor
         }
     )
 }
@@ -1480,6 +1502,9 @@ fun ConsumptionPatternCard( // ConsumptionPatternCard 함수를 선언함
     aiReport: AiConsumptionReportUiModel?, // aiReport 값을 받음
     isLoading: Boolean // 로딩 여부를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isAnalysisDarkTheme()
+    val titleColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
+    val bodyColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569)
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
@@ -1494,7 +1519,7 @@ fun ConsumptionPatternCard( // ConsumptionPatternCard 함수를 선언함
                 text = "소비 패턴 분석", // text 값을 정해줌
                 fontSize = 20.sp, // fontSize 값을 정해줌
                 fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
-                color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
+                color = titleColor // color 값을 정해줌
             )
 
             when { // 값 종류에 따라 실행할 코드를 나눔
@@ -1503,7 +1528,7 @@ fun ConsumptionPatternCard( // ConsumptionPatternCard 함수를 선언함
                         text = "AI가 소비 패턴을 분석하고 있습니다.", // text 값을 정해줌
                         fontSize = 14.sp, // fontSize 값을 정해줌
                         lineHeight = 22.sp, // lineHeight 값을 정해줌
-                        color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
+                        color = bodyColor // color 값을 정해줌
                     )
                 }
                 aiReport != null -> { // ! 값을 정해줌
@@ -1527,7 +1552,7 @@ fun ConsumptionPatternCard( // ConsumptionPatternCard 함수를 선언함
                         text = "AI 분석 버튼을 누르면 소비 패턴 분석과 개선 방안을 확인할 수 있습니다.", // text 값을 정해줌
                         fontSize = 14.sp, // fontSize 값을 정해줌
                         lineHeight = 22.sp, // lineHeight 값을 정해줌
-                        color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
+                        color = bodyColor // color 값을 정해줌
                     )
                 }
             }
@@ -1541,6 +1566,9 @@ fun ConsumptionTextReportCard( // ConsumptionTextReportCard 함수를 선언함
     emoji: String, // emoji 값을 받음
     message: String // 메시지를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isAnalysisDarkTheme()
+    val titleColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
+    val messageColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569)
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
@@ -1567,7 +1595,7 @@ fun ConsumptionTextReportCard( // ConsumptionTextReportCard 함수를 선언함
                     text = title, // 제목을 text 값에 넣음
                     fontSize = 16.sp, // fontSize 값을 정해줌
                     fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
-                    color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
+                    color = titleColor // color 값을 정해줌
                 )
             }
 
@@ -1575,7 +1603,7 @@ fun ConsumptionTextReportCard( // ConsumptionTextReportCard 함수를 선언함
                 text = message, // 메시지를 text 값에 넣음
                 fontSize = 14.sp, // fontSize 값을 정해줌
                 lineHeight = 22.sp, // lineHeight 값을 정해줌
-                color = MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
+                color = messageColor // color 값을 정해줌
             )
         }
     }
