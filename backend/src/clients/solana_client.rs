@@ -734,9 +734,8 @@ async fn send_transaction(
 //   4: user_wallet (readonly)
 //   5: spt_token_authority (readonly)
 //   6: token_program (readonly)
-//   7: associated_token_program (readonly)
-//   8: system_program (readonly)
-//   9: spentopia_program (readonly, program)
+//   7: system_program (readonly)
+//   8: spentopia_program (readonly, program)
 fn build_tx(
     admin_pubkey: &[u8; 32],
     platform_config: &[u8; 32],
@@ -750,7 +749,6 @@ fn build_tx(
     signing_key: &SigningKey,
 ) -> Vec<u8> {
     let token_program = decode_pubkey(TOKEN_PROGRAM_ID).unwrap();
-    let assoc_token_prog = decode_pubkey(ASSOC_TOKEN_PROGRAM_ID).unwrap();
     let system_program = decode_pubkey(SYSTEM_PROGRAM_ID).unwrap();
 
     // accounts 배열 (정렬 순서 엄격히 유지)
@@ -762,9 +760,8 @@ fn build_tx(
         *user_wallet,         // 4: readonly
         *spt_token_authority, // 5: readonly
         token_program,        // 6: readonly
-        assoc_token_prog,     // 7: readonly
-        system_program,       // 8: readonly
-        *program_id,          // 9: readonly (program)
+        system_program,       // 7: readonly
+        *program_id,          // 8: readonly (program)
     ];
 
     // instruction account indexes (MintSptToUser Accounts 구조체 순서와 동일)
@@ -776,14 +773,13 @@ fn build_tx(
         5, // spt_token_authority
         3, // user_token_account
         6, // token_program
-        7, // associated_token_program
-        8, // system_program
+        7, // system_program
     ];
 
     // Message 직렬화
     let mut msg = Vec::new();
-    // Header: num_required_signatures=1, num_readonly_signed=0, num_readonly_unsigned=6
-    msg.extend_from_slice(&[1u8, 0u8, 6u8]);
+    // Header: num_required_signatures=1, num_readonly_signed=0, num_readonly_unsigned=5
+    msg.extend_from_slice(&[1u8, 0u8, 5u8]);
     // Accounts
     msg.extend(compact_u16(accounts.len()));
     for acc in accounts {
@@ -793,7 +789,7 @@ fn build_tx(
     msg.extend_from_slice(recent_blockhash);
     // Instructions (1개)
     msg.extend(compact_u16(1));
-    msg.push(9u8); // program_id_index
+    msg.push(8u8); // program_id_index
     msg.extend(compact_u16(ix_accounts.len()));
     msg.extend_from_slice(ix_accounts);
     msg.extend(compact_u16(ix_data.len()));

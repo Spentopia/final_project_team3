@@ -68,6 +68,25 @@ pub struct UserItemResponse {
     pub acquired_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UnityInventoryItemResponse {
+    pub id: Uuid,
+    pub inventory_id: Uuid,
+    pub item_id: Uuid,
+    pub name: String,
+    pub category: String,
+    pub image_url: String,
+    pub visual_parts: Option<serde_json::Value>,
+    pub metadata_uri: Option<String>,
+    pub slot_name: String,
+    pub is_equipped: bool,
+    pub is_nft: bool,
+    pub nft_mint_address: Option<String>,
+    pub wallet_address: Option<String>,
+    pub token_id: Option<String>,
+    pub contract_address: Option<String>,
+}
+
 // ── 장착 요청/응답 ────────────────────────────────────────────
 
 // POST /api/avatar/equipment — 아이템 장착

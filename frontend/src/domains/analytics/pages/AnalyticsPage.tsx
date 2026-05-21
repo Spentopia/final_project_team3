@@ -124,6 +124,47 @@ const inlineComputedStyles = (source: Element, target: Element) => {
   });
 };
 
+const isTransparentBackground = (value: string) =>
+  !value || value === "transparent" || value === "rgba(0, 0, 0, 0)";
+
+const getCaptureBackgroundStyles = (element: HTMLElement) => {
+  const candidates = [element, document.body, document.documentElement];
+
+  for (const candidate of candidates) {
+    const computed = window.getComputedStyle(candidate);
+    const backgroundColor = computed.backgroundColor;
+    const backgroundImage = computed.backgroundImage;
+
+    if (!isTransparentBackground(backgroundColor) || backgroundImage !== "none") {
+      return {
+        backgroundColor: isTransparentBackground(backgroundColor) ? "#ffffff" : backgroundColor,
+        backgroundImage,
+      };
+    }
+  }
+
+  const isDarkTheme = document.documentElement.classList.contains("dark");
+
+  return {
+    backgroundColor: isDarkTheme ? "#0f0f0f" : "#ffffff",
+    backgroundImage: "none",
+  };
+};
+
+const parseRgbColor = (value: string): [number, number, number] | null => {
+  const match = value.match(
+    /rgba?\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})(?:\s*,\s*[0-9.]+\s*)?\)/i,
+  );
+
+  if (!match) return null;
+
+  return [
+    Number(match[1]),
+    Number(match[2]),
+    Number(match[3]),
+  ];
+};
+
 
 const WEEKLY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const MONTHLY_LABELS = Array.from({ length: 12 }, (_, index) => `${index + 1}월`);
@@ -372,6 +413,19 @@ useEffect(() => {
   );
 });
 
+const weekStart = getWeekStart(now);
+
+const thisWeekTransactions = expenseTransactionsOnly(transactions).filter((transaction) => {
+  const date = parseTransactionDate(transaction.date);
+
+  if (!date) return false;
+
+  return (
+    date.getTime() >= weekStart.getTime() &&
+    date.getTime() <= now.getTime()
+  );
+});
+
 const [aiReports, setAiReports] = useState<ReportStateByPeriod>({
   weekly: null,
   monthly: null,
@@ -390,6 +444,10 @@ const [isPdfMode, setIsPdfMode] = useState(false);
 const [isDownloading, setIsDownloading] = useState(false);
 
 const [selectedReportType, setSelectedReportType] = useState<AnalysisReportType>("weekly");
+const currentTransactions =
+  selectedReportType === "weekly"
+    ? thisWeekTransactions
+    : thisMonthTransactions;
 const isAnalysisBusy = isReportLoading || isPatternLoading;
 const aiReport = aiReports[selectedReportType];
 const patternReport = patternReports[selectedReportType];
@@ -465,18 +523,23 @@ const chartTheme = isDarkMode
     };
 
 // ✅ 3. 카테고리 계산
-const categoryTotals = thisMonthTransactions.reduce((acc, cur) => {
+const categoryTotals = currentTransactions.reduce((acc, cur) => {
   const key = cur.category ?? "기타";
   acc[key] = (acc[key] ?? 0) + cur.amount;
   return acc;
 }, {} as Record<string, number>);
+
+const currentTotalExpense = currentTransactions.reduce(
+  (sum, transaction) => sum + transaction.amount,
+  0
+);
 
 // 최다 카테고리
 const topCategory = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0];
 
 const topCategoryName =
   CATEGORY_MAP[topCategory?.[0] ?? ""]?.label ?? "없음";
-const topCategoryPercent = totalExpense
+const topCategoryPercent = currentTotalExpense
   ? Math.round((topCategory?.[1] ?? 0) / totalExpense * 100)
   : 0;
 
@@ -487,7 +550,9 @@ const categoryData = Object.entries(categoryTotals).map(([name, amount], index) 
   key: name,
   name: CATEGORY_MAP[name]?.label ?? name,
   amount,
-  value: totalExpense ? Math.round((amount / totalExpense) * 100) : 0,
+  value: currentTotalExpense
+  ? Math.round((amount / currentTotalExpense) * 100)
+  : 0,
   color: COLORS[index % COLORS.length],
 }));
 
@@ -727,93 +792,43 @@ const handleDownload = async () => {
   if (isDownloading) return;
 
   const previousScrollY = window.scrollY;
-  let clonedRoot: HTMLDivElement | null = null;
-  let captureShell: HTMLDivElement | null = null;
+  const previousBackgroundColor = element.style.backgroundColor;
+  const previousBackgroundImage = element.style.backgroundImage;
+  const previousColorScheme = element.style.colorScheme;
 
   try {
     setIsDownloading(true);
     await document.fonts?.ready;
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
-    clonedRoot = element.cloneNode(true) as HTMLDivElement;
-    inlineComputedStyles(element, clonedRoot);
-    clonedRoot.classList.add(styles.pdfDownload, styles.pdfMode, styles.pdfFixedLayout);
-    const sourceWidth = Math.ceil(element.getBoundingClientRect().width);
-    clonedRoot.style.width = `${sourceWidth}px`;
-    clonedRoot.style.maxWidth = `${sourceWidth}px`;
-    clonedRoot.style.minWidth = `${sourceWidth}px`;
-    clonedRoot.style.margin = "0 auto";
-    clonedRoot.style.display = "block";
-    clonedRoot.style.background = window.getComputedStyle(element).backgroundColor || "#ffffff";
+    const { backgroundColor, backgroundImage } = getCaptureBackgroundStyles(element);
+    element.classList.add(styles.pdfDownload, styles.pdfFixedLayout);
+    element.style.backgroundColor = backgroundColor;
+    element.style.backgroundImage = backgroundImage;
+    element.style.colorScheme = resolvedTheme === "dark" ? "dark" : "light";
 
-    clonedRoot
-      .querySelectorAll<HTMLElement>("[data-html2canvas-ignore='true']")
-      .forEach((node) => {
-        node.style.display = "none";
-      });
-
-    clonedRoot
-      .querySelectorAll<HTMLElement>("[data-pdf-force-text='black']")
-      .forEach((node) => {
-        node.style.color = "#111827";
-        node.style.fill = "#111827";
-        node.style.stroke = "#111827";
-      });
-
-    clonedRoot
-      .querySelectorAll<HTMLElement>("[data-pdf-force-button='light']")
-      .forEach((node) => {
-        node.style.color = "#111827";
-        node.style.background = "#f8fafc";
-        node.style.backgroundImage = "none";
-        node.style.border = "1px solid rgba(148, 163, 184, 0.45)";
-        node.style.boxShadow = "none";
-      });
-
-    captureShell = document.createElement("div");
-    captureShell.style.position = "fixed";
-    captureShell.style.left = "-100000px";
-    captureShell.style.top = "0";
-    captureShell.style.pointerEvents = "none";
-    captureShell.style.zIndex = "-1";
-    captureShell.style.background = "#ffffff";
-    captureShell.style.display = "flex";
-    captureShell.style.justifyContent = "center";
-    captureShell.style.alignItems = "flex-start";
-    captureShell.style.padding = "0";
-    captureShell.style.margin = "0";
-    captureShell.style.width = `${sourceWidth}px`;
-    captureShell.style.minWidth = `${sourceWidth}px`;
-    captureShell.style.maxWidth = `${sourceWidth}px`;
-    captureShell.appendChild(clonedRoot);
-    document.body.appendChild(captureShell);
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
-    const captureWidth = Math.max(captureShell.scrollWidth, captureShell.offsetWidth);
-    const captureHeight = Math.max(captureShell.scrollHeight, captureShell.offsetHeight);
+    const captureWidth = Math.ceil(element.scrollWidth || element.getBoundingClientRect().width);
+    const captureHeight = Math.ceil(element.scrollHeight || element.getBoundingClientRect().height);
 
-    const canvas = await html2canvas(captureShell, {
+    const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
       allowTaint: false,
-      backgroundColor: "#ffffff",
+      backgroundColor,
       logging: false,
       scrollX: 0,
-      scrollY: 0,
+      scrollY: -window.scrollY,
       windowWidth: captureWidth,
       windowHeight: captureHeight,
       width: captureWidth,
       height: captureHeight,
-      removeContainer: true,
       ignoreElements: (target) => {
         if (!(target instanceof HTMLElement)) return false;
         return target.dataset.html2canvasIgnore === "true";
       },
     });
-
-    captureShell.remove();
-    captureShell = null;
-    clonedRoot = null;
 
 
     if (canvas.width === 0 || canvas.height === 0) {
@@ -825,7 +840,7 @@ const handleDownload = async () => {
 
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 12;
+    const margin = 0;
     const maxWidth = pageWidth - margin * 2;
     const maxHeight = pageHeight - margin * 2;
     const widthScale = maxWidth / canvas.width;
@@ -837,10 +852,16 @@ const handleDownload = async () => {
     const x = (pageWidth - imgWidth) / 2;
     const y = (pageHeight - imgHeight) / 2;
 
+    const pdfBackgroundColor = parseRgbColor(backgroundColor);
+    if (pdfBackgroundColor) {
+      pdf.setFillColor(...pdfBackgroundColor);
+      pdf.rect(0, 0, pageWidth, pageHeight, "F");
+    }
+
     pdf.addImage(imgData, "PNG", x, y, imgWidth, imgHeight, undefined, "FAST");
 
-    pdf.save("spentopia_report.pdf");
-    toast.success("PDF 다운로드가 완료되었습니다.");
+    pdf.save("spentopia_report_darktest_local.pdf");
+    toast.success("PDF 다운로드가 완료되었습니다. [local-debug]");
   } catch (error) {
     console.error("[PDF] 생성 오류:", error);
 
@@ -851,8 +872,10 @@ const handleDownload = async () => {
           : "콘솔 오류를 확인해주세요.",
     });
   } finally {
-    captureShell?.remove();
-    clonedRoot?.remove();
+    element.classList.remove(styles.pdfDownload, styles.pdfFixedLayout);
+    element.style.backgroundColor = previousBackgroundColor;
+    element.style.backgroundImage = previousBackgroundImage;
+    element.style.colorScheme = previousColorScheme;
     setIsDownloading(false);
     window.scrollTo({ top: previousScrollY });
   }
@@ -916,12 +939,28 @@ const handleDownload = async () => {
       };
   const aiHeadingStyle = { color: isDarkMode ? "#f8fafc" : "#111827" };
   const aiBodyStyle = { color: isDarkMode ? "#cbd5e1" : "#374151" };
+  const reportShellStyle = isDarkMode
+    ? {
+        background:
+          "radial-gradient(circle at top right, rgba(124, 58, 237, 0.16), transparent 28%), linear-gradient(180deg, #090b16 0%, #111827 52%, #2d1847 100%)",
+        color: "#f8fafc",
+        borderRadius: "24px",
+        padding: "24px",
+      }
+    : {
+        background:
+          "radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 32%), linear-gradient(180deg, #f8fbff 0%, #ffffff 48%, #f1f5f9 100%)",
+        color: "#111827",
+        borderRadius: "24px",
+        padding: "24px",
+      };
 
   return (
     <>
     <div className={isPdfMode ? "space-y-3" : "space-y-6"}>
     <div
   ref={reportRef}
+  style={reportShellStyle}
   className={`
     ${isDownloading ? styles.pdfDownload : ""}
     ${isPdfMode ? styles.pdfMode : ""}
@@ -1099,7 +1138,11 @@ const handleDownload = async () => {
   border-none
   ${isPdfMode ? "p-4" : "p-6"}
   backdrop-blur-xl`}>
-          <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">카테고리별 지출</h3>
+          <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">
+  {selectedReportType === "weekly"
+    ? "주간 카테고리별 지출"
+    : "월간 카테고리별 지출"}
+</h3>
           <div className="flex-1">
           <ResponsiveContainer width="100%" height={320}>
             <PieChart margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
@@ -1158,7 +1201,11 @@ const handleDownload = async () => {
   border-none
   ${isPdfMode ? "p-4" : "p-6"}
   backdrop-blur-xl`}>
-          <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">카테고리 상세</h3>
+          <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">
+  {selectedReportType === "weekly"
+    ? "주간 카테고리 상세"
+    : "월간 카테고리 상세"}
+</h3>
           <div className="space-y-4">
             {categoryData.map((cat) => (
               <div key={cat.name} className="space-y-2">

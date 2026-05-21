@@ -114,7 +114,8 @@
 .pdfDownload {
   width: 100% !important;
   overflow: visible !important;
-  background: #ffffff !important;
+  background: inherit !important;
+  background-image: inherit !important;
 }
 
 .pdfDownload * {
@@ -166,5 +167,6 @@
 .pdfFixedLayout {
   width: 100% !important;
   max-width: 100% !important;
-  background: #ffffff !important;
+  background: inherit !important;
+  background-image: inherit !important;
 }

@@ -22,7 +22,8 @@ use uuid::Uuid;
 
 use super::dto::{
     EquipItemRequest, EquipmentSlotResponse, MintNftRequest, MintNftResponse, OwnedNftResponse,
-    SyncOwnedNftsResponse, TransferNftRequest, TransferNftResponse, UserItemResponse,
+    SyncOwnedNftsResponse, TransferNftRequest, TransferNftResponse, UnityInventoryItemResponse,
+    UserItemResponse,
 };
 use crate::clients::solana_client;
 use crate::state::AppState;
@@ -597,7 +598,7 @@ pub async fn get_user_items(
 pub async fn get_user_game_items(
     state: &AppState,
     user_id: Uuid,
-) -> Result<Vec<UserItemResponse>> {
+) -> Result<Vec<UnityInventoryItemResponse>> {
     let items = get_user_items(state, user_id).await?;
 
     // 인게임 표시용 중복 제거: 같은 item_id(NFT/일반 무관)는 1개만 노출한다.
@@ -619,9 +620,26 @@ pub async fn get_user_game_items(
             }
         }
     }
-    let items: Vec<UserItemResponse> = order
+    let items: Vec<UnityInventoryItemResponse> = order
         .into_iter()
         .filter_map(|item_id| chosen.remove(&item_id))
+        .map(|item| UnityInventoryItemResponse {
+            id: item.id,
+            inventory_id: item.id,
+            item_id: item.item_id,
+            name: item.name,
+            category: item.category.clone(),
+            image_url: item.image_url,
+            visual_parts: item.visual_parts,
+            metadata_uri: item.metadata_uri,
+            slot_name: item.slot_name.unwrap_or(item.category),
+            is_equipped: item.is_equipped.unwrap_or(false),
+            is_nft: item.is_nft.unwrap_or(false),
+            token_id: item.nft_mint_address.clone(),
+            nft_mint_address: item.nft_mint_address,
+            wallet_address: item.minted_to_wallet,
+            contract_address: item.collection_mint,
+        })
         .collect();
 
     Ok(items)
