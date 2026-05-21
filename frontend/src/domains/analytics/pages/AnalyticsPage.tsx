@@ -13,7 +13,6 @@ import { useState } from "react";
 import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { useRef } from "react";
-import { flushSync } from "react-dom";
 import type { AnalyzeReportRequest } from "@/shared/api/aiApi";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
@@ -794,46 +793,31 @@ const handleDownload = async () => {
 
   if (isDownloading) return;
 
-  const previousScrollY = window.scrollY;
-  const previousBackgroundColor = element.style.backgroundColor;
-  const previousBackgroundImage = element.style.backgroundImage;
-  const previousColorScheme = element.style.colorScheme;
-
-  const previousWidth = element.style.width;
-  const previousMinWidth = element.style.minWidth;
-  const previousMaxWidth = element.style.maxWidth;
-  const previousMargin = element.style.margin;
   let captureShell: HTMLDivElement | null = null;
 
   try {
-    flushSync(() => {
-      setIsDownloading(true);
-      setIsPdfMode(true);
-    });
+    setIsDownloading(true);
     await document.fonts?.ready;
-    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
     const { backgroundColor, backgroundImage } = getCaptureBackgroundStyles(element);
-    element.classList.add(styles.pdfDownload, styles.pdfMode, styles.pdfFixedLayout);
-    element.style.backgroundColor = backgroundColor;
-    element.style.backgroundImage = backgroundImage;
-    element.style.colorScheme = resolvedTheme === "dark" ? "dark" : "light";
-    element.style.width = `${PDF_CAPTURE_WIDTH}px`;
-    element.style.minWidth = `${PDF_CAPTURE_WIDTH}px`;
-    element.style.maxWidth = `${PDF_CAPTURE_WIDTH}px`;
-    element.style.margin = "0 auto";
-
-    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
-    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
-
     const clonedRoot = element.cloneNode(true) as HTMLDivElement;
     inlineComputedStyles(element, clonedRoot);
+    clonedRoot.classList.add(styles.pdfDownload, styles.pdfMode, styles.pdfFixedLayout);
     clonedRoot.style.width = `${PDF_CAPTURE_WIDTH}px`;
     clonedRoot.style.minWidth = `${PDF_CAPTURE_WIDTH}px`;
     clonedRoot.style.maxWidth = `${PDF_CAPTURE_WIDTH}px`;
     clonedRoot.style.margin = "0 auto";
     clonedRoot.style.display = "block";
+    clonedRoot.style.backgroundColor = backgroundColor;
+    clonedRoot.style.backgroundImage = backgroundImage;
+    clonedRoot.style.colorScheme = resolvedTheme === "dark" ? "dark" : "light";
+
+    clonedRoot
+      .querySelectorAll<HTMLElement>("[data-html2canvas-ignore='true']")
+      .forEach((node) => {
+        node.style.display = "none";
+      });
 
     captureShell = document.createElement("div");
     captureShell.style.position = "fixed";
@@ -918,19 +902,7 @@ const handleDownload = async () => {
     });
   } finally {
     captureShell?.remove();
-    element.classList.remove(styles.pdfDownload, styles.pdfMode, styles.pdfFixedLayout);
-    element.style.backgroundColor = previousBackgroundColor;
-    element.style.backgroundImage = previousBackgroundImage;
-    element.style.colorScheme = previousColorScheme;
-    element.style.width = previousWidth;
-    element.style.minWidth = previousMinWidth;
-    element.style.maxWidth = previousMaxWidth;
-    element.style.margin = previousMargin;
-    flushSync(() => {
-      setIsPdfMode(false);
-      setIsDownloading(false);
-    });
-    window.scrollTo({ top: previousScrollY });
+    setIsDownloading(false);
   }
 };
 
@@ -1043,7 +1015,7 @@ const handleDownload = async () => {
   AI가 분석한 당신의 소비 습관을 확인해보세요
 </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2" data-html2canvas-ignore="true">
   <Button
     type="button"
     data-pdf-force-button="light"
@@ -1115,7 +1087,7 @@ const handleDownload = async () => {
         }}
       >
         {!isPdfMode && (
-  <TabsList className="grid w-full max-w-md grid-cols-2">
+  <TabsList data-html2canvas-ignore="true" className="grid w-full max-w-md grid-cols-2">
     <TabsTrigger value="weekly" disabled={isAnalysisBusy}>
       주간
     </TabsTrigger>
