@@ -96,6 +96,7 @@ const incomeCategories = [
 
 export default function DashboardPage() {
   const { budget, budgets, transactions, replaceTransactions, addTransaction } = useFinance();
+  const draftStorageKey = "dashboard-expense-draft";
   const selectedDateStorageKey = "dashboard-selected-date";
   const entryTypeStorageKey = "dashboard-entry-type";
   const marketCardStyle = {
@@ -126,11 +127,33 @@ export default function DashboardPage() {
     const saved = localStorage.getItem(entryTypeStorageKey);
     return saved === "income" ? "income" : "expense";
   });
-  const [newExpense, setNewExpense] = useState({
-    amount: "",
-    category: "",
-    memo: "",
-    diary: "",
+  const [newExpense, setNewExpense] = useState(() => {
+    const saved = localStorage.getItem(draftStorageKey);
+    if (!saved) {
+      return {
+        amount: "",
+        category: "",
+        memo: "",
+        diary: "",
+      };
+    }
+
+    try {
+      const parsed = JSON.parse(saved);
+      return {
+        amount: typeof parsed.amount === "string" ? parsed.amount : "",
+        category: typeof parsed.category === "string" ? parsed.category : "",
+        memo: typeof parsed.memo === "string" ? parsed.memo : "",
+        diary: typeof parsed.diary === "string" ? parsed.diary : "",
+      };
+    } catch {
+      return {
+        amount: "",
+        category: "",
+        memo: "",
+        diary: "",
+      };
+    }
   });
 
   const resetForm = () => {
@@ -145,6 +168,10 @@ export default function DashboardPage() {
     setOcrError("");
     setIsReceiptVerified(false);
   };
+
+  useEffect(() => {
+    localStorage.setItem(draftStorageKey, JSON.stringify(newExpense));
+  }, [newExpense]);
 
   useEffect(() => {
     if (!selectedDate) {
