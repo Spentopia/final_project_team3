@@ -86,13 +86,21 @@ pub async fn update_profile(
         }
     }
 
-    let is_social_login = current_user.login_provider.as_deref() != Some("email");
-    if is_social_login && req.phone.as_deref() != current_user.phone.as_deref() {
-        return Err(anyhow!("소셜 로그인 계정은 전화번호를 변경할 수 없습니다"));
+    // 전화번호 정책:
+    // - 최초 프로필 완성 단계에서 current_user.phone이 비어 있을 때만 등록 허용
+    // - 이미 등록된 전화번호는 마이페이지/API 직접 호출 모두에서 변경 불가
+    // - req.phone이 None이면 "전화번호를 수정하지 않겠다"는 의미로 보고 기존 값을 유지
+    if let Some(ref requested_phone) = req.phone {
+        if current_user.phone.is_some()
+            && Some(requested_phone.as_str()) != current_user.phone.as_deref()
+        {
+            return Err(anyhow!("전화번호는 변경할 수 없습니다"));
+        }
     }
 
-    // 이메일 변경은 프론트에서 supabase.auth.updateUser로 직접 처리
-    // public.users PATCH
+    // 이메일은 Supabase Auth의 로그인 식별 정보이므로 이 프로필 수정 API에서 변경하지 않는다.
+    // 전화번호는 최초 프로필 완성 시에만 등록하고, 이미 등록된 이후에는 변경을 허용하지 않는다.
+    // 마이페이지에서는 닉네임, 한 줄 소개, 프로필 이미지 등 서비스 프로필 정보만 수정한다.
     let url = format!(
         "{}/rest/v1/users?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
@@ -112,8 +120,8 @@ pub async fn update_profile(
         profile_completed: bool,
     }
 
-    let final_nickname = req.nickname.clone().or(current_user.nickname);
-    let final_phone = req.phone.clone().or(current_user.phone);
+    let final_nickname = req.nickname.clone().or(current_user.nickname.clone());
+    let final_phone = req.phone.clone().or(current_user.phone.clone());
     let profile_completed = final_nickname.is_some() && final_phone.is_some();
 
     let res = state
