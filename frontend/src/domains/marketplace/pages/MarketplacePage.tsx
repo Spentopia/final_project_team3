@@ -169,6 +169,9 @@ function CreateListingDialog({
     if (!open) return;
 
     const frameId = window.requestAnimationFrame(() => {
+      setIsCarouselControlHovered(false);
+      setIsCarouselItemHovered(false);
+      setIsCarouselClickPaused(false);
       if (carouselRef.current) {
         carouselRef.current.scrollLeft = 0;
       }
@@ -327,8 +330,6 @@ function CreateListingDialog({
                     className={`${styles.carouselControl} ${styles.carouselControlLeft}`}
                     onMouseEnter={() => setIsCarouselControlHovered(true)}
                     onMouseLeave={() => setIsCarouselControlHovered(false)}
-                    onFocus={() => setIsCarouselControlHovered(true)}
-                    onBlur={() => setIsCarouselControlHovered(false)}
                     onClick={() => moveCarouselByItem("left")}
                     aria-label="이전 아이템"
                   >
@@ -347,8 +348,6 @@ function CreateListingDialog({
                           ].join(" ")}
                           onMouseEnter={() => setIsCarouselItemHovered(true)}
                           onMouseLeave={() => setIsCarouselItemHovered(false)}
-                          onFocus={() => setIsCarouselItemHovered(true)}
-                          onBlur={() => setIsCarouselItemHovered(false)}
                           onClick={() => setSelectedItemId(item.inventoryId)}
                         >
                           <div className={styles.carouselItemThumb}>
@@ -371,8 +370,6 @@ function CreateListingDialog({
                     className={`${styles.carouselControl} ${styles.carouselControlRight}`}
                     onMouseEnter={() => setIsCarouselControlHovered(true)}
                     onMouseLeave={() => setIsCarouselControlHovered(false)}
-                    onFocus={() => setIsCarouselControlHovered(true)}
-                    onBlur={() => setIsCarouselControlHovered(false)}
                     onClick={() => moveCarouselByItem("right")}
                     aria-label="다음 아이템"
                   >
