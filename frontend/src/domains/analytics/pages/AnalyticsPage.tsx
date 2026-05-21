@@ -413,6 +413,19 @@ useEffect(() => {
   );
 });
 
+const weekStart = getWeekStart(now);
+
+const thisWeekTransactions = expenseTransactionsOnly(transactions).filter((transaction) => {
+  const date = parseTransactionDate(transaction.date);
+
+  if (!date) return false;
+
+  return (
+    date.getTime() >= weekStart.getTime() &&
+    date.getTime() <= now.getTime()
+  );
+});
+
 const [aiReports, setAiReports] = useState<ReportStateByPeriod>({
   weekly: null,
   monthly: null,
@@ -431,6 +444,10 @@ const [isPdfMode, setIsPdfMode] = useState(false);
 const [isDownloading, setIsDownloading] = useState(false);
 
 const [selectedReportType, setSelectedReportType] = useState<AnalysisReportType>("weekly");
+const currentTransactions =
+  selectedReportType === "weekly"
+    ? thisWeekTransactions
+    : thisMonthTransactions;
 const isAnalysisBusy = isReportLoading || isPatternLoading;
 const aiReport = aiReports[selectedReportType];
 const patternReport = patternReports[selectedReportType];
@@ -506,18 +523,23 @@ const chartTheme = isDarkMode
     };
 
 // ✅ 3. 카테고리 계산
-const categoryTotals = thisMonthTransactions.reduce((acc, cur) => {
+const categoryTotals = currentTransactions.reduce((acc, cur) => {
   const key = cur.category ?? "기타";
   acc[key] = (acc[key] ?? 0) + cur.amount;
   return acc;
 }, {} as Record<string, number>);
+
+const currentTotalExpense = currentTransactions.reduce(
+  (sum, transaction) => sum + transaction.amount,
+  0
+);
 
 // 최다 카테고리
 const topCategory = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0];
 
 const topCategoryName =
   CATEGORY_MAP[topCategory?.[0] ?? ""]?.label ?? "없음";
-const topCategoryPercent = totalExpense
+const topCategoryPercent = currentTotalExpense
   ? Math.round((topCategory?.[1] ?? 0) / totalExpense * 100)
   : 0;
 
@@ -528,7 +550,9 @@ const categoryData = Object.entries(categoryTotals).map(([name, amount], index) 
   key: name,
   name: CATEGORY_MAP[name]?.label ?? name,
   amount,
-  value: totalExpense ? Math.round((amount / totalExpense) * 100) : 0,
+  value: currentTotalExpense
+  ? Math.round((amount / currentTotalExpense) * 100)
+  : 0,
   color: COLORS[index % COLORS.length],
 }));
 
@@ -1114,7 +1138,11 @@ const handleDownload = async () => {
   border-none
   ${isPdfMode ? "p-4" : "p-6"}
   backdrop-blur-xl`}>
-          <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">카테고리별 지출</h3>
+          <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">
+  {selectedReportType === "weekly"
+    ? "주간 카테고리별 지출"
+    : "월간 카테고리별 지출"}
+</h3>
           <div className="flex-1">
           <ResponsiveContainer width="100%" height={320}>
             <PieChart margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
@@ -1173,7 +1201,11 @@ const handleDownload = async () => {
   border-none
   ${isPdfMode ? "p-4" : "p-6"}
   backdrop-blur-xl`}>
-          <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">카테고리 상세</h3>
+          <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">
+  {selectedReportType === "weekly"
+    ? "주간 카테고리 상세"
+    : "월간 카테고리 상세"}
+</h3>
           <div className="space-y-4">
             {categoryData.map((cat) => (
               <div key={cat.name} className="space-y-2">
