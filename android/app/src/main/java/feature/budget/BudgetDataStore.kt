@@ -4,6 +4,7 @@ import android.content.Context // 현재 화면 정보 타입을 가져옴
 import androidx.datastore.preferences.core.edit // edit 기능을 가져옴
 import androidx.datastore.preferences.core.intPreferencesKey // intPreferencesKey 기능을 가져옴
 import androidx.datastore.preferences.core.longPreferencesKey // longPreferencesKey 기능을 가져옴
+import androidx.datastore.preferences.core.stringPreferencesKey // stringPreferencesKey 기능을 가져옴
 import androidx.datastore.preferences.preferencesDataStore // preferencesDataStore 기능을 가져옴
 import kotlinx.coroutines.flow.Flow // Flow 기능을 가져옴
 import kotlinx.coroutines.flow.map // map 기능을 가져옴
@@ -23,6 +24,7 @@ class BudgetDataStore(private val context: Context) { // BudgetDataStore 기능�
         private val TRANSPORT_BUDGET = longPreferencesKey("transport_budget_long") // 예산 관련 값을 저장함
         private val LIVING_BUDGET = longPreferencesKey("living_budget_long") // 예산 관련 값을 저장함
         private val HOBBY_BUDGET = longPreferencesKey("hobby_budget_long") // 예산 관련 값을 저장함
+        private val LOCKED_MONTH_KEY = stringPreferencesKey("locked_month_key") // 예산 적용 완료 월을 저장함
 
         private val LEGACY_MONTHLY_INCOME = intPreferencesKey("monthly_income") // LEGACY_MONTHLY_INCOME 값을 저장함
         private val LEGACY_SAVING_GOAL = intPreferencesKey("saving_goal") // LEGACY_SAVING_GOAL 값을 저장함
@@ -43,7 +45,8 @@ class BudgetDataStore(private val context: Context) { // BudgetDataStore 기능�
                 foodBudget = preferences[FOOD_BUDGET] ?: preferences[LEGACY_FOOD_BUDGET]?.toLong() ?: 150000L, // 식비 예산을 정해줌
                 transportBudget = preferences[TRANSPORT_BUDGET] ?: preferences[LEGACY_TRANSPORT_BUDGET]?.toLong() ?: 80000L, // 교통비 예산을 정해줌
                 livingBudget = preferences[LIVING_BUDGET] ?: preferences[LEGACY_LIVING_BUDGET]?.toLong() ?: 120000L, // 생활비 예산을 정해줌
-                hobbyBudget = preferences[HOBBY_BUDGET] ?: preferences[LEGACY_HOBBY_BUDGET]?.toLong() ?: 100000L // 취미 예산을 정해줌
+                hobbyBudget = preferences[HOBBY_BUDGET] ?: preferences[LEGACY_HOBBY_BUDGET]?.toLong() ?: 100000L, // 취미 예산을 정해줌
+                lockedMonthKey = preferences[LOCKED_MONTH_KEY] ?: "" // 적용 완료 월을 정해줌
             )
         }
 
@@ -56,6 +59,7 @@ class BudgetDataStore(private val context: Context) { // BudgetDataStore 기능�
             preferences[TRANSPORT_BUDGET] = settings.transportBudget // 예산 관련 값을 정해줌
             preferences[LIVING_BUDGET] = settings.livingBudget // 예산 관련 값을 정해줌
             preferences[HOBBY_BUDGET] = settings.hobbyBudget // 예산 관련 값을 정해줌
+            preferences[LOCKED_MONTH_KEY] = settings.lockedMonthKey // 적용 완료 월을 정해줌
         }
     }
 }

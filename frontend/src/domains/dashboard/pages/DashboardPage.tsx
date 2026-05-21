@@ -1137,6 +1137,12 @@ const currentBudget = budgets[monthKey] ?? budget;
               <div className={styles.rewardResult}>
                 {boxResult?.reward_type === "spt" ? (
                   <div className={styles.rewardSpt}>
+                    <img
+                      className={styles.rewardSptImage}
+                      src="/SPT%20TOKEN.png"
+                      alt=""
+                      draggable={false}
+                    />
                     <span className={styles.rewardSptAmount}>
                       {boxResult.spt_amount ?? 0}
                     </span>

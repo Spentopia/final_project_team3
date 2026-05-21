@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Subway // Subway 기능을 가져�
 import androidx.compose.material.icons.filled.TrendingUp // TrendingUp 기능을 가져옴
 import androidx.compose.material.icons.filled.VolunteerActivism // VolunteerActivism 기능을 가져옴
 import androidx.compose.material.icons.filled.Warning // Warning 기능을 가져옴
+import androidx.compose.material3.AlertDialog // AlertDialog 기능을 가져옴
 import androidx.compose.material3.Button // 버튼 컴포넌트를 가져옴
 import androidx.compose.material3.ButtonDefaults // ButtonDefaults 기능을 가져옴
 import androidx.compose.material3.Card // Card 기능을 가져옴
@@ -59,6 +60,7 @@ import androidx.compose.material3.SnackbarHost // SnackbarHost 기능을 가져�
 import androidx.compose.material3.SnackbarHostState // SnackbarHostState 기능을 가져옴
 import androidx.compose.material3.Surface // Surface 기능을 가져옴
 import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
+import androidx.compose.material3.TextButton // TextButton 기능을 가져옴
 import androidx.compose.runtime.Composable // Compose 화면 함수 표시를 가져옴
 import androidx.compose.runtime.LaunchedEffect // 화면이 열릴 때 실행하는 도구를 가져옴
 import androidx.compose.runtime.getValue // by로 상태를 읽게 해줌
@@ -148,9 +150,14 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
 
     val currentCalendar = remember { Calendar.getInstance() } // 화면이 다시 그려져도 currentCalendar 값을 기억함
     val currentYear = remember { currentCalendar.get(Calendar.YEAR) } // 화면이 다시 그려져도 currentYear 값을 기억함
+    val currentMonth = remember { currentCalendar.get(Calendar.MONTH) + 1 } // 화면이 다시 그려져도 currentMonth 값을 기억함
     var selectedYear by remember { mutableIntStateOf(currentYear) } // 화면이 다시 그려져도 selectedYear 값을 기억함
-    var selectedMonth by remember { mutableIntStateOf(currentCalendar.get(Calendar.MONTH) + 1) } // 화면이 다시 그려져도 selectedMonth 값을 기억함
+    var selectedMonth by remember { mutableIntStateOf(currentMonth) } // 화면이 다시 그려져도 selectedMonth 값을 기억함
     var isMonthDialogOpen by remember { mutableStateOf(false) } // 화면에서 바뀔 월 선택창이 열렸는지 저장함
+    var pendingApplyPlan by remember { mutableStateOf<BudgetPlanUiData?>(null) } // 적용 확인 대기 중인 플랜을 저장함
+    val selectedMonthKey = "%04d-%02d".format(selectedYear, selectedMonth) // 선택 월 키를 저장함
+    val currentMonthKey = "%04d-%02d".format(currentYear, currentMonth) // 현재 월 키를 저장함
+    val canEditBudget = selectedMonthKey == currentMonthKey && budgetState.lockedMonthKey != currentMonthKey // 이번 달 1회만 수정 가능함
 
     // 총 지출 예정 금액 계산
     // 식비 + 교통비 + 생활비 + 취미를 다 합쳐서
@@ -215,6 +222,7 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
                     title = "AI 추천 플랜", // 제목을 정해줌
                     icon = "✨", // icon 값을 정해줌
                     isLoading = isAiPlanLoading, // 로딩 상태를 로딩 여부에 넣음
+                    enabled = canEditBudget, // 이번 달 예산 적용 가능 여부를 넣음
                     onAiRecommendClick = { // onAiRecommendClick 때 실행할 함수를 정해줌
                         viewModel.requestAiRecommendedPlans()
                     }
@@ -243,9 +251,9 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
                     aiPlanList.forEach { plan ->
                         BudgetPlanCard( // 내용을 카드 모양으로 묶어서 보여줌
                             plan = plan, // 추천 플랜을 추천 플랜에 넣음
+                            enabled = canEditBudget, // 적용 가능 여부를 넣음
                             onApplyClick = { // onApplyClick 때 실행할 함수를 정해줌
-                                // 플랜 적용 버튼 누르면 ViewModel에 전달
-                                viewModel.applyPlan(plan)
+                                pendingApplyPlan = plan // 플랜 적용 확인창을 열어줌
                             }
                         )
                         Spacer(modifier = Modifier.height(14.dp)) // UI 크기나 여백 같은 모양을 정함
@@ -276,6 +284,7 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
                     onTransportBudgetChange = viewModel::updateTransportBudget, // 예산 관련 값을 정해줌
                     onLivingBudgetChange = viewModel::updateLivingBudget, // 예산 관련 값을 정해줌
                     onHobbyBudgetChange = viewModel::updateHobbyBudget, // 예산 관련 값을 정해줌
+                    isSaveEnabled = canEditBudget, // 저장 가능 여부를 넣음
                     onSaveClick = { // onSaveClick 때 실행할 함수를 정해줌
                         // 저장 버튼 클릭 시 실행
                         viewModel.saveBudgetSettings()
@@ -323,6 +332,35 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
                         selectedYear = year // year 값을 selectedYear 값에 넣음
                         selectedMonth = month // month 값을 selectedMonth 값에 넣음
                         isMonthDialogOpen = false // false 값을 isMonthDialogOpen인지 여부에 넣음
+                    }
+                )
+            }
+
+            if (pendingApplyPlan != null) { // 조건이 맞는지 확인함
+                AlertDialog( // AlertDialog 함수를 실행함
+                    onDismissRequest = { pendingApplyPlan = null }, // 닫을 때 실행할 함수를 정해줌
+                    title = {
+                        Text(text = "예산 설정") // text 값을 정해줌
+                    },
+                    text = {
+                        Text(text = "예산 설정은 월 1회만 적용 가능합니다. 이 플랜을 적용하시겠습니까?") // text 값을 정해줌
+                    },
+                    confirmButton = {
+                        TextButton( // TextButton 함수를 실행함
+                            onClick = {
+                                pendingApplyPlan?.let { plan ->
+                                    viewModel.applyPlan(plan) // 선택한 플랜을 적용함
+                                }
+                                pendingApplyPlan = null // 확인 대기 플랜을 비움
+                            }
+                        ) {
+                            Text(text = "적용") // text 값을 정해줌
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { pendingApplyPlan = null }) { // 누를 수 있는 버튼을 만듦
+                            Text(text = "취소") // text 값을 정해줌
+                        }
                     }
                 )
             }
@@ -591,10 +629,12 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
     title: String, // 제목을 받음
     icon: String, // icon 값을 받음
     isLoading: Boolean, // 로딩 여부를 받음
+    enabled: Boolean = true, // 버튼 활성화 여부를 받음
     onAiRecommendClick: () -> Unit // onAiRecommendClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val buttonColor = budgetPrimaryButtonColor() // 오늘의 소비일기 카드와 어울리는 버튼 색을 씀
     val buttonContentColor = budgetPrimaryButtonContentColor()
+    val isButtonEnabled = enabled && !isLoading // 실제 버튼 활성화 여부를 저장함
     Row( // 안쪽 UI를 가로로 배치함
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         horizontalArrangement = Arrangement.SpaceBetween, // horizontalArrangement 값을 정해줌
@@ -623,7 +663,7 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
 
         Button( // 누를 수 있는 버튼을 만듦
             onClick = onAiRecommendClick, // onAiRecommendClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
-            enabled = !isLoading, // enabled 값을 정해줌
+            enabled = isButtonEnabled, // enabled 값을 정해줌
             modifier = Modifier.height(40.dp), // UI 크기나 여백 같은 모양을 정함
             shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
             colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
@@ -637,9 +677,9 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
         ) { // 이 블록 안의 내용이 시작됨
             if (isLoading) { // 조건이 맞는지 확인함
                 CircularProgressIndicator( // Circular Progress Indicator 함수를 실행함
-                    modifier = Modifier.size(14.dp), // UI 크기나 여백 같은 모양을 정함
-                    strokeWidth = 2.dp, // strokeWidth 값을 정해줌
-                    color = buttonContentColor // color 값을 정해줌
+                modifier = Modifier.size(14.dp), // UI 크기나 여백 같은 모양을 정함
+                strokeWidth = 2.dp, // strokeWidth 값을 정해줌
+                    color = if (isButtonEnabled) buttonContentColor else MaterialTheme.colorScheme.onSurfaceVariant // color 값을 정해줌
                 )
                 Spacer(modifier = Modifier.width(6.dp)) // UI 크기나 여백 같은 모양을 정함
             }
@@ -648,7 +688,7 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
                 text = if (isLoading) "추천 중" else "AI 추천", // text 값을 정해줌
                 style = MaterialTheme.typography.bodyMedium, // style 값을 정해줌
                 fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
-                color = buttonContentColor
+                color = if (isButtonEnabled) buttonContentColor else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -714,6 +754,7 @@ private fun AiPlanStatusCard( // AiPlanStatusCard 함수를 선언함
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun BudgetPlanCard( // BudgetPlanCard 함수를 선언함
     plan: BudgetPlanUiData, // 추천 플랜을 받음
+    enabled: Boolean = true, // 적용 버튼 활성화 여부를 받음
     onApplyClick: () -> Unit // onApplyClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isBudgetDarkTheme() // 다크모드인지 저장함
@@ -781,11 +822,14 @@ private fun BudgetPlanCard( // BudgetPlanCard 함수를 선언함
 
             Button( // 누를 수 있는 버튼을 만듦
                 onClick = onApplyClick, // onApplyClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
+                enabled = enabled, // enabled 값을 정해줌
                 modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
                 shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
                 colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
                     containerColor = buttonColor, // containerColor 값을 정해줌
-                    contentColor = buttonContentColor // contentColor 값을 정해줌
+                    contentColor = buttonContentColor, // contentColor 값을 정해줌
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant, // disabledContainerColor 값을 정해줌
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant // disabledContentColor 값을 정해줌
                 ),
                 contentPadding = PaddingValues(vertical = 12.dp), // contentPadding 값을 정해줌
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp) // elevation 값을 정해줌
@@ -887,6 +931,7 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
     onTransportBudgetChange: (Long) -> Unit, // 예산 관련 값을 받음
     onLivingBudgetChange: (Long) -> Unit, // 예산 관련 값을 받음
     onHobbyBudgetChange: (Long) -> Unit, // 예산 관련 값을 받음
+    isSaveEnabled: Boolean = true, // 저장 버튼 활성화 여부를 받음
     onSaveClick: () -> Unit // onSaveClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isBudgetDarkTheme() // 다크모드인지 저장함
@@ -1006,11 +1051,14 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
             // 설정 저장 버튼
             Button( // 누를 수 있는 버튼을 만듦
                 onClick = onSaveClick, // onSaveClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
+                enabled = isSaveEnabled, // enabled 값을 정해줌
                 modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
                 shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
                 colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
                     containerColor = budgetPrimaryButtonColor(), // containerColor 값을 정해줌
-                    contentColor = budgetPrimaryButtonContentColor() // contentColor 값을 정해줌
+                    contentColor = budgetPrimaryButtonContentColor(), // contentColor 값을 정해줌
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant, // disabledContainerColor 값을 정해줌
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant // disabledContentColor 값을 정해줌
                 ),
                 contentPadding = PaddingValues(vertical = 12.dp) // contentPadding 값을 정해줌
             ) { // 이 블록 안의 내용이 시작됨
@@ -1018,7 +1066,7 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
                     text = "설정 저장", // text 값을 정해줌
                     style = MaterialTheme.typography.titleMedium, // style 값을 정해줌
                     fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
-                    color = budgetPrimaryButtonContentColor()
+                    color = if (isSaveEnabled) budgetPrimaryButtonContentColor() else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

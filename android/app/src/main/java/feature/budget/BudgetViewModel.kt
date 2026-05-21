@@ -96,21 +96,50 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
 
     // 추천 플랜 적용
     fun applyPlan(plan: BudgetPlanUiData) { // applyPlan 함수를 선언함
-        _budgetState.value = _budgetState.value.copy( // 예산 관련 값을 정해줌
+        if (!canEditBudgetThisMonth()) { // 조건이 맞는지 확인함
+            _saveError.value = "이번 달 예산 설정이 완료되었습니다. 예산 설정은 월 1회만 가능합니다."
+            return
+        }
+
+        val nextSettings = _budgetState.value.copy( // 예산 관련 값을 정해줌
             monthlyIncome = plan.monthlyBudget, // 월 수입을 정해줌
             savingGoal = plan.savingGoal, // 저축 목표를 정해줌
             foodBudget = plan.food, // 식비 예산을 정해줌
             transportBudget = plan.transport, // 교통비 예산을 정해줌
             livingBudget = plan.living, // 생활비 예산을 정해줌
-            hobbyBudget = plan.hobby // 취미 예산을 정해줌
+            hobbyBudget = plan.hobby, // 취미 예산을 정해줌
+            lockedMonthKey = currentMonthKey() // 적용 완료 월을 정해줌
         )
+        _budgetState.value = nextSettings // 예산 관련 값을 정해줌
+
+        viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
+            budgetDataStore.saveBudgetSettings(nextSettings) // 예산 관련 값을 저장함
+            try { // 오류가 날 수 있는 코드를 먼저 시도함
+                upsertBackendBudget(nextSettings) // 서버 예산도 같은 값으로 맞춤
+                _saveError.value = "" // 오류 내용을 정해줌
+                _saveSuccess.value = true // saveSuccess.value 값을 정해줌
+            } catch (e: HttpException) { // 이 블록 안의 내용이 시작됨
+                _saveError.value = when (e.code()) { // 오류 내용을 정해줌
+                    401 -> "로그인이 만료되었습니다. 다시 로그인해주세요."
+                    else -> "플랜 적용 저장에 실패했습니다. 잠시 후 다시 시도해주세요. (${e.code()})" // 위 조건이 아니면 이쪽을 실행함
+                }
+            } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
+                _saveError.value = "플랜 적용 저장에 실패했습니다. 잠시 후 다시 시도해주세요." // 오류 내용을 정해줌
+            }
+        }
     }
 
     // 현재 설정 저장
     // 슬라이더/추천 플랜 저장용
     fun saveBudgetSettings() { // 데이터를 저장하는 함수 시작
+        if (!canEditBudgetThisMonth()) { // 조건이 맞는지 확인함
+            _saveError.value = "이번 달 예산 설정이 완료되었습니다. 예산 설정은 월 1회만 가능합니다."
+            return
+        }
+
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
-            val currentSettings = _budgetState.value // 현재 예산 설정값을 저장함
+            val currentSettings = _budgetState.value.copy(lockedMonthKey = currentMonthKey()) // 현재 예산 설정값을 저장함
+            _budgetState.value = currentSettings // 예산 관련 값을 정해줌
             // 먼저 로컬 DataStore에 저장해서 앱 재실행 후에도 값이 남게 합니다.
             budgetDataStore.saveBudgetSettings(currentSettings)
             //_ budgetState.value 지금 화면이나 ViewModeldl  들고 있는 예산 설정 값이고 그값을 budgetDataStore 에 저장함
@@ -142,6 +171,10 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
 
     fun requestAiRecommendedPlans() { // requestAiRecommendedPlans 함수를 선언함
         if (_isAiPlanLoading.value) return // 조건이 맞는지 확인함
+        if (!canEditBudgetThisMonth()) { // 조건이 맞는지 확인함
+            _aiPlanError.value = "이번 달 예산 설정이 완료되었습니다. 예산 설정은 월 1회만 가능합니다."
+            return
+        }
 
         val requestSettings = _budgetState.value // requestSettings 값을 저장함
         if (_aiPlanList.value.isNotEmpty() && lastAiPlanRequestSettings == requestSettings) { // 조건이 맞는지 확인함
@@ -264,6 +297,15 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         return calendar.get(Calendar.YEAR) to calendar.get(Calendar.MONTH) + 1 // 이 값을 함수 결과로 돌려줌
     }
 
+    private fun currentMonthKey(): String { // currentMonthKey 함수를 선언함
+        val (year, month) = currentYearMonth() // month 값을 정해줌
+        return "%04d-%02d".format(year, month) // 이 값을 함수 결과로 돌려줌
+    }
+
+    private fun canEditBudgetThisMonth(): Boolean { // canEditBudgetThisMonth 함수를 선언함
+        return _budgetState.value.lockedMonthKey != currentMonthKey() // 이 값을 함수 결과로 돌려줌
+    }
+
     private fun BudgetSettingsData.toBudgetCategoryItems(): List<BudgetCategoryItem> { // BudgetSettingsData 함수를 선언함
         return listOf( // 이 값을 함수 결과로 돌려줌
             BudgetCategoryItem(category = "food", allocated_amount = foodBudget), // 예산 관련 값을 정해줌
@@ -289,7 +331,8 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             foodBudget = amountOf("food", "식비", fallbackValue = fallback.foodBudget), // 식비 예산을 정해줌
             transportBudget = amountOf("transport", "교통", "교통비", fallbackValue = fallback.transportBudget), // 교통비 예산을 정해줌
             livingBudget = amountOf("living", "생활", "생활비", fallbackValue = fallback.livingBudget), // 생활비 예산을 정해줌
-            hobbyBudget = amountOf("leisure", "hobby", "여가", "취미", "여가/취미", fallbackValue = fallback.hobbyBudget) // 취미 예산을 정해줌
+            hobbyBudget = amountOf("leisure", "hobby", "여가", "취미", "여가/취미", fallbackValue = fallback.hobbyBudget), // 취미 예산을 정해줌
+            lockedMonthKey = fallback.lockedMonthKey // 적용 완료 월을 유지함
         )
     }
 }
