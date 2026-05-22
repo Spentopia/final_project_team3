@@ -80,6 +80,8 @@ import com.ict.spentopia.feature.splash.SplashScreen // SplashScreen 기능을 �
 import com.ict.spentopia.feature.auth.connector.MwaBackpackConnector // MwaBackpackConnector 기능을 가져옴
 import com.ict.spentopia.feature.auth.connector.MwaPhantomConnector // MwaPhantomConnector 기능을 가져옴
 import com.ict.spentopia.feature.auth.connector.MwaSolflareConnector // MwaSolflareConnector 기능을 가져옴
+import com.ict.spentopia.feature.auth.connector.PhantomDeepLinkConnector // Phantom 딥링크 도구를 가져옴
+import com.ict.spentopia.feature.auth.connector.SolflareDeepLinkConnector // Solflare 딥링크 도구를 가져옴
 import com.ict.spentopia.feature.auth.connector.WalletConnectionResult // WalletConnectionResult 기능을 가져옴
 import com.ict.spentopia.feature.auth.connector.WalletSignResult // WalletSignResult 기능을 가져옴
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // SolanaWalletType 기능을 가져옴
@@ -115,6 +117,8 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
     val navController = rememberNavController() // 화면이 다시 그려져도 화면 이동 도구를 기억함
     val drawerState = rememberDrawerState(DrawerValue.Closed) // 화면이 다시 그려져도 drawerState 값을 기억함
     val scope = rememberCoroutineScope() // 화면이 다시 그려져도 코루틴 실행 범위을 기억함
+    val phantomDeepLinkConnector = remember { PhantomDeepLinkConnector(context) } // Phantom 딥링크 연결 도구를 기억함
+    val solflareDeepLinkConnector = remember { SolflareDeepLinkConnector(context) } // Solflare 딥링크 연결 도구를 기억함
 
     var showThemeDialog by remember { mutableStateOf(false) } // 화면에서 바뀔 showThemeDialog 값을 저장함
     var showNotificationDialog by remember { mutableStateOf(false) } // 화면에서 바뀔 showNotificationDialog 값을 저장함
@@ -140,6 +144,10 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
     var walletProvider by remember { // 화면이 다시 그려져도 지갑 이름을 기억함
         mutableStateOf(prefs.getString("wallet_provider", "") ?: "") // 화면 상태값을 만듦
     }
+
+    var pendingReconnectWallet by remember { mutableStateOf<SolanaWalletType?>(null) } // 딥링크 지갑 재연결 상태를 저장함
+    var pendingReconnectWalletAddress by remember { mutableStateOf<String?>(null) } // 딥링크 재연결 지갑 주소를 저장함
+    var pendingReconnectNonce by remember { mutableStateOf<String?>(null) } // 딥링크 재연결 nonce를 저장함
 
     fun shouldForceLogout(): Boolean = prefs.getBoolean("force_logout", false) // shouldForceLogout 함수를 선언함
 
@@ -224,6 +232,27 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
 
     val navBackStackEntry by navController.currentBackStackEntryAsState() // navBackStackEntry 값을 저장함
     val currentRoute = navBackStackEntry?.destination?.route // currentRoute 값을 저장함
+
+    LaunchedEffect(walletCallbackUri, currentRoute) {
+        val uri = walletCallbackUri ?: return@LaunchedEffect
+        if (uri.scheme != "spentopia" || uri.host != "wallet-callback") return@LaunchedEffect
+        if (currentRoute == Route.Analysis.route) return@LaunchedEffect
+
+        val paymentPrefs = context.getSharedPreferences("analysis_payment_prefs", Context.MODE_PRIVATE)
+        val hasPendingPayment = !paymentPrefs
+            .getString("pending_payment_wallet_address", "")
+            .isNullOrBlank() &&
+            !paymentPrefs
+                .getString("pending_payment_network", "")
+                .isNullOrBlank()
+
+        if (hasPendingPayment) {
+            Log.d("SpentopiaPayment", "pending payment callback routed to analysis")
+            navController.navigate(Route.Analysis.route) {
+                launchSingleTop = true
+            }
+        }
+    }
 
     val communityViewModel: CommunityViewModel = viewModel() // 커뮤니티 관련 값을 저장함
     val communityUiState by communityViewModel.uiState.collectAsStateWithLifecycle() // 커뮤니티 관련 값을 저장함
@@ -348,6 +377,25 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
             return
         }
 
+        if (walletType == SolanaWalletType.PHANTOM || walletType == SolanaWalletType.SOLFLARE) {
+            pendingReconnectWallet = walletType
+            pendingReconnectWalletAddress = null
+            pendingReconnectNonce = null
+            phantomDeepLinkConnector.clearPendingLogin()
+            solflareDeepLinkConnector.clearPendingLogin()
+            val opened = if (walletType == SolanaWalletType.PHANTOM) {
+                phantomDeepLinkConnector.connect()
+            } else {
+                solflareDeepLinkConnector.connect()
+            }
+            if (!opened) {
+                pendingReconnectWallet = null
+                val walletName = if (walletType == SolanaWalletType.PHANTOM) "Phantom" else "Solflare"
+                Toast.makeText(context, "${walletName} 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+
         scope.launch { // 이 블록 안의 내용이 시작됨
             try { // 오류가 날 수 있는 코드를 먼저 시도함
                 val connector = when (walletType) { // connector 값을 저장함
@@ -400,6 +448,9 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                     walletAddress = linkResponse.wallet_address, // 지갑 주소를 정해줌
                     walletProvider = walletType.name // 지갑 이름을 정해줌
                 )
+                prefs.edit()
+                    .putString("wallet_auth_token_${walletType.name}", (connectResult as WalletConnectionResult.Success).authToken.orEmpty())
+                    .apply()
 
                 walletConnected = true // true 값을 지갑 관련 값에 넣음
                 walletAddress = linkResponse.wallet_address // 지갑 주소를 정해줌
@@ -410,6 +461,144 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                 Log.e("Spentopia", "지갑 재연결 실패", e) // 개발자가 확인할 로그를 찍음
                 Toast.makeText(context, e.message ?: "지갑 재연결 실패", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
             }
+        }
+    }
+
+    LaunchedEffect(walletCallbackUri, pendingReconnectWallet) {
+        val uri = walletCallbackUri ?: return@LaunchedEffect
+        val reconnectWallet = pendingReconnectWallet ?: return@LaunchedEffect
+        if (uri.scheme != "spentopia" || uri.host != "wallet-callback") return@LaunchedEffect
+
+        val isSolflare = reconnectWallet == SolanaWalletType.SOLFLARE
+        val hasError = if (isSolflare) {
+            solflareDeepLinkConnector.isErrorCallback(uri)
+        } else {
+            phantomDeepLinkConnector.isErrorCallback(uri)
+        }
+
+        if (hasError) {
+            val message = if (isSolflare) {
+                solflareDeepLinkConnector.parseErrorCallback(uri)
+            } else {
+                phantomDeepLinkConnector.parseErrorCallback(uri)
+            }
+            pendingReconnectWallet = null
+            pendingReconnectWalletAddress = null
+            pendingReconnectNonce = null
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            onWalletCallbackConsumed()
+            return@LaunchedEffect
+        }
+
+        val isConnectCallback = if (isSolflare) {
+            solflareDeepLinkConnector.isConnectCallback(uri)
+        } else {
+            phantomDeepLinkConnector.isConnectCallback(uri)
+        }
+
+        if (isConnectCallback) {
+            val newWalletAddress = if (isSolflare) {
+                solflareDeepLinkConnector.parseConnectCallback(uri)
+            } else {
+                phantomDeepLinkConnector.parseConnectCallback(uri)
+            }
+
+            if (newWalletAddress.isNullOrBlank()) {
+                pendingReconnectWallet = null
+                pendingReconnectWalletAddress = null
+                pendingReconnectNonce = null
+                Toast.makeText(context, "지갑 주소를 가져오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                onWalletCallbackConsumed()
+                return@LaunchedEffect
+            }
+
+            pendingReconnectWalletAddress = newWalletAddress
+            try {
+                val nonceResponse = RetrofitClient.walletApi.issueWalletNonce(
+                    NonceRequest(wallet_address = newWalletAddress)
+                )
+                pendingReconnectNonce = nonceResponse.nonce
+                val opened = if (isSolflare) {
+                    solflareDeepLinkConnector.savePendingLogin(newWalletAddress, nonceResponse.nonce)
+                    solflareDeepLinkConnector.signMessage(nonceResponse.message)
+                } else {
+                    phantomDeepLinkConnector.savePendingLogin(newWalletAddress, nonceResponse.nonce)
+                    phantomDeepLinkConnector.signMessage(nonceResponse.message)
+                }
+                if (!opened) {
+                    val walletName = if (isSolflare) "Solflare" else "Phantom"
+                    pendingReconnectWallet = null
+                    pendingReconnectWalletAddress = null
+                    pendingReconnectNonce = null
+                    Toast.makeText(context, "${walletName} 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                pendingReconnectWallet = null
+                pendingReconnectWalletAddress = null
+                pendingReconnectNonce = null
+                Toast.makeText(context, e.message ?: "지갑 nonce 발급 실패", Toast.LENGTH_SHORT).show()
+            }
+            onWalletCallbackConsumed()
+            return@LaunchedEffect
+        }
+
+        val isSignCallback = if (isSolflare) {
+            solflareDeepLinkConnector.isSignCallback(uri)
+        } else {
+            phantomDeepLinkConnector.isSignCallback(uri)
+        }
+
+        if (isSignCallback) {
+            val signature = if (isSolflare) {
+                solflareDeepLinkConnector.parseSignCallback(uri)
+            } else {
+                phantomDeepLinkConnector.parseSignCallback(uri)
+            }
+            val newWalletAddress = pendingReconnectWalletAddress
+                ?: if (isSolflare) solflareDeepLinkConnector.getPendingWalletAddress() else phantomDeepLinkConnector.getPendingWalletAddress()
+            val nonce = pendingReconnectNonce
+                ?: if (isSolflare) solflareDeepLinkConnector.getPendingNonce() else phantomDeepLinkConnector.getPendingNonce()
+
+            if (signature.isNullOrBlank() || newWalletAddress.isNullOrBlank() || nonce.isNullOrBlank()) {
+                pendingReconnectWallet = null
+                pendingReconnectWalletAddress = null
+                pendingReconnectNonce = null
+                Toast.makeText(context, "지갑 서명 상태를 확인하지 못했습니다.", Toast.LENGTH_SHORT).show()
+                onWalletCallbackConsumed()
+                return@LaunchedEffect
+            }
+
+            try {
+                val accessToken = prefs.getString("access_token", "") ?: ""
+                val linkResponse = RetrofitClient.walletApi.linkWallet(
+                    authorization = "Bearer $accessToken",
+                    request = WalletLinkRequest(
+                        wallet_address = newWalletAddress,
+                        nonce = nonce,
+                        signature = signature
+                    )
+                )
+
+                saveWalletInfo(
+                    walletAddress = linkResponse.wallet_address,
+                    walletProvider = reconnectWallet.name
+                )
+                walletConnected = true
+                walletAddress = linkResponse.wallet_address
+                walletProvider = reconnectWallet.name
+                pendingReconnectWallet = null
+                pendingReconnectWalletAddress = null
+                pendingReconnectNonce = null
+                phantomDeepLinkConnector.clearPendingLogin()
+                solflareDeepLinkConnector.clearPendingLogin()
+                Toast.makeText(context, "지갑이 다시 연결되었습니다.", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                pendingReconnectWallet = null
+                pendingReconnectWalletAddress = null
+                pendingReconnectNonce = null
+                Toast.makeText(context, e.message ?: "지갑 재연결 실패", Toast.LENGTH_SHORT).show()
+            }
+            onWalletCallbackConsumed()
         }
     }
 
@@ -644,8 +833,23 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                     )
                 }
 
-                composable(Route.Budget.route) { BudgetScreen() } // 이 주소로 들어오면 보여줄 화면을 등록함
-                composable(Route.Analysis.route) { AnalysisScreen() } // 이 주소로 들어오면 보여줄 화면을 등록함
+                composable(Route.Budget.route) {
+                    BudgetScreen(
+                        isWalletConnected = walletConnected,
+                        onWalletConnectClick = { walletType -> startWalletReconnect(walletType) }
+                    )
+                } // 이 주소로 들어오면 보여줄 화면을 등록함
+                composable(Route.Analysis.route) {
+                    AnalysisScreen(
+                        isWalletConnected = walletConnected,
+                        walletAddress = walletAddress,
+                        walletProvider = walletProvider,
+                        walletActivityResultSender = walletActivityResultSender,
+                        walletCallbackUri = walletCallbackUri,
+                        onWalletCallbackConsumed = onWalletCallbackConsumed,
+                        onWalletConnectClick = { walletType -> startWalletReconnect(walletType) }
+                    )
+                } // 이 주소로 들어오면 보여줄 화면을 등록함
 
                 composable(Route.ProfileAvatar.route) { // 이 주소로 들어오면 보여줄 화면을 등록함
                     ProfileAvatarScreen( // 마이페이지와 아바타 아이템 네이티브 화면을 보여줌

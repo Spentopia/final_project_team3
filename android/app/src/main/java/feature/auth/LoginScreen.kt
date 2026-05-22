@@ -3,6 +3,7 @@ package com.ict.spentopia.feature.auth // 이 파일이 속한 패키지 위치�
 // 로그인 화면임
 // 이메일/비번, Google/Kakao, 지갑 로그인 한 화면
 
+import android.content.Context
 import android.content.Intent // Intent 기능을 가져옴
 import android.net.Uri // 이미지 주소 타입을 가져옴
 import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
@@ -73,6 +74,7 @@ import com.google.android.gms.common.api.ApiException // ApiException 기능을 
 import com.ict.spentopia.BuildConfig // BuildConfig 기능을 가져옴
 import com.ict.spentopia.R // R 기능을 가져옴
 import com.ict.spentopia.feature.auth.connector.PhantomDeepLinkConnector // PhantomDeepLinkConnector 기능을 가져옴
+import com.ict.spentopia.feature.auth.connector.SolflareDeepLinkConnector // SolflareDeepLinkConnector 기능을 가져옴
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog // SolanaWalletDialog 기능을 가져옴
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // SolanaWalletType 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple // SpentopiaGlowPurple 기능을 가져옴
@@ -115,6 +117,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
     val scope = rememberCoroutineScope() // 화면이 다시 그려져도 코루틴 실행 범위을 기억함
     val context = LocalContext.current // 현재 화면 정보를 저장함
     val phantomConnector = remember { PhantomDeepLinkConnector(context) } // 화면이 다시 그려져도 phantomConnector 값을 기억함
+    val solflareConnector = remember { SolflareDeepLinkConnector(context) } // 화면이 다시 그려져도 solflareConnector 값을 기억함
     val loginViewModel: LoginViewModel = viewModel() // loginViewModel 값을 저장함
 
     var showWalletDialog by remember { mutableStateOf(false) } // 화면에서 바뀔 지갑 관련 값을 저장함
@@ -183,44 +186,53 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
         selectedWallet = walletType // 지갑 값을 요청값에 넣음
         showWalletDialog = false // false 값을 지갑 관련 값에 넣음
 
-        when (walletType) { // 값 종류에 따라 실행할 코드를 나눔
-            SolanaWalletType.PHANTOM -> { // 이 블록 안의 내용이 시작됨
-                isWalletLoading = true // true 값을 지갑 관련 값에 넣음
-                pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
-                pendingNonce = null // null 값을 pendingNonce 값에 넣음
-                val opened = phantomConnector.connect() // opened 값을 저장함
-                if (!opened) { // 조건이 맞는지 확인함
-                    isWalletLoading = false // false 값을 지갑 관련 값에 넣음
-                    Toast.makeText(context, "Phantom 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
-                }
+        if (walletType == SolanaWalletType.PHANTOM || walletType == SolanaWalletType.SOLFLARE) {
+            isWalletLoading = true
+            pendingWalletAddress = null
+            pendingNonce = null
+            phantomConnector.clearPendingLogin()
+            solflareConnector.clearPendingLogin()
+            val opened = if (walletType == SolanaWalletType.PHANTOM) {
+                phantomConnector.connect()
+            } else {
+                solflareConnector.connect()
             }
+            if (!opened) {
+                isWalletLoading = false
+                val walletName = if (walletType == SolanaWalletType.PHANTOM) "Phantom" else "Solflare"
+                Toast.makeText(context, "${walletName} 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
 
-            else -> { // 위 조건이 아니면 이쪽을 실행함
-                scope.launch { // 이 블록 안의 내용이 시작됨
-                    isWalletLoading = true // true 값을 지갑 관련 값에 넣음
+        scope.launch { // 이 블록 안의 내용이 시작됨
+            isWalletLoading = true // true 값을 지갑 관련 값에 넣음
 
-                    walletLoginCoordinator.loginWithWallet(
-                        walletType = walletType, // 지갑 값을 요청값에 넣음
-                        walletActivityResultSender = walletActivityResultSender, // 지갑 값을 요청값에 넣음
-                        onSuccess = { accessToken, refreshToken -> // 성공했을 때 실행할 함수를 정해줌
+            walletLoginCoordinator.loginWithWallet(
+                walletType = walletType, // 지갑 값을 요청값에 넣음
+                walletActivityResultSender = walletActivityResultSender, // 지갑 값을 요청값에 넣음
+                onSuccess = { accessToken, refreshToken -> // 성공했을 때 실행할 함수를 정해줌
                             isWalletLoading = false // false 값을 지갑 관련 값에 넣음
                             val walletAddress = walletLoginCoordinator.getLastWalletAddress().orEmpty() // 지갑 주소를 저장함
                             val walletProvider = walletType.name // 지갑 이름을 저장함
+                            val walletAuthToken = walletLoginCoordinator.getLastWalletAuthToken().orEmpty() // MWA 세션 토큰을 저장함
+                            context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
+                                .edit()
+                                .putString("wallet_auth_token_${walletProvider}", walletAuthToken)
+                                .apply()
 
                             onWalletConnected( // 지갑 관련 함수를 실행함
-                                accessToken,
-                                refreshToken,
-                                walletAddress,
-                                walletProvider
-                            )
-                        },
-                        onError = { message -> // 실패했을 때 실행할 함수를 정해줌
-                            isWalletLoading = false // false 값을 지갑 관련 값에 넣음
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
-                        }
+                        accessToken,
+                        refreshToken,
+                        walletAddress,
+                        walletProvider
                     )
+                },
+                onError = { message -> // 실패했을 때 실행할 함수를 정해줌
+                    isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                 }
-            }
+            )
         }
     }
 
@@ -460,70 +472,116 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
             walletCallbackUri?.let { uri ->
                 if (uri.scheme == "spentopia" && uri.host == "wallet-callback") { // 조건이 맞는지 확인함
                     Log.d("Spentopia", "wallet callback=$uri") // 개발자가 확인할 로그를 찍음
+                    val callbackWallet = selectedWallet ?: if (solflareConnector.isConnectCallback(uri)) {
+                        SolanaWalletType.SOLFLARE
+                    } else if (!solflareConnector.getPendingWalletAddress().isNullOrBlank()) {
+                        SolanaWalletType.SOLFLARE
+                    } else {
+                        SolanaWalletType.PHANTOM
+                    }
+                    val isSolflareCallback = callbackWallet == SolanaWalletType.SOLFLARE
                     when { // 값 종류에 따라 실행할 코드를 나눔
-                        phantomConnector.isErrorCallback(uri) -> { // 이 블록 안의 내용이 시작됨
+                        phantomConnector.isErrorCallback(uri) || solflareConnector.isErrorCallback(uri) -> { // 이 블록 안의 내용이 시작됨
                             isWalletLoading = false // false 값을 지갑 관련 값에 넣음
                             pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
                             pendingNonce = null // null 값을 pendingNonce 값에 넣음
                             phantomConnector.clearPendingLogin()
-                            val message = phantomConnector.parseErrorCallback(uri) // 메시지를 저장함
-                            Log.e("Spentopia", "Phantom callback error=$message") // 개발자가 확인할 로그를 찍음
+                            solflareConnector.clearPendingLogin()
+                            val message = if (isSolflareCallback) {
+                                solflareConnector.parseErrorCallback(uri)
+                            } else {
+                                phantomConnector.parseErrorCallback(uri)
+                            } // 메시지를 저장함
+                            Log.e("Spentopia", "${callbackWallet.name} callback error=$message") // 개발자가 확인할 로그를 찍음
                             Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                         }
 
-                        phantomConnector.isConnectCallback(uri) -> { // 이 블록 안의 내용이 시작됨
-                            val walletAddress = phantomConnector.parseConnectCallback(uri) // 지갑 주소를 저장함
+                        phantomConnector.isConnectCallback(uri) || solflareConnector.isConnectCallback(uri) -> { // 이 블록 안의 내용이 시작됨
+                            val walletAddress = if (isSolflareCallback) {
+                                solflareConnector.parseConnectCallback(uri)
+                            } else {
+                                phantomConnector.parseConnectCallback(uri)
+                            } // 지갑 주소를 저장함
                             if (walletAddress.isNullOrBlank()) { // 조건이 맞는지 확인함
                                 isWalletLoading = false // false 값을 지갑 관련 값에 넣음
                                 pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
                                 pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                 phantomConnector.clearPendingLogin()
-                                Log.e("Spentopia", "Phantom connect callback missing wallet address") // 개발자가 확인할 로그를 찍음
+                                solflareConnector.clearPendingLogin()
+                                Log.e("Spentopia", "${callbackWallet.name} connect callback missing wallet address") // 개발자가 확인할 로그를 찍음
                                 Toast.makeText(context, context.getString(R.string.wallet_address_missing), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                 onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
                                 return@let
                             }
                             pendingWalletAddress = walletAddress // 지갑 주소를 지갑 관련 값에 넣음
-                            Log.d("Spentopia", "Phantom connected walletAddress=$walletAddress") // 개발자가 확인할 로그를 찍음
+                            Log.d("Spentopia", "${callbackWallet.name} connected walletAddress=$walletAddress") // 개발자가 확인할 로그를 찍음
                             scope.launch { // 이 블록 안의 내용이 시작됨
                                 try { // 오류가 날 수 있는 코드를 먼저 시도함
                                     val nonceResponse = loginViewModel.getWalletNonceOnce(walletAddress) // nonceResponse 값을 저장함
                                     pendingNonce = nonceResponse.nonce // pendingNonce 값을 정해줌
-                                    phantomConnector.savePendingLogin(walletAddress, nonceResponse.nonce)
-                                    Log.d("Spentopia", "Phantom nonce issued nonce=${nonceResponse.nonce}") // 개발자가 확인할 로그를 찍음
-                                    val opened = phantomConnector.signMessage(nonceResponse.message) // opened 값을 저장함
-                                    Log.d("Spentopia", "Phantom signMessage opened=$opened") // 개발자가 확인할 로그를 찍음
+                                    if (isSolflareCallback) {
+                                        solflareConnector.savePendingLogin(walletAddress, nonceResponse.nonce)
+                                    } else {
+                                        phantomConnector.savePendingLogin(walletAddress, nonceResponse.nonce)
+                                    }
+                                    Log.d("Spentopia", "${callbackWallet.name} nonce issued nonce=${nonceResponse.nonce}") // 개발자가 확인할 로그를 찍음
+                                    val opened = if (isSolflareCallback) {
+                                        solflareConnector.signMessage(nonceResponse.message)
+                                    } else {
+                                        phantomConnector.signMessage(nonceResponse.message)
+                                    } // opened 값을 저장함
+                                    Log.d("Spentopia", "${callbackWallet.name} signMessage opened=$opened") // 개발자가 확인할 로그를 찍음
                                     if (!opened) { // 조건이 맞는지 확인함
                                         isWalletLoading = false // false 값을 지갑 관련 값에 넣음
                                         pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
                                         pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                         phantomConnector.clearPendingLogin()
-                                        Toast.makeText(context, "Phantom 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                                        solflareConnector.clearPendingLogin()
+                                        val walletName = if (isSolflareCallback) "Solflare" else "Phantom"
+                                        Toast.makeText(context, "${walletName} 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                     }
                                 } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
                                     isWalletLoading = false // false 값을 지갑 관련 값에 넣음
                                     pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
                                     pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                     phantomConnector.clearPendingLogin()
-                                    Log.e("Spentopia", "Phantom nonce/sign start failed", e) // 개발자가 확인할 로그를 찍음
+                                    solflareConnector.clearPendingLogin()
+                                    Log.e("Spentopia", "${callbackWallet.name} nonce/sign start failed", e) // 개발자가 확인할 로그를 찍음
                                     Toast.makeText(context, e.message ?: context.getString(R.string.wallet_nonce_failed), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                 }
                             }
                         }
 
-                        phantomConnector.isSignCallback(uri) -> { // 이 블록 안의 내용이 시작됨
-                            val signature = phantomConnector.parseSignCallback(uri) // 지갑 서명값을 저장함
+                        phantomConnector.isSignCallback(uri) || solflareConnector.isSignCallback(uri) -> { // 이 블록 안의 내용이 시작됨
+                            val hasPendingLogin = !pendingWalletAddress.isNullOrBlank() ||
+                                !pendingNonce.isNullOrBlank() ||
+                                !phantomConnector.getPendingWalletAddress().isNullOrBlank() ||
+                                !solflareConnector.getPendingWalletAddress().isNullOrBlank()
+                            val signedTransactionFromPhantom = phantomConnector.parseSignedTransactionCallback(uri)
+                            val signedTransactionFromSolflare = solflareConnector.parseSignedTransactionCallback(uri)
+                            if (!hasPendingLogin &&
+                                (!signedTransactionFromPhantom.isNullOrBlank() || !signedTransactionFromSolflare.isNullOrBlank())
+                            ) {
+                                Log.d("Spentopia", "payment transaction callback ignored on login screen") // 결제 콜백은 로그인 처리에서 제외함
+                                return@let
+                            }
+                            val signature = if (isSolflareCallback) {
+                                solflareConnector.parseSignCallback(uri)
+                            } else {
+                                phantomConnector.parseSignCallback(uri)
+                            } // 지갑 서명값을 저장함
                             val walletAddress = pendingWalletAddress // 지갑 주소를 저장함
-                                ?: phantomConnector.getPendingWalletAddress()
+                                ?: if (isSolflareCallback) solflareConnector.getPendingWalletAddress() else phantomConnector.getPendingWalletAddress()
                             val nonce = pendingNonce // 서명용 난수을 저장함
-                                ?: phantomConnector.getPendingNonce()
+                                ?: if (isSolflareCallback) solflareConnector.getPendingNonce() else phantomConnector.getPendingNonce()
 
                             if (signature.isNullOrBlank()) { // 조건이 맞는지 확인함
                                 isWalletLoading = false // false 값을 지갑 관련 값에 넣음
                                 pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
                                 pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                 phantomConnector.clearPendingLogin()
-                                Log.e("Spentopia", "Phantom sign callback missing signature") // 개발자가 확인할 로그를 찍음
+                                solflareConnector.clearPendingLogin()
+                                Log.e("Spentopia", "${callbackWallet.name} sign callback missing signature") // 개발자가 확인할 로그를 찍음
                                 Toast.makeText(context, context.getString(R.string.wallet_signature_missing), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                 onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
                                 return@let
@@ -533,7 +591,8 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                 pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
                                 pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                 phantomConnector.clearPendingLogin()
-                                Log.e("Spentopia", "Phantom login state lost wallet=$walletAddress nonce=$nonce") // 개발자가 확인할 로그를 찍음
+                                solflareConnector.clearPendingLogin()
+                                Log.e("Spentopia", "${callbackWallet.name} login state lost wallet=$walletAddress nonce=$nonce") // 개발자가 확인할 로그를 찍음
                                 Toast.makeText(context, context.getString(R.string.wallet_login_state_lost), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                 onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
                                 return@let
@@ -544,24 +603,26 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                 nonce = nonce, // 서명용 난수를 서명용 난수에 넣음
                                 signature = signature, // 지갑 서명값을 지갑 서명값에 넣음
                                 onSuccess = { response -> // 성공했을 때 실행할 함수를 정해줌
-                                    Log.d("Spentopia", "Phantom walletLoginApp success accessTokenBlank=${response.access_token.isBlank()} refreshTokenBlank=${response.refresh_token.isBlank()}") // 개발자가 확인할 로그를 찍음
+                                    Log.d("Spentopia", "${callbackWallet.name} walletLoginApp success accessTokenBlank=${response.access_token.isBlank()} refreshTokenBlank=${response.refresh_token.isBlank()}") // 개발자가 확인할 로그를 찍음
                                     isWalletLoading = false // false 값을 지갑 관련 값에 넣음
                                     pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
                                     pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                     phantomConnector.clearPendingLogin()
+                                    solflareConnector.clearPendingLogin()
                                     onWalletConnected( // 지갑 관련 함수를 실행함
                                         response.access_token,
                                         response.refresh_token,
                                         walletAddress,
-                                        "PHANTOM"
+                                        callbackWallet.name
                                     )
                                 },
                                 onError = { message -> // 실패했을 때 실행할 함수를 정해줌
-                                    Log.e("Spentopia", "Phantom walletLoginApp failed=$message") // 개발자가 확인할 로그를 찍음
+                                    Log.e("Spentopia", "${callbackWallet.name} walletLoginApp failed=$message") // 개발자가 확인할 로그를 찍음
                                     isWalletLoading = false // false 값을 지갑 관련 값에 넣음
                                     pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
                                     pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                     phantomConnector.clearPendingLogin()
+                                    solflareConnector.clearPendingLogin()
                                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                 }
                             )
@@ -572,6 +633,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                             pendingWalletAddress = null // null 값을 지갑 관련 값에 넣음
                             pendingNonce = null // null 값을 pendingNonce 값에 넣음
                             phantomConnector.clearPendingLogin()
+                            solflareConnector.clearPendingLogin()
                             Log.e("Spentopia", "Unknown wallet callback=$uri") // 개발자가 확인할 로그를 찍음
                             Toast.makeText(context, context.getString(R.string.wallet_login_state_lost), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                         }

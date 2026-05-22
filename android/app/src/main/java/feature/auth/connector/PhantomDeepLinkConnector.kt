@@ -76,6 +76,33 @@ class PhantomDeepLinkConnector( // PhantomDeepLinkConnector 기능을 묶어둔 
         return openPhantom(uri) // 이 값을 함수 결과로 돌려줌
     }
 
+    fun signAndSendTransaction(serializedTransaction: ByteArray): Boolean { // 결제 트랜잭션을 팬텀 앱에서 서명함
+        val currentSession = session ?: return false // currentSession 값을 저장함
+        val currentPhantomPublicKey = phantomEncryptionPublicKey ?: return false // currentPhantomPublicKey 값을 저장함
+        val payload = JSONObject() // payload 값을 저장함
+            .put("transaction", Base58.encode(serializedTransaction))
+            .put("session", currentSession)
+            .toString()
+        val nonce = newNonce() // 서명용 난수를 저장함
+        val encryptedPayload = TweetNaclFast.Box( // encryptedPayload 값을 저장함
+            currentPhantomPublicKey,
+            dappKeyPair.secretKey
+        ).box(payload.toByteArray(Charsets.UTF_8), nonce)
+
+        val uri = Uri.parse("https://phantom.app/ul/v1/signTransaction") // 팬텀 결제 서명 주소를 저장함
+            .buildUpon()
+            .appendQueryParameter(
+                "dapp_encryption_public_key",
+                Base58.encode(dappKeyPair.publicKey)
+            )
+            .appendQueryParameter("nonce", Base58.encode(nonce))
+            .appendQueryParameter("redirect_link", redirectLink)
+            .appendQueryParameter("payload", Base58.encode(encryptedPayload))
+            .build()
+
+        return openPhantom(uri) // 이 값을 함수 결과로 돌려줌
+    }
+
     private fun openPhantom(uri: Uri): Boolean { // openPhantom 함수를 선언함
         val phantomIntent = Intent(Intent.ACTION_VIEW, uri).apply { // phantomIntent 값을 저장함
             setPackage(phantomPackageName) // set Package 함수를 실행함
@@ -169,6 +196,18 @@ class PhantomDeepLinkConnector( // PhantomDeepLinkConnector 기능을 묶어둔 
             JSONObject(data).optString("signature").takeIf { it.isNotBlank() } // JSONObject 함수를 실행함
         } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
             Log.e(tag, "sign callback parse failed", e) // 개발자가 확인할 로그를 찍음
+            null
+        }
+    }
+
+    fun parseSignedTransactionCallback(uri: Uri): String? { // 팬텀 결제 서명 트랜잭션을 읽음
+        return try {
+            val currentPhantomPublicKey = phantomEncryptionPublicKey ?: return null
+            val data = decryptCallback(uri, currentPhantomPublicKey) ?: return null
+            Log.d(tag, "transaction callback decrypted=$data")
+            JSONObject(data).optString("transaction").takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+            Log.e(tag, "transaction callback parse failed", e)
             null
         }
     }

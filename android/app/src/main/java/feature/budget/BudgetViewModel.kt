@@ -44,6 +44,9 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
     private val _aiPlanError = MutableStateFlow("") // 화면에서 바뀔 오류 내용을 저장함
     val aiPlanError: StateFlow<String> = _aiPlanError.asStateFlow() // 화면에서 오류 내용을 읽을 수 있게 열어둠
 
+    private val _isPaymentRequired = MutableStateFlow(false) // AI 추천 결제가 필요한지 저장함
+    val isPaymentRequired: StateFlow<Boolean> = _isPaymentRequired.asStateFlow() // 화면에서 결제 팝업 표시 여부를 읽게 함
+
     private var currentBudgetId: String? = null // 나중에 바뀔 수 있는 예산 관련 값을 저장함
     private var lastAiPlanRequestSettings: BudgetSettingsData? = null // 나중에 바뀔 수 있는 마지막 AI 추천 요청값을 저장함
 
@@ -186,6 +189,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             // 그래야 서버가 최신 예산 기준으로 플랜을 계산할 수 있습니다.
             _isAiPlanLoading.value = true // 로딩 상태를 정해줌
             _aiPlanError.value = "" // 오류 내용을 정해줌
+            _isPaymentRequired.value = false // 이전 결제 팝업 상태를 지움
 
             try { // 오류가 날 수 있는 코드를 먼저 시도함
                 val budgetId = upsertBackendBudget(requestSettings) // 예산 관련 값을 저장함
@@ -210,11 +214,16 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
                     ""
                 }
             } catch (e: HttpException) { // 이 블록 안의 내용이 시작됨
-                _aiPlanError.value = when (e.code()) { // 오류 내용을 정해줌
-                    401 -> "로그인이 만료되었습니다. 다시 로그인해주세요."
-                    404 -> "예산 정보를 찾지 못했습니다. 설정 저장 후 다시 시도해주세요."
-                    500, 502 -> "AI 추천 플랜을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
-                    else -> "AI 추천 플랜 요청에 실패했습니다. (${e.code()})" // 위 조건이 아니면 이쪽을 실행함
+                if (e.code() == 402) {
+                    _isPaymentRequired.value = true
+                    _aiPlanError.value = ""
+                } else {
+                    _aiPlanError.value = when (e.code()) { // 오류 내용을 정해줌
+                        401 -> "로그인이 만료되었습니다. 다시 로그인해주세요."
+                        404 -> "예산 정보를 찾지 못했습니다. 설정 저장 후 다시 시도해주세요."
+                        500, 502 -> "AI 추천 플랜을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+                        else -> "AI 추천 플랜 요청에 실패했습니다. (${e.code()})" // 위 조건이 아니면 이쪽을 실행함
+                    }
                 }
             } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
                 _aiPlanError.value = "AI 추천 플랜 요청에 실패했습니다. 잠시 후 다시 시도해주세요." // 오류 내용을 정해줌
@@ -222,6 +231,14 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
                 _isAiPlanLoading.value = false // 로딩 상태를 정해줌
             }
         }
+    }
+
+    fun dismissPaymentDialog() { // 결제 팝업을 닫는 함수임
+        _isPaymentRequired.value = false
+    }
+
+    fun showMobilePaymentNotReadyMessage() { // 결제 버튼을 눌렀을 때 현재 상태를 알려줌
+        _aiPlanError.value = "모바일 결제 트랜잭션 생성 로직을 연결해야 합니다. 지갑은 연결되어 있으나 결제 전송은 아직 실행하지 않았습니다."
     }
 
     private fun syncCurrentMonthBudgetFromBackend() { // syncCurrentMonthBudgetFromBackend 함수를 선언함

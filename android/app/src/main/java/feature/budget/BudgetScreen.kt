@@ -77,11 +77,13 @@ import androidx.compose.ui.graphics.Brush // 그라데이션 색칠 도구를 �
 import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
 import androidx.compose.ui.graphics.vector.ImageVector // ImageVector 기능을 가져옴
 import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
+import androidx.compose.ui.text.style.TextAlign // TextAlign 기능을 가져옴
 import androidx.compose.ui.text.input.KeyboardType // KeyboardType 기능을 가져옴
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.window.Dialog // Dialog 기능을 가져옴
 import androidx.lifecycle.compose.collectAsStateWithLifecycle // ViewModel 상태를 화면에서 안전하게 받는 도구를 가져옴
 import androidx.lifecycle.viewmodel.compose.viewModel // Compose에서 ViewModel 연결하는 도구를 가져옴
+import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // Solana 지갑 종류를 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // SpentopiaDarkBackground 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple // SpentopiaGlowPurple 기능을 가져옴
 import com.ict.spentopia.ui.theme.spentopiaAppButtonColor
@@ -120,12 +122,169 @@ private fun budgetPrimaryButtonContentColor(): Color {
     return spentopiaAppButtonContentColor(isBudgetDarkTheme())
 }
 
+@Composable
+private fun BudgetPaymentRequiredDialog(
+    isWalletConnected: Boolean,
+    onDismiss: () -> Unit,
+    onConnectPhantomClick: () -> Unit,
+    onConnectSolflareClick: () -> Unit,
+    onPaymentClick: () -> Unit
+) {
+    val isDark = isBudgetDarkTheme()
+    val surfaceColor = if (isDark) Color(0xFF171A2B) else Color(0xFFFFFFFF)
+    val innerSurfaceColor = if (isDark) Color(0xFF101323) else Color(0xFFF7FBFF)
+    val borderColor = if (isDark) Color(0xFF6D5AA8) else Color(0xFF93C5FD)
+    val titleColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val bodyColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569)
+    val accentColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
+    val primaryButtonColor = budgetPrimaryButtonColor()
+    val primaryButtonContentColor = budgetPrimaryButtonContentColor()
+    val secondaryButtonColor = if (isDark) Color(0xFF25243A) else Color(0xFFEFF6FF)
+    val secondaryTextColor = if (isDark) Color(0xFFEDE9FE) else Color(0xFF1D4ED8)
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = surfaceColor),
+            border = BorderStroke(1.dp, borderColor)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isWalletConnected) "AI 추천 결제" else "지갑 연결 필요",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = titleColor
+                    )
+
+                    Text(
+                        text = "닫기",
+                        color = accentColor,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .background(innerSurfaceColor, RoundedCornerShape(10.dp))
+                            .clickable { onDismiss() }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(innerSurfaceColor, RoundedCornerShape(18.dp))
+                        .border(1.dp, borderColor, RoundedCornerShape(18.dp))
+                        .padding(18.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (isWalletConnected) "결제 승인" else "지갑 연결",
+                            fontSize = MaterialTheme.typography.labelLarge.fontSize,
+                            fontWeight = FontWeight.Bold,
+                            color = accentColor
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = if (isWalletConnected) {
+                                "추가 분석을 하기 위해서는 결제가 필요합니다. 결제를 진행해주세요."
+                            } else {
+                                "추가 분석을 하기 위해서는 결제가 필요합니다. 먼저 지갑을 연결해주세요."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = bodyColor,
+                            textAlign = TextAlign.Center,
+                            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (isWalletConnected) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = onDismiss,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = secondaryButtonColor,
+                                contentColor = secondaryTextColor
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("결제 취소", fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = onPaymentClick,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = primaryButtonColor,
+                                contentColor = primaryButtonContentColor
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("결제하기", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = onConnectPhantomClick,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = primaryButtonColor,
+                                contentColor = primaryButtonContentColor
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Phantom 지갑 연결", fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = onConnectSolflareClick,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = secondaryButtonColor,
+                                contentColor = secondaryTextColor
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Solflare 지갑 연결", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // 예산 설정 화면임
 // AI 추천 플랜/직접 조절/저장 흐름
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 fun BudgetScreen( // BudgetScreen 함수를 선언함
     // ViewModel을 연결해서 화면 상태를 가져옴
-    viewModel: BudgetViewModel = viewModel() // 화면 데이터 관리자를 받음
+    viewModel: BudgetViewModel = viewModel(), // 화면 데이터 관리자를 받음
+    isWalletConnected: Boolean = false, // 지갑 연결 여부를 받음
+    onWalletConnectClick: (SolanaWalletType) -> Unit = {} // 지갑 연결 요청을 받음
 ) { // 이 블록 안의 내용이 시작됨
     // 세로 스크롤 상태 저장
     val scrollState = rememberScrollState() // 화면이 다시 그려져도 scrollState 값을 기억함
@@ -146,6 +305,8 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
     val isAiPlanLoading by viewModel.isAiPlanLoading.collectAsStateWithLifecycle() // 로딩 상태를 저장함
 
     val aiPlanError by viewModel.aiPlanError.collectAsStateWithLifecycle() // 오류 내용을 저장함
+
+    val isPaymentRequired by viewModel.isPaymentRequired.collectAsStateWithLifecycle() // 결제 팝업 표시 여부를 저장함
 
     val currentCalendar = remember { Calendar.getInstance() } // 화면이 다시 그려져도 currentCalendar 값을 기억함
     val currentYear = remember { currentCalendar.get(Calendar.YEAR) } // 화면이 다시 그려져도 currentYear 값을 기억함
@@ -184,6 +345,19 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
             snackbarHostState.showSnackbar(saveError)
             viewModel.resetSaveError()
         }
+    }
+
+    if (isPaymentRequired) {
+        BudgetPaymentRequiredDialog(
+            isWalletConnected = isWalletConnected,
+            onDismiss = { viewModel.dismissPaymentDialog() },
+            onConnectPhantomClick = { onWalletConnectClick(SolanaWalletType.PHANTOM) },
+            onConnectSolflareClick = { onWalletConnectClick(SolanaWalletType.SOLFLARE) },
+            onPaymentClick = {
+                viewModel.showMobilePaymentNotReadyMessage()
+                viewModel.dismissPaymentDialog()
+            }
+        )
     }
 
     // 화면 전체 배경

@@ -23,6 +23,7 @@ import okhttp3.OkHttpClient // 네트워크 요청 도구를 가져옴
 import okhttp3.Interceptor // Interceptor 기능을 가져옴
 import okhttp3.Response // Response 기능을 가져옴
 import okio.Buffer // Buffer 기능을 가져옴
+import java.util.concurrent.TimeUnit // 네트워크 timeout 시간 단위를 가져옴
 
 // Retrofit 가져옴
 // -> API 호출을 쉽게 만들어주는 라이브러리
@@ -110,6 +111,9 @@ object RetrofitClient { // RetrofitClient를 앱에서 하나만 쓰게 만듦
         }
 
         OkHttpClient.Builder() // 서버 통신 도구를 설정함
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
 
             // AuthInterceptor 추가
             // -> 저장된 access_token이 있으면 Authorization: Bearer 토큰 형식으로 자동 추가함

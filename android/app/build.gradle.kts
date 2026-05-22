@@ -216,6 +216,8 @@ dependencies { // 이 블록 안의 내용이 시작됨
     // Solana / Wallet 연동
     // =========================
     implementation("com.solanamobile:mobile-wallet-adapter-clientlib-ktx:2.0.3") // implementation 함수를 실행함
+    implementation("com.solanamobile:web3-solana:0.2.5") // Solana 트랜잭션 생성 도구를 가져옴
+    implementation("io.github.funkatronics:multimult:0.2.3") // Base58 인코딩 도구를 가져옴
     implementation("org.purejava:tweetnacl-java:1.1.3") // implementation 함수를 실행함
 
     // =========================

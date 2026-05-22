@@ -28,7 +28,8 @@ class MwaBackpackConnector : SolanaWalletConnector { // MwaBackpackConnector 기
                     WalletConnectionResult.Failure("지갑 계정을 찾을 수 없습니다.")
                 } else { // 이 블록 안의 내용이 시작됨
                     WalletConnectionResult.Success(
-                        walletAddress = Base58.encode(account.publicKey) // 지갑 주소를 정해줌
+                        walletAddress = Base58.encode(account.publicKey), // 지갑 주소를 정해줌
+                        authToken = walletAdapter.authToken // 같은 지갑 앱 세션을 다시 쓰기 위한 토큰을 넘김
                     )
                 }
             }

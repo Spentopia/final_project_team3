@@ -1002,6 +1002,15 @@ private fun CalendarCard( // CalendarCard 함수 선언 시작
     val calendarDates = generateCalendarDates(currentYear, currentMonth) // calendarDates 값을 계산해서 저장함
     val rows = calendarDates.chunked(7) // 7개씩 끊어서 한 주 단위로 나눔
     val cellWidth = 40.dp // cellWidth 값을 계산해서 저장함
+    val isDark = isHomeDarkTheme()
+    val monthTitleColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val weekdayColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF64748B)
+    val dateTextColor = if (isDark) Color(0xFFE5E7EB) else Color(0xFF1F2A37)
+    val outsideMonthDateColor = if (isDark) Color(0xFF64748B) else Color(0xFF9AA4B2)
+    val todayDateColor = if (isDark) Color(0xFFC4B5FD) else SpentopiaMutedPurple
+    val selectedDateBackgroundColor = if (isDark) Color(0xFF7C3AED) else SpentopiaMutedPurple
+    val selectedDateTextColor = Color.White
+    val expenseDotColor = if (isDark) Color(0xFFA78BFA) else SpentopiaMutedPurple
 
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
@@ -1026,7 +1035,7 @@ private fun CalendarCard( // CalendarCard 함수 선언 시작
                     text = "${currentMonth}월 ${currentYear}", // 화면에 보여줄 글자를 정함
                     fontSize = 18.sp, // 글자 크기를 정함
                     fontWeight = FontWeight.Medium, // 글자 두께를 정함
-                    color = MaterialTheme.colorScheme.onSurface // 색상을 정함
+                    color = monthTitleColor // 색상을 정함
                 )
 
                 CalendarArrowButton( // 눌렀을 때 동작하는 버튼을 만듦
@@ -1049,7 +1058,7 @@ private fun CalendarCard( // CalendarCard 함수 선언 시작
                         Text( // 글자를 화면에 보여주기 시작함
                             text = day, // 화면에 보여줄 글자를 정함
                             fontSize = 13.sp, // 글자 크기를 정함
-                            color = MaterialTheme.colorScheme.onSurfaceVariant // 색상을 정함
+                            color = weekdayColor // 색상을 정함
                         )
                     } // 블록 끝
                 } // 블록 끝
@@ -1087,14 +1096,14 @@ private fun CalendarCard( // CalendarCard 함수 선언 시작
                                         modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                                             .size(30.dp) // 가로세로 크기를 한 번에 정함
                                             .background( // 배경색이나 그라데이션을 넣음
-                                                color = MaterialTheme.colorScheme.onBackground, // 색상을 정함
+                                                color = selectedDateBackgroundColor, // 색상을 정함
                                                 shape = RoundedCornerShape(8.dp) // 모서리 모양을 정함
                                             ),
                                         contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
                                     ) { // 이 블록 안의 내용이 시작됨
                                         Text( // 글자를 화면에 보여주기 시작함
                                             text = dateItem.dayText, // 화면에 보여줄 글자를 정함
-                                            color = Color.White, // 색상을 정함
+                                            color = selectedDateTextColor, // 색상을 정함
                                             fontSize = 13.sp, // 글자 크기를 정함
                                             fontWeight = FontWeight.Medium // 글자 두께를 정함
                                         )
@@ -1103,9 +1112,9 @@ private fun CalendarCard( // CalendarCard 함수 선언 시작
                                     Text( // 글자를 화면에 보여주기 시작함
                                         text = dateItem.dayText, // 화면에 보여줄 글자를 정함
                                         color = when { // 색상을 정함
-                                            !dateItem.isCurrentMonth -> Color(0xFF9AA4B2) // 바로 앞 설정을 이어서 적음
-                                            isToday -> SpentopiaMutedPurple // 바로 앞 설정을 이어서 적음
-                                            else -> Color(0xFF1F2A37) // color 값을 이 함수로 넘김
+                                            !dateItem.isCurrentMonth -> outsideMonthDateColor // 바로 앞 설정을 이어서 적음
+                                            isToday -> todayDateColor // 바로 앞 설정을 이어서 적음
+                                            else -> dateTextColor // color 값을 이 함수로 넘김
                                         },
                                         fontSize = 14.sp, // 글자 크기를 정함
                                         fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal // 글자 두께를 정함
@@ -1119,7 +1128,7 @@ private fun CalendarCard( // CalendarCard 함수 선언 시작
                                         modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                                             .size(4.dp) // 가로세로 크기를 한 번에 정함
                                             .background( // 배경색이나 그라데이션을 넣음
-                                                color = if (isSelected) Color.White else SpentopiaMutedPurple, // 색상을 정함
+                                                color = if (isSelected) selectedDateTextColor else expenseDotColor, // 색상을 정함
                                                 shape = CircleShape // 모서리 모양을 정함
                                             )
                                     )
@@ -1292,8 +1301,9 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
     val itemBorderColor = homeSoftCardBorderColor() // 소비 항목 카드 테두리색을 맞춤
     val expenseAmountColor = if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C) // 지출 금액 색을 모드별로 분리함
     val incomeAmountColor = if (isDark) Color(0xFF86EFAC) else Color(0xFF15803D) // 수입 금액 색을 모드별로 분리함
-    val deleteIconColor = if (isDark) Color(0xFFFCA5A5) else Color(0xFFDC2626)
-    val deleteIconSurface = if (isDark) Color(0xFF3A1D22) else Color(0xFFFFE3E3)
+    val deleteIconColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF6D5BD0)
+    val deleteIconSurface = if (isDark) Color(0xFF29233A) else Color(0xFFF3F0FF)
+    val deleteIconBorderColor = if (isDark) Color(0xFF7C3AED) else Color(0xFFC4B5FD)
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(18.dp), // 모서리 모양을 정함
@@ -1398,7 +1408,7 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
                         modifier = Modifier
                             .size(34.dp)
                             .background(deleteIconSurface, RoundedCornerShape(12.dp))
-                            .border(1.dp, deleteIconColor.copy(alpha = 0.28f), RoundedCornerShape(12.dp))
+                            .border(1.dp, deleteIconBorderColor.copy(alpha = 0.42f), RoundedCornerShape(12.dp))
                             .clickable { onDeleteClick() },
                         contentAlignment = Alignment.Center
                     ) {

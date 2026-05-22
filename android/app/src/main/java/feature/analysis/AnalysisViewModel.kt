@@ -1,6 +1,9 @@
 package com.ict.spentopia.feature.analysis // 이 파일이 속한 패키지 위치를 적음
 
 import android.app.Application // 앱 전체 정보 타입을 가져옴
+import android.content.Context // 현재 화면 정보 타입을 가져옴
+import android.net.Uri // 딥링크 주소 타입을 가져옴
+import android.util.Log // 로그 찍는 기능을 가져옴
 import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
 import androidx.lifecycle.AndroidViewModel // AndroidViewModel 기능을 가져옴
 import androidx.lifecycle.viewModelScope // viewModelScope 기능을 가져옴
@@ -13,8 +16,15 @@ import com.ict.spentopia.data.remote.AnalyzeTransactionRequest // AnalyzeTransac
 import com.ict.spentopia.data.remote.AnalyzeWeeklyDataRequest // AnalyzeWeeklyDataRequest 기능을 가져옴
 import com.ict.spentopia.data.remote.GenerateReportRequest // 백엔드 AI 리포트 요청 DTO를 가져옴
 import com.ict.spentopia.data.remote.RetrofitClient // RetrofitClient 기능을 가져옴
+import com.ict.spentopia.data.remote.Solana402Body // X402 결제 필요 응답을 가져옴
 import com.ict.spentopia.data.repository.ExpenseRepository // ExpenseRepository 기능을 가져옴
+import com.ict.spentopia.feature.analysis.payment.SolanaX402PaymentSender // Solana X402 결제 도구를 가져옴
+import com.ict.spentopia.feature.auth.connector.PhantomDeepLinkConnector // Phantom 딥링크 도구를 가져옴
+import com.ict.spentopia.feature.auth.connector.SolflareDeepLinkConnector // Solflare 딥링크 도구를 가져옴
 import com.ict.spentopia.feature.budget.BudgetDataStore // BudgetDataStore 기능을 가져옴
+import com.google.gson.Gson // JSON 변환 도구를 가져옴
+import org.bitcoinj.core.Base58 // Base58 변환 도구를 가져옴
+import com.solana.mobilewalletadapter.clientlib.ActivityResultSender // 지갑 앱 호출 도구를 가져옴
 import kotlinx.coroutines.flow.MutableStateFlow // 바뀌는 상태값 도구를 가져옴
 import kotlinx.coroutines.flow.StateFlow // 읽기 전용 상태값 도구를 가져옴
 import kotlinx.coroutines.flow.asStateFlow // asStateFlow 기능을 가져옴
@@ -128,6 +138,12 @@ data class AnalysisUiState( // AnalysisUiState 데이터를 묶어둘 클래스 
     // AI 리포트 실패 메시지입니다.
     val aiAnalysisError: String = "", // 오류 내용을 저장함
 
+    val paymentRequiredBody: Solana402Body? = null, // 결제가 필요한 경우 백엔드 X402 응답을 저장함
+
+    val isPaymentRequired: Boolean = false, // 402 응답이 오면 결제 팝업 표시 여부를 저장함
+
+    val isPaymentLoading: Boolean = false, // 결제 진행 중인지 저장함
+
     // 시간대별 소비 패턴 데이터
     val timePatternList: List<PatternProgressUiModel> = emptyList(), // timePatternList 값을 저장함
 
@@ -159,6 +175,9 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
     // BudgetDataStore 생성
     // 예산 사용률 계산용
     private val budgetDataStore = BudgetDataStore(application) // 예산 관련 값을 저장함
+    private val gson = Gson() // JSON 파싱 도구를 저장함
+    private val paymentSender = SolanaX402PaymentSender() // 결제 전송 도구를 저장함
+    private val paymentPrefs = application.getSharedPreferences(PAYMENT_PREFS_NAME, Context.MODE_PRIVATE) // 결제 pending 상태 저장소를 가져옴
 
     // 내부 수정 상태
     // UI는 구독만 함
@@ -169,6 +188,8 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
 
     private var latestExpenseOnlyList: List<ExpenseEntity> = emptyList() // 나중에 바뀔 수 있는 소비 내역 값을 저장함
     private var latestMonthlyBudget: Long = 0L // 나중에 바뀔 수 있는 예산 관련 값을 저장함
+    private var pendingPaymentWalletAddress: String = "" // 결제 콜백 검증용 지갑 주소를 저장함
+    private var pendingPaymentNetwork: String = "" // 결제 콜백 검증용 네트워크를 저장함
 
     init { // 이 블록 안의 내용이 시작됨
         observeAnalysisData() // observe Analysis Data 함수를 실행함
@@ -176,8 +197,16 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
 
     // 주간 / 월간 선택 변경 함수입니다.
     fun selectPeriod(period: String) { // selectPeriod 함수를 선언함
+        if (_uiState.value.selectedPeriod == period) return
+        clearPendingPayment()
         _uiState.value = _uiState.value.copy( // uiState.value 값을 정해줌
-            selectedPeriod = period // period 값을 selectedPeriod 값에 넣음
+            selectedPeriod = period, // period 값을 selectedPeriod 값에 넣음
+            aiAnalysisText = "",
+            aiConsumptionReport = null,
+            aiAnalysisError = "",
+            paymentRequiredBody = null,
+            isPaymentRequired = false,
+            isPaymentLoading = false
         )
     }
 
@@ -209,45 +238,358 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
             _uiState.value = _uiState.value.copy( // uiState.value 값을 정해줌
                 isAiAnalysisLoading = true, // true 값을 로딩 상태에 넣음
-                aiAnalysisError = "" // 오류 내용을 정해줌
+                aiAnalysisError = "", // 오류 내용을 정해줌
+                paymentRequiredBody = null, // 이전 결제 팝업 상태를 지움
+                isPaymentRequired = false
             )
 
             try { // 오류가 날 수 있는 코드를 먼저 시도함
-                val report = RetrofitClient.reportApi.generateReport( // 백엔드 /api/reports를 호출해서 무료 횟수 제한까지 같이 적용함
-                    buildGenerateReportRequest(_uiState.value) // build Generate Report Request 함수를 실행함
-                )
+                val report = generateReportWithOptionalPaymentHeader(null)
 
-                val uiReport = AiConsumptionReportUiModel( // uiReport 값을 저장함
-                    good = report.good, // good 값을 정해줌
-                    warning = report.warning, // warning 값을 정해줌
-                    advice = report.advice, // advice 값을 정해줌
-                    prediction = report.prediction, // prediction 값을 정해줌
-                    pattern = report.pattern.orEmpty(), // pattern 값을 정해줌
-                    improvement = report.improvement.orEmpty() // improvement 값을 정해줌
-                )
-
-                _uiState.value = _uiState.value.copy( // uiState.value 값을 정해줌
-                    aiAnalysisText = uiReport.toReportText(), // 화면에 글자를 보여줌
-                    aiConsumptionReport = uiReport, // uiReport 값을 aiConsumptionReport 값에 넣음
-                    isAiAnalysisLoading = false, // false 값을 로딩 상태에 넣음
-                    aiAnalysisError = "" // 오류 내용을 정해줌
-                )
+                applyReportResult(report)
             } catch (e: HttpException) { // 이 블록 안의 내용이 시작됨
-                _uiState.value = _uiState.value.copy( // uiState.value 값을 정해줌
-                    isAiAnalysisLoading = false, // false 값을 로딩 상태에 넣음
-                    aiAnalysisError = when (e.code()) { // 오류 내용을 정해줌
-                        401 -> "로그인이 만료되었습니다. 다시 로그인해주세요."
-                        402 -> "무료 AI 분석 횟수를 모두 사용했습니다. 결제가 필요한 상태입니다."
-                        500, 502 -> "AI 분석 서버 응답을 불러오지 못했습니다."
-                        else -> "AI 분석 요청에 실패했습니다. (${e.code()})" // 위 조건이 아니면 이쪽을 실행함
-                    }
-                )
+                handleReportHttpException(e)
             } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
                 _uiState.value = _uiState.value.copy( // uiState.value 값을 정해줌
                     isAiAnalysisLoading = false, // false 값을 로딩 상태에 넣음
                     aiAnalysisError = "AI 분석 요청에 실패했습니다. 잠시 후 다시 시도해주세요." // 오류 내용을 정해줌
                 )
             }
+        }
+    }
+
+    fun dismissPaymentDialog() { // 결제 팝업을 닫는 함수임
+        clearPendingPayment()
+        _uiState.value = _uiState.value.copy(
+            paymentRequiredBody = null,
+            isPaymentRequired = false,
+            isPaymentLoading = false
+        )
+    }
+
+    fun payForAiAnalysis(
+        context: Context,
+        walletActivityResultSender: ActivityResultSender,
+        walletProvider: String,
+        walletAddress: String,
+        walletAuthToken: String = ""
+    ) { // 결제 후 AI 분석을 다시 요청하는 함수임
+        val paymentBody = _uiState.value.paymentRequiredBody
+        if (paymentBody == null) {
+            _uiState.value = _uiState.value.copy(aiAnalysisError = "결제 정보를 불러오지 못했습니다. 다시 분석을 요청해주세요.")
+            return
+        }
+        if (_uiState.value.isPaymentLoading) return
+        if (walletAddress.isBlank()) {
+            _uiState.value = _uiState.value.copy(aiAnalysisError = "결제를 진행하려면 지갑을 먼저 연결해주세요.")
+            return
+        }
+
+        viewModelScope.launch {
+            clearPendingPayment()
+            _uiState.value = _uiState.value.copy(
+                isPaymentLoading = true,
+                aiAnalysisError = ""
+            )
+
+            if (walletProvider.equals("PHANTOM", ignoreCase = true) ||
+                walletProvider.equals("SOLFLARE", ignoreCase = true)
+            ) {
+                val preparedPayment = paymentSender.preparePaymentTransaction(
+                    walletAddress = walletAddress,
+                    body = paymentBody
+                ).getOrElse { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isPaymentLoading = false,
+                        aiAnalysisError = error.message ?: "결제 트랜잭션을 만들지 못했습니다."
+                    )
+                    return@launch
+                }
+
+                savePendingPayment(walletAddress, preparedPayment.network)
+                val opened = if (walletProvider.equals("SOLFLARE", ignoreCase = true)) {
+                    SolflareDeepLinkConnector(context).signTransaction(preparedPayment.serializedTransaction)
+                } else {
+                    PhantomDeepLinkConnector(context).signAndSendTransaction(preparedPayment.serializedTransaction)
+                }
+
+                if (!opened) {
+                    clearPendingPayment()
+                    _uiState.value = _uiState.value.copy(
+                        isPaymentLoading = false,
+                        aiAnalysisError = "${walletProvider} 지갑 앱을 찾을 수 없습니다."
+                    )
+                }
+                return@launch
+            }
+
+            val paymentResult = paymentSender.sendPayment(
+                walletActivityResultSender = walletActivityResultSender,
+                walletProvider = walletProvider,
+                walletAddress = walletAddress,
+                walletAuthToken = walletAuthToken,
+                body = paymentBody
+            )
+
+            val completedPayment = paymentResult.getOrElse { error ->
+                _uiState.value = _uiState.value.copy(
+                    isPaymentLoading = false,
+                    aiAnalysisError = error.message ?: "결제를 완료하지 못했습니다."
+                )
+                return@launch
+            }
+
+            try {
+                paymentSender.waitForSignatureConfirmed(
+                    network = completedPayment.network,
+                    signature = completedPayment.signature
+                )
+                val report = generateReportWithOptionalPaymentHeader(completedPayment.paymentHeader)
+                applyReportResult(report)
+            } catch (e: HttpException) {
+                _uiState.value = _uiState.value.copy(isPaymentLoading = false)
+                handleReportHttpException(e)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isPaymentLoading = false,
+                    aiAnalysisError = "결제 확인 후 분석 결과를 불러오지 못했습니다."
+                )
+            }
+        }
+    }
+
+    fun handleWalletPaymentCallback(
+        context: Context,
+        walletProvider: String,
+        callbackUri: Uri
+    ): Boolean { // 팬텀/솔플레어 결제 콜백을 처리함
+        Log.d("SpentopiaPayment", "handle callback provider=$walletProvider uri=$callbackUri")
+        restorePendingPaymentIfNeeded()
+        if (pendingPaymentWalletAddress.isBlank() || pendingPaymentNetwork.isBlank()) {
+            Log.e("SpentopiaPayment", "pending payment missing")
+            return false
+        }
+        if (!_uiState.value.isPaymentLoading) {
+            _uiState.value = _uiState.value.copy(isPaymentLoading = true)
+        }
+
+        val signature = when {
+            walletProvider.equals("SOLFLARE", ignoreCase = true) -> {
+                val connector = SolflareDeepLinkConnector(context)
+                if (connector.isErrorCallback(callbackUri)) {
+                    Log.e("SpentopiaPayment", "solflare callback error=${connector.parseErrorCallback(callbackUri)}")
+                    _uiState.value = _uiState.value.copy(
+                        isPaymentLoading = false,
+                        aiAnalysisError = connector.parseErrorCallback(callbackUri)
+                    )
+                    clearPendingPayment()
+                    return true
+                }
+                if (!connector.isSignCallback(callbackUri)) return false
+                val signedTransaction = connector.parseSignedTransactionCallback(callbackUri)
+                if (!signedTransaction.isNullOrBlank()) {
+                    Log.d("SpentopiaPayment", "solflare signed transaction callback received")
+                    viewModelScope.launch {
+                        try {
+                            val txSignature = paymentSender.sendSignedTransaction(
+                                network = pendingPaymentNetwork,
+                                signedTransaction = Base58.decode(signedTransaction)
+                            )
+                            Log.d("SpentopiaPayment", "solflare signed transaction sent signature=$txSignature")
+                            completePaidAnalysis(txSignature)
+                        } catch (e: Exception) {
+                            Log.e("SpentopiaPayment", "send signed transaction failed", e)
+                            clearPendingPayment()
+                            _uiState.value = _uiState.value.copy(
+                                isPaymentLoading = false,
+                                aiAnalysisError = e.message ?: "결제 트랜잭션을 전송하지 못했습니다."
+                            )
+                        }
+                    }
+                    return true
+                }
+                Log.e("SpentopiaPayment", "solflare callback did not contain signed transaction")
+                connector.parseSignCallback(callbackUri)
+            }
+
+            walletProvider.equals("PHANTOM", ignoreCase = true) -> {
+                val connector = PhantomDeepLinkConnector(context)
+                if (connector.isErrorCallback(callbackUri)) {
+                    Log.e("SpentopiaPayment", "phantom callback error=${connector.parseErrorCallback(callbackUri)}")
+                    _uiState.value = _uiState.value.copy(
+                        isPaymentLoading = false,
+                        aiAnalysisError = connector.parseErrorCallback(callbackUri)
+                    )
+                    clearPendingPayment()
+                    return true
+                }
+                if (!connector.isSignCallback(callbackUri)) {
+                    Log.e("SpentopiaPayment", "phantom callback is not sign callback")
+                    return false
+                }
+                val signedTransaction = connector.parseSignedTransactionCallback(callbackUri)
+                if (!signedTransaction.isNullOrBlank()) {
+                    Log.d("SpentopiaPayment", "phantom signed transaction callback received")
+                    viewModelScope.launch {
+                        try {
+                            val txSignature = paymentSender.sendSignedTransaction(
+                                network = pendingPaymentNetwork,
+                                signedTransaction = Base58.decode(signedTransaction)
+                            )
+                            Log.d("SpentopiaPayment", "phantom signed transaction sent signature=$txSignature")
+                            completePaidAnalysis(txSignature)
+                        } catch (e: Exception) {
+                            Log.e("SpentopiaPayment", "send signed transaction failed", e)
+                            clearPendingPayment()
+                            _uiState.value = _uiState.value.copy(
+                                isPaymentLoading = false,
+                                aiAnalysisError = e.message ?: "결제 트랜잭션을 전송하지 못했습니다."
+                            )
+                        }
+                    }
+                    return true
+                }
+                Log.e("SpentopiaPayment", "phantom callback did not contain signed transaction")
+                connector.parseSignCallback(callbackUri)
+            }
+
+            else -> return false
+        }
+
+        if (signature.isNullOrBlank()) {
+            Log.e("SpentopiaPayment", "payment signature empty")
+            _uiState.value = _uiState.value.copy(
+                isPaymentLoading = false,
+                aiAnalysisError = "결제 서명 결과가 비어 있습니다."
+            )
+            clearPendingPayment()
+            return true
+        }
+
+        completePaidAnalysis(signature)
+
+        return true
+    }
+
+    private fun completePaidAnalysis(signature: String) {
+        Log.d("SpentopiaPayment", "complete paid analysis signature=$signature network=$pendingPaymentNetwork")
+        val paymentHeader = paymentSender.buildPaymentHeader(
+            signature = signature,
+            buyerAddress = pendingPaymentWalletAddress,
+            network = pendingPaymentNetwork
+        )
+
+        viewModelScope.launch {
+            try {
+                paymentSender.waitForSignatureConfirmed(
+                    network = pendingPaymentNetwork,
+                    signature = signature
+                )
+                Log.d("SpentopiaPayment", "payment signature confirmed")
+                val report = generateReportWithOptionalPaymentHeader(paymentHeader)
+                clearPendingPayment()
+                applyReportResult(report)
+            } catch (e: HttpException) {
+                Log.e("SpentopiaPayment", "paid report request http failed code=${e.code()}", e)
+                clearPendingPayment()
+                _uiState.value = _uiState.value.copy(isPaymentLoading = false)
+                handleReportHttpException(e)
+            } catch (e: Exception) {
+                Log.e("SpentopiaPayment", "paid report request failed", e)
+                clearPendingPayment()
+                _uiState.value = _uiState.value.copy(
+                    isPaymentLoading = false,
+                    aiAnalysisError = "결제 확인 후 분석 결과를 불러오지 못했습니다."
+                )
+            }
+        }
+    }
+
+    private fun clearPendingPayment() {
+        pendingPaymentWalletAddress = ""
+        pendingPaymentNetwork = ""
+        paymentPrefs.edit()
+            .remove(KEY_PENDING_PAYMENT_WALLET_ADDRESS)
+            .remove(KEY_PENDING_PAYMENT_NETWORK)
+            .apply()
+    }
+
+    private fun savePendingPayment(walletAddress: String, network: String) {
+        pendingPaymentWalletAddress = walletAddress
+        pendingPaymentNetwork = network
+        paymentPrefs.edit()
+            .putString(KEY_PENDING_PAYMENT_WALLET_ADDRESS, walletAddress)
+            .putString(KEY_PENDING_PAYMENT_NETWORK, network)
+            .apply()
+    }
+
+    private fun restorePendingPaymentIfNeeded() {
+        if (pendingPaymentWalletAddress.isNotBlank() && pendingPaymentNetwork.isNotBlank()) return
+        pendingPaymentWalletAddress = paymentPrefs.getString(KEY_PENDING_PAYMENT_WALLET_ADDRESS, "").orEmpty()
+        pendingPaymentNetwork = paymentPrefs.getString(KEY_PENDING_PAYMENT_NETWORK, "").orEmpty()
+    }
+
+    private companion object {
+        const val PAYMENT_PREFS_NAME = "analysis_payment_prefs"
+        const val KEY_PENDING_PAYMENT_WALLET_ADDRESS = "pending_payment_wallet_address"
+        const val KEY_PENDING_PAYMENT_NETWORK = "pending_payment_network"
+    }
+
+    private suspend fun generateReportWithOptionalPaymentHeader(xPayment: String?) =
+        RetrofitClient.reportApi.generateReport(
+            request = buildGenerateReportRequest(_uiState.value),
+            xPayment = xPayment
+        )
+
+    private fun applyReportResult(report: com.ict.spentopia.data.remote.AnalyzeReportResponse) {
+        val uiReport = AiConsumptionReportUiModel( // uiReport 값을 저장함
+            good = report.good, // good 값을 정해줌
+            warning = report.warning, // warning 값을 정해줌
+            advice = report.advice, // advice 값을 정해줌
+            prediction = report.prediction, // prediction 값을 정해줌
+            pattern = report.pattern.orEmpty(), // pattern 값을 정해줌
+            improvement = report.improvement.orEmpty() // improvement 값을 정해줌
+        )
+
+        _uiState.value = _uiState.value.copy( // uiState.value 값을 정해줌
+            aiAnalysisText = uiReport.toReportText(), // 화면에 글자를 보여줌
+            aiConsumptionReport = uiReport, // uiReport 값을 aiConsumptionReport 값에 넣음
+            isAiAnalysisLoading = false, // false 값을 로딩 상태에 넣음
+            aiAnalysisError = "", // 오류 내용을 정해줌
+            paymentRequiredBody = null,
+            isPaymentRequired = false,
+            isPaymentLoading = false
+        )
+    }
+
+    private fun handleReportHttpException(e: HttpException) {
+        if (e.code() == 402) {
+            val paymentBody = parsePaymentRequiredBody(e)
+            _uiState.value = _uiState.value.copy(
+                isAiAnalysisLoading = false,
+                paymentRequiredBody = paymentBody,
+                isPaymentRequired = true,
+                aiAnalysisError = ""
+            )
+            return
+        }
+
+        _uiState.value = _uiState.value.copy( // uiState.value 값을 정해줌
+            isAiAnalysisLoading = false, // false 값을 로딩 상태에 넣음
+            aiAnalysisError = when (e.code()) { // 오류 내용을 정해줌
+                401 -> "로그인이 만료되었습니다. 다시 로그인해주세요."
+                500, 502 -> "AI 분석 서버 응답을 불러오지 못했습니다."
+                else -> "AI 분석 요청에 실패했습니다. (${e.code()})" // 위 조건이 아니면 이쪽을 실행함
+            }
+        )
+    }
+
+    private fun parsePaymentRequiredBody(e: HttpException): Solana402Body? {
+        return try {
+            val bodyText = e.response()?.errorBody()?.string().orEmpty()
+            if (bodyText.isBlank()) null else gson.fromJson(bodyText, Solana402Body::class.java)
+        } catch (_: Exception) {
+            null
         }
     }
 
@@ -371,6 +713,9 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
                     aiConsumptionReport = _uiState.value.aiConsumptionReport, // aiConsumptionReport 값을 정해줌
                     isAiAnalysisLoading = _uiState.value.isAiAnalysisLoading, // 로딩 상태를 정해줌
                     aiAnalysisError = _uiState.value.aiAnalysisError, // 오류 내용을 정해줌
+                    paymentRequiredBody = _uiState.value.paymentRequiredBody, // 결제 필요 값을 유지함
+                    isPaymentRequired = _uiState.value.isPaymentRequired, // 결제 팝업 표시 여부를 유지함
+                    isPaymentLoading = _uiState.value.isPaymentLoading, // 결제 로딩 값을 유지함
                     timePatternList = timePatternList, // timePatternList 값을 timePatternList 값에 넣음
                     weekdayAverageText = weekdayAverageText, // weekdayAverageText 값을 weekdayAverageText 값에 넣음
                     weekendAverageText = weekendAverageText, // weekendAverageText 값을 weekendAverageText 값에 넣음
@@ -488,7 +833,7 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
     private fun buildGenerateReportRequest(state: AnalysisUiState): GenerateReportRequest { // buildGenerateReportRequest 함수를 선언함
         val aiRequest = buildAnalyzeReportRequest(state) // 기존 AI 서버용 요청 값을 재사용해서 백엔드 요청으로 바꿈
         return GenerateReportRequest( // 이 값을 함수 결과로 돌려줌
-            analysis_kind = aiRequest.analysisKind, // report 분석으로 요청함
+            analysis_kind = "pattern", // 주간/월간 소비 패턴 분석 결제 기준과 맞춤
             report_type = aiRequest.reportType, // weekly 또는 monthly 값을 보냄
             start_date = aiRequest.startDate, // 시작일을 보냄
             end_date = aiRequest.endDate, // 종료일을 보냄

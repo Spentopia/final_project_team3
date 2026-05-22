@@ -16,6 +16,7 @@ class WalletLoginCoordinator( // WalletLoginCoordinator 기능을 묶어둔 클�
 
     // 1. 마지막으로 연결된 지갑 주소를 저장할 변수 추가
     private var lastWalletAddress: String? = null // 나중에 바뀔 수 있는 지갑 관련 값을 저장함
+    private var lastWalletAuthToken: String? = null // 마지막 MWA 지갑 세션 토큰을 저장함
 
     private val phantomConnector: SolanaWalletConnector = MwaPhantomConnector() // phantomConnector 값을 저장함
     private val solflareConnector: SolanaWalletConnector = MwaSolflareConnector() // solflareConnector 값을 저장함
@@ -23,6 +24,7 @@ class WalletLoginCoordinator( // WalletLoginCoordinator 기능을 묶어둔 클�
 
     // 2. 외부에서 주소를 가져올 수 있는 getter 함수 추가
     fun getLastWalletAddress(): String? = lastWalletAddress // 데이터를 불러오는 함수 시작
+    fun getLastWalletAuthToken(): String? = lastWalletAuthToken // 데이터를 불러오는 함수 시작
 
     suspend fun loginWithWallet( // 로그인 기능을 실행하는 함수 시작
         walletType: SolanaWalletType, // 지갑 관련 값을 받음
@@ -42,6 +44,7 @@ class WalletLoginCoordinator( // WalletLoginCoordinator 기능을 묶어둔 클�
             is WalletConnectionResult.Success -> { // 이 블록 안의 내용이 시작됨
                 // 3. connect 성공 시점에 walletAddress 저장
                 lastWalletAddress = connectResult.walletAddress // 지갑 관련 값을 정해줌
+                lastWalletAuthToken = connectResult.authToken // 지갑 관련 값을 정해줌
                 connectResult.walletAddress
             }
             is WalletConnectionResult.Failure -> { // 이 블록 안의 내용이 시작됨

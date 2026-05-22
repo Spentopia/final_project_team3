@@ -26,9 +26,12 @@ class MwaPhantomConnector : SolanaWalletConnector { // MwaPhantomConnector 기�
                 val account = result.authResult.accounts.firstOrNull() // account 값을 저장함
                 if (account == null) { // 조건이 맞는지 확인함
                     WalletConnectionResult.Failure("지갑 계정을 찾을 수 없습니다.")
+                } else if (!isExpectedWallet(result.authResult.walletUriBase?.toString())) {
+                    WalletConnectionResult.Failure("Phantom 지갑으로 다시 선택해주세요.")
                 } else { // 이 블록 안의 내용이 시작됨
                     WalletConnectionResult.Success(
-                        walletAddress = Base58.encode(account.publicKey) // 지갑 주소를 정해줌
+                        walletAddress = Base58.encode(account.publicKey), // 지갑 주소를 정해줌
+                        authToken = walletAdapter.authToken // 같은 지갑 앱 세션을 다시 쓰기 위한 토큰을 넘김
                     )
                 }
             }
@@ -87,5 +90,12 @@ class MwaPhantomConnector : SolanaWalletConnector { // MwaPhantomConnector 기�
         } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
             WalletSignResult.Failure(e.message ?: "Phantom 지갑 서명 중 오류")
         }
+    }
+
+    private fun isExpectedWallet(walletUriBase: String?): Boolean {
+        if (walletUriBase.isNullOrBlank()) {
+            return true
+        }
+        return walletUriBase.contains("phantom", ignoreCase = true)
     }
 }
