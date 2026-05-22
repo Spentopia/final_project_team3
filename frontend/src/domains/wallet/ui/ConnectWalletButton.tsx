@@ -2,7 +2,6 @@ import {useWalletConnection} from "@/domains/wallet/hooks/useWalletConnection";
 import {useEffect, useMemo, useRef, useState} from "react";
 import {shortenWalletAddress} from "@/domains/wallet/lib/solana";
 import {Link as LinkIcon, Wallet, Loader2} from "lucide-react";
-import {apiClient} from "@/shared/api/client";
 import {toast} from "sonner";
 import {
     AlertDialog,
@@ -14,6 +13,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
+import {useUser} from "@/shared/context/UserContext";
 
 interface ConnectWalletButtonProps{
   className?: string;
@@ -37,7 +37,8 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
       isProcessing,
   } = useWalletConnection();
 
-  const [linkedWalletAddress, setLinkedWalletAddress] = useState<string | null>(null);
+  const {user, setUser} = useUser();
+  const linkedWalletAddress = user?.wallet_address ?? null;
   const displayedWalletAddress = linkedWalletAddress;
   const isLinkedWalletConnected = Boolean(
     linkedWalletAddress && connected && walletAddress === linkedWalletAddress
@@ -48,40 +49,21 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
   useEffect(() => { linkWalletRef.current = linkWallet; }, [linkWallet]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const loadLinkedWallet = async () => {
-      try {
-        const response = await apiClient.get<{wallet_address?: string | null}>("/me");
-        if (!cancelled) {
-          setLinkedWalletAddress(response.data.wallet_address ?? null);
-        }
-      } catch {
-        if (!cancelled) {
-          setLinkedWalletAddress(null);
-        }
-      }
-    };
-
-    void loadLinkedWallet();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
     const handleWalletChange = (event: Event) => {
-      const walletAddress = (event as CustomEvent<{ walletAddress: string | null }>).detail
-        ?.walletAddress;
-      setLinkedWalletAddress(walletAddress ?? null);
+      const nextWalletAddress =
+        (event as CustomEvent<{ walletAddress: string | null }>).detail
+          ?.walletAddress ?? null;
+
+      setUser((current) =>
+        current ? { ...current, wallet_address: nextWalletAddress } : current
+      );
     };
 
     window.addEventListener("spentopia:wallet-change", handleWalletChange);
     return () => {
       window.removeEventListener("spentopia:wallet-change", handleWalletChange);
     };
-  }, []);
+  }, [setUser]);
 
   const [linkRequested, setLinkRequested] = useState(false);
   const [openingWalletModal, setOpeningWalletModal] = useState(false);
@@ -136,7 +118,9 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
     setLinkRequested(false);
     linkWalletRef.current().then((result) => {
       if (result.success) {
-        setLinkedWalletAddress(walletAddress);
+        setUser((current) =>
+          current ? { ...current, wallet_address: walletAddress } : current
+        );
         window.dispatchEvent(
           new CustomEvent("spentopia:wallet-change", {
             detail: { walletAddress },
@@ -194,7 +178,9 @@ export function ConnectWalletButton({className}: ConnectWalletButtonProps){
 
     const result = await unlinkWallet();
     if (result.success) {
-      setLinkedWalletAddress(null);
+      setUser((current) =>
+        current ? { ...current, wallet_address: null } : current
+      );
       window.dispatchEvent(
         new CustomEvent("spentopia:wallet-change", {
           detail: { walletAddress: null },

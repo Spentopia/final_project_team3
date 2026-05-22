@@ -19,7 +19,6 @@ import {
   updateUserProfile,
   updateUserSettings,
   changePassword,
-  changeEmail,
 } from "@/domains/profile/api/profile";
 import {
   User,
@@ -69,8 +68,6 @@ export default function ProfilePage() {
 
   const { sptBalance, sptLoading } = useSptBalance(profile.walletAddress || null);
   const [nftCount, setNftCount] = useState<number | null>(null);
-
-  const originalEmailRef = useRef("");
 
   // 카메라 버튼으로 선택한 파일의 로컬 미리보기 (즉시 업로드 전용)
   const [localImagePreview, setLocalImagePreview] = useState<string | null>(null);
@@ -166,8 +163,6 @@ export default function ProfilePage() {
           socialActivityAlert:
             settings.alert_social ?? settings.notification_listener ?? true,
         });
-
-        originalEmailRef.current = data.email ?? "";
       } catch {
         if (!cancelled) toast.error("프로필 정보를 불러오지 못했습니다");
       } finally {
@@ -237,21 +232,28 @@ export default function ProfilePage() {
   };
 
   const handleEditStart = () => {
-    originalEmailRef.current = profile.email;
     setIsEditing(true);
   };
 
   const handleSave = async () => {
+    const nickname = profile.nickname;
+    const trimmedNickname = nickname.trim();
+
+    if (!trimmedNickname) {
+      toast.error("닉네임을 입력해주세요");
+      return;
+    }
+
+    if (nickname !== trimmedNickname) {
+      toast.error("닉네임 앞뒤에 공백을 사용할 수 없습니다");
+      return;
+    }
+
     try {
       setIsSaving(true);
 
-      const emailChanged =
-          isEmailUser && profile.email.trim() !== originalEmailRef.current;
-
-      // 닉네임/전화번호/이미지만 백엔드로 저장 (이메일은 Supabase 직접 처리)
       const updated = await updateUserProfile({
-        nickname: profile.nickname || undefined,
-        phone: profile.phone || undefined,
+        nickname,
         introduction: profile.bio.trim() ? profile.bio.trim() : null,
       });
 
@@ -271,13 +273,7 @@ export default function ProfilePage() {
       // 닉네임 변경 시 전역 user context 갱신 → 커뮤니티 등 다른 페이지에 즉시 반영
       await refetchUser();
 
-      if (emailChanged) {
-        // Supabase 직접 호출 → 새 이메일로 인증 메일 발송
-        await changeEmail(profile.email.trim());
-        navigate("/email-confirmed?sent=true");
-      } else {
-        toast.success("프로필이 저장되었습니다");
-      }
+      toast.success("프로필이 저장되었습니다");
     } catch (error) {
       toast.error(
           error instanceof Error ? error.message : "프로필 저장에 실패했습니다"
@@ -594,17 +590,12 @@ export default function ProfilePage() {
                         id="email"
                         type="email"
                         value={profile.email}
-                        onChange={(e) =>
-                            setProfile({ ...profile, email: e.target.value })
-                        }
-                        disabled={!isEditing || isProfileLoading || !isEmailUser}
+                        disabled
                         className="pl-10"
                     />
                   </div>
                   <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                    {isEmailUser
-                        ? "변경 시 새 이메일로 인증 메일이 발송됩니다"
-                        : "소셜 로그인 계정은 이메일을 변경할 수 없습니다"}
+                    이메일은 로그인 식별 정보이므로 변경할 수 없습니다
                   </p>
                 </div>
 

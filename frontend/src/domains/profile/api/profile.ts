@@ -1,5 +1,5 @@
 import { apiClient } from "@/shared/api/client";
-import { supabase } from "@/shared/lib/supabase";
+
 import type {
   ProfileStatus,
   UpdateUserSettingsRequest,
@@ -104,12 +104,4 @@ export async function changePassword(
   } catch (error) {
     throw new Error(extractApiErrorMessage(error, "비밀번호 변경에 실패했습니다."));
   }
-}
-
-export async function changeEmail(newEmail: string): Promise<void> {
-  const { error } = await supabase.auth.updateUser(
-    { email: newEmail },
-    { emailRedirectTo: `${window.location.origin}/email-confirmed` },
-  );
-  if (error) throw new Error(error.message);
 }

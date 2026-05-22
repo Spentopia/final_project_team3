@@ -14,7 +14,7 @@
 // import 경로: @/shared/ui/...
 // ============================================================
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
@@ -83,6 +83,8 @@ const categoryLabel: Record<string, string> = {
   hat: "모자",
 };
 
+const sellableCategoryOrder = ["top", "bottom", "shoes", "hair", "hat", "weapon"] as const;
+
 function getMarketplaceErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim()) {
     return error.message;
@@ -138,14 +140,127 @@ function CreateListingDialog({
   // ──────────────────────────────────────────────────────────
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [price, setPrice] = useState<string>("");
+  const carouselRef = useRef<HTMLDivElement | null>(null);
+  const clickPauseTimerRef = useRef<number | null>(null);
+  const [isCarouselControlHovered, setIsCarouselControlHovered] = useState(false);
+  const [isCarouselItemHovered, setIsCarouselItemHovered] = useState(false);
+  const [isCarouselClickPaused, setIsCarouselClickPaused] = useState(false);
   // price를 number가 아닌 string으로 관리하는 이유:
   //   - input value는 항상 string
   //   - 빈 문자열("")과 0을 구분하기 위함 (number면 초기값 0이 입력된 것처럼 보임)
+
+  const selectedItem = nftItems.find((item) => item.inventoryId === selectedItemId) ?? null;
+  const categoryCounts = sellableCategoryOrder
+    .map((category) => ({
+      category,
+      label: categoryLabel[category],
+      count: nftItems.filter((item) => item.category === category).length,
+    }))
+    .filter((item) => item.count > 0);
+  const uncategorizedCount = nftItems.filter(
+    (item) =>
+      !item.category ||
+      !sellableCategoryOrder.includes(item.category as typeof sellableCategoryOrder[number])
+  ).length;
+  const carouselRepeatCount = nftItems.length > 1 ? 3 : 1;
+  const carouselItems = Array.from({ length: carouselRepeatCount }, () => nftItems).flat();
+
+  useEffect(() => {
+    if (!open) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      setIsCarouselControlHovered(false);
+      setIsCarouselItemHovered(false);
+      setIsCarouselClickPaused(false);
+      if (carouselRef.current) {
+        carouselRef.current.scrollLeft = 0;
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [open, nftItems.length]);
+
+  useEffect(() => {
+    if (
+      !open ||
+      nftItems.length <= 1 ||
+      isCarouselControlHovered ||
+      isCarouselItemHovered ||
+      isCarouselClickPaused
+    ) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      const node = carouselRef.current;
+      if (!node || node.scrollWidth <= node.clientWidth) return;
+
+      const loopWidth = node.scrollWidth / carouselRepeatCount;
+      if (node.scrollLeft >= loopWidth) {
+        node.scrollLeft -= loopWidth;
+      } else {
+        node.scrollLeft += 1;
+      }
+    }, 28);
+
+    return () => window.clearInterval(interval);
+  }, [
+    open,
+    nftItems.length,
+    carouselRepeatCount,
+    isCarouselControlHovered,
+    isCarouselItemHovered,
+    isCarouselClickPaused,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (clickPauseTimerRef.current !== null) {
+        window.clearTimeout(clickPauseTimerRef.current);
+      }
+    };
+  }, []);
+
+  const pauseAfterCarouselClick = () => {
+    setIsCarouselClickPaused(true);
+    if (clickPauseTimerRef.current !== null) {
+      window.clearTimeout(clickPauseTimerRef.current);
+    }
+    clickPauseTimerRef.current = window.setTimeout(() => {
+      setIsCarouselClickPaused(false);
+      clickPauseTimerRef.current = null;
+    }, 1200);
+  };
+
+  const moveCarouselByItem = (direction: "left" | "right") => {
+    const node = carouselRef.current;
+    if (!node) return;
+
+    const itemWidth = node.querySelector<HTMLElement>(`.${styles.carouselItem}`)?.offsetWidth ?? 156;
+    const itemStep = itemWidth + 12;
+    const loopWidth = node.scrollWidth / carouselRepeatCount;
+    if (loopWidth > 0 && node.scrollLeft >= loopWidth) {
+      node.scrollLeft -= loopWidth;
+    }
+
+    if (direction === "left" && node.scrollLeft - itemStep < 0 && loopWidth > 0) {
+      node.scrollLeft += loopWidth;
+    }
+
+    node.scrollBy({
+      left: direction === "right" ? itemStep : -itemStep,
+      behavior: "smooth",
+    });
+    pauseAfterCarouselClick();
+  };
 
   const handleClose = () => {
     // 다이얼로그 닫을 때 내부 상태 초기화
     setSelectedItemId("");
     setPrice("");
+    setIsCarouselControlHovered(false);
+    setIsCarouselItemHovered(false);
+    setIsCarouselClickPaused(false);
     onClose();
   };
 
@@ -177,47 +292,90 @@ function CreateListingDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {/* ── NFT 아이템 선택 목록 ── */}
-          {/*
-          max-height + overflow-y: auto → CSS에서 처리
-          아이템이 많아도 스크롤로 탐색 가능
-        */}
-          <div className={styles.dialogItemList}>
+          <div className={styles.sellableCategoryStrip}>
+            {categoryCounts.map((category) => (
+              <span key={category.category} className={styles.sellableCategoryPill}>
+                {category.label} {category.count}
+              </span>
+            ))}
+            {uncategorizedCount > 0 && (
+              <span className={styles.sellableCategoryPill}>기타 {uncategorizedCount}</span>
+            )}
+          </div>
+
+          <div className={styles.selectedListingPreview}>
+            {selectedItem ? (
+              <>
+                <span className={styles.selectedListingLabel}>선택됨</span>
+                <strong>{selectedItem.name}</strong>
+                <span>
+                  {(selectedItem.category && (categoryLabel[selectedItem.category] ?? selectedItem.category)) ?? "NFT"}
+                </span>
+              </>
+            ) : (
+              <span>아래 보유 NFT 아이템을 선택해 주세요.</span>
+            )}
+          </div>
+
+          {/* ── NFT 아이템 가로 자동 캐러셀 ── */}
+          <div className={styles.carouselShell}>
             {itemsLoading ? (
                 <p className={styles.dialogEmptyText}>아이템 목록 불러오는 중...</p>
             ) : nftItems.length === 0 ? (
                 <p className={styles.dialogEmptyText}>판매 가능한 NFT 아이템이 없습니다.</p>
             ) : (
-                nftItems.map((item) => {
-                  const isSelected = selectedItemId === item.inventoryId;
-                  return (
-                      <div
-                          key={item.mintAddress}
+                <>
+                  <button
+                    type="button"
+                    className={`${styles.carouselControl} ${styles.carouselControlLeft}`}
+                    onMouseEnter={() => setIsCarouselControlHovered(true)}
+                    onMouseLeave={() => setIsCarouselControlHovered(false)}
+                    onClick={() => moveCarouselByItem("left")}
+                    aria-label="이전 아이템"
+                  >
+                    ‹
+                  </button>
+                  <div ref={carouselRef} className={styles.carouselTrack}>
+                    {carouselItems.map((item, index) => {
+                      const isSelected = selectedItemId === item.inventoryId;
+                      return (
+                        <button
+                          type="button"
+                          key={`${item.mintAddress}-${index}`}
                           className={[
-                            styles.selectableItem,
-                            isSelected ? styles.selectableItemActive : "",
+                            styles.carouselItem,
+                            isSelected ? styles.carouselItemActive : "",
                           ].join(" ")}
+                          onMouseEnter={() => setIsCarouselItemHovered(true)}
+                          onMouseLeave={() => setIsCarouselItemHovered(false)}
                           onClick={() => setSelectedItemId(item.inventoryId)}
-                      >
-                        {/* 썸네일 */}
-                        <div className={styles.selectableItemThumb}>
-                          {item.imageUrl ? (
+                        >
+                          <div className={styles.carouselItemThumb}>
+                            {item.imageUrl ? (
                               <img src={item.imageUrl} alt={item.name} />
-                          ) : (
-                              <div /> // 이미지 없으면 빈 div (CSS에서 bg-gray 처리)
-                          )}
-                        </div>
-
-                        {/* 아이템 정보 */}
-                        <div className={styles.selectableItemInfo}>
-                          <p className={styles.selectableItemName}>{item.name}</p>
-                          <Badge variant="outline">
+                            ) : (
+                              <div />
+                            )}
+                          </div>
+                          <p className={styles.carouselItemName}>{item.name}</p>
+                          <span className={styles.carouselItemCategory}>
                             {(item.category && (categoryLabel[item.category] ?? item.category)) ?? "NFT"}
-                          </Badge>
-                        </div>
-                      </div>
-                  );
-                })
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    className={`${styles.carouselControl} ${styles.carouselControlRight}`}
+                    onMouseEnter={() => setIsCarouselControlHovered(true)}
+                    onMouseLeave={() => setIsCarouselControlHovered(false)}
+                    onClick={() => moveCarouselByItem("right")}
+                    aria-label="다음 아이템"
+                  >
+                    ›
+                  </button>
+                </>
             )}
           </div>
 

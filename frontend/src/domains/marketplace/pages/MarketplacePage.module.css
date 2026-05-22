@@ -395,15 +395,6 @@
         0 16px 42px rgba(37, 99, 235, 0.12);
 }
 
-.dialogItemList {
-    display: flex;
-    max-height: 280px;
-    flex-direction: column;
-    gap: 10px;
-    overflow-y: auto;
-    padding-right: 4px;
-}
-
 .dialogEmptyText {
     margin: 0;
     padding: 22px 0;
@@ -413,70 +404,195 @@
     font-weight: 700;
 }
 
-.selectableItem {
+.sellableCategoryStrip {
     display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.sellableCategoryPill {
+    border: 1px solid rgba(125, 211, 252, 0.5);
+    border-radius: 999px;
+    background: rgba(239, 246, 255, 0.9);
+    padding: 5px 10px;
+    color: #0f172a;
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.selectedListingPreview {
+    display: flex;
+    min-height: 42px;
     align-items: center;
-    gap: 12px;
-    padding: 10px;
-    border: 1px solid rgba(191, 219, 254, 0.92);
+    gap: 8px;
+    margin-top: 4px;
+    border: 1px solid rgba(191, 219, 254, 0.8);
     border-radius: 8px;
-    background: rgba(247, 251, 255, 0.78);
+    background: rgba(248, 250, 252, 0.86);
+    padding: 9px 12px;
+    color: #475569;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.selectedListingPreview strong {
+    color: #0f172a;
+    font-weight: 900;
+}
+
+.selectedListingLabel {
+    border-radius: 999px;
+    background: #38bdf8;
+    padding: 3px 8px;
+    color: #0f172a;
+    font-size: 0.72rem;
+    font-weight: 900;
+}
+
+.carouselShell {
+    position: relative;
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+    align-items: center;
+    gap: 10px;
+    min-height: 188px;
+}
+
+.carouselControl {
+    display: inline-flex;
+    width: 38px;
+    height: 88px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(125, 211, 252, 0.55);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.94);
+    color: #0f172a;
     cursor: pointer;
+    font-size: 1.9rem;
+    font-weight: 900;
+    line-height: 1;
+    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.12);
     transition:
         background-color 0.15s ease,
+        box-shadow 0.15s ease,
         border-color 0.15s ease,
         transform 0.15s ease;
 }
 
-.selectableItem:hover {
-    transform: translateY(-1px);
+.carouselControl:hover,
+.carouselControl:focus-visible {
     border-color: rgba(37, 99, 235, 0.32);
+    background: #eff6ff;
+    box-shadow: 0 16px 34px rgba(37, 99, 235, 0.16);
+    transform: translateY(-1px);
+    outline: none;
+}
+
+.carouselTrack {
+    display: flex;
+    gap: 12px;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding: 4px 2px 10px;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+}
+
+.carouselTrack::-webkit-scrollbar {
+    display: none;
+}
+
+.carouselItem {
+    display: flex;
+    width: 150px;
+    min-width: 150px;
+    min-height: 170px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    border: 1px solid rgba(191, 219, 254, 0.92);
+    border-radius: 8px;
+    background: rgba(247, 251, 255, 0.86);
+    padding: 12px 10px;
+    color: #0f172a;
+    cursor: pointer;
+    text-align: center;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.15s ease;
+}
+
+.carouselItem:hover {
+    transform: translateY(-2px);
+    border-color: rgba(37, 99, 235, 0.34);
     background-color: #eff6ff;
+    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.14);
 }
 
-.selectableItemActive {
-    border-color: rgba(37, 99, 235, 0.48);
+.carouselItemActive {
+    border-color: rgba(37, 99, 235, 0.52);
     background: #38bdf8;
-    color: #0f172a;
     box-shadow:
-        0 10px 24px rgba(37, 99, 235, 0.22),
-        inset 0 1px 0 rgba(255, 255, 255, 0.24);
+        0 14px 30px rgba(37, 99, 235, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
-.selectableItemActive .selectableItemName,
-.selectableItemActive .sellerName,
-.selectableItemActive .itemPrice {
-    color: #0f172a;
-}
-
-.selectableItemThumb {
-    width: 48px;
-    height: 48px;
-    flex-shrink: 0;
+.carouselItemThumb {
+    width: 86px;
+    height: 86px;
     overflow: hidden;
     border-radius: 8px;
+    border: 1px solid rgba(191, 219, 254, 0.72);
     background: linear-gradient(135deg, #f7fbff, #e0f2fe);
+    flex-shrink: 0;
 }
 
-.selectableItemThumb img {
+.carouselItemThumb img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-.selectableItemInfo {
-    min-width: 0;
-    flex: 1;
-}
-
-.selectableItemName {
-    margin: 0 0 4px;
+.carouselItemName {
+    width: 100%;
+    margin: 0;
     overflow: hidden;
     color: #0f172a;
     font-size: 0.9rem;
     font-weight: 800;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.carouselItemCategory {
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(37, 99, 235, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.76);
+    padding: 4px 9px;
+    color: #334155;
+    font-size: 0.74rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.carouselItemActive .carouselItemName,
+.carouselItemActive .carouselItemCategory {
+    color: #0f172a;
+}
+
+.carouselItemActive .carouselItemCategory {
+    border-color: rgba(15, 23, 42, 0.16);
+    background: rgba(255, 255, 255, 0.58);
 }
 
 .priceLabel {
@@ -543,7 +659,8 @@
 :global(.dark) .pageTitle,
 :global(.dark) .sectionTitle,
 :global(.dark) .itemName,
-:global(.dark) .selectableItemName,
+:global(.dark) .carouselItemName,
+:global(.dark) .selectedListingPreview strong,
 :global(.dark) .purchaseItemName,
 :global(.dark) .summaryItem strong {
     color: #f8fafc;
@@ -556,7 +673,8 @@
 :global(.dark) .sellerName,
 :global(.dark) .emptyStateSub,
 :global(.dark) .purchaseFeeNote,
-:global(.dark) .dialogEmptyText {
+:global(.dark) .dialogEmptyText,
+:global(.dark) .selectedListingPreview {
     color: #94a3b8;
 }
 
@@ -599,21 +717,62 @@
     color: #cbd5e1;
 }
 
+:global(.dark) .sellableCategoryPill {
+    border-color: rgba(20, 184, 166, 0.24);
+    background: rgba(15, 23, 42, 0.72);
+    color: #dbeafe;
+}
+
+:global(.dark) .selectedListingPreview {
+    border-color: rgba(148, 163, 184, 0.16);
+    background: rgba(15, 23, 42, 0.72);
+}
+
+:global(.dark) .selectedListingLabel {
+    background: #22d3ee;
+    color: #082f49;
+}
+
 :global(.dark) .imageWrapper,
-:global(.dark) .selectableItemThumb {
+:global(.dark) .carouselItemThumb {
     border-color: rgba(148, 163, 184, 0.14);
     background: linear-gradient(135deg, #1e293b, #0f172a 52%, #134e4a);
 }
 
-:global(.dark) .selectableItem {
-    border-color: rgba(148, 163, 184, 0.14);
-    background: rgba(15, 23, 42, 0.82);
+:global(.dark) .carouselControl {
+    border-color: rgba(148, 163, 184, 0.16);
+    background: rgba(15, 23, 42, 0.88);
+    color: #e0f2fe;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
 }
 
-:global(.dark) .selectableItem:hover,
-:global(.dark) .selectableItemActive {
+:global(.dark) .carouselControl:hover,
+:global(.dark) .carouselControl:focus-visible {
+    border-color: rgba(20, 184, 166, 0.42);
+    background: rgba(19, 78, 74, 0.38);
+}
+
+:global(.dark) .carouselItem {
+    border-color: rgba(148, 163, 184, 0.14);
+    background: rgba(15, 23, 42, 0.82);
+    color: #f8fafc;
+}
+
+:global(.dark) .carouselItem:hover,
+:global(.dark) .carouselItemActive {
     border-color: rgba(20, 184, 166, 0.5);
     background: rgba(19, 78, 74, 0.38);
+}
+
+:global(.dark) .carouselItemCategory {
+    border-color: rgba(148, 163, 184, 0.18);
+    background: rgba(15, 23, 42, 0.64);
+    color: #cbd5e1;
+}
+
+:global(.dark) .carouselItemActive .carouselItemCategory {
+    background: rgba(20, 184, 166, 0.18);
+    color: #e0f2fe;
 }
 
 :global(.dark) .priceLabel {
@@ -650,6 +809,29 @@
 
     .createButton {
         width: 100%;
+    }
+
+    .carouselShell {
+        grid-template-columns: 34px minmax(0, 1fr) 34px;
+        gap: 8px;
+    }
+
+    .carouselControl {
+        width: 34px;
+        height: 78px;
+        font-size: 1.55rem;
+    }
+
+    .carouselItem {
+        width: 132px;
+        min-width: 132px;
+        min-height: 158px;
+        padding: 10px 8px;
+    }
+
+    .carouselItemThumb {
+        width: 76px;
+        height: 76px;
     }
 
     .grid {

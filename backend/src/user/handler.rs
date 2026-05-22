@@ -46,6 +46,7 @@ pub async fn update_profile(
             } else if msg.contains("사용할 수 없는 닉네임")
                 || msg.contains("닉네임")
                 || msg.contains("한 줄 소개에 사용할 수 없는 표현")
+                || msg.contains("전화번호")
             {
                 (StatusCode::BAD_REQUEST, msg).into_response()
             } else {

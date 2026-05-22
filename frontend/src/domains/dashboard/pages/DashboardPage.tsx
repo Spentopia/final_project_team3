@@ -95,8 +95,8 @@ const incomeCategories = [
 ];
 
 export default function DashboardPage() {
-  const { budget, budgets, transactions, replaceTransactions, addTransaction } = useFinance();
-  const selectedDateStorageKey = "dashboard-selected-date";
+  const { budgets, transactions, replaceTransactions, addTransaction } = useFinance();
+  const draftStorageKey = "dashboard-expense-draft";
   const entryTypeStorageKey = "dashboard-entry-type";
   const marketCardStyle = {
     border: "1px solid rgba(125, 211, 252, 0.62)",
@@ -115,22 +115,38 @@ export default function DashboardPage() {
       "inset 0 1px 0 rgba(255, 255, 255, 0.96), 0 0 0 1px rgba(125, 211, 252, 0.22), 0 10px 28px rgba(37, 99, 235, 0.1), 0 2px 10px rgba(15, 23, 42, 0.05)",
   } as const;
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
-    const saved = localStorage.getItem(selectedDateStorageKey);
-    if (!saved) return new Date();
-
-    const parsed = parse(saved, "yyyy-MM-dd", new Date());
-    return isValid(parsed) ? parsed : new Date();
-  });
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => new Date());
   const [entryType, setEntryType] = useState<"expense" | "income">(() => {
     const saved = localStorage.getItem(entryTypeStorageKey);
     return saved === "income" ? "income" : "expense";
   });
-  const [newExpense, setNewExpense] = useState({
-    amount: "",
-    category: "",
-    memo: "",
-    diary: "",
+  const [newExpense, setNewExpense] = useState(() => {
+    const saved = localStorage.getItem(draftStorageKey);
+    if (!saved) {
+      return {
+        amount: "",
+        category: "",
+        memo: "",
+        diary: "",
+      };
+    }
+
+    try {
+      const parsed = JSON.parse(saved);
+      return {
+        amount: "",
+        category: typeof parsed.category === "string" ? parsed.category : "",
+        memo: typeof parsed.memo === "string" ? parsed.memo : "",
+        diary: typeof parsed.diary === "string" ? parsed.diary : "",
+      };
+    } catch {
+      return {
+        amount: "",
+        category: "",
+        memo: "",
+        diary: "",
+      };
+    }
   });
 
   const resetForm = () => {
@@ -147,13 +163,8 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (!selectedDate) {
-      localStorage.removeItem(selectedDateStorageKey);
-      return;
-    }
-
-    localStorage.setItem(selectedDateStorageKey, format(selectedDate, "yyyy-MM-dd"));
-  }, [selectedDate]);
+    localStorage.setItem(draftStorageKey, JSON.stringify(newExpense));
+  }, [newExpense]);
 
   useEffect(() => {
     localStorage.setItem(entryTypeStorageKey, entryType);
@@ -514,13 +525,13 @@ export default function DashboardPage() {
   transactions,
   selectedDate || new Date()
 );
-    const monthKey = format(selectedDate || new Date(), "yyyy-MM");
-const currentBudget = budgets[monthKey] ?? budget;
+  const monthKey = format(selectedDate || new Date(), "yyyy-MM");
+  const currentBudget = budgets[monthKey] ?? 0;
   const monthlyIncomeTotal = getMonthlyIncomeTotal(
   transactions,
   selectedDate || new Date()
 );
-  const effectiveMonthlyBudget = monthlyIncomeTotal || currentBudget;
+  const effectiveMonthlyBudget = currentBudget;
 
   const recordedDates = expenses.map((expense) => expense.date);
   const selectedDateInputValue = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
@@ -828,7 +839,7 @@ const currentBudget = budgets[monthKey] ?? budget;
               <Input
                 id="amount"
                 type="number"
-                placeholder="10,000"
+                placeholder="금액을 입력해주세요"
                 value={newExpense.amount}
                 onChange={(e) => {
                   setNewExpense({ ...newExpense, amount: e.target.value });
