@@ -6,7 +6,6 @@ package com.ict.spentopia.feature.auth // 이 파일이 속한 패키지 위치�
 import android.content.Context
 import android.content.Intent // Intent 기능을 가져옴
 import android.net.Uri // 이미지 주소 타입을 가져옴
-import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
 import androidx.activity.compose.rememberLauncherForActivityResult // rememberLauncherForActivityResult 기능을 가져옴
 import androidx.activity.result.contract.ActivityResultContracts // ActivityResultContracts 기능을 가져옴
 import androidx.compose.foundation.BorderStroke // BorderStroke 기능을 가져옴
@@ -157,7 +156,6 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
             val idToken = account.idToken // 구글 로그인 토큰을 저장함
             if (idToken.isNullOrBlank()) { // 조건이 맞는지 확인함
                 isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
-                Toast.makeText(context, context.getString(R.string.google_id_token_missing), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                 return@rememberLauncherForActivityResult
             }
 
@@ -165,20 +163,16 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                 idToken = idToken, // 구글 로그인 토큰을 구글 로그인 토큰에 넣음
                 onSuccess = { // 성공했을 때 실행할 함수를 정해줌
                     isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
-                    Toast.makeText(context, context.getString(R.string.google_login_success), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                     onLoginClick() // 로그인 관련 함수를 실행함
                 },
                 onError = { message -> // 실패했을 때 실행할 함수를 정해줌
                     isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                 }
             )
         } catch (e: ApiException) { // 이 블록 안의 내용이 시작됨
             isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
-            Toast.makeText(context, context.getString(R.string.google_login_failed_with_code, e.statusCode), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
         } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
             isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
-            Toast.makeText(context, e.message ?: context.getString(R.string.google_login_failed), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
         }
     }
 
@@ -200,7 +194,6 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
             if (!opened) {
                 isWalletLoading = false
                 val walletName = if (walletType == SolanaWalletType.PHANTOM) "Phantom" else "Solflare"
-                Toast.makeText(context, "${walletName} 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
             }
             return
         }
@@ -230,7 +223,6 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                 },
                 onError = { message -> // 실패했을 때 실행할 함수를 정해줌
                     isWalletLoading = false // false 값을 지갑 관련 값에 넣음
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                 }
             )
         }
@@ -240,12 +232,10 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
         val trimmedEmail = email.trim() // 이메일 값을 저장함
 
         if (trimmedEmail.isBlank()) { // 조건이 맞는지 확인함
-            Toast.makeText(context, context.getString(R.string.email_required), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
             return
         }
 
         if (password.isBlank()) { // 조건이 맞는지 확인함
-            Toast.makeText(context, context.getString(R.string.password_required), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
             return
         }
 
@@ -257,12 +247,10 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                 password = password, // 비밀번호를 비밀번호에 넣음
                 onSuccess = { // 성공했을 때 실행할 함수를 정해줌
                     isEmailLoginLoading = false // false 값을 이메일 값에 넣음
-                    Toast.makeText(context, context.getString(R.string.email_login_success), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                     onLoginClick() // 로그인 관련 함수를 실행함
                 },
                 onError = { message -> // 실패했을 때 실행할 함수를 정해줌
                     isEmailLoginLoading = false // false 값을 이메일 값에 넣음
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                 }
             )
         }
@@ -279,19 +267,9 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                         )
                         context.startActivity(intent)
                     } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
-                        Toast.makeText( // 화면에 글자를 보여줌
-                            context,
-                            context.getString(R.string.kakao_login_open_failed),
-                            Toast.LENGTH_SHORT
-                        ).show()
                     }
                 },
                 onError = { message -> // 실패했을 때 실행할 함수를 정해줌
-                    Toast.makeText( // 화면에 글자를 보여줌
-                        context,
-                        message,
-                        Toast.LENGTH_SHORT
-                    ).show()
                 }
             )
         }
@@ -303,7 +281,6 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
         }
 
         if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isBlank()) { // 조건이 맞는지 확인함
-            Toast.makeText(context, context.getString(R.string.google_web_client_id_missing), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
             return
         }
 
@@ -493,7 +470,6 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                 phantomConnector.parseErrorCallback(uri)
                             } // 메시지를 저장함
                             Log.e("Spentopia", "${callbackWallet.name} callback error=$message") // 개발자가 확인할 로그를 찍음
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                         }
 
                         phantomConnector.isConnectCallback(uri) || solflareConnector.isConnectCallback(uri) -> { // 이 블록 안의 내용이 시작됨
@@ -509,7 +485,6 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                 phantomConnector.clearPendingLogin()
                                 solflareConnector.clearPendingLogin()
                                 Log.e("Spentopia", "${callbackWallet.name} connect callback missing wallet address") // 개발자가 확인할 로그를 찍음
-                                Toast.makeText(context, context.getString(R.string.wallet_address_missing), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                 onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
                                 return@let
                             }
@@ -538,7 +513,6 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                         phantomConnector.clearPendingLogin()
                                         solflareConnector.clearPendingLogin()
                                         val walletName = if (isSolflareCallback) "Solflare" else "Phantom"
-                                        Toast.makeText(context, "${walletName} 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                     }
                                 } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
                                     isWalletLoading = false // false 값을 지갑 관련 값에 넣음
@@ -547,7 +521,6 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                     phantomConnector.clearPendingLogin()
                                     solflareConnector.clearPendingLogin()
                                     Log.e("Spentopia", "${callbackWallet.name} nonce/sign start failed", e) // 개발자가 확인할 로그를 찍음
-                                    Toast.makeText(context, e.message ?: context.getString(R.string.wallet_nonce_failed), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                 }
                             }
                         }
@@ -582,7 +555,6 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                 phantomConnector.clearPendingLogin()
                                 solflareConnector.clearPendingLogin()
                                 Log.e("Spentopia", "${callbackWallet.name} sign callback missing signature") // 개발자가 확인할 로그를 찍음
-                                Toast.makeText(context, context.getString(R.string.wallet_signature_missing), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                 onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
                                 return@let
                             }
@@ -593,7 +565,6 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                 phantomConnector.clearPendingLogin()
                                 solflareConnector.clearPendingLogin()
                                 Log.e("Spentopia", "${callbackWallet.name} login state lost wallet=$walletAddress nonce=$nonce") // 개발자가 확인할 로그를 찍음
-                                Toast.makeText(context, context.getString(R.string.wallet_login_state_lost), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                 onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
                                 return@let
                             }
@@ -623,7 +594,6 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                     pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                     phantomConnector.clearPendingLogin()
                                     solflareConnector.clearPendingLogin()
-                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                 }
                             )
                         }
@@ -635,7 +605,6 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                             phantomConnector.clearPendingLogin()
                             solflareConnector.clearPendingLogin()
                             Log.e("Spentopia", "Unknown wallet callback=$uri") // 개발자가 확인할 로그를 찍음
-                            Toast.makeText(context, context.getString(R.string.wallet_login_state_lost), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                         }
                     }
                     onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
@@ -664,11 +633,9 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                             code = code, // 인증 코드를 인증 코드에 넣음
                             state = state, // 상태값을 상태값에 넣음
                             onSuccess = { // 성공했을 때 실행할 함수를 정해줌
-                                Toast.makeText(context, context.getString(R.string.kakao_login_success), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                                 onLoginClick() // 로그인 관련 함수를 실행함
                             },
                             onError = { message -> // 실패했을 때 실행할 함수를 정해줌
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
                             }
                         )
                     }

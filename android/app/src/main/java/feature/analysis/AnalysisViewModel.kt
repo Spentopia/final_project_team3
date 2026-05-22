@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow // 바뀌는 상태값 도구를
 import kotlinx.coroutines.flow.StateFlow // 읽기 전용 상태값 도구를 가져옴
 import kotlinx.coroutines.flow.asStateFlow // asStateFlow 기능을 가져옴
 import kotlinx.coroutines.flow.combine // combine 기능을 가져옴
+import kotlinx.coroutines.delay // 잠시 기다렸다가 다시 실행하는 도구를 가져옴
 import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
 import retrofit2.HttpException // 서버 오류 타입을 가져옴
 import java.text.SimpleDateFormat // SimpleDateFormat 기능을 가져옴
@@ -143,6 +144,8 @@ data class AnalysisUiState( // AnalysisUiState 데이터를 묶어둘 클래스 
     val isPaymentRequired: Boolean = false, // 402 응답이 오면 결제 팝업 표시 여부를 저장함
 
     val isPaymentLoading: Boolean = false, // 결제 진행 중인지 저장함
+
+    val paymentToastMessage: String = "", // 결제 관련 토스트 메시지를 저장함
 
     // 시간대별 소비 패턴 데이터
     val timePatternList: List<PatternProgressUiModel> = emptyList(), // timePatternList 값을 저장함
@@ -267,6 +270,10 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
         )
     }
 
+    fun consumePaymentToast() {
+        _uiState.value = _uiState.value.copy(paymentToastMessage = "")
+    }
+
     fun payForAiAnalysis(
         context: Context,
         walletActivityResultSender: ActivityResultSender,
@@ -301,7 +308,8 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
                 ).getOrElse { error ->
                     _uiState.value = _uiState.value.copy(
                         isPaymentLoading = false,
-                        aiAnalysisError = error.message ?: "결제 트랜잭션을 만들지 못했습니다."
+                        aiAnalysisError = "AI 분석 리포트를 생성하지 못했습니다.",
+                        paymentToastMessage = error.toPaymentToastMessage()
                     )
                     return@launch
                 }
@@ -317,7 +325,8 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
                     clearPendingPayment()
                     _uiState.value = _uiState.value.copy(
                         isPaymentLoading = false,
-                        aiAnalysisError = "${walletProvider} 지갑 앱을 찾을 수 없습니다."
+                        aiAnalysisError = "AI 분석 리포트를 생성하지 못했습니다.",
+                        paymentToastMessage = "${walletProvider} 지갑 앱을 찾을 수 없습니다."
                     )
                 }
                 return@launch
@@ -334,7 +343,8 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
             val completedPayment = paymentResult.getOrElse { error ->
                 _uiState.value = _uiState.value.copy(
                     isPaymentLoading = false,
-                    aiAnalysisError = error.message ?: "결제를 완료하지 못했습니다."
+                    aiAnalysisError = "AI 분석 리포트를 생성하지 못했습니다.",
+                    paymentToastMessage = error.toPaymentToastMessage()
                 )
                 return@launch
             }
@@ -344,7 +354,15 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
                     network = completedPayment.network,
                     signature = completedPayment.signature
                 )
-                val report = generateReportWithOptionalPaymentHeader(completedPayment.paymentHeader)
+                _uiState.value = _uiState.value.copy(
+                    isAiAnalysisLoading = true,
+                    isPaymentRequired = false,
+                    paymentRequiredBody = null,
+                    aiAnalysisError = "",
+                    paymentToastMessage = "결제가 확인되었습니다."
+                )
+                waitForReportInputReady()
+                val report = generatePaidReportWithRetry(completedPayment.paymentHeader)
                 applyReportResult(report)
             } catch (e: HttpException) {
                 _uiState.value = _uiState.value.copy(isPaymentLoading = false)
@@ -352,7 +370,7 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isPaymentLoading = false,
-                    aiAnalysisError = "결제 확인 후 분석 결과를 불러오지 못했습니다."
+                    aiAnalysisError = "AI 분석 리포트를 생성하지 못했습니다."
                 )
             }
         }
@@ -378,9 +396,11 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
                 val connector = SolflareDeepLinkConnector(context)
                 if (connector.isErrorCallback(callbackUri)) {
                     Log.e("SpentopiaPayment", "solflare callback error=${connector.parseErrorCallback(callbackUri)}")
+                    val paymentMessage = connector.parseErrorCallback(callbackUri).toPaymentToastMessage()
                     _uiState.value = _uiState.value.copy(
                         isPaymentLoading = false,
-                        aiAnalysisError = connector.parseErrorCallback(callbackUri)
+                        aiAnalysisError = "AI 분석 리포트를 생성하지 못했습니다.",
+                        paymentToastMessage = paymentMessage
                     )
                     clearPendingPayment()
                     return true
@@ -402,7 +422,8 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
                             clearPendingPayment()
                             _uiState.value = _uiState.value.copy(
                                 isPaymentLoading = false,
-                                aiAnalysisError = e.message ?: "결제 트랜잭션을 전송하지 못했습니다."
+                                aiAnalysisError = "AI 분석 리포트를 생성하지 못했습니다.",
+                                paymentToastMessage = e.toPaymentToastMessage()
                             )
                         }
                     }
@@ -416,9 +437,11 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
                 val connector = PhantomDeepLinkConnector(context)
                 if (connector.isErrorCallback(callbackUri)) {
                     Log.e("SpentopiaPayment", "phantom callback error=${connector.parseErrorCallback(callbackUri)}")
+                    val paymentMessage = connector.parseErrorCallback(callbackUri).toPaymentToastMessage()
                     _uiState.value = _uiState.value.copy(
                         isPaymentLoading = false,
-                        aiAnalysisError = connector.parseErrorCallback(callbackUri)
+                        aiAnalysisError = "AI 분석 리포트를 생성하지 못했습니다.",
+                        paymentToastMessage = paymentMessage
                     )
                     clearPendingPayment()
                     return true
@@ -443,7 +466,8 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
                             clearPendingPayment()
                             _uiState.value = _uiState.value.copy(
                                 isPaymentLoading = false,
-                                aiAnalysisError = e.message ?: "결제 트랜잭션을 전송하지 못했습니다."
+                                aiAnalysisError = "AI 분석 리포트를 생성하지 못했습니다.",
+                                paymentToastMessage = e.toPaymentToastMessage()
                             )
                         }
                     }
@@ -460,7 +484,8 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
             Log.e("SpentopiaPayment", "payment signature empty")
             _uiState.value = _uiState.value.copy(
                 isPaymentLoading = false,
-                aiAnalysisError = "결제 서명 결과가 비어 있습니다."
+                aiAnalysisError = "AI 분석 리포트를 생성하지 못했습니다.",
+                paymentToastMessage = "지갑에서 결제 서명을 가져오지 못했습니다."
             )
             clearPendingPayment()
             return true
@@ -486,7 +511,15 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
                     signature = signature
                 )
                 Log.d("SpentopiaPayment", "payment signature confirmed")
-                val report = generateReportWithOptionalPaymentHeader(paymentHeader)
+                _uiState.value = _uiState.value.copy(
+                    isAiAnalysisLoading = true,
+                    isPaymentRequired = false,
+                    paymentRequiredBody = null,
+                    aiAnalysisError = "",
+                    paymentToastMessage = "결제가 확인되었습니다."
+                )
+                waitForReportInputReady()
+                val report = generatePaidReportWithRetry(paymentHeader)
                 clearPendingPayment()
                 applyReportResult(report)
             } catch (e: HttpException) {
@@ -499,7 +532,7 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
                 clearPendingPayment()
                 _uiState.value = _uiState.value.copy(
                     isPaymentLoading = false,
-                    aiAnalysisError = "결제 확인 후 분석 결과를 불러오지 못했습니다."
+                    aiAnalysisError = "AI 분석 리포트를 생성하지 못했습니다."
                 )
             }
         }
@@ -541,6 +574,30 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
             xPayment = xPayment
         )
 
+    private suspend fun generatePaidReportWithRetry(xPayment: String): com.ict.spentopia.data.remote.AnalyzeReportResponse {
+        var lastError: Exception? = null
+        repeat(3) { index ->
+            try {
+                return generateReportWithOptionalPaymentHeader(xPayment)
+            } catch (e: Exception) {
+                lastError = e
+                if (index < 2) {
+                    delay(1200)
+                }
+            }
+        }
+        throw lastError ?: IllegalStateException("AI 분석 리포트를 생성하지 못했습니다.")
+    }
+
+    private suspend fun waitForReportInputReady() {
+        repeat(10) {
+            if (_uiState.value.totalExpense > 0 && latestExpenseOnlyList.isNotEmpty()) {
+                return
+            }
+            delay(300)
+        }
+    }
+
     private fun applyReportResult(report: com.ict.spentopia.data.remote.AnalyzeReportResponse) {
         val uiReport = AiConsumptionReportUiModel( // uiReport 값을 저장함
             good = report.good, // good 값을 정해줌
@@ -560,6 +617,25 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
             isPaymentRequired = false,
             isPaymentLoading = false
         )
+    }
+
+    private fun Throwable.toPaymentToastMessage(): String {
+        return message.toPaymentToastMessage()
+    }
+
+    private fun String?.toPaymentToastMessage(): String {
+        val rawMessage = this.orEmpty()
+        val normalized = rawMessage.lowercase(Locale.US)
+        return when {
+            normalized.contains("userrejected") ||
+                normalized.contains("rejected") ||
+                normalized.contains("cancel") ||
+                normalized.contains("취소") -> "지갑에서 결제 서명이 취소되었습니다."
+            normalized.contains("signature") ||
+                normalized.contains("서명") -> "지갑에서 결제 서명을 가져오지 못했습니다."
+            rawMessage.isNotBlank() -> rawMessage
+            else -> "결제를 완료하지 못했습니다."
+        }
     }
 
     private fun handleReportHttpException(e: HttpException) {

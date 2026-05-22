@@ -208,7 +208,10 @@ class CommunityViewModel : ViewModel() { // CommunityViewModel 기능을 묶어�
         }
     }
 
-    fun updatePost(updatedPost: CommunityPost) { // 데이터를 수정하는 함수 시작
+    fun updatePost(
+        updatedPost: CommunityPost,
+        onSuccess: () -> Unit = {}
+    ) { // 데이터를 수정하는 함수 시작
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
             _uiState.update { it.copy(isSaving = true, errorMessage = null) } // it.copy(isSaving 값을 정해줌
             try { // 오류가 날 수 있는 코드를 먼저 시도함
@@ -227,6 +230,7 @@ class CommunityViewModel : ViewModel() { // CommunityViewModel 기능을 묶어�
                         isSaving = false // false 값을 isSaving인지 여부에 넣음
                     )
                 }
+                onSuccess()
             } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
                 Log.e("CommunityViewModel", "updatePost failed", e) // 개발자가 확인할 로그를 찍음
                 _uiState.update { // 이 블록 안의 내용이 시작됨
@@ -301,7 +305,11 @@ class CommunityViewModel : ViewModel() { // CommunityViewModel 기능을 묶어�
         }
     }
 
-    fun addComment(postId: String, content: String) { // addComment 함수를 선언함
+    fun addComment(
+        postId: String,
+        content: String,
+        onSuccess: () -> Unit = {}
+    ) { // addComment 함수를 선언함
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
             try { // 오류가 날 수 있는 코드를 먼저 시도함
                 RetrofitClient.communityApi.createComment( // 서버 통신 도구를 설정함
@@ -309,6 +317,7 @@ class CommunityViewModel : ViewModel() { // CommunityViewModel 기능을 묶어�
                     request = CreateCommunityCommentRequest(content = content) // 서버 요청값을 정해줌
                 )
                 loadPostDetail(postId) // 데이터를 불러오는 함수를 실행함
+                onSuccess()
             } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
                 Log.e("CommunityViewModel", "addComment failed", e) // 개발자가 확인할 로그를 찍음
                 _uiState.update { it.copy(errorMessage = "댓글 등록에 실패했습니다.") } // 오류 내용을 정해줌
@@ -316,7 +325,12 @@ class CommunityViewModel : ViewModel() { // CommunityViewModel 기능을 묶어�
         }
     }
 
-    fun updateComment(postId: String, commentId: String, content: String) { // 데이터를 수정하는 함수 시작
+    fun updateComment(
+        postId: String,
+        commentId: String,
+        content: String,
+        onSuccess: () -> Unit = {}
+    ) { // 데이터를 수정하는 함수 시작
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
             try { // 오류가 날 수 있는 코드를 먼저 시도함
                 RetrofitClient.communityApi.updateComment( // 서버 통신 도구를 설정함
@@ -324,6 +338,7 @@ class CommunityViewModel : ViewModel() { // CommunityViewModel 기능을 묶어�
                     request = UpdateCommunityCommentRequest(content = content) // 서버 요청값을 정해줌
                 )
                 loadPostDetail(postId) // 데이터를 불러오는 함수를 실행함
+                onSuccess()
             } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
                 Log.e("CommunityViewModel", "updateComment failed", e) // 개발자가 확인할 로그를 찍음
                 _uiState.update { it.copy(errorMessage = "댓글 수정에 실패했습니다.") } // 오류 내용을 정해줌
@@ -331,11 +346,16 @@ class CommunityViewModel : ViewModel() { // CommunityViewModel 기능을 묶어�
         }
     }
 
-    fun deleteComment(postId: String, commentId: String) { // 데이터를 삭제하는 함수 시작
+    fun deleteComment(
+        postId: String,
+        commentId: String,
+        onSuccess: () -> Unit = {}
+    ) { // 데이터를 삭제하는 함수 시작
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
             try { // 오류가 날 수 있는 코드를 먼저 시도함
                 RetrofitClient.communityApi.deleteComment(commentId) // 서버 통신 도구를 설정함
                 loadPostDetail(postId) // 데이터를 불러오는 함수를 실행함
+                onSuccess()
             } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
                 Log.e("CommunityViewModel", "deleteComment failed", e) // 개발자가 확인할 로그를 찍음
                 _uiState.update { it.copy(errorMessage = "댓글 삭제에 실패했습니다.") } // 오류 내용을 정해줌

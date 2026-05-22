@@ -1,6 +1,5 @@
 package com.ict.spentopia.feature.auth // 이 파일이 속한 패키지 위치를 적음
 
-import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
 import androidx.compose.foundation.Image // 이미지 표시 컴포넌트를 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
 import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
@@ -37,6 +36,8 @@ import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
 import com.ict.spentopia.R // R 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
+import com.ict.spentopia.ui.toast.AppToastType
+import com.ict.spentopia.ui.toast.showAppToast
 import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
@@ -53,7 +54,7 @@ fun FindPasswordScreen( // FindPasswordScreen 함수를 선언함
         val trimmedEmail = email.trim() // 이메일 값을 저장함
 
         if (trimmedEmail.isBlank()) { // 조건이 맞는지 확인함
-            Toast.makeText(context, context.getString(R.string.find_password_email_required), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+            showAppToast(context, context.getString(R.string.find_password_email_required)) // 화면에 글자를 보여줌
             return
         }
 
@@ -69,17 +70,17 @@ fun FindPasswordScreen( // FindPasswordScreen 함수를 선언함
                  *     email = trimmedEmail,
                  *     onSuccess = { ... },
                  *     onError = { message ->
-                 *         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                 *         showAppToast(context, message)
                  *     }
                  * )
                  */
-                Toast.makeText(context, context.getString(R.string.find_password_api_needed), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                showAppToast(context, context.getString(R.string.find_password_api_needed)) // 화면에 글자를 보여줌
             } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
-                Toast.makeText( // 화면에 글자를 보여줌
+                showAppToast(
                     context,
                     e.message ?: context.getString(R.string.find_password_error),
-                    Toast.LENGTH_SHORT
-                ).show()
+                    AppToastType.ERROR
+                )
             } finally { // 이 블록 안의 내용이 시작됨
                 isLoading = false // false 값을 로딩 여부에 넣음
             }

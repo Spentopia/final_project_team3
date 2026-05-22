@@ -7,7 +7,6 @@ import android.net.Uri // 딥링크 주소 타입을 가져옴
 import android.os.Environment // Environment 기능을 가져옴
 import android.provider.MediaStore // MediaStore 기능을 가져옴
 import android.util.Log // 로그 찍는 기능을 가져옴
-import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
 import androidx.compose.animation.core.LinearEasing // 일정한 속도 애니메이션을 가져옴
 import androidx.compose.animation.core.RepeatMode // 반복 방향 설정을 가져옴
 import androidx.compose.animation.core.animateFloat // Float 애니메이션을 가져옴
@@ -18,7 +17,6 @@ import androidx.compose.foundation.BorderStroke // BorderStroke 기능을 가져
 import androidx.compose.foundation.Canvas // Canvas 기능을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
 import androidx.compose.foundation.border // border 기능을 가져옴
-import androidx.compose.foundation.clickable // 클릭 기능을 가져옴
 import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
 import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
 import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
@@ -80,6 +78,8 @@ import com.ict.spentopia.ui.theme.SpentopiaGlowPurple // SpentopiaGlowPurple 기
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple // SpentopiaNavyPurple 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors // SpentopiaWalletGradientColors 기능을 가져옴
+import com.ict.spentopia.ui.toast.AppToastType
+import com.ict.spentopia.ui.toast.showAppToast
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender // 지갑 앱 호출 도구를 가져옴
 import kotlin.math.max // max 기능을 가져옴
 import kotlin.math.roundToInt // roundToInt 기능을 가져옴
@@ -115,6 +115,9 @@ fun AnalysisScreen( // AnalysisScreen 함수를 선언함
     val uiState by viewModel.uiState.collectAsState() // 화면 상태를 저장함
     val trendExpenseList = viewModel.getCurrentTrendList() // 소비 내역 값을 저장함
     val context = LocalContext.current // 현재 화면 정보를 저장함
+    val requiredPaymentAmountText = remember(uiState.paymentRequiredBody) {
+        formatRequiredPaymentAmount(uiState.paymentRequiredBody)
+    }
 
     LaunchedEffect(walletCallbackUri, walletProvider) {
         walletCallbackUri?.let { uri ->
@@ -149,16 +152,30 @@ fun AnalysisScreen( // AnalysisScreen 함수를 선언함
         paymentPatternList = uiState.paymentPatternList // paymentPatternList 값을 정해줌
     )
 
+    LaunchedEffect(uiState.paymentToastMessage) {
+        if (uiState.paymentToastMessage.isNotBlank()) {
+            val toastType = if (uiState.paymentToastMessage.contains("확인")) {
+                AppToastType.SUCCESS
+            } else {
+                AppToastType.ERROR
+            }
+            showAppToast(context, uiState.paymentToastMessage, toastType)
+            viewModel.consumePaymentToast()
+        }
+    }
+
     if (uiState.isPaymentRequired) {
         AiPaymentRequiredDialog(
             isWalletConnected = isWalletConnected,
             isPaymentLoading = uiState.isPaymentLoading,
+            paymentAmountText = requiredPaymentAmountText,
             onDismiss = { viewModel.dismissPaymentDialog() },
             onConnectPhantomClick = { onWalletConnectClick(SolanaWalletType.PHANTOM) },
             onConnectSolflareClick = { onWalletConnectClick(SolanaWalletType.SOLFLARE) },
             onPaymentClick = {
                 val sender = walletActivityResultSender
                 if (sender != null) {
+                    showAppToast(context, "결제 중...", AppToastType.WALLET)
                     val walletAuthToken = context
                         .getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
                         .getString("wallet_auth_token_${walletProvider}", "")
@@ -171,7 +188,7 @@ fun AnalysisScreen( // AnalysisScreen 함수를 선언함
                         walletAuthToken = walletAuthToken
                     )
                 } else {
-                    Toast.makeText(context, "지갑 결제 화면을 열 수 없습니다.", Toast.LENGTH_SHORT).show()
+                    showAppToast(context, "지갑 결제 화면을 열 수 없습니다.", AppToastType.ERROR)
                 }
             }
         )
@@ -199,11 +216,11 @@ fun AnalysisScreen( // AnalysisScreen 함수를 선언함
                     content = reportText // reportText 값을 내용에 넣음
                 )
 
-                Toast.makeText( // 화면에 글자를 보여줌
-                    context,
-                    if (isSaved) "리포트가 다운로드 폴더에 저장되었어요." else "리포트 저장에 실패했어요.", // 조건이 맞는지 확인함
-                    Toast.LENGTH_SHORT
-                ).show()
+                showAppToast(
+                    context = context,
+                    message = if (isSaved) "리포트가 다운로드 폴더에 저장되었어요." else "리포트 저장에 실패했어요.",
+                    type = if (isSaved) AppToastType.SUCCESS else AppToastType.ERROR
+                )
             }
         )
 
@@ -324,10 +341,24 @@ fun AnalysisHeaderSection( // AnalysisHeaderSection 함수를 선언함
     }
 }
 
+private fun formatRequiredPaymentAmount(
+    body: com.ict.spentopia.data.remote.Solana402Body?
+): String {
+    val rawAmount = body
+        ?.accepts
+        ?.firstOrNull()
+        ?.maxAmountRequired
+        ?.toDoubleOrNull()
+        ?: 100000.0
+
+    return String.format(java.util.Locale.US, "%.2f", rawAmount / 1_000_000.0)
+}
+
 @Composable
 private fun AiPaymentRequiredDialog(
     isWalletConnected: Boolean,
     isPaymentLoading: Boolean,
+    paymentAmountText: String,
     onDismiss: () -> Unit,
     onConnectPhantomClick: () -> Unit,
     onConnectSolflareClick: () -> Unit,
@@ -359,7 +390,7 @@ private fun AiPaymentRequiredDialog(
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -367,16 +398,6 @@ private fun AiPaymentRequiredDialog(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = titleColor
-                    )
-
-                    Text(
-                        text = "닫기",
-                        color = accentColor,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .background(innerSurfaceColor, RoundedCornerShape(10.dp))
-                            .clickable(enabled = !isPaymentLoading) { onDismiss() }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
                     )
                 }
 
@@ -391,7 +412,7 @@ private fun AiPaymentRequiredDialog(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = if (isWalletConnected) "결제 승인" else "지갑 연결",
+                            text = if (isWalletConnected) "무료 분석 횟수 소진" else "지갑 연결 필요",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = accentColor
@@ -401,7 +422,7 @@ private fun AiPaymentRequiredDialog(
 
                         Text(
                             text = if (isWalletConnected) {
-                                "추가 분석을 하기 위해서는 결제가 필요합니다. 결제를 진행해주세요."
+                                "무료 분석 횟수를 모두 사용했어요.\n${paymentAmountText} USDC 결제가 필요합니다."
                             } else {
                                 "추가 분석을 하기 위해서는 결제가 필요합니다. 먼저 지갑을 연결해주세요."
                             },
@@ -430,7 +451,7 @@ private fun AiPaymentRequiredDialog(
                             ),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("결제 취소", fontWeight = FontWeight.Bold)
+                            Text("닫기", fontWeight = FontWeight.Bold)
                         }
 
                         Button(

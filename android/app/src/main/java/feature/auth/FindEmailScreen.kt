@@ -1,6 +1,5 @@
 package com.ict.spentopia.feature.auth // 이 파일이 속한 패키지 위치를 적음
 
-import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
 import androidx.compose.foundation.Image // 이미지 표시 컴포넌트를 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
 import androidx.compose.foundation.border // border 기능을 가져옴
@@ -49,6 +48,8 @@ import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple �
 import com.ict.spentopia.ui.theme.SpentopiaNavy // SpentopiaNavy 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple // SpentopiaNavyPurple 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors // SpentopiaWalletGradientColors 기능을 가져옴
+import com.ict.spentopia.ui.toast.AppToastType
+import com.ict.spentopia.ui.toast.showAppToast
 import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
@@ -65,7 +66,7 @@ fun FindEmailScreen( // FindEmailScreen 함수를 선언함
         val trimmedPhoneNumber = phoneNumber.trim() // trimmedPhoneNumber 값을 저장함
 
         if (trimmedPhoneNumber.isBlank()) { // 조건이 맞는지 확인함
-            Toast.makeText(context, context.getString(R.string.phone_number_required), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+            showAppToast(context, context.getString(R.string.phone_number_required)) // 화면에 글자를 보여줌
             return
         }
 
@@ -81,17 +82,17 @@ fun FindEmailScreen( // FindEmailScreen 함수를 선언함
                  *     phoneNumber = trimmedPhoneNumber,
                  *     onSuccess = { email -> ... },
                  *     onError = { message ->
-                 *         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                 *         showAppToast(context, message)
                  *     }
                  * )
                  */
-                Toast.makeText(context, context.getString(R.string.find_email_api_needed), Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                showAppToast(context, context.getString(R.string.find_email_api_needed)) // 화면에 글자를 보여줌
             } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
-                Toast.makeText( // 화면에 글자를 보여줌
+                showAppToast(
                     context,
                     e.message ?: context.getString(R.string.find_email_error),
-                    Toast.LENGTH_SHORT
-                ).show()
+                    AppToastType.ERROR
+                )
             } finally { // 이 블록 안의 내용이 시작됨
                 isLoading = false // false 값을 로딩 여부에 넣음
             }

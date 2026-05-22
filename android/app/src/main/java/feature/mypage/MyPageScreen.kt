@@ -4,7 +4,6 @@ package com.ict.spentopia.feature.mypage // 이 파일이 속한 패키지 위�
 // 프로필/아바타/설정/테마 관리
 
 import android.net.Uri // 이미지 주소 타입을 가져옴
-import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
 import androidx.activity.compose.rememberLauncherForActivityResult // rememberLauncherForActivityResult 기능을 가져옴
 import androidx.activity.result.contract.ActivityResultContracts // ActivityResultContracts 기능을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
@@ -65,6 +64,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel // Compose에서 ViewModel
 import coil.compose.AsyncImage // AsyncImage 기능을 가져옴
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog // SolanaWalletDialog 기능을 가져옴
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // SolanaWalletType 기능을 가져옴
+import com.ict.spentopia.ui.toast.showAppToast
 
 // 기존 주석 유지
 // 마이페이지 화면
@@ -141,7 +141,7 @@ fun MyPageScreen( // MyPageScreen 함수를 선언함
                         newPassword = newPassword,
                         confirmPassword = confirmPassword,
                         onResult = { message ->
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            showAppToast(context, message)
                         }
                     )
                 }
@@ -568,11 +568,7 @@ private fun MemberInfoCard( // MemberInfoCard 함수를 선언함
                         )
                         .clickable { // 이 블록 안의 내용이 시작됨
                             viewModel.toggleEditMode(context) { message ->
-                                Toast.makeText(
-                                    context,
-                                    message,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                showAppToast(context, message)
                             }
                         }
                         .padding(horizontal = 12.dp, vertical = 8.dp) // .padding(horizontal 값을 정해줌

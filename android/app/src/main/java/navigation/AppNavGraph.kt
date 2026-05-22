@@ -3,7 +3,6 @@ package com.ict.spentopia.navigation // 이 파일이 속한 패키지 위치를
 import android.content.Context // 현재 화면 정보 타입을 가져옴
 import android.net.Uri // 이미지 주소 타입을 가져옴
 import android.util.Log // 로그 찍는 기능을 가져옴
-import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
 import androidx.compose.foundation.rememberScrollState // rememberScrollState 기능을 가져옴
 import androidx.compose.foundation.verticalScroll // verticalScroll 기능을 가져옴
@@ -96,6 +95,7 @@ import com.ict.spentopia.feature.market.MarketScreen // MarketScreen 기능을 �
 import com.ict.spentopia.feature.mypage.ProfileAvatarScreen // ProfileAvatarScreen 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaDarkBackground
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
+import com.ict.spentopia.ui.toast.showAppToast
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender // ActivityResultSender 기능을 가져옴
 import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
 
@@ -197,7 +197,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
             } catch (e: Exception) {
                 notificationEnabled = !enabled // 실패하면 이전 상태로 되돌림
                 Log.e("SpentopiaNotification", "알림 설정 저장 실패", e)
-                Toast.makeText(context, "알림 설정 저장에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                showAppToast(context, "알림 설정 저장에 실패했습니다.")
             } finally {
                 notificationSettingLoading = false // 저장 상태를 끝냄
             }
@@ -213,7 +213,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                 }
             } catch (e: Exception) {
                 Log.e("SpentopiaNotification", "알림 읽음 처리 실패", e)
-                Toast.makeText(context, "알림 읽음 처리에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                showAppToast(context, "알림 읽음 처리에 실패했습니다.")
             }
         }
     }
@@ -225,7 +225,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                 notifications = notifications.map { it.copy(is_read = true) } // 화면 목록도 모두 읽음 상태로 바꿈
             } catch (e: Exception) {
                 Log.e("SpentopiaNotification", "전체 알림 읽음 처리 실패", e)
-                Toast.makeText(context, "전체 읽음 처리에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                showAppToast(context, "전체 읽음 처리에 실패했습니다.")
             }
         }
     }
@@ -317,12 +317,12 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
         val accessToken = prefs.getString("access_token", "") ?: "" // 접근 토큰을 저장함
 
         if (currentWalletAddress.isBlank()) { // 조건이 맞는지 확인함
-            Toast.makeText(context, "연결된 지갑 주소가 없습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+            showAppToast(context, "연결된 지갑 주소가 없습니다.") // 화면에 글자를 보여줌
             return
         }
 
         if (accessToken.isBlank()) { // 조건이 맞는지 확인함
-            Toast.makeText(context, "로그인 토큰이 없습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+            showAppToast(context, "로그인 토큰이 없습니다.") // 화면에 글자를 보여줌
             return
         }
 
@@ -354,15 +354,15 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                         walletAddress = "" // 지갑 주소를 정해줌
                         walletProvider = "" // 지갑 이름을 정해줌
 
-                        Toast.makeText(context, "지갑 연결이 해제되었습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                        showAppToast(context, "지갑 연결이 해제되었습니다.") // 화면에 글자를 보여줌
                     }
                     is WalletSignResult.Failure -> { // 이 블록 안의 내용이 시작됨
-                        Toast.makeText(context, signResult.message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                        showAppToast(context, signResult.message) // 화면에 글자를 보여줌
                     }
                 }
             } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
                 Log.e("Spentopia", "지갑 해제 실패", e) // 개발자가 확인할 로그를 찍음
-                Toast.makeText(context, e.message ?: "지갑 해제 실패", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                showAppToast(context, e.message ?: "지갑 해제 실패") // 화면에 글자를 보여줌
             }
         }
     }
@@ -373,7 +373,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
         val accessToken = prefs.getString("access_token", "") ?: "" // 접근 토큰을 저장함
 
         if (accessToken.isBlank()) { // 조건이 맞는지 확인함
-            Toast.makeText(context, "로그인 토큰이 없습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+            showAppToast(context, "로그인 토큰이 없습니다.") // 화면에 글자를 보여줌
             return
         }
 
@@ -391,7 +391,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
             if (!opened) {
                 pendingReconnectWallet = null
                 val walletName = if (walletType == SolanaWalletType.PHANTOM) "Phantom" else "Solflare"
-                Toast.makeText(context, "${walletName} 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+                showAppToast(context, "${walletName} 지갑 앱을 찾을 수 없습니다.")
             }
             return
         }
@@ -408,13 +408,13 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                 val newWalletAddress = when (connectResult) { // 지갑 관련 값을 저장함
                     is WalletConnectionResult.Success -> connectResult.walletAddress
                     is WalletConnectionResult.Failure -> { // 이 블록 안의 내용이 시작됨
-                        Toast.makeText(context, connectResult.message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                        showAppToast(context, connectResult.message) // 화면에 글자를 보여줌
                         return@launch
                     }
                 }
 
                 if (newWalletAddress.isBlank()) { // 조건이 맞는지 확인함
-                    Toast.makeText(context, "지갑 주소를 가져오지 못했습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                    showAppToast(context, "지갑 주소를 가져오지 못했습니다.") // 화면에 글자를 보여줌
                     return@launch
                 }
 
@@ -430,7 +430,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                 val signature = when (signResult) { // 지갑 서명값을 저장함
                     is WalletSignResult.Success -> signResult.signature
                     is WalletSignResult.Failure -> { // 이 블록 안의 내용이 시작됨
-                        Toast.makeText(context, signResult.message, Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                        showAppToast(context, signResult.message) // 화면에 글자를 보여줌
                         return@launch
                     }
                 }
@@ -456,10 +456,10 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                 walletAddress = linkResponse.wallet_address // 지갑 주소를 정해줌
                 walletProvider = walletType.name // 지갑 이름을 정해줌
 
-                Toast.makeText(context, "지갑이 다시 연결되었습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                showAppToast(context, "지갑이 다시 연결되었습니다.") // 화면에 글자를 보여줌
             } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
                 Log.e("Spentopia", "지갑 재연결 실패", e) // 개발자가 확인할 로그를 찍음
-                Toast.makeText(context, e.message ?: "지갑 재연결 실패", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                showAppToast(context, e.message ?: "지갑 재연결 실패") // 화면에 글자를 보여줌
             }
         }
     }
@@ -485,7 +485,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
             pendingReconnectWallet = null
             pendingReconnectWalletAddress = null
             pendingReconnectNonce = null
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            showAppToast(context, message)
             onWalletCallbackConsumed()
             return@LaunchedEffect
         }
@@ -507,7 +507,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                 pendingReconnectWallet = null
                 pendingReconnectWalletAddress = null
                 pendingReconnectNonce = null
-                Toast.makeText(context, "지갑 주소를 가져오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                showAppToast(context, "지갑 주소를 가져오지 못했습니다.")
                 onWalletCallbackConsumed()
                 return@LaunchedEffect
             }
@@ -530,13 +530,13 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                     pendingReconnectWallet = null
                     pendingReconnectWalletAddress = null
                     pendingReconnectNonce = null
-                    Toast.makeText(context, "${walletName} 지갑 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+                    showAppToast(context, "${walletName} 지갑 앱을 찾을 수 없습니다.")
                 }
             } catch (e: Exception) {
                 pendingReconnectWallet = null
                 pendingReconnectWalletAddress = null
                 pendingReconnectNonce = null
-                Toast.makeText(context, e.message ?: "지갑 nonce 발급 실패", Toast.LENGTH_SHORT).show()
+                showAppToast(context, e.message ?: "지갑 nonce 발급 실패")
             }
             onWalletCallbackConsumed()
             return@LaunchedEffect
@@ -563,7 +563,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                 pendingReconnectWallet = null
                 pendingReconnectWalletAddress = null
                 pendingReconnectNonce = null
-                Toast.makeText(context, "지갑 서명 상태를 확인하지 못했습니다.", Toast.LENGTH_SHORT).show()
+                showAppToast(context, "지갑 서명 상태를 확인하지 못했습니다.")
                 onWalletCallbackConsumed()
                 return@LaunchedEffect
             }
@@ -591,12 +591,12 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                 pendingReconnectNonce = null
                 phantomDeepLinkConnector.clearPendingLogin()
                 solflareDeepLinkConnector.clearPendingLogin()
-                Toast.makeText(context, "지갑이 다시 연결되었습니다.", Toast.LENGTH_SHORT).show()
+                showAppToast(context, "지갑이 다시 연결되었습니다.")
             } catch (e: Exception) {
                 pendingReconnectWallet = null
                 pendingReconnectWalletAddress = null
                 pendingReconnectNonce = null
-                Toast.makeText(context, e.message ?: "지갑 재연결 실패", Toast.LENGTH_SHORT).show()
+                showAppToast(context, e.message ?: "지갑 재연결 실패")
             }
             onWalletCallbackConsumed()
         }
@@ -782,12 +782,8 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                         onWalletCallbackConsumed = onWalletCallbackConsumed, // 지갑 값을 요청값에 넣음
                         kakaoCallbackUri = kakaoCallbackUri, // kakaoCallbackUri 값을 kakaoCallbackUri 값에 넣음
                         onKakaoCallbackConsumed = onKakaoCallbackConsumed, // onKakaoCallbackConsumed 때 실행할 함수를 onKakaoCallbackConsumed 때 실행할 함수에 넣음
-                        onKakaoClick = { // onKakaoClick 때 실행할 함수를 정해줌
-                            Toast.makeText(context, "카카오 로그인 연결 예정", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
-                        },
-                        onGoogleClick = { // onGoogleClick 때 실행할 함수를 정해줌
-                            Toast.makeText(context, "구글 로그인 연결 예정", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
-                        },
+                        onKakaoClick = {}, // 로그인 화면 토스트는 표시하지 않음
+                        onGoogleClick = {}, // 로그인 화면 토스트는 표시하지 않음
                         onFindEmailClick = { // 이메일 값을 정해줌
                             navController.navigate(Route.FindEmail.route) // 다른 화면으로 이동함
                         },
@@ -880,6 +876,13 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                     LaunchedEffect(Unit) { // 화면이 열리거나 값이 바뀔 때 실행함
                         communityViewModel.loadPosts()
                     }
+                    LaunchedEffect(communityUiState.errorMessage) {
+                        communityUiState.errorMessage
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { message ->
+                                showAppToast(context, message)
+                            }
+                    }
 
                     CommunityScreen( // 커뮤니티 화면을 보여줌
                         posts = communityUiState.posts, // posts 값을 정해줌
@@ -912,24 +915,33 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                             communityViewModel.clearSelectedPost()
                         },
                         onUpdatePostClick = { updatedPost -> // onUpdatePostClick 때 실행할 함수를 정해줌
-                            communityViewModel.updatePost(updatedPost)
+                            communityViewModel.updatePost(updatedPost) {
+                                showAppToast(context, "게시글이 수정되었습니다.")
+                            }
                         },
                         onDeletePostClick = { deletePostId -> // onDeletePostClick 때 실행할 함수를 정해줌
                             communityViewModel.deletePost(deletePostId) { // 이 블록 안의 내용이 시작됨
                                 communityViewModel.clearSelectedPost()
+                                showAppToast(context, "게시글이 삭제되었습니다.")
                             }
                         },
                         onToggleLikeClick = { targetPostId -> // onToggleLikeClick 때 실행할 함수를 정해줌
                             communityViewModel.toggleLike(targetPostId)
                         },
                         onAddCommentClick = { targetPostId, content -> // onAddCommentClick 때 실행할 함수를 정해줌
-                            communityViewModel.addComment(targetPostId, content)
+                            communityViewModel.addComment(targetPostId, content) {
+                                showAppToast(context, "댓글이 등록되었습니다.")
+                            }
                         },
                         onUpdateCommentClick = { targetPostId, commentId, content -> // onUpdateCommentClick 때 실행할 함수를 정해줌
-                            communityViewModel.updateComment(targetPostId, commentId, content)
+                            communityViewModel.updateComment(targetPostId, commentId, content) {
+                                showAppToast(context, "댓글이 수정되었습니다.")
+                            }
                         },
                         onDeleteCommentClick = { targetPostId, commentId -> // onDeleteCommentClick 때 실행할 함수를 정해줌
-                            communityViewModel.deleteComment(targetPostId, commentId)
+                            communityViewModel.deleteComment(targetPostId, commentId) {
+                                showAppToast(context, "댓글이 삭제되었습니다.")
+                            }
                         },
                         onReportClick = { targetType, targetId, reason, detail -> // onReportClick 때 실행할 함수를 정해줌
                             communityViewModel.reportContent(targetType, targetId, reason, detail)
@@ -986,6 +998,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                                     null
                                 },
                                 onSuccess = { // 성공했을 때 실행할 함수를 정해줌
+                                    showAppToast(context, "게시글이 등록되었습니다.")
                                     navController.popBackStack()
                                 }
                             )

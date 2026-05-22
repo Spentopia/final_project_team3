@@ -1,6 +1,5 @@
 package com.example.spentopia.feature.plaza
 
-import android.widget.Toast
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -68,6 +67,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.ict.spentopia.data.remote.RetrofitClient
+import com.ict.spentopia.ui.toast.AppToastType
+import com.ict.spentopia.ui.toast.showAppToast
 import com.ict.spentopia.ui.theme.SpentopiaDarkBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -102,13 +103,13 @@ fun PlazaScreen(
                 gameLoginExpiresIn = response.expires_in // 코드 만료 시간을 저장함
                 gameLoginRemainingSeconds = response.expires_in // 카운트다운 시간을 초기화함
                 showGameLoginCodeDialog = true // 코드 생성 후 팝업을 표시함
-                Toast.makeText(context, "게임 로그인 코드가 생성되었습니다.", Toast.LENGTH_SHORT).show()
+                showAppToast(context, "게임 로그인 코드가 생성되었습니다.")
             } catch (error: Exception) {
-                Toast.makeText(
+                showAppToast(
                     context,
                     error.message ?: "게임 로그인 코드를 생성하지 못했습니다.",
-                    Toast.LENGTH_SHORT
-                ).show()
+                    AppToastType.ERROR
+                )
             } finally {
                 isCreatingGameLoginCode = false // 요청이 끝나면 생성 중 상태를 해제함
             }

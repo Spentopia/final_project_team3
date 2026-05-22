@@ -5,7 +5,6 @@ import android.app.DatePickerDialog // 날짜 선택창 기능을 가져옴
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri // 이미지 주소 같은 Uri 타입을 가져옴
-import android.widget.Toast
 
 // Activity Result 관련 import
 import androidx.activity.compose.rememberLauncherForActivityResult // 외부 앱 결과를 받는 도구를 가져옴
@@ -127,6 +126,8 @@ import com.ict.spentopia.ui.theme.SpentopiaNavy
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple
 import com.ict.spentopia.ui.theme.spentopiaAppButtonColor
 import com.ict.spentopia.ui.theme.spentopiaAppButtonContentColor
+import com.ict.spentopia.ui.toast.AppToastType
+import com.ict.spentopia.ui.toast.showAppToast
 
 // 숫자 포맷 및 날짜 계산 관련 import
 import kotlinx.coroutines.launch
@@ -301,15 +302,15 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
     } // 블록 끝
 
     // 이번 달 총 수입입니다.
-    // 예산 설정의 월 수입 + 이번 달 수입 입력 금액을 합쳐서 보여줍니다.
-    val fixedCurrentMonthTotalIncome = remember(budgetState, fixedCurrentMonthInputIncome) { // 이 블록의 내용이 여기서 시작됨
-        budgetState.monthlyIncome + fixedCurrentMonthInputIncome // 기본 월 수입과 추가 입력 수입을 합산함
+    // 홈 요약에서는 예산 설정값과 섞지 않고, 사용자가 입력한 수입 합계만 보여줍니다.
+    val fixedCurrentMonthTotalIncome = remember(fixedCurrentMonthInputIncome) { // 이 블록의 내용이 여기서 시작됨
+        fixedCurrentMonthInputIncome.toLong() // 이번 달 수입 입력 합계만 사용함
     } // 블록 끝
 
-    // 예산 설정 화면에서 저장한 저축 목표와 이번 달 총 수입으로 월 예산을 계산합니다.
-    // "이번 달 총 수입 - 저축 목표"를 실제 사용 가능한 한 달 예산으로 사용합니다.
-    val monthlyBudget = remember(fixedCurrentMonthTotalIncome, budgetState) { // 이 블록의 내용이 여기서 시작됨
-        fixedCurrentMonthTotalIncome - budgetState.savingGoal // 이번 달 총 수입에서 저축 목표를 뺌
+    // 예산 설정 화면에서 저장한 월 예산을 홈 요약의 기준 예산으로 그대로 사용합니다.
+    // 수입 입력이나 저축 목표를 섞지 않아 웹/앱 표시 기준이 흔들리지 않게 합니다.
+    val monthlyBudget = remember(budgetState) { // 이 블록의 내용이 여기서 시작됨
+        budgetState.monthlyIncome // 예산 설정 페이지에서 저장한 월 예산을 그대로 씀
     } // 블록 끝
 
     // 오늘 날짜를 yyyy-MM-dd 형식으로 생성합니다.
@@ -361,7 +362,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
             .sumOf { it.amount }
     } // 블록 끝
 
-    val remainingBudget = monthlyBudget - fixedCurrentMonthTotalExpense // remainingBudget 값을 계산해서 저장함
+    val remainingBudget = monthlyBudget - fixedCurrentMonthTotalExpense.toLong() // remainingBudget 값을 계산해서 저장함
 
 // 사용률 텍스트 계산입니다.
 // 기존에는 Int로 바로 잘라서 0.2% 같은 값이 0%가 되는 문제가 있었기 때문에
@@ -438,7 +439,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
             DailyExpenseCard( // 카드 모양 UI를 시작함
                 expenseList = expenseList, // onCalendarClick 값을 이 함수로 넘김
                 selectedDate = selectedDate, // selectedDate 값을 이 함수로 넘김
-                onEditExpense = { expense -> // onEditExpense 값을 이 함수로 넘김
+                onEditExpense = { expense -> // onEditExpense 값을 이 함수로 넘김ekzm
                     // 수정 버튼을 누르면 수정 모드로 바꾸고,
                     // 선택 날짜도 해당 항목 날짜로 맞춰줍니다.
                     editingExpense = expense // 바로 앞 설정을 이어서 적음
@@ -485,10 +486,10 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                                 } else {
                                     "소비 기록이 등록되었어요."
                                 }
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                showAppToast(context, message)
                             },
                             onError = { message ->
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                showAppToast(context, message)
                             }
                         )
                     } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
@@ -499,7 +500,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                         } else {
                             "소비 기록이 수정되었어요."
                         }
-                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        showAppToast(context, message)
                     } // 블록 끝
                 },
                 onCancelEdit = { // 이 이벤트가 일어났을 때 실행할 코드를 시작함
@@ -2280,7 +2281,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                         onClick = {
                             val expectedAmount = amount.toIntOrNull()
                             if (expectedAmount == null || expectedAmount <= 0) {
-                                Toast.makeText(context, "영수증 인증 전에 금액을 입력해주세요.", Toast.LENGTH_SHORT).show()
+                                showAppToast(context, "영수증 인증 전에 금액을 입력해주세요.")
                             } else {
                                 scope.launch {
                                     isReceiptVerifying = true
@@ -2315,7 +2316,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                         }
 
                                         if (imageBytes == null || imageBytes.isEmpty()) {
-                                            Toast.makeText(context, "영수증 이미지를 읽지 못했습니다.", Toast.LENGTH_SHORT).show()
+                                            showAppToast(context, "영수증 이미지를 읽지 못했습니다.")
                                             return@launch
                                         }
 
@@ -2353,14 +2354,14 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
                                             response.verification.reason
                                         }
 
-                                        Toast.makeText(
-                                            context,
-                                            if (response.verification.is_verified) "영수증 인증 완료!" else response.verification.reason,
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                        showAppToast(
+                                            context = context,
+                                            message = if (response.verification.is_verified) "영수증 인증 완료!" else response.verification.reason,
+                                            type = if (response.verification.is_verified) AppToastType.SUCCESS else AppToastType.WARNING
+                                        )
                                     } catch (e: Exception) {
                                         receiptVerificationMessage = resolveReceiptVerificationError(e)
-                                        Toast.makeText(context, receiptVerificationMessage, Toast.LENGTH_SHORT).show()
+                                        showAppToast(context, receiptVerificationMessage)
                                     } finally {
                                         isReceiptVerifying = false
                                     }

@@ -21,7 +21,6 @@ package com.ict.spentopia.feature.community // 이 파일이 속한 패키지 �
 import android.content.ClipData // ClipData 기능을 가져옴
 import android.content.ClipboardManager // ClipboardManager 기능을 가져옴
 import android.content.Context // 현재 화면 정보 타입을 가져옴
-import android.widget.Toast // 짧은 알림 메시지 기능을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border // border 기능을 가져옴
@@ -79,6 +78,7 @@ import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
 import com.ict.spentopia.R // R 기능을 가져옴
 import coil.compose.AsyncImage // AsyncImage 기능을 가져옴
+import com.ict.spentopia.ui.toast.showAppToast
 import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // 앱 다크모드 배경색을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
 import com.ict.spentopia.ui.theme.spentopiaAppButtonColor
@@ -193,7 +193,7 @@ fun CommunityDetailScreen( // CommunityDetailScreen 함수를 선언함
             onReportClick = { targetType, targetId, reason, detail -> // onReportClick 때 실행할 함수를 정해줌
                 onReportClick(targetType, targetId, reason, detail) // on Report Click 함수를 실행함
                 showReportDialog = false // false 값을 showReportDialog 값에 넣음
-                Toast.makeText(context, "신고가 접수되었습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+                showAppToast(context, "신고가 접수되었습니다.") // 화면에 글자를 보여줌
             }
         )
     }
@@ -1418,7 +1418,7 @@ private fun copyCommunityPostLink(context: Context, postId: String) { // copyCom
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager // clipboard 값을 저장함
     val text = "spentopia://community/posts/$postId" // text 값을 저장함
     clipboard.setPrimaryClip(ClipData.newPlainText("커뮤니티 게시글 링크", text)) // 화면에 글자를 보여줌
-    Toast.makeText(context, "링크가 복사되었습니다.", Toast.LENGTH_SHORT).show() // 화면에 글자를 보여줌
+    showAppToast(context, "링크가 복사되었습니다.") // 화면에 글자를 보여줌
 }
 
 private data class CommunityDetailBadgeColors( // CommunityDetailBadgeColors 데이터를 묶어둘 클래스 시작
