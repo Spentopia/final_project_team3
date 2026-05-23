@@ -439,7 +439,7 @@ pub async fn generate_ai_plan(
         req.budget_id,
     );
 
-    let res = state
+    state
         .http_client
         .patch(&patch_url)
         .header(
@@ -455,13 +455,6 @@ pub async fn generate_ai_plan(
         .send()
         .await
         .context("budgets ai_plan 업데이트 실패")?;
-
-    // 🔥 상태 코드 확인
-    println!("🔥 DB 저장 상태: {}", res.status());
-
-    // 🔥 응답 바디 확인
-    let body = res.text().await.unwrap_or_default();
-    println!("🔥 DB 저장 결과: {}", body);
 
     // ✅ 7. 프론트로는 plans 그대로 내려줌
     Ok(AiPlanResponse { plans })

@@ -730,20 +730,10 @@ fn verify_solana_signature(
 ) -> Result<()> {
     let message = build_wallet_sign_message(wallet_address, nonce);
 
-    tracing::debug!(
-        "[서명검증] 시작: wallet={}, nonce_len={}, message_len={}, sig_chars={}",
-        wallet_address,
-        nonce.len(),
-        message.len(),
-        signature.len()
-    );
-
     // Base58 문자열("7xKXtg2...") → 바이트 배열([0x7a, 0x2b, ...])로 변환
     let pubkey_bytes = bs58::decode(wallet_address)
         .into_vec()
         .context("지갑 주소 Base58 디코딩 실패. 유효한 Solana 주소인지 확인 필요.")?;
-
-    tracing::debug!("[서명검증] 공개키 바이트 수: {}", pubkey_bytes.len());
 
     // ed25519 공개키는 정확히 32바이트여야 함
     // try_into(): Vec<u8> → [u8; 32] 고정 배열로 변환 시도
@@ -760,8 +750,6 @@ fn verify_solana_signature(
     let sig_bytes = bs58::decode(signature)
         .into_vec()
         .context("서명 Base58 디코딩 실패")?;
-
-    tracing::debug!("[서명검증] 서명 바이트 수: {}", sig_bytes.len());
 
     // ed25519 서명은 정확히 64바이트여야 함
     let sig_array: [u8; 64] = sig_bytes
@@ -780,8 +768,6 @@ fn verify_solana_signature(
             message.len(),
             e
         );
-    } else {
-        tracing::debug!("[서명검증] 성공");
     }
     result.context("서명 검증 실패. 지갑 주인이 아니거나 nonce가 변조됨.")?;
     Ok(())

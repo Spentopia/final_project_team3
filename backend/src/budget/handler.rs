@@ -71,10 +71,7 @@ pub async fn create_budget(
     }
     match service::create_budget(&state, user_id, req).await {
         Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
-        Err(e) => {
-            println!("🔥 create_budget error: {:?}", e); // 👈 추가
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
-        }
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
 

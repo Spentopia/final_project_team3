@@ -226,11 +226,6 @@ export async function cancelListingOnChain(params: {
     transaction.feePayer = seller;
     transaction.recentBlockhash = latest.blockhash;
 
-    console.log("[cancelListing] seller:", seller.toBase58());
-    console.log("[cancelListing] nftMint:", nftMint.toBase58());
-    console.log("[cancelListing] listing PDA:", listing.toBase58());
-    console.log("[cancelListing] escrow:", escrow.toBase58());
-
     // listing PDA 존재 여부 확인
     const listingInfo = await params.connection.getAccountInfo(listing);
     if (!listingInfo) {

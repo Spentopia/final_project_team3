@@ -90,8 +90,6 @@ pub async fn jwt_middleware(
         )
     })?;
 
-    tracing::debug!("앱 JWT 검증 통과: user_id={}", user_id);
-
     // ── 3) 핸들러에서 꺼내 쓸 수 있도록 extension에 저장 ─────
     request.extensions_mut().insert(user_id);
 
@@ -135,6 +133,5 @@ pub async fn admin_middleware(
         ));
     }
 
-    tracing::debug!("관리자 인증 통과: user_id={}", user_id);
     Ok(next.run(request).await)
 }

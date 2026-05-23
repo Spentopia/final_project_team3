@@ -486,8 +486,6 @@ if (savedSelectedPlan && parsedPlans?.length) {
 
   const handleApplyPlan = async (planId: string) => {
 
-  console.log("🔥 클릭된 planId:", planId);
-
   if (!canEditBudget) {
     toast.error(budgetDisabledMessage);
     return;
@@ -542,8 +540,6 @@ localStorage.setItem(
 
 localStorage.setItem(getBudgetLockStorageKey(monthKey), "true");
 setIsBudgetLocked(true);
-
-console.log("✅ selectedPlan 저장:", planId);
 
 setMonthlyBudget(monthKey, plan.budget);
 
@@ -633,8 +629,6 @@ try {
     );
 
     const data = aiRes.data;
-
-    console.log("AI 응답:", data);
 
     // 👉 4. 프론트 형식으로 변환
     const mappedPlans: AiPlan[] = data.plans
