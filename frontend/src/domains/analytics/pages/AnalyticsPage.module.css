@@ -1,3 +1,8 @@
+
+
+
+AnalyticsPage.module.css
+
 .categoryMeter {
   height: 100%;
   border-radius: 9999px;
@@ -28,40 +33,34 @@
   background-color: #6b7280;
 }
 
-/* 카드 기본 스타일 */
 .marketCard.marketCard.marketCard {
-  border: 1px solid #dbe4f0 !important;
-  background: #f8fbff !important;
+  border: 1px solid rgba(125, 211, 252, 0.62) !important;
   background-image:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.96)),
     radial-gradient(circle at 12% 0%, rgba(125, 211, 252, 0.18), transparent 32%),
     radial-gradient(circle at 88% 8%, rgba(37, 99, 235, 0.1), transparent 30%) !important;
   box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    inset 0 0 0 1px rgba(37, 99, 235, 0.07),
+    0 0 0 1px rgba(125, 211, 252, 0.34),
+    0 18px 44px rgba(37, 99, 235, 0.12),
+    0 4px 16px rgba(15, 23, 42, 0.06) !important;
+  background: #f8fbff !important;
+  border: 1px solid #dbe4f0 !important;
+
+  box-shadow:
     0 2px 10px rgba(15, 23, 42, 0.04) !important;
 }
 
-/* 다크모드 카드 */
-:global(.dark) .marketCard.marketCard.marketCard {
-  border: 1px solid rgba(167, 139, 250, 0.34) !important;
-  background: #111827 !important;
-  color: #f8fafc;
-  background-image:
-    linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.96)),
-    radial-gradient(circle at 12% 0%, rgba(124, 58, 237, 0.18), transparent 34%),
-    radial-gradient(circle at 88% 8%, rgba(56, 189, 248, 0.08), transparent 30%) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 0 0 1px rgba(167, 139, 250, 0.08),
-    0 0 0 1px rgba(124, 58, 237, 0.16),
-    0 18px 44px rgba(0, 0, 0, 0.28),
-    0 4px 18px rgba(124, 58, 237, 0.12) !important;
-}
-
-/* 예산 게이지 */
 .budgetGaugeTrack {
   overflow: hidden;
   border-radius: 9999px;
+  background: rgba(224, 242, 254, 0.9);
+  box-shadow:
+    inset 0 0 0 1px rgba(125, 211, 252, 0.42),
+    0 8px 20px rgba(37, 99, 235, 0.08);
   background: rgba(219, 234, 254, 0.9);
+
   box-shadow:
     inset 0 0 0 1px rgba(37, 99, 235, 0.14);
 }
@@ -69,14 +68,21 @@
 .budgetGaugeFill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: linear-gradient(135deg, #38bdf8 0%, #2563eb 58%, #1e3a8a 100%);
+  box-shadow: 0 0 14px rgba(37, 99, 235, 0.28);
+
+  background:
+    linear-gradient(135deg, #3b82f6, #2563eb);
+
   box-shadow:
     0 0 14px rgba(37, 99, 235, 0.34);
+
   transition: width 700ms ease;
 }
 
 :global(.dark) .budgetGaugeTrack {
   background: rgba(15, 23, 42, 0.92);
+
   box-shadow:
     inset 0 0 0 1px rgba(124, 58, 237, 0.35);
 }
@@ -84,38 +90,9 @@
 :global(.dark) .budgetGaugeFill {
   background:
     linear-gradient(90deg, #38bdf8, #7c3aed, #a78bfa);
+
   box-shadow:
     0 0 18px rgba(124, 58, 237, 0.48);
-}
-
-/* 카테고리 상세 바 */
-.categoryProgressTrack {
-  width: 100%;
-  height: 14px;
-  flex: 1;
-  overflow: hidden;
-  border-radius: 9999px;
-  background: #dbeafe;
-  position: relative;
-  border: 1px solid #bfdbfe;
-}
-
-.categoryProgressFill {
-  height: 100%;
-  min-width: 6px;
-  border-radius: inherit;
-  transition: width 0.7s ease;
-}
-
-/* =========================
-   PDF 다운로드 전용
-========================= */
-
-.pdfDownload {
-  width: 100% !important;
-  overflow: visible !important;
-  background: inherit !important;
-  background-image: inherit !important;
 }
 
 .pdfDownload * {
@@ -123,40 +100,97 @@
   transition: none !important;
 }
 
-/* PDF 캡처에서 숨길 요소만 숨김 */
-.pdfDownload [data-html2canvas-ignore="true"] {
-  display: none !important;
-}
-
-/* 차트 깨짐 방지 */
-.pdfDownload .recharts-wrapper,
-.pdfDownload .recharts-surface,
-.pdfDownload .recharts-responsive-container {
-  overflow: visible !important;
-}
-
+.pdfDownload .recharts-wrapper *,
 .pdfDownload svg {
   filter: none !important;
   backdrop-filter: none !important;
 }
 
-/* PDF 모드 */
-.pdfMode {
-  color-scheme: inherit !important;
+/* 버튼 숨김 */
+.pdfDownload button {
+  display: none !important;
 }
 
-/* PDF 모드에서 차트/아이콘 필터 제거 */
-.pdfMode svg,
-.pdfMode .recharts-wrapper,
-.pdfMode .recharts-surface {
+/* PDF 생성 전용 */
+:global(.pdf-mode) {
+  color-scheme: light !important;
+}
+
+/* dark mode 무력화 */
+:global(.pdf-mode .dark),
+:global(.pdf-mode.dark) {
+  color-scheme: light !important;
+}
+
+.pdfDownload {
+  width: 100% !important;
+  overflow: visible !important;
+}
+
+.categoryProgressTrack {
+  width: 100%;
+  height: 14px;
+  flex: 1;
+
+  overflow: hidden;
+  border-radius: 9999px;
+
+  background: #dbeafe;
+
+  position: relative;
+
+  border: 1px solid #bfdbfe;
+}
+
+.categoryProgressFill {
+  height: 100%;
+  min-width: 6px;
+
+  border-radius: inherit;
+
+  transition: width 0.7s ease;
+}
+
+.pdfModeCard {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.pdfMode {
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+.pdfMode * {
+  color: inherit !important;
+}
+
+.pdfDownload {
+  overflow: visible !important;
+}
+
+.pdfDownload .recharts-responsive-container {
+  min-height: 300px !important;
+}
+
+.pdfMode * {
+  box-shadow: none !important;
   filter: none !important;
   backdrop-filter: none !important;
 }
 
-/* PDF 캡처용 고정 레이아웃 */
+/* =========================
+   PDF 고정 레이아웃
+========================= */
+
 .pdfFixedLayout {
-  width: 100% !important;
-  max-width: 100% !important;
-  background: inherit !important;
-  background-image: inherit !important;
+  width: 1400px !important;
+  min-width: 1400px !important;
+  max-width: 1400px !important;
+
+  margin: 0 auto;
+
+  background: white !important;
 }

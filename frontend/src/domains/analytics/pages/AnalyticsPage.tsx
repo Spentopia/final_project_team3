@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { analyzeReport } from "@/shared/api/aiApi";
 import { isSolana402Body, sendSolanaX402Payment } from "@/shared/api/solanaX402";
 import { useState } from "react";
-import html2canvas from "html2canvas-pro";
+import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useRef } from "react";
 import type { AnalyzeReportRequest } from "@/shared/api/aiApi";
@@ -55,119 +55,6 @@ type AIReport = {
 type AnalysisReportType = AnalyzeReportRequest["report_type"];
 type AnalysisKind = AnalyzeReportRequest["analysis_kind"];
 type ReportStateByPeriod = Record<AnalysisReportType, AIReport | null>;
-
-const UNSUPPORTED_CSS_COLOR_RE = /oklch|oklab|lab\(|lch\(|color\(/i;
-const WALLET_REQUIRED_PAYMENT_MESSAGE =
-  "추가 분석을 하기 위해서는 결제가 필요합니다. 먼저 지갑을 연결해주세요.";
-
-const resolveCssColor = (value: string) => {
-  if (!value || !UNSUPPORTED_CSS_COLOR_RE.test(value)) return value;
-
-  const probe = document.createElement("div");
-  probe.style.color = value;
-  document.body.appendChild(probe);
-  const resolved = window.getComputedStyle(probe).color || value;
-  probe.remove();
-  return resolved;
-};
-
-const sanitizeCssValue = (property: string, value: string) => {
-  if (!value) return value;
-  if (!UNSUPPORTED_CSS_COLOR_RE.test(value)) return value;
-
-  if (
-    property.includes("color") ||
-    property === "fill" ||
-    property === "stroke" ||
-    property === "caret-color" ||
-    property === "text-decoration-color"
-  ) {
-    return resolveCssColor(value);
-  }
-
-  if (property === "background-image") {
-    return "none";
-  }
-
-  if (property.includes("shadow")) {
-    return "none";
-  }
-
-  return value;
-};
-
-const inlineComputedStyles = (source: Element, target: Element) => {
-  if (!(source instanceof HTMLElement || source instanceof SVGElement)) return;
-  if (!(target instanceof HTMLElement || target instanceof SVGElement)) return;
-
-  const computed = window.getComputedStyle(source);
-
-  for (const property of Array.from(computed)) {
-    const value = sanitizeCssValue(property, computed.getPropertyValue(property));
-    if (!value) continue;
-    (target as HTMLElement).style.setProperty(property, value, computed.getPropertyPriority(property));
-  }
-
-  if (source instanceof SVGElement && target instanceof SVGElement) {
-    const bboxWidth = source.getBoundingClientRect().width;
-    const bboxHeight = source.getBoundingClientRect().height;
-
-    if (bboxWidth > 0) target.setAttribute("width", `${bboxWidth}`);
-    if (bboxHeight > 0) target.setAttribute("height", `${bboxHeight}`);
-  }
-
-  const sourceChildren = Array.from(source.children);
-  const targetChildren = Array.from(target.children);
-
-  sourceChildren.forEach((child, index) => {
-    const targetChild = targetChildren[index];
-    if (!targetChild) return;
-    inlineComputedStyles(child, targetChild);
-  });
-};
-
-const isTransparentBackground = (value: string) =>
-  !value || value === "transparent" || value === "rgba(0, 0, 0, 0)";
-
-const getCaptureBackgroundStyles = (element: HTMLElement) => {
-  const candidates = [element, document.body, document.documentElement];
-
-  for (const candidate of candidates) {
-    const computed = window.getComputedStyle(candidate);
-    const backgroundColor = computed.backgroundColor;
-    const backgroundImage = computed.backgroundImage;
-
-    if (!isTransparentBackground(backgroundColor) || backgroundImage !== "none") {
-      return {
-        backgroundColor: isTransparentBackground(backgroundColor) ? "#ffffff" : backgroundColor,
-        backgroundImage,
-      };
-    }
-  }
-
-  const isDarkTheme = document.documentElement.classList.contains("dark");
-
-  return {
-    backgroundColor: isDarkTheme ? "#0f0f0f" : "#ffffff",
-    backgroundImage: "none",
-  };
-};
-
-const parseRgbColor = (value: string): [number, number, number] | null => {
-  const match = value.match(
-    /rgba?\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})(?:\s*,\s*[0-9.]+\s*)?\)/i,
-  );
-
-  if (!match) return null;
-
-  return [
-    Number(match[1]),
-    Number(match[2]),
-    Number(match[3]),
-  ];
-};
-
-const PDF_CAPTURE_MIN_WIDTH = 1400;
 
 
 const WEEKLY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -495,7 +382,7 @@ const budgetUsage =
     ? Math.round((totalExpense / currentBudget) * 100)
     : 0;
 
-const isDarkMode = resolvedTheme === "dark";
+const isDarkMode = resolvedTheme === "dark" && !isPdfMode;
 const chartTheme = isDarkMode
   ? {
       axis: "#c4b5fd",
@@ -650,7 +537,6 @@ const getFriendlyAnalysisErrorMessage = (error: unknown) => {
     if (error.message.includes("관리자에게 문의")) return error.message;
     if (error.message.includes("잔액")) return error.message;
     if (error.message.includes("서명")) return error.message;
-    if (error.message.includes("추가 분석")) return error.message;
     if (error.message.includes("지갑")) return error.message;
   }
 
@@ -660,9 +546,6 @@ const getFriendlyAnalysisErrorMessage = (error: unknown) => {
 
   return "분석을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.";
 };
-
-const isWalletRequiredPaymentError = (error: unknown) =>
-  error instanceof Error && error.message === WALLET_REQUIRED_PAYMENT_MESSAGE;
 
 const requestPaidAnalysis = async (payload: AnalyzeReportRequest) => {
   const cacheKey = await getPaymentCacheKey(payload);
@@ -696,16 +579,9 @@ const requestPaidAnalysis = async (payload: AnalyzeReportRequest) => {
     const amount = requirement
       ? (Number(requirement.maxAmountRequired) / 1_000_000).toFixed(2)
       : "";
-    const paymentDescription = amount
-      ? `${amount} USDC 결제가 필요합니다.`
-      : "결제가 필요합니다.";
-
-    if (!publicKey || !signTransaction) {
-      throw new Error(WALLET_REQUIRED_PAYMENT_MESSAGE);
-    }
 
     toast.info("무료 분석 횟수를 모두 사용했어요.", {
-      description: `${paymentDescription} 지갑 창이 열리면 결제 내용을 확인하고 서명해주세요.`,
+      description: `${amount} USDC 결제가 필요합니다. 지갑 창이 열리면 결제 내용을 확인하고 서명해주세요.`,
     });
 
     const paymentHeader = await sendSolanaX402Payment({
@@ -756,13 +632,6 @@ const handleGenerateReport = async () => {
       },
     }));
   } catch (error) {
-    if (isWalletRequiredPaymentError(error)) {
-      toast.error("추가 분석을 하기 위해서는 결제가 필요합니다.", {
-        description: "먼저 지갑을 연결해주세요.",
-      });
-      return;
-    }
-
     toast.error("AI 분석 리포트를 생성하지 못했습니다.", {
       description: getFriendlyAnalysisErrorMessage(error),
     });
@@ -793,13 +662,6 @@ const handleGeneratePattern = async () => {
       },
     }));
   } catch (error) {
-    if (isWalletRequiredPaymentError(error)) {
-      toast.error("추가 분석을 하기 위해서는 결제가 필요합니다.", {
-        description: "먼저 지갑을 연결해주세요.",
-      });
-      return;
-    }
-
     toast.error("AI 소비 패턴 분석을 생성하지 못했습니다.", {
       description: getFriendlyAnalysisErrorMessage(error),
     });
@@ -809,141 +671,145 @@ const handleGeneratePattern = async () => {
 };
 
 const handleDownload = async () => {
-  const element = reportRef.current;
-
-  if (!element) {
-    toast.error("PDF 생성 실패", {
-      description: "캡처할 리포트 영역을 찾지 못했습니다.",
-    });
-    return;
-  }
-
-  if (isDownloading) return;
-
-  let captureShell: HTMLDivElement | null = null;
+  if (!reportRef.current) return;
 
   try {
     setIsDownloading(true);
-    await document.fonts?.ready;
-    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
-    const { backgroundColor, backgroundImage } = getCaptureBackgroundStyles(element);
-    const captureLayoutWidth = Math.ceil(
-      Math.max(element.scrollWidth, element.getBoundingClientRect().width, PDF_CAPTURE_MIN_WIDTH),
-    );
+    // ✅ PDF 전용 모드 활성화
+    setIsPdfMode(true);
 
-    const clonedRoot = element.cloneNode(true) as HTMLDivElement;
-    inlineComputedStyles(element, clonedRoot);
-    clonedRoot.classList.add(styles.pdfDownload, styles.pdfMode, styles.pdfFixedLayout);
-    clonedRoot.style.width = `${captureLayoutWidth}px`;
-    clonedRoot.style.minWidth = `${captureLayoutWidth}px`;
-    clonedRoot.style.maxWidth = `${captureLayoutWidth}px`;
-    clonedRoot.style.margin = "0 auto";
-    clonedRoot.style.display = "block";
-    clonedRoot.style.boxSizing = "border-box";
-    clonedRoot.style.backgroundColor = backgroundColor;
-    clonedRoot.style.backgroundImage = backgroundImage;
-    clonedRoot.style.colorScheme = resolvedTheme === "dark" ? "dark" : "light";
+    // 렌더링 기다리기
+    await new Promise((resolve) => setTimeout(resolve, 700));
 
-    clonedRoot
-      .querySelectorAll<HTMLElement>("[data-html2canvas-ignore='true']")
-      .forEach((node) => {
-        node.style.display = "none";
-      });
+    if (!reportRef.current) return;
 
-    captureShell = document.createElement("div");
-    captureShell.style.position = "fixed";
-    captureShell.style.left = "-100000px";
-    captureShell.style.top = "0";
-    captureShell.style.pointerEvents = "none";
-    captureShell.style.zIndex = "-1";
-    captureShell.style.width = "auto";
-    captureShell.style.minWidth = `${captureLayoutWidth + 112}px`;
-    captureShell.style.maxWidth = "none";
-    captureShell.style.padding = "48px 56px";
-    captureShell.style.margin = "0";
-    captureShell.style.display = "flex";
-    captureShell.style.justifyContent = "center";
-    captureShell.style.alignItems = "flex-start";
-    captureShell.style.boxSizing = "border-box";
-    captureShell.style.backgroundColor = backgroundColor;
-    captureShell.style.backgroundImage = backgroundImage;
-    captureShell.appendChild(clonedRoot);
-    document.body.appendChild(captureShell);
+const element = reportRef.current;
 
-    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    const canvas = await html2canvas(element, {
+  scale: 3,
+  useCORS: true,
+  backgroundColor: "#ffffff",
 
-    const captureWidth = Math.ceil(
-      Math.max(
-        captureShell.scrollWidth,
-        captureShell.getBoundingClientRect().width,
-        clonedRoot.scrollWidth + 112,
-      ),
-    );
-    const captureHeight = Math.ceil(
-      Math.max(captureShell.scrollHeight, captureShell.getBoundingClientRect().height),
-    );
+  logging: false,
 
-    const canvas = await html2canvas(captureShell, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: false,
-      backgroundColor,
-      logging: false,
-      scrollX: 0,
-      scrollY: -window.scrollY,
-      windowWidth: captureWidth,
-      windowHeight: captureHeight,
-      width: captureWidth,
-      height: captureHeight,
-      ignoreElements: (target) => {
-        if (!(target instanceof HTMLElement)) return false;
-        return target.dataset.html2canvasIgnore === "true";
-      },
+  scrollX: 0,
+  scrollY: 0,
+
+  width: 1400,
+  windowWidth: 1400,
+
+  height: element.scrollHeight,
+  windowHeight: element.scrollHeight,
+
+  foreignObjectRendering: false,
+
+  removeContainer: true,
+
+  onclone: (clonedDoc) => {
+    // 모든 요소의 oklch 제거
+    const all = clonedDoc.querySelectorAll("*");
+
+    all.forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      const style = window.getComputedStyle(htmlEl);
+
+      // color
+      if (style.color.includes("oklch")) {
+        htmlEl.style.color = "#111827";
+      }
+
+      // background
+      if (style.backgroundColor.includes("oklch")) {
+        htmlEl.style.backgroundColor = "#ffffff";
+      }
+
+      // border
+      if (style.borderColor.includes("oklch")) {
+        htmlEl.style.borderColor = "#d1d5db";
+      }
+
+      // fill (svg)
+      if (style.fill.includes("oklch")) {
+        htmlEl.style.fill = "#2563eb";
+      }
+
+      // stroke (svg)
+      if (style.stroke.includes("oklch")) {
+        htmlEl.style.stroke = "#2563eb";
+      }
     });
+  },
+});
 
-
-    if (canvas.width === 0 || canvas.height === 0) {
-      throw new Error("PDF 캡처 결과가 비어 있습니다.");
-    }
+    const imgData = canvas.toDataURL("image/png");
 
     const pdf = new jsPDF("p", "mm", "a4");
 
+    const pdfWidth = 210;
+    const pdfHeight = 297;
+
+    const margin = 10;
+
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const pdfBackgroundColor = parseRgbColor(backgroundColor);
-    if (pdfBackgroundColor) {
-      pdf.setFillColor(...pdfBackgroundColor);
-      pdf.rect(0, 0, pageWidth, pageHeight, "F");
+const pageHeight = pdf.internal.pageSize.getHeight();
+
+const imgWidth = pageWidth - margin * 2;
+const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+    let heightLeft = imgHeight;
+    let position = margin;
+
+    pdf.addImage(
+  imgData,
+  "PNG",
+  margin,
+  position,
+  imgWidth,
+  imgHeight,
+  undefined,
+  "FAST"
+);
+
+    heightLeft -= pdfHeight - margin * 2;
+
+    while (heightLeft > 0) {
+      position = margin - (imgHeight - heightLeft);
+
+      pdf.addPage();
+
+      pdf.addImage(
+  imgData,
+  "PNG",
+  margin,
+  position,
+  imgWidth,
+  imgHeight,
+  undefined,
+  "FAST"
+);
+
+      heightLeft -= pdfHeight - margin * 2;
     }
 
-    const pagePadding = 8;
-    const drawableWidth = pageWidth - pagePadding * 2;
-    const drawableHeight = pageHeight - pagePadding * 2;
-    const widthScale = drawableWidth / canvas.width;
-    const heightScale = drawableHeight / canvas.height;
-    const scale = Math.min(widthScale, heightScale);
-    const imgWidth = canvas.width * scale;
-    const imgHeight = canvas.height * scale;
-    const x = (pageWidth - imgWidth) / 2;
-    const y = (pageHeight - imgHeight) / 2;
-    const imgData = canvas.toDataURL("image/png");
-    pdf.addImage(imgData, "PNG", x, y, imgWidth, imgHeight, undefined, "FAST");
+    pdf.save("소비_분석_리포트.pdf");
 
-    pdf.save("spentopia_report.pdf");
-    toast.success("PDF 다운로드가 완료되었습니다.");
-  } catch (error) {
-    console.error("[PDF] 생성 오류:", error);
+  } catch (err) {
+    console.error("PDF 생성 오류:", err);
 
     toast.error("PDF 생성 실패", {
-      description:
-        error instanceof Error
-          ? error.message
-          : "콘솔 오류를 확인해주세요.",
+      description: "잠시 후 다시 시도해주세요.",
     });
+
   } finally {
-    captureShell?.remove();
+
+
+    // ✅ PDF 모드 해제
+    setIsPdfMode(false);
+
     setIsDownloading(false);
+
+
   }
 };
 
@@ -954,14 +820,11 @@ const handleDownload = async () => {
   const weekdayPatternData = buildWeekdayPatternData(thisMonthTransactions);
   const paymentPatternData = buildPaymentPatternData(thisMonthTransactions);
 
-  const marketCardStyle = isDarkMode
+  const marketCardStyle = isPdfMode
   ? {
-      border: "1px solid rgba(167, 139, 250, 0.34)",
-      color: "#f8fafc",
-      background:
-        "linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.96)), radial-gradient(circle at 12% 0%, rgba(124, 58, 237, 0.18), transparent 34%), radial-gradient(circle at 88% 8%, rgba(56, 189, 248, 0.08), transparent 30%)",
-      boxShadow:
-        "inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(167, 139, 250, 0.08), 0 0 0 1px rgba(124, 58, 237, 0.16), 0 18px 44px rgba(0, 0, 0, 0.28), 0 4px 18px rgba(124, 58, 237, 0.12)",
+      border: "1px solid #dbe4f0",
+      background: "#f8fbff",
+      boxShadow: "0 2px 10px rgba(15, 23, 42, 0.04)",
     }
   : {
       border: "1px solid rgba(125, 211, 252, 0.62)",
@@ -971,70 +834,11 @@ const handleDownload = async () => {
         "inset 0 1px 0 rgba(255, 255, 255, 0.96), inset 0 0 0 1px rgba(37, 99, 235, 0.07), 0 0 0 1px rgba(125, 211, 252, 0.34), 0 18px 44px rgba(37, 99, 235, 0.12), 0 4px 16px rgba(15, 23, 42, 0.06)",
     };
 
-  const aiResultCardStyle = isDarkMode
-    ? {
-        border: "1px solid rgba(167, 139, 250, 0.34)",
-        background:
-          "linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.96))",
-        color: "#f8fafc",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 28px rgba(0,0,0,0.24)",
-      }
-    : {
-        border: "1px solid #dbe4f0",
-        background: "#ffffff",
-        color: "#111827",
-        boxShadow: "0 2px 10px rgba(15, 23, 42, 0.04)",
-      };
-
-  const aiEmptyStateStyle = isDarkMode
-    ? {
-        borderColor: "rgba(167, 139, 250, 0.34)",
-        background: "rgba(15, 23, 42, 0.62)",
-        color: "#cbd5e1",
-      }
-    : {
-        borderColor: "#d1d5db",
-        background: "#ffffff",
-        color: "#6b7280",
-      };
-  const aiHeadingStyle = { color: isDarkMode ? "#f8fafc" : "#111827" };
-  const aiBodyStyle = { color: isDarkMode ? "#cbd5e1" : "#374151" };
-  const reportShellStyle = isDarkMode
-    ? {
-        background:
-          "radial-gradient(circle at top right, rgba(124, 58, 237, 0.16), transparent 28%), linear-gradient(180deg, #090b16 0%, #111827 52%, #2d1847 100%)",
-        color: "#f8fafc",
-        borderRadius: "24px",
-        padding: "24px",
-        ...(isPdfMode
-          ? {
-              width: "100%",
-              maxWidth: `${PDF_CAPTURE_WIDTH}px`,
-              margin: "0 auto",
-            }
-          : {}),
-      }
-    : {
-        background:
-          "radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 32%), linear-gradient(180deg, #f8fbff 0%, #ffffff 48%, #f1f5f9 100%)",
-        color: "#111827",
-        borderRadius: "24px",
-        padding: "24px",
-        ...(isPdfMode
-          ? {
-              width: "100%",
-              maxWidth: `${PDF_CAPTURE_WIDTH}px`,
-              margin: "0 auto",
-            }
-          : {}),
-      };
-
   return (
     <>
     <div className={isPdfMode ? "space-y-3" : "space-y-6"}>
     <div
   ref={reportRef}
-  style={reportShellStyle}
   className={`
     ${isDownloading ? styles.pdfDownload : ""}
     ${isPdfMode ? styles.pdfMode : ""}
@@ -1046,26 +850,22 @@ const handleDownload = async () => {
       <div className="flex items-center justify-between">
         <div>
           <h1
-  data-pdf-force-text="black"
   className={`mb-2 text-3xl font-bold ${
-    isPdfMode ? (isDarkMode ? "text-gray-100" : "text-black") : "text-gray-900 dark:text-gray-100"
+    isPdfMode ? "text-black" : "text-gray-900 dark:text-gray-100"
   }`}
->
-소비 패턴 분석</h1>
-          <p data-pdf-force-text="black" className="mb-6 text-gray-600 dark:text-gray-300">
+>소비 패턴 분석</h1>
+          <p className="mb-6 text-gray-600 dark:text-gray-300">
   AI가 분석한 당신의 소비 습관을 확인해보세요
 </p>
         </div>
-        <div className="flex gap-2" data-html2canvas-ignore="true">
+        <div className="flex gap-2">
+
   <Button
-    type="button"
-    data-pdf-force-button="light"
-    disabled={isDownloading}
-    className="spentopia-primary-button"
+    className={isPdfMode ? "bg-slate-900 text-white" : "spentopia-primary-button"}
     onClick={handleDownload}
   >
     <Download className="mr-2 h-4 w-4" />
-    {isDownloading ? "다운로드 준비 중..." : "리포트 다운로드"}
+    리포트 다운로드
   </Button>
 </div>
       </div>
@@ -1128,7 +928,7 @@ const handleDownload = async () => {
         }}
       >
         {!isPdfMode && (
-  <TabsList data-html2canvas-ignore="true" className="grid w-full max-w-md grid-cols-2">
+  <TabsList className="grid w-full max-w-md grid-cols-2">
     <TabsTrigger value="weekly" disabled={isAnalysisBusy}>
       주간
     </TabsTrigger>
@@ -1334,38 +1134,38 @@ const handleDownload = async () => {
   {aiReport ? (
   <div className="grid gap-4 md:grid-cols-2">
 
-    <div style={aiResultCardStyle} className="rounded-lg p-4">
-      <h4 style={aiHeadingStyle} className="font-bold">👍 좋은 점</h4>
-      <p style={aiBodyStyle} className="text-sm">
+    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
+      <h4 className="font-bold text-gray-900 dark:text-white">👍 좋은 점</h4>
+      <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.good}
       </p>
     </div>
 
-    <div style={aiResultCardStyle} className="rounded-lg p-4">
-      <h4 style={aiHeadingStyle} className="font-bold">⚠️ 주의</h4>
-      <p style={aiBodyStyle} className="text-sm">
+    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
+      <h4 className="font-bold text-gray-900 dark:text-white">⚠️ 주의</h4>
+      <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.warning}
       </p>
     </div>
 
-    <div style={aiResultCardStyle} className="rounded-lg p-4">
-      <h4 style={aiHeadingStyle} className="font-bold">💡 조언</h4>
-      <p style={aiBodyStyle} className="text-sm">
+    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
+      <h4 className="font-bold text-gray-900 dark:text-white">💡 조언</h4>
+      <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.advice}
       </p>
     </div>
 
-    <div style={aiResultCardStyle} className="rounded-lg p-4">
-      <h4 style={aiHeadingStyle} className="font-bold">📈 예측</h4>
-      <p style={aiBodyStyle} className="text-sm">
+    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
+      <h4 className="font-bold text-gray-900 dark:text-white">📈 예측</h4>
+      <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.prediction}
       </p>
     </div>
 
   </div>
 ) : (
-  <div style={aiEmptyStateStyle} className="rounded-xl border-2 border-dashed p-10 text-center">
-    <p>
+  <div className="rounded-xl border-2 border-dashed border-gray-300 p-10 text-center">
+    <p className="text-gray-500 dark:text-gray-400">
       아직 AI 소비 분석 리포트가 생성되지 않았습니다
     </p>
   </div>
@@ -1392,24 +1192,24 @@ const handleDownload = async () => {
   {patternReport ? (
     <div className="grid gap-6 md:grid-cols-2">
 
-      <div style={aiResultCardStyle} className="rounded-lg p-5">
-        <h4 style={aiHeadingStyle} className="mb-2 font-bold">📊 분석</h4>
-        <p style={aiBodyStyle} className="text-sm leading-relaxed">
+      <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-5`}>
+        <h4 className="mb-2 font-bold text-gray-900 dark:text-white">📊 분석</h4>
+        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
   {(patternReport.pattern ?? "").replace("소비 패턴 분석:", "")}
 </p>
       </div>
 
-      <div style={aiResultCardStyle} className="rounded-lg p-5">
-        <h4 style={aiHeadingStyle} className="mb-2 font-bold">💡 개선 방안</h4>
-        <p style={aiBodyStyle} className="text-sm leading-relaxed">
+      <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-5`}>
+        <h4 className="mb-2 font-bold text-gray-900 dark:text-white">💡 개선 방안</h4>
+        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
           {patternReport.improvement}
         </p>
       </div>
 
     </div>
   ) : (
-    <div style={aiEmptyStateStyle} className="rounded-xl border-2 border-dashed p-10 text-center">
-  <p>
+    <div className="rounded-xl border-2 border-dashed border-gray-300 p-10 text-center">
+  <p className="text-gray-500 dark:text-gray-400">
     아직 AI 소비 패턴 분석이 생성되지 않았습니다
   </p>
 </div>
