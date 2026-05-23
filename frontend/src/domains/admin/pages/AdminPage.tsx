@@ -32,11 +32,12 @@
 // - 브라우저 뒤로가기/앞으로가기와 자연스럽게 동작
 // - Community.tsx의 URL 기반 상태 관리 방식과 통일됨
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
 import { signOut } from "@/domains/auth/api/auth";
+import { supabase } from "@/shared/lib/supabase";
 
 import AdminSidebar from "@/domains/admin/components/AdminSidebar.tsx";
 import AdminDashboard from "@/domains/admin/components/AdminDashboard.tsx";
@@ -505,7 +506,7 @@ export default function AdminPage() {
     //
     // 실패해도 관리자 페이지 전체가 깨지지 않도록
     // 통계 영역에만 에러 메시지를 표시한다.
-    const fetchDashboardStats = async () => {
+    const fetchDashboardStats = useCallback(async () => {
         setIsDashboardStatsLoading(true);
         setDashboardStatsError(null);
 
@@ -521,7 +522,7 @@ export default function AdminPage() {
         } finally {
             setIsDashboardStatsLoading(false);
         }
-    };
+    }, []);
 
     // ─────────────────────────────────────────────
     // 대시보드 추이 그래프 조회
@@ -535,7 +536,7 @@ export default function AdminPage() {
     //
     // 실패해도 대시보드 전체가 깨지지 않도록
     // 그래프 영역에만 에러 메시지를 표시한다.
-    const fetchDashboardTrends = async () => {
+    const fetchDashboardTrends = useCallback(async () => {
         setIsDashboardTrendsLoading(true);
         setDashboardTrendsError(null);
 
@@ -551,7 +552,7 @@ export default function AdminPage() {
         } finally {
             setIsDashboardTrendsLoading(false);
         }
-    };
+    }, []);
 
     // 관리자 페이지 진입 시 대시보드 통계를 한 번 조회한다.
     //
@@ -561,7 +562,7 @@ export default function AdminPage() {
     useEffect(() => {
         void fetchDashboardStats();
         void fetchDashboardTrends();
-    }, []);
+    }, [fetchDashboardStats, fetchDashboardTrends]);
 
     // ─────────────────────────────────────────────
     // 대시보드용 신고 목록 조회
@@ -569,83 +570,58 @@ export default function AdminPage() {
     //
     // 대시보드는 페이지네이션 UI를 보여주지 않는다.
     // 최근 신고 몇 개와 pending 카운트만 필요하므로 page_size 50 정도로 조회한다.
-    useEffect(() => {
-        let ignore = false;
+    const loadDashboardReports = useCallback(async () => {
+        setIsDashboardReportsLoading(true);
 
-        async function fetchDashboardReports() {
-            setIsDashboardReportsLoading(true);
-
-            try {
-                const data = await listAdminContentReports({ page: 1, page_size: 50 });
-
-                if (!ignore) {
-                    setDashboardReports(data.items);
-                }
-            } catch (error) {
-                console.error("관리자 대시보드 신고 목록 조회 실패:", error);
-                toast.error("대시보드 신고 정보를 불러오지 못했습니다.");
-            } finally {
-                if (!ignore) {
-                    setIsDashboardReportsLoading(false);
-                }
-            }
+        try {
+            const data = await listAdminContentReports({ page: 1, page_size: 50 });
+            setDashboardReports(data.items);
+        } catch (error) {
+            console.error("관리자 대시보드 신고 목록 조회 실패:", error);
+            toast.error("대시보드 신고 정보를 불러오지 못했습니다.");
+        } finally {
+            setIsDashboardReportsLoading(false);
         }
-
-        void fetchDashboardReports();
-
-        return () => {
-            ignore = true;
-        };
     }, []);
+
+    useEffect(() => {
+        void loadDashboardReports();
+    }, [loadDashboardReports]);
 
     // ─────────────────────────────────────────────
     // 신고 관리 탭용 신고 목록 조회
     // ─────────────────────────────────────────────
-    useEffect(() => {
-        let ignore = false;
+    const loadReports = useCallback(async () => {
+        setIsReportsLoading(true);
 
-        async function fetchReports() {
-            setIsReportsLoading(true);
+        try {
+            const data = await listAdminContentReports({
+                status: reportStatus === "all" ? undefined : reportStatus,
+                target_type:
+                    reportTargetType === "all" ? undefined : reportTargetType,
+                reason: reportReason === "all" ? undefined : reportReason,
+                keyword: debouncedReportKeyword || undefined,
 
-            try {
-                const data = await listAdminContentReports({
-                    status: reportStatus === "all" ? undefined : reportStatus,
-                    target_type:
-                        reportTargetType === "all" ? undefined : reportTargetType,
-                    reason: reportReason === "all" ? undefined : reportReason,
-                    keyword: debouncedReportKeyword || undefined,
+                // 신고일 날짜 범위
+                start_date: reportStartDate || undefined,
+                end_date: reportEndDate || undefined,
 
-                    // 신고일 날짜 범위
-                    start_date: reportStartDate || undefined,
-                    end_date: reportEndDate || undefined,
+                // 신고일/처리일 정렬
+                sort_by: reportSortBy,
+                sort_order: reportSortOrder,
 
-                    // 신고일/처리일 정렬
-                    sort_by: reportSortBy,
-                    sort_order: reportSortOrder,
+                page: reportPage,
+                page_size: REPORTS_PAGE_SIZE,
+            });
 
-                    page: reportPage,
-                    page_size: REPORTS_PAGE_SIZE,
-                });
-
-                if (!ignore) {
-                    setReports(data.items);
-                    setReportTotalCount(data.total_count);
-                }
-            } catch (error) {
-                console.error("관리자 신고 목록 조회 실패:", error);
-                toast.error("신고 목록을 불러오지 못했습니다.");
-            } finally {
-                if (!ignore) {
-                    setIsReportsLoading(false);
-                }
-            }
+            setReports(data.items);
+            setReportTotalCount(data.total_count);
+        } catch (error) {
+            console.error("관리자 신고 목록 조회 실패:", error);
+            toast.error("신고 목록을 불러오지 못했습니다.");
+        } finally {
+            setIsReportsLoading(false);
         }
-
-        void fetchReports();
-
-        return () => {
-            ignore = true;
-        };
     }, [
         reportStatus,
         reportTargetType,
@@ -657,6 +633,34 @@ export default function AdminPage() {
         reportSortOrder,
         reportPage,
     ]);
+
+    useEffect(() => {
+        void loadReports();
+    }, [loadReports]);
+
+    useEffect(() => {
+        const channel = supabase
+            .channel("admin:content_reports")
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "content_reports",
+                },
+                () => {
+                    toast.info("새 신고가 접수되었습니다.");
+                    void loadReports();
+                    void loadDashboardReports();
+                    void fetchDashboardStats();
+                },
+            )
+            .subscribe();
+
+        return () => {
+            void supabase.removeChannel(channel);
+        };
+    }, [loadReports, loadDashboardReports, fetchDashboardStats]);
 
     // ─────────────────────────────────────────────
     // 회원 목록 조회
