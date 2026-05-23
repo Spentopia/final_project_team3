@@ -2185,12 +2185,8 @@ fn should_use_secure_cookies(state: &AppState) -> bool {
         || state.config.cors_origin.trim().starts_with("https://")
 }
 
-fn refresh_cookie_same_site(state: &AppState) -> SameSite {
-    if should_use_secure_cookies(state) {
-        SameSite::None
-    } else {
-        SameSite::Lax
-    }
+fn refresh_cookie_same_site(_state: &AppState) -> SameSite {
+    SameSite::Lax
 }
 
 // ═══════════════════════════════════════════════════════════════
