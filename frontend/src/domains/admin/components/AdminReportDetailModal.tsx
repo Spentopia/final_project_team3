@@ -364,12 +364,22 @@ export default function AdminReportDetailModal({
         }
 
         // 게시글/댓글은 작성일과 삭제 여부를 같이 보여준다.
+        // 게시글/댓글은 작성일과 삭제/숨김 여부를 같이 보여준다.
         if (targetDetail.kind === "post" || targetDetail.kind === "comment") {
             return (
                 <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-muted-foreground">
-                <span>
-                    작성일 {formatDateTime(targetDetail.created_at)}
-                </span>
+                    <span>
+                        작성일 {formatDateTime(targetDetail.created_at)}
+                    </span>
+
+                    {/* 자동 숨김 상태 뱃지.
+                        is_hidden이 true면 신고로 임시 숨김된 상태.
+                        관리자가 "이미 가려진 글이구나"를 보고 조치를 판단할 수 있다. */}
+                    {targetDetail.is_hidden && (
+                        <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-600 dark:bg-amber-900/30 dark:text-amber-300">
+                            임시 숨김
+                        </span>
+                    )}
 
                     <span
                         className={`rounded-full px-2 py-0.5 font-semibold ${
@@ -378,8 +388,8 @@ export default function AdminReportDetailModal({
                                 : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                         }`}
                     >
-                    {targetDetail.is_deleted ? "삭제됨" : "삭제되지 않음"}
-                </span>
+                        {targetDetail.is_deleted ? "삭제됨" : "삭제되지 않음"}
+                    </span>
                 </div>
             );
         }
@@ -900,8 +910,8 @@ export default function AdminReportDetailModal({
                             </div>
 
                             <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                                신고 대상에 적용할 운영 조치를 선택하세요. 별도 조치가 필요 없는 경우 하단의
-                                ‘조치 없이 처리완료’를 사용할 수 있습니다.
+                                신고 대상에 적용할 운영 조치를 선택하세요. 이미 삭제되었거나 다른 신고로 처리된 대상이면
+                                ‘조치 없이 처리완료’로 남은 신고를 정리할 수 있습니다.
                             </p>
                         </div>
                     )}

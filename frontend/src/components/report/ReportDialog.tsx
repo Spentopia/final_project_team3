@@ -81,14 +81,49 @@ interface ReportDialogProps {
     //   { type: "comment", id: comment.id, label: "댓글" }
     // ]
     targets: ReportTargetOption[];
+
+    // ── 추가 ──
+    // 신고가 성공적으로 접수됐을 때 호출하는 콜백.
+    //
+    // 부모(Community)는 이 정보를 받아서:
+    //   - reason === "inappropriate"면 백엔드가 그 글/댓글을 즉시 숨기므로
+    //     프론트 화면에서도 해당 항목을 바로 제거한다.
+    //   - 그 외 사유는 자동 숨김이 없으므로 화면을 건드리지 않는다.
+    //
+    // optional(?)로 둬서, 이 콜백을 안 넘기는 곳에서도 ReportDialog를 그대로 쓸 수 있게 한다.
+    onReported?: (info: {
+        targetType: ContentReportTargetType;
+        targetId: string;
+        reason: ContentReportReason;
+    }) => void;
 }
 
 // 신고 사유 목록
-const REASONS: { value: ContentReportReason; label: string }[] = [
-    { value: "abuse", label: "욕설/비방" },
-    { value: "inappropriate", label: "부적절한 내용" },
-    { value: "spam", label: "광고/도배" },
-    { value: "other", label: "기타" },
+// description: 사용자가 사유를 선택했을 때 버튼 아래에 보여줄 안내 문구.
+//   특히 inappropriate는 1건만으로 즉시 임시 숨김되는 심각 사유라,
+//   범위를 명확히 안내해서 오신고/어뷰징을 줄인다.
+const REASONS: { value: ContentReportReason; label: string; description: string }[] = [
+    {
+        value: "abuse",
+        label: "욕설/비방",
+        description: "특정 사용자를 향한 욕설, 모욕, 인신공격, 비방.",
+    },
+    {
+        value: "inappropriate",
+        label: "부적절한 콘텐츠",
+        description:
+            "음란물·성적 콘텐츠, 폭력·잔혹 묘사, 특정 집단을 향한 혐오/차별 표현 등. 접수 시 검토 전까지 임시로 가려질 수 있습니다.",
+    },
+    {
+        value: "spam",
+        label: "광고/도배",
+        description: "상업적 광고, 동일 내용 반복 게시, 무관한 링크 도배.",
+    },
+    {
+        value: "other",
+        label: "기타",
+        description: "위 항목에 해당하지 않는 경우. 상세 내용에 구체적으로 적어주세요.",
+    },
 ];
 
 // 백엔드 에러 메시지 추출
@@ -108,6 +143,7 @@ export default function ReportDialog({
                                          open,
                                          onOpenChange,
                                          targets,
+                                         onReported, // ← 추가
                                      }: ReportDialogProps) {
     // 현재 선택된 신고 대상 index
     //
@@ -172,7 +208,9 @@ export default function ReportDialog({
         setIsSubmitting(true);
 
         try {
-            await createContentReport({
+            // 기존: await createContentReport(...) — 응답을 버리고 있었음
+            // 변경: 응답을 받아서 onReported로 넘긴다. (target_type/target_id/reason 포함)
+            const created = await createContentReport({
                 target_type: selectedTarget.type,
                 target_id: selectedTarget.id,
                 reason,
@@ -180,6 +218,15 @@ export default function ReportDialog({
             });
 
             toast.success("신고가 접수되었습니다");
+
+            // ── 추가: 부모에게 신고 성공 알림 ──
+            // 백엔드 응답값을 그대로 넘기는 게 가장 정확하다.
+            // (혹시 응답 필드가 비어도 selectedTarget/reason으로 fallback)
+            onReported?.({
+                targetType: created?.target_type ?? selectedTarget.type,
+                targetId: created?.target_id ?? selectedTarget.id,
+                reason: created?.reason ?? reason,
+            });
 
             resetForm();
             onOpenChange(false);
@@ -278,6 +325,14 @@ export default function ReportDialog({
                                 </button>
                             ))}
                         </div>
+
+                        {/* 선택한 사유 안내.
+                            현재 선택된 사유의 description을 보여준다.
+                            특히 "부적절한 콘텐츠"가 어디까지인지 헷갈리지 않게 하고,
+                            즉시 숨김될 수 있다는 점도 미리 알려준다. */}
+                        <p className="rounded-md bg-gray-50 px-3 py-2 text-xs leading-5 text-gray-500 dark:bg-gray-800/60 dark:text-gray-400">
+                            {REASONS.find((item) => item.value === reason)?.description}
+                        </p>
                     </div>
 
                     {/* 상세 설명 */}

@@ -36,6 +36,7 @@ import {
   type CommentResponse,
   type ContestResponse,
   type CommunityPostResponse,
+  type ContentReportReason,
   type ContentReportTargetType,
   type PostType,
   type PostSort,
@@ -1165,6 +1166,64 @@ export default function Community() {
     }
   };
 
+  // ── 신고 성공 후 화면 동기화 ──
+  //
+  // 백엔드 정책:
+  //   reason === "inappropriate" 신고는 게시글/댓글을 즉시 임시 숨김(is_hidden=true) 처리한다.
+  //   숨겨진 항목은 다음 목록/상세 조회부터 백엔드가 걸러서 안 내려준다.
+  //
+  // 문제:
+  //   백엔드는 숨겼지만 지금 프론트 화면의 posts/comments 배열엔 그대로 남아있다.
+  //   새로고침해야만 사라져서 "신고했는데 왜 안 없어지지?" 하는 어색함이 생긴다.
+  //
+  // 해결:
+  //   inappropriate 신고가 성공하면 프론트 상태에서도 즉시 제거해
+  //   백엔드의 즉시 숨김 동작과 화면을 맞춘다.
+  //
+  // abuse / spam / other 신고는 자동 숨김이 없으므로 화면을 건드리지 않는다.
+  //   (글은 계속 보이고 관리자가 직접 검토)
+  const handleReported = (info: {
+    targetType: ContentReportTargetType;
+    targetId: string;
+    reason: ContentReportReason;
+  }) => {
+    // 모달 닫기.
+    setReportTargets(null);
+
+    // 심각 사유가 아니면 화면 변경 없음.
+    if (info.reason !== "inappropriate") {
+      return;
+    }
+
+    // 게시글 신고 → 즉시 숨김 → 목록에서 제거 + 상세 보고 있었으면 목록으로
+    if (info.targetType === "post") {
+      setPosts((prev) => prev.filter((post) => post.id !== info.targetId));
+      setTotalCount((prev) => Math.max(0, prev - 1));
+
+      // 그 글 상세를 보고 있었다면 목록으로 돌려보낸다. (이미 숨겨진 글)
+      setSelectedPost((current) =>
+          current?.id === info.targetId ? null : current
+      );
+      return;
+    }
+
+    // 댓글/대댓글 신고 → 즉시 숨김 → 댓글 목록에서 제거
+    // 부모 댓글이 숨겨지면 백엔드가 자식 대댓글도 함께 숨기므로
+    // 프론트에서도 parent_id가 같은 자식까지 함께 제거한다.
+    if (info.targetType === "comment") {
+      setComments((prev) =>
+          prev.filter(
+              (comment) =>
+                  comment.id !== info.targetId &&
+                  comment.parent_id !== info.targetId
+          )
+      );
+      return;
+    }
+
+    // user_nickname / user_profile 신고는 글/댓글 숨김 대상이 아니므로 아무것도 안 함.
+  };
+
   // 브라우저 뒤로가기 → 목록으로
   useEffect(() => {
     const handlePopState = () => {
@@ -1936,6 +1995,9 @@ export default function Community() {
                     }
                   }}
                   targets={reportTargets}
+                  // ── 추가 ──
+                  // 신고 성공 시 호출됨. inappropriate면 해당 글/댓글을 화면에서 제거.
+                  onReported={handleReported}
               />
           )}
         </div>

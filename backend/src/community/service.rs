@@ -299,8 +299,12 @@ async fn ensure_admin(state: &AppState, user_id: Uuid) -> Result<()> {
 async fn get_post(state: &AppState, post_id: Uuid) -> Result<Post> {
     // ?users.deleted_at=is.null 필터로 탈퇴자 게시글 차단
     // 이거 하나로 게시글 상세/수정/삭제/반응/댓글 진입 다 자동으로 404 처리됨
+    // is_hidden=eq.false 추가:
+    //   신고 자동 숨김된 게시글은 상세/수정/삭제/반응/댓글/신고 진입에서
+    //   전부 "게시물을 찾을 수 없습니다"로 막힌다.
+    //   get_post가 이 모든 흐름에서 공용으로 쓰이기 때문에 여기 한 곳만 막으면 됨.
     let url = format!(
-        "{}/rest/v1/posts?id=eq.{}&is_deleted=eq.false&users.deleted_at=is.null&select=*,users!posts_user_id_fkey!inner(nickname,profile_image,deleted_at)&limit=1",
+        "{}/rest/v1/posts?id=eq.{}&is_deleted=eq.false&is_hidden=eq.false&users.deleted_at=is.null&select=*,users!posts_user_id_fkey!inner(nickname,profile_image,deleted_at)&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         post_id,
     );
@@ -500,8 +504,10 @@ async fn is_reacted_by_user(state: &AppState, user_id: Uuid, post_id: Uuid) -> R
 }
 
 async fn get_comment(state: &AppState, comment_id: Uuid) -> Result<Comment> {
+    // is_hidden=eq.false 추가:
+    //   자동 숨김된 댓글은 단건 조회/수정/삭제/대댓글 작성 검증에서 제외된다.
     let url = format!(
-        "{}/rest/v1/comments?id=eq.{}&is_deleted=eq.false&select=*,users!comments_user_id_fkey(nickname,profile_image,deleted_at)&limit=1",
+        "{}/rest/v1/comments?id=eq.{}&is_deleted=eq.false&is_hidden=eq.false&select=*,users!comments_user_id_fkey(nickname,profile_image,deleted_at)&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         comment_id,
     );
@@ -982,6 +988,9 @@ pub async fn list_posts(
     // 기본 조건:
     // soft delete 된 게시글은 목록에서 제외한다.
     let mut filters = vec!["is_deleted=eq.false".to_string()];
+
+    // 신고 자동 숨김된 게시글도 목록에서 제외한다.
+    filters.push("is_hidden=eq.false".to_string());
 
     // 콘테스트 ID가 들어오면 해당 콘테스트 게시글만 조회한다.
     if let Some(id) = contest_id {
@@ -1495,8 +1504,10 @@ pub async fn list_comments(state: &AppState, post_id: Uuid) -> Result<Vec<Commen
     // 댓글은 작성자가 탈퇴해도 row는 가져온다 (대댓글 보존 위해)
     // to_comment_response에서 작성자 정보를 가공해서 반환함
     // users.deleted_at도 같이 select해서 가공 판단에 사용
+    // is_hidden=eq.false 추가:
+    //   숨겨진 댓글은 목록에서 바로 빠진다.
     let url = format!(
-        "{}/rest/v1/comments?post_id=eq.{}&is_deleted=eq.false&select=*,users!comments_user_id_fkey(nickname,profile_image,deleted_at)&order=created_at.asc",
+        "{}/rest/v1/comments?post_id=eq.{}&is_deleted=eq.false&is_hidden=eq.false&select=*,users!comments_user_id_fkey(nickname,profile_image,deleted_at)&order=created_at.asc",
         state.config.supabase_url.trim_end_matches('/'),
         post_id,
     );
@@ -1810,6 +1821,77 @@ fn to_content_report_response(row: ContentReport) -> ContentReportResponse {
     }
 }
 
+/// 신고 사유가 심각(inappropriate)하면 게시글/댓글을 즉시 임시 숨김 처리한다.
+///
+/// 정책:
+/// - inappropriate(부적절한 표현/이미지): 1건 신고만으로 즉시 숨김.
+///   음란/불법 이미지처럼 방치 시 피해가 큰 사유라 선조치한다.
+/// - abuse / spam / other: 자동 숨김 안 함. 관리자가 직접 검토.
+///
+/// 대상:
+/// - post / comment 만. (닉네임/프로필 신고는 숨김 대상이 아님)
+///
+/// 중요: 이 함수는 Result를 반환하지 않는다.
+///   자동 숨김은 신고 접수의 부가 작업이라, 실패해도 신고 접수는 성공으로 둬야 한다.
+///   호출부에서 `?`로 에러를 전파하면 신고는 이미 DB에 들어갔는데 응답은 에러가 되어
+///   사용자가 "신고 실패했나?" 하고 또 누르는 혼란이 생긴다.
+///   그래서 실패 시 로그만 남기고 조용히 넘어간다.
+async fn auto_hide_if_inappropriate(
+    state: &AppState,
+    target_type: &str,
+    target_id: Uuid,
+    reason: &str,
+) {
+    // 게시글/댓글이 아니거나, 심각 사유가 아니면 아무것도 안 함.
+    if (target_type != "post" && target_type != "comment") || reason != "inappropriate" {
+        return;
+    }
+
+    // target_type에 따라 PATCH할 테이블 결정.
+    let table = if target_type == "post" { "posts" } else { "comments" };
+
+    let url = format!(
+        "{}/rest/v1/{}?id=eq.{}",
+        state.config.supabase_url.trim_end_matches('/'),
+        table,
+        target_id
+    );
+
+    // is_hidden=true 로 전환.
+    // hidden_reason은 "auto_hide_inappropriate"로 고정 → 나중에 관리자 복구 시
+    //   "자동 숨김된 것만 복구"를 판별하는 키로 쓴다.
+    let res = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Prefer", "return=minimal")
+        .json(&serde_json::json!({
+            "is_hidden": true,
+            "hidden_reason": "auto_hide_inappropriate",
+            "hidden_at": Utc::now().to_rfc3339()
+        }))
+        .send()
+        .await;
+
+    // 실패해도 신고는 이미 접수됨. 로그만 남긴다.
+    match res {
+        Ok(r) if r.status().is_success() => {
+            tracing::info!("신고 자동 숨김 처리됨: {} {}", target_type, target_id);
+        }
+        Ok(r) => {
+            let body = r.text().await.unwrap_or_default();
+            tracing::error!("자동 숨김 실패 (신고는 접수됨): {}", body);
+        }
+        Err(e) => {
+            tracing::error!("자동 숨김 요청 실패 (신고는 접수됨): {}", e);
+        }
+    }
+}
+
 /// 신고 상세 내용 검증
 ///
 /// 정책:
@@ -1999,6 +2081,11 @@ pub async fn create_content_report(
         .into_iter()
         .next()
         .ok_or_else(|| anyhow!("신고 접수 결과가 비어 있습니다."))?;
+
+    // ── 자동 숨김 처리 ──
+    // 심각 사유(inappropriate)면 게시글/댓글을 즉시 임시 숨김.
+    // Result를 반환하지 않으므로 ? 없이 그냥 await. 실패해도 신고는 성공.
+    auto_hide_if_inappropriate(state, target_type, req.target_id, reason).await;
 
     // 신고자에게 "신고 접수됨" 알림 발행 — report.id를 type에 포함해 중복 방지
     // 실패해도 신고 자체는 성공이므로 에러 로그만 남기고 진행

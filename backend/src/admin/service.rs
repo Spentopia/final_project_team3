@@ -155,6 +155,11 @@ async fn to_post_target_detail(
 
         is_deleted: row.is_deleted.unwrap_or(false),
         deleted_at: row.deleted_at,
+
+        // ── 추가 ──
+        is_hidden: row.is_hidden.unwrap_or(false),
+        hidden_reason: row.hidden_reason,
+
         created_at: row.created_at,
         updated_at: row.updated_at,
     }
@@ -186,6 +191,11 @@ async fn to_comment_target_detail(
 
         is_deleted: row.is_deleted.unwrap_or(false),
         deleted_at: row.deleted_at,
+
+        // ── 추가 ──
+        is_hidden: row.is_hidden.unwrap_or(false),
+        hidden_reason: row.hidden_reason,
+
         created_at: row.created_at,
         updated_at: row.updated_at,
     }
@@ -1472,7 +1482,7 @@ async fn get_admin_post_target_detail(
     post_id: Uuid,
 ) -> Result<AdminReportTargetDetailResponse> {
     let url = format!(
-        "{}/rest/v1/admin_post_targets_view?id=eq.{}&select=id,author_id,author_nickname,author_email,author_profile_image,title,content,image_url,is_deleted,deleted_at,created_at,updated_at&limit=1",
+        "{}/rest/v1/admin_post_targets_view?id=eq.{}&select=id,author_id,author_nickname,author_email,author_profile_image,title,content,image_url,is_deleted,deleted_at,is_hidden,hidden_reason,hidden_at,created_at,updated_at&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         post_id
     );
@@ -1513,7 +1523,7 @@ async fn get_admin_comment_target_detail(
     comment_id: Uuid,
 ) -> Result<AdminReportTargetDetailResponse> {
     let url = format!(
-        "{}/rest/v1/admin_comment_targets_view?id=eq.{}&select=id,post_id,parent_id,author_id,author_nickname,author_email,author_profile_image,content,is_deleted,deleted_at,created_at,updated_at&limit=1",
+        "{}/rest/v1/admin_comment_targets_view?id=eq.{}&select=id,post_id,parent_id,author_id,author_nickname,author_email,author_profile_image,content,is_deleted,deleted_at,is_hidden,hidden_reason,hidden_at,created_at,updated_at&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         comment_id
     );
@@ -1588,6 +1598,68 @@ async fn get_admin_user_target_row(
         .ok_or_else(|| anyhow!("신고 대상 사용자를 찾을 수 없습니다."))
 }
 
+/// 신고 반려 시, 자동 숨김된 게시글/댓글을 다시 보이게 복구한다.
+///
+/// 왜 필요한가?
+/// - 심각 사유 신고 1건만으로 자동 숨김되는데, 그게 허위 신고일 수 있다.
+/// - 관리자가 반려(rejected)했다는 건 "문제없는 글"로 판단한 것.
+/// - 따라서 자동 숨김을 풀어 사용자에게 다시 보이게 해야 한다.
+///
+/// 안전장치:
+/// - hidden_reason=like.auto_hide* 조건으로 "자동 숨김된 것만" 복구한다.
+/// - 관리자가 직접 수동 숨김한 콘텐츠는 건드리지 않는다.
+///
+/// 이 함수도 Result를 반환하지만, 호출부에서 신고 반려 자체는 이미 성공한 뒤이므로
+/// 복구 실패가 반려를 막지 않도록 호출부에서 에러를 로그 처리한다.
+async fn restore_auto_hidden_target(
+    state: &AppState,
+    target_type: &str,
+    target_id: Uuid,
+) -> Result<()> {
+    // 게시글/댓글만 대상. (닉네임/프로필 신고는 숨김 자체가 없음)
+    if target_type != "post" && target_type != "comment" {
+        return Ok(());
+    }
+
+    let table = if target_type == "post" { "posts" } else { "comments" };
+
+    // hidden_reason=like.auto_hide* :
+    //   "auto_hide_"로 시작하는, 즉 자동 숨김된 row만 복구 대상으로 좁힌다.
+    let url = format!(
+        "{}/rest/v1/{}?id=eq.{}&hidden_reason=like.auto_hide*",
+        state.config.supabase_url.trim_end_matches('/'),
+        table,
+        target_id
+    );
+
+    // 숨김 해제: 세 컬럼을 원상복구한다.
+    let res = state
+        .http_client
+        .patch(&url)
+        .header("apikey", &state.config.supabase_secret_key)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=minimal")
+        .json(&serde_json::json!({
+            "is_hidden": false,
+            "hidden_reason": null,
+            "hidden_at": null
+        }))
+        .send()
+        .await
+        .context("자동 숨김 복구 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("자동 숨김 복구 실패: {}", body));
+    }
+
+    Ok(())
+}
+
 /// 관리자: 신고 상태 변경 공통 함수
 ///
 /// resolve/reject가 하는 일이 거의 같기 때문에
@@ -1655,6 +1727,21 @@ async fn update_content_report_status(
     if !res.status().is_success() {
         let body = res.text().await.unwrap_or_default();
         return Err(anyhow!("관리자 신고 상태 변경 실패: {}", body));
+    }
+
+    // ── 반려 시 자동 숨김 복구 ──
+    // status가 rejected면, 자동 숨김됐던 게시글/댓글을 다시 보이게 한다.
+    // 복구 실패가 반려 자체를 막으면 안 되므로 에러는 로그만 남기고 진행.
+    if status == "rejected" {
+        if let Err(e) = restore_auto_hidden_target(
+            state,
+            &review_target.target_type,
+            review_target.target_id,
+        )
+            .await
+        {
+            tracing::error!("자동 숨김 복구 실패 (반려는 완료됨): {}", e);
+        }
     }
 
     // PATCH 응답 본문은 여기서 쓰지 않는다.

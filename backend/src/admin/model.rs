@@ -184,6 +184,12 @@ pub struct AdminPostTargetRow {
 
     pub is_deleted: Option<bool>,
     pub deleted_at: Option<DateTime<Utc>>,
+
+    // ── 자동 숨김 상태 (관리자 표시용) ──
+    pub is_hidden: Option<bool>,
+    pub hidden_reason: Option<String>,
+    pub hidden_at: Option<DateTime<Utc>>,
+
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -210,6 +216,12 @@ pub struct AdminCommentTargetRow {
 
     pub is_deleted: Option<bool>,
     pub deleted_at: Option<DateTime<Utc>>,
+
+    // ── 자동 숨김 상태 (관리자 표시용) ──
+    pub is_hidden: Option<bool>,
+    pub hidden_reason: Option<String>,
+    pub hidden_at: Option<DateTime<Utc>>,
+
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }

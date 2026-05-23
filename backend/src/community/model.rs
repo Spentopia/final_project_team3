@@ -50,6 +50,17 @@ pub struct Post {
     pub updated_at: Option<DateTime<Utc>>,
     pub is_deleted: bool,
     pub deleted_at: Option<DateTime<Utc>>,
+
+    // ── 자동 숨김 관련 ──
+    // is_hidden: 신고 자동 숨김 여부.
+    //   DB에 not null default false라 항상 값이 옴 → bool로 받음.
+    pub is_hidden: bool,
+    // hidden_reason: 숨김 사유. 자동 숨김이면 "auto_hide_inappropriate".
+    //   숨김이 아니면 null이라 Option.
+    pub hidden_reason: Option<String>,
+    // hidden_at: 숨겨진 시각. 숨김이 아니면 null이라 Option.
+    pub hidden_at: Option<DateTime<Utc>>,
+
     pub view_count: i32,
     pub users: Option<PostAuthor>,
 }
@@ -65,6 +76,13 @@ pub struct Comment {
     pub content: String,
     pub is_deleted: bool,
     pub deleted_at: Option<DateTime<Utc>>,
+
+    // ── 자동 숨김 관련 ──
+    // 의미는 Post와 동일.
+    pub is_hidden: bool,
+    pub hidden_reason: Option<String>,
+    pub hidden_at: Option<DateTime<Utc>>,
+
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
     pub users: Option<CommentAuthor>,

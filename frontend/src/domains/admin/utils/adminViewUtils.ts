@@ -65,7 +65,8 @@ export const TARGET_TYPE_LABEL: Record<AdminContentReportResponse["target_type"]
 
 export const REASON_LABEL: Record<AdminContentReportResponse["reason"], string> = {
     abuse: "욕설/비방",
-    inappropriate: "부적합",
+    // "부적합" → 포괄 범위를 드러내는 라벨로. 관리자가 이 사유의 성격을 바로 파악.
+    inappropriate: "부적절(음란/폭력/혐오)",
     spam: "광고/도배",
     other: "기타",
 }

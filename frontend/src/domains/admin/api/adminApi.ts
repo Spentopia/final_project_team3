@@ -133,6 +133,11 @@ export type AdminReportTargetDetailResponse =
 
     is_deleted: boolean;
     deleted_at: string | null;
+
+    // ── 추가 ──
+    is_hidden: boolean;
+    hidden_reason: string | null;
+
     created_at: string | null;
     updated_at: string | null;
 }
@@ -152,6 +157,11 @@ export type AdminReportTargetDetailResponse =
 
     is_deleted: boolean;
     deleted_at: string | null;
+
+    // ── 추가 ──
+    is_hidden: boolean;
+    hidden_reason: string | null;
+
     created_at: string | null;
     updated_at: string | null;
 }

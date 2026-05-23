@@ -128,7 +128,8 @@ const TARGET_TYPE_FILTERS: Array<{ value: ReportTargetTypeFilter; label: string 
 const REASON_FILTERS: Array<{ value: ReportReasonFilter; label: string }> = [
     { value: "all", label: "전체 사유" },
     { value: "abuse", label: "욕설/비방" },
-    { value: "inappropriate", label: "부적절" },
+    // "부적절" → REASON_LABEL과 통일. 관리자가 필터에서도 이 사유 범위를 인지하게.
+    { value: "inappropriate", label: "부적절(음란/폭력/혐오)" },
     { value: "spam", label: "광고/도배" },
     { value: "other", label: "기타" },
 ];

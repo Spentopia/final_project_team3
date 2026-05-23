@@ -669,6 +669,11 @@ pub enum AdminReportTargetDetailResponse {
 
         is_deleted: bool,
         deleted_at: Option<DateTime<Utc>>,
+
+        // ── 추가 ──
+        is_hidden: bool,
+        hidden_reason: Option<String>,
+
         created_at: Option<DateTime<Utc>>,
         updated_at: Option<DateTime<Utc>>,
     },
@@ -688,6 +693,11 @@ pub enum AdminReportTargetDetailResponse {
 
         is_deleted: bool,
         deleted_at: Option<DateTime<Utc>>,
+
+        // ── 추가 ──
+        is_hidden: bool,
+        hidden_reason: Option<String>,
+
         created_at: Option<DateTime<Utc>>,
         updated_at: Option<DateTime<Utc>>,
     },
