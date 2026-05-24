@@ -3,9 +3,9 @@
 // 탈퇴 회원 모니터링 패널.
 //
 // 이번 수정:
-// - 카드 부제에서 정책 수치(30일/5년) 제거. 정책이 바뀌면 문구와 로직이
-//   어긋나므로, 실제 기간은 표의 계산된 컬럼 값으로만 보여준다.
-// - "제한 중" 배지를 텍스트로 변경(제한 중일 때만 주황 글씨).
+// - "회원"(닉네임+이메일 묶음) 컬럼을 회원 관리처럼 닉네임 / 이메일 두 컬럼으로 분리.
+// - 카드 부제에서 정책 수치(30일/5년) 제거.
+// - "제한 중" 배지를 텍스트로 변경.
 // - 표 헤더-셀 정렬을 전부 왼쪽으로 통일.
 
 import { Card } from "@/shared/ui/card";
@@ -79,19 +79,21 @@ export default function AdminWithdrawnUsersPanel({
                 )}
 
                 {!isLoading && users.length > 0 && (
-                    <div className="overflow-hidden rounded-2xl border border-border bg-white/60 dark:bg-gray-900/20">
-                        <table className="w-full table-fixed text-sm">
+                    <div className="overflow-x-auto rounded-2xl border border-border bg-white/60 dark:bg-gray-900/20">
+                        <table className="min-w-[1080px] w-full table-fixed text-sm">
                             <colgroup>
-                                <col className="w-[220px]" />
-                                <col className="w-[180px]" />
-                                <col className="w-[200px]" />
-                                <col className="w-[160px]" />
-                                <col className="w-[150px]" />
+                                <col className="w-[170px]" /> {/* 닉네임 */}
+                                <col className="w-[260px]" /> {/* 이메일 */}
+                                <col className="w-[170px]" /> {/* 탈퇴일 */}
+                                <col className="w-[200px]" /> {/* 재가입 제한 */}
+                                <col className="w-[160px]" /> {/* 보관 만료 예정일 */}
+                                <col className="w-[150px]" /> {/* 남은 보관 기간 */}
                             </colgroup>
 
                             <thead className="bg-[var(--surface-subtle)] text-left text-sm font-bold text-muted-foreground">
                             <tr>
-                                <th className="px-4 py-3">회원</th>
+                                <th className="px-4 py-3">닉네임</th>
+                                <th className="px-4 py-3">이메일</th>
                                 <th className="px-4 py-3">탈퇴일</th>
                                 <th className="px-4 py-3">재가입 제한</th>
                                 <th className="px-4 py-3">보관 만료 예정일</th>
@@ -105,14 +107,22 @@ export default function AdminWithdrawnUsersPanel({
                                     key={user.id}
                                     className="border-t border-border transition-colors hover:bg-[var(--surface-subtle)]/70"
                                 >
-                                    <td className="px-4 py-3 align-middle">
-                                        <p className="truncate font-semibold">
+                                    <td className="px-4 py-3 align-middle font-medium">
+                                        <span
+                                            className="block truncate"
+                                            title={user.nickname || "닉네임 없음"}
+                                        >
                                             {user.nickname || "닉네임 없음"}
-                                        </p>
+                                        </span>
+                                    </td>
 
-                                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                                    <td className="px-4 py-3 align-middle text-muted-foreground">
+                                        <span
+                                            className="block truncate"
+                                            title={user.email || "이메일 없음"}
+                                        >
                                             {user.email || "이메일 없음"}
-                                        </p>
+                                        </span>
                                     </td>
 
                                     <td className="px-4 py-3 align-middle text-muted-foreground">
