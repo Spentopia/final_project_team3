@@ -10,7 +10,15 @@
 // 5. 신고일 날짜 범위 필터
 // 6. 신고일/처리일 정렬 토글
 // 7. 페이지네이션
-// 8. 같은 대상 누적 신고 횟수 뱃지
+// 8. 같은 대상 누적 신고 횟수 표시
+//
+// 이번 수정:
+// - 신고 카드의 배지를 정리한다.
+//   상태만 색 배지로 남기고, 대상 타입/사유는 회색 텍스트(가운뎃점 연결)로,
+//   누적 횟수는 배지 대신 경고성 텍스트로 표현한다.
+//   배지를 4개 다 칠하면 시각적 우선순위가 사라져서 "장식"처럼 보이기 때문.
+// - 본문 글씨를 text-sm 기준으로 키운다.
+// - 검색 input에 label을 연결해 접근성 경고를 없앤다.
 //
 // 주의:
 // - 실제 데이터 조회 상태는 상위 AdminPage에서 관리한다.
@@ -169,10 +177,6 @@ export default function AdminReportsPanel({
     const totalPages = Math.max(1, Math.ceil(totalCount / Math.max(1, pageSize)));
 
     // 현재 페이지에서 몇 번째 데이터 범위를 보고 있는지 표시하기 위한 값.
-    //
-    // 예:
-    // totalCount=15, page=1, pageSize=10 → 1-10
-    // totalCount=15, page=2, pageSize=10 → 11-15
     const rangeStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
     const rangeEnd = Math.min(page * pageSize, totalCount);
 
@@ -216,6 +220,7 @@ export default function AdminReportsPanel({
                     onChange={(event) =>
                         onTargetTypeChange(event.target.value as ReportTargetTypeFilter)
                     }
+                    aria-label="신고 대상 타입 필터"
                     className="h-11 rounded-xl border border-border bg-white px-3 text-base outline-none transition focus:border-blue-600 dark:bg-gray-800"
                 >
                     {TARGET_TYPE_FILTERS.map((filter) => (
@@ -231,6 +236,7 @@ export default function AdminReportsPanel({
                     onChange={(event) =>
                         onReasonChange(event.target.value as ReportReasonFilter)
                     }
+                    aria-label="신고 사유 필터"
                     className="h-11 rounded-xl border border-border bg-white px-3 text-base outline-none transition focus:border-blue-600 dark:bg-gray-800"
                 >
                     {REASON_FILTERS.map((filter) => (
@@ -243,7 +249,13 @@ export default function AdminReportsPanel({
                 {/* 신고자 검색 */}
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <label htmlFor="report-search" className="sr-only">
+                        신고자 닉네임 또는 이메일 검색
+                    </label>
                     <Input
+                        id="report-search"
+                        name="reportSearch"
+                        type="search"
                         placeholder="닉네임/이메일 검색"
                         className="h-11 w-64 pl-10 text-base"
                         value={keyword}
@@ -302,7 +314,7 @@ export default function AdminReportsPanel({
                 </div>
 
                 {/* 결과 개수 */}
-                <span className="ml-auto text-xs text-muted-foreground">
+                <span className="ml-auto text-sm text-muted-foreground">
                     {totalCount > 0
                         ? `총 ${totalCount.toLocaleString()}건 · ${rangeStart.toLocaleString()}-${rangeEnd.toLocaleString()} 표시 중`
                         : "총 0건"}
@@ -333,27 +345,28 @@ export default function AdminReportsPanel({
                                         onClick={() => onSelectReport(report)}
                                         className="min-w-0 flex-1 text-left"
                                     >
+                                        {/* 메타 줄.
+                                            상태만 색 배지로 두고, 대상 타입/사유는 텍스트로,
+                                            누적 횟수는 경고성 텍스트로 표현한다.
+                                            → 색을 아껴서 "상태"와 "누적"에만 시선이 가게. */}
                                         <div className="mb-2 flex flex-wrap items-center gap-2">
-                                            {/* 신고 상태 */}
+                                            {/* 신고 상태 (색 배지 유지) */}
                                             <span
-                                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${REPORT_STATUS_STYLE[report.status]}`}
+                                                className={`rounded-full px-2.5 py-1 text-sm font-semibold ${REPORT_STATUS_STYLE[report.status]}`}
                                             >
                                                 {REPORT_STATUS_LABEL[report.status]}
                                             </span>
 
-                                            {/* 신고 대상 타입 */}
-                                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                            {/* 대상 타입 · 사유 (회색 텍스트, 가운뎃점 연결) */}
+                                            <span className="text-sm text-muted-foreground">
                                                 {TARGET_TYPE_LABEL[report.target_type]}
-                                            </span>
-
-                                            {/* 신고 사유 */}
-                                            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                                {" · "}
                                                 {REASON_LABEL[report.reason]}
                                             </span>
 
-                                            {/* 누적 신고 횟수 뱃지 */}
+                                            {/* 누적 신고 횟수 (배지 대신 경고 텍스트) */}
                                             {accumulatedCount > 1 && (
-                                                <span className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-600 dark:bg-rose-900/30 dark:text-rose-300">
+                                                <span className="text-sm font-semibold text-rose-600 dark:text-rose-300">
                                                     누적 {accumulatedCount.toLocaleString()}회
                                                 </span>
                                             )}
@@ -363,10 +376,10 @@ export default function AdminReportsPanel({
                                             <p className="truncate text-sm font-semibold text-foreground">
                                                 신고자: {getReporterPrimaryText(report)}
                                             </p>
-                                            <p className="truncate text-xs text-muted-foreground">
+                                            <p className="truncate text-sm text-muted-foreground">
                                                 {getReporterSecondaryText(report)}
                                             </p>
-                                            <p className="text-xs text-muted-foreground">
+                                            <p className="text-sm text-muted-foreground">
                                                 신고일: {formatDateTime(report.created_at)}
                                                 {report.reviewed_at
                                                     ? ` · 처리일: ${formatDateTime(report.reviewed_at)}`
