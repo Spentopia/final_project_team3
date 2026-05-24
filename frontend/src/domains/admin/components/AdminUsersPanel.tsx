@@ -2,24 +2,10 @@
 //
 // 회원 관리 패널.
 //
-// 역할:
-// - 이메일/닉네임 검색 입력
-// - 회원 목록 테이블 표시
-// - 회원 활성/비활성 처리 버튼 제공
-// - 페이지네이션 (공통 Pagination 컴포넌트 사용)
-//
 // 이번 수정:
-// - 페이지네이션 props 추가 (page, totalCount, pageSize, onPageChange)
-// - 검색 input 옆에 총 회원 수 표시
-// - 테이블 하단에 Pagination 컴포넌트 추가
-// - totalPages는 totalCount / pageSize로 계산
-//
-// 기존에 유지된 것:
-// - table-fixed + colgroup
-// - 닉네임/이메일 truncate
-// - row hover
-// - 비활성/탈퇴 상태 뱃지 + 사유/해제 예정일 표시
-// - 운영자/탈퇴자 변경 불가 처리
+// - 표 헤더와 셀 정렬을 전부 왼쪽으로 통일.
+//   숫자 컬럼이 없으므로(텍스트/배지/버튼) 좌측 정렬이 가장 깔끔하고
+//   헤더-셀 어긋남이 사라진다.
 
 import { Card } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
@@ -39,20 +25,10 @@ type AdminUsersPanelProps = {
     userKeyword: string;
     isUsersLoading: boolean;
     processingId: string | null;
-
-    // ─────────────────────────────────────────────
-    // 페이지네이션 props
-    // ─────────────────────────────────────────────
-    //
-    // page       : 현재 페이지 번호 (1-base)
-    // totalCount : 검색 조건에 맞는 전체 회원 수 (서버 응답의 total_count)
-    // pageSize   : 페이지당 회원 수 (보통 AdminPage에서 20으로 고정)
-    // onPageChange: 페이지 클릭 시 상위(AdminPage)에서 호출되는 핸들러
     page: number;
     totalCount: number;
     pageSize: number;
     onPageChange: (page: number) => void;
-
     onUserKeywordChange: (keyword: string) => void;
     onToggleUserActive: (user: AdminUserResponse) => void;
 };
@@ -78,12 +54,10 @@ function getUserStatusClassName(user: AdminUserResponse): string {
 }
 
 function canToggleUserActive(user: AdminUserResponse): boolean {
-    // 탈퇴자는 활성/비활성 변경 불가.
     if (user.deleted_at) {
         return false;
     }
 
-    // 운영자 계정은 활성/비활성 변경 불가.
     if (user.role_type === "admin") {
         return false;
     }
@@ -115,21 +89,8 @@ export default function AdminUsersPanel({
                                             onUserKeywordChange,
                                             onToggleUserActive,
                                         }: AdminUsersPanelProps) {
-    // ─────────────────────────────────────────────
-    // 전체 페이지 수 계산
-    // ─────────────────────────────────────────────
-    //
-    // pageSize=0 같은 잘못된 값이 들어와도 안전하게 1 이상으로 강제.
-    // Pagination 컴포넌트는 totalPages <= 1이면 자동으로 숨겨주므로
-    // 회원이 0명이거나 한 페이지에 다 들어가는 경우는 별도 처리 필요 없음.
     const totalPages = Math.max(1, Math.ceil(totalCount / Math.max(1, pageSize)));
 
-    // ─────────────────────────────────────────────
-    // 현재 페이지 표시 범위 계산
-    // ─────────────────────────────────────────────
-    //
-    // "153명 중 21-40번째" 형태로 보여주기 위해 시작/끝 인덱스 계산.
-    // totalCount=0이면 0으로 표시.
     const rangeStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
     const rangeEnd = Math.min(page * pageSize, totalCount);
 
@@ -143,12 +104,16 @@ export default function AdminUsersPanel({
                     </p>
                 </div>
 
-                {/* 결과 카운트 + 검색 input */}
-                {/* 검색 + 결과 수 */}
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <label htmlFor="user-search" className="sr-only">
+                            닉네임 또는 이메일 검색
+                        </label>
                         <Input
+                            id="user-search"
+                            name="userSearch"
+                            type="search"
                             placeholder="닉네임/이메일 검색"
                             className="h-11 w-64 pl-10 text-base"
                             value={userKeyword}
@@ -156,10 +121,10 @@ export default function AdminUsersPanel({
                         />
                     </div>
 
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {totalCount > 0
-                          ? `총 ${totalCount.toLocaleString()}명 · ${rangeStart.toLocaleString()}-${rangeEnd.toLocaleString()} 표시 중`
-                          : "총 0명"}
+                    <span className="ml-auto text-sm text-muted-foreground">
+                        {totalCount > 0
+                            ? `총 ${totalCount.toLocaleString()}명 · ${rangeStart.toLocaleString()}-${rangeEnd.toLocaleString()} 표시 중`
+                            : "총 0명"}
                     </span>
                 </div>
             </div>
@@ -178,20 +143,12 @@ export default function AdminUsersPanel({
 
             {!isUsersLoading && users.length > 0 && (
                 <div className="overflow-x-auto rounded-2xl border border-border bg-white/60 dark:bg-gray-900/20">
-                    {/*
-                        회원 목록은 테이블 구조를 유지한다.
-
-                        핵심:
-                        - table-fixed + colgroup으로 컬럼 기준을 통일
-                        - 닉네임/이메일은 truncate 처리
-                        - row hover로 커뮤니티처럼 부드러운 느낌 추가
-                    */}
                     <table className="min-w-[1120px] w-full table-fixed text-sm">
                         <colgroup>
                             <col className="w-[170px]" /> {/* 닉네임 */}
                             <col className="w-[260px]" /> {/* 이메일 */}
                             <col className="w-[170px]" /> {/* 가입일 */}
-                            <col className="w-[280px]" /> {/* 상태 + 비활성 정보 */}
+                            <col className="w-[280px]" /> {/* 상태 */}
                             <col className="w-[110px]" /> {/* 역할 */}
                             <col className="w-[130px]" /> {/* 관리 */}
                         </colgroup>
@@ -203,7 +160,7 @@ export default function AdminUsersPanel({
                             <th className="px-4 py-3">가입일</th>
                             <th className="px-4 py-3">상태</th>
                             <th className="px-4 py-3">역할</th>
-                            <th className="px-4 py-3 text-right">관리</th>
+                            <th className="px-4 py-3">관리</th>
                         </tr>
                         </thead>
 
@@ -285,7 +242,7 @@ export default function AdminUsersPanel({
                                 </td>
 
                                 <td className="px-4 py-3 align-middle">
-                                    <div className="flex justify-end">
+                                    <div className="flex justify-start">
                                         {canToggleUserActive(user) ? (
                                             <button
                                                 type="button"
@@ -320,17 +277,6 @@ export default function AdminUsersPanel({
                 </div>
             )}
 
-            {/* ─────────────────────────────────────────────
-                페이지네이션
-                ─────────────────────────────────────────────
-
-                공통 Pagination 컴포넌트 사용.
-                내부적으로 totalPages <= 1이면 null을 반환하므로
-                여기서 별도 조건 분기 없이 그냥 렌더링한다.
-
-                onPageChange는 상위 AdminPage의 setUserPage로 연결되어 있고,
-                userPage가 바뀌면 AdminPage의 fetchUsers useEffect가 다시 실행되어
-                새 페이지 데이터를 가져온다. */}
             <Pagination
                 currentPage={page}
                 totalPages={totalPages}

@@ -2,12 +2,14 @@
 //
 // 신고 상세 모달.
 //
-// 역할:
-// - 신고 대상의 실제 내용을 가장 먼저 보여준다 (운영자 판단의 핵심).
-// - 신고자 정보를 간단히 보여준다.
-// - 운영 조치 / 반려 / 처리완료 버튼을 제공한다.
-// - 신고 ID·신고자 ID·대상 ID 같은 기술 정보는 접기로 숨긴다.
-// - 감사 로그 접기/펼치기를 제공한다.
+// 구성 순서 (운영자 판단 흐름):
+// 1. 요약 줄 (상태 · 대상 · 사유 · 누적)
+// 2. 신고 내용 검토 — 유일한 강조 카드 (신고당한 실제 콘텐츠)
+// 3. 신고자 정보 — 배경 없이 구분선으로 (닉네임/이메일/신고일)
+// 4. 운영 조치 — 배경 없이 구분선으로
+// 5. 감사 로그 (접기)
+//
+// 기술 정보(신고 ID/신고자 ID/대상 ID)는 운영 판단에 쓰이지 않아 제거.
 
 import { useState, useEffect } from "react";
 import {
@@ -335,7 +337,7 @@ export default function AdminReportDetailModal({
             const postImageUrl = buildCommunityImageUrl(targetDetail.image_url);
 
             return (
-                <div className="space-y-5">
+                <div className="space-y-4">
                     <div className="flex items-center gap-3 rounded-xl bg-background/60 p-3">
                         {targetDetail.author_profile_image_url ? (
                             <img
@@ -374,14 +376,13 @@ export default function AdminReportDetailModal({
                         <p className="text-xs font-bold text-muted-foreground">
                             게시글 내용
                         </p>
-
                         <div className="rounded-xl bg-background/60 p-4">
                             {renderLongText(targetDetail.content, "내용 없음")}
                         </div>
                     </div>
 
                     {postImageUrl && (
-                        <div className="space-y-3 border-t border-border pt-5">
+                        <div className="space-y-3 border-t border-border pt-4">
                             <p className="text-xs font-bold text-muted-foreground">
                                 첨부 이미지
                             </p>
@@ -439,25 +440,24 @@ export default function AdminReportDetailModal({
                 </div>
 
                 <div>
-                    <p className="mb-1 text-xs font-semibold text-muted-foreground">
+                    <p className="mb-1 text-xs font-bold text-muted-foreground">
                         댓글 내용
                     </p>
-
-                    {renderLongText(targetDetail.content, "내용 없음")}
+                    <div className="rounded-xl bg-background/60 p-4">
+                        {renderLongText(targetDetail.content, "내용 없음")}
+                    </div>
                 </div>
 
-                <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                    <p title={targetDetail.post_id}>
-                        게시글 ID: {shortId(targetDetail.post_id)}
-                    </p>
-                </div>
+                <p className="text-xs text-muted-foreground" title={targetDetail.post_id}>
+                    게시글 ID: {shortId(targetDetail.post_id)}
+                </p>
             </div>
         );
     }
 
     if (targetDetail.kind === "user_profile") {
         return (
-            <div className="space-y-5">
+            <div className="space-y-4">
                 <div className="flex items-center gap-3 rounded-xl bg-background/60 p-3">
                     {targetDetail.profile_image_url ? (
                         <img
@@ -481,11 +481,10 @@ export default function AdminReportDetailModal({
                     </div>
                 </div>
 
-                <div className="space-y-2 border-t border-border pt-5">
+                <div className="space-y-2 border-t border-border pt-4">
                     <p className="text-xs font-bold text-muted-foreground">
                         현재 프로필 사진
                     </p>
-
                     <div className="flex justify-center rounded-2xl border border-border bg-background/60 p-5">
                         {targetDetail.profile_image_url ? (
                             <img
@@ -534,6 +533,7 @@ export default function AdminReportDetailModal({
 return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
         <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-[var(--surface-elevated)] shadow-2xl">
+            {/* 헤더 */}
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-6 py-5">
                 <div>
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-luxury-gold">
@@ -552,8 +552,8 @@ return (
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5">
-                <div className="space-y-5">
-                    {/* ── 1. 요약 줄 ── */}
+                <div className="space-y-4">
+                    {/* 1. 요약 줄 */}
                     <div className="flex flex-wrap items-center gap-2">
                             <span
                                 className={`rounded-full px-2.5 py-1 text-sm font-semibold ${
@@ -576,14 +576,14 @@ return (
                         )}
                     </div>
 
-                    {/* ── 2. 신고 내용 검토 ── */}
-                    <div className="rounded-2xl border border-border bg-[var(--surface-subtle)] p-6">
-                        <div className="mb-5 flex items-start justify-between gap-4">
+                    {/* 2. 신고 내용 검토 — 유일한 강조 카드 */}
+                    <div className="rounded-2xl border border-border bg-[var(--surface-subtle)] p-5">
+                        <div className="mb-4 flex items-start justify-between gap-4">
                             <p className="text-base font-semibold">신고 내용 검토</p>
                             {renderTargetMeta()}
                         </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                             <div>
                                 <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
                                     신고 대상
@@ -591,19 +591,17 @@ return (
                                 {renderTargetDetail()}
                             </div>
 
-                            <div className="border-t border-border pt-5">
+                            <div className="border-t border-border pt-4">
                                 <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
                                     신고자 상세 내용
                                 </p>
-                                <div className="rounded-lg bg-background/50 p-3">
-                                    {renderLongText(detailText, "상세 내용이 없습니다.")}
-                                </div>
+                                {renderLongText(detailText, "상세 내용이 없습니다.")}
                             </div>
                         </div>
                     </div>
 
-                    {/* ── 3. 신고자 정보 ── */}
-                    <div className="rounded-xl border border-border bg-background/40 p-4">
+                    {/* 3. 신고자 정보 — 배경 없이 구분선으로 */}
+                    <div className="border-t border-border pt-4">
                         <p className="mb-3 text-sm font-semibold">신고자</p>
 
                         <div className="space-y-2 text-sm">
@@ -623,12 +621,19 @@ return (
                                 <span className="text-muted-foreground">신고일</span>
                                 <span>{formatDateTime(report.created_at)}</span>
                             </div>
+
+                            {report.reviewed_at && (
+                                <div className="flex justify-between gap-4">
+                                    <span className="text-muted-foreground">처리일</span>
+                                    <span>{formatDateTime(report.reviewed_at)}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* ── 4. 운영 조치 ── */}
+                    {/* 4. 운영 조치 — 배경 없이 구분선으로 */}
                     {isPending && (
-                        <div className="rounded-xl border border-border bg-background/40 p-4">
+                        <div className="border-t border-border pt-4">
                             <div className="mb-3 flex items-center gap-2">
                                 <ShieldAlert className="h-4 w-4 text-rose-500" />
                                 <p className="text-sm font-semibold">운영 조치</p>
@@ -705,53 +710,8 @@ return (
                         </div>
                     )}
 
-                    {/* ── 5. 기술 정보 (접기) ── */}
-                    <details className="group rounded-xl border border-border bg-[var(--surface-subtle)]">
-                        <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-semibold">
-                            <span>기술 정보 (ID·타임스탬프)</span>
-                            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                        </summary>
-
-                        <div className="space-y-2 border-t border-border px-4 py-3 text-sm">
-                            <div className="flex justify-between gap-4">
-                                <span className="text-muted-foreground">신고 ID</span>
-                                <span title={report.id}>{shortId(report.id)}</span>
-                            </div>
-
-                            <div className="flex justify-between gap-4">
-                                <span className="text-muted-foreground">신고자 ID</span>
-                                <span className="max-w-[320px] truncate" title={report.reporter_id}>
-                                        {report.reporter_id}
-                                    </span>
-                            </div>
-
-                            <div className="flex justify-between gap-4">
-                                <span className="text-muted-foreground">대상 ID</span>
-                                <span className="max-w-[320px] truncate" title={report.target_id}>
-                                        {report.target_id}
-                                    </span>
-                            </div>
-
-                            {report.reviewed_at && (
-                                <div className="flex justify-between gap-4">
-                                    <span className="text-muted-foreground">처리일</span>
-                                    <span>{formatDateTime(report.reviewed_at)}</span>
-                                </div>
-                            )}
-
-                            {report.reviewed_by && (
-                                <div className="flex justify-between gap-4">
-                                    <span className="text-muted-foreground">처리 관리자 ID</span>
-                                    <span className="max-w-[320px] truncate" title={report.reviewed_by}>
-                                            {report.reviewed_by}
-                                        </span>
-                                </div>
-                            )}
-                        </div>
-                    </details>
-
-                    {/* ── 6. 감사 로그 (접기) ── */}
-                    <div className="rounded-xl border border-border bg-[var(--surface-subtle)] p-4">
+                    {/* 5. 감사 로그 (접기) */}
+                    <div className="border-t border-border pt-4">
                         <button
                             type="button"
                             onClick={handleToggleAuditLogs}
@@ -773,7 +733,7 @@ return (
                         </button>
 
                         {isAuditOpen && (
-                            <div className="mt-3 border-t border-border pt-3">
+                            <div className="mt-3">
                                 <div className="mb-3 flex items-center justify-between gap-3">
                                     <p className="text-xs text-muted-foreground">
                                         신고 처리 이력을 확인합니다.
@@ -845,6 +805,7 @@ return (
                 </div>
             </div>
 
+            {/* 하단 고정 버튼 */}
             <div className="flex shrink-0 justify-end gap-2 border-t border-border bg-[var(--surface-elevated)] px-6 py-4">
                 <button
                     type="button"

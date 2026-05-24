@@ -2,17 +2,11 @@
 //
 // 탈퇴 회원 모니터링 패널.
 //
-// 역할:
-// - deleted_at이 있는 탈퇴 회원 목록 표시
-// - 탈퇴일 표시
-// - 재가입 제한 상태 표시
-// - 보관 만료 예정일 표시
-// - 보관 만료까지 남은 일수 표시
-//
-// 주의:
-// - 실제 완전 삭제 기능은 넣지 않는다.
-// - 지금은 모니터링/시연용 운영 화면이다.
-// - 정책 수치(30일/5년)는 문구에 박지 않고, 컬럼의 계산된 값으로 보여준다.
+// 이번 수정:
+// - 카드 부제에서 정책 수치(30일/5년) 제거. 정책이 바뀌면 문구와 로직이
+//   어긋나므로, 실제 기간은 표의 계산된 컬럼 값으로만 보여준다.
+// - "제한 중" 배지를 텍스트로 변경(제한 중일 때만 주황 글씨).
+// - 표 헤더-셀 정렬을 전부 왼쪽으로 통일.
 
 import { Card } from "@/shared/ui/card";
 
@@ -49,9 +43,6 @@ export default function AdminWithdrawnUsersPanel({
                     <div>
                         <h3 className="text-lg font-bold">탈퇴 회원 모니터링</h3>
 
-                        {/* 정책 수치(30일/5년)는 문구에 넣지 않는다.
-                            바뀌면 문구와 실제 로직이 어긋나기 쉽기 때문.
-                            실제 기간은 아래 표의 계산된 컬럼 값으로 보여준다. */}
                         <p className="mt-1 text-sm text-muted-foreground">
                             탈퇴 회원의 재가입 제한 및 보관 만료 상태를 확인합니다.
                         </p>
@@ -104,9 +95,7 @@ export default function AdminWithdrawnUsersPanel({
                                 <th className="px-4 py-3">탈퇴일</th>
                                 <th className="px-4 py-3">재가입 제한</th>
                                 <th className="px-4 py-3">보관 만료 예정일</th>
-                                {/* 일수는 숫자라 우측 정렬이 읽기 편하다.
-                                    헤더와 셀을 둘 다 text-right로 맞춘다. */}
-                                <th className="px-4 py-3 text-right">남은 보관 기간</th>
+                                <th className="px-4 py-3">남은 보관 기간</th>
                             </tr>
                             </thead>
 
@@ -130,11 +119,6 @@ export default function AdminWithdrawnUsersPanel({
                                         {formatDateTime(user.deleted_at)}
                                     </td>
 
-                                    {/* 재가입 제한:
-                                        배지(알약)를 떼고 상태 텍스트 + 재가입 가능일로 표현.
-                                        제한 중일 때만 주황 글씨로 한 톤 강조.
-                                        "제한 중"이라는 상태는 그 아래 날짜로 이미 설명되므로
-                                        배지 배경 색은 노이즈에 가깝다. */}
                                     <td className="px-4 py-3 align-middle">
                                         <p
                                             className={
@@ -159,8 +143,7 @@ export default function AdminWithdrawnUsersPanel({
                                         {formatDateTime(user.retention_expires_at)}
                                     </td>
 
-                                    {/* 셀도 헤더와 동일하게 우측 정렬 */}
-                                    <td className="px-4 py-3 align-middle text-right">
+                                    <td className="px-4 py-3 align-middle">
                                         <span className="font-semibold">
                                             {user.retention_days_left.toLocaleString()}일
                                         </span>
