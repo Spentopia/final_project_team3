@@ -174,7 +174,7 @@ export default function AdminReportsPanel({
                     onChange={(event) =>
                         onTargetTypeChange(event.target.value as ReportTargetTypeFilter)
                     }
-                    aria-label="신고 사유 필터"
+                    aria-label="신고 대상 타입 필터"
                     className="h-11 rounded-xl border border-border bg-white pl-3 pr-8 text-base outline-none transition focus:border-blue-600 dark:bg-gray-800"
                 >
                     {TARGET_TYPE_FILTERS.map((filter) => (
@@ -190,7 +190,7 @@ export default function AdminReportsPanel({
                         onReasonChange(event.target.value as ReportReasonFilter)
                     }
                     aria-label="신고 사유 필터"
-                    className="h-11 rounded-xl border border-border bg-white px-3 text-base outline-none transition focus:border-blue-600 dark:bg-gray-800"
+                    className="h-11 rounded-xl border border-border bg-white pl-3 pr-8 text-base outline-none transition focus:border-blue-600 dark:bg-gray-800"
                 >
                     {REASON_FILTERS.map((filter) => (
                         <option key={filter.value} value={filter.value}>
