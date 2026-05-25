@@ -47,11 +47,13 @@ export default function ProfilePage() {
   const [searchParams] = useSearchParams();
   const { refetchUser } = useUser();
   const isWebView = searchParams.get("webview") === "true";
+
   const [isEditing, setIsEditing] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
+
   const [profile, setProfile] = useState({
     nickname: "",
     email: "",
@@ -66,6 +68,10 @@ export default function ProfilePage() {
     currentStreak: 0,
   });
 
+  // 서버에 정상 저장되어 있는 마지막 닉네임.
+  // 사용자가 닉네임을 전부 지우고 저장을 누르면 이 값으로 되돌린다.
+  const [savedNickname, setSavedNickname] = useState("");
+
   const { sptBalance, sptLoading } = useSptBalance(profile.walletAddress || null);
   const [nftCount, setNftCount] = useState<number | null>(null);
 
@@ -78,6 +84,7 @@ export default function ProfilePage() {
     next: "",
     confirm: "",
   });
+
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showPasswords, setShowPasswords] = useState({
     current: false,
@@ -110,9 +117,11 @@ export default function ProfilePage() {
 
     const loadNftCount = async () => {
       setNftCount(null);
+
       try {
         await syncOwnedNfts({ force: true });
         const items = await getOwnedNfts();
+
         if (!cancelled) {
           setNftCount(items.length);
         }
@@ -136,15 +145,19 @@ export default function ProfilePage() {
     const loadProfile = async () => {
       try {
         setIsProfileLoading(true);
+
         const [data, settings] = await Promise.all([
           getUserProfile(),
           getUserSettings(),
         ]);
+
         if (cancelled) return;
+
+        const loadedNickname = data.nickname ?? "";
 
         setProfile((prev) => ({
           ...prev,
-          nickname: data.nickname ?? "",
+          nickname: loadedNickname,
           email: data.email ?? "",
           phone: data.phone ?? "",
           bio: data.introduction ?? "",
@@ -156,12 +169,16 @@ export default function ProfilePage() {
           walletAddress: data.wallet_address ?? "",
           currentStreak: data.current_streak ?? 0,
         }));
+
+        // 서버에서 불러온 기존 닉네임을 따로 저장해둔다.
+        setSavedNickname(loadedNickname);
+
         setNotifications({
           alertBudget: settings.alert_budget ?? true,
           alertReward: settings.alert_reward ?? true,
           alertStreak: settings.alert_streak ?? true,
           socialActivityAlert:
-            settings.alert_social ?? settings.notification_listener ?? true,
+              settings.alert_social ?? settings.notification_listener ?? true,
         });
       } catch {
         if (!cancelled) toast.error("프로필 정보를 불러오지 못했습니다");
@@ -171,6 +188,7 @@ export default function ProfilePage() {
     };
 
     void loadProfile();
+
     return () => {
       cancelled = true;
     };
@@ -181,10 +199,12 @@ export default function ProfilePage() {
       const walletAddress = (
           event as CustomEvent<{ walletAddress: string | null }>
       ).detail?.walletAddress;
+
       setProfile((prev) => ({ ...prev, walletAddress: walletAddress ?? "" }));
     };
 
     window.addEventListener("spentopia:wallet-change", handleWalletChange);
+
     return () => {
       window.removeEventListener("spentopia:wallet-change", handleWalletChange);
     };
@@ -204,6 +224,7 @@ export default function ProfilePage() {
       toast.error("png, jpg, webp 이미지만 업로드 가능합니다");
       return;
     }
+
     if (file.size > 5 * 1024 * 1024) {
       toast.error("파일 크기는 5MB 이하여야 합니다");
       return;
@@ -215,16 +236,22 @@ export default function ProfilePage() {
 
     try {
       setIsUploadingImage(true);
+
       const { path } = await uploadProfileImage(file);
+
       await updateUserProfile({ profile_image: path });
+
       setProfile((prev) => ({ ...prev, imagePath: path }));
+
       await refetchUser();
+
       toast.success("프로필 사진이 변경되었습니다");
     } catch (error) {
       // 실패 시 로컬 미리보기 되돌리기
       setLocalImagePreview(null);
+
       toast.error(
-          error instanceof Error ? error.message : "이미지 업로드에 실패했습니다"
+          error instanceof Error ? error.message : "이미지 업로드에 실패했습니다",
       );
     } finally {
       setIsUploadingImage(false);
@@ -232,6 +259,9 @@ export default function ProfilePage() {
   };
 
   const handleEditStart = () => {
+    // 수정 시작 시점의 닉네임을 복구 기준값으로 잡아둔다.
+    // 서버 조회 이후 화면 상태가 최신이면 이 값이 가장 자연스럽다.
+    setSavedNickname(profile.nickname);
     setIsEditing(true);
   };
 
@@ -241,6 +271,13 @@ export default function ProfilePage() {
 
     if (!trimmedNickname) {
       toast.error("닉네임을 입력해주세요");
+
+      // 서버 요청은 보내지 않고, 입력창만 기존 닉네임으로 복구한다.
+      setProfile((prev) => ({
+        ...prev,
+        nickname: savedNickname,
+      }));
+
       return;
     }
 
@@ -257,9 +294,11 @@ export default function ProfilePage() {
         introduction: profile.bio.trim() ? profile.bio.trim() : null,
       });
 
+      const nextNickname = updated.nickname ?? "";
+
       setProfile((prev) => ({
         ...prev,
-        nickname: updated.nickname ?? "",
+        nickname: nextNickname,
         phone: updated.phone ?? "",
         bio: updated.introduction ?? "",
         loginProvider: updated.login_provider ?? "",
@@ -267,6 +306,9 @@ export default function ProfilePage() {
         sptBalance: updated.spt_balance ?? 0,
         walletAddress: updated.wallet_address ?? prev.walletAddress,
       }));
+
+      // 저장 성공 후에는 복구 기준 닉네임도 최신값으로 갱신한다.
+      setSavedNickname(nextNickname);
 
       setIsEditing(false);
 
@@ -276,7 +318,7 @@ export default function ProfilePage() {
       toast.success("프로필이 저장되었습니다");
     } catch (error) {
       toast.error(
-          error instanceof Error ? error.message : "프로필 저장에 실패했습니다"
+          error instanceof Error ? error.message : "프로필 저장에 실패했습니다",
       );
     } finally {
       setIsSaving(false);
@@ -288,10 +330,12 @@ export default function ProfilePage() {
       toast.error("현재 비밀번호를 입력해주세요");
       return;
     }
+
     if (!passwordData.next) {
       toast.error("새 비밀번호를 입력해주세요");
       return;
     }
+
     if (passwordData.next !== passwordData.confirm) {
       toast.error("새 비밀번호가 일치하지 않습니다");
       return;
@@ -299,12 +343,15 @@ export default function ProfilePage() {
 
     try {
       setIsChangingPassword(true);
+
       await changePassword(passwordData.current, passwordData.next);
+
       setPasswordData({ current: "", next: "", confirm: "" });
+
       toast.success("비밀번호가 변경되었습니다");
     } catch (error) {
       toast.error(
-          error instanceof Error ? error.message : "비밀번호 변경에 실패했습니다"
+          error instanceof Error ? error.message : "비밀번호 변경에 실패했습니다",
       );
     } finally {
       setIsChangingPassword(false);
@@ -313,14 +360,18 @@ export default function ProfilePage() {
 
   const performWithdraw = async () => {
     setShowWithdrawConfirm(false);
+
     try {
       setIsWithdrawing(true);
+
       await withdrawAccount();
+
       toast.success("회원탈퇴가 완료되었습니다");
+
       navigate("/login", { replace: true });
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "회원탈퇴 처리에 실패했습니다"
+          error instanceof Error ? error.message : "회원탈퇴 처리에 실패했습니다",
       );
     } finally {
       setIsWithdrawing(false);
@@ -334,10 +385,12 @@ export default function ProfilePage() {
   const handleNotificationToggle = async (key: keyof typeof notifications) => {
     const nextValue = !notifications[key];
     const nextNotifications = { ...notifications, [key]: nextValue };
+
     setNotifications(nextNotifications);
 
     try {
       setIsSavingNotifications(true);
+
       const updated = await updateUserSettings({
         alert_budget: nextNotifications.alertBudget,
         alert_reward: nextNotifications.alertReward,
@@ -345,18 +398,21 @@ export default function ProfilePage() {
         alert_social: nextNotifications.socialActivityAlert,
         notification_listener: true,
       });
+
       setNotifications({
         alertBudget: updated.alert_budget ?? true,
         alertReward: updated.alert_reward ?? true,
         alertStreak: updated.alert_streak ?? true,
         socialActivityAlert:
-          updated.alert_social ?? updated.notification_listener ?? true,
+            updated.alert_social ?? updated.notification_listener ?? true,
       });
+
       toast.success("알림 설정이 변경되었습니다");
     } catch (error) {
       setNotifications(notifications);
+
       toast.error(
-        error instanceof Error ? error.message : "알림 설정 저장에 실패했습니다"
+          error instanceof Error ? error.message : "알림 설정 저장에 실패했습니다",
       );
     } finally {
       setIsSavingNotifications(false);
@@ -369,68 +425,74 @@ export default function ProfilePage() {
       : "-";
 
   return (
-      <div className={isWebView ? "w-full max-w-full space-y-6 overflow-x-hidden px-0 pb-6" : "space-y-6"}>
+      <div
+          className={
+            isWebView
+                ? "w-full max-w-full space-y-6 overflow-x-hidden px-0 pb-6"
+                : "space-y-6"
+          }
+      >
         {showWithdrawConfirm && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-            onClick={() => setShowWithdrawConfirm(false)}
-          >
             <div
-              className="relative w-[420px] rounded-[14px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-5 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-gray-900/90"
-              style={{ borderLeft: "3px solid #f79009" }}
-              onClick={(e) => e.stopPropagation()}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+                onClick={() => setShowWithdrawConfirm(false)}
             >
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                정말 회원탈퇴하시겠습니까?
-              </p>
-              <div className="mt-2 space-y-1 text-sm text-gray-500 dark:text-gray-400">
-                <p>• 모든 가계부 기록과 SPT 잔액이 즉시 비활성화됩니다.</p>
+              <div
+                  className="relative w-[420px] rounded-[14px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-5 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-gray-900/90"
+                  style={{ borderLeft: "3px solid #f79009" }}
+                  onClick={(e) => e.stopPropagation()}
+              >
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  정말 회원탈퇴하시겠습니까?
+                </p>
 
-                {/* 이메일 가입자 (구글 연결 안 한 경우) */}
-                {profile.loginProvider === "email" && !profile.googleConnected && (
-                    <p>• 같은 이메일로는 재가입할 수 없습니다.</p>
-                )}
+                <div className="mt-2 space-y-1 text-sm text-gray-500 dark:text-gray-400">
+                  <p>• 모든 가계부 기록과 SPT 잔액이 즉시 비활성화됩니다.</p>
 
-                {/* 이메일 가입자 + 구글 연결한 경우 */}
-                {profile.loginProvider === "email" && profile.googleConnected && (
-                    <>
+                  {profile.loginProvider === "email" && !profile.googleConnected && (
                       <p>• 같은 이메일로는 재가입할 수 없습니다.</p>
+                  )}
+
+                  {profile.loginProvider === "email" && profile.googleConnected && (
+                      <>
+                        <p>• 같은 이메일로는 재가입할 수 없습니다.</p>
+                        <p>• 같은 구글 계정으로는 30일 동안 재가입할 수 없습니다.</p>
+                      </>
+                  )}
+
+                  {profile.loginProvider === "kakao" && (
+                      <p>• 같은 카카오 계정으로는 30일 동안 재가입할 수 없습니다.</p>
+                  )}
+
+                  {profile.loginProvider === "google" && (
                       <p>• 같은 구글 계정으로는 30일 동안 재가입할 수 없습니다.</p>
-                    </>
-                )}
+                  )}
 
-                {/* 카카오 가입자 */}
-                {profile.loginProvider === "kakao" && (
-                    <p>• 같은 카카오 계정으로는 30일 동안 재가입할 수 없습니다.</p>
-                )}
+                  <p>• 기존 데이터는 복구되지 않습니다.</p>
+                </div>
 
-                {/* 구글 가입자 (login_provider="google") */}
-                {profile.loginProvider === "google" && (
-                    <p>• 같은 구글 계정으로는 30일 동안 재가입할 수 없습니다.</p>
-                )}
+                <div className="mt-4 flex justify-end gap-2">
+                  <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowWithdrawConfirm(false)}
+                  >
+                    취소
+                  </Button>
 
-                <p>• 기존 데이터는 복구되지 않습니다.</p>
-              </div>
-              <div className="mt-4 flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowWithdrawConfirm(false)}
-                >
-                  취소
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={isWithdrawing}
-                  className="bg-red-500 text-white hover:bg-red-600"
-                  onClick={() => void performWithdraw()}
-                >
-                  {isWithdrawing ? "탈퇴 처리 중..." : "탈퇴하기"}
-                </Button>
+                  <Button
+                      size="sm"
+                      disabled={isWithdrawing}
+                      className="bg-red-500 text-white hover:bg-red-600"
+                      onClick={() => void performWithdraw()}
+                  >
+                    {isWithdrawing ? "탈퇴 처리 중..." : "탈퇴하기"}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
         )}
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
@@ -442,10 +504,14 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className={isWebView ? "grid gap-4" : "grid gap-6 lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]"}>
-          {/* 왼쪽 프로필 카드 */}
+        <div
+            className={
+              isWebView
+                  ? "grid gap-4"
+                  : "grid gap-6 lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]"
+            }
+        >
           <Card className="border-none spentopia-hero-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
-            {/* 파일 선택 즉시 업로드 */}
             <input
                 ref={fileInputRef}
                 type="file"
@@ -453,10 +519,10 @@ export default function ProfilePage() {
                 className="hidden"
                 onChange={handleImageChange}
             />
+
             <div className="mb-6 text-center">
               <div className="relative mx-auto mb-4 inline-block">
-                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-white/70 text-4xl
-  backdrop-blur-sm">
+                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-white/70 text-4xl backdrop-blur-sm">
                   {profileImageSrc ? (
                       <img
                           src={profileImageSrc}
@@ -467,12 +533,12 @@ export default function ProfilePage() {
                       "😊"
                   )}
                 </div>
+
                 <button
                     type="button"
                     onClick={() => !isUploadingImage && fileInputRef.current?.click()}
                     disabled={isUploadingImage}
-                    className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-700 dark:text-violet-300
-  shadow-lg disabled:opacity-60"
+                    className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-700 shadow-lg disabled:opacity-60 dark:text-violet-300"
                 >
                   {isUploadingImage ? (
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-700 border-t-transparent dark:border-violet-300" />
@@ -481,61 +547,75 @@ export default function ProfilePage() {
                   )}
                 </button>
               </div>
-              <h2 className="mb-1 font-bold">{profile.nickname || "닉네임 미설정"}</h2>
+
+              <h2 className="mb-1 font-bold">
+                {profile.nickname || "닉네임 미설정"}
+              </h2>
+
               <div className="flex items-center justify-center gap-2 text-sm opacity-90">
                 <span>{profile.email || "이메일 정보 없음"}</span>
                 {isProfileComplete ? <BadgeCheck className="h-4 w-4" /> : null}
               </div>
+
               {profile.bio ? (
-                <p className="mt-3 text-center text-sm leading-6 text-gray-700 dark:text-gray-100">
-                  {profile.bio}
-                </p>
+                  <p className="mt-3 text-center text-sm leading-6 text-gray-700 dark:text-gray-100">
+                    {profile.bio}
+                  </p>
               ) : null}
             </div>
 
             <div className="space-y-5">
               <div className="rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
                 <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">가입일</p>
-                <p className="font-bold text-gray-900 dark:text-gray-100">{joinedDateLabel}</p>
+                <p className="font-bold text-gray-900 dark:text-gray-100">
+                  {joinedDateLabel}
+                </p>
               </div>
+
               <div className="rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
                 <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">연속 기록</p>
-                <p className="font-bold text-gray-900 dark:text-gray-100">{profile.currentStreak}🔥</p>
+                <p className="font-bold text-gray-900 dark:text-gray-100">
+                  {profile.currentStreak}🔥
+                </p>
               </div>
+
               <div className="rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
                 <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">보유 SPT</p>
                 <p className="font-bold text-gray-900 dark:text-gray-100">
                   {!profile.walletAddress
-                    ? "—"
-                    : sptLoading
-                    ? "..."
-                    : (sptBalance ?? 0).toLocaleString("ko-KR")} SPT
+                      ? "—"
+                      : sptLoading
+                          ? "..."
+                          : (sptBalance ?? 0).toLocaleString("ko-KR")}{" "}
+                  SPT
                 </p>
               </div>
+
               <div className="rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
                 <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">보유 NFT</p>
                 <p className="font-bold text-gray-900 dark:text-gray-100">
                   {nftCount === null ? "..." : `${nftCount}개`}
                 </p>
               </div>
+
               <div className="rounded-lg spentopia-soft-card spentopia-nft-card-tone p-3">
                 <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">로그인 방식</p>
                 <p className="font-bold uppercase text-gray-900 dark:text-gray-100">
                   {profile.loginProvider === "email" && profile.googleConnected
-                    ? "EMAIL / GOOGLE"
-                    : (profile.loginProvider || "-")}
+                      ? "EMAIL / GOOGLE"
+                      : profile.loginProvider || "-"}
                 </p>
               </div>
             </div>
           </Card>
 
           <div className="grid gap-6 xl:grid-cols-2">
-            {/* 회원 정보 */}
             <Card className="h-full min-h-[500px] border-none spentopia-soft-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="font-bold text-gray-900 dark:text-gray-100">
                   회원 정보
                 </h3>
+
                 <div className="flex items-center gap-2">
                   <Button
                       onClick={handleWithdraw}
@@ -546,8 +626,14 @@ export default function ProfilePage() {
                   >
                     {isWithdrawing ? "탈퇴 처리 중..." : "회원탈퇴"}
                   </Button>
+
                   {!isEditing ? (
-	                      <Button onClick={handleEditStart} variant="outline" size="sm" className="spentopia-light-nft-button">
+                      <Button
+                          onClick={handleEditStart}
+                          variant="outline"
+                          size="sm"
+                          className="spentopia-light-nft-button"
+                      >
                         <Edit className="mr-2 h-4 w-4" />
                         수정
                       </Button>
@@ -555,7 +641,7 @@ export default function ProfilePage() {
                       <Button
                           onClick={handleSave}
                           disabled={isSaving}
-	                          className="spentopia-light-nft-button"
+                          className="spentopia-light-nft-button"
                           size="sm"
                       >
                         <Save className="mr-2 h-4 w-4" />
@@ -633,11 +719,11 @@ export default function ProfilePage() {
               </div>
             </Card>
 
-            {/* 알림 설정 */}
             <Card className="h-full border-none spentopia-soft-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
               <h3 className="mb-8 font-bold text-gray-900 dark:text-gray-100">
                 알림 설정
               </h3>
+
               <div className="space-y-10">
                 <div className="flex items-center justify-between">
                   <div className="flex items-start gap-3">
@@ -651,6 +737,7 @@ export default function ProfilePage() {
                       </p>
                     </div>
                   </div>
+
                   <Switch
                       checked={notifications.alertBudget}
                       disabled={isSavingNotifications}
@@ -670,6 +757,7 @@ export default function ProfilePage() {
                       </p>
                     </div>
                   </div>
+
                   <Switch
                       checked={notifications.alertReward}
                       disabled={isSavingNotifications}
@@ -689,6 +777,7 @@ export default function ProfilePage() {
                       </p>
                     </div>
                   </div>
+
                   <Switch
                       checked={notifications.alertStreak}
                       disabled={isSavingNotifications}
@@ -708,17 +797,18 @@ export default function ProfilePage() {
                       </p>
                     </div>
                   </div>
+
                   <Switch
                       checked={notifications.socialActivityAlert}
                       disabled={isSavingNotifications}
-                      onCheckedChange={() => handleNotificationToggle("socialActivityAlert")}
+                      onCheckedChange={() =>
+                          handleNotificationToggle("socialActivityAlert")
+                      }
                   />
                 </div>
-
               </div>
             </Card>
 
-            {/* 비밀번호 변경 */}
             <Card className="h-full border-none spentopia-soft-card spentopia-nft-card-tone p-5 backdrop-blur-xl">
               <h3 className="mb-4 font-bold text-gray-900 dark:text-gray-100">
                 비밀번호 변경
@@ -748,11 +838,20 @@ export default function ProfilePage() {
                     <button
                         type="button"
                         tabIndex={-1}
-                        onClick={() => setShowPasswords((prev) => ({ ...prev, current: !prev.current }))}
+                        onClick={() =>
+                            setShowPasswords((prev) => ({
+                              ...prev,
+                              current: !prev.current,
+                            }))
+                        }
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-40"
                         disabled={!isEmailUser}
                     >
-                      {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPasswords.current ? (
+                          <EyeOff className="h-4 w-4" />
+                      ) : (
+                          <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -774,11 +873,20 @@ export default function ProfilePage() {
                     <button
                         type="button"
                         tabIndex={-1}
-                        onClick={() => setShowPasswords((prev) => ({ ...prev, next: !prev.next }))}
+                        onClick={() =>
+                            setShowPasswords((prev) => ({
+                              ...prev,
+                              next: !prev.next,
+                            }))
+                        }
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-40"
                         disabled={!isEmailUser}
                     >
-                      {showPasswords.next ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPasswords.next ? (
+                          <EyeOff className="h-4 w-4" />
+                      ) : (
+                          <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -800,11 +908,20 @@ export default function ProfilePage() {
                     <button
                         type="button"
                         tabIndex={-1}
-                        onClick={() => setShowPasswords((prev) => ({ ...prev, confirm: !prev.confirm }))}
+                        onClick={() =>
+                            setShowPasswords((prev) => ({
+                              ...prev,
+                              confirm: !prev.confirm,
+                            }))
+                        }
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-40"
                         disabled={!isEmailUser}
                     >
-                      {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPasswords.confirm ? (
+                          <EyeOff className="h-4 w-4" />
+                      ) : (
+                          <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -812,7 +929,7 @@ export default function ProfilePage() {
                 <Button
                     onClick={handleChangePassword}
                     disabled={isChangingPassword || !isEmailUser}
-                className="mt-1 w-full spentopia-light-nft-button"
+                    className="mt-1 w-full spentopia-light-nft-button"
                 >
                   {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
                 </Button>
@@ -830,39 +947,38 @@ export default function ProfilePage() {
               </div>
             </Card>
 
-            {/* 지갑 연동 */}
             {!isWebView && (
-              <div className="h-full">
-                <WalletSection
-                    isLoggedIn
-                    isProfileComplete={isProfileComplete}
-                    linkedWalletAddress={profile.walletAddress}
-                    onWalletLinked={(walletAddress) => {
-                      setProfile((prev) => ({ ...prev, walletAddress }));
-                      window.dispatchEvent(
-                          new CustomEvent("spentopia:wallet-change", {
-                            detail: { walletAddress },
-                          })
-                      );
-                    }}
-                    onWalletUnlinked={() => {
-                      setProfile((prev) => ({ ...prev, walletAddress: "" }));
-                      window.dispatchEvent(
-                          new CustomEvent("spentopia:wallet-change", {
-                            detail: { walletAddress: null },
-                          })
-                      );
-                    }}
-                />
-              </div>
+                <div className="h-full">
+                  <WalletSection
+                      isLoggedIn
+                      isProfileComplete={isProfileComplete}
+                      linkedWalletAddress={profile.walletAddress}
+                      onWalletLinked={(walletAddress) => {
+                        setProfile((prev) => ({ ...prev, walletAddress }));
+                        window.dispatchEvent(
+                            new CustomEvent("spentopia:wallet-change", {
+                              detail: { walletAddress },
+                            }),
+                        );
+                      }}
+                      onWalletUnlinked={() => {
+                        setProfile((prev) => ({ ...prev, walletAddress: "" }));
+                        window.dispatchEvent(
+                            new CustomEvent("spentopia:wallet-change", {
+                              detail: { walletAddress: null },
+                            }),
+                        );
+                      }}
+                  />
+                </div>
             )}
           </div>
         </div>
 
         {isWebView && (
-          <div className="w-full max-w-full overflow-x-hidden pt-2">
-            <AvatarPage />
-          </div>
+            <div className="w-full max-w-full overflow-x-hidden pt-2">
+              <AvatarPage />
+            </div>
         )}
       </div>
   );
