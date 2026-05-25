@@ -198,8 +198,8 @@ export default function AdminNoticesPanel({
                                 <tr>
                                     <th className="px-4 py-3">제목</th>
                                     <th className="px-4 py-3">작성일</th>
-                                    <th className="px-4 py-3 text-right">조회수</th>
-                                    <th className="px-4 py-3 text-right">관리</th>
+                                    <th className="px-4 py-3 text-center">조회수</th>
+                                    <th className="px-4 py-3 text-center">관리</th>
                                 </tr>
                                 </thead>
 
@@ -224,12 +224,12 @@ export default function AdminNoticesPanel({
                                         </span>
                                         </td>
 
-                                        <td className="px-4 py-3 align-middle text-right text-muted-foreground">
+                                        <td className="px-4 py-3 align-middle text-center text-muted-foreground">
                                             {notice.view_count}
                                         </td>
 
                                         <td className="px-4 py-3 align-middle">
-                                            <div className="flex justify-end gap-2">
+                                            <div className="flex justify-center gap-2">
                                                 <button
                                                     type="button"
                                                     onClick={() => setEditingNoticeId(notice.id)}

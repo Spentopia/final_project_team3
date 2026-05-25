@@ -148,7 +148,7 @@ export default function AdminUsersPanel({
                             <col className="w-[170px]" /> {/* 닉네임 */}
                             <col className="w-[260px]" /> {/* 이메일 */}
                             <col className="w-[170px]" /> {/* 가입일 */}
-                            <col className="w-[280px]" /> {/* 상태 */}
+                            <col className="w-[200px]" /> {/* 상태 + 비활성 정보 */}
                             <col className="w-[110px]" /> {/* 역할 */}
                             <col className="w-[130px]" /> {/* 관리 */}
                         </colgroup>
@@ -158,9 +158,9 @@ export default function AdminUsersPanel({
                             <th className="px-4 py-3">닉네임</th>
                             <th className="px-4 py-3">이메일</th>
                             <th className="px-4 py-3">가입일</th>
-                            <th className="px-4 py-3">상태</th>
-                            <th className="px-4 py-3">역할</th>
-                            <th className="px-4 py-3">관리</th>
+                            <th className="px-4 py-3 text-center">상태</th>
+                            <th className="px-4 py-3 text-center">역할</th>
+                            <th className="px-4 py-3 text-center">관리</th>
                         </tr>
                         </thead>
 
@@ -194,8 +194,8 @@ export default function AdminUsersPanel({
                                     </span>
                                 </td>
 
-                                <td className="px-4 py-3 align-middle">
-                                    <div className="space-y-2">
+                                <td className="px-4 py-3 align-middle text-center">
+                                    <div className="flex flex-col items-center space-y-2">
                                         <span
                                             className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${getUserStatusClassName(user)}`}
                                             title={
@@ -208,7 +208,7 @@ export default function AdminUsersPanel({
                                         </span>
 
                                         {!user.is_active && !user.deleted_at && (
-                                            <div className="max-w-[250px] rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+                                            <div className="max-w-[180px] rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
                                                 <p className="whitespace-nowrap">
                                                     <span className="font-semibold">해제 예정: </span>
                                                     {user.inactive_until
@@ -228,7 +228,7 @@ export default function AdminUsersPanel({
                                     </div>
                                 </td>
 
-                                <td className="px-4 py-3 align-middle">
+                                <td className="px-4 py-3 align-middle text-center">
                                     <span
                                         className={[
                                             "inline-flex rounded-full px-2.5 py-1 text-xs font-bold",
@@ -242,7 +242,7 @@ export default function AdminUsersPanel({
                                 </td>
 
                                 <td className="px-4 py-3 align-middle">
-                                    <div className="flex justify-start">
+                                    <div className="flex justify-center">
                                         {canToggleUserActive(user) ? (
                                             <button
                                                 type="button"

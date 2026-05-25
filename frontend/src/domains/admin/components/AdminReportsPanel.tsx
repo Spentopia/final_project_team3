@@ -174,8 +174,8 @@ export default function AdminReportsPanel({
                     onChange={(event) =>
                         onTargetTypeChange(event.target.value as ReportTargetTypeFilter)
                     }
-                    aria-label="신고 대상 타입 필터"
-                    className="h-11 rounded-xl border border-border bg-white px-3 text-base outline-none transition focus:border-blue-600 dark:bg-gray-800"
+                    aria-label="신고 사유 필터"
+                    className="h-11 rounded-xl border border-border bg-white pl-3 pr-8 text-base outline-none transition focus:border-blue-600 dark:bg-gray-800"
                 >
                     {TARGET_TYPE_FILTERS.map((filter) => (
                         <option key={filter.value} value={filter.value}>
@@ -298,7 +298,7 @@ export default function AdminReportsPanel({
                                 <th className="px-4 py-3">신고자</th>
                                 <th className="px-4 py-3">신고일</th>
                                 <th className="px-4 py-3">처리일</th>
-                                <th className="px-4 py-3">관리</th>
+                                <th className="px-4 py-3 text-center">관리</th>
                             </tr>
                             </thead>
 
@@ -359,7 +359,7 @@ export default function AdminReportsPanel({
 
                                         {/* 관리 */}
                                         <td className="px-4 py-3 align-middle">
-                                            <div className="flex justify-start">
+                                            <div className="flex justify-center">
                                                 <button
                                                     type="button"
                                                     onClick={() => onSelectReport(report)}

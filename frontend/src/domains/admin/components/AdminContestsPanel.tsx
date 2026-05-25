@@ -316,7 +316,7 @@ export default function AdminContestsPanel({
                                 <th className="px-4 py-3">종료일</th>
                                 <th className="px-4 py-3">상태</th>
                                 <th className="px-4 py-3">보상</th>
-                                <th className="px-4 py-3 text-right">관리</th>
+                                <th className="px-4 py-3 text-center">관리</th>
                             </tr>
                             </thead>
 
@@ -368,7 +368,7 @@ export default function AdminContestsPanel({
                                         </td>
 
                                         <td className="px-4 py-3 align-middle">
-                                            <div className="flex justify-end gap-2">
+                                            <div className="flex justify-center gap-2">
                                                 <button
                                                     type="button"
                                                     onClick={() => setEditingContestId(contest.id)}
