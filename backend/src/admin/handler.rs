@@ -148,7 +148,12 @@ fn map_admin_error(error: anyhow::Error) -> axum::response::Response {
         return (StatusCode::BAD_REQUEST, message).into_response();
     }
 
-    (StatusCode::INTERNAL_SERVER_ERROR, message).into_response()
+    tracing::error!("관리자 요청 처리 실패: {}", message);
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "관리자 요청 처리 중 서버 오류가 발생했습니다.".to_string(),
+    )
+        .into_response()
 }
 
 /// 관리자: 대시보드 통계 조회

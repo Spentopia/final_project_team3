@@ -246,12 +246,14 @@ fn map_auth_service_error(error: anyhow::Error) -> Response {
             .into_response();
     }
 
+    tracing::warn!("인증 처리 실패: {}", msg);
+
     // 그 외 인증 실패.
     (
         StatusCode::UNAUTHORIZED,
         Json(serde_json::json!({
             "code": "AUTH_FAILED",
-            "message": msg
+            "message": "인증에 실패했습니다."
         })),
     )
         .into_response()
@@ -430,7 +432,10 @@ pub async fn wallet_login(
             (StatusCode::NOT_FOUND, msg)
         } else {
             tracing::error!("지갑 로그인 실패 (서버): {}", msg);
-            (StatusCode::INTERNAL_SERVER_ERROR, msg)
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "로그인 처리 중 서버 오류가 발생했습니다.".to_string(),
+            )
         }
     })?;
 
@@ -507,7 +512,10 @@ pub async fn wallet_login_app(
             (StatusCode::FORBIDDEN, msg)
         } else {
             tracing::error!("앱 지갑 로그인 실패 (서버): {}", msg);
-            (StatusCode::INTERNAL_SERVER_ERROR, msg)
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "로그인 처리 중 서버 오류가 발생했습니다.".to_string(),
+            )
         }
     })?;
 
