@@ -22,6 +22,11 @@ import {
   Store,
   AlertTriangle,
   CheckCircle,
+  Trophy,
+  Gift,
+  CalendarCheck,
+  CreditCard,
+  FileText,
 } from "lucide-react";
 
 // ─── 지갑 연동 탭 내부 앱/웹 서브탭 ──────────────────────────────────────────
@@ -124,9 +129,14 @@ function WalletWebGuide() {
       <Card className="border-none spentopia-soft-card spentopia-nft-card-tone p-5 backdrop-blur-xl">
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-violet-300" />
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            시드 구문(복구 구문)은 절대 타인에게 공유하지 마세요. Spentopia는 시드 구문을 요구하지 않습니다.
-          </p>
+          <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+            <p>
+              앱에서 지갑을 연동했더라도 웹에서 Google, Kakao, 이메일 로그인으로 접속한 경우 브라우저 지갑은 별도로 연결해야 합니다.
+            </p>
+            <p>
+              시드 구문(복구 구문)은 절대 타인에게 공유하지 마세요. Spentopia는 시드 구문을 요구하지 않습니다.
+            </p>
+          </div>
         </div>
       </Card>
 
@@ -153,6 +163,7 @@ function WalletWebGuide() {
         <div className="space-y-2">
           {[
             "지갑 연결은 서명 요청만 발생하며, 자산이 자동으로 이동하지 않습니다.",
+            "웹 결제와 NFT 거래는 현재 브라우저에 연결된 확장 지갑을 기준으로 진행됩니다.",
             "연결된 지갑 주소는 프로필 → 지갑 연동 섹션에서 언제든 해제할 수 있습니다.",
           ].map((t) => (
             <div key={t} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -203,8 +214,8 @@ export default function GuidePage() {
   ];
 
   return (
-    <div className="min-h-full p-6">
-      <div className="mx-auto max-w-6xl space-y-6">
+    <div className="min-h-full w-full p-6">
+      <div className="w-full space-y-6">
 
         {/* 헤더 */}
         <div className="flex items-center justify-between">
@@ -222,9 +233,10 @@ export default function GuidePage() {
 
         {/* 메인 탭 */}
         <Tabs defaultValue="start">
-          <TabsList className="h-auto w-full justify-start gap-1 spentopia-soft-card spentopia-nft-card-tone p-1.5 backdrop-blur-xl">
+          <TabsList className="h-auto w-full flex-wrap justify-start gap-1 spentopia-soft-card spentopia-nft-card-tone p-1.5 backdrop-blur-xl">
             {[
               { value: "start",     icon: Sparkles,  label: "시작하기" },
+              { value: "reward",    icon: Trophy,    label: "성실도·보상" },
               { value: "wallet",    icon: Wallet,    label: "지갑 연동" },
               { value: "market",    icon: Store,     label: "NFT 마켓" },
               { value: "budget",    icon: PiggyBank, label: "예산·분석" },
@@ -286,6 +298,119 @@ export default function GuidePage() {
             </div>
           </TabsContent>
 
+          {/* ── 성실도·보상 ── */}
+          <TabsContent value="reward" className="mt-4 space-y-4">
+            <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+              <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl spentopia-guide-icon">
+                    <Trophy className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-gray-900 dark:text-gray-100">월간 성실도 점수</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      매월 1일부터 말일까지 기록된 활동을 기준으로 계산돼요
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  {[
+                    { label: "소비 기록", score: "30점", desc: "기록한 날짜 수가 많을수록 상승" },
+                    { label: "영수증 인증", score: "25점", desc: "인증 완료된 날짜 수 기준" },
+                    { label: "한 줄 일기", score: "20점", desc: "소비 기록에 남긴 일기 기준" },
+                    { label: "예산 체크", score: "15점", desc: "해당 월 예산 설정 시 지급" },
+                    { label: "연속 활동", score: "10점", desc: "현재 스트릭에 따라 보너스" },
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-xl border border-slate-200 spentopia-market-light-soft p-4 dark:border-[#7c3aed]/35">
+                      <p className="text-xs font-semibold spentopia-guide-label">{item.label}</p>
+                      <p className="mt-1 text-2xl font-extrabold text-gray-900 dark:text-gray-100">{item.score}</p>
+                      <p className="mt-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">{item.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
+                <div className="mb-4 flex items-center gap-3">
+                  <CalendarCheck className="h-5 w-5 spentopia-guide-label" />
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">월말 확정 방식</h3>
+                </div>
+                <ol className="space-y-3">
+                  {[
+                    "이번 달 점수는 홈에서 실시간으로 확인",
+                    "보상은 바로 지급되지 않고 월말 이후 확정",
+                    "다음 달 배치에서 지난달 점수 60점 이상 여부 확인",
+                    "지급 완료 시 월간 성실도에 보상 지급 완료 표시",
+                  ].map((s, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full spentopia-step-badge text-[10px] font-bold">
+                        {i + 1}
+                      </span>
+                      {s}
+                    </li>
+                  ))}
+                </ol>
+              </Card>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
+                <div className="mb-4 flex items-center gap-3">
+                  <PiggyBank className="h-5 w-5 spentopia-guide-label" />
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">예산 체크 15점</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                  월 예산은 한 달에 한 번 설정합니다. 해당 월 예산이 등록되어 있으면 성실도 예산 체크 항목 15점이 반영돼요.
+                </p>
+              </Card>
+
+              <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
+                <div className="mb-4 flex items-center gap-3">
+                  <Gift className="h-5 w-5 spentopia-guide-label" />
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">보상 기준</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                  월간 성실도 총점이 60점 이상이면 보상 대상이 됩니다. 보상은 같은 달에 중복 지급되지 않아요.
+                </p>
+              </Card>
+
+              <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
+                <div className="mb-4 flex items-center gap-3">
+                  <Wallet className="h-5 w-5 spentopia-guide-label" />
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">지갑 연동 여부</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                  지갑을 연동한 유저는 NFT 아바타와 SPT 보상을 받을 수 있고, 지갑 미연동 유저는 교환불가 아바타 보상을 받아요.
+                </p>
+              </Card>
+            </div>
+
+            <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
+              <div className="mb-4 flex items-center gap-3">
+                <Coins className="h-5 w-5 spentopia-guide-label" />
+                <h3 className="font-bold text-gray-900 dark:text-gray-100">SPT 보상 구간</h3>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                {[
+                  { range: "60~69점", amount: "10 SPT" },
+                  { range: "70~79점", amount: "20 SPT" },
+                  { range: "80~89점", amount: "35 SPT" },
+                  { range: "90~99점", amount: "55 SPT" },
+                  { range: "100점", amount: "80 SPT" },
+                ].map((item) => (
+                  <div key={item.range} className="rounded-xl border border-slate-200 spentopia-market-light-soft p-4 text-center dark:border-[#7c3aed]/35">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">{item.range}</p>
+                    <p className="mt-1 text-lg font-extrabold text-gray-900 dark:text-gray-100">{item.amount}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                실제 지급량은 서비스 반감기 정책에 따라 조정될 수 있으며, 최소 지급 조건을 만족하면 보상 기록이 생성됩니다.
+              </p>
+            </Card>
+          </TabsContent>
+
           {/* ── 지갑 연동 ── */}
           <TabsContent value="wallet" className="mt-4 space-y-4">
             <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
@@ -319,6 +444,31 @@ export default function GuidePage() {
             </Card>
 
             {walletSub === "app" ? <WalletAppGuide /> : <WalletWebGuide />}
+
+            <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
+              <div className="mb-4 flex items-center gap-3">
+                <CreditCard className="h-5 w-5 spentopia-guide-label" />
+                <h3 className="font-bold text-gray-900 dark:text-gray-100">지갑 결제 안내</h3>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                {[
+                  { label: "연결", desc: "프로필 또는 상단 지갑 버튼에서 Solana 지갑을 연결합니다." },
+                  { label: "서명", desc: "NFT 구매나 유료 분석 요청 시 지갑에서 결제 서명을 승인합니다." },
+                  { label: "확인", desc: "결제 완료 후 SPT 차감, 구매 내역, 분석 결과가 화면에 반영됩니다." },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-xl border border-slate-200 spentopia-market-light-soft p-4 dark:border-[#7c3aed]/35">
+                    <p className="text-xs font-semibold spentopia-guide-label">{item.label}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-400">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex items-start gap-2 rounded-lg spentopia-market-light-soft p-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-violet-300" />
+                <p className="text-xs text-gray-700 dark:text-gray-300">
+                  결제 요청은 지갑 서명 전에는 실행되지 않습니다. 승인 전 금액과 요청 내용을 꼭 확인하세요.
+                </p>
+              </div>
+            </Card>
           </TabsContent>
 
           {/* ── NFT 마켓 ── */}
@@ -435,6 +585,7 @@ export default function GuidePage() {
                     "사이드바 → '예산' 메뉴 진입",
                     "월 선택 후 전체 또는 카테고리별 예산 입력",
                     "'저장' 클릭으로 예산 등록",
+                    "월간 성실도 예산 체크 15점 반영",
                     "대시보드·분석에서 예산 대비 현황 확인",
                   ].map((s, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
@@ -494,10 +645,45 @@ export default function GuidePage() {
               </div>
             </Card>
 
+            <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-6 backdrop-blur-xl">
+              <div className="mb-4 flex items-center gap-3">
+                <FileText className="h-5 w-5 spentopia-guide-label" />
+                <h3 className="font-bold text-gray-900 dark:text-gray-100">추가 분석 결제</h3>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1fr]">
+                {[
+                  {
+                    title: "무료 횟수 사용",
+                    desc: "주간·월간 소비 패턴 분석은 정해진 무료 횟수 안에서 먼저 사용할 수 있어요.",
+                  },
+                  {
+                    title: "결제 요청",
+                    desc: "무료 횟수를 모두 사용하면 추가 분석 요청 시 지갑 결제 화면이 열립니다.",
+                  },
+                  {
+                    title: "분석 생성",
+                    desc: "지갑에서 결제를 승인하면 AI가 현재 소비 데이터와 예산을 기준으로 리포트를 생성합니다.",
+                  },
+                ].map((item, index) => (
+                  <div key={item.title} className="rounded-xl border border-slate-200 spentopia-market-light-soft p-4 dark:border-[#7c3aed]/35">
+                    <p className="text-xs font-semibold spentopia-guide-label">STEP {String(index + 1).padStart(2, "0")}</p>
+                    <p className="mt-1 font-bold text-gray-900 dark:text-gray-100">{item.title}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex items-start gap-2 rounded-lg spentopia-market-light-soft p-3">
+                <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-violet-300" />
+                <p className="text-xs text-gray-700 dark:text-gray-300">
+                  추가 분석 결제를 사용하려면 지갑 연동이 필요합니다. 결제 성공 후 분석 결과가 저장되어 다시 확인할 수 있어요.
+                </p>
+              </div>
+            </Card>
+
             <Card className="border-none spentopia-surface-card spentopia-nft-card-tone p-5 backdrop-blur-xl">
               <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
                 <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-violet-300" />
-                예산 80% 초과 시 알림이 발송됩니다. 프로필 → 알림 설정에서 켜두세요.
+                월 예산은 한 달에 한 번 설정하는 기준값입니다. 예산을 등록하면 이번 달 성실도 예산 체크 점수가 반영됩니다.
               </div>
             </Card>
           </TabsContent>
