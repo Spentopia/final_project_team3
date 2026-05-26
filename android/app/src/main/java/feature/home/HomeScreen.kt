@@ -284,6 +284,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
 
     // 수정 중인 소비 항목 상태입니다.
     var editingExpense by remember { mutableStateOf<ExpenseItemData?>(null) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
+    var deletingExpenseId by remember { mutableStateOf<Long?>(null) } // 삭제 확인을 기다리는 소비 내역 id입니다.
     var showWalletDisconnectDialog by remember { mutableStateOf(false) } // 지갑 연결 해제 팝업창을 띄울지 말지 결정하는 스위치
     var showWalletDialog by remember { mutableStateOf(false) } // 지갑 선택 팝업창을 띄울지 말지 결정하는 스위치
     var showWeeklyScoreDialog by remember { mutableStateOf(false) }
@@ -446,13 +447,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                     homeViewModel.selectDate(expense.date) // editingExpense 값을 이 함수로 넘김
                 },
                 onDeleteExpense = { expenseId -> // 바로 앞 설정을 이어서 적음
-                    // 실제 Room DB에서 삭제합니다.
-                    homeViewModel.deleteExpenseById(expenseId) // 바로 앞 설정을 이어서 적음
-
-                    // 삭제한 항목이 수정 중이던 항목이면 수정 상태도 비웁니다.
-                    if (editingExpense?.id == expenseId) { // 조건이 참일 때만 아래 코드를 실행함
-                        editingExpense = null // 바로 앞 설정을 이어서 적음
-                    } // 블록 끝
+                    deletingExpenseId = expenseId // 사용자가 확인하기 전에는 삭제하지 않습니다.
                 } // 블록 끝
             )
         } // 블록 끝
@@ -486,10 +481,10 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                                 } else {
                                     "소비 기록이 등록되었어요."
                                 }
-                                showAppToast(context, message)
+                                showAppToast(context, message, AppToastType.SUCCESS)
                             },
                             onError = { message ->
-                                showAppToast(context, message)
+                                showAppToast(context, message, AppToastType.ERROR)
                             }
                         )
                     } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
@@ -500,7 +495,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                         } else {
                             "소비 기록이 수정되었어요."
                         }
-                        showAppToast(context, message)
+                        showAppToast(context, message, AppToastType.SUCCESS)
                     } // 블록 끝
                 },
                 onCancelEdit = { // 이 이벤트가 일어났을 때 실행할 코드를 시작함
@@ -515,6 +510,35 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
 
         item { Spacer(modifier = Modifier.height(24.dp)) } // 리스트 안에 들어갈 한 칸을 시작함
     } // 블록 끝
+
+    deletingExpenseId?.let { expenseId ->
+        AlertDialog(
+            onDismissRequest = { deletingExpenseId = null },
+            title = { Text(text = "소비 내역을 삭제하시겠습니까?") },
+            text = { Text(text = "삭제한 소비 내역은 다시 복구할 수 없습니다.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        deletingExpenseId = null
+                        homeViewModel.deleteExpenseById(expenseId) {
+                            if (editingExpense?.id == expenseId) {
+                                editingExpense = null
+                            }
+                            showAppToast(context, "소비 내역이 삭제되었어요!", AppToastType.DELETE)
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFE11D48))
+                ) {
+                    Text(text = "삭제하기", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingExpenseId = null }) {
+                    Text(text = "취소")
+                }
+            }
+        )
+    }
 
     if (showWeeklyScoreDialog) {
         WeeklyScoreDetailDialog(
@@ -631,6 +655,16 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
     val cardColor = homeSoftCardColor()
     val cardBorderColor = homeSoftCardBorderColor()
     val buttonColor = homePrimaryButtonColor()
+    val walletIconRes = when (walletProvider.uppercase()) {
+        "PHANTOM" -> R.drawable.ic_wallet_phantom
+        "SOLFLARE" -> R.drawable.ic_wallet_solflare
+        else -> R.drawable.ic_toast_wallet
+    }
+    val walletIconColor = when (walletProvider.uppercase()) {
+        "PHANTOM" -> if (isDark) Color(0xFFC4B5FD) else Color(0xFF6D28D9)
+        "SOLFLARE" -> if (isDark) Color(0xFFFBBF24) else Color(0xFFEA580C)
+        else -> if (isDark) Color(0xFF67E8F9) else Color(0xFF2563EB)
+    }
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
@@ -645,9 +679,23 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                 .padding(horizontal = 14.dp, vertical = 14.dp), // 안쪽이나 바깥 여백을 줌
             verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
         ) { // 이 블록 안의 내용이 시작됨
-
-
-            Spacer(modifier = Modifier.width(12.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+            if (isWalletConnected) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(walletIconColor.copy(alpha = if (isDark) 0.18f else 0.10f), RoundedCornerShape(13.dp))
+                        .border(1.dp, walletIconColor.copy(alpha = if (isDark) 0.40f else 0.20f), RoundedCornerShape(13.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = walletIconRes),
+                        contentDescription = "$walletProvider 연결 지갑",
+                        tint = walletIconColor,
+                        modifier = Modifier.size(25.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+            }
 
             Column( // 세로로 배치하는 영역을 시작함
                 modifier = Modifier.weight(1f) // 남는 공간을 비율대로 차지하게 함

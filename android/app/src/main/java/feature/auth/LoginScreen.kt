@@ -84,6 +84,10 @@ import com.ict.spentopia.ui.theme.SpentopiaNavyPurple // SpentopiaNavyPurple 기
 import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors // SpentopiaActionGradientColors 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors // SpentopiaWalletGradientColors 기능을 가져옴
 import com.ict.spentopia.ui.toast.AppToastType
+import com.ict.spentopia.ui.toast.LoginToast
+import com.ict.spentopia.ui.toast.LoginToastData
+import com.ict.spentopia.ui.toast.LoginToastStatus
+import com.ict.spentopia.ui.toast.LoginToastType
 import com.ict.spentopia.ui.toast.showAppToast
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender // ActivityResultSender 기능을 가져옴
 import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
@@ -94,6 +98,7 @@ import androidx.compose.animation.core.infiniteRepeatable // infiniteRepeatable 
 import androidx.compose.animation.core.rememberInfiniteTransition // rememberInfiniteTransition 기능을 가져옴
 import androidx.compose.animation.core.tween // tween 기능을 가져옴
 import androidx.compose.foundation.shape.CircleShape // CircleShape 기능을 가져옴
+import kotlinx.coroutines.delay
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
@@ -126,12 +131,46 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
     var isWalletLoading by remember { mutableStateOf(false) } // 화면에서 바뀔 지갑 관련 값을 저장함
     var isEmailLoginLoading by remember { mutableStateOf(false) } // 화면에서 바뀔 이메일 값을 저장함
     var isGoogleLoginLoading by remember { mutableStateOf(false) } // 화면에서 바뀔 로딩 상태를 저장함
+    var loginToastData by remember { mutableStateOf<LoginToastData?>(null) }
+    var loginToastSequence by remember { mutableStateOf(0) }
 
     var pendingWalletAddress by remember { mutableStateOf<String?>(null) } // 화면에서 바뀔 지갑 관련 값을 저장함
     var pendingNonce by remember { mutableStateOf<String?>(null) } // 화면에서 바뀔 pendingNonce 값을 저장함
 
     val walletLoginCoordinator = remember(loginViewModel) { // 화면이 다시 그려져도 지갑 관련 값을 기억함
         WalletLoginCoordinator(loginViewModel) // 로그인 관련 함수를 실행함
+    }
+
+    fun showLoginProgress(type: LoginToastType) {
+        loginToastSequence += 1
+        loginToastData = LoginToastData(
+            type = type,
+            status = LoginToastStatus.IN_PROGRESS,
+            message = type.loginToastMessage(LoginToastStatus.IN_PROGRESS)
+        )
+    }
+
+    fun showLoginSuccess(type: LoginToastType, onComplete: () -> Unit) {
+        loginToastSequence += 1
+        val sequence = loginToastSequence
+        loginToastData = LoginToastData(
+            type = type,
+            status = LoginToastStatus.SUCCESS,
+            message = type.loginToastMessage(LoginToastStatus.SUCCESS)
+        )
+        scope.launch {
+            delay(1_150)
+            if (loginToastSequence == sequence) {
+                loginToastData = null
+                onComplete()
+            }
+        }
+    }
+
+    fun showLoginError(message: String) {
+        loginToastSequence += 1
+        loginToastData = null
+        showAppToast(context, message, AppToastType.ERROR)
     }
 
     val googleSignInClient = remember(BuildConfig.GOOGLE_WEB_CLIENT_ID) { // 화면이 다시 그려져도 googleSignInClient 값을 기억함
@@ -158,6 +197,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
             val idToken = account.idToken // 구글 로그인 토큰을 저장함
             if (idToken.isNullOrBlank()) { // 조건이 맞는지 확인함
                 isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
+                loginToastData = null
                 return@rememberLauncherForActivityResult
             }
 
@@ -165,24 +205,28 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                 idToken = idToken, // 구글 로그인 토큰을 구글 로그인 토큰에 넣음
                 onSuccess = { // 성공했을 때 실행할 함수를 정해줌
                     isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
-                    showAppToast(context, "구글 로그인이 완료되었어요 !", AppToastType.SUCCESS)
-                    onLoginClick() // 로그인 관련 함수를 실행함
+                    showLoginSuccess(LoginToastType.GOOGLE) {
+                        onLoginClick() // 로그인 관련 함수를 실행함
+                    }
                 },
                 onError = { message -> // 실패했을 때 실행할 함수를 정해줌
                     isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
-                    showAppToast(context, message, AppToastType.ERROR)
+                    showLoginError(message)
                 }
             )
         } catch (e: ApiException) { // 이 블록 안의 내용이 시작됨
             isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
+            loginToastData = null
         } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
             isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
+            loginToastData = null
         }
     }
 
     fun startWalletLogin(walletType: SolanaWalletType) { // 로그인 기능을 실행하는 함수 시작
         selectedWallet = walletType // 지갑 값을 요청값에 넣음
         showWalletDialog = false // false 값을 지갑 관련 값에 넣음
+        showLoginProgress(LoginToastType.WALLET)
 
         if (walletType == SolanaWalletType.PHANTOM || walletType == SolanaWalletType.SOLFLARE) {
             isWalletLoading = true
@@ -198,6 +242,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
             if (!opened) {
                 isWalletLoading = false
                 val walletName = if (walletType == SolanaWalletType.PHANTOM) "Phantom" else "Solflare"
+                showLoginError("${walletName} 지갑 앱을 열 수 없습니다.")
             }
             return
         }
@@ -218,17 +263,18 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                 .putString("wallet_auth_token_${walletProvider}", walletAuthToken)
                                 .apply()
 
-                            showAppToast(context, "지갑 로그인이 완료되었어요 !", AppToastType.SUCCESS)
-                            onWalletConnected( // 지갑 관련 함수를 실행함
-                        accessToken,
-                        refreshToken,
-                        walletAddress,
-                        walletProvider
-                    )
+                            showLoginSuccess(LoginToastType.WALLET) {
+                                onWalletConnected( // 지갑 관련 함수를 실행함
+                                    accessToken,
+                                    refreshToken,
+                                    walletAddress,
+                                    walletProvider
+                                )
+                            }
                 },
                 onError = { message -> // 실패했을 때 실행할 함수를 정해줌
                     isWalletLoading = false // false 값을 지갑 관련 값에 넣음
-                    showAppToast(context, message, AppToastType.ERROR)
+                    showLoginError(message)
                 }
             )
         }
@@ -247,24 +293,27 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
 
         scope.launch { // 이 블록 안의 내용이 시작됨
             isEmailLoginLoading = true // true 값을 이메일 값에 넣음
+            showLoginProgress(LoginToastType.EMAIL)
 
             loginViewModel.emailLogin(
                 email = trimmedEmail, // 이메일 값을 이메일에 넣음
                 password = password, // 비밀번호를 비밀번호에 넣음
                 onSuccess = { // 성공했을 때 실행할 함수를 정해줌
                     isEmailLoginLoading = false // false 값을 이메일 값에 넣음
-                    showAppToast(context, "로그인이 완료되었어요 !", AppToastType.SUCCESS)
-                    onLoginClick() // 로그인 관련 함수를 실행함
+                    showLoginSuccess(LoginToastType.EMAIL) {
+                        onLoginClick() // 로그인 관련 함수를 실행함
+                    }
                 },
                 onError = { message -> // 실패했을 때 실행할 함수를 정해줌
                     isEmailLoginLoading = false // false 값을 이메일 값에 넣음
-                    showAppToast(context, message, AppToastType.ERROR)
+                    showLoginError(message)
                 }
             )
         }
     }
 
     fun startKakaoLogin() { // 로그인 기능을 실행하는 함수 시작
+        showLoginProgress(LoginToastType.KAKAO)
         scope.launch { // 이 블록 안의 내용이 시작됨
             loginViewModel.getKakaoLoginUrl(
                 onSuccess = { response -> // 성공했을 때 실행할 함수를 정해줌
@@ -275,9 +324,11 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                         )
                         context.startActivity(intent)
                     } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
+                        showLoginError("카카오 로그인 화면을 열 수 없습니다.")
                     }
                 },
                 onError = { message -> // 실패했을 때 실행할 함수를 정해줌
+                    showLoginError(message)
                 }
             )
         }
@@ -295,6 +346,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
         val client = googleSignInClient ?: return // 통신 클라이언트를 저장함
 
         isGoogleLoginLoading = true // true 값을 로딩 상태에 넣음
+        showLoginProgress(LoginToastType.GOOGLE)
         googleSignInLauncher.launch(client.signInIntent)
     }
 
@@ -453,6 +505,15 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
             )
         }
 
+        loginToastData?.let { toastData ->
+            LoginToast(
+                data = toastData,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 20.dp, vertical = 26.dp)
+            )
+        }
+
         LaunchedEffect(walletCallbackUri) { // 화면이 열리거나 값이 바뀔 때 실행함
             walletCallbackUri?.let { uri ->
                 if (uri.scheme == "spentopia" && uri.host == "wallet-callback") { // 조건이 맞는지 확인함
@@ -478,6 +539,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                 phantomConnector.parseErrorCallback(uri)
                             } // 메시지를 저장함
                             Log.e("Spentopia", "${callbackWallet.name} callback error=$message") // 개발자가 확인할 로그를 찍음
+                            showLoginError(message)
                         }
 
                         phantomConnector.isConnectCallback(uri) || solflareConnector.isConnectCallback(uri) -> { // 이 블록 안의 내용이 시작됨
@@ -493,6 +555,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                 phantomConnector.clearPendingLogin()
                                 solflareConnector.clearPendingLogin()
                                 Log.e("Spentopia", "${callbackWallet.name} connect callback missing wallet address") // 개발자가 확인할 로그를 찍음
+                                showLoginError("지갑 주소를 가져오지 못했습니다.")
                                 onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
                                 return@let
                             }
@@ -521,6 +584,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                         phantomConnector.clearPendingLogin()
                                         solflareConnector.clearPendingLogin()
                                         val walletName = if (isSolflareCallback) "Solflare" else "Phantom"
+                                        showLoginError("${walletName} 지갑 앱을 열 수 없습니다.")
                                     }
                                 } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
                                     isWalletLoading = false // false 값을 지갑 관련 값에 넣음
@@ -529,6 +593,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                     phantomConnector.clearPendingLogin()
                                     solflareConnector.clearPendingLogin()
                                     Log.e("Spentopia", "${callbackWallet.name} nonce/sign start failed", e) // 개발자가 확인할 로그를 찍음
+                                    showLoginError("지갑 서명을 시작하지 못했습니다.")
                                 }
                             }
                         }
@@ -563,6 +628,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                 phantomConnector.clearPendingLogin()
                                 solflareConnector.clearPendingLogin()
                                 Log.e("Spentopia", "${callbackWallet.name} sign callback missing signature") // 개발자가 확인할 로그를 찍음
+                                showLoginError("지갑 서명 정보를 확인하지 못했습니다.")
                                 onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
                                 return@let
                             }
@@ -573,6 +639,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                 phantomConnector.clearPendingLogin()
                                 solflareConnector.clearPendingLogin()
                                 Log.e("Spentopia", "${callbackWallet.name} login state lost wallet=$walletAddress nonce=$nonce") // 개발자가 확인할 로그를 찍음
+                                showLoginError("지갑 로그인 상태를 확인하지 못했습니다.")
                                 onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
                                 return@let
                             }
@@ -588,13 +655,14 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                     pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                     phantomConnector.clearPendingLogin()
                                     solflareConnector.clearPendingLogin()
-                                    showAppToast(context, "지갑 로그인이 완료되었어요 !", AppToastType.SUCCESS)
-                                    onWalletConnected( // 지갑 관련 함수를 실행함
-                                        response.access_token,
-                                        response.refresh_token,
-                                        walletAddress,
-                                        callbackWallet.name
-                                    )
+                                    showLoginSuccess(LoginToastType.WALLET) {
+                                        onWalletConnected( // 지갑 관련 함수를 실행함
+                                            response.access_token,
+                                            response.refresh_token,
+                                            walletAddress,
+                                            callbackWallet.name
+                                        )
+                                    }
                                 },
                                 onError = { message -> // 실패했을 때 실행할 함수를 정해줌
                                     Log.e("Spentopia", "${callbackWallet.name} walletLoginApp failed=$message") // 개발자가 확인할 로그를 찍음
@@ -603,7 +671,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                     pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                     phantomConnector.clearPendingLogin()
                                     solflareConnector.clearPendingLogin()
-                                    showAppToast(context, message, AppToastType.ERROR)
+                                    showLoginError(message)
                                 }
                             )
                         }
@@ -615,6 +683,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                             phantomConnector.clearPendingLogin()
                             solflareConnector.clearPendingLogin()
                             Log.e("Spentopia", "Unknown wallet callback=$uri") // 개발자가 확인할 로그를 찍음
+                            showLoginError("지갑 로그인 응답을 처리하지 못했습니다.")
                         }
                     }
                     onWalletCallbackConsumed() // 지갑 관련 함수를 실행함
@@ -643,11 +712,12 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                             code = code, // 인증 코드를 인증 코드에 넣음
                             state = state, // 상태값을 상태값에 넣음
                             onSuccess = { // 성공했을 때 실행할 함수를 정해줌
-                                showAppToast(context, "카카오 로그인이 완료되었어요 !", AppToastType.SUCCESS)
-                                onLoginClick() // 로그인 관련 함수를 실행함
+                                showLoginSuccess(LoginToastType.KAKAO) {
+                                    onLoginClick() // 로그인 관련 함수를 실행함
+                                }
                             },
                             onError = { message -> // 실패했을 때 실행할 함수를 정해줌
-                                showAppToast(context, message, AppToastType.ERROR)
+                                showLoginError(message)
                             }
                         )
                     }
@@ -662,6 +732,24 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                 onDismiss = { showWalletDialog = false }, // 닫을 때 실행할 함수를 정해줌
                 onSelectWallet = { walletType -> startWalletLogin(walletType) } // 지갑 관련 값을 정해줌
             )
+        }
+    }
+}
+
+private fun LoginToastType.loginToastMessage(status: LoginToastStatus): String {
+    return when (status) {
+        LoginToastStatus.IN_PROGRESS -> when (this) {
+            LoginToastType.EMAIL -> "로그인 진행 중..."
+            LoginToastType.KAKAO -> "카카오 로그인 진행 중..."
+            LoginToastType.GOOGLE -> "Google 로그인 진행 중..."
+            LoginToastType.WALLET -> "지갑 로그인 진행 중..."
+        }
+
+        LoginToastStatus.SUCCESS -> when (this) {
+            LoginToastType.EMAIL -> "로그인이 완료되었어요!"
+            LoginToastType.KAKAO -> "카카오 로그인이 완료되었어요!"
+            LoginToastType.GOOGLE -> "Google 로그인이 완료되었어요!"
+            LoginToastType.WALLET -> "지갑 로그인이 완료되었어요!"
         }
     }
 }

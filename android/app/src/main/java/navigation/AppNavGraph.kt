@@ -133,6 +133,15 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
     val prefs = remember { // 화면이 다시 그려져도 간단 저장소를 기억함
         context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
     }
+    val initialDestination = remember {
+        val isAuthCallbackEntry = walletCallbackUri != null || kakaoCallbackUri != null
+        val hasSavedSession = !prefs.getString("access_token", "").isNullOrBlank()
+        when {
+            !isAuthCallbackEntry -> Route.Splash.route
+            hasSavedSession -> Route.Home.route
+            else -> Route.Login.route
+        }
+    }
 
     var walletConnected by remember { // 화면이 다시 그려져도 지갑 관련 값을 기억함
         mutableStateOf(prefs.getBoolean("wallet_connected", false)) // 화면 상태값을 만듦
@@ -766,7 +775,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
             ) { // 이 블록 안의 내용이 시작됨
                 NavHost( // 화면 이동 틀을 만듦
                     navController = navController, // 화면 이동 도구를 화면 이동 도구에 넣음
-                    startDestination = Route.Splash.route, // startDestination 값을 정해줌
+                    startDestination = initialDestination, // 최초 실행만 스플래시를 거치고 인증 콜백 복귀는 바로 처리함
                     modifier = Modifier.fillMaxSize() // UI 크기나 여백 같은 모양을 정함
                 ) { // 이 블록 안의 내용이 시작됨
                     composable(Route.Splash.route) { // 이 주소로 들어오면 보여줄 화면을 등록함
@@ -917,7 +926,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                         },
                         onUpdatePostClick = { updatedPost -> // onUpdatePostClick 때 실행할 함수를 정해줌
                             communityViewModel.updatePost(updatedPost) {
-                                showAppToast(context, "게시글이 수정되었습니다.")
+                                showAppToast(context, "게시글이 수정되었습니다.", AppToastType.SUCCESS)
                             }
                         },
                         onDeletePostClick = { deletePostId -> // onDeletePostClick 때 실행할 함수를 정해줌
@@ -931,12 +940,12 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                         },
                         onAddCommentClick = { targetPostId, content -> // onAddCommentClick 때 실행할 함수를 정해줌
                             communityViewModel.addComment(targetPostId, content) {
-                                showAppToast(context, "댓글이 등록되었습니다.")
+                                showAppToast(context, "댓글이 등록되었습니다.", AppToastType.SUCCESS)
                             }
                         },
                         onUpdateCommentClick = { targetPostId, commentId, content -> // onUpdateCommentClick 때 실행할 함수를 정해줌
                             communityViewModel.updateComment(targetPostId, commentId, content) {
-                                showAppToast(context, "댓글이 수정되었습니다.")
+                                showAppToast(context, "댓글이 수정되었습니다.", AppToastType.SUCCESS)
                             }
                         },
                         onDeleteCommentClick = { targetPostId, commentId -> // onDeleteCommentClick 때 실행할 함수를 정해줌

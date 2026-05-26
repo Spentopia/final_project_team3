@@ -64,6 +64,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel // Compose에서 ViewModel
 import coil.compose.AsyncImage // AsyncImage 기능을 가져옴
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog // SolanaWalletDialog 기능을 가져옴
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // SolanaWalletType 기능을 가져옴
+import com.ict.spentopia.ui.toast.AppToastType
 import com.ict.spentopia.ui.toast.showAppToast
 
 // 기존 주석 유지
@@ -568,7 +569,12 @@ private fun MemberInfoCard( // MemberInfoCard 함수를 선언함
                         )
                         .clickable { // 이 블록 안의 내용이 시작됨
                             viewModel.toggleEditMode(context) { message ->
-                                showAppToast(context, message)
+                                val toastType = if (message.contains("저장되었습니다")) {
+                                    AppToastType.SUCCESS
+                                } else {
+                                    AppToastType.ERROR
+                                }
+                                showAppToast(context, message, toastType)
                             }
                         }
                         .padding(horizontal = 12.dp, vertical = 8.dp) // .padding(horizontal 값을 정해줌

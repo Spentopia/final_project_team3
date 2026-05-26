@@ -19,6 +19,7 @@ enum class AppToastType {
     SUCCESS,
     DELETE,
     WALLET,
+    GAME,
     INFO,
     WARNING,
     ERROR
@@ -104,6 +105,7 @@ private fun AppToastType.accentColor(isDark: Boolean): Int {
         AppToastType.SUCCESS -> Color.parseColor(if (isDark) "#34D399" else "#16A34A")
         AppToastType.DELETE -> Color.parseColor(if (isDark) "#FB7185" else "#E11D48")
         AppToastType.WALLET -> Color.parseColor(if (isDark) "#00E5C3" else "#00C7A3")
+        AppToastType.GAME -> Color.parseColor(if (isDark) "#A78BFA" else "#7C3AED")
         AppToastType.INFO -> Color.parseColor(if (isDark) "#4D78FF" else "#3D7BFF")
         AppToastType.WARNING -> Color.parseColor("#FFB020")
         AppToastType.ERROR -> Color.parseColor("#FF4D6D")
@@ -115,6 +117,7 @@ private fun AppToastType.iconRes(): Int {
         AppToastType.SUCCESS -> R.drawable.ic_toast_check_circle
         AppToastType.DELETE -> R.drawable.ic_toast_delete
         AppToastType.WALLET -> R.drawable.ic_toast_wallet
+        AppToastType.GAME -> R.drawable.ic_toast_gamepad
         AppToastType.INFO -> R.drawable.ic_toast_notifications
         AppToastType.WARNING -> R.drawable.ic_toast_warning
         AppToastType.ERROR -> R.drawable.ic_toast_cancel

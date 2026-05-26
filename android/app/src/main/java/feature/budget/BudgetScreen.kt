@@ -55,8 +55,6 @@ import androidx.compose.material3.MaterialTheme // MaterialTheme 기능을 가�
 import androidx.compose.material3.OutlinedTextField // OutlinedTextField 기능을 가져옴
 import androidx.compose.material3.Slider // Slider 기능을 가져옴
 import androidx.compose.material3.SliderDefaults // SliderDefaults 기능을 가져옴
-import androidx.compose.material3.SnackbarHost // SnackbarHost 기능을 가져옴
-import androidx.compose.material3.SnackbarHostState // SnackbarHostState 기능을 가져옴
 import androidx.compose.material3.Surface // Surface 기능을 가져옴
 import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
 import androidx.compose.material3.TextButton // TextButton 기능을 가져옴
@@ -76,6 +74,7 @@ import androidx.compose.ui.geometry.Offset // Offset 기능을 가져옴
 import androidx.compose.ui.graphics.Brush // 그라데이션 색칠 도구를 가져옴
 import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
 import androidx.compose.ui.graphics.vector.ImageVector // ImageVector 기능을 가져옴
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
 import androidx.compose.ui.text.style.TextAlign // TextAlign 기능을 가져옴
 import androidx.compose.ui.text.input.KeyboardType // KeyboardType 기능을 가져옴
@@ -88,6 +87,8 @@ import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // SpentopiaDarkBackgr
 import com.ict.spentopia.ui.theme.SpentopiaGlowPurple // SpentopiaGlowPurple 기능을 가져옴
 import com.ict.spentopia.ui.theme.spentopiaAppButtonColor
 import com.ict.spentopia.ui.theme.spentopiaAppButtonContentColor
+import com.ict.spentopia.ui.toast.AppToastType
+import com.ict.spentopia.ui.toast.showAppToast
 import java.util.Calendar // Calendar 기능을 가져옴
 
 private const val MAX_BUDGET_AMOUNT = 999_999_999_999L // 예산 관련 값을 저장함
@@ -289,8 +290,7 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
     // 세로 스크롤 상태 저장
     val scrollState = rememberScrollState() // 화면이 다시 그려져도 scrollState 값을 기억함
 
-    // 스낵바 상태 저장
-    val snackbarHostState = remember { SnackbarHostState() } // 화면이 다시 그려져도 snackbarHostState 값을 기억함
+    val context = LocalContext.current
 
     // ViewModel의 budgetState를 화면에서 안전하게 구독
     val budgetState by viewModel.budgetState.collectAsStateWithLifecycle() // 예산 관련 값을 저장함
@@ -332,17 +332,17 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
     // 실제로 자유롭게 쓸 수 있는 돈이 얼마인지 구합니다.
     val remainingAmount = budgetState.monthlyIncome - totalExpense - budgetState.savingGoal // remainingAmount 값을 저장함
 
-    // 저장 성공하면 스낵바 메시지 띄우기
+    // 저장 결과는 등록/저장 성공용 체크 토스트와 오류 토스트로 표시합니다.
     LaunchedEffect(saveSuccess) { // 화면이 열리거나 값이 바뀔 때 실행함
         if (saveSuccess) { // 조건이 맞는지 확인함
-            snackbarHostState.showSnackbar("예산 설정이 저장되었어요.")
+            showAppToast(context, "예산 설정이 저장되었어요.", AppToastType.SUCCESS)
             viewModel.resetSaveSuccess()
         }
     }
 
     LaunchedEffect(saveError) { // 화면이 열리거나 값이 바뀔 때 실행함
         if (saveError.isNotBlank()) { // 조건이 맞는지 확인함
-            snackbarHostState.showSnackbar(saveError)
+            showAppToast(context, saveError, AppToastType.ERROR)
             viewModel.resetSaveError()
         }
     }
@@ -520,13 +520,6 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
                 )
             }
 
-            // 하단 스낵바 출력
-            SnackbarHost( // Snackbar Host 함수를 실행함
-                hostState = snackbarHostState, // snackbarHostState 값을 hostState 값에 넣음
-                modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp)
-            )
         }
     }
 }
