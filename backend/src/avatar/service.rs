@@ -34,21 +34,7 @@ fn is_supported_avatar_slot(slot_name: &str) -> bool {
     SUPPORTED_AVATAR_SLOTS.contains(&slot_name)
 }
 
-fn normalize_inventory_key_part(value: &str) -> String {
-    value.trim().to_lowercase()
-}
-
 fn game_inventory_dedupe_key(item: &UserItemResponse) -> String {
-    let category = normalize_inventory_key_part(&item.category);
-    let name = normalize_inventory_key_part(&item.name);
-    if !name.is_empty() {
-        return format!("name:{}:{}", category, name);
-    }
-
-    if let Some(visual_parts) = &item.visual_parts {
-        return format!("visual:{}:{}", category, visual_parts);
-    }
-
     format!("item:{}", item.item_id)
 }
 
