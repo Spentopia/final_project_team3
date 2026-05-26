@@ -432,7 +432,7 @@ export default function GuidePage() {
                     onClick={() => setWalletSub(sub)}
                     className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
                       walletSub === sub
-                        ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] ring-1 ring-[#2563eb]/25 dark:bg-[linear-gradient(135deg,#090b16,#4338ca,#7c3aed)] dark:text-white dark:shadow-[0_10px_28px_rgba(124,58,237,0.28)] dark:ring-violet-300/25"
+                        ? "bg-[#2563eb] text-white shadow-[0_10px_24px_rgba(37,99,235,0.18)] ring-1 ring-[#2563eb]/20 dark:bg-[#2d1847] dark:text-violet-50 dark:shadow-lg dark:shadow-[#7c3aed]/20 dark:ring-violet-300/35"
                         : "spentopia-market-light-soft text-gray-700 ring-1 ring-slate-200 hover:-translate-y-0.5 hover:text-gray-900 hover:shadow-md dark:text-gray-300 dark:ring-[#7c3aed]/25 dark:hover:text-white"
                     }`}
                   >
