@@ -25,7 +25,7 @@ pub struct Expense {
 
 // public.receipts 테이블
 // 영수증 인증
-// 인증 성공 시 weekly_scores.receipt_score에만 반영 (SPT 즉시 지급 없음)
+// 인증 성공 시 monthly_scores.receipt_score에만 반영 (SPT 즉시 지급 없음)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Receipt {
     pub id: Uuid,

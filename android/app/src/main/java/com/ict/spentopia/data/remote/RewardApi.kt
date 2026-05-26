@@ -4,7 +4,7 @@ import retrofit2.http.GET // GET API 표시를 가져옴
 
 data class WeeklyScoreResponse( // WeeklyScoreResponse 데이터를 묶어둘 클래스 시작
     val id: String?, // 아이디를 저장함
-    val week_start: String?, // week_start 값을 저장함
+    val month_start: String?, // month_start 값을 저장함
     val record_days_score: Int?, // record_days_score 값을 저장함
     val receipt_score: Int?, // receipt_score 값을 저장함
     val diary_score: Int?, // diary_score 값을 저장함
@@ -15,6 +15,6 @@ data class WeeklyScoreResponse( // WeeklyScoreResponse 데이터를 묶어둘 �
 )
 
 interface RewardApi { // RewardApi에서 꼭 만들어야 할 함수 규칙을 정함
-    @GET("/api/rewards/weekly-score/current") // 서버에서 데이터를 가져오는 API 주소를 적음
+    @GET("/api/rewards/monthly-score/current") // 서버에서 데이터를 가져오는 API 주소를 적음
     suspend fun getCurrentWeeklyScore(): WeeklyScoreResponse // 데이터를 불러오는 함수 시작
 }

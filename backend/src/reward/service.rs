@@ -8,7 +8,7 @@
 // ============================================================
 
 use anyhow::{Context, Result, anyhow};
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::{DateTime, Datelike, Local, NaiveDate, Utc};
 use rand::{Rng, seq::SliceRandom};
 use uuid::Uuid;
 
@@ -16,10 +16,10 @@ use crate::clients::solana_client;
 
 use super::{
     dto::{
-        BoxCountResponse, ContestRewardRequest, OpenBoxResponse, RewardResponse, StreakResponse,
-        UnityAvatarItemResponse, WeeklyScoreResponse,
+        BoxCountResponse, ContestRewardRequest, MonthlyScoreResponse, OpenBoxResponse,
+        RewardResponse, StreakResponse, UnityAvatarItemResponse,
     },
-    model::{Reward, Streak, WeeklyScore},
+    model::{MonthlyScore, Reward, Streak},
 };
 use crate::state::AppState;
 
@@ -109,12 +109,12 @@ pub async fn get_streak(state: &AppState, user_id: Uuid) -> Result<StreakRespons
     })
 }
 
-pub async fn get_weekly_scores(
+pub async fn get_monthly_scores(
     state: &AppState,
     user_id: Uuid,
-) -> Result<Vec<WeeklyScoreResponse>> {
+) -> Result<Vec<MonthlyScoreResponse>> {
     let url = format!(
-        "{}/rest/v1/weekly_scores?user_id=eq.{}&select=*&order=week_start.desc&limit=12",
+        "{}/rest/v1/monthly_scores?user_id=eq.{}&select=*&order=month_start.desc&limit=12",
         state.config.supabase_url.trim_end_matches('/'),
         user_id
     );
@@ -128,21 +128,21 @@ pub async fn get_weekly_scores(
         .header("apikey", &state.config.supabase_secret_key)
         .send()
         .await
-        .context("weekly_scores SELECT 요청 실패")?;
+        .context("monthly_scores SELECT 요청 실패")?;
 
     if !res.status().is_success() {
         return Err(anyhow!(
-            "weekly_scores SELECT 실패: {}",
+            "monthly_scores SELECT 실패: {}",
             res.text().await.unwrap_or_default()
         ));
     }
 
-    let scores: Vec<WeeklyScore> = res.json().await.context("weekly_scores 역직렬화 실패")?;
+    let scores: Vec<MonthlyScore> = res.json().await.context("monthly_scores 역직렬화 실패")?;
     Ok(scores
         .into_iter()
-        .map(|s| WeeklyScoreResponse {
+        .map(|s| MonthlyScoreResponse {
             id: s.id,
-            week_start: s.week_start,
+            month_start: s.month_start,
             record_days_score: s.record_days_score,
             receipt_score: s.receipt_score,
             diary_score: s.diary_score,
@@ -154,18 +154,37 @@ pub async fn get_weekly_scores(
         .collect())
 }
 
+pub async fn get_weekly_scores(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<Vec<MonthlyScoreResponse>> {
+    get_monthly_scores(state, user_id).await
+}
+
 // ────────────────────────────────────────────────────────────
-// 헬퍼: week_start 계산
-//
-// chrono의 weekday().num_days_from_monday():
-//   월요일 = 0, 화요일 = 1, ..., 일요일 = 6
-// target_date에서 그 일수만큼 빼면 해당 주 월요일이 나옴
-//
-// 예) 2024-01-17(수요일): 17 - 2 = 15 → 2024-01-15(월요일)
+// 헬퍼: month_start 계산
 // ────────────────────────────────────────────────────────────
-fn get_week_start(target_date: NaiveDate) -> NaiveDate {
-    let days_from_monday = target_date.weekday().num_days_from_monday() as i64;
-    target_date - chrono::Duration::days(days_from_monday)
+fn get_month_start(target_date: NaiveDate) -> Result<NaiveDate> {
+    target_date
+        .with_day(1)
+        .ok_or_else(|| anyhow!("월 시작일 계산 실패"))
+}
+
+fn get_next_month_start(month_start: NaiveDate) -> Result<NaiveDate> {
+    let year = month_start.year();
+    let month = month_start.month();
+    if month == 12 {
+        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(year, month + 1, 1)
+    }
+    .ok_or_else(|| anyhow!("다음 달 시작일 계산 실패"))
+}
+
+fn get_previous_month_start(target_date: NaiveDate) -> Result<NaiveDate> {
+    let current_month_start = get_month_start(target_date)?;
+    let previous_month_end = current_month_start - chrono::Duration::days(1);
+    get_month_start(previous_month_end)
 }
 
 // ────────────────────────────────────────────────────────────
@@ -175,32 +194,14 @@ fn get_week_start(target_date: NaiveDate) -> NaiveDate {
 // 매직 넘버를 match로 명시 → 기획 변경 시 수정 포인트 명확
 // ────────────────────────────────────────────────────────────
 fn calc_record_days_score(days: usize) -> i32 {
-    match days {
-        0 => 0,
-        1 => 5,
-        2 => 10,
-        3 => 15,
-        4 => 18,
-        5 => 22,
-        6 => 26,
-        _ => 30, // 7일 이상
-    }
+    ((days as i32 * 30 + 19) / 20).min(30)
 }
 
 // ────────────────────────────────────────────────────────────
 // 헬퍼: diary_score 계산
 // ────────────────────────────────────────────────────────────
 fn calc_diary_score(days: usize) -> i32 {
-    match days {
-        0 => 0,
-        1 => 3,
-        2 => 6,
-        3 => 9,
-        4 => 12,
-        5 => 15,
-        6 => 18,
-        _ => 20, // 7일
-    }
+    ((days as i32 * 20 + 11) / 12).min(20)
 }
 
 // ────────────────────────────────────────────────────────────
@@ -210,53 +211,24 @@ fn calc_diary_score(days: usize) -> i32 {
 // 같은 날 여러 건을 인증해도 성실도 점수는 하루치만 오른다.
 // ────────────────────────────────────────────────────────────
 fn calc_receipt_score(days: usize) -> i32 {
-    match days {
-        0 => 0,
-        1 => 4,
-        2 => 7,
-        3 => 11,
-        4 => 15,
-        5 => 18,
-        6 => 22,
-        _ => 25,
-    }
+    ((days as i32 * 25 + 11) / 12).min(25)
 }
 
-// ────────────────────────────────────────────────────────────
-// 헬퍼: budget_score 기본점 계산
-//
-// 예산을 지켰더라도 첫날부터 15점을 모두 주지 않는다.
-// 주간 성실도 취지에 맞게 소비 기록 일수에 따라 예산 점수 한도를 점진적으로 연다.
-// ────────────────────────────────────────────────────────────
-fn calc_budget_base_score(record_days: usize) -> i32 {
-    match record_days {
-        0 => 0,
-        1 => 2,
-        2 => 4,
-        3 => 6,
-        4 => 9,
-        5 => 11,
-        6 => 13,
-        _ => 15,
+fn calc_budget_score(monthly_spent: i32, total_budget: i32) -> i32 {
+    if total_budget <= 0 {
+        return 0;
     }
-}
+    if monthly_spent <= total_budget {
+        return 15;
+    }
 
-// ────────────────────────────────────────────────────────────
-// 헬퍼: 주간 총점 상한
-//
-// 주간 100점 구조에서 하루에 과도한 점수를 얻지 못하도록
-// 활동한 날짜 수에 따라 총점 상한을 둔다.
-// ────────────────────────────────────────────────────────────
-fn calc_total_score_cap(record_days: usize) -> i32 {
-    match record_days {
-        0 => 0,
-        1 => 15,
-        2 => 30,
-        3 => 45,
-        4 => 60,
-        5 => 75,
-        6 => 90,
-        _ => 100,
+    let over_ratio = (monthly_spent - total_budget) as f64 / total_budget as f64;
+    if over_ratio <= 0.05 {
+        10
+    } else if over_ratio <= 0.10 {
+        5
+    } else {
+        0
     }
 }
 
@@ -341,11 +313,11 @@ async fn get_wallet_address(state: &AppState, user_id: Uuid) -> Result<Option<St
         .map(str::to_string))
 }
 
-async fn reset_weekly_reward_claim(state: &AppState, weekly_score_id: Uuid) {
+async fn reset_monthly_reward_claim(state: &AppState, monthly_score_id: Uuid) {
     let url = format!(
-        "{}/rest/v1/weekly_scores?id=eq.{}",
+        "{}/rest/v1/monthly_scores?id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
-        weekly_score_id
+        monthly_score_id
     );
     match state
         .http_client
@@ -363,15 +335,15 @@ async fn reset_weekly_reward_claim(state: &AppState, weekly_score_id: Uuid) {
         Ok(res) if res.status().is_success() => {}
         Ok(res) => {
             tracing::error!(
-                "weekly_scores reward_granted 복구 실패: id={} body={}",
-                weekly_score_id,
+                "monthly_scores reward_granted 복구 실패: id={} body={}",
+                monthly_score_id,
                 res.text().await.unwrap_or_default()
             );
         }
         Err(e) => {
             tracing::error!(
-                "weekly_scores reward_granted 복구 요청 실패: id={} err={}",
-                weekly_score_id,
+                "monthly_scores reward_granted 복구 요청 실패: id={} err={}",
+                monthly_score_id,
                 e
             );
         }
@@ -452,7 +424,7 @@ async fn grant_untradeable_avatar_item(
         .header("Prefer", "return=minimal")
         .json(&serde_json::json!({
             "user_id": user_id,
-            "reward_type": "weekly_score_avatar_item",
+            "reward_type": "monthly_score_avatar_item",
             "amount": 0,
             "description": description,
         }))
@@ -575,7 +547,7 @@ async fn grant_nft_avatar_item(
         .header("Prefer", "return=minimal")
         .json(&serde_json::json!({
             "user_id": user_id,
-            "reward_type": "weekly_score_avatar_nft",
+            "reward_type": "monthly_score_avatar_nft",
             "amount": 0,
             "description": description,
         }))
@@ -809,36 +781,27 @@ pub async fn rebuild_streak_from_expenses(state: &AppState, user_id: Uuid) -> Re
 }
 
 // ────────────────────────────────────────────────────────────
-// 신규 함수 2: recalculate_weekly_score
+// 신규 함수 2: recalculate_monthly_score
 //
 // 호출: create_expense() → tokio::spawn (fire-and-forget)
-// 목적: 소비 기록 저장 때마다 해당 주 성실도 점수 재계산
-//
-// 처리 순서:
-//   1. week_start 계산 (target_date → 해당 주 월요일)
-//   2. 해당 주 expenses 조회
-//   3. 5개 항목 점수 계산
-//   4. weekly_scores UPSERT
-//   5. 보상 미지급 + 60점 이상이면 SPT 지급 + reward_granted=true 업데이트
+// 목적: 소비 기록 저장 때마다 해당 월 성실도 점수만 재계산
+// 보상 지급은 월말 확정 정책에 따라 별도 배치에서 지난달 점수 기준으로 처리한다.
 // ────────────────────────────────────────────────────────────
-pub async fn recalculate_weekly_score(
+pub async fn recalculate_monthly_score(
     state: &AppState,
     user_id: Uuid,
     target_date: NaiveDate,
-) -> Result<WeeklyScoreResponse> {
+) -> Result<MonthlyScoreResponse> {
     let base_url = state.config.supabase_url.trim_end_matches('/');
     let key = &state.config.supabase_secret_key;
 
-    // ── 1. week_start: 해당 주 월요일 ──
-    let week_start = get_week_start(target_date);
-    let week_end = week_start + chrono::Duration::days(6); // 일요일
+    let month_start = get_month_start(target_date)?;
+    let next_month_start = get_next_month_start(month_start)?;
+    let month_end = next_month_start - chrono::Duration::days(1);
 
-    // ── 2. 해당 주 expenses 조회 ──
-    // expense_date: week_start ≤ date ≤ week_end
-    // gte = greater than or equal, lte = less than or equal (Supabase 필터 연산자)
     let exp_url = format!(
-        "{}/rest/v1/expenses?user_id=eq.{}&transaction_type=eq.expense&expense_date=gte.{}&expense_date=lte.{}&select=expense_date,one_line_diary,receipt_verified",
-        base_url, user_id, week_start, week_end
+        "{}/rest/v1/expenses?user_id=eq.{}&transaction_type=eq.expense&expense_date=gte.{}&expense_date=lte.{}&select=expense_date,one_line_diary,receipt_verified,amount",
+        base_url, user_id, month_start, month_end
     );
     let exp_res = state
         .http_client
@@ -862,6 +825,7 @@ pub async fn recalculate_weekly_score(
         expense_date: NaiveDate,
         one_line_diary: Option<String>,
         receipt_verified: Option<bool>,
+        amount: i32,
     }
 
     let expenses: Vec<ExpenseRow> = exp_res.json().await.context("expenses 역직렬화 실패")?;
@@ -899,19 +863,13 @@ pub async fn recalculate_weekly_score(
         .collect();
     let diary_score = calc_diary_score(diary_dates.len());
 
-    // ── 6. budget_score ──
-    // 해당 월 budgets 조회 → 월 예산 진행률 기준으로 평가
-    // 예: 월 예산 * (평가일 / 해당 월 일수) = 현재까지 허용 소비
-    // 월초부터 평가일까지의 누적 소비와 비교한다.
     let budget_score = {
-        let today = Local::now().date_naive();
-        let evaluation_date = target_date.min(today);
-        let year = evaluation_date.year();
-        let month = evaluation_date.month();
-
         let budget_url = format!(
             "{}/rest/v1/budgets?user_id=eq.{}&year=eq.{}&month=eq.{}&select=total_budget&limit=1",
-            base_url, user_id, year, month,
+            base_url,
+            user_id,
+            month_start.year(),
+            month_start.month(),
         );
         let budget_res = state
             .http_client
@@ -934,71 +892,8 @@ pub async fn recalculate_weekly_score(
             match budgets.into_iter().next() {
                 None => 0, // 예산 미설정 → 0점
                 Some(b) => {
-                    let budget_base_score = calc_budget_base_score(record_dates.len());
-                    let month_start = evaluation_date
-                        .with_day(1)
-                        .ok_or_else(|| anyhow!("월 시작일 계산 실패"))?;
-                    let next_month_start = if month == 12 {
-                        NaiveDate::from_ymd_opt(year + 1, 1, 1)
-                    } else {
-                        NaiveDate::from_ymd_opt(year, month + 1, 1)
-                    }
-                    .ok_or_else(|| anyhow!("다음 달 시작일 계산 실패"))?;
-                    let days_in_month = (next_month_start - month_start).num_days() as i32;
-                    let elapsed_days = evaluation_date.day() as i32;
-                    let allowed_spend =
-                        b.total_budget.saturating_mul(elapsed_days) / days_in_month.max(1);
-
-                    let spent_url = format!(
-                        "{}/rest/v1/expenses?user_id=eq.{}&transaction_type=eq.expense&expense_date=gte.{}&expense_date=lte.{}&select=amount",
-                        base_url, user_id, month_start, evaluation_date
-                    );
-                    let spent_res = state
-                        .http_client
-                        .get(&spent_url)
-                        .header("Authorization", format!("Bearer {}", key))
-                        .header("apikey", key.as_str())
-                        .send()
-                        .await
-                        .context("월 예산 체크용 expenses SELECT 요청 실패")?;
-
-                    if !spent_res.status().is_success() {
-                        tracing::warn!(
-                            "월 예산 체크용 expenses SELECT 실패, budget_score=0으로 처리: {}",
-                            spent_res.text().await.unwrap_or_default()
-                        );
-                        0
-                    } else {
-                        #[derive(serde::Deserialize)]
-                        struct MonthlyExpenseAmountRow {
-                            amount: i32,
-                        }
-
-                        let monthly_expenses: Vec<MonthlyExpenseAmountRow> = spent_res
-                            .json()
-                            .await
-                            .context("월 예산 체크용 expenses 역직렬화 실패")?;
-                        let monthly_spent: i32 = monthly_expenses.iter().map(|e| e.amount).sum();
-
-                        if allowed_spend <= 0 {
-                            // 평가일 기준 허용 소비가 0 이하면 예산 설정이 사실상 유효하지 않음
-                            0
-                        } else {
-                            let over = monthly_spent - allowed_spend;
-                            if over <= 0 {
-                                budget_base_score
-                            } else {
-                                let ratio = over as f64 / allowed_spend as f64;
-                                if ratio < 0.10 {
-                                    budget_base_score * 2 / 3
-                                } else if ratio < 0.20 {
-                                    budget_base_score / 3
-                                } else {
-                                    0
-                                }
-                            }
-                        }
-                    }
+                    let monthly_spent: i32 = expenses.iter().map(|e| e.amount).sum();
+                    calc_budget_score(monthly_spent, b.total_budget)
                 }
             }
         } else {
@@ -1016,14 +911,17 @@ pub async fn recalculate_weekly_score(
     // ── 8. total_score ──
     let raw_total_score =
         record_days_score + receipt_score + diary_score + budget_score + streak_score;
-    let total_score = raw_total_score.min(calc_total_score_cap(record_dates.len()));
+    let total_score = raw_total_score.min(100);
 
-    // ── 9. weekly_scores UPSERT ──
-    // unique: (user_id, week_start) → 충돌 시 모든 점수 덮어쓰기
-    let upsert_url = format!("{}/rest/v1/weekly_scores", base_url);
+    // ── 9. monthly_scores UPSERT ──
+    // unique: (user_id, month_start) → 충돌 시 모든 점수 덮어쓰기
+    let upsert_url = format!(
+        "{}/rest/v1/monthly_scores?on_conflict=user_id,month_start",
+        base_url
+    );
     let upsert_payload = serde_json::json!({
         "user_id": user_id,
-        "week_start": week_start.to_string(),
+        "month_start": month_start.to_string(),
         "record_days_score": record_days_score,
         "receipt_score": receipt_score,
         "diary_score": diary_score,
@@ -1046,258 +944,304 @@ pub async fn recalculate_weekly_score(
         .json(&upsert_payload)
         .send()
         .await
-        .context("weekly_scores UPSERT 요청 실패")?;
+        .context("monthly_scores UPSERT 요청 실패")?;
 
     if !upsert_res.status().is_success() {
         return Err(anyhow!(
-            "weekly_scores UPSERT 실패: {}",
+            "monthly_scores UPSERT 실패: {}",
             upsert_res.text().await.unwrap_or_default()
         ));
     }
 
-    let upserted: Vec<WeeklyScore> = upsert_res
+    let upserted: Vec<MonthlyScore> = upsert_res
         .json()
         .await
-        .context("weekly_scores UPSERT 역직렬화 실패")?;
+        .context("monthly_scores UPSERT 역직렬화 실패")?;
 
     let score_row = upserted
         .into_iter()
         .next()
-        .ok_or_else(|| anyhow!("weekly_scores UPSERT 결과가 비어있음"))?;
+        .ok_or_else(|| anyhow!("monthly_scores UPSERT 결과가 비어있음"))?;
 
-    // ── 10. 보상 지급 판단 ──
-    // reward_granted가 false이고 total_score >= 60이면 SPT 지급
-    let already_granted = score_row.reward_granted.unwrap_or(false);
-
-    if !already_granted && total_score >= 60 {
-        let wallet_address = get_wallet_address(state, user_id).await?;
-        if wallet_address.is_some() && state.config.solana_admin_keypair.is_empty() {
-            return Err(anyhow!(
-                "지갑 연동 유저에게 NFT/SPT를 지급하려면 SOLANA_ADMIN_KEYPAIR가 필요합니다"
-            ));
-        }
-
-        let claim_url = format!(
-            "{}/rest/v1/weekly_scores?id=eq.{}&or=(reward_granted.is.false,reward_granted.is.null)",
-            base_url, score_row.id
-        );
-        let claim_res = state
-            .http_client
-            .patch(&claim_url)
-            .header("Authorization", format!("Bearer {}", key))
-            .header("apikey", key.as_str())
-            .header("Prefer", "return=representation")
-            .json(&serde_json::json!({ "reward_granted": true }))
-            .send()
-            .await
-            .context("weekly_scores reward claim 업데이트 실패")?;
-
-        if !claim_res.status().is_success() {
-            return Err(anyhow!(
-                "weekly_scores reward claim 실패: {}",
-                claim_res.text().await.unwrap_or_default()
-            ));
-        }
-
-        let claimed_rows: Vec<WeeklyScore> = claim_res
-            .json()
-            .await
-            .context("weekly_scores reward claim 역직렬화 실패")?;
-        if claimed_rows.is_empty() {
-            return Ok(WeeklyScoreResponse {
-                id: score_row.id,
-                week_start: score_row.week_start,
-                record_days_score: score_row.record_days_score,
-                receipt_score: score_row.receipt_score,
-                diary_score: score_row.diary_score,
-                budget_score: score_row.budget_score,
-                streak_score: score_row.streak_score,
-                total_score: score_row.total_score,
-                reward_granted: Some(true),
-            });
-        }
-
-        if wallet_address.is_none() {
-            if let Err(e) = grant_untradeable_avatar_item(
-                state,
-                user_id,
-                &format!(
-                    "{}주차 성실도 점수 {}점 보상: 지갑 미연동으로 교환불가 아바타 지급",
-                    week_start, total_score
-                ),
-            )
-            .await
-            {
-                reset_weekly_reward_claim(state, score_row.id).await;
-                return Err(e);
-            }
-            if let Err(e) = crate::notification::service::notify_reward_granted_if_needed(
-                state,
-                user_id,
-                week_start,
-                "이번 주 성실도 보상으로 새로운 아바타를 획득했어요.",
-            )
-            .await
-            {
-                tracing::warn!("주간 보상 알림 생성 실패: {}", e);
-            }
-            return Ok(WeeklyScoreResponse {
-                id: score_row.id,
-                week_start: score_row.week_start,
-                record_days_score: score_row.record_days_score,
-                receipt_score: score_row.receipt_score,
-                diary_score: score_row.diary_score,
-                budget_score: score_row.budget_score,
-                streak_score: score_row.streak_score,
-                total_score: score_row.total_score,
-                reward_granted: Some(true),
-            });
-        }
-
-        let wallet_address = wallet_address.expect("wallet_address is checked above");
-        let base_spt = base_spt_from_score(total_score);
-        // 반감기 적용
-        let today = Local::now().date_naive();
-        let actual_spt = calc_halving_reward(base_spt, state.config.service_launch_date, today);
-
-        if let Err(e) = grant_nft_avatar_item(
-            state,
-            user_id,
-            &wallet_address,
-            score_row.id,
-            &format!(
-                "{}주차 성실도 점수 {}점 보상: NFT 아바타 지급",
-                week_start, total_score
-            ),
-        )
-        .await
-        {
-            reset_weekly_reward_claim(state, score_row.id).await;
-            return Err(e);
-        }
-
-        // rewards INSERT
-        let reward_url = format!("{}/rest/v1/rewards", base_url);
-        let reward_payload = serde_json::json!({
-            "user_id": user_id,
-            "reward_type": "weekly_score",
-            "amount": actual_spt,
-            "description": format!("{}주차 성실도 점수 {}점 보상", week_start, total_score),
-        });
-
-        let reward_res = state
-            .http_client
-            .post(&reward_url)
-            .header("Authorization", format!("Bearer {}", key))
-            .header("apikey", key.as_str())
-            .header("Prefer", "return=representation")
-            .json(&reward_payload)
-            .send()
-            .await
-            .context("rewards INSERT 요청 실패")?;
-
-        if !reward_res.status().is_success() {
-            return Err(anyhow!(
-                "rewards INSERT 실패: {}",
-                reward_res.text().await.unwrap_or_default()
-            ));
-        }
-
-        // users.spt_balance 증가
-        // PostgREST는 increment를 지원하지 않으므로 RPC 사용
-        // supabase function: increment_spt_balance(user_id, amount)
-        let rpc_url = format!("{}/rest/v1/rpc/increment_spt_balance", base_url);
-        let balance_res = state
-            .http_client
-            .post(&rpc_url)
-            .header("Authorization", format!("Bearer {}", key))
-            .header("apikey", key.as_str())
-            .json(&serde_json::json!({
-                "p_user_id": user_id,
-                "p_amount": actual_spt,
-            }))
-            .send()
-            .await
-            .context("spt_balance 증가 RPC 요청 실패")?;
-
-        if !balance_res.status().is_success() {
-            return Err(anyhow!(
-                "spt_balance 증가 실패: {}",
-                balance_res.text().await.unwrap_or_default()
-            ));
-        }
-
-        // 온체인 SPT 민팅 — 지갑 연동 유저만 SPT 보상을 받는다.
-        if !state.config.solana_admin_keypair.is_empty() {
-            let amount_base_units = actual_spt as u64 * solana_client::SPT_DECIMALS;
-            if let Err(e) = solana_client::mint_spt_to_user(
-                &state.config.solana_rpc_url,
-                &state.http_client,
-                &state.config.solana_admin_keypair,
-                &wallet_address,
-                &state.config.solana_program_id,
-                amount_base_units,
-            )
-            .await
-            {
-                tracing::error!(
-                    "온체인 SPT 민팅 실패 (DB 보상은 유지): user={} err={}",
-                    user_id,
-                    e
-                );
-            }
-        }
-
-        if let Err(e) = crate::notification::service::notify_reward_granted_if_needed(
-            state,
-            user_id,
-            week_start,
-            &format!(
-                "이번 주 성실도 보상으로 새로운 아바타와 {} SPT를 획득했어요.",
-                actual_spt
-            ),
-        )
-        .await
-        {
-            tracing::warn!("주간 보상 알림 생성 실패: {}", e);
-        }
-    }
-
-    let did_grant = !already_granted && total_score >= 60;
-    Ok(WeeklyScoreResponse {
+    Ok(MonthlyScoreResponse {
         id: score_row.id,
-        week_start: score_row.week_start,
+        month_start: score_row.month_start,
         record_days_score: score_row.record_days_score,
         receipt_score: score_row.receipt_score,
         diary_score: score_row.diary_score,
         budget_score: score_row.budget_score,
         streak_score: score_row.streak_score,
         total_score: score_row.total_score,
-        reward_granted: Some(already_granted || did_grant),
+        reward_granted: score_row.reward_granted,
     })
 }
 
 // ────────────────────────────────────────────────────────────
-// 신규 함수 3: get_current_weekly_score
-//
-// 호출: GET /api/rewards/weekly-score/current
-// 목적: 오늘 기준 이번 주 점수 조회만 (재계산 없음)
-//
-// weekly_scores에 레코드가 없으면 전 항목 None인 기본값 반환
-// → 이번 주에 소비 기록이 한 번도 없는 경우
+// 월말 확정 보상
+// 매월 1일 이후 지난달 monthly_scores 중 아직 지급되지 않은 60점 이상 점수만 지급한다.
 // ────────────────────────────────────────────────────────────
-pub async fn get_current_weekly_score(
+async fn grant_monthly_score_reward(state: &AppState, score_row: MonthlyScore) -> Result<bool> {
+    let total_score = score_row.total_score.unwrap_or(0);
+    if total_score < 60 || score_row.reward_granted.unwrap_or(false) {
+        return Ok(false);
+    }
+
+    let base_url = state.config.supabase_url.trim_end_matches('/');
+    let key = &state.config.supabase_secret_key;
+    let finalized_at: DateTime<Utc> = Utc::now();
+    let claim_url = format!(
+        "{}/rest/v1/monthly_scores?id=eq.{}&or=(reward_granted.is.false,reward_granted.is.null)",
+        base_url, score_row.id
+    );
+    let claim_res = state
+        .http_client
+        .patch(&claim_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key.as_str())
+        .header("Prefer", "return=representation")
+        .json(&serde_json::json!({
+            "reward_granted": true,
+            "finalized_at": finalized_at,
+        }))
+        .send()
+        .await
+        .context("monthly_scores reward claim 업데이트 실패")?;
+
+    if !claim_res.status().is_success() {
+        return Err(anyhow!(
+            "monthly_scores reward claim 실패: {}",
+            claim_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let claimed_rows: Vec<MonthlyScore> = claim_res
+        .json()
+        .await
+        .context("monthly_scores reward claim 역직렬화 실패")?;
+    if claimed_rows.is_empty() {
+        return Ok(false);
+    }
+
+    let user_id = score_row.user_id;
+    let month_start = score_row.month_start;
+    let wallet_address = get_wallet_address(state, user_id).await?;
+    if wallet_address.is_some() && state.config.solana_admin_keypair.is_empty() {
+        reset_monthly_reward_claim(state, score_row.id).await;
+        return Err(anyhow!(
+            "지갑 연동 유저에게 NFT/SPT를 지급하려면 SOLANA_ADMIN_KEYPAIR가 필요합니다"
+        ));
+    }
+
+    if wallet_address.is_none() {
+        if let Err(e) = grant_untradeable_avatar_item(
+            state,
+            user_id,
+            &format!(
+                "{} 월간 성실도 점수 {}점 보상: 지갑 미연동으로 교환불가 아바타 지급",
+                month_start.format("%Y-%m"),
+                total_score
+            ),
+        )
+        .await
+        {
+            reset_monthly_reward_claim(state, score_row.id).await;
+            return Err(e);
+        }
+        if let Err(e) = crate::notification::service::notify_reward_granted_if_needed(
+            state,
+            user_id,
+            month_start,
+            "월간 성실도 보상으로 새로운 아바타를 획득했어요.",
+        )
+        .await
+        {
+            tracing::warn!("월간 보상 알림 생성 실패: {}", e);
+        }
+        return Ok(true);
+    }
+
+    let wallet_address = wallet_address.expect("wallet_address is checked above");
+    let base_spt = base_spt_from_score(total_score);
+    let today = Local::now().date_naive();
+    let actual_spt = calc_halving_reward(base_spt, state.config.service_launch_date, today);
+
+    if let Err(e) = grant_nft_avatar_item(
+        state,
+        user_id,
+        &wallet_address,
+        score_row.id,
+        &format!(
+            "{} 월간 성실도 점수 {}점 보상: NFT 아바타 지급",
+            month_start.format("%Y-%m"),
+            total_score
+        ),
+    )
+    .await
+    {
+        reset_monthly_reward_claim(state, score_row.id).await;
+        return Err(e);
+    }
+
+    let reward_url = format!("{}/rest/v1/rewards", base_url);
+    let reward_payload = serde_json::json!({
+        "user_id": user_id,
+        "reward_type": "monthly_score",
+        "amount": actual_spt,
+        "description": format!(
+            "{} 월간 성실도 점수 {}점 보상",
+            month_start.format("%Y-%m"),
+            total_score
+        ),
+    });
+
+    let reward_res = state
+        .http_client
+        .post(&reward_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key.as_str())
+        .header("Prefer", "return=representation")
+        .json(&reward_payload)
+        .send()
+        .await
+        .context("rewards INSERT 요청 실패")?;
+
+    if !reward_res.status().is_success() {
+        reset_monthly_reward_claim(state, score_row.id).await;
+        return Err(anyhow!(
+            "rewards INSERT 실패: {}",
+            reward_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let rpc_url = format!("{}/rest/v1/rpc/increment_spt_balance", base_url);
+    let balance_res = state
+        .http_client
+        .post(&rpc_url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key.as_str())
+        .json(&serde_json::json!({
+            "p_user_id": user_id,
+            "p_amount": actual_spt,
+        }))
+        .send()
+        .await
+        .context("spt_balance 증가 RPC 요청 실패")?;
+
+    if !balance_res.status().is_success() {
+        reset_monthly_reward_claim(state, score_row.id).await;
+        return Err(anyhow!(
+            "spt_balance 증가 실패: {}",
+            balance_res.text().await.unwrap_or_default()
+        ));
+    }
+
+    if !state.config.solana_admin_keypair.is_empty() {
+        let amount_base_units = actual_spt as u64 * solana_client::SPT_DECIMALS;
+        if let Err(e) = solana_client::mint_spt_to_user(
+            &state.config.solana_rpc_url,
+            &state.http_client,
+            &state.config.solana_admin_keypair,
+            &wallet_address,
+            &state.config.solana_program_id,
+            amount_base_units,
+        )
+        .await
+        {
+            tracing::error!(
+                "온체인 SPT 민팅 실패 (DB 보상은 유지): user={} err={}",
+                user_id,
+                e
+            );
+        }
+    }
+
+    if let Err(e) = crate::notification::service::notify_reward_granted_if_needed(
+        state,
+        user_id,
+        month_start,
+        &format!(
+            "월간 성실도 보상으로 새로운 아바타와 {} SPT를 획득했어요.",
+            actual_spt
+        ),
+    )
+    .await
+    {
+        tracing::warn!("월간 보상 알림 생성 실패: {}", e);
+    }
+
+    Ok(true)
+}
+
+pub async fn finalize_previous_monthly_rewards(
+    state: &AppState,
+    today: NaiveDate,
+) -> Result<usize> {
+    let previous_month_start = get_previous_month_start(today)?;
+    let base_url = state.config.supabase_url.trim_end_matches('/');
+    let key = &state.config.supabase_secret_key;
+    let url = format!(
+        "{}/rest/v1/monthly_scores?month_start=eq.{}&total_score=gte.60&or=(reward_granted.is.false,reward_granted.is.null)&select=*",
+        base_url, previous_month_start
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", key))
+        .header("apikey", key.as_str())
+        .send()
+        .await
+        .context("monthly_scores 보상 대상 SELECT 요청 실패")?;
+
+    if !res.status().is_success() {
+        return Err(anyhow!(
+            "monthly_scores 보상 대상 SELECT 실패: {}",
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
+    let scores: Vec<MonthlyScore> = res
+        .json()
+        .await
+        .context("monthly_scores 보상 대상 역직렬화 실패")?;
+    let mut granted = 0usize;
+    for score in scores {
+        if grant_monthly_score_reward(state, score).await? {
+            granted += 1;
+        }
+    }
+    Ok(granted)
+}
+
+pub async fn recalculate_weekly_score(
     state: &AppState,
     user_id: Uuid,
-) -> Result<WeeklyScoreResponse> {
+    target_date: NaiveDate,
+) -> Result<MonthlyScoreResponse> {
+    recalculate_monthly_score(state, user_id, target_date).await
+}
+
+// ────────────────────────────────────────────────────────────
+// 신규 함수 3: get_current_monthly_score
+//
+// 호출: GET /api/rewards/monthly-score/current
+// 목적: 오늘 기준 이번 달 점수 조회만 (재계산 없음)
+//
+// monthly_scores에 레코드가 없으면 전 항목 None인 기본값 반환
+// → 이번 달에 소비 기록이 한 번도 없는 경우
+// ────────────────────────────────────────────────────────────
+pub async fn get_current_monthly_score(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<MonthlyScoreResponse> {
     let today = Local::now().date_naive();
-    let week_start = get_week_start(today);
+    let month_start = get_month_start(today)?;
 
     let url = format!(
-        "{}/rest/v1/weekly_scores?user_id=eq.{}&week_start=eq.{}&select=*&limit=1",
+        "{}/rest/v1/monthly_scores?user_id=eq.{}&month_start=eq.{}&select=*&limit=1",
         state.config.supabase_url.trim_end_matches('/'),
         user_id,
-        week_start
+        month_start
     );
 
     let res = state
@@ -1310,22 +1254,22 @@ pub async fn get_current_weekly_score(
         .header("apikey", &state.config.supabase_secret_key)
         .send()
         .await
-        .context("weekly_scores(current) SELECT 요청 실패")?;
+        .context("monthly_scores(current) SELECT 요청 실패")?;
 
     if !res.status().is_success() {
         return Err(anyhow!(
-            "weekly_scores(current) SELECT 실패: {}",
+            "monthly_scores(current) SELECT 실패: {}",
             res.text().await.unwrap_or_default()
         ));
     }
 
-    let scores: Vec<WeeklyScore> = res.json().await.context("weekly_scores 역직렬화 실패")?;
+    let scores: Vec<MonthlyScore> = res.json().await.context("monthly_scores 역직렬화 실패")?;
 
     // 레코드 없으면 전 항목 None으로 반환 (신규 유저, 이번 주 첫 기록 전)
     Ok(scores.into_iter().next().map_or_else(
-        || WeeklyScoreResponse {
+        || MonthlyScoreResponse {
             id: Uuid::nil(),
-            week_start,
+            month_start,
             record_days_score: None,
             receipt_score: None,
             diary_score: None,
@@ -1334,9 +1278,9 @@ pub async fn get_current_weekly_score(
             total_score: None,
             reward_granted: Some(false),
         },
-        |s| WeeklyScoreResponse {
+        |s| MonthlyScoreResponse {
             id: s.id,
-            week_start: s.week_start,
+            month_start: s.month_start,
             record_days_score: s.record_days_score,
             receipt_score: s.receipt_score,
             diary_score: s.diary_score,
@@ -1346,6 +1290,13 @@ pub async fn get_current_weekly_score(
             reward_granted: s.reward_granted,
         },
     ))
+}
+
+pub async fn get_current_weekly_score(
+    state: &AppState,
+    user_id: Uuid,
+) -> Result<MonthlyScoreResponse> {
+    get_current_monthly_score(state, user_id).await
 }
 
 pub async fn get_box_count(state: &AppState, user_id: Uuid) -> Result<BoxCountResponse> {

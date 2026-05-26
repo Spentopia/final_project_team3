@@ -201,7 +201,8 @@ async fn anonymize_user(state: &AppState, user_id: Uuid) -> Result<()> {
     let tables_to_delete = vec![
         "user_settings",     // 알림 설정 등
         "streaks",           // 출석 스트릭
-        "weekly_scores",     // 주간 성실도 점수
+        "monthly_scores",    // 월간 성실도 점수
+        "weekly_scores",     // 기존 주간 성실도 점수(전환 전 데이터)
         "notifications",     // 알림 이력
         "chatbot_logs",      // 챗봇 대화 기록
         "user_screenshots",  // 업로드 스크린샷

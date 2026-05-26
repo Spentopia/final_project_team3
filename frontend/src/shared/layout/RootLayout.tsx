@@ -14,9 +14,9 @@ import {
   DialogTitle,
 } from "@/shared/ui/dialog";
 import {
-  getCurrentWeeklyScore,
+  getCurrentMonthlyScore,
   getStreak,
-  type WeeklyScoreResponse,
+  type MonthlyScoreResponse,
   type StreakResponse,
 } from "@/shared/api/rewardApi";
 
@@ -49,14 +49,14 @@ export default function RootLayout() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
-  const [isWeeklyScoreOpen, setIsWeeklyScoreOpen] = useState(false);
+  const [isMonthlyScoreOpen, setIsMonthlyScoreOpen] = useState(false);
 
-  const [weeklyScore, setWeeklyScore] = useState<WeeklyScoreResponse | null>(null);
+  const [monthlyScore, setMonthlyScore] = useState<MonthlyScoreResponse | null>(null);
   const [streak, setStreak] = useState<StreakResponse | null>(null);
 
   useEffect(() => {
-    void getCurrentWeeklyScore()
-      .then(setWeeklyScore)
+    void getCurrentMonthlyScore()
+      .then(setMonthlyScore)
       .catch(() => {/* 미로그인 상태 등 무시 */});
 
     void getStreak()
@@ -67,7 +67,7 @@ export default function RootLayout() {
   useEffect(() => {
     const handler = () => {
       setTimeout(() => {
-        void getCurrentWeeklyScore().then(setWeeklyScore).catch(() => {});
+        void getCurrentMonthlyScore().then(setMonthlyScore).catch(() => {});
         void getStreak().then(setStreak).catch(() => {});
       }, 800);
     };
@@ -75,7 +75,7 @@ export default function RootLayout() {
     return () => window.removeEventListener("spentopia:score-refresh", handler);
   }, []);
 
-  const totalScore = weeklyScore?.total_score ?? 0;
+  const totalScore = monthlyScore?.total_score ?? 0;
   const progressPct = Math.min(totalScore, 100);
 
   if (isWebView) {
@@ -93,7 +93,7 @@ export default function RootLayout() {
       <div className="hidden h-full lg:block">
         <Sidebar
           weeklyScore={totalScore}
-          onWeeklyScoreClick={() => setIsWeeklyScoreOpen(true)}
+          onWeeklyScoreClick={() => setIsMonthlyScoreOpen(true)}
         />
       </div>
 
@@ -111,7 +111,7 @@ export default function RootLayout() {
       >
         <Sidebar
           weeklyScore={totalScore}
-          onWeeklyScoreClick={() => setIsWeeklyScoreOpen(true)}
+          onWeeklyScoreClick={() => setIsMonthlyScoreOpen(true)}
         />
       </div>
 
@@ -133,12 +133,12 @@ export default function RootLayout() {
 
       <AiChatbotDialog open={isChatbotOpen} onOpenChange={setIsChatbotOpen} />
 
-      <Dialog open={isWeeklyScoreOpen} onOpenChange={setIsWeeklyScoreOpen}>
+      <Dialog open={isMonthlyScoreOpen} onOpenChange={setIsMonthlyScoreOpen}>
         <DialogContent className="max-w-md overflow-hidden border-border bg-card p-0 shadow-soft">
           <div className="p-6 text-card-foreground">
             <DialogHeader>
               <div className="mb-4 flex items-center justify-between">
-                <DialogTitle className="text-xl font-bold">이번 주 성실도</DialogTitle>
+                <DialogTitle className="text-xl font-bold">이번 달 성실도</DialogTitle>
                 <Zap className="h-5 w-5 text-[#2563eb] dark:text-luxury-gold" />
               </div>
             </DialogHeader>
@@ -156,37 +156,37 @@ export default function RootLayout() {
             <div className="space-y-3 text-sm">
               <ScoreRow
                 label="소비 기록"
-                score={weeklyScore?.record_days_score}
+                score={monthlyScore?.record_days_score}
                 max={MAX_SCORES.record_days}
               />
               <ScoreRow
                 label="영수증 인증"
-                score={weeklyScore?.receipt_score}
+                score={monthlyScore?.receipt_score}
                 max={MAX_SCORES.receipt}
               />
               <ScoreRow
                 label="일기 작성"
-                score={weeklyScore?.diary_score}
+                score={monthlyScore?.diary_score}
                 max={MAX_SCORES.diary}
               />
               <ScoreRow
                 label="예산 체크"
-                score={weeklyScore?.budget_score}
+                score={monthlyScore?.budget_score}
                 max={MAX_SCORES.budget}
               />
               <div className="flex justify-between">
                 <span>연속 활동</span>
                 <span className="font-bold">
                   {streak?.current_streak != null
-                    ? `${streak.current_streak}일 · ${weeklyScore?.streak_score ?? 0}/${MAX_SCORES.streak}`
+                    ? `${streak.current_streak}일 · ${monthlyScore?.streak_score ?? 0}/${MAX_SCORES.streak}`
                     : `0일 · 0/${MAX_SCORES.streak}`}
                 </span>
               </div>
             </div>
 
-            {weeklyScore?.reward_granted && (
+            {monthlyScore?.reward_granted && (
               <p className="mt-4 text-center text-xs font-medium text-luxury-gold">
-                🎉 이번 주 보상 지급 완료
+                월간 보상 지급 완료
               </p>
             )}
           </div>

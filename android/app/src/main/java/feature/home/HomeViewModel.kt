@@ -79,7 +79,7 @@ class HomeViewModel( // HomeViewModel 기능을 묶어둔 클래스 시작
                     isLoading = false, // false 값을 로딩 여부에 넣음
                     errorMessage = when (e.code()) { // 오류 내용을 정해줌
                         401 -> "로그인이 만료되었습니다."
-                        404 -> "이번 주 성실도 데이터가 아직 없습니다."
+                        404 -> "이번 달 성실도 데이터가 아직 없습니다."
                         else -> "성실도를 불러오지 못했습니다. (${e.code()})" // 위 조건이 아니면 이쪽을 실행함
                     }
                 )

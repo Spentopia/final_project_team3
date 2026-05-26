@@ -47,6 +47,16 @@ pub async fn get_streak(
     }
 }
 
+pub async fn get_monthly_scores(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+) -> impl IntoResponse {
+    match service::get_monthly_scores(&state, user_id).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
 pub async fn get_weekly_scores(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -58,11 +68,21 @@ pub async fn get_weekly_scores(
 }
 
 // ────────────────────────────────────────────────────────────
-// 신규 핸들러 1: get_current_weekly_score
+// 신규 핸들러 1: get_current_monthly_score
 //
-// GET /api/rewards/weekly-score/current
-// 오늘 기준 이번 주 성실도 점수 조회 (재계산 없음)
+// GET /api/rewards/monthly-score/current
+// 오늘 기준 이번 달 성실도 점수 조회 (재계산 없음)
 // ────────────────────────────────────────────────────────────
+pub async fn get_current_monthly_score(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+) -> impl IntoResponse {
+    match service::get_current_monthly_score(&state, user_id).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
 pub async fn get_current_weekly_score(
     State(state): State<AppState>,
     Extension(user_id): Extension<Uuid>,

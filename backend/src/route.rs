@@ -378,6 +378,14 @@ pub fn create_router(state: AppState) -> (Router, Router, Router) {
         .route("/api/rewards", get(reward::handler::list_rewards))
         .route("/api/rewards/streak", get(reward::handler::get_streak))
         .route(
+            "/api/rewards/monthly-score/current",
+            get(reward::handler::get_current_monthly_score),
+        )
+        .route(
+            "/api/rewards/monthly-score",
+            get(reward::handler::get_monthly_scores),
+        )
+        .route(
             "/api/rewards/weekly-score/current",
             get(reward::handler::get_current_weekly_score),
         )

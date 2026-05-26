@@ -18,6 +18,10 @@ use super::{
 };
 use crate::state::AppState;
 
+fn first_day_of_month(year: i32, month: i32) -> Option<chrono::NaiveDate> {
+    chrono::NaiveDate::from_ymd_opt(year, month as u32, 1)
+}
+
 #[derive(Deserialize)]
 pub struct BudgetQuery {
     pub year: i32,
@@ -70,7 +74,23 @@ pub async fn create_budget(
             .into_response();
     }
     match service::create_budget(&state, user_id, req).await {
-        Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
+        Ok(res) => {
+            if let Some(target_date) = first_day_of_month(res.year, res.month) {
+                let state_clone = state.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = crate::reward::service::recalculate_monthly_score(
+                        &state_clone,
+                        user_id,
+                        target_date,
+                    )
+                    .await
+                    {
+                        tracing::warn!("예산 생성 후 월간 성실도 재계산 실패: {}", e);
+                    }
+                });
+            }
+            (StatusCode::CREATED, Json(res)).into_response()
+        }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }

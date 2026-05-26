@@ -349,7 +349,7 @@ fun avatarDummyUiState(): AvatarUiState { // avatarDummyUiState 함수를 선언
             AvatarMethodUi( // Avatar Method Ui 함수를 실행함
                 icon = "✅", // icon 값을 정해줌
                 title = "성실도 보상", // 제목을 정해줌
-                desc = "주간 성실도 70점 이상 달성 시 랜덤 아바타 지급" // desc 값을 정해줌
+                desc = "월간 성실도 70점 이상 달성 시 랜덤 아바타 지급" // desc 값을 정해줌
             ),
             AvatarMethodUi( // Avatar Method Ui 함수를 실행함
                 icon = "📥", // icon 값을 정해줌

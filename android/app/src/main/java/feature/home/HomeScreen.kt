@@ -1483,7 +1483,7 @@ private fun WeeklyScoreCard( // WeeklyScoreCard 함수 선언 시작
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text( // 글자를 화면에 보여주기 시작함
-                    text = "이번 주 성실도", // 화면에 보여줄 글자를 정함
+                    text = "이번 달 성실도", // 화면에 보여줄 글자를 정함
                     fontSize = 20.sp, // 글자 크기를 정함
                     fontWeight = FontWeight.Bold, // 글자 두께를 정함
                     color = MaterialTheme.colorScheme.onSurface // 색상을 정함
@@ -1564,7 +1564,7 @@ private fun WeeklyScoreDetailDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "이번 주 성실도",
+                        text = "이번 달 성실도",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -2683,7 +2683,7 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                         horizontalAlignment = Alignment.CenterHorizontally // contentAlignment 값을 이 함수로 넘김
                     ) { // 이 블록 안의 내용이 시작됨
                         Text( // 글자를 화면에 보여주기 시작함
-                            text = "주간 성실도 60점 이상 시", // 화면에 보여줄 글자를 정함
+                            text = "월간 성실도 60점 이상 시", // 화면에 보여줄 글자를 정함
                             fontSize = 12.sp, // 글자 크기를 정함
                             fontWeight = FontWeight.Bold, // 글자 두께를 정함
                             color = accentContentColor // 색상을 정함

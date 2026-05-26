@@ -536,7 +536,7 @@ pub async fn notify_streak_reminder_if_needed(
 pub async fn notify_reward_granted_if_needed(
     state: &AppState,
     user_id: Uuid,
-    week_start: NaiveDate,
+    month_start: NaiveDate,
     message: &str,
 ) -> Result<()> {
     if !is_notification_enabled(state, user_id, NotificationPreference::Reward).await? {
@@ -544,10 +544,9 @@ pub async fn notify_reward_granted_if_needed(
     }
 
     let notification_type = format!(
-        "reward_weekly_{}_{}_{}",
-        week_start.year(),
-        week_start.month(),
-        week_start.day()
+        "reward_monthly_{}_{:02}",
+        month_start.year(),
+        month_start.month()
     );
     if notification_exists(state, user_id, &notification_type).await? {
         return Ok(());

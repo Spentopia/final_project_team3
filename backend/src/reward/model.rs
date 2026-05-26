@@ -20,7 +20,7 @@ use uuid::Uuid;
 pub struct Reward {
     pub id: Uuid,
     pub user_id: Uuid,
-    // "weekly_score" | "contest_1st" | "contest_2nd" | "contest_3rd"
+    // "monthly_score" | "contest_1st" | "contest_2nd" | "contest_3rd"
     pub reward_type: String,
     pub amount: i32,
     pub description: Option<String>,
@@ -42,26 +42,26 @@ pub struct Streak {
 }
 
 // ────────────────────────────────────────────────────────────
-// weekly_scores 테이블
-// unique constraint: (user_id, week_start)
+// monthly_scores 테이블
+// unique constraint: (user_id, month_start)
 //
-// 변경: budget_check_score → budget_score (DB 컬럼명 통일)
 // ────────────────────────────────────────────────────────────
 #[derive(Debug, Serialize, Deserialize)]
-pub struct WeeklyScore {
+pub struct MonthlyScore {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub week_start: NaiveDate, // 해당 주 월요일
+    pub month_start: NaiveDate, // 해당 월 1일
 
     // 각 항목별 점수 (Option: DB에 아직 없는 경우 null)
     pub record_days_score: Option<i32>, // 소비 기록 일수 (만점 30)
-    pub receipt_score: Option<i32>,     // 영수증 인증 건수 (만점 25)
+    pub receipt_score: Option<i32>,     // 영수증 인증 일수 (만점 25)
     pub diary_score: Option<i32>,       // 한줄 일기 작성 일수 (만점 20)
-    pub budget_score: Option<i32>,      // 예산 준수 여부 (만점 15) ← budget_check_score에서 변경
+    pub budget_score: Option<i32>,      // 예산 준수 여부 (만점 15)
     pub streak_score: Option<i32>,      // 연속 활동 보너스 (만점 10)
     pub total_score: Option<i32>,       // 총점 (만점 100)
 
-    pub reward_granted: Option<bool>, // 이번 주 보상이 이미 지급됐는지
+    pub reward_granted: Option<bool>, // 해당 월 보상이 이미 지급됐는지
+    pub finalized_at: Option<DateTime<Utc>>,
     pub created_at: Option<DateTime<Utc>>,
 }
 

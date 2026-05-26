@@ -99,14 +99,14 @@ pub async fn create_expense(
                     {
                         tracing::warn!("소비 기록 후 스트릭 업데이트 실패: {}", e);
                     }
-                    if let Err(e) = crate::reward::service::recalculate_weekly_score(
+                    if let Err(e) = crate::reward::service::recalculate_monthly_score(
                         &state_clone,
                         user_id,
                         record_date,
                     )
                     .await
                     {
-                        tracing::warn!("소비 기록 후 성실도 재계산 실패: {}", e);
+                        tracing::warn!("소비 기록 후 월간 성실도 재계산 실패: {}", e);
                     }
                 });
             }
@@ -150,14 +150,14 @@ pub async fn delete_expense(
                         {
                             tracing::warn!("소비 삭제 후 스트릭 재계산 실패: {}", e);
                         }
-                        if let Err(e) = crate::reward::service::recalculate_weekly_score(
+                        if let Err(e) = crate::reward::service::recalculate_monthly_score(
                             &state_clone,
                             user_id,
                             record_date,
                         )
                         .await
                         {
-                            tracing::warn!("소비 삭제 후 성실도 재계산 실패: {}", e);
+                            tracing::warn!("소비 삭제 후 월간 성실도 재계산 실패: {}", e);
                         }
                     });
                 }
@@ -276,14 +276,14 @@ pub async fn verify_receipt_ocr(
 
                     let state_clone = state.clone();
                     tokio::spawn(async move {
-                        if let Err(e) = crate::reward::service::recalculate_weekly_score(
+                        if let Err(e) = crate::reward::service::recalculate_monthly_score(
                             &state_clone,
                             user_id,
                             receipt_date,
                         )
                         .await
                         {
-                            tracing::warn!("영수증 인증 후 성실도 재계산 실패: {}", e);
+                            tracing::warn!("영수증 인증 후 월간 성실도 재계산 실패: {}", e);
                         }
                     });
                 }

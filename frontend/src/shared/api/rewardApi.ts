@@ -1,8 +1,8 @@
 import { apiClient } from "@/shared/api/client";
 
-export interface WeeklyScoreResponse {
+export interface MonthlyScoreResponse {
   id: string;
-  week_start: string;
+  month_start: string;
   record_days_score: number | null;
   receipt_score: number | null;
   diary_score: number | null;
@@ -44,9 +44,9 @@ export interface OpenBoxResponse {
   item: RewardBoxItemResponse | null;
 }
 
-export async function getCurrentWeeklyScore(): Promise<WeeklyScoreResponse> {
-  const res = await apiClient.get<WeeklyScoreResponse>(
-    "/api/rewards/weekly-score/current"
+export async function getCurrentMonthlyScore(): Promise<MonthlyScoreResponse> {
+  const res = await apiClient.get<MonthlyScoreResponse>(
+    "/api/rewards/monthly-score/current"
   );
   return res.data;
 }

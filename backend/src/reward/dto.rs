@@ -36,19 +36,17 @@ pub struct StreakResponse {
 }
 
 // ────────────────────────────────────────────────────────────
-// GET /api/rewards/weekly-score 응답 항목
-// GET /api/rewards/weekly-score/current 응답
-//
-// 변경: budget_check_score → budget_score
+// GET /api/rewards/monthly-score 응답 항목
+// GET /api/rewards/monthly-score/current 응답
 // ────────────────────────────────────────────────────────────
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct WeeklyScoreResponse {
+pub struct MonthlyScoreResponse {
     pub id: Uuid,
-    pub week_start: NaiveDate,
+    pub month_start: NaiveDate,
     pub record_days_score: Option<i32>,
     pub receipt_score: Option<i32>,
     pub diary_score: Option<i32>,
-    pub budget_score: Option<i32>, // ← 변경
+    pub budget_score: Option<i32>,
     pub streak_score: Option<i32>,
     pub total_score: Option<i32>,
     pub reward_granted: Option<bool>,

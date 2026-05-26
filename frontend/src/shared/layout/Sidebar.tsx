@@ -160,7 +160,7 @@ export default function Sidebar({ onWeeklyScoreClick, weeklyScore = 0 }: Sidebar
         >
           <span className="flex items-center gap-2 font-semibold">
             <Zap className="h-4 w-4 text-[#2563eb] dark:text-luxury-gold" />
-            이번 주 성실도
+            이번 달 성실도
           </span>
           <span className="mt-1 text-2xl font-extrabold text-foreground">{weeklyScore}점</span>
         </button>

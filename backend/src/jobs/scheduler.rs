@@ -125,6 +125,16 @@ async fn run_daily_streak_reminder(state: &AppState) {
 async fn run_daily_cleanup(state: &AppState) {
     tracing::info!("=== 일일 배치 시작 ===");
 
+    let today_kst = Utc::now().with_timezone(&Seoul).date_naive();
+    match crate::reward::service::finalize_previous_monthly_rewards(state, today_kst).await {
+        Ok(count) => {
+            tracing::info!("월간 성실도 보상 확정 배치 완료: {}명 지급", count);
+        }
+        Err(e) => {
+            tracing::error!("월간 성실도 보상 확정 배치 실패: {}", e);
+        }
+    }
+
     // 콘테스트 종료 보상 지급
     match contest_reward::process_ended_contests(state).await {
         Ok(count) => {

@@ -236,7 +236,7 @@ use crate::wallet;
             // ── reward DTO ────────────────────────────────────
             reward::dto::RewardResponse,
             reward::dto::StreakResponse,
-            reward::dto::WeeklyScoreResponse,
+            reward::dto::MonthlyScoreResponse,
 
             // ── avatar DTO ────────────────────────────────────
             avatar::dto::MintNftRequest,
@@ -274,7 +274,7 @@ use crate::wallet;
         (name = "알림", description = "알림 조회 / 읽음 처리 API"),
         (name = "결제", description = "공유 가계부 결제 API"),
         (name = "리포트", description = "소비 리포트 / AI 분석 API"),
-        (name = "보상", description = "SPT 보상 / 스트릭 / 주간 성실도 API"),
+        (name = "보상", description = "SPT 보상 / 스트릭 / 월간 성실도 API"),
         (name = "아바타", description = "아바타 / 아이템 NFT API"),
         (name = "마켓", description = "NFT 마켓 거래 API"),
     ),
