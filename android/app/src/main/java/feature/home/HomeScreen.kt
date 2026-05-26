@@ -273,7 +273,8 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
 
     // 소비 기록이 존재하는 날짜 목록을 Set으로 관리합니다.
     val expenseDateSet by homeViewModel.expenseDateSet.collectAsStateWithLifecycle() // Flow 값을 화면에서 바로 쓸 수 있는 상태로 받음
-    val weeklyScoreState by homeViewModel.weeklyScoreState.collectAsStateWithLifecycle()
+    // 이번 주 소비 점수 상태를 구독해서 상세 팝업과 카드에 함께 전달합니다.
+    val weeklyScoreState by homeViewModel.weeklyScoreState.collectAsStateWithLifecycle() // 주간 점수 조회 결과를 화면 상태로 받음
 
     // 현재 선택된 연-월 문자열에서 연도와 월을 분리합니다.
     // selectedYearMonth는 "yyyy-MM" 형식이므로 substring으로 안전하게 꺼냅니다.
@@ -287,7 +288,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
     var deletingExpenseId by remember { mutableStateOf<Long?>(null) } // 삭제 확인을 기다리는 소비 내역 id입니다.
     var showWalletDisconnectDialog by remember { mutableStateOf(false) } // 지갑 연결 해제 팝업창을 띄울지 말지 결정하는 스위치
     var showWalletDialog by remember { mutableStateOf(false) } // 지갑 선택 팝업창을 띄울지 말지 결정하는 스위치
-    var showWeeklyScoreDialog by remember { mutableStateOf(false) }
+    var showWeeklyScoreDialog by remember { mutableStateOf(false) } // 주간 점수 상세 팝업을 띄울지 저장함
     // (화면이 새로고침되어도 상태 유지)
 
     // 월 달력 팝업 표시 여부 상태입니다.
@@ -453,11 +454,11 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
         } // 블록 끝
 
         item { // 리스트 안에 들어갈 한 칸을 시작함
-            WeeklyScoreCard( // 카드 모양 UI를 시작함
-                scoreState = weeklyScoreState,
-                onClick = {
-                    showWeeklyScoreDialog = true
-                    homeViewModel.loadWeeklyScore()
+            WeeklyScoreCard( // 주간 소비 점수 요약 카드를 보여줌
+                scoreState = weeklyScoreState, // 서버에서 받아온 주간 점수 상태를 카드에 넣음
+                onClick = { // 점수 카드를 눌렀을 때 상세 정보를 새로 불러와 팝업을 엶
+                    showWeeklyScoreDialog = true // 주간 점수 상세 팝업을 화면에 표시함
+                    homeViewModel.loadWeeklyScore() // 팝업에 표시할 최신 주간 점수를 요청함
                 }
             )
         } // 블록 끝
@@ -540,11 +541,11 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
         )
     }
 
-    if (showWeeklyScoreDialog) {
+    if (showWeeklyScoreDialog) { // 사용자가 주간 점수 카드를 선택했을 때 상세 팝업을 보여줌
         WeeklyScoreDetailDialog(
-            scoreState = weeklyScoreState,
-            onDismiss = {
-                showWeeklyScoreDialog = false
+            scoreState = weeklyScoreState, // 현재 주간 점수 결과를 상세 팝업에 전달함
+            onDismiss = { // 팝업 바깥이나 닫기 동작을 누르면 상세 화면을 닫음
+                showWeeklyScoreDialog = false // false 값으로 바꿔 팝업을 숨김
             }
         )
     }
@@ -651,10 +652,10 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
     walletProvider: String, // 지갑 제공자 이름을 받음
     onWalletConnectClick: () -> Unit = {} // 버튼을 눌렀을 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
-    val isDark = isHomeDarkTheme()
-    val cardColor = homeSoftCardColor()
-    val cardBorderColor = homeSoftCardBorderColor()
-    val buttonColor = homePrimaryButtonColor()
+    val isDark = isHomeDarkTheme() // 현재 홈 화면이 다크 모드인지 확인함
+    val cardColor = homeSoftCardColor() // 지갑 연결 카드의 배경색을 테마에 맞춰 가져옴
+    val cardBorderColor = homeSoftCardBorderColor() // 지갑 연결 카드 테두리색을 테마에 맞춰 가져옴
+    val buttonColor = homePrimaryButtonColor() // 지갑 연결/완료 버튼의 배경색을 가져옴
     val walletIconRes = when (walletProvider.uppercase()) { // 연결된 지갑 제공자에 맞는 앞쪽 아이콘을 선택함
         "PHANTOM" -> R.drawable.ic_wallet_phantom
         "SOLFLARE" -> R.drawable.ic_wallet_solflare

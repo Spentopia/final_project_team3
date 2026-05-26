@@ -193,7 +193,7 @@ private fun loginToastColors(
 ): LoginToastColors {
     val background = if (isDark) Color(0xFF171A29) else Color.White
     val text = if (isDark) Color(0xFFF8FAFC) else Color(0xFF111827)
-    val success = if (isDark) Color(0xFF34D399) else Color(0xFF16A34A)
+    val success = if (isDark) Color(0xFF34D399) else Color(0xFF16A34A) // 체크 표시는 모드에 맞는 선명한 초록색을 사용함
     val accent = when (type) {
         LoginToastType.EMAIL -> if (status == LoginToastStatus.SUCCESS) {
             success

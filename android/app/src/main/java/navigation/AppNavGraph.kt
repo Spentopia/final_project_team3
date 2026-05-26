@@ -243,10 +243,10 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
     val navBackStackEntry by navController.currentBackStackEntryAsState() // navBackStackEntry 값을 저장함
     val currentRoute = navBackStackEntry?.destination?.route // currentRoute 값을 저장함
 
-    LaunchedEffect(walletCallbackUri, currentRoute) {
-        val uri = walletCallbackUri ?: return@LaunchedEffect
-        if (uri.scheme != "spentopia" || uri.host != "wallet-callback") return@LaunchedEffect
-        if (currentRoute == Route.Analysis.route) return@LaunchedEffect
+    LaunchedEffect(walletCallbackUri, currentRoute) { // 지갑 앱에서 돌아온 딥링크를 현재 화면 종류에 맞춰 처리함
+        val uri = walletCallbackUri ?: return@LaunchedEffect // 전달된 지갑 콜백 주소가 없으면 처리하지 않음
+        if (uri.scheme != "spentopia" || uri.host != "wallet-callback") return@LaunchedEffect // 앱 지갑 콜백 형식만 처리함
+        if (currentRoute == Route.Analysis.route) return@LaunchedEffect // 결제 콜백은 분석 화면에서 따로 처리하므로 제외함
 
         val paymentPrefs = context.getSharedPreferences("analysis_payment_prefs", Context.MODE_PRIVATE)
         val hasPendingPayment = !paymentPrefs

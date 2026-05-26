@@ -73,10 +73,10 @@ import com.ict.spentopia.ui.theme.SpentopiaDarkBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-@Composable
-fun PlazaScreen(
-    modifier: Modifier = Modifier
-) {
+@Composable // 이 함수가 광장 화면 UI를 그린다는 표시
+fun PlazaScreen( // 게임 로그인 코드와 광장 안내 콘텐츠를 보여주는 화면 함수 시작
+    modifier: Modifier = Modifier // 바깥에서 전달한 화면 배치 설정을 받음
+) { // 이 블록 안의 내용이 시작됨
     val context = LocalContext.current // 현재 화면 정보를 저장함
     val scope = rememberCoroutineScope() // API 요청을 실행할 코루틴 범위를 저장함
     var gameLoginCode by remember { mutableStateOf<String?>(null) } // 발급받은 게임 로그인 코드를 저장함
@@ -85,18 +85,18 @@ fun PlazaScreen(
     var isCreatingGameLoginCode by remember { mutableStateOf(false) } // 코드 생성 중인지 저장함
     var showGameLoginCodeDialog by remember { mutableStateOf(false) } // 코드 팝업 표시 여부를 저장함
 
-    LaunchedEffect(gameLoginRemainingSeconds) {
-        val remaining = gameLoginRemainingSeconds ?: return@LaunchedEffect
-        if (remaining <= 0) return@LaunchedEffect
+    LaunchedEffect(gameLoginRemainingSeconds) { // 발급된 게임 코드가 있을 때 남은 시간을 1초 단위로 갱신함
+        val remaining = gameLoginRemainingSeconds ?: return@LaunchedEffect // 카운트다운 대상이 없으면 실행을 끝냄
+        if (remaining <= 0) return@LaunchedEffect // 남은 시간이 끝나면 더 이상 감소시키지 않음
         delay(1_000) // 1초마다 남은 시간을 줄임
         gameLoginRemainingSeconds = remaining - 1 // 남은 시간을 1초 감소시킴
     }
 
     fun createGameLoginCode() { // 게임 로그인 코드를 생성하는 함수임
-        if (isCreatingGameLoginCode) return
+        if (isCreatingGameLoginCode) return // 이미 생성 요청 중이면 중복 요청을 막고 종료함
 
-        scope.launch {
-            try {
+        scope.launch { // 네트워크 요청 중에도 화면이 멈추지 않도록 코루틴에서 실행함
+            try { // 게임 로그인 코드 발급 요청을 먼저 시도함
                 isCreatingGameLoginCode = true // 중복 클릭을 막기 위해 생성 중 상태로 바꿈
                 val response = RetrofitClient.authApi.issueGameLoginCode() // 백엔드에서 게임 로그인 코드를 발급받음
                 gameLoginCode = response.handoff_token // 발급받은 코드를 화면 상태에 저장함
@@ -104,7 +104,7 @@ fun PlazaScreen(
                 gameLoginRemainingSeconds = response.expires_in // 카운트다운 시간을 초기화함
                 showGameLoginCodeDialog = true // 코드 생성 후 팝업을 표시함
                 showAppToast(context, "게임 로그인 코드가 생성되었습니다.", AppToastType.GAME) // 게임패드 아이콘 토스트를 보여줌
-            } catch (error: Exception) {
+            } catch (error: Exception) { // 코드 발급 중 오류가 나면 실패 토스트를 보여줌
                 showAppToast(
                     context,
                     error.message ?: "게임 로그인 코드를 생성하지 못했습니다.",

@@ -290,7 +290,7 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
     // 세로 스크롤 상태 저장
     val scrollState = rememberScrollState() // 화면이 다시 그려져도 scrollState 값을 기억함
 
-    val context = LocalContext.current
+    val context = LocalContext.current // 예산 저장 결과 토스트를 표시할 현재 화면 정보를 가져옴
 
     // ViewModel의 budgetState를 화면에서 안전하게 구독
     val budgetState by viewModel.budgetState.collectAsStateWithLifecycle() // 예산 관련 값을 저장함
@@ -298,6 +298,7 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
     // 저장 성공 여부 상태를 화면에서 안전하게 구독
     val saveSuccess by viewModel.saveSuccess.collectAsStateWithLifecycle() // 저장 성공 여부를 저장함
 
+    // 예산 저장 실패 문구를 구독해서 오류 토스트로 표시할 때 사용합니다.
     val saveError by viewModel.saveError.collectAsStateWithLifecycle() // 오류 내용을 저장함
 
     val aiPlanList by viewModel.aiPlanList.collectAsStateWithLifecycle() // AI 추천 플랜 목록을 저장함
@@ -347,15 +348,15 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
         }
     }
 
-    if (isPaymentRequired) {
-        BudgetPaymentRequiredDialog(
-            isWalletConnected = isWalletConnected,
-            onDismiss = { viewModel.dismissPaymentDialog() },
-            onConnectPhantomClick = { onWalletConnectClick(SolanaWalletType.PHANTOM) },
-            onConnectSolflareClick = { onWalletConnectClick(SolanaWalletType.SOLFLARE) },
-            onPaymentClick = {
-                viewModel.showMobilePaymentNotReadyMessage()
-                viewModel.dismissPaymentDialog()
+    if (isPaymentRequired) { // AI 예산 플랜 결제가 필요할 때 결제 안내 팝업을 표시함
+        BudgetPaymentRequiredDialog( // 지갑 연결 또는 결제 진행을 선택할 수 있는 팝업을 보여줌
+            isWalletConnected = isWalletConnected, // 현재 지갑 연결 상태를 팝업에 전달함
+            onDismiss = { viewModel.dismissPaymentDialog() }, // 닫기 동작 시 결제 필요 팝업 상태를 해제함
+            onConnectPhantomClick = { onWalletConnectClick(SolanaWalletType.PHANTOM) }, // Phantom 연결 선택을 바깥 흐름으로 전달함
+            onConnectSolflareClick = { onWalletConnectClick(SolanaWalletType.SOLFLARE) }, // Solflare 연결 선택을 바깥 흐름으로 전달함
+            onPaymentClick = { // 모바일 결제가 준비되지 않은 경우 안내 문구를 상태에 기록함
+                viewModel.showMobilePaymentNotReadyMessage() // 현재 지원되지 않는 결제 안내를 사용자에게 보여주게 함
+                viewModel.dismissPaymentDialog() // 안내 처리 후 결제 요청 팝업은 닫음
             }
         )
     }

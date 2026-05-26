@@ -136,13 +136,18 @@ fun MyPageScreen( // MyPageScreen 함수를 선언함
             )
 
             PasswordChangeCard( // 비밀번호 변경 카드를 보여줌
-                onChangePassword = { currentPassword, newPassword, confirmPassword ->
+                onChangePassword = { currentPassword, newPassword, confirmPassword -> // 비밀번호 변경 입력값을 ViewModel에 전달함
                     myPageViewModel.changePassword(
-                        currentPassword = currentPassword,
-                        newPassword = newPassword,
-                        confirmPassword = confirmPassword,
-                        onResult = { message ->
-                            showAppToast(context, message)
+                        currentPassword = currentPassword, // 현재 비밀번호 입력값을 전달함
+                        newPassword = newPassword, // 새 비밀번호 입력값을 전달함
+                        confirmPassword = confirmPassword, // 새 비밀번호 확인값을 전달함
+                        onResult = { message -> // 비밀번호 변경 결과를 토스트로 표시함
+                            val toastType = if (message.contains("변경되었습니다")) { // 변경 성공 여부에 따라 아이콘 유형을 나눔
+                                AppToastType.SUCCESS // 성공 시 체크 아이콘을 사용함
+                            } else {
+                                AppToastType.ERROR // 입력 오류나 변경 실패 시 오류 아이콘을 사용함
+                            }
+                            showAppToast(context, message, toastType) // 정해진 결과 아이콘과 함께 문구를 표시함
                         }
                     )
                 }
