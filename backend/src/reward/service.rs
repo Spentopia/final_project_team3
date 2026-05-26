@@ -194,14 +194,33 @@ fn get_previous_month_start(target_date: NaiveDate) -> Result<NaiveDate> {
 // 매직 넘버를 match로 명시 → 기획 변경 시 수정 포인트 명확
 // ────────────────────────────────────────────────────────────
 fn calc_record_days_score(days: usize) -> i32 {
-    ((days as i32 * 30 + 19) / 20).min(30)
+    match days {
+        0 => 0,
+        1..=2 => 2,
+        3..=4 => 5,
+        5..=7 => 9,
+        8..=10 => 13,
+        11..=13 => 17,
+        14..=16 => 21,
+        17..=19 => 26,
+        _ => 30,
+    }
 }
 
 // ────────────────────────────────────────────────────────────
 // 헬퍼: diary_score 계산
 // ────────────────────────────────────────────────────────────
 fn calc_diary_score(days: usize) -> i32 {
-    ((days as i32 * 20 + 11) / 12).min(20)
+    match days {
+        0 => 0,
+        1..=2 => 2,
+        3..=4 => 5,
+        5..=6 => 8,
+        7..=8 => 11,
+        9..=10 => 14,
+        11 => 17,
+        _ => 20,
+    }
 }
 
 // ────────────────────────────────────────────────────────────
@@ -211,24 +230,15 @@ fn calc_diary_score(days: usize) -> i32 {
 // 같은 날 여러 건을 인증해도 성실도 점수는 하루치만 오른다.
 // ────────────────────────────────────────────────────────────
 fn calc_receipt_score(days: usize) -> i32 {
-    ((days as i32 * 25 + 11) / 12).min(25)
-}
-
-fn calc_budget_score(monthly_spent: i32, total_budget: i32) -> i32 {
-    if total_budget <= 0 {
-        return 0;
-    }
-    if monthly_spent <= total_budget {
-        return 15;
-    }
-
-    let over_ratio = (monthly_spent - total_budget) as f64 / total_budget as f64;
-    if over_ratio <= 0.05 {
-        10
-    } else if over_ratio <= 0.10 {
-        5
-    } else {
-        0
+    match days {
+        0 => 0,
+        1..=2 => 3,
+        3..=4 => 6,
+        5..=6 => 10,
+        7..=8 => 14,
+        9..=10 => 19,
+        11 => 22,
+        _ => 25,
     }
 }
 
@@ -800,7 +810,7 @@ pub async fn recalculate_monthly_score(
     let month_end = next_month_start - chrono::Duration::days(1);
 
     let exp_url = format!(
-        "{}/rest/v1/expenses?user_id=eq.{}&transaction_type=eq.expense&expense_date=gte.{}&expense_date=lte.{}&select=expense_date,one_line_diary,receipt_verified,amount",
+        "{}/rest/v1/expenses?user_id=eq.{}&transaction_type=eq.expense&expense_date=gte.{}&expense_date=lte.{}&select=expense_date,one_line_diary,receipt_verified",
         base_url, user_id, month_start, month_end
     );
     let exp_res = state
@@ -825,7 +835,6 @@ pub async fn recalculate_monthly_score(
         expense_date: NaiveDate,
         one_line_diary: Option<String>,
         receipt_verified: Option<bool>,
-        amount: i32,
     }
 
     let expenses: Vec<ExpenseRow> = exp_res.json().await.context("expenses 역직렬화 실패")?;
@@ -891,10 +900,8 @@ pub async fn recalculate_monthly_score(
 
             match budgets.into_iter().next() {
                 None => 0, // 예산 미설정 → 0점
-                Some(b) => {
-                    let monthly_spent: i32 = expenses.iter().map(|e| e.amount).sum();
-                    calc_budget_score(monthly_spent, b.total_budget)
-                }
+                Some(b) if b.total_budget > 0 => 15,
+                Some(_) => 0,
             }
         } else {
             // budgets 조회 실패 → 점수 0으로 처리 (치명적이지 않음)
