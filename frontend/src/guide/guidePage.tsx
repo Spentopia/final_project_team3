@@ -432,8 +432,8 @@ export default function GuidePage() {
                     onClick={() => setWalletSub(sub)}
                     className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
                       walletSub === sub
-                      ? "bg-white text-gray-900 ring-1 ring-slate-300 shadow-md dark:bg-gradient-to-r dark:from-[#090b16] dark:via-[#4338ca] dark:to-[#7c3aed] dark:text-white dark:ring-transparent"
-                        : "bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50 dark:bg-gray-700/60 dark:text-gray-300 dark:ring-gray-600 dark:hover:bg-gray-700"
+                        ? "bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] ring-1 ring-[#2563eb]/25 dark:bg-[linear-gradient(135deg,#090b16,#4338ca,#7c3aed)] dark:text-white dark:shadow-[0_10px_28px_rgba(124,58,237,0.28)] dark:ring-violet-300/25"
+                        : "spentopia-market-light-soft text-gray-700 ring-1 ring-slate-200 hover:-translate-y-0.5 hover:text-gray-900 hover:shadow-md dark:text-gray-300 dark:ring-[#7c3aed]/25 dark:hover:text-white"
                     }`}
                   >
                     {sub === "app" ? <Smartphone className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
