@@ -83,6 +83,8 @@ import com.ict.spentopia.ui.theme.SpentopiaNavy // SpentopiaNavy 기능을 가�
 import com.ict.spentopia.ui.theme.SpentopiaNavyPurple // SpentopiaNavyPurple 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaActionGradientColors // SpentopiaActionGradientColors 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaWalletGradientColors // SpentopiaWalletGradientColors 기능을 가져옴
+import com.ict.spentopia.ui.toast.AppToastType
+import com.ict.spentopia.ui.toast.showAppToast
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender // ActivityResultSender 기능을 가져옴
 import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
 import android.util.Log // 로그 찍는 기능을 가져옴
@@ -163,10 +165,12 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                 idToken = idToken, // 구글 로그인 토큰을 구글 로그인 토큰에 넣음
                 onSuccess = { // 성공했을 때 실행할 함수를 정해줌
                     isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
+                    showAppToast(context, "구글 로그인이 완료되었어요 !", AppToastType.SUCCESS)
                     onLoginClick() // 로그인 관련 함수를 실행함
                 },
                 onError = { message -> // 실패했을 때 실행할 함수를 정해줌
                     isGoogleLoginLoading = false // false 값을 로딩 상태에 넣음
+                    showAppToast(context, message, AppToastType.ERROR)
                 }
             )
         } catch (e: ApiException) { // 이 블록 안의 내용이 시작됨
@@ -214,6 +218,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                 .putString("wallet_auth_token_${walletProvider}", walletAuthToken)
                                 .apply()
 
+                            showAppToast(context, "지갑 로그인이 완료되었어요 !", AppToastType.SUCCESS)
                             onWalletConnected( // 지갑 관련 함수를 실행함
                         accessToken,
                         refreshToken,
@@ -223,6 +228,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                 },
                 onError = { message -> // 실패했을 때 실행할 함수를 정해줌
                     isWalletLoading = false // false 값을 지갑 관련 값에 넣음
+                    showAppToast(context, message, AppToastType.ERROR)
                 }
             )
         }
@@ -247,10 +253,12 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                 password = password, // 비밀번호를 비밀번호에 넣음
                 onSuccess = { // 성공했을 때 실행할 함수를 정해줌
                     isEmailLoginLoading = false // false 값을 이메일 값에 넣음
+                    showAppToast(context, "로그인이 완료되었어요 !", AppToastType.SUCCESS)
                     onLoginClick() // 로그인 관련 함수를 실행함
                 },
                 onError = { message -> // 실패했을 때 실행할 함수를 정해줌
                     isEmailLoginLoading = false // false 값을 이메일 값에 넣음
+                    showAppToast(context, message, AppToastType.ERROR)
                 }
             )
         }
@@ -580,6 +588,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                     pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                     phantomConnector.clearPendingLogin()
                                     solflareConnector.clearPendingLogin()
+                                    showAppToast(context, "지갑 로그인이 완료되었어요 !", AppToastType.SUCCESS)
                                     onWalletConnected( // 지갑 관련 함수를 실행함
                                         response.access_token,
                                         response.refresh_token,
@@ -594,6 +603,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                                     pendingNonce = null // null 값을 pendingNonce 값에 넣음
                                     phantomConnector.clearPendingLogin()
                                     solflareConnector.clearPendingLogin()
+                                    showAppToast(context, message, AppToastType.ERROR)
                                 }
                             )
                         }
@@ -633,9 +643,11 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
                             code = code, // 인증 코드를 인증 코드에 넣음
                             state = state, // 상태값을 상태값에 넣음
                             onSuccess = { // 성공했을 때 실행할 함수를 정해줌
+                                showAppToast(context, "카카오 로그인이 완료되었어요 !", AppToastType.SUCCESS)
                                 onLoginClick() // 로그인 관련 함수를 실행함
                             },
                             onError = { message -> // 실패했을 때 실행할 함수를 정해줌
+                                showAppToast(context, message, AppToastType.ERROR)
                             }
                         )
                     }

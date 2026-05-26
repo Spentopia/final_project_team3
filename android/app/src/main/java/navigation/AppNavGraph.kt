@@ -95,6 +95,7 @@ import com.ict.spentopia.feature.market.MarketScreen // MarketScreen 기능을 �
 import com.ict.spentopia.feature.mypage.ProfileAvatarScreen // ProfileAvatarScreen 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaDarkBackground
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
+import com.ict.spentopia.ui.toast.AppToastType
 import com.ict.spentopia.ui.toast.showAppToast
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender // ActivityResultSender 기능을 가져옴
 import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
@@ -922,7 +923,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                         onDeletePostClick = { deletePostId -> // onDeletePostClick 때 실행할 함수를 정해줌
                             communityViewModel.deletePost(deletePostId) { // 이 블록 안의 내용이 시작됨
                                 communityViewModel.clearSelectedPost()
-                                showAppToast(context, "게시글이 삭제되었습니다.")
+                                showAppToast(context, "게시글이 삭제 되었어요 !", AppToastType.DELETE)
                             }
                         },
                         onToggleLikeClick = { targetPostId -> // onToggleLikeClick 때 실행할 함수를 정해줌
@@ -998,7 +999,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                                     null
                                 },
                                 onSuccess = { // 성공했을 때 실행할 함수를 정해줌
-                                    showAppToast(context, "게시글이 등록되었습니다.")
+                                    showAppToast(context, "게시글이 등록 되었어요 !", AppToastType.SUCCESS)
                                     navController.popBackStack()
                                 }
                             )

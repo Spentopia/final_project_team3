@@ -17,6 +17,7 @@ import com.ict.spentopia.R
 
 enum class AppToastType {
     SUCCESS,
+    DELETE,
     WALLET,
     INFO,
     WARNING,
@@ -100,7 +101,8 @@ fun showAppToast(
 
 private fun AppToastType.accentColor(isDark: Boolean): Int {
     return when (this) {
-        AppToastType.SUCCESS -> Color.parseColor(if (isDark) "#6A3DFF" else "#3D7BFF")
+        AppToastType.SUCCESS -> Color.parseColor(if (isDark) "#34D399" else "#16A34A")
+        AppToastType.DELETE -> Color.parseColor(if (isDark) "#FB7185" else "#E11D48")
         AppToastType.WALLET -> Color.parseColor(if (isDark) "#00E5C3" else "#00C7A3")
         AppToastType.INFO -> Color.parseColor(if (isDark) "#4D78FF" else "#3D7BFF")
         AppToastType.WARNING -> Color.parseColor("#FFB020")
@@ -111,6 +113,7 @@ private fun AppToastType.accentColor(isDark: Boolean): Int {
 private fun AppToastType.iconRes(): Int {
     return when (this) {
         AppToastType.SUCCESS -> R.drawable.ic_toast_check_circle
+        AppToastType.DELETE -> R.drawable.ic_toast_delete
         AppToastType.WALLET -> R.drawable.ic_toast_wallet
         AppToastType.INFO -> R.drawable.ic_toast_notifications
         AppToastType.WARNING -> R.drawable.ic_toast_warning
@@ -122,9 +125,10 @@ private fun String.inferToastType(): AppToastType {
     val text = lowercase()
     return when {
         listOf("실패", "오류", "에러", "못", "취소", "없습니다", "만료", "lost", "failed", "error").any { text.contains(it) } -> AppToastType.ERROR
+        listOf("삭제", "제거").any { text.contains(it) } -> AppToastType.DELETE
+        listOf("완료", "성공", "저장", "등록", "수정", "생성", "연결", "다운로드").any { text.contains(it) } -> AppToastType.SUCCESS
         listOf("지갑", "결제", "서명", "wallet", "payment").any { text.contains(it) } -> AppToastType.WALLET
         listOf("필요", "입력", "확인", "주의", "경고").any { text.contains(it) } -> AppToastType.WARNING
-        listOf("완료", "성공", "저장", "등록", "삭제", "수정", "생성", "연결", "다운로드").any { text.contains(it) } -> AppToastType.SUCCESS
         else -> AppToastType.INFO
     }
 }
