@@ -266,6 +266,7 @@ export default function Analytics() {
   const { resolvedTheme } = useTheme();
 
 const reportRef = useRef<HTMLDivElement>(null);
+const pdfRef = useRef<HTMLDivElement>(null);
 
 useEffect(() => {
   const fetchExpenses = async () => {
@@ -331,8 +332,9 @@ const [isReportLoading, setIsReportLoading] = useState(false);
 
 const [isPatternLoading, setIsPatternLoading] = useState(false);
 
-const [isPdfMode, setIsPdfMode] = useState(false);
 const [isDownloading, setIsDownloading] = useState(false);
+
+const [isPdfMode, setIsPdfMode] = useState(false);
 
 const [selectedReportType, setSelectedReportType] = useState<AnalysisReportType>("weekly");
 const currentTransactions =
@@ -382,7 +384,7 @@ const budgetUsage =
     ? Math.round((totalExpense / currentBudget) * 100)
     : 0;
 
-const isDarkMode = resolvedTheme === "dark" && !isPdfMode;
+const isDarkMode = resolvedTheme === "dark";
 const chartTheme = isDarkMode
   ? {
       axis: "#c4b5fd",
@@ -676,70 +678,117 @@ const handleDownload = async () => {
   try {
     setIsDownloading(true);
 
-    // ✅ PDF 전용 모드 활성화
-    setIsPdfMode(true);
+setIsPdfMode(true);
 
-    // 렌더링 기다리기
-    await new Promise((resolve) => setTimeout(resolve, 700));
+await new Promise((resolve) => setTimeout(resolve, 300));
 
-    if (!reportRef.current) return;
+if (!pdfRef.current) return;
 
-const element = reportRef.current;
+const element = pdfRef.current;
 
     const canvas = await html2canvas(element, {
-  scale: 3,
+  scale: 2,
+
   useCORS: true,
-  backgroundColor: "#ffffff",
+
+  backgroundColor: resolvedTheme === "dark"
+  ? "#020817"
+  : "#ffffff",
 
   logging: false,
 
   scrollX: 0,
   scrollY: 0,
 
-  width: 1400,
   windowWidth: 1400,
 
-  height: element.scrollHeight,
-  windowHeight: element.scrollHeight,
+  width: 1400,
 
-  foreignObjectRendering: false,
+  height: element.scrollHeight,
+
+  windowHeight: element.scrollHeight,
 
   removeContainer: true,
 
+  foreignObjectRendering: false,
+
+  allowTaint: true,
+
+  ignoreElements: (element) => {
+  return element.classList?.contains("recharts-tooltip-wrapper");
+},
+
   onclone: (clonedDoc) => {
-    // 모든 요소의 oklch 제거
-    const all = clonedDoc.querySelectorAll("*");
+  if (resolvedTheme === "dark") {
+    clonedDoc.documentElement.classList.add("dark");
+    clonedDoc.body.classList.add("dark");
+  } else {
+    clonedDoc.documentElement.classList.remove("dark");
+    clonedDoc.body.classList.remove("dark");
+  }
 
-    all.forEach((el) => {
-      const htmlEl = el as HTMLElement;
-      const style = window.getComputedStyle(htmlEl);
+  const allElements = clonedDoc.querySelectorAll("*");
 
-      // color
-      if (style.color.includes("oklch")) {
-        htmlEl.style.color = "#111827";
+  allElements.forEach((el) => {
+    const htmlEl = el as HTMLElement;
+    const computed = window.getComputedStyle(htmlEl);
+
+    const safeColor = (value: string, fallback: string) => {
+      if (
+        value.includes("oklch") ||
+        value.includes("oklab") ||
+        value.includes("color(")
+      ) {
+        return fallback;
       }
 
-      // background
-      if (style.backgroundColor.includes("oklch")) {
-        htmlEl.style.backgroundColor = "#ffffff";
-      }
+      return value;
+    };
 
-      // border
-      if (style.borderColor.includes("oklch")) {
-        htmlEl.style.borderColor = "#d1d5db";
-      }
+    // background
+    htmlEl.style.backgroundColor = safeColor(
+      computed.backgroundColor,
+      resolvedTheme === "dark" ? "#111827" : "#ffffff"
+    );
 
-      // fill (svg)
-      if (style.fill.includes("oklch")) {
-        htmlEl.style.fill = "#2563eb";
-      }
+    // text
+    htmlEl.style.color = safeColor(
+      computed.color,
+      resolvedTheme === "dark" ? "#f8fafc" : "#111827"
+    );
 
-      // stroke (svg)
-      if (style.stroke.includes("oklch")) {
-        htmlEl.style.stroke = "#2563eb";
-      }
-    });
-  },
+    // border
+    htmlEl.style.borderColor = safeColor(
+      computed.borderColor,
+      resolvedTheme === "dark" ? "#374151" : "#d1d5db"
+    );
+
+    // SVG fill
+    htmlEl.style.fill = safeColor(
+      computed.fill,
+      resolvedTheme === "dark" ? "#a78bfa" : "#2563eb"
+    );
+
+    // SVG stroke
+    htmlEl.style.stroke = safeColor(
+      computed.stroke,
+      resolvedTheme === "dark" ? "#a78bfa" : "#2563eb"
+    );
+
+    // 효과 제거
+    htmlEl.style.boxShadow = "none";
+    htmlEl.style.filter = "none";
+    htmlEl.style.backdropFilter = "none";
+
+    // gradient 제거
+    if (
+      computed.backgroundImage.includes("gradient") ||
+      computed.backgroundImage.includes("oklch")
+    ) {
+      htmlEl.style.backgroundImage = "none";
+    }
+  });
+},
 });
 
     const imgData = canvas.toDataURL("image/png");
@@ -802,15 +851,9 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
     });
 
   } finally {
-
-
-    // ✅ PDF 모드 해제
-    setIsPdfMode(false);
-
-    setIsDownloading(false);
-
-
-  }
+  setIsDownloading(false);
+  setIsPdfMode(false);
+}
 };
 
 
@@ -820,19 +863,25 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
   const weekdayPatternData = buildWeekdayPatternData(thisMonthTransactions);
   const paymentPatternData = buildPaymentPatternData(thisMonthTransactions);
 
-  const marketCardStyle = isPdfMode
-  ? {
-      border: "1px solid #dbe4f0",
-      background: "#f8fbff",
-      boxShadow: "0 2px 10px rgba(15, 23, 42, 0.04)",
-    }
-  : {
-      border: "1px solid rgba(125, 211, 252, 0.62)",
-      backgroundImage:
-        "linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 251, 255, 0.96)), radial-gradient(circle at 12% 0%, rgba(125, 211, 252, 0.18), transparent 32%), radial-gradient(circle at 88% 8%, rgba(37, 99, 235, 0.1), transparent 30%)",
-      boxShadow:
-        "inset 0 1px 0 rgba(255, 255, 255, 0.96), inset 0 0 0 1px rgba(37, 99, 235, 0.07), 0 0 0 1px rgba(125, 211, 252, 0.34), 0 18px 44px rgba(37, 99, 235, 0.12), 0 4px 16px rgba(15, 23, 42, 0.06)",
-    };
+  const marketCardStyle =
+  isPdfMode && isDarkMode
+    ? {
+        border: "1px solid #374151",
+        background: "#111827",
+        color: "#f8fafc",
+        boxShadow: "none",
+      }
+    : isDarkMode
+    ? {
+        border: "1px solid rgba(124, 58, 237, 0.35)",
+        background: "#0f172a",
+        boxShadow: "0 2px 10px rgba(0,0,0,0.4)",
+      }
+    : {
+        border: "1px solid #dbe4f0",
+        background: "#f8fbff",
+        boxShadow: "0 2px 10px rgba(15, 23, 42, 0.04)",
+      };
 
   return (
     <>
@@ -841,8 +890,6 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
   ref={reportRef}
   className={`
     ${isDownloading ? styles.pdfDownload : ""}
-    ${isPdfMode ? styles.pdfMode : ""}
-    ${isPdfMode ? styles.pdfFixedLayout : ""}
   `}
 >
   <div>
@@ -861,7 +908,7 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
         <div className="flex gap-2">
 
   <Button
-    className={isPdfMode ? "bg-slate-900 text-white" : "spentopia-primary-button"}
+    className="spentopia-primary-button"
     onClick={handleDownload}
   >
     <Download className="mr-2 h-4 w-4" />
@@ -942,7 +989,7 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
         <TabsContent value="weekly" className="space-y-6">
           <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
             <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">주간 소비 추이</h3>
-            <ResponsiveContainer width="99%" height={isPdfMode ? 220 : 300}>
+            <ResponsiveContainer width="99%" height={300}>
               <BarChart
   data={weeklyData}
   margin={{ top: 10, right: 20, left: 30, bottom: 10 }}
@@ -960,14 +1007,16 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
                 />
                 <Bar
   dataKey="amount"
-  isAnimationActive={!isPdfMode} fill={isPdfMode ? "#2563eb" : "url(#colorGradient)"} radius={[8, 8, 0, 0]} />
+  isAnimationActive={false} fill={isPdfMode ? "#2563eb" : "url(#colorGradient)"} radius={[8, 8, 0, 0]} />
                 <defs>
-                  <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chartTheme.barStart} />
-                    <stop offset="55%" stopColor={chartTheme.barMid} />
-                    <stop offset="100%" stopColor={chartTheme.barEnd} />
-                  </linearGradient>
-                </defs>
+  {!isPdfMode && (
+    <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stopColor={chartTheme.barStart} />
+      <stop offset="55%" stopColor={chartTheme.barMid} />
+      <stop offset="100%" stopColor={chartTheme.barEnd} />
+    </linearGradient>
+  )}
+</defs>
               </BarChart>
             </ResponsiveContainer>
           </Card>
@@ -976,7 +1025,7 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
         <TabsContent value="monthly" className="space-y-6">
           <Card style={marketCardStyle} className={`${styles.marketCard} border-none p-6 backdrop-blur-xl`}>
             <h3 className="mb-6 font-bold text-gray-900 dark:text-gray-100">월간 소비 추이</h3>
-            <ResponsiveContainer width="99%" height={isPdfMode ? 220 : 300}>
+            <ResponsiveContainer width="99%" height={300}>
               <LineChart
   data={monthlyData}
   margin={{ top: 10, right: 20, left: 30, bottom: 10 }}
@@ -995,7 +1044,7 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
                 <Line
   type="monotone"
   dataKey="amount"
-  stroke={isPdfMode ? "#2563eb" : chartTheme.line}
+  stroke={chartTheme.line}
   strokeWidth={3}
   dot={{ fill: isPdfMode ? "#2563eb" : chartTheme.dotFill, stroke: chartTheme.dotStroke, strokeWidth: 2, r: 6 }}
 />
@@ -1217,6 +1266,46 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
 </Card>
           </div>
 </div>
+</div>
+{/* PDF 전용 숨김 영역 */}
+<div className={styles.pdfCaptureArea}>
+  <div
+  ref={pdfRef}
+  data-pdf-mode="true"
+  className={`${styles.pdfFixedLayout} ${styles.pdfMode} pdf-mode`}
+  style={
+    resolvedTheme === "dark"
+      ? {
+          ["--pdf-bg" as any]: "#020817",
+          ["--pdf-text" as any]: "#f8fafc",
+        }
+      : {
+          ["--pdf-bg" as any]: "#ffffff",
+          ["--pdf-text" as any]: "#111827",
+        }
+  }
+>
+    <div
+  className="p-6"
+  style={{
+    background: resolvedTheme === "dark"
+      ? "#020817"
+      : "#ffffff",
+
+    color: resolvedTheme === "dark"
+      ? "#f8fafc"
+      : "#111827",
+  }}
+>
+      {reportRef.current?.innerHTML && (
+        <div
+          dangerouslySetInnerHTML={{
+            __html: reportRef.current.innerHTML,
+          }}
+        />
+      )}
+    </div>
+  </div>
 </div>
 </>
 );
