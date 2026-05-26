@@ -103,7 +103,7 @@ fun PlazaScreen(
                 gameLoginExpiresIn = response.expires_in // 코드 만료 시간을 저장함
                 gameLoginRemainingSeconds = response.expires_in // 카운트다운 시간을 초기화함
                 showGameLoginCodeDialog = true // 코드 생성 후 팝업을 표시함
-                showAppToast(context, "게임 로그인 코드가 생성되었습니다.", AppToastType.GAME)
+                showAppToast(context, "게임 로그인 코드가 생성되었습니다.", AppToastType.GAME) // 게임패드 아이콘 토스트를 보여줌
             } catch (error: Exception) {
                 showAppToast(
                     context,

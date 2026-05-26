@@ -569,7 +569,7 @@ private fun MemberInfoCard( // MemberInfoCard 함수를 선언함
                         )
                         .clickable { // 이 블록 안의 내용이 시작됨
                             viewModel.toggleEditMode(context) { message ->
-                                val toastType = if (message.contains("저장되었습니다")) {
+                                val toastType = if (message.contains("저장되었습니다")) { // 프로필 저장 성공은 체크 아이콘, 실패는 오류 아이콘으로 나눔
                                     AppToastType.SUCCESS
                                 } else {
                                     AppToastType.ERROR

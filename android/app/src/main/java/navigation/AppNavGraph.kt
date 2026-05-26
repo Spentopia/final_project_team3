@@ -133,13 +133,13 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
     val prefs = remember { // 화면이 다시 그려져도 간단 저장소를 기억함
         context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
     }
-    val initialDestination = remember {
+    val initialDestination = remember { // 지갑 앱이나 카카오 인증에서 돌아올 때 중복 스플래시가 나오지 않게 시작 화면을 고름
         val isAuthCallbackEntry = walletCallbackUri != null || kakaoCallbackUri != null
         val hasSavedSession = !prefs.getString("access_token", "").isNullOrBlank()
         when {
-            !isAuthCallbackEntry -> Route.Splash.route
-            hasSavedSession -> Route.Home.route
-            else -> Route.Login.route
+            !isAuthCallbackEntry -> Route.Splash.route // 사용자가 앱을 새로 연 경우에만 브랜드 스플래시를 표시함
+            hasSavedSession -> Route.Home.route // 이미 연결된 사용자의 콜백 복귀는 바로 홈에서 이어감
+            else -> Route.Login.route // 로그인 처리 중 지갑 콜백은 로그인 화면에서 이어서 처리함
         }
     }
 

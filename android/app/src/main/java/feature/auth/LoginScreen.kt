@@ -131,8 +131,8 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
     var isWalletLoading by remember { mutableStateOf(false) } // 화면에서 바뀔 지갑 관련 값을 저장함
     var isEmailLoginLoading by remember { mutableStateOf(false) } // 화면에서 바뀔 이메일 값을 저장함
     var isGoogleLoginLoading by remember { mutableStateOf(false) } // 화면에서 바뀔 로딩 상태를 저장함
-    var loginToastData by remember { mutableStateOf<LoginToastData?>(null) }
-    var loginToastSequence by remember { mutableStateOf(0) }
+    var loginToastData by remember { mutableStateOf<LoginToastData?>(null) } // 현재 화면 위에 보여줄 로그인 전용 토스트를 저장함
+    var loginToastSequence by remember { mutableStateOf(0) } // 이전 성공 토스트의 지연 이동이 겹치지 않게 순서를 저장함
 
     var pendingWalletAddress by remember { mutableStateOf<String?>(null) } // 화면에서 바뀔 지갑 관련 값을 저장함
     var pendingNonce by remember { mutableStateOf<String?>(null) } // 화면에서 바뀔 pendingNonce 값을 저장함
@@ -141,7 +141,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
         WalletLoginCoordinator(loginViewModel) // 로그인 관련 함수를 실행함
     }
 
-    fun showLoginProgress(type: LoginToastType) {
+    fun showLoginProgress(type: LoginToastType) { // 선택한 로그인 방식의 처리 중 토스트를 화면에 보여줌
         loginToastSequence += 1
         loginToastData = LoginToastData(
             type = type,
@@ -150,7 +150,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
         )
     }
 
-    fun showLoginSuccess(type: LoginToastType, onComplete: () -> Unit) {
+    fun showLoginSuccess(type: LoginToastType, onComplete: () -> Unit) { // 성공 토스트를 보여준 뒤 다음 화면 이동을 실행함
         loginToastSequence += 1
         val sequence = loginToastSequence
         loginToastData = LoginToastData(
@@ -159,7 +159,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
             message = type.loginToastMessage(LoginToastStatus.SUCCESS)
         )
         scope.launch {
-            delay(1_150)
+            delay(1_150) // 성공 아이콘과 문구가 보인 후 홈으로 이동할 시간을 둠
             if (loginToastSequence == sequence) {
                 loginToastData = null
                 onComplete()
@@ -167,7 +167,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
         }
     }
 
-    fun showLoginError(message: String) {
+    fun showLoginError(message: String) { // 로그인 전용 토스트를 닫고 공통 오류 토스트를 표시함
         loginToastSequence += 1
         loginToastData = null
         showAppToast(context, message, AppToastType.ERROR)
@@ -505,7 +505,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
             )
         }
 
-        loginToastData?.let { toastData ->
+        loginToastData?.let { toastData -> // 로그인 요청 상태가 있을 때 화면 하단에 전용 토스트를 겹쳐 보여줌
             LoginToast(
                 data = toastData,
                 modifier = Modifier
@@ -736,7 +736,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
     }
 }
 
-private fun LoginToastType.loginToastMessage(status: LoginToastStatus): String {
+private fun LoginToastType.loginToastMessage(status: LoginToastStatus): String { // 로그인 방식과 처리 상태에 맞는 안내 문구를 돌려줌
     return when (status) {
         LoginToastStatus.IN_PROGRESS -> when (this) {
             LoginToastType.EMAIL -> "로그인 진행 중..."

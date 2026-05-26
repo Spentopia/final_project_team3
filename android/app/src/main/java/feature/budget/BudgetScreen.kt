@@ -335,14 +335,14 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
     // 저장 결과는 등록/저장 성공용 체크 토스트와 오류 토스트로 표시합니다.
     LaunchedEffect(saveSuccess) { // 화면이 열리거나 값이 바뀔 때 실행함
         if (saveSuccess) { // 조건이 맞는지 확인함
-            showAppToast(context, "예산 설정이 저장되었어요.", AppToastType.SUCCESS)
+            showAppToast(context, "예산 설정이 저장되었어요.", AppToastType.SUCCESS) // 저장 완료는 체크 아이콘 토스트로 보여줌
             viewModel.resetSaveSuccess()
         }
     }
 
     LaunchedEffect(saveError) { // 화면이 열리거나 값이 바뀔 때 실행함
         if (saveError.isNotBlank()) { // 조건이 맞는지 확인함
-            showAppToast(context, saveError, AppToastType.ERROR)
+            showAppToast(context, saveError, AppToastType.ERROR) // 저장 실패는 오류 아이콘 토스트로 보여줌
             viewModel.resetSaveError()
         }
     }

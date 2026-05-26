@@ -19,7 +19,7 @@ enum class AppToastType {
     SUCCESS,
     DELETE,
     WALLET,
-    GAME,
+    GAME, // 게임 로그인 코드 발급처럼 게임 기능 안내에 쓰는 유형임
     INFO,
     WARNING,
     ERROR
@@ -105,7 +105,7 @@ private fun AppToastType.accentColor(isDark: Boolean): Int {
         AppToastType.SUCCESS -> Color.parseColor(if (isDark) "#34D399" else "#16A34A")
         AppToastType.DELETE -> Color.parseColor(if (isDark) "#FB7185" else "#E11D48")
         AppToastType.WALLET -> Color.parseColor(if (isDark) "#00E5C3" else "#00C7A3")
-        AppToastType.GAME -> Color.parseColor(if (isDark) "#A78BFA" else "#7C3AED")
+        AppToastType.GAME -> Color.parseColor(if (isDark) "#C4B5FD" else "#6D28D9") // 게임 색은 배경 대비가 나도록 모드별로 분리함
         AppToastType.INFO -> Color.parseColor(if (isDark) "#4D78FF" else "#3D7BFF")
         AppToastType.WARNING -> Color.parseColor("#FFB020")
         AppToastType.ERROR -> Color.parseColor("#FF4D6D")
@@ -117,7 +117,7 @@ private fun AppToastType.iconRes(): Int {
         AppToastType.SUCCESS -> R.drawable.ic_toast_check_circle
         AppToastType.DELETE -> R.drawable.ic_toast_delete
         AppToastType.WALLET -> R.drawable.ic_toast_wallet
-        AppToastType.GAME -> R.drawable.ic_toast_gamepad
+        AppToastType.GAME -> R.drawable.ic_toast_gamepad // 게임 코드 안내에는 게임패드 아이콘을 보여줌
         AppToastType.INFO -> R.drawable.ic_toast_notifications
         AppToastType.WARNING -> R.drawable.ic_toast_warning
         AppToastType.ERROR -> R.drawable.ic_toast_cancel

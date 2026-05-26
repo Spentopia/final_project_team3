@@ -428,7 +428,7 @@ class HomeViewModel( // HomeViewModel 기능을 묶어둔 클래스 시작
     // -----------------------------------------
     // 19) 소비 삭제
     // -----------------------------------------
-    fun deleteExpenseById(id: Long, onSuccess: () -> Unit = {}) { // 데이터를 삭제하는 함수 시작
+    fun deleteExpenseById(id: Long, onSuccess: () -> Unit = {}) { // 삭제가 끝난 뒤 화면에서 완료 토스트를 띄울 수 있게 콜백을 받음
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
             // 먼저 로컬 DB에서 삭제할 대상을 찾습니다.
             val expense = repository.getExpenseById(id) // 소비 내역 값을 저장함
@@ -436,7 +436,7 @@ class HomeViewModel( // HomeViewModel 기능을 묶어둔 클래스 시작
             if (expense != null) { // 조건이 맞는지 확인함
                 // 찾았으면 삭제합니다.
                 repository.deleteExpense(expense)
-                onSuccess()
+                onSuccess() // 실제 삭제에 성공했을 때만 완료 안내를 실행함
             }
         }
     }

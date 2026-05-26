@@ -511,7 +511,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
         item { Spacer(modifier = Modifier.height(24.dp)) } // 리스트 안에 들어갈 한 칸을 시작함
     } // 블록 끝
 
-    deletingExpenseId?.let { expenseId ->
+    deletingExpenseId?.let { expenseId -> // 삭제 버튼을 누른 항목이 있을 때만 삭제 확인 팝업을 보여줌
         AlertDialog(
             onDismissRequest = { deletingExpenseId = null },
             title = { Text(text = "소비 내역을 삭제하시겠습니까?") },
@@ -520,11 +520,11 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                 TextButton(
                     onClick = {
                         deletingExpenseId = null
-                        homeViewModel.deleteExpenseById(expenseId) {
+                        homeViewModel.deleteExpenseById(expenseId) { // 실제 DB 삭제가 완료된 뒤 결과 토스트를 표시함
                             if (editingExpense?.id == expenseId) {
                                 editingExpense = null
                             }
-                            showAppToast(context, "소비 내역이 삭제되었어요!", AppToastType.DELETE)
+                            showAppToast(context, "소비 내역이 삭제되었어요!", AppToastType.DELETE) // 삭제 결과는 빨간 휴지통 아이콘으로 보여줌
                         }
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFE11D48))
@@ -655,12 +655,12 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
     val cardColor = homeSoftCardColor()
     val cardBorderColor = homeSoftCardBorderColor()
     val buttonColor = homePrimaryButtonColor()
-    val walletIconRes = when (walletProvider.uppercase()) {
+    val walletIconRes = when (walletProvider.uppercase()) { // 연결된 지갑 제공자에 맞는 앞쪽 아이콘을 선택함
         "PHANTOM" -> R.drawable.ic_wallet_phantom
         "SOLFLARE" -> R.drawable.ic_wallet_solflare
         else -> R.drawable.ic_toast_wallet
     }
-    val walletIconColor = when (walletProvider.uppercase()) {
+    val walletIconColor = when (walletProvider.uppercase()) { // 지갑 브랜드가 모드별 배경에서 잘 보이도록 색을 나눔
         "PHANTOM" -> if (isDark) Color(0xFFC4B5FD) else Color(0xFF6D28D9)
         "SOLFLARE" -> if (isDark) Color(0xFFFBBF24) else Color(0xFFEA580C)
         else -> if (isDark) Color(0xFF67E8F9) else Color(0xFF2563EB)
@@ -679,7 +679,7 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                 .padding(horizontal = 14.dp, vertical = 14.dp), // 안쪽이나 바깥 여백을 줌
             verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
         ) { // 이 블록 안의 내용이 시작됨
-            if (isWalletConnected) {
+            if (isWalletConnected) { // 연결된 지갑이 있을 때만 제공자 아이콘 박스를 표시함
                 Box(
                     modifier = Modifier
                         .size(42.dp)

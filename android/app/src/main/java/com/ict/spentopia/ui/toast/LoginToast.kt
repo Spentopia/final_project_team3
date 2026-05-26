@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ict.spentopia.R
 
+// 로그인 방식에 따라 브랜드 아이콘과 강조색을 나누기 위한 종류입니다.
 enum class LoginToastType {
     EMAIL,
     KAKAO,
@@ -40,22 +41,26 @@ enum class LoginToastType {
     WALLET
 }
 
+// 로그인 요청 중인지 인증이 끝났는지 토스트 상태를 구분합니다.
 enum class LoginToastStatus {
     IN_PROGRESS,
     SUCCESS
 }
 
+// 로그인 화면에서 토스트 컴포넌트에 전달할 표시 데이터입니다.
 data class LoginToastData(
     val type: LoginToastType,
     val status: LoginToastStatus,
     val message: String
 )
 
+// 로그인 전용 토스트 카드입니다. 테마와 로그인 방식에 맞춰 아이콘/색상을 구성합니다.
 @Composable
 fun LoginToast(
     data: LoginToastData,
     modifier: Modifier = Modifier
 ) {
+    // 현재 Material 테마 표면 밝기를 기준으로 라이트/다크 전용 색상을 선택합니다.
     val isDark = androidx.compose.material3.MaterialTheme.colorScheme.surface.luminance() < 0.4f
     val colors = loginToastColors(data.type, data.status, isDark)
     val shape = RoundedCornerShape(25.dp)
@@ -94,6 +99,7 @@ fun LoginToast(
             )
         }
 
+        // 인증 처리 중에는 사용자가 대기 상태임을 알 수 있도록 로딩 표시를 붙입니다.
         if (data.status == LoginToastStatus.IN_PROGRESS) {
             CircularProgressIndicator(
                 modifier = Modifier.size(17.dp),
@@ -104,6 +110,7 @@ fun LoginToast(
     }
 }
 
+// 로그인 종류와 성공 상태에 맞는 메인 아이콘 및 성공 배지를 표시합니다.
 @Composable
 private fun LoginToastIcon(
     data: LoginToastData,
@@ -132,6 +139,7 @@ private fun LoginToastIcon(
             LoginToastType.WALLET -> LoginToastImageIcon(R.drawable.ic_wallet_login)
         }
 
+        // 브랜드 아이콘은 유지하면서 성공 결과도 확인할 수 있도록 작은 체크 배지를 겹칩니다.
         if (data.status == LoginToastStatus.SUCCESS && data.type != LoginToastType.EMAIL) {
             Icon(
                 imageVector = Icons.Rounded.CheckCircle,
@@ -146,6 +154,7 @@ private fun LoginToastIcon(
     }
 }
 
+// 카카오/Google/지갑 로그인에 이미 준비된 브랜드 이미지 리소스를 재사용합니다.
 @Composable
 private fun LoginToastImageIcon(iconRes: Int) {
     Image(
@@ -156,6 +165,7 @@ private fun LoginToastImageIcon(iconRes: Int) {
     )
 }
 
+// 토스트 카드에서 함께 사용하는 모드별 색상 묶음입니다.
 private data class LoginToastColors(
     val background: Color,
     val border: Color,
@@ -166,6 +176,7 @@ private data class LoginToastColors(
     val success: Color
 )
 
+// 토스트 상단에 표시할 로그인 방식 제목입니다.
 private val LoginToastType.label: String
     get() = when (this) {
         LoginToastType.EMAIL -> "일반 로그인"
@@ -174,6 +185,7 @@ private val LoginToastType.label: String
         LoginToastType.WALLET -> "지갑 로그인"
     }
 
+// 로그인 방식의 브랜드색과 라이트/다크 배경 대비를 한 곳에서 결정합니다.
 private fun loginToastColors(
     type: LoginToastType,
     status: LoginToastStatus,
