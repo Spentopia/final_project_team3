@@ -153,18 +153,31 @@ AnalyticsPage.module.css
 
 .pdfModeCard {
   background: #ffffff !important;
+  color: #111827 !important;
+
   backdrop-filter: none !important;
   filter: none !important;
   opacity: 1 !important;
 }
 
-.pdfMode {
-  background: #ffffff !important;
-  color: #111827 !important;
+:global(.dark) .pdfModeCard {
+  background: #111827 !important;
+  color: #f8fafc !important;
+
+  border: 1px solid #374151 !important;
 }
 
-.pdfMode * {
-  color: inherit !important;
+.pdfMode {
+  --pdf-bg: #ffffff;
+  --pdf-text: #111827;
+
+  background: var(--pdf-bg) !important;
+  color: var(--pdf-text) !important;
+}
+
+:global(.dark) .pdfMode {
+  --pdf-bg: #0f172a;
+  --pdf-text: #f8fafc;
 }
 
 .pdfDownload {
@@ -192,5 +205,77 @@ AnalyticsPage.module.css
 
   margin: 0 auto;
 
-  background: white !important;
+  background: var(--pdf-bg) !important;
+}
+
+/* =========================
+   PDF 숨김 캡처 영역
+========================= */
+
+.pdfCaptureArea {
+  position: fixed;
+  left: -99999px;
+  top: 0;
+
+  width: 1400px;
+
+  opacity: 0;
+
+  pointer-events: none;
+
+  z-index: -1;
+
+  overflow: hidden;
+}
+
+/* Tailwind dark class 무력화 */
+
+.pdfMode :global(.dark),
+:global(.dark) .pdfMode {
+  color-scheme: normal !important;
+}
+
+[data-pdf-mode="true"] .text-gray-900,
+[data-pdf-mode="true"] .dark\:text-gray-100,
+[data-pdf-mode="true"] .dark\:text-white,
+[data-pdf-mode="true"] .text-gray-700,
+[data-pdf-mode="true"] .dark\:text-gray-300,
+[data-pdf-mode="true"] .text-gray-500,
+[data-pdf-mode="true"] .dark\:text-gray-400 {
+  color: inherit !important;
+}
+
+/* =========================
+   PDF DARK MODE FIX
+========================= */
+
+[data-pdf-mode="true"] {
+  background: var(--pdf-bg) !important;
+  color: var(--pdf-text) !important;
+}
+
+.dark [data-pdf-mode="true"] {
+  background: #020817 !important;
+  color: #f8fafc !important;
+}
+
+.dark [data-pdf-mode="true"] .marketCard {
+  background: #111827 !important;
+  border: 1px solid #374151 !important;
+}
+
+[data-pdf-mode="true"] * {
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+[data-pdf-mode="true"] * {
+  color: inherit !important;
+
+  background-image: none !important;
+
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
 }
