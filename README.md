@@ -23,7 +23,7 @@ Spentopia는 소비 기록, 예산 관리, AI 소비 분석, 커뮤니티, 성�
 | AI Server | `ai-server/` | Python, FastAPI, OpenAI API | 소비 분석, 챗봇, 영수증 OCR, AI 예산 플랜 |
 | Android App | `android/` | Kotlin, Jetpack Compose, Retrofit, Room, DataStore, MWA | 모바일 앱, 지갑/소셜 로그인, 소비 관리 |
 | Smart Contract | `smartcontract/` | Solana Anchor, Rust, SPL Token, Metaplex | SPT 토큰, 아바타 NFT, NFT 마켓 거래 |
-| Unity | `unity/` | Unity 연동 예정 | 게임/아바타 렌더링 연동 영역 |
+| Unity | `unity/` | Unity, C#, FishNet, Steamworks, Cinemachine | 멀티플레이어 게임, 아바타 렌더링, Unity 인벤토리 연동 |
 
 ## 2. 핵심 기능 명세
 
@@ -272,9 +272,100 @@ Spentopia는 소비 기록, 예산 관리, AI 소비 분석, 커뮤니티, 성�
 | `spentopia://kakao-callback` | 백엔드 카카오 콜백 후 앱 복귀 |
 | 카카오 SDK OAuth 콜백 | 카카오 SDK 로그인 콜백 |
 
-## 8. Solana 스마트컨트랙트 명세
+## 8. Unity 게임 클라이언트 명세
 
-### 8.1 프로그램 정보
+### 8.1 스크립트 패키지
+
+ `.meta` 파일을 제외한 주요 스크립트는 34개이며, Steam 로비, FishNet 멀티플레이어, 인증, 인벤토리, 아바타 장착, 코디 UI, 채팅, 포탈 이동, 설정 UI를 담당합니다.
+
+| 항목 | 값 |
+| --- | --- |
+| 언어 | C# |
+| 엔진 | Unity |
+| 주요 연동 | FishNet, Steamworks, FishyFacepunch, Cinemachine, TextMeshPro, Unity UI |
+| 백엔드 연동 | `https://api.spentopia.net/auth/handoff/exchange`, `https://api.spentopia.net/api/unity/avatar/inventory` |
+
+### 8.2 주요 기능
+
+- Steamworks 로비 생성, 검색, 참가, 비밀번호 로비, 초대 오버레이를 지원합니다.
+- FishNet 기반 호스트/클라이언트 연결과 플레이어 스폰을 처리합니다.
+- Unity handoff 인증 코드를 백엔드에 교환해 access token과 닉네임을 수신합니다.
+- 인증 성공 후 Unity 인벤토리 API에서 아바타 아이템 목록을 조회합니다.
+- 서버 아이템 ID와 Unity `ItemData`를 매칭해 인벤토리 슬롯에 표시합니다.
+- 장착 아이템은 FishNet `SyncVar`로 다른 클라이언트에 동기화합니다.
+- 코디창에서 장착 슬롯 아이콘, 3D 아바타 클론, 캐릭터 캡처를 제공합니다.
+- 글로벌 채팅과 캐릭터 말풍선을 네트워크로 동기화합니다.
+- 맵별 카메라 크기, 카메라 바운드, BGM, 포탈 이동을 관리합니다.
+- 인트로/메인 UI, 페이드, 설정, 종료 팝업, 창 드래그 기능을 제공합니다.
+
+### 8.3 스크립트 역할
+
+| 파일 | 역할 |
+| --- | --- |
+| `SteamManager.cs` | Steam 초기화, 로비 생성/참가/목록, 초대, FishNet 연결 시작/종료 |
+| `IntroManager.cs` | 직접 호스트/클라이언트 접속, 씬 로드, 접속 페이드 처리 |
+| `GameMapSpawner.cs` | 클라이언트 접속 후 서버에 플레이어 스폰 요청 |
+| `GlobalManager.cs` | MainScene 초기화, 로컬 플레이어 탐색, 카메라/맵/BGM/페이드/포탈 제어 |
+| `UIManager.cs` | 인트로/메인 UI 전환, 로비 패널, 비밀번호 팝업, 종료 확인 UI |
+| `AuthManager.cs` | 인증 코드 검증 API 호출, access token/닉네임 저장, 인벤토리 로드 트리거 |
+| `InventoryManager.cs` | Unity 인벤토리 API 호출, 슬롯 생성, 아이템 장착/해제, 코디 UI 동기화 |
+| `InventorySlot.cs` | 서버 아이템 데이터를 슬롯에 표시하고 클릭 시 장착 요청 |
+| `ItemDatabase.cs` | 서버 item_id와 Unity `ItemData` ScriptableObject 매핑 |
+| `ItemData.cs` | 아바타 아이템 ID, 부위, 인벤토리 아이콘, 장착 스프라이트, 오프셋 정의 |
+| `CharacterEquipment.cs` | 캐릭터 장비 렌더링 및 장착 상태 네트워크 동기화 |
+| `CoordinationToggle.cs` | 코디창 토글, 장착 슬롯 UI 갱신, UI 캐릭터 모델 새로고침 |
+| `UICharacterManager.cs` | 실제 캐릭터를 UI용 더미로 복제하고 PNG 캡처 |
+| `PlayerMove.cs` | 소유 플레이어 이동, 점프, 아래 점프, 방향 스케일 동기화 |
+| `PlayerController.cs` | 로컬 카메라 타겟 설정, 타 플레이어 물리 비활성화 |
+| `PlayerVisualBinder.cs` | 로컬 캐릭터의 `CharacterEquipment`를 인벤토리 매니저에 연결 |
+| `PlayerNameTag.cs` | 닉네임 SyncVar, 이름표 위치 보정, 말풍선 표시 |
+| `GlobalChatManager.cs` | 채팅 입력, 서버 RPC 전송, 전체 채팅/말풍선 브로드캐스트 |
+| `SmartPortal.cs` | 맵 간 포탈 이동 입력 감지와 `GlobalManager` 텔레포트 호출 |
+| `LocalPortal.cs` | 같은 맵 내부 순간이동 및 NetworkTransform 텔레포트 보정 |
+| `MapManager.cs`, `MapInfo.cs`, `MapBoundRegister.cs` | 맵 활성화, 카메라 크기, 카메라 바운드, BGM 인덱스 관리 |
+| `NPCInteraction.cs` | NPC 대화, 타이핑 효과, 버튼 상태, `{count}` 치환 |
+| `SettingManager.cs`, `SoundSlider.cs`, `imageToggle.cs` | 볼륨, 음소거, 해상도, 화면 모드 설정 |
+| `FadeManager.cs`, `ExitController.cs` | 화면 페이드와 안전 종료 처리 |
+| `LobbySlot.cs` | Steam 로비 목록 슬롯 UI와 참가 버튼 처리 |
+| `DraggableWindow.cs` | UI 창 드래그 이동 |
+| `MasterSingleton.cs`, `SingletonEventSystem.cs` | 씬 전환 후 유지되는 싱글톤 오브젝트 관리 |
+| `SimpleTestSlot.cs` | 아이템 장착 테스트 버튼 |
+
+### 8.4 주요 실행 흐름
+
+| 흐름 | 순서 |
+| --- | --- |
+| 인증 | `AuthManager.OnClickVerify` -> `POST /auth/handoff/exchange` -> access token/닉네임 저장 -> `InventoryManager.LoadInventoryFromServer` |
+| 인벤토리 조회 | `InventoryManager.FetchInventoryRoutine` -> `GET /api/unity/avatar/inventory` -> `JsonHelper` 파싱 -> `InventorySlot.SetItem` |
+| 아이템 장착 | 슬롯 클릭 -> `InventoryManager.EquipItem` -> `CharacterEquipment.EquipItem` -> `ServerEquipItem` -> 장착 SyncVar 전파 |
+| Steam 방 생성 | `UIManager.ConfirmCreateLobby` -> `SteamManager.CreateSteamLobby` -> FishNet 서버/클라이언트 시작 -> Steam 로비 생성 -> `MainScene` 로드 |
+| Steam 방 참가 | `LobbySlot.OnJoinClick` -> `SteamManager.SelectLobbyAndJoin` -> 비밀번호 확인 또는 직접 참가 -> FishNet 클라이언트 연결 |
+| 메인 씬 초기화 | `GlobalManager.OnSceneLoaded` -> 로컬 플레이어 탐색 -> 스폰 위치 이동 -> 카메라 타겟/바운드 설정 -> 페이드 해제 |
+| 플레이어 스폰 | `GameMapSpawner.OnStartClient` -> `RequestSpawnPlayerServerRpc` -> 서버 Instantiate/Spawn -> 소유자 지정 |
+| 채팅 | Enter 입력 -> `RequestSendChatServerRpc` -> 닉네임 조회 -> `BroadcastChatObserversRpc` -> 말풍선 SyncVar 갱신 |
+| 포탈 이동 | 포탈 트리거 진입 -> 위 방향키/W 입력 -> `GlobalManager.StartTeleport` -> 암전 -> 위치/맵/카메라 갱신 -> 페이드 해제 |
+
+### 8.5 Unity 클라이언트 API 연동
+
+| API | 메서드 | 사용 위치 | 설명 |
+| --- | --- | --- | --- |
+| `/auth/handoff/exchange` | POST | `AuthManager.VerifyCodeRoutine` | Unity 인증 코드를 access token과 닉네임으로 교환 |
+| `/api/unity/avatar/inventory` | GET | `InventoryManager.FetchInventoryRoutine` | 인증 사용자 아바타 인벤토리 목록 조회 |
+
+Unity 인벤토리 응답은 `ServerItemData` 구조로 파싱합니다. 주요 필드는 `inventory_id`, `item_id`, `name`, `is_equipped`, `slot_name`, `wallet_address`, `token_id`, `contract_address`입니다. Unity 내부 장착 이미지는 `item_id`를 기준으로 `ItemDatabase`의 `ItemData.itemID`와 매칭합니다.
+
+### 8.6 주의 사항
+
+- `AuthManager`는 인증 JSON을 문자열로 직접 조립하므로 입력값 이스케이프 처리가 필요합니다.
+- `SteamManager`의 Steam 초대 람다 이벤트는 명시적으로 해제되지 않으므로 중복 구독 방지가 필요합니다.
+- `PlayerNameTag`는 `AuthManager.Instance`가 없을 때 예외가 날 수 있어 null 방어가 필요합니다.
+- `InventoryManager.ApplyDataToSlots`는 재조회 전에 기존 슬롯을 비우지 않으므로 이전 아이템 잔상이 남을 수 있습니다.
+- `ItemDatabase.Awake`는 `allItems`와 개별 아이템 null 방어가 필요합니다.
+- 씬 전환, 싱글톤, `FindFirstObjectByType`, `GameObject.Find` 의존이 많아 초기화 순서에 영향을 받습니다.
+
+## 9. Solana 스마트컨트랙트 명세
+
+### 9.1 프로그램 정보
 
 | 항목 | 값 |
 | --- | --- |
@@ -284,14 +375,14 @@ Spentopia는 소비 기록, 예산 관리, AI 소비 분석, 커뮤니티, 성�
 | SPT decimals | 6 |
 | 기본 수수료 예시 | 500 bps = 5% |
 
-### 8.2 온체인 계정
+### 9.2 온체인 계정
 
 | 계정 | 설명 |
 | --- | --- |
 | `PlatformConfig` | 관리자, 수수료율, SPT mint/authority bump, 총 민팅량, 최대 공급량, 컬렉션 mint 저장 |
 | `ListingAccount` | 판매자, NFT mint, 가격, listing/escrow bump 저장 |
 
-### 8.3 Instruction
+### 9.3 Instruction
 
 | Instruction | 설명 |
 | --- | --- |
@@ -305,16 +396,16 @@ Spentopia는 소비 기록, 예산 관리, AI 소비 분석, 커뮤니티, 성�
 | `cancel_listing` | 판매 등록 취소 및 NFT 반환 |
 | `transfer_avatar_nft` | 관리자 보유 NFT를 사용자에게 직접 전송 |
 
-## 9. 데이터베이스 명세
+## 10. 데이터베이스 명세
 
-### 9.1 Supabase 사용
+### 10.1 Supabase 사용
 
 - 백엔드는 Supabase service role key로 서버 권한 API를 호출합니다.
 - 프론트엔드는 publishable key로 Supabase 클라이언트를 초기화합니다.
 - 프로필 이미지와 커뮤니티 이미지는 Supabase Storage bucket을 사용합니다.
 - `public.users`를 중심으로 인증 사용자, 지갑, 프로필, 설정, 탈퇴 상태를 관리합니다.
 
-### 9.2 monthly_scores 테이블
+### 10.2 monthly_scores 테이블
 
 `backend/sql/20260526_create_monthly_scores.sql`은 월간 성실도 점수 테이블을 생성합니다.
 
@@ -333,7 +424,7 @@ Spentopia는 소비 기록, 예산 관리, AI 소비 분석, 커뮤니티, 성�
 
 RLS는 본인 조회만 허용하며 insert/update/delete 정책은 만들지 않습니다. 점수 생성과 수정은 백엔드 service role에서만 수행합니다.
 
-## 10. 배치 및 백그라운드 작업
+## 11. 배치 및 백그라운드 작업
 
 | 작업 | 주기 | 설명 |
 | --- | --- | --- |
@@ -343,7 +434,7 @@ RLS는 본인 조회만 허용하며 insert/update/delete 정책은 만들지 �
 | 스트릭 리마인드 | 매일 KST 21:00 | 기록 누락 방지 알림 생성 |
 | 일일 정리 배치 | 매일 KST 03:00 | 월간 보상 확정, 콘테스트 보상, 탈퇴자 정리 |
 
-## 11. 보안 및 운영 정책
+## 12. 보안 및 운영 정책
 
 - refresh token은 웹에서 HttpOnly 쿠키로 보관합니다.
 - access token 만료 시 동시 401 요청은 프론트엔드 큐 패턴으로 refresh 1회만 수행합니다.
@@ -353,4 +444,3 @@ RLS는 본인 조회만 허용하며 insert/update/delete 정책은 만들지 �
 - 민감 헤더와 토큰 값은 Android 디버그 네트워크 로그에서 마스킹합니다.
 - 관리자 API는 JWT 검증 후 admin role 검증을 추가로 수행합니다.
 - Solana 관리자 키페어와 Supabase service role key는 서버에서만 관리합니다.
-
