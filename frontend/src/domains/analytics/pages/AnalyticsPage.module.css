@@ -279,3 +279,31 @@ AnalyticsPage.module.css
   filter: none !important;
   backdrop-filter: none !important;
 }
+/* 다크모드 - AI 분석 리포트 / 소비 패턴 카드 색상 보정 */
+:global(html.dark) .marketCard.marketCard.marketCard,
+:global(.dark) .marketCard.marketCard.marketCard {
+  background: #111827 !important;
+  background-image: none !important;
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* 카드 안 제목 */
+:global(html.dark) .marketCard.marketCard.marketCard h4,
+:global(.dark) .marketCard.marketCard.marketCard h4 {
+  color: #f8fafc !important;
+}
+
+/* 카드 안 본문 */
+:global(html.dark) .marketCard.marketCard.marketCard p,
+:global(.dark) .marketCard.marketCard.marketCard p {
+  color: #cbd5e1 !important;
+}
+
+/* 카드 hover가 너무 밝게 튀는 것 방지 */
+:global(html.dark) .marketCard.marketCard.marketCard:hover,
+:global(.dark) .marketCard.marketCard.marketCard:hover {
+  background: #1e293b !important;
+  border-color: rgba(168, 85, 247, 0.45) !important;
+}
