@@ -1183,28 +1183,40 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
   {aiReport ? (
   <div className="grid gap-4 md:grid-cols-2">
 
-    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
+    <div
+      style={isPdfMode ? marketCardStyle : undefined}
+      className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-900 shadow-sm dark:border-slate-700/70 dark:bg-slate-900 dark:text-slate-100"
+    >
       <h4 className="font-bold text-gray-900 dark:text-white">👍 좋은 점</h4>
       <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.good}
       </p>
     </div>
 
-    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
+    <div
+      style={isPdfMode ? marketCardStyle : undefined}
+      className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-900 shadow-sm dark:border-slate-700/70 dark:bg-slate-900 dark:text-slate-100"
+    >
       <h4 className="font-bold text-gray-900 dark:text-white">⚠️ 주의</h4>
       <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.warning}
       </p>
     </div>
 
-    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
+    <div
+      style={isPdfMode ? marketCardStyle : undefined}
+      className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-900 shadow-sm dark:border-slate-700/70 dark:bg-slate-900 dark:text-slate-100"
+    >
       <h4 className="font-bold text-gray-900 dark:text-white">💡 조언</h4>
       <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.advice}
       </p>
     </div>
 
-    <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-4`}>
+    <div
+      style={isPdfMode ? marketCardStyle : undefined}
+      className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-900 shadow-sm dark:border-slate-700/70 dark:bg-slate-900 dark:text-slate-100"
+    >
       <h4 className="font-bold text-gray-900 dark:text-white">📈 예측</h4>
       <p className="text-sm text-gray-700 dark:text-gray-300">
         {aiReport.prediction}
@@ -1241,14 +1253,20 @@ const imgHeight = (canvas.height * imgWidth) / canvas.width
   {patternReport ? (
     <div className="grid gap-6 md:grid-cols-2">
 
-      <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-5`}>
+      <div
+        style={isPdfMode ? marketCardStyle : undefined}
+        className="rounded-lg border border-slate-200 bg-slate-50 p-5 text-slate-900 shadow-sm dark:border-slate-700/70 dark:bg-slate-900 dark:text-slate-100"
+      >
         <h4 className="mb-2 font-bold text-gray-900 dark:text-white">📊 분석</h4>
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
   {(patternReport.pattern ?? "").replace("소비 패턴 분석:", "")}
 </p>
       </div>
 
-      <div style={marketCardStyle} className={`${styles.marketCard} rounded-lg p-5`}>
+      <div
+        style={isPdfMode ? marketCardStyle : undefined}
+        className="rounded-lg border border-slate-200 bg-slate-50 p-5 text-slate-900 shadow-sm dark:border-slate-700/70 dark:bg-slate-900 dark:text-slate-100"
+      >
         <h4 className="mb-2 font-bold text-gray-900 dark:text-white">💡 개선 방안</h4>
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
           {patternReport.improvement}
