@@ -294,6 +294,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
     // 수정 중인 소비 항목 상태입니다.
     var editingExpense by remember { mutableStateOf<ExpenseItemData?>(null) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var deletingExpenseId by remember { mutableStateOf<Long?>(null) } // 삭제 확인을 기다리는 소비 내역 id입니다.
+    var writeFormResetKey by remember { mutableStateOf(0) } // 저장 성공 후 입력 폼을 비우기 위한 신호값입니다.
     var showWalletDisconnectDialog by remember { mutableStateOf(false) } // 지갑 연결 해제 팝업창을 띄울지 말지 결정하는 스위치
     var showWalletDialog by remember { mutableStateOf(false) } // 지갑 선택 팝업창을 띄울지 말지 결정하는 스위치
     var showWeeklyScoreDialog by remember { mutableStateOf(false) } // 주간 점수 상세 팝업을 띄울지 저장함
@@ -475,6 +476,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
             ExpenseWriteCard( // 카드 모양 UI를 시작함
                 selectedDate = selectedDate, // onDeleteExpense 값을 이 함수로 넘김
                 editingExpense = editingExpense, // editingExpense 값을 이 함수로 넘김
+                resetKey = writeFormResetKey, // 새 소비/수입 저장 성공 시 입력값을 초기화하기 위한 신호를 넘김
                 onSaveExpense = { savedExpense -> // onSaveExpense 값을 이 함수로 넘김
                     // 화면용 모델을 DB용 Entity로 변환합니다.
                     val entity = savedExpense.toEntity() // entity 값을 계산해서 저장함
@@ -485,6 +487,7 @@ fun HomeScreen( // HomeScreen 함수 선언 시작
                             expense = entity,
                             onSuccess = {
                                 editingExpense = null
+                                writeFormResetKey += 1
                                 val message = if (isIncomeItem(savedExpense)) {
                                     "수입 기록이 등록되었어요."
                                 } else {
@@ -1781,6 +1784,7 @@ private fun saveBitmapToCacheUri(
 private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     selectedDate: String, // selectedDate 값을 함수 밖에서 받아옴
     editingExpense: ExpenseItemData?, // editingExpense 값을 함수 밖에서 받아옴
+    resetKey: Int, // 저장 성공 후 새 입력 폼을 초기화하기 위한 신호값을 받음
     onSaveExpense: (ExpenseItemData) -> Unit, // onSaveExpense 는 눌렀을 때 실행할 동작을 받음
     onCancelEdit: () -> Unit // onCancelEdit 는 눌렀을 때 실행할 동작을 받음
 ) { // 이 블록 안의 내용이 시작됨
@@ -1845,7 +1849,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
         }
     }
 
-    LaunchedEffect(editingExpense?.id, selectedDate) { // 이 블록의 내용이 여기서 시작됨
+    LaunchedEffect(editingExpense?.id, selectedDate, resetKey) { // 이 블록의 내용이 여기서 시작됨
         if (editingExpense != null) { // 조건이 참일 때만 아래 코드를 실행함
             formDate = editingExpense.date // 바로 앞 설정을 이어서 적음
             amount = editingExpense.amount.toString() // 바로 앞 설정을 이어서 적음
