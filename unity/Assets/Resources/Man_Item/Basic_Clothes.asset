@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b1fa6239f9a7ca4ca34a3679efa65b6, type: 3}
+  m_Name: Basic_Clothes
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemID: 0d01b794-abc6-4d49-b38f-7c3faa5c455a
+  itemName: "\uAE30\uBCF8 \uB0A8\uC790 \uC0C1\uC758"
+  partType: Clothes
+  inventoryIcon: {fileID: -5018507703676919083, guid: f6faa7ea83152ca43aceefde9cf0e462, type: 3}
+  centerSprite: {fileID: -1105350450787805267, guid: 55263643598694e49b08d39be64dc96e, type: 3}
+  leftSprite: {fileID: -2578767516794515715, guid: d7d52002d9932f848892d61f929a145b, type: 3}
+  rightSprite: {fileID: -6143705691928116177, guid: cb5b613e7ade1c347a2de26d21363b98, type: 3}
+  leftShoeSprite: {fileID: 0}
+  rightShoeSprite: {fileID: 0}
+  centerOffset:
+    positionOffset: {x: 0.0267, y: -0.626}
+    scaleOffset: {x: 0.322763, y: 0.3393348}
+    rotationZ: 0
+  leftOffset:
+    positionOffset: {x: 0.1933, y: -0.414}
+    scaleOffset: {x: 0.1800457, y: 0.192237}
+    rotationZ: 0
+  rightOffset:
+    positionOffset: {x: -0.1808, y: -0.4016}
+    scaleOffset: {x: 0.1717135, y: 0.1790154}
+    rotationZ: -43.567
+  leftShoeOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  rightShoeOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0

@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b1fa6239f9a7ca4ca34a3679efa65b6, type: 3}
+  m_Name: President_Shoes
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemID: a50b66db-e457-41e1-8065-43af559ee3b5
+  itemName: "\uC815\uCE58\uC778 \uC2E0\uBC1C"
+  partType: Shoes
+  inventoryIcon: {fileID: -3207089648809535255, guid: a7fd9965d58d51b48ad820b66d663cda, type: 3}
+  centerSprite: {fileID: 0}
+  leftSprite: {fileID: 0}
+  rightSprite: {fileID: 0}
+  leftShoeSprite: {fileID: -3207089648809535255, guid: a7fd9965d58d51b48ad820b66d663cda, type: 3}
+  rightShoeSprite: {fileID: -5369680975627059798, guid: 99f4d765ee6e004409b6a20ca6d5b0ea, type: 3}
+  centerOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  leftOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  rightOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  leftShoeOffset:
+    positionOffset: {x: 0.1017, y: -1.2143}
+    scaleOffset: {x: 0.6059337, y: 0.4710006}
+    rotationZ: 0
+  rightShoeOffset:
+    positionOffset: {x: -0.165, y: -1.153}
+    scaleOffset: {x: 0.5857931, y: 0.4947619}
+    rotationZ: 0

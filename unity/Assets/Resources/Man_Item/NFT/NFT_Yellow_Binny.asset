@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b1fa6239f9a7ca4ca34a3679efa65b6, type: 3}
+  m_Name: NFT_Yellow_Binny
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemID: d9bed526-a52c-42ac-95a5-505a112c950e
+  itemName: "\uB178\uB780 \uBCD1\uC544\uB9AC \uBE44\uB2C8"
+  partType: Hat
+  inventoryIcon: {fileID: -5878976364904993224, guid: 5d2ec572acd08144985da966da994ea6, type: 3}
+  centerSprite: {fileID: -5878976364904993224, guid: 5d2ec572acd08144985da966da994ea6, type: 3}
+  leftSprite: {fileID: 0}
+  rightSprite: {fileID: 0}
+  leftShoeSprite: {fileID: 0}
+  rightShoeSprite: {fileID: 0}
+  centerOffset:
+    positionOffset: {x: 0.0696, y: 1.3723}
+    scaleOffset: {x: 0.4532896, y: 0.4375941}
+    rotationZ: 0
+  leftOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  rightOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  leftShoeOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  rightShoeOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0

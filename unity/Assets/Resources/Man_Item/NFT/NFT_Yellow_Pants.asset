@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b1fa6239f9a7ca4ca34a3679efa65b6, type: 3}
+  m_Name: NFT_Yellow_Pants
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemID: 56ebcde4-0c5e-483e-929a-2c6e0ceafd4e
+  itemName: "\uBCD1\uC544\uB9AC \uD558\uC758"
+  partType: Pants
+  inventoryIcon: {fileID: 2900883570066907847, guid: f35ec678d870a7f4a99bc12e871451eb, type: 3}
+  centerSprite: {fileID: 2900883570066907847, guid: f35ec678d870a7f4a99bc12e871451eb, type: 3}
+  leftSprite: {fileID: 0}
+  rightSprite: {fileID: 0}
+  leftShoeSprite: {fileID: 0}
+  rightShoeSprite: {fileID: 0}
+  centerOffset:
+    positionOffset: {x: 0.0351, y: -0.0474}
+    scaleOffset: {x: 0.5813693, y: 0.659821}
+    rotationZ: 0
+  leftOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  rightOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  leftShoeOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  rightShoeOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0

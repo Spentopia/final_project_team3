@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b1fa6239f9a7ca4ca34a3679efa65b6, type: 3}
+  m_Name: NFT_president_pants
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemID: 9ad32507-d4e4-48ad-8eea-5c441a624afb
+  itemName: "\uC815\uCE58\uC778 \uD558\uC758"
+  partType: Pants
+  inventoryIcon: {fileID: -396455015014802136, guid: 8bfe85407d6f80142a4f66d11ca02c1f, type: 3}
+  centerSprite: {fileID: -44753435480974123, guid: 70af89ed4e9434b4180bfe4f2fb10b0e, type: 3}
+  leftSprite: {fileID: 3434443867372090920, guid: f7ce2d907b8151043b201494a02e208a, type: 3}
+  rightSprite: {fileID: -8355219694201217903, guid: 6baa5a4383533fd43bce96b16f69a9a2, type: 3}
+  leftShoeSprite: {fileID: 0}
+  rightShoeSprite: {fileID: 0}
+  centerOffset:
+    positionOffset: {x: 0.018, y: -0.0224}
+    scaleOffset: {x: 0.449883, y: 0.7773944}
+    rotationZ: 0
+  leftOffset:
+    positionOffset: {x: 0.0946, y: -0.581}
+    scaleOffset: {x: 0.6190588, y: 0.3921458}
+    rotationZ: 0
+  rightOffset:
+    positionOffset: {x: 0.0692, y: -0.454}
+    scaleOffset: {x: 0.5415488, y: 0.4100452}
+    rotationZ: 0
+  leftShoeOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  rightShoeOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
