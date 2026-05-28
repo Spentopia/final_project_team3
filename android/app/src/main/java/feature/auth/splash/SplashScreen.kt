@@ -11,7 +11,7 @@ fun SplashScreen(
     isDarkTheme: Boolean
 ) {
     LaunchedEffect(Unit) {
-        delay(4000) // 썸네일 시간
+        delay(3500) // 썸네일 시간
         navController.navigate("login") {
             popUpTo("splash") { inclusive = true }
         }

@@ -48,8 +48,15 @@ import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.DirectionsBus
+import androidx.compose.material.icons.outlined.LocalHospital
 import androidx.compose.material.icons.outlined.PieChart
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.School
+import androidx.compose.material.icons.outlined.ShoppingBag
+import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.TrendingUp
 
 // Material3 관련 import
@@ -83,6 +90,7 @@ import androidx.compose.runtime.setValue // by 문법으로 상태를 바꾸게 
 // UI 관련 import
 import androidx.compose.ui.Alignment // 정렬 기준을 가져옴
 import androidx.compose.ui.Modifier // UI 크기·색·여백 설정 도구를 가져옴
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush // 그라데이션 같은 색칠 도구를 가져옴
 import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
@@ -657,8 +665,9 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
     val cardBorderColor = homeSoftCardBorderColor() // 지갑 연결 카드 테두리색을 테마에 맞춰 가져옴
     val buttonColor = homePrimaryButtonColor() // 지갑 연결/완료 버튼의 배경색을 가져옴
     val walletIconRes = when (walletProvider.uppercase()) { // 연결된 지갑 제공자에 맞는 앞쪽 아이콘을 선택함
-        "PHANTOM" -> R.drawable.ic_wallet_phantom
-        "SOLFLARE" -> R.drawable.ic_wallet_solflare
+        "PHANTOM" -> R.drawable.ic_wallet_phantom_logo
+        "SOLFLARE" -> R.drawable.ic_wallet_solflare_logo
+        "BACKPACK" -> R.drawable.ic_wallet_backpack_logo
         else -> R.drawable.ic_toast_wallet
     }
     val walletIconColor = when (walletProvider.uppercase()) { // 지갑 브랜드가 모드별 배경에서 잘 보이도록 색을 나눔
@@ -688,10 +697,10 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
                         .border(1.dp, walletIconColor.copy(alpha = if (isDark) 0.40f else 0.20f), RoundedCornerShape(13.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
+                    Image(
                         painter = painterResource(id = walletIconRes),
                         contentDescription = "$walletProvider 연결 지갑",
-                        tint = walletIconColor,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.size(25.dp)
                     )
                 }
@@ -1273,7 +1282,6 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
             } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
                 filteredList.forEachIndexed { index, item -> // 목록이나 범위를 하나씩 돌면서 처리함
                     ExpenseItemCard( // 카드 모양 UI를 시작함
-                        emoji = getCategoryEmoji(item.category), // emoji 값을 이 함수로 넘김
                         title = item.title, // title 값을 이 함수로 넘김
                         category = item.category, // category 값을 이 함수로 넘김
                         amount = if (isIncomeItem(item)) { // 수입 항목이면 금액 앞에 + 표시를 붙임
@@ -1286,7 +1294,6 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
                         } else {
                             null
                         },
-                        iconColors = getCategoryColors(item.category), // iconColors 값을 이 함수로 넘김
                         onDeleteClick = { // onDeleteClick 값을 이 함수로 넘김
                             onDeleteExpense(item.id) // 함수를 호출해 값을 넣음
                         } // 블록 끝
@@ -1338,24 +1345,29 @@ private fun DailyExpenseCard( // DailyExpenseCard 함수 선언 시작
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
-    emoji: String, // emoji 값을 함수 밖에서 받아옴
     title: String, // title 값을 함수 밖에서 받아옴
     category: String, // category 값을 함수 밖에서 받아옴
     amount: String, // amount 값을 함수 밖에서 받아옴
     tag: String?, // tag 값을 함수 밖에서 받아옴
-    iconColors: List<Color>, // iconColors 값을 함수 밖에서 받아옴
     onDeleteClick: () -> Unit // onDeleteClick 는 눌렀을 때 실행할 동작을 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isHomeDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
-    val itemCardColor = homeSoftCardColor() // 소비 항목 카드 배경색을 모드별로 맞춤
-    val itemBorderColor = homeSoftCardBorderColor() // 소비 항목 카드 테두리색을 맞춤
+    val categoryVisual = categoryVisualStyle(category) // 카테고리 시각 스타일을 정함
+    val itemCardColor = if (isDark) Color(0xFF101827) else Color.White // 소비 항목 카드 배경색을 모드별로 맞춤
+    val itemBorderColor = if (isDark) Color(0xFF7C3AED).copy(alpha = 0.12f) else Color(0xFFEAF2FF) // 소비 항목 카드 테두리색을 맞춤
     val expenseAmountColor = if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C) // 지출 금액 색을 모드별로 분리함
     val incomeAmountColor = if (isDark) Color(0xFF86EFAC) else Color(0xFF15803D) // 수입 금액 색을 모드별로 분리함
-    val deleteIconColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF6D5BD0)
-    val deleteIconSurface = if (isDark) Color(0xFF29233A) else Color(0xFFF3F0FF)
-    val deleteIconBorderColor = if (isDark) Color(0xFF7C3AED) else Color(0xFFC4B5FD)
+    val deleteIconColor = if (isDark) Color(0xFFA78BFA).copy(alpha = 0.58f) else Color(0xFF7C3AED)
+    val deleteIconSurface = if (isDark) Color(0xFF1B2031) else Color(0xFFF3E8FF)
     Card( // 카드 모양 UI를 시작함
-        modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = if (isDark) 0.dp else 4.dp,
+                shape = RoundedCornerShape(18.dp),
+                ambientColor = Color.Black.copy(alpha = 0.025f),
+                spotColor = Color.Black.copy(alpha = 0.025f)
+            ), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(18.dp), // 모서리 모양을 정함
         colors = CardDefaults.cardColors(containerColor = itemCardColor), // 색상 스타일을 정함
         border = BorderStroke( // border 값을 이 함수로 넘김
@@ -1366,7 +1378,7 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
         Column( // 세로로 배치하는 영역을 시작함
             modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                 .fillMaxWidth() // 가로 너비를 꽉 채움
-                .padding(horizontal = 14.dp, vertical = 14.dp) // 안쪽이나 바깥 여백을 줌
+                .padding(horizontal = 16.dp, vertical = 14.dp) // 안쪽이나 바깥 여백을 줌
         ) { // 이 블록 안의 내용이 시작됨
             Row( // 가로로 배치하는 영역을 시작함
                 modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
@@ -1374,16 +1386,18 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
             ) { // 이 블록 안의 내용이 시작됨
                 Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
                     modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
-                        .size(40.dp) // 가로세로 크기를 한 번에 정함
-                        .background( // 배경색이나 그라데이션을 넣음
-                            brush = Brush.horizontalGradient(iconColors), // 왼쪽에서 오른쪽으로 색이 바뀌는 배경을 만듦
-                            shape = RoundedCornerShape(12.dp) // 모서리 모양을 정함
+                        .size(42.dp) // 가로세로 크기를 한 번에 정함
+                        .background(
+                            color = categoryVisual.background,
+                            shape = RoundedCornerShape(13.dp)
                         ),
                     contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
                 ) { // 이 블록 안의 내용이 시작됨
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = emoji, // 화면에 보여줄 글자를 정함
-                        fontSize = 18.sp // 글자 크기를 정함
+                    Icon(
+                        imageVector = categoryVisual.icon,
+                        contentDescription = getCategoryLabel(category),
+                        tint = categoryVisual.tint,
+                        modifier = Modifier.size(20.dp)
                     )
                 } // 블록 끝
 
@@ -1412,14 +1426,21 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
                         if (tag != null) { // 조건이 참일 때만 아래 코드를 실행함
                             Spacer(modifier = Modifier.width(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
+                            val tagBackgroundColor = when (tag) {
+                                "인증됨" -> if (isDark) Color(0xFF143524) else Color(0xFFEFFCF3)
+                                "미인증" -> if (isDark) Color(0xFFF97316).copy(alpha = 0.14f) else Color(0xFFFFF4E8)
+                                else -> MaterialTheme.colorScheme.surfaceVariant
+                            }
+                            val tagTextColor = when (tag) {
+                                "인증됨" -> if (isDark) Color(0xFF86EFAC) else Color(0xFF16A34A)
+                                "미인증" -> if (isDark) Color(0xFFFB923C) else Color(0xFFF97316)
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+
                             Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
                                 modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
                                     .background( // 배경색이나 그라데이션을 넣음
-                                    color = when (tag) {
-                                        "인증됨" -> if (isDark) Color(0xFF143524) else Color(0xFFEFFCF3)
-                                        "미인증" -> if (isDark) Color(0xFF3A2418) else Color(0xFFFFF7ED)
-                                        else -> MaterialTheme.colorScheme.surfaceVariant
-                                    },
+                                        color = tagBackgroundColor,
                                         shape = RoundedCornerShape(20.dp) // 모서리 모양을 정함
                                     )
                                     .padding(horizontal = 8.dp, vertical = 4.dp), // 안쪽이나 바깥 여백을 줌
@@ -1428,11 +1449,7 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
                                 Text( // 글자를 화면에 보여주기 시작함
                                     text = tag, // 화면에 보여줄 글자를 정함
                                     fontSize = 11.sp, // 글자 크기를 정함
-                                    color = when (tag) {
-                                        "인증됨" -> Color(0xFF16A34A)
-                                        "미인증" -> Color(0xFFC2410C)
-                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
+                                    color = tagTextColor,
                                     fontWeight = FontWeight.Medium // 글자 두께를 정함
                                 )
                             } // 블록 끝
@@ -1457,8 +1474,7 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
                     Box(
                         modifier = Modifier
                             .size(34.dp)
-                            .background(deleteIconSurface, RoundedCornerShape(12.dp))
-                            .border(1.dp, deleteIconBorderColor.copy(alpha = 0.42f), RoundedCornerShape(12.dp))
+                            .background(deleteIconSurface, RoundedCornerShape(10.dp))
                             .clickable { onDeleteClick() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -1466,7 +1482,7 @@ private fun ExpenseItemCard( // ExpenseItemCard 함수 선언 시작
                             imageVector = Icons.Filled.Delete,
                             contentDescription = "삭제",
                             tint = deleteIconColor,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(17.dp)
                         )
                     }
                 }
@@ -2849,35 +2865,11 @@ private fun formatWalletAddress(address: String): String { // formatWalletAddres
     else "${address.take(4)}...${address.takeLast(4)}" // 주소가 길면 앞 4자리와 뒤 4자리만 보여줌
 } // 블록 끝
 
-private fun getCategoryEmoji(category: String): String { // getCategoryEmoji 함수 시작
-    return when (category) { // 이 블록의 내용이 여기서 시작됨
-        "food",
-        "식비" -> "🍔" // 이 조건이면 오른쪽 값을 선택함
-        "transport",
-        "교통" -> "🚕" // 이 조건이면 오른쪽 값을 선택함
-        "shopping",
-        "쇼핑" -> "🛍️" // 이 조건이면 오른쪽 값을 선택함
-        "entertainment",
-        "여가" -> "🎮"
-        "health",
-        "의료" -> "💊"
-        "education",
-        "교육" -> "📚"
-        "utility",
-        "공과금" -> "💡"
-        "salary",
-        "월급" -> "💼"
-        "allowance",
-        "용돈" -> "💵"
-        "bonus",
-        "보너스" -> "🎁"
-        "side_job",
-        "부수입" -> "🧩"
-        "investment",
-        "투자" -> "📈"
-        else -> "💸" // 이 조건이면 오른쪽 값을 선택함
-    } // 블록 끝
-} // 블록 끝
+private data class CategoryVisualStyle( // 카테고리 아이콘 스타일 값을 묶음
+    val icon: ImageVector, // 아이콘을 저장함
+    val tint: Color, // 아이콘 색을 저장함
+    val background: Color // 배경색을 저장함
+)
 
 private fun getCategoryLabel(category: String): String {
     return when (category) {
@@ -2900,22 +2892,24 @@ private fun getCategoryLabel(category: String): String {
     }
 }
 
-private fun getCategoryColors(category: String): List<Color> { // getCategoryColors 함수 시작
-    return when (category) { // 이 블록의 내용이 여기서 시작됨
+@Composable
+private fun categoryVisualStyle(category: String): CategoryVisualStyle { // 카테고리별 아이콘 스타일을 돌려줌
+    val isDark = isHomeDarkTheme()
+    val icon = when (category) {
         "food",
-        "식비" -> listOf(Color(0xFFFF8A00), Color(0xFFFF5C00)) // 값 여러 개를 묶은 목록을 만듦
+        "식비" -> Icons.Outlined.Restaurant
         "transport",
-        "교통" -> listOf(Color(0xFF4C8DFF), Color(0xFF2F6BFF)) // 값 여러 개를 묶은 목록을 만듦
+        "교통" -> Icons.Outlined.DirectionsBus
         "shopping",
-        "쇼핑" -> listOf(Color(0xFFFF6BAA), Color(0xFFFF4D8D)) // 값 여러 개를 묶은 목록을 만듦
+        "쇼핑" -> Icons.Outlined.ShoppingBag
         "entertainment",
-        "여가" -> listOf(Color(0xFF22D3EE), Color(0xFF0891B2))
+        "여가" -> Icons.Outlined.SportsEsports
         "health",
-        "의료" -> listOf(Color(0xFF4ADE80), Color(0xFF16A34A))
+        "의료" -> Icons.Outlined.LocalHospital
         "education",
-        "교육" -> listOf(Color(0xFF818CF8), Color(0xFF4F46E5))
+        "교육" -> Icons.Outlined.School
         "utility",
-        "공과금" -> listOf(Color(0xFFFACC15), Color(0xFFEAB308))
+        "공과금" -> Icons.Outlined.Bolt
         "salary",
         "allowance",
         "bonus",
@@ -2926,10 +2920,38 @@ private fun getCategoryColors(category: String): List<Color> { // getCategoryCol
         "보너스",
         "부수입",
         "투자",
-        "기타수입" -> listOf(Color(0xFF34D399), Color(0xFF059669))
-        else -> listOf(Color(0xFF22C55E), Color(0xFF16A34A)) // 값 여러 개를 묶은 목록을 만듦
-    } // 블록 끝
-} // 블록 끝
+        "기타수입" -> Icons.Filled.Savings
+        else -> Icons.Default.ShoppingCart
+    }
+    val accent = when (category) {
+        "utility",
+        "공과금" -> if (isDark) Color(0xFFFACC15) else Color(0xFFD97706)
+        "education",
+        "교육" -> if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB)
+        "health",
+        "의료" -> if (isDark) Color(0xFF5EEAD4) else Color(0xFF0F766E)
+        "shopping",
+        "쇼핑" -> if (isDark) Color(0xFFF9A8D4) else Color(0xFFDB2777)
+        "transport",
+        "교통" -> if (isDark) Color(0xFFA5B4FC) else Color(0xFF4F46E5)
+        "entertainment",
+        "여가" -> if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
+        "food",
+        "식비" -> if (isDark) Color(0xFFFB923C) else Color(0xFFEA580C)
+        else -> if (isDark) Color(0xFF86EFAC) else Color(0xFF16A34A)
+    }
+    val background = if (isDark) {
+        accent.copy(alpha = 0.14f)
+    } else {
+        accent.copy(alpha = 0.10f)
+    }
+
+    return CategoryVisualStyle(
+        icon = icon,
+        tint = accent,
+        background = background
+    )
+}
 
 private fun createExpenseTitle(category: String, memo: String): String { // createExpenseTitle 함수 시작
     return if (memo.isNotBlank()) { // 이 블록의 내용이 여기서 시작됨

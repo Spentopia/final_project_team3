@@ -6,6 +6,7 @@ package com.ict.spentopia.feature.mypage // 이 파일이 속한 패키지 위�
 import android.net.Uri // 이미지 주소 타입을 가져옴
 import androidx.activity.compose.rememberLauncherForActivityResult // rememberLauncherForActivityResult 기능을 가져옴
 import androidx.activity.result.contract.ActivityResultContracts // ActivityResultContracts 기능을 가져옴
+import androidx.compose.foundation.Image // 이미지 표시 컴포넌트를 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
 import androidx.compose.foundation.BorderStroke // BorderStroke 기능을 가져옴
 import androidx.compose.foundation.border // border 기능을 가져옴
@@ -56,12 +57,14 @@ import androidx.compose.ui.graphics.graphicsLayer // graphicsLayer 기능을 가
 import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
 import androidx.compose.ui.layout.ContentScale // ContentScale 기능을 가져옴
 import androidx.compose.ui.platform.LocalContext // 현재 화면 정보를 가져옴
+import androidx.compose.ui.res.painterResource // painterResource 기능을 가져옴
 import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
 import androidx.compose.ui.text.input.PasswordVisualTransformation // 비밀번호 입력 표시를 가져옴
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
 import androidx.lifecycle.viewmodel.compose.viewModel // Compose에서 ViewModel 연결하는 도구를 가져옴
 import coil.compose.AsyncImage // AsyncImage 기능을 가져옴
+import com.ict.spentopia.R // R 기능을 가져옴
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletDialog // SolanaWalletDialog 기능을 가져옴
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // SolanaWalletType 기능을 가져옴
 import com.ict.spentopia.ui.toast.AppToastType
@@ -985,6 +988,7 @@ private fun WalletTabContent( // WalletTabContent 함수를 선언함
                         value = visibleWalletAddress.ifBlank { "-" },
                         desc = "서비스 계정에 등록된 지갑 주소입니다.",
                         iconType = WalletInfoIcon.LINKED,
+                        walletProvider = visibleWalletProvider,
                         borderColor = linkedBorder,
                         containerColor = linkedBg
                     )
@@ -994,6 +998,7 @@ private fun WalletTabContent( // WalletTabContent 함수를 선언함
                         value = "${formatWalletAddress(visibleWalletAddress)} 연결됨",
                         desc = "연동된 지갑이 앱에도 연결되어 있어요.",
                         iconType = WalletInfoIcon.BROWSER,
+                        walletProvider = visibleWalletProvider,
                         borderColor = browserBorder,
                         containerColor = browserBg
                     )
@@ -1182,10 +1187,12 @@ private fun WalletInfoCard( // WalletInfoCard 함수를 선언함
     value: String, // 값을 받음
     desc: String, // 설명을 받음
     iconType: WalletInfoIcon, // 아이콘 타입을 받음
+    walletProvider: String = "", // 지갑 이름을 받음
     borderColor: Color, // 테두리색을 받음
     containerColor: Color // 배경색을 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isAppDarkTheme() // 다크모드인지 확인함
+    val walletLogoRes = walletProviderIconRes(walletProvider) // 지갑 이름에 맞는 로고를 정함
     val iconBg = when (iconType) {
         WalletInfoIcon.LINKED -> if (isDark) Color(0xFF14532D) else Color(0xFFDCFCE7)
         WalletInfoIcon.BROWSER -> if (isDark) Color(0xFF164E63) else Color(0xFFE0F2FE)
@@ -1215,16 +1222,25 @@ private fun WalletInfoCard( // WalletInfoCard 함수를 선언함
                         .padding(6.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = if (iconType == WalletInfoIcon.LINKED) {
-                            Icons.Outlined.CheckCircle
-                        } else {
-                            Icons.Outlined.DesktopWindows
-                        },
-                        contentDescription = title,
-                        tint = iconColor,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    if (walletLogoRes != null) { // 지갑 로고가 있으면 로고를 보여줌
+                        Image(
+                            painter = painterResource(id = walletLogoRes),
+                            contentDescription = title,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (iconType == WalletInfoIcon.LINKED) {
+                                Icons.Outlined.CheckCircle
+                            } else {
+                                Icons.Outlined.DesktopWindows
+                            },
+                            contentDescription = title,
+                            tint = iconColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
                 Text(
                     text = title,
@@ -1267,6 +1283,15 @@ private fun formatWalletAddress(address: String): String { // formatWalletAddres
         address
     } else { // 이 블록 안의 내용이 시작됨
         "${address.take(4)}...${address.takeLast(4)}"
+    }
+}
+
+private fun walletProviderIconRes(walletProvider: String): Int? { // 지갑 이름에 맞는 로고 리소스를 돌려줌
+    return when (walletProvider.uppercase()) {
+        "PHANTOM" -> R.drawable.ic_wallet_phantom_logo
+        "SOLFLARE" -> R.drawable.ic_wallet_solflare_logo
+        "BACKPACK" -> R.drawable.ic_wallet_backpack_logo
+        else -> null
     }
 }
 

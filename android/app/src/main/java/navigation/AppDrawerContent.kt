@@ -12,7 +12,20 @@ import androidx.compose.foundation.layout.fillMaxWidth // fillMaxWidth 기능을
 import androidx.compose.foundation.layout.height // height 기능을 가져옴
 import androidx.compose.foundation.layout.padding // padding 기능을 가져옴
 import androidx.compose.foundation.layout.size // size 기능을 가져옴
+import androidx.compose.foundation.rememberScrollState // 스크롤 상태를 기억하는 기능을 가져옴
 import androidx.compose.foundation.shape.RoundedCornerShape // RoundedCornerShape 기능을 가져옴
+import androidx.compose.foundation.verticalScroll // 세로 스크롤 기능을 가져옴
+import androidx.compose.material.icons.Icons // Icons 기능을 가져옴
+import androidx.compose.material.icons.outlined.AccountBalanceWallet // 가계부 아이콘을 가져옴
+import androidx.compose.material.icons.outlined.BarChart // 분석 아이콘을 가져옴
+import androidx.compose.material.icons.outlined.ChevronRight // 오른쪽 화살표 아이콘을 가져옴
+import androidx.compose.material.icons.outlined.Forum // 커뮤니티 아이콘을 가져옴
+import androidx.compose.material.icons.outlined.Hexagon // NFT 아이콘을 가져옴
+import androidx.compose.material.icons.outlined.Key // 게임 코드 아이콘을 가져옴
+import androidx.compose.material.icons.outlined.Logout // 로그아웃 아이콘을 가져옴
+import androidx.compose.material.icons.outlined.Person // 마이페이지 아이콘을 가져옴
+import androidx.compose.material.icons.outlined.Savings // 예산 아이콘을 가져옴
+import androidx.compose.material3.Icon // 아이콘 표시 컴포넌트를 가져옴
 import androidx.compose.material3.MaterialTheme // MaterialTheme 기능을 가져옴
 import androidx.compose.material3.Surface // Surface 기능을 가져옴
 import androidx.compose.material3.Text // 글자 표시 컴포넌트를 가져옴
@@ -20,7 +33,9 @@ import androidx.compose.runtime.Composable // Compose 화면 함수 표시를 �
 import androidx.compose.ui.Alignment // Alignment 기능을 가져옴
 import androidx.compose.ui.Modifier // UI 크기랑 여백 설정 도구를 가져옴
 import androidx.compose.ui.draw.clip // clip 기능을 가져옴
+import androidx.compose.ui.draw.shadow // shadow 기능을 가져옴
 import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
+import androidx.compose.ui.graphics.vector.ImageVector // ImageVector 타입을 가져옴
 import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // 앱 다크모드 배경색을 가져옴
@@ -44,6 +59,7 @@ fun AppDrawerContent( // AppDrawerContent 함수를 선언함
             .fillMaxHeight()
             .fillMaxWidth(0.82f)
             .background(MaterialTheme.colorScheme.surface)
+            .verticalScroll(rememberScrollState())
             .padding(20.dp),
         verticalArrangement = Arrangement.Top // verticalArrangement 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
@@ -78,146 +94,187 @@ fun AppDrawerContent( // AppDrawerContent 함수를 선언함
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp)) // UI 크기나 여백 같은 모양을 정함
+        Spacer(modifier = Modifier.height(18.dp)) // UI 크기나 여백 같은 모양을 정함
 
         DrawerMenuItem( // Drawer Menu Item 함수를 실행함
-            emoji = "📒", // emoji 값을 정해줌
+            icon = Icons.Outlined.AccountBalanceWallet, // icon 값을 정해줌
             title = "가계부", // 제목을 정해줌
+            tone = DrawerMenuTone.YELLOW,
             onClick = onLedgerClick // onLedgerClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
         )
 
         DrawerMenuItem( // Drawer Menu Item 함수를 실행함
-            emoji = "💰", // emoji 값을 정해줌
+            icon = Icons.Outlined.Savings, // icon 값을 정해줌
             title = "예산 설정", // 제목을 정해줌
+            tone = DrawerMenuTone.ORANGE,
             onClick = onBudgetClick // 예산 관련 값을 눌렀을 때 실행할 함수에 넣음
         )
 
         DrawerMenuItem( // Drawer Menu Item 함수를 실행함
-            emoji = "📊", // emoji 값을 정해줌
+            icon = Icons.Outlined.BarChart, // icon 값을 정해줌
             title = "소비 분석", // 제목을 정해줌
+            tone = DrawerMenuTone.BLUE,
             onClick = onAnalysisClick // onAnalysisClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
         )
 
         DrawerMenuItem( // Drawer Menu Item 함수를 실행함
-            emoji = "🧍", // emoji 값을 정해줌
+            icon = Icons.Outlined.Person, // icon 값을 정해줌
             title = "마이페이지 / 내 아바타", // 제목을 정해줌
+            tone = DrawerMenuTone.MINT,
             onClick = onProfileAvatarClick // 아바타 관련 값을 눌렀을 때 실행할 함수에 넣음
         )
 
         DrawerMenuItem( // Drawer Menu Item 함수를 실행함
-            emoji = "🖼️", // emoji 값을 정해줌
+            icon = Icons.Outlined.Hexagon, // icon 값을 정해줌
             title = "NFT 마켓", // 제목을 정해줌
+            tone = DrawerMenuTone.PURPLE,
             onClick = onMarketClick // 마켓 관련 값을 눌렀을 때 실행할 함수에 넣음
         )
 
         DrawerMenuItem( // Drawer Menu Item 함수를 실행함
-            emoji = "🎮", // emoji 값을 정해줌
+            icon = Icons.Outlined.Key, // icon 값을 정해줌
             title = "게임 코드", // 제목을 정해줌
+            tone = DrawerMenuTone.INDIGO,
             onClick = onPlazaClick // onPlazaClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
         )
 
         DrawerMenuItem( // Drawer Menu Item 함수를 실행함
-            emoji = "💬", // emoji 값을 정해줌
+            icon = Icons.Outlined.Forum, // icon 값을 정해줌
             title = "커뮤니티", // 제목을 정해줌
+            tone = DrawerMenuTone.GRAY,
             onClick = onCommunityClick // 커뮤니티 관련 값을 눌렀을 때 실행할 함수에 넣음
         )
 
-        Spacer(modifier = Modifier.height(18.dp)) // UI 크기나 여백 같은 모양을 정함
+        Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
 
         DrawerMenuItem( // Drawer Menu Item 함수를 실행함
-            emoji = "🚪", // emoji 값을 정해줌
+            icon = Icons.Outlined.Logout, // icon 값을 정해줌
             title = "로그아웃", // 제목을 정해줌
+            tone = DrawerMenuTone.RED,
             onClick = onLogoutClick // onLogoutClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
         )
     }
 }
 
+private enum class DrawerMenuTone {
+    YELLOW,
+    ORANGE,
+    BLUE,
+    MINT,
+    PURPLE,
+    INDIGO,
+    GRAY,
+    RED
+}
+
+private data class DrawerMenuColors(
+    val icon: Color,
+    val iconBackground: Color,
+    val card: Color,
+    val border: Color,
+    val chevron: Color
+)
+
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun DrawerMenuItem( // DrawerMenuItem 함수를 선언함
-    emoji: String, // emoji 값을 받음
+    icon: ImageVector, // icon 값을 받음
     title: String, // 제목을 받음
+    tone: DrawerMenuTone, // 메뉴 색상 타입을 받음
     onClick: () -> Unit // 눌렀을 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
-    val borderColor = drawerMenuBorderColor() // 메뉴 카드 테두리색을 저장함
-    val iconBorderColor = drawerMenuIconBorderColor() // 메뉴 아이콘 박스 테두리색을 저장함
-    val cardColor = drawerMenuCardColor() // 메뉴 카드 배경색을 저장함
-    val iconSurfaceColor = drawerMenuIconSurfaceColor() // 메뉴 아이콘 박스 배경색을 저장함
+    val colors = drawerMenuColors(tone) // 메뉴 색상 값을 저장함
     Surface( // Surface 함수를 실행함
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
-            .padding(vertical = 6.dp) // .padding(vertical 값을 정해줌
+            .padding(vertical = 5.dp) // .padding(vertical 값을 정해줌
             .clip(RoundedCornerShape(18.dp))
             .clickable { onClick() },
         shape = RoundedCornerShape(18.dp), // shape 값을 정해줌
-        border = BorderStroke(1.dp, borderColor), // 메뉴 카드 테두리색을 정함
+        border = BorderStroke(1.dp, colors.border), // 메뉴 카드 테두리색을 정함
         tonalElevation = 1.dp, // tonalElevation 값을 정해줌
-        color = cardColor // color 값을 정해줌
+        color = colors.card // color 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Row( // 안쪽 UI를 가로로 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 18.dp), // .padding(horizontal 값을 정해줌
+                .padding(horizontal = 16.dp, vertical = 15.dp), // .padding(horizontal 값을 정해줌
             verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
         ) { // 이 블록 안의 내용이 시작됨
             Surface( // Surface 함수를 실행함
-                modifier = Modifier.size(38.dp), // UI 크기나 여백 같은 모양을 정함
-                shape = RoundedCornerShape(12.dp), // shape 값을 정해줌
-                border = BorderStroke(1.dp, iconBorderColor), // 아이콘 박스 테두리색을 정함
-                color = iconSurfaceColor // color 값을 정해줌
+                modifier = Modifier
+                    .size(40.dp)
+                    .shadow(
+                        elevation = 8.dp,
+                        shape = RoundedCornerShape(13.dp),
+                        ambientColor = Color.Black.copy(alpha = 0.04f),
+                        spotColor = Color.Black.copy(alpha = 0.04f)
+                    ), // UI 크기나 여백 같은 모양을 정함
+                shape = RoundedCornerShape(13.dp), // shape 값을 정해줌
+                color = colors.iconBackground // color 값을 정해줌
             ) { // 이 블록 안의 내용이 시작됨
                 Row( // 안쪽 UI를 가로로 배치함
                     modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
                     horizontalArrangement = Arrangement.Center, // horizontalArrangement 값을 정해줌
                     verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
                 ) { // 이 블록 안의 내용이 시작됨
-                    Text(text = emoji) // 화면에 글자를 보여줌
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = colors.icon,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.size(12.dp)) // UI 크기나 여백 같은 모양을 정함
+            Spacer(modifier = Modifier.size(14.dp)) // UI 크기나 여백 같은 모양을 정함
 
             Text( // 화면에 글자를 보여줌
                 text = title, // 제목을 text 값에 넣음
+                modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleMedium, // style 값을 정해줌
                 fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
                 color = MaterialTheme.colorScheme.onSurface // color 값을 정해줌
+            )
+
+            Icon(
+                imageVector = Icons.Outlined.ChevronRight,
+                contentDescription = null,
+                tint = colors.chevron,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
 }
 
 @Composable
-private fun drawerMenuBorderColor(): Color {
-    return if (MaterialTheme.colorScheme.background == SpentopiaDarkBackground) {
-        Color(0xFF8B5CF6).copy(alpha = 0.42f) // 다크모드 메뉴 테두리색을 정함
-    } else {
-        Color(0xFF7DD3FC).copy(alpha = 0.72f) // 라이트모드 메뉴 테두리색을 정함
+private fun drawerMenuColors(tone: DrawerMenuTone): DrawerMenuColors {
+    val isDark = MaterialTheme.colorScheme.background == SpentopiaDarkBackground
+    val accent = when (tone) {
+        DrawerMenuTone.YELLOW -> if (isDark) Color(0xFFFACC15) else Color(0xFFD97706)
+        DrawerMenuTone.ORANGE -> if (isDark) Color(0xFFFB923C) else Color(0xFFEA580C)
+        DrawerMenuTone.BLUE -> if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB)
+        DrawerMenuTone.MINT -> if (isDark) Color(0xFF5EEAD4) else Color(0xFF0F766E)
+        DrawerMenuTone.PURPLE -> if (isDark) Color(0xFFC084FC) else Color(0xFF7C3AED)
+        DrawerMenuTone.INDIGO -> if (isDark) Color(0xFFA5B4FC) else Color(0xFF4F46E5)
+        DrawerMenuTone.GRAY -> if (isDark) Color(0xFFCBD5E1) else Color(0xFF64748B)
+        DrawerMenuTone.RED -> if (isDark) Color(0xFFFCA5A5) else Color(0xFFDC2626)
     }
-}
 
-@Composable
-private fun drawerMenuIconBorderColor(): Color {
-    return if (MaterialTheme.colorScheme.background == SpentopiaDarkBackground) {
-        Color(0xFFC4B5FD).copy(alpha = 0.34f) // 다크모드 아이콘 테두리색을 정함
+    return if (isDark) {
+        DrawerMenuColors(
+            icon = accent,
+            iconBackground = accent.copy(alpha = 0.16f),
+            card = Color(0xFF101827),
+            border = Color(0xFF7C3AED).copy(alpha = 0.20f),
+            chevron = Color(0xFF94A3B8).copy(alpha = 0.72f)
+        )
     } else {
-        Color(0xFF60A5FA).copy(alpha = 0.42f) // 라이트모드 아이콘 테두리색을 정함
-    }
-}
-
-@Composable
-private fun drawerMenuCardColor(): Color {
-    return if (MaterialTheme.colorScheme.background == SpentopiaDarkBackground) {
-        Color(0xFF111A2A) // 다크모드 메뉴 카드 배경색을 정함
-    } else {
-        Color(0xFFF7FBFF) // 라이트모드 메뉴 카드 배경색을 정함
-    }
-}
-
-@Composable
-private fun drawerMenuIconSurfaceColor(): Color {
-    return if (MaterialTheme.colorScheme.background == SpentopiaDarkBackground) {
-        Color(0xFF1E1B4B).copy(alpha = 0.74f) // 다크모드 아이콘 박스 배경색을 정함
-    } else {
-        Color(0xFFE0F2FE) // 라이트모드 아이콘 박스 배경색을 정함
+        DrawerMenuColors(
+            icon = accent,
+            iconBackground = accent.copy(alpha = 0.12f),
+            card = Color.White,
+            border = Color(0xFFEAF2FF),
+            chevron = Color(0xFFCBD5E1)
+        )
     }
 }

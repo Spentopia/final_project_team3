@@ -158,7 +158,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
             status = LoginToastStatus.SUCCESS,
             message = type.loginToastMessage(LoginToastStatus.SUCCESS)
         )
-        scope.launch {
+        scope.launch { //코루틴 실행
             delay(1_150) // 성공 아이콘과 문구가 보인 후 홈으로 이동할 시간을 둠
             if (loginToastSequence == sequence) {
                 loginToastData = null
