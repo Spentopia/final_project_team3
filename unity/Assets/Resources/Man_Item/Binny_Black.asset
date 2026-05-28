@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b1fa6239f9a7ca4ca34a3679efa65b6, type: 3}
+  m_Name: Binny_Black
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemID: 348af104-257e-464e-bebf-0de36e92558e
+  itemName: "\uB0A8\uC131 \uD799\uD569 \uBE14\uB799 \uBE44\uB2C8"
+  partType: Hat
+  inventoryIcon: {fileID: 697382176265373193, guid: 6c19aa085d66d17459b09699c2e99196, type: 3}
+  centerSprite: {fileID: 697382176265373193, guid: 6c19aa085d66d17459b09699c2e99196, type: 3}
+  leftSprite: {fileID: 0}
+  rightSprite: {fileID: 0}
+  leftShoeSprite: {fileID: 0}
+  rightShoeSprite: {fileID: 0}
+  centerOffset:
+    positionOffset: {x: 0.0702, y: 1.3108}
+    scaleOffset: {x: 0.3309008, y: 0.3243301}
+    rotationZ: 0
+  leftOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  rightOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  leftShoeOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  rightShoeOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0

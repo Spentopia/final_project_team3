@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 1f6b7ea40aabcad4a900cd43b93e32ef
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - fadeManager: {instanceID: 0}
+  - playerGroup: {instanceID: 0}
+  - inventoryGroup: {instanceID: 0}
+  - cameraGroup: {instanceID: 0}
+  - exitManager: {instanceID: 0}
+  - bgmPlayer: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

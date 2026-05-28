@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b1fa6239f9a7ca4ca34a3679efa65b6, type: 3}
+  m_Name: Mikey_Shoes
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemID: 61e9a3a6-cd3f-475e-a5de-4165f8597fc0
+  itemName: "\uB9C8\uC774\uD0A4 \uC2E0\uBC1C"
+  partType: Shoes
+  inventoryIcon: {fileID: -3947454932611150805, guid: 202ff3383de49e24098aa3be9c65c81d, type: 3}
+  centerSprite: {fileID: 0}
+  leftSprite: {fileID: 0}
+  rightSprite: {fileID: 0}
+  leftShoeSprite: {fileID: -5584854442344882969, guid: 44631d4c1ef4f3746ba821f23ee96b49, type: 3}
+  rightShoeSprite: {fileID: -3947454932611150805, guid: 202ff3383de49e24098aa3be9c65c81d, type: 3}
+  centerOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  leftOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  rightOffset:
+    positionOffset: {x: 0, y: 0}
+    scaleOffset: {x: 1, y: 1}
+    rotationZ: 0
+  leftShoeOffset:
+    positionOffset: {x: 0.1258, y: -1.19}
+    scaleOffset: {x: 0.2275452, y: 0.2203097}
+    rotationZ: 0
+  rightShoeOffset:
+    positionOffset: {x: -0.012, y: -1.0924}
+    scaleOffset: {x: 0.2481957, y: 0.1956317}
+    rotationZ: 0

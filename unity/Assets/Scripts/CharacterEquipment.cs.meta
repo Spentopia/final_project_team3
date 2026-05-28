@@ -1,0 +1,20 @@
+fileFormatVersion: 2
+guid: 1d6fee7cbbceefd40b5f3df8062853db
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - hatSlot: {instanceID: 0}
+  - hairSlot: {instanceID: 0}
+  - centerClothes: {instanceID: 0}
+  - leftClothes: {instanceID: 0}
+  - rightClothes: {instanceID: 0}
+  - centerPants: {instanceID: 0}
+  - leftPants: {instanceID: 0}
+  - rightPants: {instanceID: 0}
+  - testItem: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
