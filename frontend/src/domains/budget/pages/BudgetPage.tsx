@@ -332,6 +332,7 @@ export default function BudgetPage() {
     const savedBudget = localStorage.getItem(getCustomBudgetStorageKey(monthKey));
     const savedPlans = localStorage.getItem(getAiPlansStorageKey(monthKey));
     const savedSelectedPlan = localStorage.getItem(getSelectedPlanStorageKey(monthKey));
+    const savedBudgetLock = localStorage.getItem(getBudgetLockStorageKey(monthKey)) === "true";
 
     const hasSavedMonthData =
       Boolean(savedBudget) || Boolean(savedPlans) || savedSelectedPlan !== null || budgets[monthKey] !== undefined;
@@ -447,7 +448,13 @@ if (parsedPlans && parsedPlans.length > 0) {
 
 // 이미 위에서 읽은 값 사용
 setSelectedPlan(savedSelectedPlan ?? null);
-setIsBudgetLocked(localStorage.getItem(getBudgetLockStorageKey(monthKey)) === "true");
+const shouldLockBudget = savedBudgetLock && savedSelectedPlan !== null;
+
+if (savedBudgetLock && !savedSelectedPlan) {
+  localStorage.removeItem(getBudgetLockStorageKey(monthKey));
+}
+
+setIsBudgetLocked(shouldLockBudget);
 
 if (savedSelectedPlan && parsedPlans?.length) {
   const appliedPlan = parsedPlans.find(
@@ -695,9 +702,6 @@ localStorage.removeItem(
     getCustomBudgetStorageKey(monthKey),
     JSON.stringify(customBudget)
   );
-
-  localStorage.setItem(getBudgetLockStorageKey(monthKey), "true");
-  setIsBudgetLocked(true);
 
   toast.success(
     `${selectedYear}년 ${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`
@@ -1309,7 +1313,7 @@ localStorage.removeItem(
                   await handleApplyPlan(planId);
                 }}
               >
-                적용
+                확인
               </Button>
             </DialogFooter>
           </div>
