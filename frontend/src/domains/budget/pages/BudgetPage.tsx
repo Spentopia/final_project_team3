@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import {
   getMonthlyIncomeTotal,
 } from "@/shared/utils/finance";
+import { getMe } from "@/domains/auth/api/auth";
 
 const CUSTOM_BUDGET_STORAGE_PREFIX = "customBudget";
 const SELECTED_PLAN_STORAGE_PREFIX = "selectedPlan";
@@ -69,6 +70,18 @@ type AiPlanApiResponse = {
     living: number;
     leisure: number;
     description: string;
+  }>;
+};
+
+type BudgetApiResponse = {
+  id: string;
+  year: number;
+  month: number;
+  total_budget: number;
+  savings_goal: number | null;
+  categories: Array<{
+    category: string;
+    allocated_amount: number;
   }>;
 };
 
@@ -115,17 +128,17 @@ const createEmptyBudget = (): CustomBudget => ({
   leisure: 0,
 });
 
-const getCustomBudgetStorageKey = (monthKey: string) =>
-  `${CUSTOM_BUDGET_STORAGE_PREFIX}:${monthKey}`;
+const getCustomBudgetStorageKey = (monthKey: string, ownerKey: string) =>
+  `${CUSTOM_BUDGET_STORAGE_PREFIX}:${ownerKey}:${monthKey}`;
 
-const getSelectedPlanStorageKey = (monthKey: string) =>
-  `${SELECTED_PLAN_STORAGE_PREFIX}:${monthKey}`;
+const getSelectedPlanStorageKey = (monthKey: string, ownerKey: string) =>
+  `${SELECTED_PLAN_STORAGE_PREFIX}:${ownerKey}:${monthKey}`;
 
-const getAiPlansStorageKey = (monthKey: string) =>
-  `${AI_PLANS_STORAGE_PREFIX}:${monthKey}`;
+const getAiPlansStorageKey = (monthKey: string, ownerKey: string) =>
+  `${AI_PLANS_STORAGE_PREFIX}:${ownerKey}:${monthKey}`;
 
-const getBudgetLockStorageKey = (monthKey: string) =>
-  `${BUDGET_LOCK_STORAGE_PREFIX}:${monthKey}`;
+const getBudgetLockStorageKey = (monthKey: string, ownerKey: string) =>
+  `${BUDGET_LOCK_STORAGE_PREFIX}:${ownerKey}:${monthKey}`;
 
 const getMonthKeyFromParts = (year: number, month: number) =>
   `${year}-${String(month + 1).padStart(2, "0")}`;
@@ -177,11 +190,12 @@ const parseAiPlans = (raw: string | null): AiPlan[] | null => {
 
 const readMonthSnapshot = (
   monthKey: string,
-  budgetAmount: number | undefined
+  budgetAmount: number | undefined,
+  ownerKey: string
 ): MonthSnapshot | null => {
-  const customBudget = parseCustomBudget(localStorage.getItem(getCustomBudgetStorageKey(monthKey)));
-  const aiPlans = parseAiPlans(localStorage.getItem(getAiPlansStorageKey(monthKey)));
-  const selectedPlanRaw = localStorage.getItem(getSelectedPlanStorageKey(monthKey));
+  const customBudget = parseCustomBudget(localStorage.getItem(getCustomBudgetStorageKey(monthKey, ownerKey)));
+  const aiPlans = parseAiPlans(localStorage.getItem(getAiPlansStorageKey(monthKey, ownerKey)));
+  const selectedPlanRaw = localStorage.getItem(getSelectedPlanStorageKey(monthKey, ownerKey));
   const selectedPlan =
   selectedPlanRaw === null
     ? null
@@ -202,11 +216,15 @@ const readMonthSnapshot = (
   };
 };
 
-const findClosestPreviousMonthSnapshot = (startIndex: number, budgets: Record<string, number>) => {
+const findClosestPreviousMonthSnapshot = (
+  startIndex: number,
+  budgets: Record<string, number>,
+  ownerKey: string
+) => {
   for (let index = Math.max(0, startIndex); index >= 0; index -= 1) {
     const { year, month } = getMonthPartsFromIndex(index);
     const key = getMonthKeyFromParts(year, month);
-    const snapshot = readMonthSnapshot(key, budgets[key]);
+    const snapshot = readMonthSnapshot(key, budgets[key], ownerKey);
     if (snapshot) return snapshot;
   }
   return null;
@@ -291,6 +309,32 @@ const createDefaultAiPlans = (
 });
 };
 
+const categoryAmount = (
+  categories: BudgetApiResponse["categories"],
+  names: string[]
+) =>
+  categories.find((item) =>
+    names.some((name) => item.category.toLowerCase() === name.toLowerCase())
+  )?.allocated_amount ?? 0;
+
+const budgetResponseToCustomBudget = (budget: BudgetApiResponse): CustomBudget => ({
+  monthly: Number(budget.total_budget) || 0,
+  savings: Number(budget.savings_goal) || 0,
+  food: categoryAmount(budget.categories, ["food", "식비"]),
+  transport: categoryAmount(budget.categories, ["transport", "교통", "교통비"]),
+  living: categoryAmount(budget.categories, ["living", "생활", "생활비"]),
+  leisure: categoryAmount(budget.categories, ["leisure", "hobby", "여가", "취미", "여가/취미"]),
+});
+
+const customBudgetToCategoryPayload = (budget: CustomBudget) => ({
+  categories: [
+    { category: "food", allocated_amount: Number(budget.food) || 0 },
+    { category: "transport", allocated_amount: Number(budget.transport) || 0 },
+    { category: "living", allocated_amount: Number(budget.living) || 0 },
+    { category: "leisure", allocated_amount: Number(budget.leisure) || 0 },
+  ],
+});
+
 export default function BudgetPage() {
   const { budgets, setMonthlyBudget, transactions } = useFinance();
   const today = new Date();
@@ -300,26 +344,14 @@ export default function BudgetPage() {
   const selectedMonthIndex = getMonthIndexFromParts(selectedYear, selectedMonth);
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
   const currentMonthLabel = `${selectedYear}년 ${selectedMonth + 1}월`;
+  const [storageOwnerKey, setStorageOwnerKey] = useState("guest");
+  const [currentBudgetId, setCurrentBudgetId] = useState<string | null>(null);
 
-  const [aiPlans, setAiPlans] = useState<AiPlan[]>(() => {
-  const saved = localStorage.getItem(
-    getAiPlansStorageKey(
-      `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
-    )
-  );
-
-  return parseAiPlans(saved) || [];
-});
+  const [aiPlans, setAiPlans] = useState<AiPlan[]>([]);
   const [customBudget, setCustomBudget] = useState<CustomBudget>(createEmptyBudget);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [pendingApplyPlanId, setPendingApplyPlanId] = useState<string | null>(null);
-  const [isBudgetLocked, setIsBudgetLocked] = useState(() =>
-    localStorage.getItem(
-      getBudgetLockStorageKey(
-        `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
-      )
-    ) === "true"
-  );
+  const [isBudgetLocked, setIsBudgetLocked] = useState(false);
   const selectedMonthDate = new Date(selectedYear, selectedMonth, 1);
   const monthlyIncomeBudget = getMonthlyIncomeTotal(transactions, selectedMonthDate);
   const currentBudget = budgets[monthKey] || monthlyIncomeBudget || 0;
@@ -329,10 +361,30 @@ export default function BudgetPage() {
     : "예산 설정은 월 1회만 가능합니다.";
 
   useEffect(() => {
-    const savedBudget = localStorage.getItem(getCustomBudgetStorageKey(monthKey));
-    const savedPlans = localStorage.getItem(getAiPlansStorageKey(monthKey));
-    const savedSelectedPlan = localStorage.getItem(getSelectedPlanStorageKey(monthKey));
-    const savedBudgetLock = localStorage.getItem(getBudgetLockStorageKey(monthKey)) === "true";
+    let cancelled = false;
+
+    void getMe()
+      .then((me) => {
+        if (!cancelled) {
+          setStorageOwnerKey(me.id);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setStorageOwnerKey("guest");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const savedBudget = localStorage.getItem(getCustomBudgetStorageKey(monthKey, storageOwnerKey));
+    const savedPlans = localStorage.getItem(getAiPlansStorageKey(monthKey, storageOwnerKey));
+    const savedSelectedPlan = localStorage.getItem(getSelectedPlanStorageKey(monthKey, storageOwnerKey));
+    const savedBudgetLock = localStorage.getItem(getBudgetLockStorageKey(monthKey, storageOwnerKey)) === "true";
 
     const hasSavedMonthData =
       Boolean(savedBudget) || Boolean(savedPlans) || savedSelectedPlan !== null || budgets[monthKey] !== undefined;
@@ -340,7 +392,8 @@ export default function BudgetPage() {
     const fallbackBudgetForMonth = () => {
   const previousSnapshot = findClosestPreviousMonthSnapshot(
     selectedMonthIndex - 1,
-    budgets
+    budgets,
+    storageOwnerKey
   );
 
   if (previousSnapshot?.customBudget?.monthly) {
@@ -370,7 +423,8 @@ export default function BudgetPage() {
 } else if (hasSavedMonthData) {
   const previousSnapshot = findClosestPreviousMonthSnapshot(
     selectedMonthIndex - 1,
-    budgets
+    budgets,
+    storageOwnerKey
   );
 
   const nextBudget = previousSnapshot?.customBudget
@@ -384,7 +438,7 @@ export default function BudgetPage() {
   setCustomBudget(nextBudget);
 
   localStorage.setItem(
-    getCustomBudgetStorageKey(monthKey),
+    getCustomBudgetStorageKey(monthKey, storageOwnerKey),
     JSON.stringify(nextBudget)
   );
 
@@ -397,7 +451,8 @@ export default function BudgetPage() {
 } else {
   const previousSnapshot = findClosestPreviousMonthSnapshot(
     selectedMonthIndex - 1,
-    budgets
+    budgets,
+    storageOwnerKey
   );
 
   let nextBudget;
@@ -414,7 +469,7 @@ export default function BudgetPage() {
   setCustomBudget(nextBudget);
 
   localStorage.setItem(
-    getCustomBudgetStorageKey(monthKey),
+    getCustomBudgetStorageKey(monthKey, storageOwnerKey),
     JSON.stringify(nextBudget)
   );
 
@@ -431,14 +486,15 @@ if (parsedPlans && parsedPlans.length > 0) {
   // 이전 달 플랜 자동 복원
   const previousSnapshot = findClosestPreviousMonthSnapshot(
     selectedMonthIndex - 1,
-    budgets
+    budgets,
+    storageOwnerKey
   );
 
   if (previousSnapshot?.aiPlans?.length) {
     setAiPlans(previousSnapshot.aiPlans);
 
     localStorage.setItem(
-      getAiPlansStorageKey(monthKey),
+      getAiPlansStorageKey(monthKey, storageOwnerKey),
       JSON.stringify(previousSnapshot.aiPlans)
     );
   } else {
@@ -451,7 +507,7 @@ setSelectedPlan(savedSelectedPlan ?? null);
 const shouldLockBudget = savedBudgetLock && savedSelectedPlan !== null;
 
 if (savedBudgetLock && !savedSelectedPlan) {
-  localStorage.removeItem(getBudgetLockStorageKey(monthKey));
+  localStorage.removeItem(getBudgetLockStorageKey(monthKey, storageOwnerKey));
 }
 
 setIsBudgetLocked(shouldLockBudget);
@@ -479,17 +535,102 @@ if (savedSelectedPlan && parsedPlans?.length) {
   }
 } // ← 이거 추가
 
-}, [monthKey]);
+}, [monthKey, storageOwnerKey]);
 
   useEffect(() => {
-  if (!monthKey) return;
+    let cancelled = false;
 
-  localStorage.setItem(
-    getAiPlansStorageKey(monthKey),
-    JSON.stringify(aiPlans)
-  );
-}, [aiPlans, monthKey]);
+    const loadServerBudget = async () => {
+      try {
+        const response = await apiClient.get<BudgetApiResponse>("/api/budget", {
+          params: {
+            year: selectedYear,
+            month: selectedMonth + 1,
+          },
+        });
 
+        if (cancelled) return;
+
+        const serverBudget = budgetResponseToCustomBudget(response.data);
+        setCurrentBudgetId(response.data.id);
+        setCustomBudget(serverBudget);
+
+        if (serverBudget.monthly > 0) {
+          setMonthlyBudget(monthKey, serverBudget.monthly);
+        }
+
+        localStorage.setItem(
+          getCustomBudgetStorageKey(monthKey, storageOwnerKey),
+          JSON.stringify(serverBudget)
+        );
+      } catch (err: any) {
+        if (cancelled) return;
+
+        if (err.response?.status === 404) {
+          setCurrentBudgetId(null);
+          return;
+        }
+
+        toast.error("서버 예산 정보를 불러오지 못했습니다.");
+      }
+    };
+
+    void loadServerBudget();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [monthKey, selectedMonth, selectedYear, storageOwnerKey]);
+
+  const findOrCreateBudget = async (budget: CustomBudget): Promise<string> => {
+    const month = selectedMonth + 1;
+
+    if (currentBudgetId) {
+      return currentBudgetId;
+    }
+
+    try {
+      const res = await apiClient.get<BudgetApiResponse>("/api/budget", {
+        params: {
+          year: selectedYear,
+          month,
+        },
+      });
+
+      setCurrentBudgetId(res.data.id);
+      return res.data.id;
+    } catch (err: any) {
+      if (err.response?.status !== 404) {
+        throw err;
+      }
+
+      const createRes = await apiClient.post<BudgetApiResponse>("/api/budget", {
+        year: selectedYear,
+        month,
+        total_budget: Number(budget.monthly) || 1000000,
+        savings_goal: Number(budget.savings) || 0,
+      });
+
+      setCurrentBudgetId(createRes.data.id);
+      return createRes.data.id;
+    }
+  };
+
+  const saveBudgetToServer = async (budget: CustomBudget): Promise<string> => {
+    const budgetId = await findOrCreateBudget(budget);
+
+    await apiClient.patch(`/api/budget/${budgetId}`, {
+      total_budget: Number(budget.monthly) || 0,
+      savings_goal: Number(budget.savings) || 0,
+    });
+
+    await apiClient.patch(
+      `/api/budget/${budgetId}/categories`,
+      customBudgetToCategoryPayload(budget)
+    );
+
+    return budgetId;
+  };
 
   const handleApplyPlan = async (planId: string) => {
 
@@ -502,62 +643,35 @@ if (savedSelectedPlan && parsedPlans?.length) {
   if (!plan) return;
 
   try {
-    const month = selectedMonth + 1;
-
-    // 1️⃣ budget 조회
-    const res = await apiClient.get("/api/budget", {
-      params: {
-        year: selectedYear,
-        month,
-      },
-    });
-
-    const budgetId = res.data.id;
-
-    // 2️⃣ DB 업데이트 🔥
-    await apiClient.patch(`/api/budget/${budgetId}`, {
-      total_budget: plan.budget,
-      savings_goal: plan.savings,
-    });
-
-    // 3️⃣ 카테고리도 저장 (선택 but 강추)
-    await apiClient.patch(`/api/budget/${budgetId}/categories`, {
-      categories: plan.categories.map((cat) => ({
-        category:
-          cat.name === "식비"
-            ? "food"
-            : cat.name === "교통비"
-            ? "transport"
-            : cat.name === "생활비"
-            ? "living"
-            : cat.name === "여가/취미"
-            ? "leisure"
-            : "savings",
-        allocated_amount: cat.amount,
-      })),
-    });
-
-    // 4️⃣ 프론트 상태 업데이트
-    setSelectedPlan(planId);
-
-localStorage.setItem(
-  getSelectedPlanStorageKey(monthKey),
-  planId
-);
-
-localStorage.setItem(getBudgetLockStorageKey(monthKey), "true");
-setIsBudgetLocked(true);
-
-setMonthlyBudget(monthKey, plan.budget);
-
-    setCustomBudget({
+    const nextBudget = {
       monthly: plan.budget,
       savings: plan.savings,
       food: plan.categories.find((c) => c.name === "식비")?.amount ?? 0,
       transport: plan.categories.find((c) => c.name === "교통비")?.amount ?? 0,
       living: plan.categories.find((c) => c.name === "생활비")?.amount ?? 0,
       leisure: plan.categories.find((c) => c.name === "여가/취미")?.amount ?? 0,
-    });
+    };
+
+    await saveBudgetToServer(nextBudget);
+
+    // 4️⃣ 프론트 상태 업데이트
+    setSelectedPlan(planId);
+
+localStorage.setItem(
+  getSelectedPlanStorageKey(monthKey, storageOwnerKey),
+  planId
+);
+
+localStorage.setItem(getBudgetLockStorageKey(monthKey, storageOwnerKey), "true");
+setIsBudgetLocked(true);
+
+setMonthlyBudget(monthKey, plan.budget);
+
+    setCustomBudget(nextBudget);
+    localStorage.setItem(
+      getCustomBudgetStorageKey(monthKey, storageOwnerKey),
+      JSON.stringify(nextBudget)
+    );
 
     toast.success("플랜이 적용되었습니다! 🚀");
   } catch (err) {
@@ -587,42 +701,12 @@ setMonthlyBudget(monthKey, plan.budget);
 
   setLoading(true);
   try {
-    // 👉 1. 현재 선택된 budget id 필요
-    // 지금 구조에서는 budget id가 없으니까
-    // → 먼저 budget을 생성 or 조회해야 함
-
     const month = selectedMonth + 1;
-
-let budgetId;
-
-try {
-  const res = await apiClient.get("/api/budget", {
-    params: {
-      year: selectedYear,
-      month,
-    },
-  });
-
-  budgetId = res.data.id;
-
-  await apiClient.patch(`/api/budget/${budgetId}`, {
-    total_budget: sourceBudget,
-    savings_goal: customBudget.savings || 0,
-  });
-} catch (err: any) {
-  if (err.response?.status === 404) {
-    const createRes = await apiClient.post("/api/budget", {
-      year: selectedYear,
-      month,
-      total_budget: sourceBudget || 1000000,
-      savings_goal: customBudget.savings || 0,
-    });
-
-    budgetId = createRes.data.id;
-  } else {
-    throw err;
-  }
-}
+    const budgetForRequest = {
+      ...customBudget,
+      monthly: sourceBudget,
+    };
+    const budgetId = await saveBudgetToServer(budgetForRequest);
 
     // 👉 3. AI 플랜 생성 요청 (핵심)
     const aiRes = await apiClient.post<AiPlanApiResponse>(
@@ -663,7 +747,7 @@ setAiPlans(mappedPlans);
 
 // localStorage 저장
 localStorage.setItem(
-  getAiPlansStorageKey(monthKey),
+  getAiPlansStorageKey(monthKey, storageOwnerKey),
   JSON.stringify(mappedPlans)
 );
 
@@ -671,7 +755,7 @@ localStorage.setItem(
 setSelectedPlan(null);
 
 localStorage.removeItem(
-  getSelectedPlanStorageKey(monthKey)
+  getSelectedPlanStorageKey(monthKey, storageOwnerKey)
 );
 
     toast.success("AI 플랜 생성 완료!");
@@ -683,7 +767,7 @@ localStorage.removeItem(
   }
 };
 
-  const handleSaveCustomBudget = () => {
+  const handleSaveCustomBudget = async () => {
   if (!canEditBudget) {
     toast.error(budgetDisabledMessage);
     return;
@@ -696,16 +780,22 @@ localStorage.removeItem(
     return;
   }
 
-  setMonthlyBudget(monthKey, monthlyBudget);
+  try {
+    await saveBudgetToServer(customBudget);
+    setMonthlyBudget(monthKey, monthlyBudget);
 
-  localStorage.setItem(
-    getCustomBudgetStorageKey(monthKey),
-    JSON.stringify(customBudget)
-  );
+    localStorage.setItem(
+      getCustomBudgetStorageKey(monthKey, storageOwnerKey),
+      JSON.stringify(customBudget)
+    );
 
-  toast.success(
-    `${selectedYear}년 ${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`
-  );
+    toast.success(
+      `${selectedYear}년 ${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`
+    );
+  } catch (err) {
+    console.error(err);
+    toast.error("예산 저장에 실패했습니다.");
+  }
 };
 
   const fitCategoryBudgetsToMonthly = (budget: CustomBudget): CustomBudget => {

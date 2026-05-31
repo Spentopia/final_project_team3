@@ -3,6 +3,7 @@ import axios from "axios";
 import styles from "./AnalyticsPage.module.css";
 import { useFinance, type Transaction } from "@/shared/providers/FinanceProvider";
 import { listExpenses } from "@/shared/api/expenseApi";
+import { apiClient } from "@/shared/api/client";
 
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
@@ -260,7 +261,7 @@ const buildPaymentPatternData = (transactions: Transaction[]) => {
 };
 
 export default function Analytics() {
-  const { transactions, replaceTransactions, budgets } = useFinance();
+  const { transactions, replaceTransactions, budgets, setMonthlyBudget } = useFinance();
   const { connection } = useConnection();
   const { publicKey, signTransaction } = useWallet();
   const { resolvedTheme } = useTheme();
@@ -291,6 +292,30 @@ useEffect(() => {
   };
 
   fetchExpenses();
+}, []);
+
+useEffect(() => {
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const fetchCurrentBudget = async () => {
+    try {
+      const res = await apiClient.get("/api/budget", {
+        params: {
+          year: now.getFullYear(),
+          month: now.getMonth() + 1,
+        },
+      });
+
+      setMonthlyBudget(monthKey, Number(res.data.total_budget) || 0);
+    } catch (error: any) {
+      if (error.response?.status !== 404) {
+        toast.error("예산 정보를 불러오지 못했습니다.");
+      }
+    }
+  };
+
+  void fetchCurrentBudget();
 }, []);
 
   const now = new Date();

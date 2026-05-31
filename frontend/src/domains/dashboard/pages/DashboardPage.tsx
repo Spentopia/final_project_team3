@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useFinance } from "@/shared/providers/FinanceProvider";
 import { deleteExpense } from "@/shared/api/expenseApi";
+import { apiClient } from "@/shared/api/client";
 import styles from "./DashboardPage.module.css";
 
 
@@ -95,7 +96,7 @@ const incomeCategories = [
 ];
 
 export default function DashboardPage() {
-  const { budgets, transactions, replaceTransactions, addTransaction } = useFinance();
+  const { budgets, transactions, replaceTransactions, addTransaction, setMonthlyBudget } = useFinance();
   const draftStorageKey = "dashboard-expense-draft";
   const entryTypeStorageKey = "dashboard-entry-type";
   const marketCardStyle = {
@@ -292,6 +293,30 @@ export default function DashboardPage() {
 
     void loadExpenses();
     void loadBoxCount();
+
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    const loadBudget = async () => {
+      try {
+        const res = await apiClient.get("/api/budget", {
+          params: {
+            year: now.getFullYear(),
+            month: now.getMonth() + 1,
+          },
+        });
+
+        if (!cancelled) {
+          setMonthlyBudget(monthKey, Number(res.data.total_budget) || 0);
+        }
+      } catch (error: any) {
+        if (!cancelled && error.response?.status !== 404) {
+          toast.error("예산 정보를 불러오지 못했습니다.");
+        }
+      }
+    };
+
+    void loadBudget();
 
     return () => {
       cancelled = true;
