@@ -79,6 +79,7 @@ type BudgetApiResponse = {
   month: number;
   total_budget: number;
   savings_goal: number | null;
+  locked_at?: string | null;
   categories: Array<{
     category: string;
     allocated_amount: number;
@@ -504,13 +505,7 @@ if (parsedPlans && parsedPlans.length > 0) {
 
 // 이미 위에서 읽은 값 사용
 setSelectedPlan(savedSelectedPlan ?? null);
-const shouldLockBudget = savedBudgetLock && savedSelectedPlan !== null;
-
-if (savedBudgetLock && !savedSelectedPlan) {
-  localStorage.removeItem(getBudgetLockStorageKey(monthKey, storageOwnerKey));
-}
-
-setIsBudgetLocked(shouldLockBudget);
+setIsBudgetLocked(savedBudgetLock);
 
 if (savedSelectedPlan && parsedPlans?.length) {
   const appliedPlan = parsedPlans.find(
@@ -554,6 +549,7 @@ if (savedSelectedPlan && parsedPlans?.length) {
         const serverBudget = budgetResponseToCustomBudget(response.data);
         setCurrentBudgetId(response.data.id);
         setCustomBudget(serverBudget);
+        setIsBudgetLocked(Boolean(response.data.locked_at));
 
         if (serverBudget.monthly > 0) {
           setMonthlyBudget(monthKey, serverBudget.monthly);
@@ -616,18 +612,22 @@ if (savedSelectedPlan && parsedPlans?.length) {
     }
   };
 
-  const saveBudgetToServer = async (budget: CustomBudget): Promise<string> => {
+  const saveBudgetToServer = async (
+    budget: CustomBudget,
+    lockBudget = false
+  ): Promise<string> => {
     const budgetId = await findOrCreateBudget(budget);
-
-    await apiClient.patch(`/api/budget/${budgetId}`, {
-      total_budget: Number(budget.monthly) || 0,
-      savings_goal: Number(budget.savings) || 0,
-    });
 
     await apiClient.patch(
       `/api/budget/${budgetId}/categories`,
       customBudgetToCategoryPayload(budget)
     );
+
+    await apiClient.patch(`/api/budget/${budgetId}`, {
+      total_budget: Number(budget.monthly) || 0,
+      savings_goal: Number(budget.savings) || 0,
+      lock_budget: lockBudget,
+    });
 
     return budgetId;
   };
@@ -652,7 +652,7 @@ if (savedSelectedPlan && parsedPlans?.length) {
       leisure: plan.categories.find((c) => c.name === "여가/취미")?.amount ?? 0,
     };
 
-    await saveBudgetToServer(nextBudget);
+    await saveBudgetToServer(nextBudget, true);
 
     // 4️⃣ 프론트 상태 업데이트
     setSelectedPlan(planId);
@@ -706,7 +706,7 @@ setMonthlyBudget(monthKey, plan.budget);
       ...customBudget,
       monthly: sourceBudget,
     };
-    const budgetId = await saveBudgetToServer(budgetForRequest);
+    const budgetId = await saveBudgetToServer(budgetForRequest, false);
 
     // 👉 3. AI 플랜 생성 요청 (핵심)
     const aiRes = await apiClient.post<AiPlanApiResponse>(
@@ -781,13 +781,15 @@ localStorage.removeItem(
   }
 
   try {
-    await saveBudgetToServer(customBudget);
+    await saveBudgetToServer(customBudget, true);
     setMonthlyBudget(monthKey, monthlyBudget);
 
     localStorage.setItem(
       getCustomBudgetStorageKey(monthKey, storageOwnerKey),
       JSON.stringify(customBudget)
     );
+    localStorage.setItem(getBudgetLockStorageKey(monthKey, storageOwnerKey), "true");
+    setIsBudgetLocked(true);
 
     toast.success(
       `${selectedYear}년 ${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`

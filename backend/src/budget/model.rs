@@ -16,6 +16,8 @@ pub struct Budget {
     pub total_budget: i32,
     pub savings_goal: Option<i32>,
     pub ai_plan: Option<String>, // AI가 생성한 소비 플랜
+    #[serde(default)]
+    pub locked_at: Option<DateTime<Utc>>,
     pub created_at: Option<DateTime<Utc>>,
 }
 

@@ -22,6 +22,8 @@ pub struct CreateBudgetRequest {
 pub struct UpdateBudgetRequest {
     pub total_budget: Option<i32>,
     pub savings_goal: Option<i32>,
+    #[serde(default)]
+    pub lock_budget: bool,
 }
 
 // ── 카테고리 배분 항목 ─────────────────────────────────────────
@@ -50,6 +52,7 @@ pub struct BudgetResponse {
     pub savings_goal: Option<i32>,
     pub ai_plan: Option<String>,
     pub categories: Vec<BudgetCategoryItem>,
+    pub locked_at: Option<DateTime<Utc>>,
     pub created_at: Option<DateTime<Utc>>,
 }
 

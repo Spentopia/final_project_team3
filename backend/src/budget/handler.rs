@@ -18,6 +18,18 @@ use super::{
 };
 use crate::state::AppState;
 
+fn budget_error_response(e: anyhow::Error) -> axum::response::Response {
+    match e.to_string().as_str() {
+        "budget_locked" => (
+            StatusCode::CONFLICT,
+            "이번 달 예산 설정이 완료되어 수정할 수 없습니다.".to_string(),
+        )
+            .into_response(),
+        "budget_not_found" => StatusCode::NOT_FOUND.into_response(),
+        _ => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
 fn first_day_of_month(year: i32, month: i32) -> Option<chrono::NaiveDate> {
     chrono::NaiveDate::from_ymd_opt(year, month as u32, 1)
 }
@@ -111,7 +123,7 @@ pub async fn update_budget(
 ) -> impl IntoResponse {
     match service::update_budget(&state, user_id, budget_id, req).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => budget_error_response(e),
     }
 }
 
@@ -125,13 +137,13 @@ pub async fn update_budget(
 )]
 pub async fn update_categories(
     State(state): State<AppState>,
-    Extension(_user_id): Extension<Uuid>,
+    Extension(user_id): Extension<Uuid>,
     Path(budget_id): Path<Uuid>,
     Json(req): Json<UpdateBudgetCategoriesRequest>,
 ) -> impl IntoResponse {
-    match service::update_categories(&state, budget_id, req).await {
+    match service::update_categories(&state, user_id, budget_id, req).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => budget_error_response(e),
     }
 }
 
@@ -150,6 +162,6 @@ pub async fn generate_ai_plan(
     let req = GenerateAiPlanRequest { budget_id };
     match service::generate_ai_plan(&state, user_id, req).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => budget_error_response(e),
     }
 }

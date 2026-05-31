@@ -12,6 +12,7 @@
 
 use crate::budget::dto::Plan;
 use anyhow::{Context, Result, anyhow};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -73,6 +74,7 @@ pub async fn get_budget(
         savings_goal: budget.savings_goal,
         ai_plan: budget.ai_plan,
         categories,
+        locked_at: budget.locked_at,
         created_at: budget.created_at,
     }))
 }
@@ -137,8 +139,40 @@ pub async fn create_budget(
         savings_goal: budget.savings_goal,
         ai_plan: budget.ai_plan,
         categories: vec![],
+        locked_at: budget.locked_at,
         created_at: budget.created_at,
     })
+}
+
+async fn fetch_budget_for_user(state: &AppState, user_id: Uuid, budget_id: Uuid) -> Result<Budget> {
+    let url = format!(
+        "{}/rest/v1/budgets?id=eq.{}&user_id=eq.{}&select=*&limit=1",
+        state.config.supabase_url.trim_end_matches('/'),
+        budget_id,
+        user_id,
+    );
+
+    let res = state
+        .http_client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", state.config.supabase_secret_key),
+        )
+        .header("apikey", &state.config.supabase_secret_key)
+        .send()
+        .await
+        .context("budgets 잠금 확인 SELECT 요청 실패")?;
+
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("budgets 잠금 확인 SELECT 실패: {}", body));
+    }
+
+    let rows: Vec<Budget> = res.json().await.context("budgets 잠금 확인 역직렬화 실패")?;
+    rows.into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("budget_not_found"))
 }
 
 // ── 예산 수정 ─────────────────────────────────────────────────
@@ -149,12 +183,31 @@ pub async fn update_budget(
     budget_id: Uuid,
     req: UpdateBudgetRequest,
 ) -> Result<BudgetResponse> {
+    let current = fetch_budget_for_user(state, user_id, budget_id).await?;
+
+    if current.locked_at.is_some() {
+        return Err(anyhow!("budget_locked"));
+    }
+
     let url = format!(
         "{}/rest/v1/budgets?id=eq.{}&user_id=eq.{}",
         state.config.supabase_url.trim_end_matches('/'),
         budget_id,
         user_id,
     );
+
+    #[derive(Serialize)]
+    struct PatchPayload {
+        total_budget: Option<i32>,
+        savings_goal: Option<i32>,
+        locked_at: Option<DateTime<Utc>>,
+    }
+
+    let payload = PatchPayload {
+        total_budget: req.total_budget,
+        savings_goal: req.savings_goal,
+        locked_at: req.lock_budget.then(Utc::now),
+    };
 
     let res = state
         .http_client
@@ -165,7 +218,7 @@ pub async fn update_budget(
         )
         .header("apikey", &state.config.supabase_secret_key)
         .header("Prefer", "return=representation")
-        .json(&req)
+        .json(&payload)
         .send()
         .await
         .context("budgets PATCH 요청 실패")?;
@@ -191,6 +244,7 @@ pub async fn update_budget(
         savings_goal: budget.savings_goal,
         ai_plan: budget.ai_plan,
         categories,
+        locked_at: budget.locked_at,
         created_at: budget.created_at,
     })
 }
@@ -200,9 +254,16 @@ pub async fn update_budget(
 
 pub async fn update_categories(
     state: &AppState,
+    user_id: Uuid,
     budget_id: Uuid,
     req: UpdateBudgetCategoriesRequest,
 ) -> Result<Vec<BudgetCategoryItem>> {
+    let current = fetch_budget_for_user(state, user_id, budget_id).await?;
+
+    if current.locked_at.is_some() {
+        return Err(anyhow!("budget_locked"));
+    }
+
     // 기존 카테고리 삭제
     let del_url = format!(
         "{}/rest/v1/budget_categories?budget_id=eq.{}",
@@ -326,6 +387,10 @@ pub async fn generate_ai_plan(
         .into_iter()
         .next()
         .ok_or_else(|| anyhow!("예산을 찾을 수 없음"))?;
+
+    if budget.locked_at.is_some() {
+        return Err(anyhow!("budget_locked"));
+    }
 
     // 2. 해당 월 수입 합계 조회
     let month_start = chrono::NaiveDate::from_ymd_opt(budget.year, budget.month as u32, 1)
