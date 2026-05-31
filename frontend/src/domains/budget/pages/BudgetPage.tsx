@@ -781,15 +781,13 @@ localStorage.removeItem(
   }
 
   try {
-    await saveBudgetToServer(customBudget, true);
+    await saveBudgetToServer(customBudget, false);
     setMonthlyBudget(monthKey, monthlyBudget);
 
     localStorage.setItem(
       getCustomBudgetStorageKey(monthKey, storageOwnerKey),
       JSON.stringify(customBudget)
     );
-    localStorage.setItem(getBudgetLockStorageKey(monthKey, storageOwnerKey), "true");
-    setIsBudgetLocked(true);
 
     toast.success(
       `${selectedYear}년 ${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`
