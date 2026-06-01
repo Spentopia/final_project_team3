@@ -9,7 +9,7 @@ import { Check, Sparkles, Move, Users, UserPlus, Shirt } from "lucide-react"; //
 export default function Plaza() {
 
   // 2. 대용량 바이러스 경고창을 강제로 패스하는 다이렉트 다운로드 주소 조합
-  const CatboxUrl = `https://drive.google.com/file/d/1ZnCK6k-qKXTSc6qtXKvHAtHugYrytXrj/view?usp=sharing`;
+  const CatboxUrl = `https://drive.google.com/file/d/1JXIGRvL1CDqpolfdFaMsqV3mAa5jjmiF/view?usp=drive_link`;
 
 
   return (
