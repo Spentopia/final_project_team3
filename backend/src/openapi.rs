@@ -79,6 +79,7 @@ use crate::wallet;
         crate::budget::handler::create_budget,
         crate::budget::handler::update_budget,
         crate::budget::handler::update_categories,
+        crate::budget::handler::preview_ai_plan,
         crate::budget::handler::generate_ai_plan,
 
         // ── 가계부 ────────────────────────────────────────────
@@ -196,6 +197,7 @@ use crate::wallet;
             budget::dto::UpdateBudgetCategoriesRequest,
             budget::dto::BudgetResponse,
             budget::dto::GenerateAiPlanRequest,
+            budget::dto::GenerateAiPlanBody,
             budget::dto::AiPlanResponse,
 
             // ── ledger DTO ────────────────────────────────────

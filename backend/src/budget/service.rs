@@ -430,7 +430,9 @@ pub async fn generate_ai_plan(
         .await
         .context("월 수입 합계 역직렬화 실패")?;
     let monthly_income_total: i32 = income_rows.into_iter().map(|row| row.amount).sum();
-    let effective_total_budget = if monthly_income_total > 0 {
+    let effective_total_budget = if req.total_budget.unwrap_or_default() > 0 {
+        req.total_budget.unwrap_or_default()
+    } else if monthly_income_total > 0 {
         monthly_income_total
     } else {
         budget.total_budget
@@ -462,11 +464,16 @@ pub async fn generate_ai_plan(
         .await
         .context("fixed_expenses 조회 요청 실패")?;
 
-    let fixed_expenses: Vec<FixedExpenseInfo> = if fe_res.status().is_success() {
+    let fixed_expenses_from_db: Vec<FixedExpenseInfo> = if fe_res.status().is_success() {
         fe_res.json().await.unwrap_or_default()
     } else {
         vec![]
     };
+    let fixed_expenses: Vec<FixedExpenseInfo> = req
+        .fixed_expenses
+        .clone()
+        .and_then(|value| serde_json::from_value(value).ok())
+        .unwrap_or(fixed_expenses_from_db);
 
     let saved_categories = fetch_categories(state, budget.id).await?;
 
@@ -476,7 +483,7 @@ pub async fn generate_ai_plan(
         amount: i32,
     }
 
-    let category_budgets: Vec<CategoryBudgetInfo> = saved_categories
+    let mut category_budgets: Vec<CategoryBudgetInfo> = saved_categories
         .into_iter()
         .map(|category| CategoryBudgetInfo {
             category: category.category,
@@ -484,13 +491,34 @@ pub async fn generate_ai_plan(
         })
         .collect();
 
+    for (category, amount) in [
+        ("food", req.food),
+        ("transport", req.transport),
+        ("living", req.living),
+        ("leisure", req.leisure),
+    ] {
+        if let Some(amount) = amount.filter(|amount| *amount > 0) {
+            if let Some(existing) = category_budgets
+                .iter_mut()
+                .find(|item| item.category.eq_ignore_ascii_case(category))
+            {
+                existing.amount = amount;
+            } else {
+                category_budgets.push(CategoryBudgetInfo {
+                    category: category.to_string(),
+                    amount,
+                });
+            }
+        }
+    }
+
     // 4. AI 서버 호출
     let ai_plan = crate::clients::ai_client::budget_plan(
         state,
         crate::clients::ai_client::BudgetPlanPayload {
             user_id: user_id.to_string(),
             total_budget: effective_total_budget,
-            savings_goal: budget.savings_goal,
+            savings_goal: req.savings_goal.or(budget.savings_goal),
             year: budget.year,
             month: budget.month,
             fixed_expenses: serde_json::to_value(&fixed_expenses).unwrap_or_default(),
@@ -539,6 +567,59 @@ pub async fn generate_ai_plan(
 
     // ✅ 7. 프론트로는 plans 그대로 내려줌
     Ok(AiPlanResponse { plans })
+}
+
+pub async fn preview_ai_plan(
+    state: &AppState,
+    user_id: Uuid,
+    req: super::dto::GenerateAiPlanBody,
+) -> Result<AiPlanResponse> {
+    #[derive(Serialize)]
+    struct CategoryBudgetInfo {
+        category: String,
+        amount: i32,
+    }
+
+    let total_budget = req
+        .total_budget
+        .filter(|amount| *amount > 0)
+        .ok_or_else(|| anyhow!("total_budget은 0보다 커야 합니다."))?;
+
+    let fixed_expenses = req.fixed_expenses.unwrap_or_else(|| serde_json::json!([]));
+    let category_budgets: Vec<CategoryBudgetInfo> = [
+        ("food", req.food),
+        ("transport", req.transport),
+        ("living", req.living),
+        ("leisure", req.leisure),
+    ]
+    .into_iter()
+    .filter_map(|(category, amount)| {
+        amount
+            .filter(|amount| *amount > 0)
+            .map(|amount| CategoryBudgetInfo {
+                category: category.to_string(),
+                amount,
+            })
+    })
+    .collect();
+
+    let ai_plan = crate::clients::ai_client::budget_plan(
+        state,
+        crate::clients::ai_client::BudgetPlanPayload {
+            user_id: user_id.to_string(),
+            total_budget,
+            savings_goal: req.savings_goal,
+            year: req.year.unwrap_or_default(),
+            month: req.month.unwrap_or_default(),
+            fixed_expenses,
+            category_budgets: serde_json::to_value(&category_budgets).unwrap_or_default(),
+        },
+    )
+    .await?;
+
+    Ok(AiPlanResponse {
+        plans: ai_plan.plans,
+    })
 }
 
 // ── 내부 유틸 ─────────────────────────────────────────────────

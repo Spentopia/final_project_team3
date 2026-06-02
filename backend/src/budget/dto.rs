@@ -3,6 +3,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -62,6 +63,26 @@ pub struct BudgetResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GenerateAiPlanRequest {
     pub budget_id: Uuid,
+    pub total_budget: Option<i32>,
+    pub savings_goal: Option<i32>,
+    pub food: Option<i32>,
+    pub transport: Option<i32>,
+    pub living: Option<i32>,
+    pub leisure: Option<i32>,
+    pub fixed_expenses: Option<Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Default)]
+pub struct GenerateAiPlanBody {
+    pub total_budget: Option<i32>,
+    pub savings_goal: Option<i32>,
+    pub food: Option<i32>,
+    pub transport: Option<i32>,
+    pub living: Option<i32>,
+    pub leisure: Option<i32>,
+    pub fixed_expenses: Option<Value>,
+    pub year: Option<i32>,
+    pub month: Option<i32>,
 }
 
 // ── AI 예산 플랜 응답 ─────────────────────────────────────────

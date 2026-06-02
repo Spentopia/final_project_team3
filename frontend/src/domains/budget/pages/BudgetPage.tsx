@@ -345,7 +345,7 @@ export default function BudgetPage() {
   const selectedMonthIndex = getMonthIndexFromParts(selectedYear, selectedMonth);
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
   const currentMonthLabel = `${selectedYear}년 ${selectedMonth + 1}월`;
-  const [storageOwnerKey, setStorageOwnerKey] = useState("guest");
+  const [storageOwnerKey, setStorageOwnerKey] = useState<string | null>(null);
   const [currentBudgetId, setCurrentBudgetId] = useState<string | null>(null);
   const [editedCategories, setEditedCategories] = useState<
   BudgetCategoryKey[]
@@ -375,7 +375,7 @@ export default function BudgetPage() {
       })
       .catch(() => {
         if (!cancelled) {
-          setStorageOwnerKey("guest");
+          setStorageOwnerKey(null);
         }
       });
 
@@ -385,6 +385,8 @@ export default function BudgetPage() {
   }, []);
 
   useEffect(() => {
+    if (!storageOwnerKey) return;
+
     const savedBudget = localStorage.getItem(getCustomBudgetStorageKey(monthKey, storageOwnerKey));
     const savedPlans = localStorage.getItem(getAiPlansStorageKey(monthKey, storageOwnerKey));
     const savedSelectedPlan = localStorage.getItem(getSelectedPlanStorageKey(monthKey, storageOwnerKey));
@@ -536,6 +538,8 @@ if (savedSelectedPlan && parsedPlans?.length) {
 }, [monthKey, storageOwnerKey]);
 
   useEffect(() => {
+    if (!storageOwnerKey) return;
+
     let cancelled = false;
 
     const loadServerBudget = async () => {
@@ -642,6 +646,11 @@ if (savedSelectedPlan && parsedPlans?.length) {
     return;
   }
 
+  if (!storageOwnerKey) {
+    toast.error("사용자 정보를 확인한 뒤 다시 시도해주세요.");
+    return;
+  }
+
   const plan = aiPlans.find((p) => p.id === planId);
   if (!plan) return;
 
@@ -695,6 +704,11 @@ setMonthlyBudget(monthKey, plan.budget);
   const [loading, setLoading] = useState(false);
 
   const handleGenerateAiPlans = async () => {
+    if (!storageOwnerKey) {
+      toast.error("사용자 정보를 확인한 뒤 다시 시도해주세요.");
+      return;
+    }
+
     const sourceBudget =
   customBudget.monthly || currentBudget;
     const fixedAmount =
@@ -724,11 +738,6 @@ if (fixedAmount > sourceBudget) {
   setLoading(true);
   try {
     const month = selectedMonth + 1;
-    const budgetForRequest = {
-      ...customBudget,
-      monthly: sourceBudget,
-    };
-    const budgetId = await saveBudgetToServer(budgetForRequest, false);
 
     console.log("AI 요청 데이터", {
   total_budget: sourceBudget,
@@ -744,7 +753,7 @@ console.log("현재 customBudget", customBudget);
 
     // 👉 3. AI 플랜 생성 요청 (핵심)
     const aiRes = await apiClient.post<AiPlanApiResponse>(
-  `/api/budget/${budgetId}/ai-plan`,
+  "/api/budget/ai-plan",
   {
     total_budget: sourceBudget,
     savings_goal: customBudget.savings,
@@ -817,6 +826,11 @@ localStorage.removeItem(
     return;
   }
 
+  if (!storageOwnerKey) {
+    toast.error("사용자 정보를 확인한 뒤 다시 시도해주세요.");
+    return;
+  }
+
   const monthlyBudget = Number(customBudget.monthly) || 0;
 
   if (monthlyBudget < 300000) {
@@ -839,8 +853,6 @@ localStorage.removeItem(
   }
 
   try {
-    await saveBudgetToServer(customBudget, false);
-
     setMonthlyBudget(monthKey, monthlyBudget);
 
     localStorage.setItem(
@@ -849,7 +861,7 @@ localStorage.removeItem(
     );
 
     toast.success(
-      `${selectedYear}년 ${selectedMonth + 1}월 맞춤 예산이 저장되었습니다!`
+      `${selectedYear}년 ${selectedMonth + 1}월 맞춤 예산이 임시 저장되었습니다!`
     );
   } catch (err) {
     console.error(err);

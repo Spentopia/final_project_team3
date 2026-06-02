@@ -298,6 +298,10 @@ pub fn create_router(state: AppState) -> (Router, Router, Router) {
         // ── 예산 ──────────────────────────────────────────
         .route("/api/budget", get(budget::handler::get_budget))
         .route("/api/budget", post(budget::handler::create_budget))
+        .route(
+            "/api/budget/ai-plan",
+            post(budget::handler::preview_ai_plan),
+        )
         .route("/api/budget/:id", patch(budget::handler::update_budget))
         .route(
             "/api/budget/:id/categories",
