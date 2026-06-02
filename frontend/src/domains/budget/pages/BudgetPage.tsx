@@ -820,22 +820,22 @@ localStorage.removeItem(
   }
 };
 
-  const handleSaveCustomBudget = async () => {
+  const validateCustomBudget = (): number | null => {
   if (!canEditBudget) {
     toast.error(budgetDisabledMessage);
-    return;
+    return null;
   }
 
   if (!storageOwnerKey) {
     toast.error("사용자 정보를 확인한 뒤 다시 시도해주세요.");
-    return;
+    return null;
   }
 
   const monthlyBudget = Number(customBudget.monthly) || 0;
 
   if (monthlyBudget < 300000) {
     toast.error("월 전체 예산은 최소 300,000원 이상이어야 합니다.");
-    return;
+    return null;
   }
 
   const totalAllocated =
@@ -849,10 +849,18 @@ localStorage.removeItem(
     toast.error(
       "카테고리 예산과 저축액의 합이 월 전체 예산을 초과했습니다."
     );
-    return;
+    return null;
   }
 
+  return monthlyBudget;
+};
+
+  const handleSaveCustomBudget = async () => {
+  const monthlyBudget = validateCustomBudget();
+  if (monthlyBudget === null || !storageOwnerKey) return;
+
   try {
+    await saveBudgetToServer(customBudget, false);
     setMonthlyBudget(monthKey, monthlyBudget);
 
     localStorage.setItem(
@@ -861,11 +869,33 @@ localStorage.removeItem(
     );
 
     toast.success(
-      `${selectedYear}년 ${selectedMonth + 1}월 맞춤 예산이 임시 저장되었습니다!`
+      `${selectedYear}년 ${selectedMonth + 1}월 맞춤 예산이 임시 저장되었습니다.`
     );
   } catch (err) {
     console.error(err);
     toast.error("예산 저장에 실패했습니다.");
+  }
+};
+
+  const handleConfirmCustomBudget = async () => {
+  const monthlyBudget = validateCustomBudget();
+  if (monthlyBudget === null || !storageOwnerKey) return;
+
+  try {
+    await saveBudgetToServer(customBudget, true);
+    setMonthlyBudget(monthKey, monthlyBudget);
+    setIsBudgetLocked(true);
+
+    localStorage.setItem(
+      getCustomBudgetStorageKey(monthKey, storageOwnerKey),
+      JSON.stringify(customBudget)
+    );
+    localStorage.setItem(getBudgetLockStorageKey(monthKey, storageOwnerKey), "true");
+
+    toast.success(`${selectedYear}년 ${selectedMonth + 1}월 예산이 확정되었습니다.`);
+  } catch (err) {
+    console.error(err);
+    toast.error("예산 확정에 실패했습니다.");
   }
 };
 
@@ -1332,7 +1362,17 @@ localStorage.removeItem(
               title={!canEditBudget ? budgetDisabledMessage : undefined}
             >
               <Wallet className="mr-2 h-4 w-4" />
-              {selectedMonth + 1}월 맞춤 예산 저장
+              {selectedMonth + 1}월 맞춤 예산 임시 저장
+            </Button>
+
+            <Button
+              onClick={handleConfirmCustomBudget}
+              disabled={!canEditBudget}
+              className="w-full bg-slate-900 text-white hover:bg-slate-800 dark:bg-violet-950 dark:hover:bg-violet-900"
+              title={!canEditBudget ? budgetDisabledMessage : undefined}
+            >
+              <Check className="mr-2 h-4 w-4" />
+              {selectedMonth + 1}월 예산 확정
             </Button>
           </div>
 

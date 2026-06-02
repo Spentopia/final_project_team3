@@ -16,7 +16,8 @@ data class CreateBudgetRequest( // CreateBudgetRequest 데이터를 묶어둘 �
 
 data class UpdateBudgetRequest( // UpdateBudgetRequest 데이터를 묶어둘 클래스 시작
     val total_budget: Long?, // 예산 관련 값을 저장함
-    val savings_goal: Long? // savings_goal 값을 저장함
+    val savings_goal: Long?, // savings_goal 값을 저장함
+    val lock_budget: Boolean = false // 확정 저장이면 서버에서 예산을 잠급니다.
 )
 
 data class BudgetCategoryItem( // BudgetCategoryItem 데이터를 묶어둘 클래스 시작
@@ -36,6 +37,7 @@ data class BudgetResponse( // BudgetResponse 데이터를 묶어둘 클래스 �
     val savings_goal: Long?, // savings_goal 값을 저장함
     val ai_plan: String?, // ai_plan 값을 저장함
     val categories: List<BudgetCategoryItem>, // categories 값을 저장함
+    val locked_at: String?, // 서버에서 확정된 예산이면 잠금 시간이 들어옵니다.
     val created_at: String? // created_at 값을 저장함
 )
 

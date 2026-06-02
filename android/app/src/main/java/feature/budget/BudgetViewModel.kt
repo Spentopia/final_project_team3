@@ -110,15 +110,16 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             foodBudget = plan.food, // 식비 예산을 정해줌
             transportBudget = plan.transport, // 교통비 예산을 정해줌
             livingBudget = plan.living, // 생활비 예산을 정해줌
-            hobbyBudget = plan.hobby, // 취미 예산을 정해줌
-            lockedMonthKey = currentMonthKey() // 적용 완료 월을 정해줌
+            hobbyBudget = plan.hobby // 취미 예산을 정해줌
         )
         _budgetState.value = nextSettings // 예산 관련 값을 정해줌
 
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
-            budgetDataStore.saveBudgetSettings(nextSettings) // 예산 관련 값을 저장함
             try { // 오류가 날 수 있는 코드를 먼저 시도함
-                upsertBackendBudget(nextSettings) // 서버 예산도 같은 값으로 맞춤
+                upsertBackendBudget(nextSettings, lockBudget = true) // 서버 예산도 같은 값으로 맞춘 뒤 확정함
+                val lockedSettings = nextSettings.copy(lockedMonthKey = currentMonthKey())
+                _budgetState.value = lockedSettings
+                budgetDataStore.saveBudgetSettings(lockedSettings) // 서버 확정 성공 후에만 로컬도 잠급니다.
                 _saveError.value = "" // 오류 내용을 정해줌
                 _saveSuccess.value = true // saveSuccess.value 값을 정해줌
             } catch (e: HttpException) { // 이 블록 안의 내용이 시작됨
@@ -141,7 +142,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
-            val currentSettings = _budgetState.value.copy(lockedMonthKey = currentMonthKey()) // 현재 예산 설정값을 저장함
+            val currentSettings = _budgetState.value.copy(lockedMonthKey = "") // 임시 저장은 수정 가능 상태로 유지함
             _budgetState.value = currentSettings // 예산 관련 값을 정해줌
             // 먼저 로컬 DataStore에 저장해서 앱 재실행 후에도 값이 남게 합니다.
             budgetDataStore.saveBudgetSettings(currentSettings)
@@ -149,7 +150,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
 
             try { // 오류가 날 수 있는 코드를 먼저 시도함
                 // 그 다음 서버 예산 API에도 같은 값을 동기화합니다.
-                upsertBackendBudget(currentSettings) // upsert Backend Budget 함수를 실행함
+                upsertBackendBudget(currentSettings, lockBudget = false) // upsert Backend Budget 함수를 실행함
                 _saveError.value = "" // 오류 내용을 정해줌
                 _saveSuccess.value = true // saveSuccess.value 값을 정해줌
             } catch (e: HttpException) { // 이 블록 안의 내용이 시작됨
@@ -159,6 +160,32 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
                 _saveError.value = "예산 저장에 실패했습니다. 잠시 후 다시 시도해주세요." // 오류 내용을 정해줌
+            }
+        }
+    }
+
+    fun confirmBudgetSettings() { // 현재 임시 저장된 예산을 확정하고 서버 잠금을 겁니다.
+        if (!canEditBudgetThisMonth()) { // 조건이 맞는지 확인함
+            _saveError.value = "이번 달 예산 설정이 완료되었습니다. 예산 설정은 월 1회만 가능합니다."
+            return
+        }
+
+        viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
+            val currentSettings = _budgetState.value.copy(lockedMonthKey = "")
+            try { // 오류가 날 수 있는 코드를 먼저 시도함
+                upsertBackendBudget(currentSettings, lockBudget = true)
+                val lockedSettings = currentSettings.copy(lockedMonthKey = currentMonthKey())
+                _budgetState.value = lockedSettings
+                budgetDataStore.saveBudgetSettings(lockedSettings)
+                _saveError.value = ""
+                _saveSuccess.value = true
+            } catch (e: HttpException) { // 이 블록 안의 내용이 시작됨
+                _saveError.value = when (e.code()) {
+                    401 -> "로그인이 만료되었습니다. 다시 로그인해주세요."
+                    else -> "예산 확정에 실패했습니다. 잠시 후 다시 시도해주세요. (${e.code()})"
+                }
+            } catch (e: Exception) { // 이 블록 안의 내용이 시작됨
+                _saveError.value = "예산 확정에 실패했습니다. 잠시 후 다시 시도해주세요."
             }
         }
     }
@@ -192,7 +219,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             _isPaymentRequired.value = false // 이전 결제 팝업 상태를 지움
 
             try { // 오류가 날 수 있는 코드를 먼저 시도함
-                val budgetId = upsertBackendBudget(requestSettings) // 예산 관련 값을 저장함
+                val budgetId = upsertBackendBudget(requestSettings, lockBudget = false) // 예산 관련 값을 임시 저장함
                 val response = RetrofitClient.budgetApi.generateAiPlan(budgetId) // 서버 응답을 저장함
                 _aiPlanList.value = response.plans.map { plan -> // aiPlanList.value 값을 정해줌
                     BudgetPlanUiData( // Budget Plan Ui Data 함수를 실행함
@@ -263,25 +290,26 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    private suspend fun upsertBackendBudget(settings: BudgetSettingsData): String { // upsertBackendBudget 함수를 선언함
+    private suspend fun upsertBackendBudget(settings: BudgetSettingsData, lockBudget: Boolean): String { // upsertBackendBudget 함수를 선언함
         val (year, month) = currentYearMonth() // month 값을 정해줌
         // 현재 월 예산이 아직 없으면 생성하고, 있으면 그 값을 수정합니다.
         val budgetId = currentBudgetId ?: findOrCreateBudget(year, month, settings).id.also { // 예산 관련 값을 저장함
             currentBudgetId = it // it 값을 예산 관련 값에 넣음
         }
 
-        RetrofitClient.budgetApi.updateBudget( // 서버 통신 도구를 설정함
-            budgetId = budgetId, // 예산 관련 값을 예산 관련 값에 넣음
-            request = UpdateBudgetRequest( // 서버 요청값을 정해줌
-                total_budget = settings.monthlyIncome, // 예산 관련 값을 정해줌
-                savings_goal = settings.savingGoal // savings_goal 값을 정해줌
-            )
-        )
-
         RetrofitClient.budgetApi.updateCategories( // 서버 통신 도구를 설정함
             budgetId = budgetId, // 예산 관련 값을 예산 관련 값에 넣음
             request = UpdateBudgetCategoriesRequest( // 서버 요청값을 정해줌
                 categories = settings.toBudgetCategoryItems() // categories 값을 정해줌
+            )
+        )
+
+        RetrofitClient.budgetApi.updateBudget( // 서버 통신 도구를 설정함
+            budgetId = budgetId, // 예산 관련 값을 예산 관련 값에 넣음
+            request = UpdateBudgetRequest( // 서버 요청값을 정해줌
+                total_budget = settings.monthlyIncome, // 예산 관련 값을 정해줌
+                savings_goal = settings.savingGoal, // savings_goal 값을 정해줌
+                lock_budget = lockBudget // 확정 저장이면 서버에서 잠금을 겁니다.
             )
         )
 
@@ -349,7 +377,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             transportBudget = amountOf("transport", "교통", "교통비", fallbackValue = fallback.transportBudget), // 교통비 예산을 정해줌
             livingBudget = amountOf("living", "생활", "생활비", fallbackValue = fallback.livingBudget), // 생활비 예산을 정해줌
             hobbyBudget = amountOf("leisure", "hobby", "여가", "취미", "여가/취미", fallbackValue = fallback.hobbyBudget), // 취미 예산을 정해줌
-            lockedMonthKey = fallback.lockedMonthKey // 적용 완료 월을 유지함
+            lockedMonthKey = if (locked_at != null) currentMonthKey() else fallback.lockedMonthKey // 서버 잠금 상태를 반영함
         )
     }
 }
