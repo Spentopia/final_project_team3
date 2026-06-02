@@ -7,10 +7,8 @@ import { FinanceProvider } from "@/shared/providers/FinanceProvider";
 export default function App() {
   return (
     <AppProviders>
-      <FinanceProvider>
         <RouterProvider router={router} />
         <Toaster />
-      </FinanceProvider>
     </AppProviders>
   );
 }

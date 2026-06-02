@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useCallback, useContext, useState } from "react";
 
 export type Transaction = {
   id: string | number;
@@ -29,11 +29,11 @@ export const FinanceProvider = ({ children }: { children: React.ReactNode }) => 
   const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  const setBudget = (b: number) => {
+  const setBudget = useCallback((b: number) => {
     setBudgetState(b);
-  };
+  }, []);
 
-  const setMonthlyBudget = (monthKey: string, amount: number) => {
+  const setMonthlyBudget = useCallback((monthKey: string, amount: number) => {
     const normalizedAmount = Number(amount) || 0;
 
     setBudgets((prev) => {
@@ -45,19 +45,19 @@ export const FinanceProvider = ({ children }: { children: React.ReactNode }) => 
     });
 
     setBudget(normalizedAmount);
-  };
+  }, [setBudget]);
 
-  const replaceTransactions = (items: Transaction[]) => {
+  const replaceTransactions = useCallback((items: Transaction[]) => {
     setTransactions(items);
-  };
+  }, []);
 
-  const addTransaction = (tx: Transaction) => {
+  const addTransaction = useCallback((tx: Transaction) => {
     setTransactions((prev) => [tx, ...prev]);
-  };
+  }, []);
 
-  const removeTransaction = (id: string | number) => {
+  const removeTransaction = useCallback((id: string | number) => {
     setTransactions((prev) => prev.filter((tx) => tx.id !== id));
-  };
+  }, []);
 
   return (
     <FinanceContext.Provider

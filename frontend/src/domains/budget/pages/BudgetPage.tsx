@@ -278,8 +278,10 @@ export default function BudgetPage() {
         if (cancelled) return;
 
         if (err.response?.status === 404) {
+          const defaultMonthlyBudget = 1000000;
           setCurrentBudgetId(null);
-          setCustomBudget({ ...createEmptyBudget(), monthly: 1000000 });
+          setCustomBudget({ ...createEmptyBudget(), monthly: defaultMonthlyBudget });
+          setMonthlyBudget(monthKey, defaultMonthlyBudget);
           setSelectedPlan(null);
           setIsBudgetLocked(false);
           setAiPlans([]);
@@ -395,66 +397,51 @@ setMonthlyBudget(monthKey, plan.budget);
   const [loading, setLoading] = useState(false);
 
   const handleGenerateAiPlans = async () => {
-    const sourceBudget =
-  customBudget.monthly || currentBudget;
-    const fixedAmount =
-  customBudget.savings +
-  customBudget.food +
-  customBudget.transport +
-  customBudget.living +
-  customBudget.leisure;
-
-if (fixedAmount > sourceBudget) {
-  toast.error(
-    "저축액과 입력한 카테고리 예산의 합이 월 예산을 초과합니다."
-  );
-  return;
-}
-
   if (!canEditBudget) {
     toast.error(budgetDisabledMessage);
-    return;
-  }
-
-  if (!sourceBudget || sourceBudget <= 0) {
-    toast.error("먼저 예산을 설정하세요!");
     return;
   }
 
   setLoading(true);
   try {
     const month = selectedMonth + 1;
+    const budgetRes = await apiClient.get<BudgetApiResponse>("/api/budget", {
+      params: {
+        year: selectedYear,
+        month,
+      },
+    });
+    const savedBudget = budgetResponseToCustomBudget(budgetRes.data);
+    const fixedAmount =
+      savedBudget.savings +
+      savedBudget.food +
+      savedBudget.transport +
+      savedBudget.living +
+      savedBudget.leisure;
 
-    console.log("AI 요청 데이터", {
-  total_budget: sourceBudget,
-  savings_goal: customBudget.savings,
-  food: customBudget.food,
-  transport: customBudget.transport,
-  living: customBudget.living,
-  leisure: customBudget.leisure,
-});
+    if (budgetRes.data.locked_at) {
+      setIsBudgetLocked(true);
+      toast.error(budgetDisabledMessage);
+      return;
+    }
 
-console.log("현재 customBudget", customBudget);
+    if (!savedBudget.monthly || savedBudget.monthly <= 0) {
+      toast.error("먼저 맞춤 예산을 저장하세요.");
+      return;
+    }
 
+    if (fixedAmount > savedBudget.monthly) {
+      toast.error("저축액과 입력한 카테고리 예산의 합이 월 예산을 초과합니다.");
+      return;
+    }
 
-    // 👉 3. AI 플랜 생성 요청 (핵심)
+    setCurrentBudgetId(budgetRes.data.id);
+    setCustomBudget(savedBudget);
+    setMonthlyBudget(monthKey, savedBudget.monthly);
+
     const aiRes = await apiClient.post<AiPlanApiResponse>(
-  "/api/budget/ai-plan",
-  {
-    total_budget: sourceBudget,
-    savings_goal: customBudget.savings,
-
-    food: customBudget.food,
-    transport: customBudget.transport,
-    living: customBudget.living,
-    leisure: customBudget.leisure,
-
-    fixed_expenses: [],
-
-    year: selectedYear,
-    month,
-  }
-);
+      `/api/budget/${budgetRes.data.id}/ai-plan`
+    );
 
     const data = aiRes.data;
 
@@ -478,9 +465,6 @@ console.log("현재 customBudget", customBudget);
         ...plan,
         name: PLAN_ORDER_LABELS[idx] ?? plan.name,
       }));
-      console.log("AI 응답", aiRes.data);
-
-      console.log("mappedPlans", mappedPlans);
     // 새 AI 플랜 전체 교체
 setAiPlans(mappedPlans);
 
@@ -488,8 +472,12 @@ setAiPlans(mappedPlans);
 setSelectedPlan(null);
 
     toast.success("AI 플랜 생성 완료!");
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
+    if (err.response?.status === 404) {
+      toast.error("먼저 맞춤 예산을 저장하세요.");
+      return;
+    }
     toast.error("AI 플랜 생성 실패");
   } finally {
     setLoading(false);
@@ -540,22 +528,6 @@ setSelectedPlan(null);
   } catch (err) {
     console.error(err);
     toast.error("예산 저장에 실패했습니다.");
-  }
-};
-
-  const handleConfirmCustomBudget = async () => {
-  const monthlyBudget = validateCustomBudget();
-  if (monthlyBudget === null) return;
-
-  try {
-    await saveBudgetToServer(customBudget, true);
-    setMonthlyBudget(monthKey, monthlyBudget);
-    setIsBudgetLocked(true);
-
-    toast.success(`${selectedYear}년 ${selectedMonth + 1}월 예산이 확정되었습니다.`);
-  } catch (err) {
-    console.error(err);
-    toast.error("예산 확정에 실패했습니다.");
   }
 };
 
@@ -1023,16 +995,6 @@ setSelectedPlan(null);
             >
               <Wallet className="mr-2 h-4 w-4" />
               {selectedMonth + 1}월 맞춤 예산 임시 저장
-            </Button>
-
-            <Button
-              onClick={handleConfirmCustomBudget}
-              disabled={!canEditBudget}
-              className="w-full bg-slate-900 text-white hover:bg-slate-800 dark:bg-violet-950 dark:hover:bg-violet-900"
-              title={!canEditBudget ? budgetDisabledMessage : undefined}
-            >
-              <Check className="mr-2 h-4 w-4" />
-              {selectedMonth + 1}월 예산 확정
             </Button>
           </div>
 

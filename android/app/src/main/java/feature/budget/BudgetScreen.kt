@@ -465,9 +465,6 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
                     onSaveClick = { // onSaveClick 때 실행할 함수를 정해줌
                         // 저장 버튼 클릭 시 실행
                         viewModel.saveBudgetSettings()
-                    },
-                    onConfirmClick = {
-                        viewModel.confirmBudgetSettings()
                     }
                 )
 
@@ -1276,8 +1273,7 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
     onLivingBudgetChange: (Long) -> Unit, // 예산 관련 값을 받음
     onHobbyBudgetChange: (Long) -> Unit, // 예산 관련 값을 받음
     isSaveEnabled: Boolean = true, // 저장 버튼 활성화 여부를 받음
-    onSaveClick: () -> Unit, // onSaveClick 때 실행할 함수를 받음
-    onConfirmClick: () -> Unit // onConfirmClick 때 실행할 함수를 받음
+    onSaveClick: () -> Unit // onSaveClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isBudgetDarkTheme() // 다크모드인지 저장함
     val monthlySliderMax = dynamicBudgetMax(5000000L, monthlyIncome) // monthlySliderMax 값을 저장함
@@ -1412,28 +1408,6 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
                     style = MaterialTheme.typography.titleMedium, // style 값을 정해줌
                     fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
                     color = if (isSaveEnabled) budgetPrimaryButtonContentColor() else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
-
-            Button( // 누를 수 있는 버튼을 만듦
-                onClick = onConfirmClick, // onConfirmClick 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
-                enabled = isSaveEnabled, // enabled 값을 정해줌
-                modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
-                shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
-                colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                    containerColor = if (isDark) Color(0xFF2D1847) else Color(0xFF111827),
-                    contentColor = Color.White,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                contentPadding = PaddingValues(vertical = 12.dp) // contentPadding 값을 정해줌
-            ) { // 이 블록 안의 내용이 시작됨
-                Text( // 화면에 글자를 보여줌
-                    text = "예산 확정", // text 값을 정해줌
-                    style = MaterialTheme.typography.titleMedium, // style 값을 정해줌
-                    fontWeight = FontWeight.Bold // fontWeight 값을 정해줌
                 )
             }
         }

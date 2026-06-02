@@ -206,20 +206,31 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
-        val requestSettings = _budgetState.value // requestSettings 값을 저장함
-        if (_aiPlanList.value.isNotEmpty() && lastAiPlanRequestSettings == requestSettings) { // 조건이 맞는지 확인함
-            return
-        }
-
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
-            // AI 추천은 현재 예산 상태를 서버에 먼저 맞춰둔 다음 요청합니다.
-            // 그래야 서버가 최신 예산 기준으로 플랜을 계산할 수 있습니다.
+            // AI 추천은 화면 입력값이 아니라 서버에 임시 저장된 예산을 다시 조회해서 사용합니다.
             _isAiPlanLoading.value = true // 로딩 상태를 정해줌
             _aiPlanError.value = "" // 오류 내용을 정해줌
             _isPaymentRequired.value = false // 이전 결제 팝업 상태를 지움
 
             try { // 오류가 날 수 있는 코드를 먼저 시도함
-                val budgetId = upsertBackendBudget(requestSettings, lockBudget = false) // 예산 관련 값을 임시 저장함
+                val (year, month) = currentYearMonth()
+                val savedBudget = RetrofitClient.budgetApi.getBudget(year = year, month = month)
+                currentBudgetId = savedBudget.id
+
+                val requestSettings = savedBudget.toBudgetSettingsData(_budgetState.value)
+                if (requestSettings.lockedMonthKey == currentMonthKey()) {
+                    _aiPlanError.value = "이번 달 예산 설정이 완료되었습니다. 예산 설정은 월 1회만 가능합니다."
+                    return@launch
+                }
+
+                if (_aiPlanList.value.isNotEmpty() && lastAiPlanRequestSettings == requestSettings) { // 조건이 맞는지 확인함
+                    return@launch
+                }
+
+                _budgetState.value = requestSettings
+                budgetDataStore.saveBudgetSettings(requestSettings)
+
+                val budgetId = savedBudget.id
                 val response = RetrofitClient.budgetApi.generateAiPlan(budgetId) // 서버 응답을 저장함
                 _aiPlanList.value = response.plans.map { plan -> // aiPlanList.value 값을 정해줌
                     BudgetPlanUiData( // Budget Plan Ui Data 함수를 실행함
