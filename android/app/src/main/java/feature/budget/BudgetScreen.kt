@@ -79,6 +79,7 @@ import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져�
 import androidx.compose.ui.text.style.TextAlign // TextAlign 기능을 가져옴
 import androidx.compose.ui.text.input.KeyboardType // KeyboardType 기능을 가져옴
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog // Dialog 기능을 가져옴
 import androidx.lifecycle.compose.collectAsStateWithLifecycle // ViewModel 상태를 화면에서 안전하게 받는 도구를 가져옴
 import androidx.lifecycle.viewmodel.compose.viewModel // Compose에서 ViewModel 연결하는 도구를 가져옴
@@ -302,6 +303,7 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
     val saveError by viewModel.saveError.collectAsStateWithLifecycle() // 오류 내용을 저장함
 
     val aiPlanList by viewModel.aiPlanList.collectAsStateWithLifecycle() // AI 추천 플랜 목록을 저장함
+    val selectedPlanId by viewModel.selectedPlanId.collectAsStateWithLifecycle()
 
     val isAiPlanLoading by viewModel.isAiPlanLoading.collectAsStateWithLifecycle() // 로딩 상태를 저장함
 
