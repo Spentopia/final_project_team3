@@ -3,7 +3,6 @@ package com.ict.spentopia.feature.home // 이 파일이 속한 패키지 위치�
 // 날짜 선택 다이얼로그를 위한 import
 import android.app.DatePickerDialog // 날짜 선택창 기능을 가져옴
 import android.content.Context
-import android.graphics.Bitmap
 import android.net.Uri // 이미지 주소 같은 Uri 타입을 가져옴
 
 // Activity Result 관련 import
@@ -115,6 +114,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel // Compose에서 ViewModel
 
 // Flow를 Compose 상태로 안전하게 수집하기 위한 import
 import androidx.lifecycle.compose.collectAsStateWithLifecycle // Flow 값을 안전하게 화면 상태로 받는 도구를 가져옴
+import androidx.core.content.FileProvider
 
 // BudgetViewModel import
 import com.ict.spentopia.feature.budget.BudgetViewModel // 예산 화면용 ViewModel을 가져옴
@@ -144,7 +144,6 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 import java.io.File
-import java.io.FileOutputStream
 import java.text.DecimalFormat // 숫자를 쉼표 형식으로 바꾸는 도구를 가져옴
 import java.util.Calendar // 날짜 계산용 객체를 가져옴
 import kotlin.math.abs // 절댓값 함수 가져옴
@@ -1760,20 +1759,17 @@ private fun WeeklyScoreProgressBar(
     }
 }
 
-private fun saveBitmapToCacheUri(
-    context: Context,
-    bitmap: Bitmap,
-    filePrefix: String
-): Uri? {
+private fun createReceiptCameraImageUri(context: Context): Uri? {
     return try {
         val cacheDir = File(context.cacheDir, "receipt_camera").apply {
             if (!exists()) mkdirs()
         }
-        val file = File(cacheDir, "${filePrefix}_${System.currentTimeMillis()}.jpg")
-        FileOutputStream(file).use { out ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
-        }
-        Uri.fromFile(file)
+        val file = File(cacheDir, "receipt_camera_${System.currentTimeMillis()}.jpg")
+        FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
     } catch (_: Exception) {
         null
     }
@@ -1818,6 +1814,7 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     var receiptVerificationMessage by remember { mutableStateOf("") } // OCR 결과 안내 문구를 저장합니다.
     var isReceiptVerified by remember { mutableStateOf(false) } // 현재 영수증이 인증 성공했는지 저장합니다.
     var pendingServerExpenseId by remember { mutableStateOf("") } // 새 기록 저장 전 OCR을 위해 먼저 만든 서버 UUID입니다.
+    var pendingCameraImageUri by remember { mutableStateOf<Uri?>(null) }
     var diary by remember { mutableStateOf("") } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     var expanded by remember { mutableStateOf(false) } // 화면이 다시 그려져도 유지되는 상태값을 만듦
     val expenseCategoryList = listOf("식비", "교통", "쇼핑", "여가", "의료", "교육", "공과금", "기타") // 소비 카테고리 목록을 만듦
@@ -1836,17 +1833,15 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
     } // 블록 끝
 
     val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap: Bitmap? ->
-        bitmap?.let {
-            // 카메라로 찍은 Bitmap을 임시 파일 Uri로 바꿉니다.
-            // 갤러리에서 고른 이미지와 동일한 방식으로 다루기 위해서입니다.
-            saveBitmapToCacheUri(context, it, "receipt_camera")?.let { uri ->
-                receiptImageName = uri.toString()
-                receiptVerificationMessage = ""
-                isReceiptVerified = false
-            }
+        contract = ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        val imageUri = pendingCameraImageUri
+        if (success && imageUri != null) {
+            receiptImageName = imageUri.toString()
+            receiptVerificationMessage = ""
+            isReceiptVerified = false
         }
+        pendingCameraImageUri = null
     }
 
     LaunchedEffect(editingExpense?.id, selectedDate, resetKey) { // 이 블록의 내용이 여기서 시작됨
@@ -2308,7 +2303,13 @@ private fun ExpenseWriteCard( // ExpenseWriteCard 함수 선언 시작
 
                     OutlinedButton(
                         onClick = {
-                            cameraLauncher.launch(null)
+                            val imageUri = createReceiptCameraImageUri(context)
+                            if (imageUri == null) {
+                                showAppToast(context, "카메라 파일을 준비하지 못했습니다.")
+                            } else {
+                                pendingCameraImageUri = imageUri
+                                cameraLauncher.launch(imageUri)
+                            }
                         },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),

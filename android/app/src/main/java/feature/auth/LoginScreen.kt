@@ -28,6 +28,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource // Mutab
 import androidx.compose.foundation.interaction.collectIsPressedAsState // collectIsPressedAsState 기능을 가져옴
 import androidx.compose.foundation.shape.RoundedCornerShape // RoundedCornerShape 기능을 가져옴
 import androidx.compose.foundation.text.KeyboardOptions // KeyboardOptions 기능을 가져옴
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme // MaterialTheme 기능을 가져옴
 import androidx.compose.material.icons.Icons // Icons 기능을 가져옴
 import androidx.compose.material.icons.outlined.Email // Email 기능을 가져옴
@@ -98,6 +99,7 @@ import androidx.compose.animation.core.infiniteRepeatable // infiniteRepeatable 
 import androidx.compose.animation.core.rememberInfiniteTransition // rememberInfiniteTransition 기능을 가져옴
 import androidx.compose.animation.core.tween // tween 기능을 가져옴
 import androidx.compose.foundation.shape.CircleShape // CircleShape 기능을 가져옴
+import androidx.compose.foundation.verticalScroll
 import kotlinx.coroutines.delay
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
@@ -351,6 +353,7 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
     }
 
     val isDarkTheme = colorScheme.surface == Color(0xFF111827) // 다크 테마인지 저장함
+    val loginScrollState = rememberScrollState()
 
     Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
@@ -375,8 +378,9 @@ fun LoginScreen( // 로그인 기능을 실행하는 함수 시작
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxSize()
+                .verticalScroll(loginScrollState)
                 .padding(horizontal = 24.dp) // .padding(horizontal 값을 정해줌
-                .padding(top = 8.dp, bottom = 8.dp), // .padding(top 값을 정해줌
+                .padding(top = 8.dp, bottom = 24.dp), // .padding(top 값을 정해줌
             horizontalAlignment = Alignment.CenterHorizontally // horizontalAlignment 값을 정해줌
         ) { // 이 블록 안의 내용이 시작됨
             SplashLikeLogoSection(
@@ -822,12 +826,12 @@ private fun SplashLikeLogoSection( // SplashLikeLogoSection 함수를 선언함
 
     Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-            .size(220.dp),
+            .size(172.dp),
         contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
     ) {
         Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-                .size(200.dp)
+                .size(156.dp)
                 .background(
                     brush = Brush.radialGradient( // brush 값을 정해줌
                         colors = listOf( // colors 값을 정해줌
@@ -898,7 +902,7 @@ private fun SplashLikeLogoSection( // SplashLikeLogoSection 함수를 선언함
             painter = painterResource(id = R.drawable.ic_spentopia_logo),
             contentDescription = null,
             modifier = Modifier
-                .size(200.dp)
+                .size(150.dp)
                 .graphicsLayer {
                     alpha = logoAlpha
                     scaleX = logoScale

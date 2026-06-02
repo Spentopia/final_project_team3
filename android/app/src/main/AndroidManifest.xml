@@ -50,6 +50,16 @@
             android:name="com.kakao.sdk.AppKey"
             android:value="여기에_네이티브앱키" />
 
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- 지갑 앱에서 돌아와도 기존 화면을 재사용해 스플래시가 다시 뜨지 않게 합니다. -->
         <activity
             android:name=".MainActivity"
