@@ -347,6 +347,9 @@ export default function BudgetPage() {
   const currentMonthLabel = `${selectedYear}년 ${selectedMonth + 1}월`;
   const [storageOwnerKey, setStorageOwnerKey] = useState("guest");
   const [currentBudgetId, setCurrentBudgetId] = useState<string | null>(null);
+  const [editedCategories, setEditedCategories] = useState<
+  BudgetCategoryKey[]
+>([]);
 
   const [aiPlans, setAiPlans] = useState<AiPlan[]>([]);
   const [customBudget, setCustomBudget] = useState<CustomBudget>(createEmptyBudget);
@@ -665,6 +668,11 @@ localStorage.setItem(
 localStorage.setItem(getBudgetLockStorageKey(monthKey, storageOwnerKey), "true");
 setIsBudgetLocked(true);
 
+localStorage.setItem(
+  getCustomBudgetStorageKey(monthKey, storageOwnerKey),
+  JSON.stringify(nextBudget)
+);
+
 setMonthlyBudget(monthKey, plan.budget);
 
     setCustomBudget(nextBudget);
@@ -687,12 +695,26 @@ setMonthlyBudget(monthKey, plan.budget);
   const [loading, setLoading] = useState(false);
 
   const handleGenerateAiPlans = async () => {
+    const sourceBudget =
+  customBudget.monthly || currentBudget;
+    const fixedAmount =
+  customBudget.savings +
+  customBudget.food +
+  customBudget.transport +
+  customBudget.living +
+  customBudget.leisure;
+
+if (fixedAmount > sourceBudget) {
+  toast.error(
+    "저축액과 입력한 카테고리 예산의 합이 월 예산을 초과합니다."
+  );
+  return;
+}
+
   if (!canEditBudget) {
     toast.error(budgetDisabledMessage);
     return;
   }
-
-  const sourceBudget = currentBudget || customBudget.monthly;
 
   if (!sourceBudget || sourceBudget <= 0) {
     toast.error("먼저 예산을 설정하세요!");
@@ -708,16 +730,36 @@ setMonthlyBudget(monthKey, plan.budget);
     };
     const budgetId = await saveBudgetToServer(budgetForRequest, false);
 
+    console.log("AI 요청 데이터", {
+  total_budget: sourceBudget,
+  savings_goal: customBudget.savings,
+  food: customBudget.food,
+  transport: customBudget.transport,
+  living: customBudget.living,
+  leisure: customBudget.leisure,
+});
+
+console.log("현재 customBudget", customBudget);
+
+
     // 👉 3. AI 플랜 생성 요청 (핵심)
     const aiRes = await apiClient.post<AiPlanApiResponse>(
-      `/api/budget/${budgetId}/ai-plan`,
-      {
+  `/api/budget/${budgetId}/ai-plan`,
+  {
     total_budget: sourceBudget,
     savings_goal: customBudget.savings,
+
+    food: customBudget.food,
+    transport: customBudget.transport,
+    living: customBudget.living,
+    leisure: customBudget.leisure,
+
+    fixed_expenses: [],
+
     year: selectedYear,
     month,
   }
-    );
+);
 
     const data = aiRes.data;
 
@@ -741,7 +783,9 @@ setMonthlyBudget(monthKey, plan.budget);
         ...plan,
         name: PLAN_ORDER_LABELS[idx] ?? plan.name,
       }));
+      console.log("AI 응답", aiRes.data);
 
+      console.log("mappedPlans", mappedPlans);
     // 새 AI 플랜 전체 교체
 setAiPlans(mappedPlans);
 
@@ -780,8 +824,23 @@ localStorage.removeItem(
     return;
   }
 
+  const totalAllocated =
+    Number(customBudget.food) +
+    Number(customBudget.transport) +
+    Number(customBudget.living) +
+    Number(customBudget.leisure) +
+    Number(customBudget.savings);
+
+  if (totalAllocated > monthlyBudget) {
+    toast.error(
+      "카테고리 예산과 저축액의 합이 월 전체 예산을 초과했습니다."
+    );
+    return;
+  }
+
   try {
     await saveBudgetToServer(customBudget, false);
+
     setMonthlyBudget(monthKey, monthlyBudget);
 
     localStorage.setItem(
@@ -820,8 +879,18 @@ localStorage.removeItem(
     setCustomBudget((prev) => fitCategoryBudgetsToMonthly({ ...prev, monthly }));
   };
 
-  const updateCategoryBudget = (key: BudgetCategoryKey, amount: number) => {
-    setCustomBudget((prev) => {
+  const updateCategoryBudget = (
+  key: BudgetCategoryKey,
+  amount: number
+) => {
+
+  setEditedCategories(prev =>
+    prev.includes(key)
+      ? prev
+      : [...prev, key]
+  );
+
+  setCustomBudget((prev) => {
       const monthlyLimit = Math.max(
   0,
   (Number(prev.monthly) || 0) - (Number(prev.savings) || 0)
@@ -851,19 +920,13 @@ localStorage.removeItem(
     Number(customBudget.savings) -
     totalBudget
 );
-  const getCategorySliderMax = (key: BudgetCategoryKey) => {
-    const otherTotal = BUDGET_CATEGORY_KEYS
-      .filter((categoryKey) => categoryKey !== key)
-      .reduce((sum, categoryKey) => sum + Number(customBudget[categoryKey]), 0);
-
-    return Math.max(
-  Number(customBudget[key]),
-  Number(customBudget.monthly) -
-    Number(customBudget.savings) -
-    otherTotal,
-  0
-);
-  };
+  const getCategorySliderMax = () => {
+  return Math.max(
+    0,
+    Number(customBudget.monthly) -
+      Number(customBudget.savings)
+  );
+};
 
   const updateSelectedMonthByIndex = (index: number) => {
     const safeIndex = Math.max(0, Math.min(TOTAL_MONTHS - 1, index));
@@ -1182,7 +1245,7 @@ localStorage.removeItem(
                 <Slider
                   value={[Number(customBudget.food)]}
                   onValueChange={(value) => updateCategoryBudget("food", value[0])}
-                  max={getCategorySliderMax("food")}
+                  max={getCategorySliderMax()}
                   step={10000}
                 />
               </div>
@@ -1200,7 +1263,7 @@ localStorage.removeItem(
                 <Slider
                   value={[Number(customBudget.transport)]}
                   onValueChange={(value) => updateCategoryBudget("transport", value[0])}
-                  max={getCategorySliderMax("transport")}
+                  max={getCategorySliderMax()}
                   step={10000}
                 />
               </div>
@@ -1218,7 +1281,7 @@ localStorage.removeItem(
                 <Slider
                   value={[Number(customBudget.living)]}
                   onValueChange={(value) => updateCategoryBudget("living", value[0])}
-                  max={getCategorySliderMax("living")}
+                  max={getCategorySliderMax()}
                   step={10000}
                 />
               </div>
@@ -1236,7 +1299,7 @@ localStorage.removeItem(
                 <Slider
                   value={[Number(customBudget.leisure)]}
                   onValueChange={(value) => updateCategoryBudget("leisure", value[0])}
-                  max={getCategorySliderMax("leisure")}
+                  max={getCategorySliderMax()}
                   step={10000}
                 />
               </div>
