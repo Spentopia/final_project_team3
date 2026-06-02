@@ -216,11 +216,11 @@ private fun ChatbotHeader( // ChatbotHeader 함수를 선언함
         colors = if (isDark) {
             listOf(Color(0xFF222341), Color(0xFF37306A), Color(0xFF171827))
         } else {
-            listOf(Color(0xFFECE7FF), Color(0xFFD9D0FF), Color(0xFFF8F7FF))
+            listOf(Color.White, Color(0xFFEFF6FF), Color(0xFFE0F2FE))
         }
     )
-    val titleColor = if (isDark) Color.White else Color(0xFF201B45)
-    val subtitleColor = if (isDark) Color(0xFFD8D1FF) else Color(0xFF5A4C83)
+    val titleColor = if (isDark) Color.White else Color(0xFF0F172A)
+    val subtitleColor = if (isDark) Color(0xFFD8D1FF) else Color(0xFF53657D)
     Row( // 안쪽 UI를 가로로 배치함
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
@@ -266,7 +266,7 @@ private fun ChatbotAvatar() {
         colors = if (isDark) {
             listOf(Color(0xFF343467), Color(0xFF20223E), Color(0xFF12131F))
         } else {
-            listOf(Color(0xFFF4EEFF), Color(0xFFD9CCFF), Color(0xFF8B79D9))
+            listOf(Color.White, Color(0xFFE0F2FE), Color(0xFF93C5FD))
         }
     )
     Box(
@@ -279,13 +279,13 @@ private fun ChatbotAvatar() {
         Box(
             modifier = Modifier
                 .size(34.dp)
-                .background(if (isDark) Color(0xFFD8D0FF) else Color(0xFFF5F1FF), CircleShape),
+                .background(if (isDark) Color(0xFFD8D0FF) else Color.White, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.SupportAgent,
                 contentDescription = "AI 챗바타",
-                tint = Color(0xFF3A2A78),
+                tint = if (isDark) Color(0xFF3A2A78) else Color(0xFF2563EB),
                 modifier = Modifier.size(23.dp)
             )
         }
@@ -299,8 +299,8 @@ private fun ChatMessageBubble( // ChatMessageBubble 함수를 선언함
     val isUser = message.role == ChatRole.User // 사용자가 보낸 메시지인지 저장함
     val isDark = isChatbotDarkTheme()
     val assistantContainer = if (isDark) Color(0xFF222238) else Color.White
-    val assistantBorder = if (isDark) Color(0xFF6F61B8) else Color(0xFFD7CFFF)
-    val userContainer = if (isDark) Color(0xFF6B5DD8) else Color(0xFF5B46C8)
+    val assistantBorder = if (isDark) Color(0xFF6F61B8) else Color(0xFFBFDBFE)
+    val userContainer = if (isDark) Color(0xFF6B5DD8) else Color(0xFF2563EB)
 
     Row( // 안쪽 UI를 가로로 배치함
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
@@ -329,7 +329,7 @@ private fun ChatMessageBubble( // ChatMessageBubble 함수를 선언함
             Text( // 화면에 글자를 보여줌
                 text = message.content, // text 값을 정해줌
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp), // UI 크기나 여백 같은 모양을 정함
-                color = if (isUser) Color.White else if (isDark) Color(0xFFF2F0FF) else Color(0xFF241E40), // color 값을 정해줌
+                color = if (isUser) Color.White else if (isDark) Color(0xFFF2F0FF) else Color(0xFF0F172A), // color 값을 정해줌
                 fontSize = 14.sp, // fontSize 값을 정해줌
                 lineHeight = 20.sp // lineHeight 값을 정해줌
             )
@@ -346,7 +346,7 @@ private fun ChatInputBar( // ChatInputBar 함수를 선언함
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isChatbotDarkTheme()
     val barColor = if (isDark) Color(0xFF181824) else Color.White
-    val inputColor = if (isDark) Color(0xFF222238) else Color(0xFFF8F7FF)
+    val inputColor = if (isDark) Color(0xFF222238) else Color(0xFFF8FBFF)
     Row( // 안쪽 UI를 가로로 배치함
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
@@ -370,11 +370,11 @@ private fun ChatInputBar( // ChatInputBar 함수를 선언함
             colors = OutlinedTextFieldDefaults.colors( // 사용자가 입력할 칸을 만듦
                 focusedContainerColor = inputColor, // focusedContainerColor 값을 정해줌
                 unfocusedContainerColor = inputColor, // unfocusedContainerColor 값을 정해줌
-                focusedBorderColor = Color(0xFF9B8AFB), // focusedBorderColor 값을 정해줌
-                unfocusedBorderColor = if (isDark) Color(0xFF3D3A5E) else Color(0xFFDCD5FF), // unfocusedBorderColor 값을 정해줌
+                focusedBorderColor = if (isDark) Color(0xFF9B8AFB) else Color(0xFF2563EB), // focusedBorderColor 값을 정해줌
+                unfocusedBorderColor = if (isDark) Color(0xFF3D3A5E) else Color(0xFFBFDBFE), // unfocusedBorderColor 값을 정해줌
                 focusedTextColor = MaterialTheme.colorScheme.onBackground, // focusedTextColor 값을 정해줌
                 unfocusedTextColor = MaterialTheme.colorScheme.onBackground, // unfocusedTextColor 값을 정해줌
-                cursorColor = SpentopiaMutedPurple // SpentopiaMutedPurple 값을 cursorColor 값에 넣음
+                cursorColor = if (isDark) SpentopiaMutedPurple else Color(0xFF2563EB) // SpentopiaMutedPurple 값을 cursorColor 값에 넣음
             )
         )
 
@@ -386,8 +386,8 @@ private fun ChatInputBar( // ChatInputBar 함수를 선언함
             modifier = Modifier.size(54.dp), // UI 크기나 여백 같은 모양을 정함
             shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
             colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                containerColor = if (isDark) Color(0xFF8B7CFF) else Color(0xFF5B46C8), // SpentopiaMutedPurple 값을 containerColor 값에 넣음
-                contentColor = Color.White, // contentColor 값을 정해줌
+                containerColor = if (isDark) Color(0xFF8B7CFF) else Color(0xFFE0F2FE), // SpentopiaMutedPurple 값을 containerColor 값에 넣음
+                contentColor = if (isDark) Color.White else Color(0xFF1D4ED8), // contentColor 값을 정해줌
                 disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant, // disabledContainerColor 값을 정해줌
                 disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant // disabledContentColor 값을 정해줌
             ),

@@ -674,17 +674,17 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
         else -> R.drawable.ic_toast_wallet
     }
     val walletIconColor = when (walletProvider.uppercase()) { // 지갑 브랜드가 모드별 배경에서 잘 보이도록 색을 나눔
-        "PHANTOM" -> if (isDark) Color(0xFFC4B5FD) else Color(0xFF6D28D9)
+        "PHANTOM" -> if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
         "SOLFLARE" -> if (isDark) Color(0xFFFBBF24) else Color(0xFFEA580C)
         else -> if (isDark) Color(0xFF67E8F9) else Color(0xFF2563EB)
     }
     val connectedContainerColor = if (isDark) Color(0xFF151427) else Color.White
-    val connectedBorderColor = if (isDark) Color(0xFF5B4BA1) else Color(0xFFCFC2FF)
-    val connectedTextColor = if (isDark) Color(0xFFE8DFFF) else Color(0xFF3F2A84)
-    val connectedButtonColor = if (isDark) Color(0xFF2A2550) else Color(0xFFE9E2FF)
-    val connectedButtonTextColor = if (isDark) Color(0xFFE8DFFF) else Color(0xFF4F35A5)
+    val connectedBorderColor = if (isDark) Color(0xFF5B4BA1) else Color(0xFFBFDBFE)
+    val connectedTextColor = if (isDark) Color(0xFFE8DFFF) else Color(0xFF0F172A)
+    val connectedButtonColor = if (isDark) Color(0xFF2A2550) else Color(0xFFE0F2FE)
+    val connectedButtonTextColor = if (isDark) Color(0xFFE8DFFF) else Color(0xFF1D4ED8)
     val connectedIconBackgroundColor = when (walletProvider.uppercase()) {
-        "PHANTOM" -> if (isDark) Color(0xFF2B2453) else Color(0xFFF0EAFF)
+        "PHANTOM" -> if (isDark) Color(0xFF2B2453) else Color(0xFFEFF6FF)
         "SOLFLARE" -> if (isDark) Color(0xFF352812) else Color(0xFFFFF3D6)
         else -> if (isDark) Color(0xFF123040) else Color(0xFFE0F7FF)
     }

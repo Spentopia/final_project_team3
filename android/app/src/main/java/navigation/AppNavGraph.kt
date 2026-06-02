@@ -1352,11 +1352,11 @@ private fun FloatingChatbotButton( // FloatingChatbotButton 함수를 선언함
         colors = if (isDark) {
             listOf(Color(0xFF343467), Color(0xFF232544), Color(0xFF141520))
         } else {
-            listOf(Color(0xFFF4EEFF), Color(0xFFD9CCFF), Color(0xFF8B79D9))
+            listOf(Color.White, Color(0xFFE0F2FE), Color(0xFF93C5FD))
         }
     )
-    val innerColor = if (isDark) Color(0xFFD8D0FF) else Color(0xFFF5F1FF)
-    val iconColor = Color(0xFF3A2A78)
+    val innerColor = if (isDark) Color(0xFFD8D0FF) else Color.White
+    val iconColor = if (isDark) Color(0xFF3A2A78) else Color(0xFF2563EB)
 
     FloatingActionButton( // 누를 수 있는 버튼을 만듦
         onClick = onClick, // 눌렀을 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
