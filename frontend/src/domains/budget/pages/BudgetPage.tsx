@@ -822,10 +822,10 @@ setSelectedPlan(null);
                   <Input
                     value={customBudget.monthly === 0 ? "" : customBudget.monthly}
                     onChange={(e) => updateMonthlyBudget(Number(e.target.value) || 0)}
-                    className="h-20 border-0 bg-transparent px-0 text-3xl font-extrabold text-slate-950 shadow-none focus-visible:ring-0 dark:text-gray-100"
+                    className="h-24 border-0 bg-transparent px-0 text-4xl font-extrabold text-slate-950 shadow-none focus-visible:ring-0 sm:text-5xl dark:text-gray-100"
                     placeholder="0"
                   />
-                  <span className="ml-3 shrink-0 text-xl font-bold text-slate-500 dark:text-gray-300">원</span>
+                  <span className="ml-3 shrink-0 text-2xl font-bold text-slate-500 dark:text-gray-300">원</span>
                 </div>
               </div>
 
