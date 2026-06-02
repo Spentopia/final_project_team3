@@ -402,9 +402,15 @@ setMonthlyBudget(monthKey, plan.budget);
     return;
   }
 
+  const monthlyBudget = validateCustomBudget();
+  if (monthlyBudget === null) return;
+
   setLoading(true);
   try {
     const month = selectedMonth + 1;
+    await saveBudgetToServer(customBudget, false);
+    setMonthlyBudget(monthKey, monthlyBudget);
+
     const budgetRes = await apiClient.get<BudgetApiResponse>("/api/budget", {
       params: {
         year: selectedYear,

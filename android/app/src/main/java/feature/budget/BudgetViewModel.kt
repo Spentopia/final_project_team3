@@ -207,12 +207,15 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
-            // AI 추천은 화면 입력값이 아니라 서버에 임시 저장된 예산을 다시 조회해서 사용합니다.
+            // AI 추천은 현재 화면 입력값을 임시 저장한 뒤 서버에 저장된 예산을 다시 조회해서 사용합니다.
             _isAiPlanLoading.value = true // 로딩 상태를 정해줌
             _aiPlanError.value = "" // 오류 내용을 정해줌
             _isPaymentRequired.value = false // 이전 결제 팝업 상태를 지움
 
             try { // 오류가 날 수 있는 코드를 먼저 시도함
+                val currentSettings = _budgetState.value.copy(lockedMonthKey = "")
+                upsertBackendBudget(currentSettings, lockBudget = false)
+
                 val (year, month) = currentYearMonth()
                 val savedBudget = RetrofitClient.budgetApi.getBudget(year = year, month = month)
                 currentBudgetId = savedBudget.id

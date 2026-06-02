@@ -114,6 +114,10 @@ def all_categories_locked(category_budgets):
     return all(category_budgets.get(key, 0) > 0 for key in CATEGORY_KEYS)
 
 
+def any_categories_locked(category_budgets):
+    return any(category_budgets.get(key, 0) > 0 for key in CATEGORY_KEYS)
+
+
 def locked_category_total(category_budgets):
     return sum(category_budgets.get(key, 0) for key in CATEGORY_KEYS)
 
@@ -247,6 +251,9 @@ def calculate_savings(profile, budget, savings_goal, category_budgets):
         return round_to_unit(max(0, budget - locked_category_total(category_budgets)))
 
     min_savings, _ = calculate_savings_bounds(profile, budget, savings_goal)
+    if any_categories_locked(category_budgets):
+        min_savings = min(min_savings, max(0, budget - locked_category_total(category_budgets)))
+
     return round_to_unit(min_savings)
 
 

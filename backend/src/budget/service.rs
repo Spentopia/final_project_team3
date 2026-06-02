@@ -466,6 +466,12 @@ pub async fn generate_ai_plan(
         }
     }
 
+    tracing::debug!(
+        budget_id = %budget.id,
+        category_budgets = %serde_json::to_string(&category_budgets).unwrap_or_default(),
+        "AI 예산 플랜 요청 카테고리 예산"
+    );
+
     // 4. AI 서버 호출
     let ai_plan = crate::clients::ai_client::budget_plan(
         state,
@@ -598,7 +604,8 @@ async fn fetch_categories(state: &AppState, budget_id: Uuid) -> Result<Vec<Budge
         .context("budget_categories SELECT 요청 실패")?;
 
     if !res.status().is_success() {
-        return Ok(vec![]);
+        let body = res.text().await.unwrap_or_default();
+        return Err(anyhow!("budget_categories SELECT 실패: {}", body));
     }
 
     let rows: Vec<BudgetCategory> = res.json().await.unwrap_or_default();
