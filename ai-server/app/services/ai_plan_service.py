@@ -5,6 +5,7 @@ from app.clients.openai_client import OpenAIClient
 MIN_BUDGET = 0
 MAX_BUDGET = 100000000
 UNIT = 10000
+CATEGORY_KEYS = ["food", "transport", "living", "leisure"]
 
 PLAN_PROFILES = [
     {
@@ -109,6 +110,14 @@ def build_user_category_budgets(payload):
     return category_budgets
 
 
+def all_categories_locked(category_budgets):
+    return all(category_budgets.get(key, 0) > 0 for key in CATEGORY_KEYS)
+
+
+def locked_category_total(category_budgets):
+    return sum(category_budgets.get(key, 0) for key in CATEGORY_KEYS)
+
+
 def build_prompt(payload, fixed_summary, total_budget, category_budgets):
     savings_goal = max(0, int(payload.get("savings_goal") or 0))
 
@@ -130,10 +139,12 @@ def build_prompt(payload, fixed_summary, total_budget, category_budgets):
 - 플랜 차이는 총예산이 아니라 저축/식비/교통비/생활비/여가취미 배분 방식에서만 드러나야 한다.
 - 각 플랜의 savings + food + transport + living + leisure 합계는 정확히 budget과 같아야 한다.
 - 사용자의 고정 지출 총합보다 생활비/교통비/식비 합산이 비현실적으로 작으면 안 된다.
-- 모든 플랜의 savings는 반드시 사용자의 희망 저축액과 동일해야 한다.
+- 식비/교통비/생활비/여가취미가 모두 0원보다 큰 값으로 지정되어 있으면 네 카테고리는 세 플랜 모두 동일하게 유지하고, 남은 금액은 모두 savings로 배정한다.
+- 식비/교통비/생활비/여가취미가 모두 지정된 경우 세 플랜의 budget, savings, food, transport, living, leisure 값은 모두 같아야 한다.
+- 일부 카테고리만 지정된 경우 모든 플랜의 savings는 사용자의 희망 저축액을 우선 유지한다.
 - 사용자가 직접 지정한 카테고리 예산 중 0원보다 큰 값은 세 플랜 모두 반드시 동일하게 유지한다.
 - 지정하지 않은 카테고리도 가능한 한 0원이 되지 않도록 남은 예산을 균형 있게 배분한다.
-- savings는 너무 보수적으로 잡지 말고, 각 플랜이 월 예산 대비 대략 기본 28~38%, 중간 20~28%, 여유 14~22% 범위를 우선 기준으로 삼는다.
+- 카테고리가 모두 지정되지 않은 경우에만 savings는 월 예산 대비 대략 기본 28~38%, 중간 20~28%, 여유 14~22% 범위를 우선 기준으로 삼는다.
 - 모든 금액은 10000원 단위 정수로 맞춘다.
 - 사용자가 입력한 월 예산이 크더라도 임의로 150만원 같은 상한으로 줄이지 않는다.
 - 한국어로 작성한다.
@@ -178,7 +189,7 @@ def build_prompt(payload, fixed_summary, total_budget, category_budgets):
 
 
 def balance_categories(profile, budget, savings, raw_values, category_budgets):
-    ordered_keys = ["food", "transport", "living", "leisure"]
+    ordered_keys = CATEGORY_KEYS
     spendable = max(0, budget - savings)
     values = {key: round_to_unit(raw_values.get(key, 0)) for key in ordered_keys}
     locked_keys = [key for key in ordered_keys if category_budgets.get(key, 0) > 0]
@@ -223,10 +234,20 @@ def balance_categories(profile, budget, savings, raw_values, category_budgets):
     total_categories = sum(values.values())
     diff = spendable - total_categories
     if diff != 0:
+        if not unlocked_keys:
+            return values
         target_key = "living" if "living" in unlocked_keys else (unlocked_keys[-1] if unlocked_keys else locked_keys[-1])
         values[target_key] = max(0, values[target_key] + diff)
 
     return values
+
+
+def calculate_savings(profile, budget, savings_goal, category_budgets):
+    if all_categories_locked(category_budgets):
+        return round_to_unit(max(0, budget - locked_category_total(category_budgets)))
+
+    min_savings, _ = calculate_savings_bounds(profile, budget, savings_goal)
+    return round_to_unit(min_savings)
 
 
 def fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index, category_budgets):
@@ -234,8 +255,7 @@ def fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index
     fixed_by_category = fixed_summary["category_totals"]
     fixed_total = fixed_summary["total"]
 
-    min_savings, _ = calculate_savings_bounds(profile, budget, savings_goal)
-    savings = round_to_unit(min_savings)
+    savings = calculate_savings(profile, budget, savings_goal, category_budgets)
 
     remaining = max(0, budget - savings)
     baseline_needs = min(remaining, fixed_total)
@@ -248,7 +268,7 @@ def fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index
 
     remaining_after_fixed = max(0, remaining - sum(category_allocations.values()))
     bias_total = sum(profile["category_bias"].values()) or 1
-    ordered_keys = ["food", "transport", "living", "leisure"]
+    ordered_keys = CATEGORY_KEYS
     for key in ordered_keys[:-1]:
         ratio = profile["category_bias"][key] / bias_total
         extra = round_to_unit(remaining_after_fixed * ratio)
@@ -307,10 +327,10 @@ def calculate_savings_bounds(profile, budget, savings_goal):
 def normalize_plan(raw_plan, profile, total_budget, savings_goal, fixed_summary, plan_index, category_budgets):
     fallback = fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index, category_budgets)
     budget = clamp_budget(total_budget)
-    min_savings, _ = calculate_savings_bounds(profile, budget, savings_goal)
+    savings = calculate_savings(profile, budget, savings_goal, category_budgets)
 
     values = {
-        "savings": round_to_unit(min_savings),
+        "savings": savings,
         "food": round_to_unit(raw_plan.get("food") or fallback["food"]),
         "transport": round_to_unit(raw_plan.get("transport") or fallback["transport"]),
         "living": round_to_unit(raw_plan.get("living") or fallback["living"]),
