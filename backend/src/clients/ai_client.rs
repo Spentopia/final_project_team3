@@ -136,6 +136,7 @@ pub struct BudgetPlanPayload {
     pub year: i32,
     pub month: i32,
     pub fixed_expenses: Value,
+    pub category_budgets: Value,
 }
 
 #[derive(Deserialize)]

@@ -10,7 +10,6 @@
 //  백엔드가 클라이언트 역할로 AI 서버(FastAPI)를 호출한다.
 //  고정 지출 조회 → AI 서버 요청 → 응답을 budgets.ai_plan에 저장
 
-use crate::budget::dto::Plan;
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -469,6 +468,22 @@ pub async fn generate_ai_plan(
         vec![]
     };
 
+    let saved_categories = fetch_categories(state, budget.id).await?;
+
+    #[derive(Serialize)]
+    struct CategoryBudgetInfo {
+        category: String,
+        amount: i32,
+    }
+
+    let category_budgets: Vec<CategoryBudgetInfo> = saved_categories
+        .into_iter()
+        .map(|category| CategoryBudgetInfo {
+            category: category.category,
+            amount: category.allocated_amount,
+        })
+        .collect();
+
     // 4. AI 서버 호출
     let ai_plan = crate::clients::ai_client::budget_plan(
         state,
@@ -479,6 +494,7 @@ pub async fn generate_ai_plan(
             year: budget.year,
             month: budget.month,
             fixed_expenses: serde_json::to_value(&fixed_expenses).unwrap_or_default(),
+            category_budgets: serde_json::to_value(&category_budgets).unwrap_or_default(),
         },
     )
     .await?;

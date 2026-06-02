@@ -87,7 +87,29 @@ def build_fixed_expense_summary(fixed_expenses):
     }
 
 
-def build_prompt(payload, fixed_summary, total_budget):
+def build_user_category_budgets(payload):
+    category_budgets = {
+        "food": 0,
+        "transport": 0,
+        "living": 0,
+        "leisure": 0,
+    }
+
+    for item in payload.get("category_budgets") or []:
+        category = normalize_category_key(item.get("category"))
+        amount = round_to_unit(item.get("amount") or item.get("allocated_amount") or 0)
+        if amount > 0:
+            category_budgets[category] = amount
+
+    for key in category_budgets.keys():
+        amount = round_to_unit(payload.get(key) or 0)
+        if amount > 0:
+            category_budgets[key] = amount
+
+    return category_budgets
+
+
+def build_prompt(payload, fixed_summary, total_budget, category_budgets):
     savings_goal = max(0, int(payload.get("savings_goal") or 0))
 
     return f"""
@@ -100,6 +122,7 @@ def build_prompt(payload, fixed_summary, total_budget):
 - 월: {payload.get("month")}
 - 고정 지출 총합: {fixed_summary["total"]}원
 - 고정 지출 항목: {json.dumps(fixed_summary["items"], ensure_ascii=False)}
+- 사용자가 직접 지정한 카테고리 예산: {json.dumps(category_budgets, ensure_ascii=False)}원
 
 규칙:
 - 3개 플랜의 budget은 모두 사용자가 입력한 월 예산과 같은 {total_budget}원으로 맞춘다.
@@ -108,6 +131,8 @@ def build_prompt(payload, fixed_summary, total_budget):
 - 각 플랜의 savings + food + transport + living + leisure 합계는 정확히 budget과 같아야 한다.
 - 사용자의 고정 지출 총합보다 생활비/교통비/식비 합산이 비현실적으로 작으면 안 된다.
 - 모든 플랜의 savings는 반드시 사용자의 희망 저축액과 동일해야 한다.
+- 사용자가 직접 지정한 카테고리 예산 중 0원보다 큰 값은 세 플랜 모두 반드시 동일하게 유지한다.
+- 지정하지 않은 카테고리도 가능한 한 0원이 되지 않도록 남은 예산을 균형 있게 배분한다.
 - savings는 너무 보수적으로 잡지 말고, 각 플랜이 월 예산 대비 대략 기본 28~38%, 중간 20~28%, 여유 14~22% 범위를 우선 기준으로 삼는다.
 - 모든 금액은 10000원 단위 정수로 맞춘다.
 - 사용자가 입력한 월 예산이 크더라도 임의로 150만원 같은 상한으로 줄이지 않는다.
@@ -152,12 +177,64 @@ def build_prompt(payload, fixed_summary, total_budget):
 """
 
 
-def fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index):
+def balance_categories(profile, budget, savings, raw_values, category_budgets):
+    ordered_keys = ["food", "transport", "living", "leisure"]
+    spendable = max(0, budget - savings)
+    values = {key: round_to_unit(raw_values.get(key, 0)) for key in ordered_keys}
+    locked_keys = [key for key in ordered_keys if category_budgets.get(key, 0) > 0]
+
+    for key in locked_keys:
+        values[key] = min(category_budgets[key], spendable)
+
+    locked_total = sum(values[key] for key in locked_keys)
+    if locked_total > spendable:
+        overflow = locked_total - spendable
+        for key in reversed(locked_keys):
+            cut = min(values[key], overflow)
+            values[key] -= cut
+            overflow -= cut
+            if overflow == 0:
+                break
+        locked_total = spendable
+
+    unlocked_keys = [key for key in ordered_keys if key not in locked_keys]
+    remaining = max(0, spendable - locked_total)
+
+    for key in unlocked_keys:
+        values[key] = 0
+
+    if unlocked_keys and remaining > 0:
+        bias_total = sum(profile["category_bias"][key] for key in unlocked_keys) or 1
+        minimum = UNIT if remaining >= UNIT * len(unlocked_keys) else 0
+
+        for key in unlocked_keys:
+            values[key] = minimum
+
+        remaining_after_minimum = remaining - (minimum * len(unlocked_keys))
+
+        for key in unlocked_keys[:-1]:
+            ratio = profile["category_bias"][key] / bias_total
+            extra = round_to_unit(remaining_after_minimum * ratio)
+            values[key] += min(extra, remaining_after_minimum)
+            remaining_after_minimum -= min(extra, remaining_after_minimum)
+
+        values[unlocked_keys[-1]] += remaining_after_minimum
+
+    total_categories = sum(values.values())
+    diff = spendable - total_categories
+    if diff != 0:
+        target_key = "living" if "living" in unlocked_keys else (unlocked_keys[-1] if unlocked_keys else locked_keys[-1])
+        values[target_key] = max(0, values[target_key] + diff)
+
+    return values
+
+
+def fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index, category_budgets):
     budget = clamp_budget(total_budget)
     fixed_by_category = fixed_summary["category_totals"]
     fixed_total = fixed_summary["total"]
 
-    min_savings, max_savings = calculate_savings_bounds(profile, budget, savings_goal)
+    min_savings, _ = calculate_savings_bounds(profile, budget, savings_goal)
     savings = round_to_unit(min_savings)
 
     remaining = max(0, budget - savings)
@@ -195,6 +272,7 @@ def fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index
     )
     diff = budget - spent
     category_allocations["living"] += diff
+    category_allocations = balance_categories(profile, budget, savings, category_allocations, category_budgets)
 
     return {
         "name": profile["name"],
@@ -209,10 +287,9 @@ def fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index
 
 
 def calculate_savings_bounds(profile, budget, savings_goal):
-    min_ratio, max_ratio = profile["savings_ratio"]
+    min_ratio, _ = profile["savings_ratio"]
 
     ratio_floor = int(budget * min_ratio)
-    ratio_ceiling = int(budget * max_ratio)
 
     if savings_goal > 0:
         desired = savings_goal
@@ -227,11 +304,10 @@ def calculate_savings_bounds(profile, budget, savings_goal):
     return min_savings, max_savings
 
 
-def normalize_plan(raw_plan, profile, total_budget, savings_goal, fixed_summary, plan_index):
-    fallback = fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index)
+def normalize_plan(raw_plan, profile, total_budget, savings_goal, fixed_summary, plan_index, category_budgets):
+    fallback = fallback_plan(profile, total_budget, savings_goal, fixed_summary, plan_index, category_budgets)
     budget = clamp_budget(total_budget)
-    min_savings, max_savings = calculate_savings_bounds(profile, budget, savings_goal)
-    raw_savings = round_to_unit(raw_plan.get("savings") or fallback["savings"])
+    min_savings, _ = calculate_savings_bounds(profile, budget, savings_goal)
 
     values = {
         "savings": round_to_unit(min_savings),
@@ -247,29 +323,22 @@ def normalize_plan(raw_plan, profile, total_budget, savings_goal, fixed_summary,
     if current_spend < min_required:
         values["living"] += min_required - current_spend
 
-    total = sum(values.values())
-    if total != budget:
-        values["living"] += budget - total
-
-    if values["living"] < 0:
-        deficit = -values["living"]
-        values["living"] = 0
-        for key in ["leisure", "food", "transport", "savings"]:
-            cut = min(values[key], deficit)
-            values[key] -= cut
-            deficit -= cut
-            if deficit == 0:
-                break
-        values["living"] += budget - sum(values.values())
+    balanced_categories = balance_categories(
+        profile,
+        budget,
+        values["savings"],
+        values,
+        category_budgets,
+    )
 
     return {
         "name": profile["name"],
         "budget": budget,
         "savings": values["savings"],
-        "food": values["food"],
-        "transport": values["transport"],
-        "living": values["living"],
-        "leisure": values["leisure"],
+        "food": balanced_categories["food"],
+        "transport": balanced_categories["transport"],
+        "living": balanced_categories["living"],
+        "leisure": balanced_categories["leisure"],
         "description": str(raw_plan.get("description") or profile["description"]).strip() or profile["description"],
     }
 
@@ -278,8 +347,9 @@ async def generate_ai_plans(payload: dict):
     total_budget = clamp_budget(payload.get("total_budget"))
     savings_goal = max(0, int(payload.get("savings_goal") or 0))
     fixed_summary = build_fixed_expense_summary(payload.get("fixed_expenses") or [])
+    category_budgets = build_user_category_budgets(payload)
 
-    prompt = build_prompt(payload, fixed_summary, total_budget)
+    prompt = build_prompt(payload, fixed_summary, total_budget, category_budgets)
     data = None
     last_error = None
 
@@ -318,6 +388,7 @@ async def generate_ai_plans(payload: dict):
             savings_goal,
             fixed_summary,
             index,
+            category_budgets,
         )
         for index in range(3)
     ]
