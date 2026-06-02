@@ -255,6 +255,17 @@ const parseStoredAiPlans = (storedPlan?: string | null): AiPlan[] => {
   }
 };
 
+const parseStoredSelectedPlanId = (storedPlan?: string | null): string | null => {
+  if (!storedPlan) return null;
+
+  try {
+    const parsed = JSON.parse(storedPlan) as { selected_plan_id?: unknown };
+    return typeof parsed.selected_plan_id === "string" ? parsed.selected_plan_id : null;
+  } catch {
+    return null;
+  }
+};
+
 const findAppliedPlanId = (plans: AiPlan[], budget: CustomBudget): string | null => {
   const matchedPlan = plans.find((plan) => {
     const food = plan.categories.find((category) => category.name === "식비")?.amount ?? 0;
@@ -324,12 +335,15 @@ export default function BudgetPage() {
 
         const serverBudget = budgetResponseToCustomBudget(response.data);
         const storedPlans = parseStoredAiPlans(response.data.ai_plan);
+        const storedSelectedPlanId = parseStoredSelectedPlanId(response.data.ai_plan);
         setCurrentBudgetId(response.data.id);
         setCustomBudget(serverBudget);
         setIsBudgetLocked(Boolean(response.data.locked_at));
         setAiPlans(storedPlans);
         setSelectedPlan(
-          response.data.locked_at ? findAppliedPlanId(storedPlans, serverBudget) : null
+          response.data.locked_at
+            ? storedSelectedPlanId ?? findAppliedPlanId(storedPlans, serverBudget)
+            : null
         );
 
         if (serverBudget.monthly > 0) {
@@ -396,7 +410,8 @@ export default function BudgetPage() {
 
   const saveBudgetToServer = async (
     budget: CustomBudget,
-    lockBudget = false
+    lockBudget = false,
+    selectedPlanId?: string
   ): Promise<string> => {
     const budgetId = await findOrCreateBudget(budget);
 
@@ -408,6 +423,7 @@ export default function BudgetPage() {
     await apiClient.patch(`/api/budget/${budgetId}`, {
       total_budget: Number(budget.monthly) || 0,
       savings_goal: Number(budget.savings) || 0,
+      selected_plan_id: selectedPlanId,
       lock_budget: lockBudget,
     });
 
@@ -434,7 +450,7 @@ export default function BudgetPage() {
       leisure: plan.categories.find((c) => c.name === "여가/취미")?.amount ?? 0,
     };
 
-    await saveBudgetToServer(nextBudget, true);
+    await saveBudgetToServer(nextBudget, true, planId);
 
     // 4️⃣ 프론트 상태 업데이트
     setSelectedPlan(planId);

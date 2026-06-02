@@ -24,6 +24,8 @@ pub struct UpdateBudgetRequest {
     pub total_budget: Option<i32>,
     pub savings_goal: Option<i32>,
     #[serde(default)]
+    pub selected_plan_id: Option<String>,
+    #[serde(default)]
     pub lock_budget: bool,
 }
 

@@ -199,12 +199,32 @@ pub async fn update_budget(
     struct PatchPayload {
         total_budget: Option<i32>,
         savings_goal: Option<i32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ai_plan: Option<String>,
         locked_at: Option<DateTime<Utc>>,
     }
+
+    let ai_plan = match (&current.ai_plan, &req.selected_plan_id) {
+        (_, None) => None,
+        (Some(stored), Some(selected_plan_id)) => {
+            let mut value = serde_json::from_str::<serde_json::Value>(stored)
+                .unwrap_or_else(|_| serde_json::json!({ "plans": [] }));
+            value["selected_plan_id"] = serde_json::Value::String(selected_plan_id.clone());
+            Some(value.to_string())
+        }
+        (None, Some(selected_plan_id)) => Some(
+            serde_json::json!({
+                "plans": [],
+                "selected_plan_id": selected_plan_id
+            })
+            .to_string(),
+        ),
+    };
 
     let payload = PatchPayload {
         total_budget: req.total_budget,
         savings_goal: req.savings_goal,
+        ai_plan,
         locked_at: req.lock_budget.then(Utc::now),
     };
 
