@@ -809,39 +809,42 @@ setSelectedPlan(null);
           맞춤 예산 설정
         </h2>
 
-        <div className="grid gap-8 lg:grid-cols-2">
-          <div className="flex min-h-[360px] flex-col justify-between gap-6">
-            <div className="space-y-4">
-              <div>
-                <Label className="font-semibold text-gray-900 dark:text-gray-100">월 전체 예산</Label>
-                <Input
-                  value={customBudget.monthly === 0 ? "" : customBudget.monthly}
-                  onChange={(e) => updateMonthlyBudget(Number(e.target.value) || 0)}
-                  className="mt-2 h-12 text-lg font-semibold"
-                  placeholder="월 예산을 입력하세요."
-                />
-              </div>
-
-              <div className="rounded-lg border border-sky-100 bg-sky-50/70 p-4 text-sm leading-6 text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-gray-300">
-                저장한 월 예산을 기준으로 AI 플랜을 추천받고, 선택한 플랜을 적용하면 이번 달 예산이 확정됩니다.
-              </div>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
+          <div className="flex min-h-[430px] flex-col gap-5">
+            <div className="rounded-lg border border-sky-100 bg-sky-50/70 p-5 text-sm leading-6 text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-gray-300">
+              저장한 월 예산을 기준으로 AI 플랜을 추천받고, 선택한 플랜을 적용하면 이번 달 예산이 확정됩니다.
             </div>
 
-            <Button
-              onClick={handleSaveCustomBudget}
-              disabled={!canEditBudget}
-              className="w-full spentopia-primary-button"
-              title={!canEditBudget ? budgetDisabledMessage : undefined}
-            >
-              <Wallet className="mr-2 h-4 w-4" />
-              {selectedMonth + 1}월 맞춤 예산 임시 저장
-            </Button>
+            <div className="flex flex-1 flex-col justify-between rounded-lg border border-sky-100 bg-white p-6 shadow-[0_12px_28px_rgba(37,99,235,0.08)] dark:border-slate-700 dark:bg-slate-950/60">
+              <div>
+                <Label className="text-base font-bold text-gray-900 dark:text-gray-100">월 전체 예산</Label>
+                <div className="mt-3 flex items-center rounded-xl border border-sky-200 bg-[#f8fbff] px-4 shadow-inner focus-within:border-blue-400 dark:border-slate-700 dark:bg-slate-900">
+                  <Input
+                    value={customBudget.monthly === 0 ? "" : customBudget.monthly}
+                    onChange={(e) => updateMonthlyBudget(Number(e.target.value) || 0)}
+                    className="h-20 border-0 bg-transparent px-0 text-3xl font-extrabold text-slate-950 shadow-none focus-visible:ring-0 dark:text-gray-100"
+                    placeholder="0"
+                  />
+                  <span className="ml-3 shrink-0 text-xl font-bold text-slate-500 dark:text-gray-300">원</span>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleSaveCustomBudget}
+                disabled={!canEditBudget}
+                className="mt-6 h-12 w-full spentopia-primary-button text-base font-bold"
+                title={!canEditBudget ? budgetDisabledMessage : undefined}
+              >
+                <Wallet className="mr-2 h-5 w-5" />
+                {selectedMonth + 1}월 맞춤 예산 임시 저장
+              </Button>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <Card className="border-none spentopia-hero-card p-6">
+          <div className="grid min-h-[430px] gap-4">
+            <Card className="flex flex-col justify-center border-none spentopia-hero-card p-6">
               <p className="mb-1 text-sm opacity-90">현재 설정한 월 예산</p>
-              <p className="text-3xl font-bold">
+              <p className="text-4xl font-extrabold">
                 {Number(customBudget.monthly).toLocaleString()}원
               </p>
               <p className="mt-2 text-sm opacity-90">
@@ -849,7 +852,7 @@ setSelectedPlan(null);
               </p>
             </Card>
 
-            <Card className="border-none spentopia-surface-card p-6">
+            <Card className="flex flex-col justify-center border-none spentopia-surface-card p-6">
               <div className="mb-4 flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-slate-700 dark:text-violet-300" />
                 <h3 className="font-bold text-gray-900 dark:text-gray-100">저장 상태</h3>
@@ -871,7 +874,7 @@ setSelectedPlan(null);
               </div>
             </Card>
 
-            <Card className="border-none spentopia-surface-card p-6">
+            <Card className="flex flex-col justify-center border-none spentopia-surface-card p-6">
               <div className="mb-3 flex items-center gap-2">
                 <PiggyBank className="h-5 w-5 text-slate-700 dark:text-violet-300" />
                 <h3 className="font-bold">다음 단계</h3>
