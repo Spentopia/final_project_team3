@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { getMe } from "@/domains/auth/api/auth";
+import React, { createContext, useContext, useState } from "react";
 
 export type Transaction = {
   id: string | number;
@@ -25,91 +24,13 @@ type FinanceContextType = {
 
 const FinanceContext = createContext<FinanceContextType | null>(null);
 
-const getFinanceStorageKey = (ownerKey: string, key: string) =>
-  `finance:${ownerKey}:${key}`;
-
 export const FinanceProvider = ({ children }: { children: React.ReactNode }) => {
   const [budget, setBudgetState] = useState(500000);
   const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [storageOwnerKey, setStorageOwnerKey] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void getMe()
-      .then((me) => {
-        if (!cancelled) {
-          setStorageOwnerKey(me.id);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setStorageOwnerKey(null);
-          setBudgetState(500000);
-          setBudgets({});
-          setTransactions([]);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!storageOwnerKey) return;
-
-    const savedBudget = localStorage.getItem(getFinanceStorageKey(storageOwnerKey, "budget"));
-    const savedBudgets = localStorage.getItem(getFinanceStorageKey(storageOwnerKey, "budgets"));
-    const savedTransactions = localStorage.getItem(getFinanceStorageKey(storageOwnerKey, "transactions"));
-
-    if (savedBudget) {
-      setBudgetState(Number(savedBudget));
-    } else {
-      setBudgetState(500000);
-    }
-
-    if (savedBudgets) {
-      try {
-        const parsed = JSON.parse(savedBudgets);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          setBudgets(parsed);
-        }
-      } catch {
-        localStorage.removeItem(getFinanceStorageKey(storageOwnerKey, "budgets"));
-      }
-    } else {
-      setBudgets({});
-    }
-
-    if (savedTransactions) {
-      try {
-        const parsed = JSON.parse(savedTransactions);
-        if (Array.isArray(parsed)) {
-          setTransactions(parsed);
-        }
-      } catch {
-        localStorage.removeItem(getFinanceStorageKey(storageOwnerKey, "transactions"));
-      }
-    } else {
-      setTransactions([]);
-    }
-  }, [storageOwnerKey]);
-
-  useEffect(() => {
-    if (!storageOwnerKey) return;
-    localStorage.setItem(
-      getFinanceStorageKey(storageOwnerKey, "transactions"),
-      JSON.stringify(transactions)
-    );
-  }, [storageOwnerKey, transactions]);
 
   const setBudget = (b: number) => {
     setBudgetState(b);
-    if (storageOwnerKey) {
-      localStorage.setItem(getFinanceStorageKey(storageOwnerKey, "budget"), String(b));
-    }
   };
 
   const setMonthlyBudget = (monthKey: string, amount: number) => {
@@ -120,12 +41,6 @@ export const FinanceProvider = ({ children }: { children: React.ReactNode }) => 
         ...prev,
         [monthKey]: normalizedAmount,
       };
-      if (storageOwnerKey) {
-        localStorage.setItem(
-          getFinanceStorageKey(storageOwnerKey, "budgets"),
-          JSON.stringify(next)
-        );
-      }
       return next;
     });
 

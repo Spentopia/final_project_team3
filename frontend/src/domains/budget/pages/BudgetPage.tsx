@@ -35,15 +35,6 @@ import {
   LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  getMonthlyIncomeTotal,
-} from "@/shared/utils/finance";
-import { getMe } from "@/domains/auth/api/auth";
-
-const CUSTOM_BUDGET_STORAGE_PREFIX = "customBudget";
-const SELECTED_PLAN_STORAGE_PREFIX = "selectedPlan";
-const AI_PLANS_STORAGE_PREFIX = "aiPlans";
-const BUDGET_LOCK_STORAGE_PREFIX = "budgetLocked";
 
 
 type PlanCategory = {
@@ -112,14 +103,6 @@ type BudgetCategoryKey = "food" | "transport" | "living" | "leisure";
 
 const BUDGET_CATEGORY_KEYS: BudgetCategoryKey[] = ["food", "transport", "living", "leisure"];
 
-type MonthSnapshot = {
-  customBudget: CustomBudget | null;
-  aiPlans: AiPlan[] | null;
-  selectedPlan: string | null;
-  budgetAmount: number | null;
-};
-
-
 const createEmptyBudget = (): CustomBudget => ({
   monthly: 0,
   savings: 0,
@@ -129,106 +112,14 @@ const createEmptyBudget = (): CustomBudget => ({
   leisure: 0,
 });
 
-const getCustomBudgetStorageKey = (monthKey: string, ownerKey: string) =>
-  `${CUSTOM_BUDGET_STORAGE_PREFIX}:${ownerKey}:${monthKey}`;
-
-const getSelectedPlanStorageKey = (monthKey: string, ownerKey: string) =>
-  `${SELECTED_PLAN_STORAGE_PREFIX}:${ownerKey}:${monthKey}`;
-
-const getAiPlansStorageKey = (monthKey: string, ownerKey: string) =>
-  `${AI_PLANS_STORAGE_PREFIX}:${ownerKey}:${monthKey}`;
-
-const getBudgetLockStorageKey = (monthKey: string, ownerKey: string) =>
-  `${BUDGET_LOCK_STORAGE_PREFIX}:${ownerKey}:${monthKey}`;
-
-const getMonthKeyFromParts = (year: number, month: number) =>
-  `${year}-${String(month + 1).padStart(2, "0")}`;
-
 const getMonthIndexFromParts = (year: number, month: number) =>
   (year - MIN_YEAR) * 12 + month;
-
-const getMonthIndexFromKey = (monthKey: string) => {
-  const [yearPart, monthPart] = monthKey.split("-");
-  const year = Number(yearPart);
-  const month = Number(monthPart) - 1;
-
-  if (!Number.isFinite(year) || !Number.isFinite(month)) return 0;
-
-  return Math.max(0, Math.min(TOTAL_MONTHS - 1, getMonthIndexFromParts(year, month)));
-};
 
 const getMonthPartsFromIndex = (index: number) => {
   const safeIndex = Math.max(0, Math.min(TOTAL_MONTHS - 1, index));
   const year = MIN_YEAR + Math.floor(safeIndex / 12);
   const month = safeIndex % 12;
   return { year, month };
-};
-
-const getMonthLabelFromIndex = (index: number) => {
-  const { year, month } = getMonthPartsFromIndex(index);
-  return `${year}년 ${month + 1}월`;
-};
-
-const parseCustomBudget = (raw: string | null): CustomBudget | null => {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as Partial<CustomBudget>;
-    return { ...createEmptyBudget(), ...parsed };
-  } catch {
-    return null;
-  }
-};
-
-const parseAiPlans = (raw: string | null): AiPlan[] | null => {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as AiPlan[];
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-};
-
-const readMonthSnapshot = (
-  monthKey: string,
-  budgetAmount: number | undefined,
-  ownerKey: string
-): MonthSnapshot | null => {
-  const customBudget = parseCustomBudget(localStorage.getItem(getCustomBudgetStorageKey(monthKey, ownerKey)));
-  const aiPlans = parseAiPlans(localStorage.getItem(getAiPlansStorageKey(monthKey, ownerKey)));
-  const selectedPlanRaw = localStorage.getItem(getSelectedPlanStorageKey(monthKey, ownerKey));
-  const selectedPlan =
-  selectedPlanRaw === null
-    ? null
-    : selectedPlanRaw;
-  const hasAny =
-    Boolean(customBudget) ||
-    Boolean(aiPlans) ||
-    selectedPlanRaw !== null ||
-    (typeof budgetAmount === "number" && budgetAmount > 0);
-
-  if (!hasAny) return null;
-
-  return {
-    customBudget,
-    aiPlans,
-    selectedPlan,
-    budgetAmount: typeof budgetAmount === "number" ? budgetAmount : null,
-  };
-};
-
-const findClosestPreviousMonthSnapshot = (
-  startIndex: number,
-  budgets: Record<string, number>,
-  ownerKey: string
-) => {
-  for (let index = Math.max(0, startIndex); index >= 0; index -= 1) {
-    const { year, month } = getMonthPartsFromIndex(index);
-    const key = getMonthKeyFromParts(year, month);
-    const snapshot = readMonthSnapshot(key, budgets[key], ownerKey);
-    if (snapshot) return snapshot;
-  }
-  return null;
 };
 
 const iconMap = {
@@ -337,7 +228,7 @@ const customBudgetToCategoryPayload = (budget: CustomBudget) => ({
 });
 
 export default function BudgetPage() {
-  const { budgets, setMonthlyBudget, transactions } = useFinance();
+  const { budgets, setMonthlyBudget } = useFinance();
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
@@ -345,7 +236,6 @@ export default function BudgetPage() {
   const selectedMonthIndex = getMonthIndexFromParts(selectedYear, selectedMonth);
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
   const currentMonthLabel = `${selectedYear}년 ${selectedMonth + 1}월`;
-  const [storageOwnerKey, setStorageOwnerKey] = useState<string | null>(null);
   const [currentBudgetId, setCurrentBudgetId] = useState<string | null>(null);
   const [editedCategories, setEditedCategories] = useState<
   BudgetCategoryKey[]
@@ -356,190 +246,13 @@ export default function BudgetPage() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [pendingApplyPlanId, setPendingApplyPlanId] = useState<string | null>(null);
   const [isBudgetLocked, setIsBudgetLocked] = useState(false);
-  const selectedMonthDate = new Date(selectedYear, selectedMonth, 1);
-  const monthlyIncomeBudget = getMonthlyIncomeTotal(transactions, selectedMonthDate);
-  const currentBudget = budgets[monthKey] || monthlyIncomeBudget || 0;
+  const currentBudget = budgets[monthKey] || 0;
   const canEditBudget = !isBudgetLocked;
   const budgetDisabledMessage = isBudgetLocked
     ? "이번 달 예산 설정이 완료되었습니다. 예산 설정은 월 1회만 가능합니다."
     : "예산 설정은 월 1회만 가능합니다.";
 
   useEffect(() => {
-    let cancelled = false;
-
-    void getMe()
-      .then((me) => {
-        if (!cancelled) {
-          setStorageOwnerKey(me.id);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setStorageOwnerKey(null);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!storageOwnerKey) return;
-
-    const savedBudget = localStorage.getItem(getCustomBudgetStorageKey(monthKey, storageOwnerKey));
-    const savedPlans = localStorage.getItem(getAiPlansStorageKey(monthKey, storageOwnerKey));
-    const savedSelectedPlan = localStorage.getItem(getSelectedPlanStorageKey(monthKey, storageOwnerKey));
-    const savedBudgetLock = localStorage.getItem(getBudgetLockStorageKey(monthKey, storageOwnerKey)) === "true";
-
-    const hasSavedMonthData =
-      Boolean(savedBudget) || Boolean(savedPlans) || savedSelectedPlan !== null || budgets[monthKey] !== undefined;
-
-    const fallbackBudgetForMonth = () => {
-  const previousSnapshot = findClosestPreviousMonthSnapshot(
-    selectedMonthIndex - 1,
-    budgets,
-    storageOwnerKey
-  );
-
-  if (previousSnapshot?.customBudget?.monthly) {
-    return previousSnapshot.customBudget.monthly;
-  }
-
-  if (
-    previousSnapshot?.budgetAmount &&
-    previousSnapshot.budgetAmount > 0
-  ) {
-    return previousSnapshot.budgetAmount;
-  }
-
-  return 1000000;
-};
-
-    if (savedBudget) {
-  const parsedBudget = parseCustomBudget(savedBudget);
-
-  if (parsedBudget) {
-    setCustomBudget(parsedBudget);
-
-    if (parsedBudget.monthly > 0) {
-      setMonthlyBudget(monthKey, parsedBudget.monthly);
-    }
-  }
-} else if (hasSavedMonthData) {
-  const previousSnapshot = findClosestPreviousMonthSnapshot(
-    selectedMonthIndex - 1,
-    budgets,
-    storageOwnerKey
-  );
-
-  const nextBudget = previousSnapshot?.customBudget
-    ? { ...previousSnapshot.customBudget }
-    : { ...createEmptyBudget(), monthly: fallbackBudgetForMonth() };
-
-  if (!nextBudget.monthly) {
-    nextBudget.monthly = fallbackBudgetForMonth();
-  }
-
-  setCustomBudget(nextBudget);
-
-  localStorage.setItem(
-    getCustomBudgetStorageKey(monthKey, storageOwnerKey),
-    JSON.stringify(nextBudget)
-  );
-
-  if (
-    nextBudget.monthly > 0 &&
-    budgets[monthKey] !== nextBudget.monthly
-  ) {
-    setMonthlyBudget(monthKey, nextBudget.monthly);
-  }
-} else {
-  const previousSnapshot = findClosestPreviousMonthSnapshot(
-    selectedMonthIndex - 1,
-    budgets,
-    storageOwnerKey
-  );
-
-  let nextBudget;
-
-  if (previousSnapshot?.customBudget) {
-    nextBudget = { ...previousSnapshot.customBudget };
-  } else {
-    nextBudget = createEmptyBudget();
-
-    nextBudget.monthly =
-      previousSnapshot?.budgetAmount || 1000000;
-  }
-
-  setCustomBudget(nextBudget);
-
-  localStorage.setItem(
-    getCustomBudgetStorageKey(monthKey, storageOwnerKey),
-    JSON.stringify(nextBudget)
-  );
-
-  if (nextBudget.monthly > 0) {
-    setMonthlyBudget(monthKey, nextBudget.monthly);
-  }
-} // ← 바깥 else 종료
-
-    const parsedPlans = parseAiPlans(savedPlans);
-
-if (parsedPlans && parsedPlans.length > 0) {
-  setAiPlans(parsedPlans);
-} else {
-  // 이전 달 플랜 자동 복원
-  const previousSnapshot = findClosestPreviousMonthSnapshot(
-    selectedMonthIndex - 1,
-    budgets,
-    storageOwnerKey
-  );
-
-  if (previousSnapshot?.aiPlans?.length) {
-    setAiPlans(previousSnapshot.aiPlans);
-
-    localStorage.setItem(
-      getAiPlansStorageKey(monthKey, storageOwnerKey),
-      JSON.stringify(previousSnapshot.aiPlans)
-    );
-  } else {
-    setAiPlans([]);
-  }
-}
-
-// 이미 위에서 읽은 값 사용
-setSelectedPlan(savedSelectedPlan ?? null);
-setIsBudgetLocked(savedBudgetLock);
-
-if (savedSelectedPlan && parsedPlans?.length) {
-  const appliedPlan = parsedPlans.find(
-    (p) => p.id === savedSelectedPlan
-  );
-
-  if (appliedPlan) {
-    setCustomBudget({
-      monthly: appliedPlan.budget,
-      savings: appliedPlan.savings,
-      food:
-        appliedPlan.categories.find((c) => c.name === "식비")?.amount ?? 0,
-      transport:
-        appliedPlan.categories.find((c) => c.name === "교통비")?.amount ?? 0,
-      living:
-        appliedPlan.categories.find((c) => c.name === "생활비")?.amount ?? 0,
-      leisure:
-        appliedPlan.categories.find((c) => c.name === "여가/취미")?.amount ?? 0,
-    });
-
-    setMonthlyBudget(monthKey, appliedPlan.budget);
-  }
-} // ← 이거 추가
-
-}, [monthKey, storageOwnerKey]);
-
-  useEffect(() => {
-    if (!storageOwnerKey) return;
-
     let cancelled = false;
 
     const loadServerBudget = async () => {
@@ -561,16 +274,15 @@ if (savedSelectedPlan && parsedPlans?.length) {
         if (serverBudget.monthly > 0) {
           setMonthlyBudget(monthKey, serverBudget.monthly);
         }
-
-        localStorage.setItem(
-          getCustomBudgetStorageKey(monthKey, storageOwnerKey),
-          JSON.stringify(serverBudget)
-        );
       } catch (err: any) {
         if (cancelled) return;
 
         if (err.response?.status === 404) {
           setCurrentBudgetId(null);
+          setCustomBudget({ ...createEmptyBudget(), monthly: 1000000 });
+          setSelectedPlan(null);
+          setIsBudgetLocked(false);
+          setAiPlans([]);
           return;
         }
 
@@ -583,7 +295,7 @@ if (savedSelectedPlan && parsedPlans?.length) {
     return () => {
       cancelled = true;
     };
-  }, [monthKey, selectedMonth, selectedYear, storageOwnerKey]);
+  }, [monthKey, selectedMonth, selectedYear, setMonthlyBudget]);
 
   const findOrCreateBudget = async (budget: CustomBudget): Promise<string> => {
     const month = selectedMonth + 1;
@@ -646,11 +358,6 @@ if (savedSelectedPlan && parsedPlans?.length) {
     return;
   }
 
-  if (!storageOwnerKey) {
-    toast.error("사용자 정보를 확인한 뒤 다시 시도해주세요.");
-    return;
-  }
-
   const plan = aiPlans.find((p) => p.id === planId);
   if (!plan) return;
 
@@ -668,27 +375,11 @@ if (savedSelectedPlan && parsedPlans?.length) {
 
     // 4️⃣ 프론트 상태 업데이트
     setSelectedPlan(planId);
-
-localStorage.setItem(
-  getSelectedPlanStorageKey(monthKey, storageOwnerKey),
-  planId
-);
-
-localStorage.setItem(getBudgetLockStorageKey(monthKey, storageOwnerKey), "true");
 setIsBudgetLocked(true);
-
-localStorage.setItem(
-  getCustomBudgetStorageKey(monthKey, storageOwnerKey),
-  JSON.stringify(nextBudget)
-);
 
 setMonthlyBudget(monthKey, plan.budget);
 
     setCustomBudget(nextBudget);
-    localStorage.setItem(
-      getCustomBudgetStorageKey(monthKey, storageOwnerKey),
-      JSON.stringify(nextBudget)
-    );
 
     toast.success("플랜이 적용되었습니다! 🚀");
   } catch (err) {
@@ -704,11 +395,6 @@ setMonthlyBudget(monthKey, plan.budget);
   const [loading, setLoading] = useState(false);
 
   const handleGenerateAiPlans = async () => {
-    if (!storageOwnerKey) {
-      toast.error("사용자 정보를 확인한 뒤 다시 시도해주세요.");
-      return;
-    }
-
     const sourceBudget =
   customBudget.monthly || currentBudget;
     const fixedAmount =
@@ -798,18 +484,8 @@ console.log("현재 customBudget", customBudget);
     // 새 AI 플랜 전체 교체
 setAiPlans(mappedPlans);
 
-// localStorage 저장
-localStorage.setItem(
-  getAiPlansStorageKey(monthKey, storageOwnerKey),
-  JSON.stringify(mappedPlans)
-);
-
 // 기존 적용 플랜 초기화
 setSelectedPlan(null);
-
-localStorage.removeItem(
-  getSelectedPlanStorageKey(monthKey, storageOwnerKey)
-);
 
     toast.success("AI 플랜 생성 완료!");
   } catch (err) {
@@ -823,11 +499,6 @@ localStorage.removeItem(
   const validateCustomBudget = (): number | null => {
   if (!canEditBudget) {
     toast.error(budgetDisabledMessage);
-    return null;
-  }
-
-  if (!storageOwnerKey) {
-    toast.error("사용자 정보를 확인한 뒤 다시 시도해주세요.");
     return null;
   }
 
@@ -857,16 +528,11 @@ localStorage.removeItem(
 
   const handleSaveCustomBudget = async () => {
   const monthlyBudget = validateCustomBudget();
-  if (monthlyBudget === null || !storageOwnerKey) return;
+  if (monthlyBudget === null) return;
 
   try {
     await saveBudgetToServer(customBudget, false);
     setMonthlyBudget(monthKey, monthlyBudget);
-
-    localStorage.setItem(
-      getCustomBudgetStorageKey(monthKey, storageOwnerKey),
-      JSON.stringify(customBudget)
-    );
 
     toast.success(
       `${selectedYear}년 ${selectedMonth + 1}월 맞춤 예산이 임시 저장되었습니다.`
@@ -879,18 +545,12 @@ localStorage.removeItem(
 
   const handleConfirmCustomBudget = async () => {
   const monthlyBudget = validateCustomBudget();
-  if (monthlyBudget === null || !storageOwnerKey) return;
+  if (monthlyBudget === null) return;
 
   try {
     await saveBudgetToServer(customBudget, true);
     setMonthlyBudget(monthKey, monthlyBudget);
     setIsBudgetLocked(true);
-
-    localStorage.setItem(
-      getCustomBudgetStorageKey(monthKey, storageOwnerKey),
-      JSON.stringify(customBudget)
-    );
-    localStorage.setItem(getBudgetLockStorageKey(monthKey, storageOwnerKey), "true");
 
     toast.success(`${selectedYear}년 ${selectedMonth + 1}월 예산이 확정되었습니다.`);
   } catch (err) {
