@@ -69,7 +69,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
 
     // 월 수입 변경
     fun updateMonthlyIncome(value: Long) { // 데이터를 수정하는 함수 시작
-        _budgetState.value = _budgetState.value.copy(monthlyIncome = value.coerceAtLeast(0L)) // 예산 관련 값을 정해줌
+        _budgetState.value = _budgetState.value.toMonthlyOnlySettings().copy(monthlyIncome = value.coerceAtLeast(0L)) // 예산 관련 값을 정해줌
     }
 
     // 저축 목표 변경
@@ -142,7 +142,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
-            val currentSettings = _budgetState.value.copy(lockedMonthKey = "") // 임시 저장은 수정 가능 상태로 유지함
+            val currentSettings = _budgetState.value.toMonthlyOnlySettings().copy(lockedMonthKey = "") // 임시 저장은 수정 가능 상태로 유지함
             _budgetState.value = currentSettings // 예산 관련 값을 정해줌
             // 먼저 로컬 DataStore에 저장해서 앱 재실행 후에도 값이 남게 합니다.
             budgetDataStore.saveBudgetSettings(currentSettings)
@@ -171,7 +171,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
-            val currentSettings = _budgetState.value.copy(lockedMonthKey = "")
+            val currentSettings = _budgetState.value.toMonthlyOnlySettings().copy(lockedMonthKey = "")
             try { // 오류가 날 수 있는 코드를 먼저 시도함
                 upsertBackendBudget(currentSettings, lockBudget = true)
                 val lockedSettings = currentSettings.copy(lockedMonthKey = currentMonthKey())
@@ -213,7 +213,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             _isPaymentRequired.value = false // 이전 결제 팝업 상태를 지움
 
             try { // 오류가 날 수 있는 코드를 먼저 시도함
-                val currentSettings = _budgetState.value.copy(lockedMonthKey = "")
+                val currentSettings = _budgetState.value.toMonthlyOnlySettings().copy(lockedMonthKey = "")
                 upsertBackendBudget(currentSettings, lockBudget = false)
 
                 val (year, month) = currentYearMonth()
@@ -363,6 +363,16 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun canEditBudgetThisMonth(): Boolean { // canEditBudgetThisMonth 함수를 선언함
         return _budgetState.value.lockedMonthKey != currentMonthKey() // 이 값을 함수 결과로 돌려줌
+    }
+
+    private fun BudgetSettingsData.toMonthlyOnlySettings(): BudgetSettingsData {
+        return copy(
+            savingGoal = 0L,
+            foodBudget = 0L,
+            transportBudget = 0L,
+            livingBudget = 0L,
+            hobbyBudget = 0L
+        )
     }
 
     private fun BudgetSettingsData.toBudgetCategoryItems(): List<BudgetCategoryItem> { // BudgetSettingsData 함수를 선언함
