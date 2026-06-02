@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxSize // fillMaxSize 기능을 �
 import androidx.compose.foundation.layout.fillMaxWidth // fillMaxWidth 기능을 가져옴
 import androidx.compose.foundation.layout.height // height 기능을 가져옴
 import androidx.compose.foundation.layout.padding // padding 기능을 가져옴
+import androidx.compose.foundation.layout.size // size 기능을 가져옴
 import androidx.compose.material3.Button // 버튼 컴포넌트를 가져옴
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator // CircularProgressIndicator 기능을 가져옴
@@ -47,9 +48,9 @@ import androidx.compose.ui.platform.LocalContext // LocalContext 기능을 가�
 import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.viewinterop.AndroidView // AndroidView 기능을 가져옴
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import com.ict.spentopia.BuildConfig // BuildConfig 기능을 가져옴
-import com.ict.spentopia.data.remote.RetrofitClient // RetrofitClient 기능을 가져옴
-import com.ict.spentopia.data.remote.WebviewIssueRequest // WebviewIssueRequest 기능을 가져옴
 import com.ict.spentopia.feature.auth.wallet.SolanaWalletType // SolanaWalletType 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaDarkBackground
 import com.ict.spentopia.ui.theme.spentopiaAppButtonColor
@@ -97,8 +98,9 @@ fun MarketScreen( // MarketScreen 함수를 선언함
     var errorMessage by remember { mutableStateOf<String?>(null) } // 화면에서 바뀔 오류 내용을 저장함
     var pageReady by remember { mutableStateOf(false) } // 화면에서 바뀔 pageReady 값을 저장함
     var loadedMarketUrl by remember { mutableStateOf("") } // 화면에서 바뀔 마켓 관련 값을 저장함
+    val loadingBackground = MaterialTheme.colorScheme.background
 
-    LaunchedEffect(accessToken, webViewKey, webPath) { // 화면이 열리거나 값이 바뀔 때 실행함
+    LaunchedEffect(accessToken, webViewKey, webPath, isDarkTheme) { // 화면이 열리거나 값이 바뀔 때 실행함
         marketUrl = "" // 마켓 관련 값을 정해줌
         pageReady = false // false 값을 pageReady 값에 넣음
         loadedMarketUrl = "" // 마켓 관련 값을 정해줌
@@ -112,19 +114,8 @@ fun MarketScreen( // MarketScreen 함수를 선언함
 
         isLoading = true // true 값을 로딩 여부에 넣음
 
-        runCatching { // 이 블록 안의 내용이 시작됨
-            val redirectPath = buildFrontendWebViewRedirectPath(webPath, isDarkTheme) // redirectPath 값을 저장함
-            val issuedToken = RetrofitClient.authApi // 토큰 값을 저장함
-                .issueWebviewToken(request = WebviewIssueRequest(redirect_path = redirectPath)) // 토큰 값을 정해줌
-                .webview_token
-
-            marketUrl = buildBackendWebViewCallbackUrl(issuedToken) // 마켓 관련 값을 정해줌
-            Log.d(MARKET_WEBVIEW_TAG, "load backend webview callback path=$redirectPath") // 개발자가 확인할 로그를 찍음
-        }.onFailure { error ->
-            Log.e(MARKET_WEBVIEW_TAG, "issue webview token failed", error) // 개발자가 확인할 로그를 찍음
-            isLoading = false // false 값을 로딩 여부에 넣음
-            errorMessage = "웹뷰 로그인 정보를 발급하지 못했습니다. 다시 시도해주세요." // 오류 내용을 정해줌
-        }
+        marketUrl = buildFrontendWebViewUrl(webPath, isDarkTheme, accessToken) // 앱 토큰을 fragment로 전달해 웹뷰 인증 API 호출을 줄임
+        Log.d(MARKET_WEBVIEW_TAG, "load frontend webview url=${marketUrl.toSafeMarketLogUrl()}") // 개발자가 확인할 로그를 찍음
     }
 
     LaunchedEffect(webViewKey, marketUrl) { // 화면이 열리거나 값이 바뀔 때 실행함
@@ -132,7 +123,7 @@ fun MarketScreen( // MarketScreen 함수를 선언함
         isLoading = true // true 값을 로딩 여부에 넣음
         delay(4_000) // delay 함수를 실행함
         if (isLoading && errorMessage == null) { // 조건이 맞는지 확인함
-            Log.d(MARKET_WEBVIEW_TAG, "hide native loader by timeout url=$marketUrl") // 개발자가 확인할 로그를 찍음
+            Log.d(MARKET_WEBVIEW_TAG, "hide native loader by timeout url=${marketUrl.toSafeMarketLogUrl()}") // 개발자가 확인할 로그를 찍음
             isLoading = false // false 값을 로딩 여부에 넣음
         }
     }
@@ -156,7 +147,7 @@ fun MarketScreen( // MarketScreen 함수를 선언함
     Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(loadingBackground)
     ) { // 이 블록 안의 내용이 시작됨
         if (baseUrl.isBlank()) { // 조건이 맞는지 확인함
             MarketWebViewError( // Market Web View Error 함수를 실행함
@@ -176,7 +167,8 @@ fun MarketScreen( // MarketScreen 함수를 선언함
                                 ViewGroup.LayoutParams.MATCH_PARENT,
                                 ViewGroup.LayoutParams.MATCH_PARENT
                             )
-                            configureMarketWebView() // configure Market Web View 함수를 실행함
+                            configureMarketWebView(loadingBackground) // configure Market Web View 함수를 실행함
+                            setBackgroundColor(loadingBackground.toArgb())
                             isClickable = true // true 값을 isClickable인지 여부에 넣음
                             isFocusable = true // true 값을 isFocusable인지 여부에 넣음
                             isFocusableInTouchMode = true // true 값을 isFocusableInTouchMode인지 여부에 넣음
@@ -187,7 +179,7 @@ fun MarketScreen( // MarketScreen 함수를 선언함
                             )
                             webChromeClient = object : WebChromeClient() { // webChromeClient 값을 정해줌
                                 override fun onProgressChanged(view: WebView?, newProgress: Int) { // onProgressChanged 함수를 선언함
-                                    Log.d(MARKET_WEBVIEW_TAG, "progress=$newProgress url=${view?.url}") // 개발자가 확인할 로그를 찍음
+                                    Log.d(MARKET_WEBVIEW_TAG, "progress=$newProgress url=${view?.url.orEmpty().toSafeMarketLogUrl()}") // 개발자가 확인할 로그를 찍음
                                     if (newProgress >= 60) { // 조건이 맞는지 확인함
                                         pageReady = true // true 값을 pageReady 값에 넣음
                                         isLoading = false // false 값을 로딩 여부에 넣음
@@ -217,7 +209,7 @@ fun MarketScreen( // MarketScreen 함수를 선언함
                                     val requestedUrl = request?.url ?: return false // requestedUrl 값을 저장함
                                     val rewrittenUrl = rewriteLocalhostFrontendUrlIfNeeded(requestedUrl) // rewrittenUrl 값을 저장함
                                     if (rewrittenUrl != requestedUrl.toString()) { // 조건이 맞는지 확인함
-                                        Log.d(MARKET_WEBVIEW_TAG, "rewrite redirect url $requestedUrl -> $rewrittenUrl") // 개발자가 확인할 로그를 찍음
+                                        Log.d(MARKET_WEBVIEW_TAG, "rewrite redirect url ${requestedUrl.toString().toSafeMarketLogUrl()} -> ${rewrittenUrl.toSafeMarketLogUrl()}") // 개발자가 확인할 로그를 찍음
                                         view?.loadUrl(rewrittenUrl)
                                         return true // 이 값을 함수 결과로 돌려줌
                                     }
@@ -225,12 +217,12 @@ fun MarketScreen( // MarketScreen 함수를 선언함
                                 }
 
                                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) { // onPageStarted 함수를 선언함
-                                    Log.d(MARKET_WEBVIEW_TAG, "onPageStarted url=$url") // 개발자가 확인할 로그를 찍음
+                                    Log.d(MARKET_WEBVIEW_TAG, "onPageStarted url=${url.orEmpty().toSafeMarketLogUrl()}") // 개발자가 확인할 로그를 찍음
                                     val currentUri = url?.let { Uri.parse(it) } // currentUri 값을 저장함
                                     if (currentUri != null) { // 조건이 맞는지 확인함
                                         val rewrittenUrl = rewriteLocalhostFrontendUrlIfNeeded(currentUri) // rewrittenUrl 값을 저장함
                                         if (rewrittenUrl != url) { // 조건이 맞는지 확인함
-                                            Log.d(MARKET_WEBVIEW_TAG, "rewrite started url $url -> $rewrittenUrl") // 개발자가 확인할 로그를 찍음
+                                            Log.d(MARKET_WEBVIEW_TAG, "rewrite started url ${url.toSafeMarketLogUrl()} -> ${rewrittenUrl.toSafeMarketLogUrl()}") // 개발자가 확인할 로그를 찍음
                                             view?.stopLoading()
                                             view?.loadUrl(rewrittenUrl)
                                             return
@@ -242,7 +234,7 @@ fun MarketScreen( // MarketScreen 함수를 선언함
                                 }
 
                                 override fun onPageFinished(view: WebView?, url: String?) { // onPageFinished 함수를 선언함
-                                    Log.d(MARKET_WEBVIEW_TAG, "onPageFinished url=$url") // 개발자가 확인할 로그를 찍음
+                                    Log.d(MARKET_WEBVIEW_TAG, "onPageFinished url=${url.orEmpty().toSafeMarketLogUrl()}") // 개발자가 확인할 로그를 찍음
                                     pageReady = true // true 값을 pageReady 값에 넣음
                                     isLoading = false // false 값을 로딩 여부에 넣음
                                     view?.injectMarketSessionIfReady(
@@ -262,7 +254,7 @@ fun MarketScreen( // MarketScreen 함수를 선언함
                                     if (request?.isForMainFrame == true) { // 조건이 맞는지 확인함
                                         Log.e( // 개발자가 확인할 로그를 찍음
                                             MARKET_WEBVIEW_TAG,
-                                            "onReceivedError url=${request.url} code=${error?.errorCode} description=${error?.description}" // url 값을 정해줌
+                                            "onReceivedError url=${request.url.toString().toSafeMarketLogUrl()} code=${error?.errorCode} description=${error?.description}" // url 값을 정해줌
                                         )
                                         isLoading = false // false 값을 로딩 여부에 넣음
                                         errorMessage = error?.description?.toString() // 오류 내용을 정해줌
@@ -278,7 +270,7 @@ fun MarketScreen( // MarketScreen 함수를 선언함
                                     if (request?.isForMainFrame == true && errorResponse != null) { // 조건이 맞는지 확인함
                                         Log.e( // 개발자가 확인할 로그를 찍음
                                             MARKET_WEBVIEW_TAG,
-                                            "onReceivedHttpError url=${request.url} status=${errorResponse.statusCode} reason=${errorResponse.reasonPhrase}" // url 값을 정해줌
+                                            "onReceivedHttpError url=${request.url.toString().toSafeMarketLogUrl()} status=${errorResponse.statusCode} reason=${errorResponse.reasonPhrase}" // url 값을 정해줌
                                         )
                                         isLoading = false // false 값을 로딩 여부에 넣음
                                         errorMessage = "NFT 마켓 응답 오류 (${errorResponse.statusCode})" // 오류 내용을 정해줌
@@ -304,19 +296,19 @@ fun MarketScreen( // MarketScreen 함수를 선언함
                             }
                             webView = this // this 값을 webView 값에 넣음
                             loadedMarketUrl = marketUrl // 마켓 관련 값을 마켓 관련 값에 넣음
-                            Log.d(MARKET_WEBVIEW_TAG, "loadUrl url=$marketUrl headers=${requestHeaders.keys}") // 개발자가 확인할 로그를 찍음
+                            Log.d(MARKET_WEBVIEW_TAG, "loadUrl url=${marketUrl.toSafeMarketLogUrl()} headers=${requestHeaders.keys}") // 개발자가 확인할 로그를 찍음
                             loadUrl(marketUrl, requestHeaders) // 데이터를 불러오는 함수를 실행함
                         }
                     },
                     update = { view -> // update 값을 정해줌
+                        view.setBackgroundColor(loadingBackground.toArgb())
                         val currentUrl = view.url.orEmpty() // currentUrl 값을 저장함
                         if ( // 조건이 맞는지 확인함
                             loadedMarketUrl != marketUrl && // ! 값을 정해줌
                             marketUrl.isNotBlank() &&
-                            currentUrl != marketUrl && // ! 값을 정해줌
-                            !isFrontendMarketUrl(currentUrl)
+                            currentUrl != marketUrl // ! 값을 정해줌
                         ) { // 이 블록 안의 내용이 시작됨
-                            Log.d(MARKET_WEBVIEW_TAG, "reloadUrl loaded=$loadedMarketUrl current=${view.url} next=$marketUrl headers=${requestHeaders.keys}") // 개발자가 확인할 로그를 찍음
+                            Log.d(MARKET_WEBVIEW_TAG, "reloadUrl loaded=${loadedMarketUrl.toSafeMarketLogUrl()} current=${view.url.orEmpty().toSafeMarketLogUrl()} next=${marketUrl.toSafeMarketLogUrl()} headers=${requestHeaders.keys}") // 개발자가 확인할 로그를 찍음
                             isLoading = true // true 값을 로딩 여부에 넣음
                             pageReady = false // false 값을 pageReady 값에 넣음
                             errorMessage = null // null 값을 오류 내용에 넣음
@@ -339,11 +331,24 @@ fun MarketScreen( // MarketScreen 함수를 선언함
         if (baseUrl.isNotBlank() && isLoading) { // 조건이 맞는지 확인함
             Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
                 modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp),
+                    .fillMaxSize()
+                    .background(loadingBackground),
                 contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
             ) { // 이 블록 안의 내용이 시작됨
-                CircularProgressIndicator() // Circular Progress Indicator 함수를 실행함
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(34.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "$screenTitle 불러오는 중",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
             }
         }
 
@@ -408,7 +413,7 @@ private fun MarketWebViewError( // MarketWebViewError 함수를 선언함
 }
 
 @SuppressLint("SetJavaScriptEnabled") // 이 코드에 특별한 역할을 붙이는 표시
-private fun WebView.configureMarketWebView() { // WebView 함수를 선언함
+private fun WebView.configureMarketWebView(loadingBackground: Color) { // WebView 함수를 선언함
     settings.javaScriptEnabled = true // settings.javaScriptEnabled 값을 정해줌
     settings.domStorageEnabled = true // settings.domStorageEnabled 값을 정해줌
     settings.useWideViewPort = true // settings.useWideViewPort 값을 정해줌
@@ -420,26 +425,34 @@ private fun WebView.configureMarketWebView() { // WebView 함수를 선언함
     settings.allowContentAccess = true // settings.allowContentAccess 값을 정해줌
     CookieManager.getInstance().setAcceptCookie(true)
     CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+    setBackgroundColor(loadingBackground.toArgb())
     setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true) // set Renderer Priority Policy 함수를 실행함
 }
 
-private fun buildFrontendWebViewRedirectPath(webPath: String, isDarkTheme: Boolean): String { // buildFrontendWebViewRedirectPath 함수를 선언함
-    val normalizedPath = if (webPath.startsWith("/")) webPath else "/$webPath" // normalizedPath 값을 저장함
+private fun buildFrontendWebViewUrl(
+    webPath: String,
+    isDarkTheme: Boolean,
+    accessToken: String
+): String {
+    val normalizedPath = if (webPath.startsWith("/")) webPath else "/$webPath"
+    val frontendUri = Uri.parse(BuildConfig.NFT_MARKET_WEBVIEW_URL)
 
-    return Uri.Builder() // 이 값을 함수 결과로 돌려줌
-        .path(normalizedPath)
+    val frontendUrl = frontendUri.buildUpon()
+        .encodedPath(normalizedPath)
+        .clearQuery()
         .appendQueryParameter("webview", "true")
         .appendQueryParameter("theme", if (isDarkTheme) "dark" else "light")
         .build()
         .toString()
+
+    return "$frontendUrl#access_token=${Uri.encode(accessToken)}"
 }
 
-private fun buildBackendWebViewCallbackUrl(webviewToken: String): String { // buildBackendWebViewCallbackUrl 함수를 선언함
-    return Uri.parse(BuildConfig.API_BASE_URL) // 이 값을 함수 결과로 돌려줌
-        .buildUpon()
-        .encodedPath("/auth/webview/callback")
-        .clearQuery()
-        .appendQueryParameter("token", webviewToken)
+private fun String.toSafeMarketLogUrl(): String {
+    val uri = runCatching { Uri.parse(this) }.getOrNull() ?: return this
+    if (uri.fragment.isNullOrBlank()) return this
+    return uri.buildUpon()
+        .fragment("access_token=***")
         .build()
         .toString()
 }
@@ -481,12 +494,12 @@ private fun WebView.injectMarketSessionIfReady( // WebView 함수를 선언함
 ) { // 이 블록 안의 내용이 시작됨
     val currentUrl = url.orEmpty() // currentUrl 값을 저장함
     if (!currentUrl.startsWith("http://") && !currentUrl.startsWith("https://")) { // 조건이 맞는지 확인함
-        Log.d(MARKET_WEBVIEW_TAG, "skip injectMarketSession url=$currentUrl") // 개발자가 확인할 로그를 찍음
+        Log.d(MARKET_WEBVIEW_TAG, "skip injectMarketSession url=${currentUrl.toSafeMarketLogUrl()}") // 개발자가 확인할 로그를 찍음
         return
     }
 
     if (!isFrontendMarketUrl(currentUrl)) { // 조건이 맞는지 확인함
-        Log.d(MARKET_WEBVIEW_TAG, "skip injectMarketSession nonFrontendUrl=$currentUrl") // 개발자가 확인할 로그를 찍음
+        Log.d(MARKET_WEBVIEW_TAG, "skip injectMarketSession nonFrontendUrl=${currentUrl.toSafeMarketLogUrl()}") // 개발자가 확인할 로그를 찍음
         return
     }
 

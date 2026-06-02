@@ -45,6 +45,7 @@ import androidx.compose.material.icons.outlined.Key // 비밀번호 아이콘을
 import androidx.compose.material.icons.outlined.Link // 연결 아이콘을 가져옴
 import androidx.compose.material.icons.outlined.LinkOff // 연결 해제 아이콘을 가져옴
 import androidx.compose.runtime.Composable // Compose 화면 함수 표시를 가져옴
+import androidx.compose.runtime.LaunchedEffect // 화면 값이 바뀔 때 실행하는 도구를 가져옴
 import androidx.compose.runtime.getValue // by로 상태를 읽게 해줌
 import androidx.compose.runtime.mutableStateOf // 화면 상태를 만드는 도구를 가져옴
 import androidx.compose.runtime.remember // 값을 기억하는 Compose 도구를 가져옴
@@ -85,6 +86,14 @@ fun MyPageScreen( // MyPageScreen 함수를 선언함
     val context = LocalContext.current // 현재 화면 정보를 저장함
 
     var showWalletDialog by remember { mutableStateOf(false) } // 화면에서 바뀔 지갑 관련 값을 저장함
+
+    LaunchedEffect(isWalletConnected, walletAddress, walletProvider) {
+        myPageViewModel.updateWalletState(
+            isConnected = isWalletConnected,
+            walletAddress = walletAddress,
+            walletProvider = walletProvider
+        )
+    }
 
     val imageLauncher = rememberLauncherForActivityResult( // 화면이 다시 그려져도 imageLauncher 값을 기억함
         contract = ActivityResultContracts.GetContent() // contract 값을 정해줌

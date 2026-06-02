@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf // 화면 상태를 만드는 도
 import androidx.compose.runtime.setValue // by로 상태를 바꾸게 해줌
 import androidx.lifecycle.ViewModel // ViewModel 기능을 가져옴
 import androidx.lifecycle.viewModelScope // ViewModel 코루틴 범위를 가져옴
+import com.ict.spentopia.data.repository.SptBalanceRepository
 import com.ict.spentopia.data.remote.ChangePasswordRequest // 비밀번호 변경 요청을 가져옴
 import com.ict.spentopia.data.remote.RetrofitClient // 서버 통신 도구를 가져옴
 import com.ict.spentopia.data.remote.UpdateUserProfileRequest // 프로필 수정 요청을 가져옴
@@ -25,6 +26,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull // content type을 미디�
 class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클래스 시작
 
     private var pendingProfileImageUri: String? = null // 저장 버튼에서 업로드할 새 프로필 이미지 URI를 저장함
+    private val sptBalanceRepository = SptBalanceRepository()
 
     // UI 상태 보관
     var uiState by mutableStateOf( // 화면에서 바뀔 화면 상태를 저장함
@@ -80,6 +82,7 @@ class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클
             try {
                 val profile = RetrofitClient.userSettingsApi.getProfile() // 서버 응답을 저장함
                 applyProfile(profile) // 서버 응답을 화면 상태에 반영함
+                loadSptBalance(profile.wallet_address.orEmpty())
                 refreshProfileImage(profile.profile_image) // 프로필 이미지는 signed URL로 다시 불러옴
             } catch (_: Exception) {
                 uiState = uiState.copy(
@@ -99,6 +102,7 @@ class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클
         val intro = profile.introduction.orEmpty()
         val provider = profile.login_provider.orEmpty()
         val isSocialLogin = provider != "email"
+        val walletAddress = profile.wallet_address.orEmpty()
 
         uiState = uiState.copy(
             profileSummary = uiState.profileSummary.copy(
@@ -106,7 +110,7 @@ class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클
                 realName = if (intro.isNotBlank()) intro else email.ifBlank { provider.ifBlank { "사용자" } },
                 joinedDateText = formatJoinedDate(profile.created_at),
                 streakText = "${profile.current_streak}일 🔥",
-                sptBalanceText = "%,d SPT".format(profile.spt_balance),
+                sptBalanceText = if (walletAddress.isBlank()) "-" else "...",
                 avatarCountText = uiState.profileSummary.avatarCountText.ifBlank { "-" },
                 loginProviderText = formatLoginProvider(provider, profile.google_connected),
                 profileImageUri = uiState.profileSummary.profileImageUri
@@ -119,11 +123,29 @@ class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클
             ),
             socialAccounts = buildSocialAccounts(provider, profile.google_connected),
             walletUi = uiState.walletUi.copy(
-                isConnected = !profile.wallet_address.isNullOrBlank(),
-                walletAddress = profile.wallet_address.orEmpty()
+                isConnected = walletAddress.isNotBlank(),
+                walletAddress = walletAddress
             ),
             isSocialLogin = isSocialLogin
         )
+    }
+
+    private fun loadSptBalance(walletAddress: String) {
+        if (walletAddress.isBlank()) return
+        viewModelScope.launch {
+            val balanceText = try {
+                "%,d SPT".format(sptBalanceRepository.getSptBalance(walletAddress))
+            } catch (_: Exception) {
+                "0 SPT"
+            }
+            if (uiState.walletUi.walletAddress == walletAddress) {
+                uiState = uiState.copy(
+                    profileSummary = uiState.profileSummary.copy(
+                        sptBalanceText = balanceText
+                    )
+                )
+            }
+        }
     }
 
     private fun formatJoinedDate(createdAt: String): String { // 가입일 표시 문구를 만듦
@@ -267,12 +289,16 @@ class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클
         walletProvider: String // 지갑 이름을 받음
     ) { // 이 블록 안의 내용이 시작됨
         uiState = uiState.copy( // 화면 상태를 정해줌
+            profileSummary = uiState.profileSummary.copy(
+                sptBalanceText = if (walletAddress.isBlank()) "-" else "..."
+            ),
             walletUi = uiState.walletUi.copy( // 지갑 관련 값을 정해줌
                 isConnected = isConnected, // isConnected인지 여부를 isConnected인지 여부에 넣음
                 walletAddress = walletAddress, // 지갑 주소를 지갑 주소에 넣음
                 walletProvider = walletProvider // 지갑 이름을 지갑 이름에 넣음
             )
         )
+        loadSptBalance(walletAddress)
     }
 
     fun toggleEditMode(context: Context, onResult: (String) -> Unit = {}) { // toggleEditMode 함수를 선언함
@@ -300,6 +326,7 @@ class MyPageViewModel : ViewModel() { // MyPageViewModel 기능을 묶어둔 클
                     )
                 )
                 applyProfile(updated)
+                loadSptBalance(updated.wallet_address.orEmpty())
                 refreshProfileImage(updated.profile_image)
                 pendingProfileImageUri = null
                 uiState = uiState.copy(isEditMode = false)

@@ -99,6 +99,10 @@ import com.ict.spentopia.ui.toast.AppToastType
 import com.ict.spentopia.ui.toast.showAppToast
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender // ActivityResultSender 기능을 가져옴
 import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 
 
 @OptIn(ExperimentalMaterial3Api::class) // 이 코드에 특별한 역할을 붙이는 표시
@@ -1221,9 +1225,15 @@ private fun String.toNotificationTypeLabel(): String { // 서버 알림 타입�
 
 private fun String?.toNotificationTimeText(): String { // ISO 시간 문자열을 화면에 보기 좋게 바꾸는 함수
     if (isNullOrBlank()) return "" // 시간이 없으면 빈 문자열을 돌려줌
-    return replace("T", " ")
-        .replace("Z", "")
-        .substringBefore(".")
+    return try {
+        OffsetDateTime.parse(this)
+            .atZoneSameInstant(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+    } catch (_: DateTimeParseException) {
+        replace("T", " ")
+            .replace("Z", "")
+            .substringBefore(".")
+    }
 }
 
 @Composable // 이 함수가 화면 UI를 그린다는 표시
