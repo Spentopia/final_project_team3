@@ -69,6 +69,7 @@ type BudgetApiResponse = {
   month: number;
   total_budget: number;
   savings_goal: number | null;
+  ai_plan?: string | null;
   locked_at?: string | null;
   categories: Array<{
     category: string;
@@ -222,6 +223,58 @@ const customBudgetToCategoryPayload = (budget: CustomBudget) => ({
   ],
 });
 
+const mapApiPlansToUiPlans = (plans: AiPlanApiResponse["plans"]): AiPlan[] =>
+  plans
+    .map((plan, idx) => ({
+      id: PLAN_ORDER_LABELS[idx] ?? plan.name,
+      name: plan.name,
+      budget: plan.budget,
+      savings: plan.savings,
+      description: plan.description,
+      categories: [
+        { name: "식비", amount: plan.food },
+        { name: "교통비", amount: plan.transport },
+        { name: "생활비", amount: plan.living },
+        { name: "여가/취미", amount: plan.leisure },
+        { name: "저축", amount: plan.savings },
+      ],
+    }))
+    .map((plan, idx) => ({
+      ...plan,
+      name: PLAN_ORDER_LABELS[idx] ?? plan.name,
+    }));
+
+const parseStoredAiPlans = (storedPlan?: string | null): AiPlan[] => {
+  if (!storedPlan) return [];
+
+  try {
+    const parsed = JSON.parse(storedPlan) as Partial<AiPlanApiResponse>;
+    return Array.isArray(parsed.plans) ? mapApiPlansToUiPlans(parsed.plans) : [];
+  } catch {
+    return [];
+  }
+};
+
+const findAppliedPlanId = (plans: AiPlan[], budget: CustomBudget): string | null => {
+  const matchedPlan = plans.find((plan) => {
+    const food = plan.categories.find((category) => category.name === "식비")?.amount ?? 0;
+    const transport = plan.categories.find((category) => category.name === "교통비")?.amount ?? 0;
+    const living = plan.categories.find((category) => category.name === "생활비")?.amount ?? 0;
+    const leisure = plan.categories.find((category) => category.name === "여가/취미")?.amount ?? 0;
+
+    return (
+      plan.budget === budget.monthly &&
+      plan.savings === budget.savings &&
+      food === budget.food &&
+      transport === budget.transport &&
+      living === budget.living &&
+      leisure === budget.leisure
+    );
+  });
+
+  return matchedPlan?.id ?? null;
+};
+
 const toMonthlyOnlyBudget = (budget: CustomBudget): CustomBudget => ({
   ...createEmptyBudget(),
   monthly: Number(budget.monthly) || 0,
@@ -264,9 +317,14 @@ export default function BudgetPage() {
         if (cancelled) return;
 
         const serverBudget = budgetResponseToCustomBudget(response.data);
+        const storedPlans = parseStoredAiPlans(response.data.ai_plan);
         setCurrentBudgetId(response.data.id);
         setCustomBudget(serverBudget);
         setIsBudgetLocked(Boolean(response.data.locked_at));
+        setAiPlans(storedPlans);
+        setSelectedPlan(
+          response.data.locked_at ? findAppliedPlanId(storedPlans, serverBudget) : null
+        );
 
         if (serverBudget.monthly > 0) {
           setMonthlyBudget(monthKey, serverBudget.monthly);
@@ -447,28 +505,7 @@ setMonthlyBudget(monthKey, plan.budget);
       `/api/budget/${budgetRes.data.id}/ai-plan`
     );
 
-    const data = aiRes.data;
-
-    // 👉 4. 프론트 형식으로 변환
-    const mappedPlans: AiPlan[] = data.plans
-      .map((p, idx) => ({
-        id: PLAN_ORDER_LABELS[idx],
-        name: p.name,
-        budget: p.budget,
-        savings: p.savings,
-        description: p.description,
-        categories: [
-          { name: "식비", amount: p.food },
-          { name: "교통비", amount: p.transport },
-          { name: "생활비", amount: p.living },
-          { name: "여가/취미", amount: p.leisure },
-          { name: "저축", amount: p.savings },
-        ],
-      }))
-      .map((plan, idx) => ({
-        ...plan,
-        name: PLAN_ORDER_LABELS[idx] ?? plan.name,
-      }));
+    const mappedPlans = mapApiPlansToUiPlans(aiRes.data.plans);
     // 새 AI 플랜 전체 교체
 setAiPlans(mappedPlans);
 

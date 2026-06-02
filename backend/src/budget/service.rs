@@ -489,11 +489,10 @@ pub async fn generate_ai_plan(
 
     let plans = ai_plan.plans;
 
-    // ✅ 5. 첫 번째 플랜 description만 DB 저장용으로 사용
-    let summary = plans
-        .get(0)
-        .map(|p| p.description.clone())
-        .unwrap_or_else(|| "AI 추천 플랜".to_string());
+    let stored_ai_plan = serde_json::to_string(&AiPlanResponse {
+        plans: plans.clone(),
+    })
+    .context("AI 예산 플랜 저장 JSON 직렬화 실패")?;
 
     // ✅ 6. DB 업데이트
     #[derive(Serialize)]
@@ -519,7 +518,7 @@ pub async fn generate_ai_plan(
         .header("Prefer", "return=representation")
         .json(&PatchAiPlan {
             total_budget: effective_total_budget,
-            ai_plan: summary.clone(),
+            ai_plan: stored_ai_plan,
         })
         .send()
         .await
