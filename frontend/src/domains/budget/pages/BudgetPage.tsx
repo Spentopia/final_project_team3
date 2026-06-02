@@ -275,6 +275,12 @@ const findAppliedPlanId = (plans: AiPlan[], budget: CustomBudget): string | null
   return matchedPlan?.id ?? null;
 };
 
+const isAppliedPlan = (
+  plan: AiPlan,
+  selectedPlan: string | null,
+  isBudgetLocked: boolean
+) => isBudgetLocked && selectedPlan === plan.id;
+
 const toMonthlyOnlyBudget = (budget: CustomBudget): CustomBudget => ({
   ...createEmptyBudget(),
   monthly: Number(budget.monthly) || 0,
@@ -757,26 +763,32 @@ setSelectedPlan(null);
   </Card>
 ) : (
   <div className="grid gap-6 md:grid-cols-3">
-    {aiPlans.map((plan) => {
-
-  return (
-    <Card
-      key={plan.id}
-              className={`border-2 spentopia-surface-card p-6 backdrop-blur-xl transition-all  ${
-                selectedPlan === plan.id
-  ? "border-blue-400 bg-sky-50/70 shadow-[0_18px_44px_rgba(37,99,235,0.16)] dark:border-violet-400 dark:bg-violet-950/20 dark:shadow-[0_18px_44px_rgba(124,58,237,0.18)]"
-                  : "border-transparent hover:border-sky-300 dark:hover:border-[#7c3aed]/40"
-              }`}
-            >
-              <div className="mb-4">
-                <div className="mb-2 flex items-start justify-between">
-                  <h3 className="font-bold text-gray-900 dark:text-gray-100">
-                    {plan.name}
-                  </h3>
-                  {selectedPlan === plan.id && (
-                    <Badge className="bg-[#3b82f6] text-white dark:bg-[#2d1847] dark:text-white">적용중</Badge>
-                  )}
+	    {aiPlans.map((plan) => {
+  const applied = isAppliedPlan(plan, selectedPlan, isBudgetLocked);
+	
+	  return (
+	    <Card
+	      key={plan.id}
+	              className={`relative overflow-hidden border-2 spentopia-surface-card p-6 backdrop-blur-xl transition-all  ${
+	                applied
+	  ? "border-blue-500 bg-sky-50/80 shadow-[0_18px_44px_rgba(37,99,235,0.2)] ring-2 ring-blue-200 dark:border-violet-300 dark:bg-violet-950/25 dark:ring-violet-400/40 dark:shadow-[0_18px_44px_rgba(124,58,237,0.24)]"
+	                  : "border-transparent hover:border-sky-300 dark:hover:border-[#7c3aed]/40"
+	              }`}
+	            >
+              {applied && (
+                <div className="absolute inset-x-0 top-0 bg-[#2563eb] px-4 py-2 text-center text-xs font-bold text-white dark:bg-violet-500">
+                  현재 적용된 플랜
                 </div>
+              )}
+	              <div className={`${applied ? "mt-8" : ""} mb-4`}>
+	                <div className="mb-2 flex items-start justify-between">
+	                  <h3 className="font-bold text-gray-900 dark:text-gray-100">
+	                    {plan.name}
+	                  </h3>
+	                  {applied && (
+	                    <Badge className="bg-[#3b82f6] text-white dark:bg-[#2d1847] dark:text-white">적용중</Badge>
+	                  )}
+	                </div>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
                   {plan.description}
                 </p>
@@ -824,14 +836,14 @@ setSelectedPlan(null);
   onClick={() => {
     setPendingApplyPlanId(plan.id);
   }}
-  disabled={selectedPlan === plan.id || !canEditBudget}
-  className={`w-full transition-all duration-300 ${
-    selectedPlan === plan.id || !canEditBudget
-      ? "bg-[#f0f7ff] border border-blue-200 text-blue-700 hover:bg-[#f0f7ff] cursor-default dark:border-violet-400/45 dark:bg-violet-950/35 dark:text-violet-100 dark:hover:bg-violet-950/35"
-      : "spentopia-primary-button"
-  }`}
+	  disabled={selectedPlan === plan.id || !canEditBudget}
+	  className={`w-full transition-all duration-300 ${
+	    applied || !canEditBudget
+	      ? "bg-[#f0f7ff] border border-blue-200 text-blue-700 hover:bg-[#f0f7ff] cursor-default dark:border-violet-400/45 dark:bg-violet-950/35 dark:text-violet-100 dark:hover:bg-violet-950/35"
+	      : "spentopia-primary-button"
+	  }`}
 >
-  {selectedPlan === plan.id ? "적용됨 ✓" : "이 플랜 적용하기"}
+  {applied ? "현재 적용된 플랜 ✓" : selectedPlan === plan.id ? "적용됨 ✓" : "이 플랜 적용하기"}
 </Button>
                 </Card>
   );
