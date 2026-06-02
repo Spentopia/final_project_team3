@@ -316,6 +316,7 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
     var selectedMonth by remember { mutableIntStateOf(currentMonth) } // 화면이 다시 그려져도 selectedMonth 값을 기억함
     var isMonthDialogOpen by remember { mutableStateOf(false) } // 화면에서 바뀔 월 선택창이 열렸는지 저장함
     var pendingApplyPlan by remember { mutableStateOf<BudgetPlanUiData?>(null) } // 적용 확인 대기 중인 플랜을 저장함
+    var showAiPlansDialog by remember { mutableStateOf(false) } // AI 추천 결과 팝업 표시 여부를 저장함
     val selectedMonthKey = "%04d-%02d".format(selectedYear, selectedMonth) // 선택 월 키를 저장함
     val currentMonthKey = "%04d-%02d".format(currentYear, currentMonth) // 현재 월 키를 저장함
     val canEditBudget = selectedMonthKey == currentMonthKey && budgetState.lockedMonthKey != currentMonthKey // 이번 달 1회만 수정 가능함
@@ -345,6 +346,12 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
         if (saveError.isNotBlank()) { // 조건이 맞는지 확인함
             showAppToast(context, saveError, AppToastType.ERROR) // 저장 실패는 오류 아이콘 토스트로 보여줌
             viewModel.resetSaveError()
+        }
+    }
+
+    LaunchedEffect(aiPlanList, isAiPlanLoading) {
+        if (!isAiPlanLoading && aiPlanList.isNotEmpty()) {
+            showAiPlansDialog = true
         }
     }
 
@@ -394,7 +401,7 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
                 // AI 추천 플랜 제목 + 수동 요청 버튼
                 AiPlanSectionHeader( // Ai Plan Section Header 함수를 실행함
                     title = "AI 추천 플랜", // 제목을 정해줌
-                    icon = "✨", // icon 값을 정해줌
+                    icon = Icons.Default.AutoAwesome, // icon 값을 정해줌
                     isLoading = isAiPlanLoading, // 로딩 상태를 로딩 여부에 넣음
                     enabled = canEditBudget, // 이번 달 예산 적용 가능 여부를 넣음
                     onAiRecommendClick = { // onAiRecommendClick 때 실행할 함수를 정해줌
@@ -420,18 +427,14 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
                         }
                     )
                     Spacer(modifier = Modifier.height(14.dp)) // UI 크기나 여백 같은 모양을 정함
-                } else { // 이 블록 안의 내용이 시작됨
-                    // 서버 AI 추천 플랜 목록 출력
-                    aiPlanList.forEach { plan ->
-                        BudgetPlanCard( // 내용을 카드 모양으로 묶어서 보여줌
-                            plan = plan, // 추천 플랜을 추천 플랜에 넣음
-                            enabled = canEditBudget, // 적용 가능 여부를 넣음
-                            onApplyClick = { // onApplyClick 때 실행할 함수를 정해줌
-                                pendingApplyPlan = plan // 플랜 적용 확인창을 열어줌
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(14.dp)) // UI 크기나 여백 같은 모양을 정함
-                    }
+                } else if (aiPlanList.isNotEmpty()) { // 이 블록 안의 내용이 시작됨
+                    AiPlanStatusCard( // 내용을 카드 모양으로 묶어서 보여줌
+                        message = "AI 추천 플랜 ${aiPlanList.size}개가 준비됐어요.", // 메시지를 정해줌
+                        isLoading = false, // false 값을 로딩 여부에 넣음
+                        buttonText = "추천 결과 보기",
+                        onRetryClick = { showAiPlansDialog = true } // 추천 결과 팝업을 다시 열어줌
+                    )
+                    Spacer(modifier = Modifier.height(14.dp)) // UI 크기나 여백 같은 모양을 정함
                 }
 
                 Spacer(modifier = Modifier.height(8.dp)) // UI 크기나 여백 같은 모양을 정함
@@ -439,7 +442,7 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
                 // 맞춤 예산 설정 제목
                 SectionHeader( // Section Header 함수를 실행함
                     title = "맞춤 예산 설정", // 제목을 정해줌
-                    icon = "◎" // icon 값을 정해줌
+                    icon = Icons.Default.Lightbulb // icon 값을 정해줌
                 )
 
                 Spacer(modifier = Modifier.height(12.dp)) // UI 크기나 여백 같은 모양을 정함
@@ -521,6 +524,18 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
                 )
             }
 
+            if (showAiPlansDialog && aiPlanList.isNotEmpty()) {
+                AiPlansDialog(
+                    plans = aiPlanList,
+                    canEditBudget = canEditBudget,
+                    onDismiss = { showAiPlansDialog = false },
+                    onApplyClick = { plan ->
+                        showAiPlansDialog = false
+                        pendingApplyPlan = plan
+                    }
+                )
+            }
+
         }
     }
 }
@@ -531,7 +546,6 @@ private fun BudgetTopSection() { // BudgetTopSection 함수를 선언함
     val isDark = isBudgetDarkTheme() // 앱 설정 기준으로 다크모드인지 저장함
     val titleColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
     val guideColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF53657D) // 안내 문구 색을 모드별로 분리함
-    val guideStrongColor = if (isDark) Color(0xFFD8B4FE) else Color(0xFF2563EB) // 강조 문구 색을 모드별로 분리함
     Column( // 안쪽 UI를 세로로 배치함
         modifier = Modifier.fillMaxWidth() // UI 크기나 여백 같은 모양을 정함
     ) { // 이 블록 안의 내용이 시작됨
@@ -544,22 +558,12 @@ private fun BudgetTopSection() { // BudgetTopSection 함수를 선언함
 
         Spacer(modifier = Modifier.height(8.dp)) // UI 크기나 여백 같은 모양을 정함
 
-        Row( // 안쪽 UI를 가로로 배치함
-            verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
-        ) { // 이 블록 안의 내용이 시작됨
-            Text( // 화면에 글자를 보여줌
-                text = "AI가 추천하는 플랜으로 시작하거나 ", // text 값을 정해줌
-                style = MaterialTheme.typography.bodyLarge, // style 값을 정해줌
-                color = guideColor // color 값을 정해줌
-            )
-
-            Text( // 화면에 글자를 보여줌
-                text = "직접 설정해보세요", // text 값을 정해줌
-                style = MaterialTheme.typography.bodyLarge, // style 값을 정해줌
-                fontWeight = FontWeight.SemiBold, // fontWeight 값을 정해줌
-                color = guideStrongColor // color 값을 정해줌
-            )
-        }
+        Text( // 화면에 글자를 보여줌
+            text = "AI가 추천하는 플랜으로 시작하거나 직접 설정해보세요", // text 값을 정해줌
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodyLarge, // style 값을 정해줌
+            color = guideColor // color 값을 정해줌
+        )
     }
 }
 
@@ -567,17 +571,18 @@ private fun BudgetTopSection() { // BudgetTopSection 함수를 선언함
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun SectionHeader( // SectionHeader 함수를 선언함
     title: String, // 제목을 받음
-    icon: String // icon 값을 받음
+    icon: ImageVector // icon 값을 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isBudgetDarkTheme()
     val sectionColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
     Row( // 안쪽 UI를 가로로 배치함
         verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
-        Text( // 화면에 글자를 보여줌
-            text = icon, // icon 값을 text 값에 넣음
-            style = MaterialTheme.typography.titleLarge, // style 값을 정해줌
-            color = sectionColor
+        Icon( // 화면에 아이콘을 보여줌
+            imageVector = icon,
+            contentDescription = title,
+            tint = sectionColor,
+            modifier = Modifier.size(24.dp)
         )
 
         Spacer(modifier = Modifier.width(8.dp)) // UI 크기나 여백 같은 모양을 정함
@@ -900,10 +905,67 @@ private fun BudgetApplyPlanDialog( // BudgetApplyPlanDialog 함수를 선언함
     }
 }
 
+@Composable
+private fun AiPlansDialog(
+    plans: List<BudgetPlanUiData>,
+    canEditBudget: Boolean,
+    onDismiss: () -> Unit,
+    onApplyClick: (BudgetPlanUiData) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = budgetSoftCardColor()),
+            border = BorderStroke(1.dp, budgetSoftCardBorderColor())
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "AI 추천 플랜",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    TextButton(onClick = onDismiss) {
+                        Text("닫기")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(520.dp),
+                    state = rememberLazyListState(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(plans.size) { index ->
+                        BudgetPlanCard(
+                            plan = plans[index],
+                            enabled = canEditBudget,
+                            onApplyClick = { onApplyClick(plans[index]) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
     title: String, // 제목을 받음
-    icon: String, // icon 값을 받음
+    icon: ImageVector, // icon 값을 받음
     isLoading: Boolean, // 로딩 여부를 받음
     enabled: Boolean = true, // 버튼 활성화 여부를 받음
     onAiRecommendClick: () -> Unit // onAiRecommendClick 때 실행할 함수를 받음
@@ -920,9 +982,11 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
             modifier = Modifier.weight(1f), // UI 크기나 여백 같은 모양을 정함
             verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
         ) { // 이 블록 안의 내용이 시작됨
-            Text( // 화면에 글자를 보여줌
-                text = icon, // icon 값을 text 값에 넣음
-                style = MaterialTheme.typography.titleLarge // style 값을 정해줌
+            Icon( // 화면에 아이콘을 보여줌
+                imageVector = icon,
+                contentDescription = title,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
             )
 
             Spacer(modifier = Modifier.width(8.dp)) // UI 크기나 여백 같은 모양을 정함
@@ -975,6 +1039,7 @@ private fun AiPlanSectionHeader( // AiPlanSectionHeader 함수를 선언함
 private fun AiPlanStatusCard( // AiPlanStatusCard 함수를 선언함
     message: String, // 메시지를 받음
     isLoading: Boolean, // 로딩 여부를 받음
+    buttonText: String = "다시 요청",
     onRetryClick: () -> Unit // onRetryClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val cardColor = budgetSoftCardColor() // AI 추천 상태 카드를 오늘의 소비일기 카드 계열로 맞춤
@@ -1018,7 +1083,7 @@ private fun AiPlanStatusCard( // AiPlanStatusCard 함수를 선언함
                     )
                 ) { // 이 블록 안의 내용이 시작됨
                     Text( // 화면에 글자를 보여줌
-                        text = "다시 요청", // text 값을 정해줌
+                        text = buttonText, // text 값을 정해줌
                         fontWeight = FontWeight.SemiBold // fontWeight 값을 정해줌
                     )
                 }

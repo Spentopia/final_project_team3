@@ -744,6 +744,7 @@ fun TopCategoryCard( // TopCategoryCard 함수를 선언함
     ratio: Float // ratio 값을 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isAnalysisDarkTheme()
+    val hasCategoryData = categoryName.isNotBlank() && ratio > 0f
     val titleColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
     val valueColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
     val ratioColor = if (isDark) Color(0xFFBAE6FD) else Color(0xFF0369A1)
@@ -769,12 +770,13 @@ fun TopCategoryCard( // TopCategoryCard 함수를 선언함
                 horizontalArrangement = Arrangement.spacedBy(10.dp) // horizontalArrangement 값을 정해줌
             ) { // 이 블록 안의 내용이 시작됨
                 Text( // 화면에 글자를 보여줌
-                    text = "🍔", // text 값을 정해줌
-                    fontSize = 26.sp // fontSize 값을 정해줌
+                    text = if (hasCategoryData) "•" else "—", // text 값을 정해줌
+                    fontSize = 26.sp, // fontSize 값을 정해줌
+                    color = if (hasCategoryData) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Text( // 화면에 글자를 보여줌
-                    text = categoryName, // categoryName 값을 text 값에 넣음
+                    text = if (hasCategoryData) categoryName else "아직 데이터 없음", // categoryName 값을 text 값에 넣음
                     fontSize = 22.sp, // fontSize 값을 정해줌
                     fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
                     color = valueColor // color 값을 정해줌
@@ -782,7 +784,7 @@ fun TopCategoryCard( // TopCategoryCard 함수를 선언함
             }
 
             Text( // 화면에 글자를 보여줌
-                text = "전체의 ${(ratio * 100).roundToInt()}%", // text 값을 정해줌
+                text = if (hasCategoryData) "전체의 ${(ratio * 100).roundToInt()}%" else "가계부에 소비 기록을 입력하면 표시됩니다.", // text 값을 정해줌
                 fontSize = 13.sp, // fontSize 값을 정해줌
                 fontWeight = FontWeight.SemiBold,
                 color = ratioColor // color 값을 정해줌
@@ -1548,7 +1550,7 @@ fun AiGeneratedReportCard( // AiGeneratedReportCard 함수를 선언함
                 totalExpense <= 0 -> { // < 값을 정해줌
                     AiReportStatusText( // 화면에 글자를 보여줌
                         title = "AI 소비 코멘트", // 제목을 정해줌
-                        message = "아직 분석할 소비 데이터가 없습니다. Home 화면에서 소비 기록을 먼저 입력해주세요." // 메시지를 정해줌
+                        message = "아직 분석할 소비 데이터가 없습니다. 가계부에서 소비 기록을 먼저 입력해주세요." // 메시지를 정해줌
                     )
                 }
                 isLoading -> { // 이 블록 안의 내용이 시작됨

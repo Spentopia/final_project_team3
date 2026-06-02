@@ -18,9 +18,6 @@ package com.ict.spentopia.feature.community // 이 파일이 속한 패키지 �
 // - 실제 게시글/댓글 데이터 변경은 이 화면 바깥(AppNavGraph, ViewModel)에서 합니다.
 // ------------------------------------------------------------
 
-import android.content.ClipData // ClipData 기능을 가져옴
-import android.content.ClipboardManager // ClipboardManager 기능을 가져옴
-import android.content.Context // 현재 화면 정보 타입을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border // border 기능을 가져옴
@@ -44,7 +41,6 @@ import androidx.compose.foundation.rememberScrollState // rememberScrollState �
 import androidx.compose.foundation.shape.RoundedCornerShape // RoundedCornerShape 기능을 가져옴
 import androidx.compose.foundation.verticalScroll // verticalScroll 기능을 가져옴
 import androidx.compose.material.icons.Icons // Icons 기능을 가져옴
-import androidx.compose.material.icons.filled.ContentCopy // ContentCopy 기능을 가져옴
 import androidx.compose.material.icons.filled.DeleteOutline // DeleteOutline 기능을 가져옴
 import androidx.compose.material.icons.filled.Edit // Edit 기능을 가져옴
 import androidx.compose.material.icons.filled.Visibility // Visibility 기능을 가져옴
@@ -240,9 +236,6 @@ fun CommunityDetailScreen( // CommunityDetailScreen 함수를 선언함
         } else { // 이 블록 안의 내용이 시작됨
             CommunityDetailContentCard( // 내용을 카드 모양으로 묶어서 보여줌
                 post = post, // post 값을 post 값에 넣음
-                onCopyLinkClick = { // onCopyLinkClick 때 실행할 함수를 정해줌
-                    copyCommunityPostLink(context, post.id) // copy Community Post Link 함수를 실행함
-                },
                 onReportClick = { // onReportClick 때 실행할 함수를 정해줌
                     reportTargets = communityReportTargetsForPost(post) // reportTargets 값을 정해줌
                     showReportDialog = true // true 값을 showReportDialog 값에 넣음
@@ -512,7 +505,6 @@ private fun CommunityDetailTopSection( // CommunityDetailTopSection 함수를 �
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun CommunityDetailContentCard( // CommunityDetailContentCard 함수를 선언함
     post: CommunityPost, // post 값을 받음
-    onCopyLinkClick: () -> Unit, // onCopyLinkClick 때 실행할 함수를 받음
     onReportClick: () -> Unit // onReportClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     Card( // 내용을 카드 모양으로 묶어서 보여줌
@@ -627,15 +619,6 @@ private fun CommunityDetailContentCard( // CommunityDetailContentCard 함수를 
                     horizontalArrangement = Arrangement.spacedBy(6.dp), // horizontalArrangement 값을 정해줌
                     verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
                 ) { // 이 블록 안의 내용이 시작됨
-                    IconButton(onClick = onCopyLinkClick) { // 누를 수 있는 버튼을 만듦
-                        // 게시글 링크를 클립보드에 복사하는 버튼입니다.
-                        Icon( // 화면에 아이콘을 보여줌
-                            imageVector = Icons.Filled.ContentCopy, // imageVector 값을 정해줌
-                            contentDescription = "링크 복사", // contentDescription 값을 정해줌
-                            modifier = Modifier.size(20.dp) // UI 크기나 여백 같은 모양을 정함
-                        )
-                    }
-
                     IconButton(onClick = onReportClick) { // 누를 수 있는 버튼을 만듦
                         // 신고 아이콘은 비상등 모양으로 표시해서
                         // 경고/신고 기능이라는 점이 바로 보이도록 했습니다.
@@ -1412,13 +1395,6 @@ private fun CommunityReportDialog( // CommunityReportDialog 함수를 선언함
             }
         }
     )
-}
-
-private fun copyCommunityPostLink(context: Context, postId: String) { // copyCommunityPostLink 함수를 선언함
-    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager // clipboard 값을 저장함
-    val text = "spentopia://community/posts/$postId" // text 값을 저장함
-    clipboard.setPrimaryClip(ClipData.newPlainText("커뮤니티 게시글 링크", text)) // 화면에 글자를 보여줌
-    showAppToast(context, "링크가 복사되었습니다.") // 화면에 글자를 보여줌
 }
 
 private data class CommunityDetailBadgeColors( // CommunityDetailBadgeColors 데이터를 묶어둘 클래스 시작

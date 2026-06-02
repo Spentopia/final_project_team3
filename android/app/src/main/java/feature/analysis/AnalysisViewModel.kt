@@ -1042,7 +1042,7 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
             result.add(
                 AnalysisTipUiModel( // Analysis Tip Ui Model 함수를 실행함
                     title = "기록을 시작해보세요", // 제목을 정해줌
-                    description = "아직 이번 달 소비 기록이 없어요. Home 화면에서 소비를 입력하면 분석이 자동으로 시작돼요.", // description 값을 정해줌
+                    description = "아직 이번 달 소비 기록이 없어요. 가계부에서 소비 기록을 먼저 입력하면 분석이 자동으로 시작돼요.", // description 값을 정해줌
                     emoji = "📝", // emoji 값을 정해줌
                     borderColor = Color(0xFFA7C7FF) // borderColor 값을 정해줌
                 )

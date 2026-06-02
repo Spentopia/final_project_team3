@@ -666,6 +666,7 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
     val cardColor = homeSoftCardColor() // 지갑 연결 카드의 배경색을 테마에 맞춰 가져옴
     val cardBorderColor = homeSoftCardBorderColor() // 지갑 연결 카드 테두리색을 테마에 맞춰 가져옴
     val buttonColor = homePrimaryButtonColor() // 지갑 연결/완료 버튼의 배경색을 가져옴
+    val providerName = walletProvider.ifBlank { "WALLET" }.uppercase()
     val walletIconRes = when (walletProvider.uppercase()) { // 연결된 지갑 제공자에 맞는 앞쪽 아이콘을 선택함
         "PHANTOM" -> R.drawable.ic_wallet_phantom_logo
         "SOLFLARE" -> R.drawable.ic_wallet_solflare_logo
@@ -677,6 +678,90 @@ private fun TopHeaderSection( // TopHeaderSection 함수 선언 시작
         "SOLFLARE" -> if (isDark) Color(0xFFFBBF24) else Color(0xFFEA580C)
         else -> if (isDark) Color(0xFF67E8F9) else Color(0xFF2563EB)
     }
+    val connectedContainerColor = if (isDark) Color(0xFF151427) else Color.White
+    val connectedBorderColor = if (isDark) Color(0xFF5B4BA1) else Color(0xFFCFC2FF)
+    val connectedTextColor = if (isDark) Color(0xFFE8DFFF) else Color(0xFF3F2A84)
+    val connectedButtonColor = if (isDark) Color(0xFF2A2550) else Color(0xFFE9E2FF)
+    val connectedButtonTextColor = if (isDark) Color(0xFFE8DFFF) else Color(0xFF4F35A5)
+    val connectedIconBackgroundColor = when (walletProvider.uppercase()) {
+        "PHANTOM" -> if (isDark) Color(0xFF2B2453) else Color(0xFFF0EAFF)
+        "SOLFLARE" -> if (isDark) Color(0xFF352812) else Color(0xFFFFF3D6)
+        else -> if (isDark) Color(0xFF123040) else Color(0xFFE0F7FF)
+    }
+
+    if (isWalletConnected) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(999.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = connectedContainerColor
+            ),
+            border = BorderStroke(
+                1.dp,
+                connectedBorderColor
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, top = 8.dp, end = 10.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .background(connectedIconBackgroundColor, CircleShape)
+                        .border(1.dp, walletIconColor.copy(alpha = if (isDark) 0.58f else 0.28f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = walletIconRes),
+                        contentDescription = "$providerName 연결 지갑",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(9.dp))
+
+                Text(
+                    text = providerName,
+                    modifier = Modifier.weight(1f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = connectedTextColor
+                )
+
+                Button(
+                    onClick = onWalletConnectClick,
+                    shape = RoundedCornerShape(999.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = connectedButtonColor,
+                        contentColor = connectedButtonTextColor
+                    ),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text(
+                        text = "연결 완료",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = connectedButtonTextColor
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(Color(0xFF22C55E), CircleShape)
+                    )
+                }
+            }
+        }
+        return
+    }
+
     Card( // 카드 모양 UI를 시작함
         modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
         shape = RoundedCornerShape(24.dp), // 모서리 모양을 정함
@@ -786,75 +871,87 @@ private fun MonthlySummaryCard( // MonthlySummaryCard 함수 선언 시작
         Column( // 세로로 배치하는 영역을 시작함
             modifier = Modifier.padding(20.dp) // 안쪽이나 바깥 여백을 줌
         ) { // 이 블록 안의 내용이 시작됨
-            Row( // 가로로 배치하는 영역을 시작함
-                modifier = Modifier.fillMaxWidth(), // 가로 너비를 꽉 채움
-                horizontalArrangement = Arrangement.SpaceBetween, // 가로 방향 간격과 정렬을 정함
-                verticalAlignment = Alignment.Top // 세로 방향 정렬을 정함
-            ) { // 이 블록 안의 내용이 시작됨
-                Column { // verticalAlignment 값을 이 함수로 넘김
-                    Row( // 가로로 배치하는 영역을 시작함
-                        verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
-                    ) { // 이 블록 안의 내용이 시작됨
-                        CalendarArrowButton( // 눌렀을 때 동작하는 버튼을 만듦
-                            text = "‹", // 화면에 보여줄 글자를 정함
-                            onClick = onPrevMonth // onClick 값을 이 함수로 넘김
-                        )
+            Column(modifier = Modifier.fillMaxWidth()) { // 작은 폰 폭에서도 월 선택과 금액 영역이 밀리지 않게 세로로 나눔
+                Row( // 가로로 배치하는 영역을 시작함
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically // 세로 방향 정렬을 정함
+                ) { // 이 블록 안의 내용이 시작됨
+                    CalendarArrowButton( // 눌렀을 때 동작하는 버튼을 만듦
+                        text = "‹", // 화면에 보여줄 글자를 정함
+                        onClick = onPrevMonth // onClick 값을 이 함수로 넘김
+                    )
 
-                        Spacer(modifier = Modifier.width(10.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+                    Spacer(modifier = Modifier.width(10.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                        Text( // 글자를 화면에 보여주기 시작함
-                            text = "${currentYear}년 ${currentMonth}월", // 화면에 보여줄 글자를 정함
-                            fontSize = 16.sp, // 글자 크기를 정함
-                            fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                            color = MaterialTheme.colorScheme.onSurface // 색상을 정함
-                        )
+                    Text( // 글자를 화면에 보여주기 시작함
+                        text = "${currentYear}년 ${currentMonth}월", // 화면에 보여줄 글자를 정함
+                        modifier = Modifier.weight(1f),
+                        fontSize = 16.sp, // 글자 크기를 정함
+                        fontWeight = FontWeight.Bold, // 글자 두께를 정함
+                        color = MaterialTheme.colorScheme.onSurface, // 색상을 정함
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-                        Spacer(modifier = Modifier.width(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+                    Spacer(modifier = Modifier.width(8.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
-                        Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
-                            modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
-                                .size(30.dp) // 가로세로 크기를 한 번에 정함
-                                .background( // 배경색이나 그라데이션을 넣음
-                                    color = homeDarkActionSurfaceColor(), // 색상을 정함
-                                    shape = RoundedCornerShape(10.dp) // 모서리 모양을 정함
-                                )
-                                .clickable { onCalendarClick() }, // 눌렀을 때 반응하도록 만듦
-                            contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
-                        ) { // 이 블록 안의 내용이 시작됨
-                            Icon( // 아이콘을 화면에 보여줌
-                                imageVector = Icons.Filled.CalendarMonth, // 어떤 아이콘을 쓸지 정함
-                                contentDescription = "calendar", // 접근성용 설명 글을 넣음
-                                tint = SpentopiaMutedPurple, // tint 값을 이 함수로 넘김
-                                modifier = Modifier.size(18.dp) // 가로세로 크기를 한 번에 정함
+                    Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
+                        modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
+                            .size(30.dp) // 가로세로 크기를 한 번에 정함
+                            .background( // 배경색이나 그라데이션을 넣음
+                                color = homeDarkActionSurfaceColor(), // 색상을 정함
+                                shape = RoundedCornerShape(10.dp) // 모서리 모양을 정함
                             )
-                        } // 블록 끝
-
-                        Spacer(modifier = Modifier.width(10.dp)) // 컴포넌트 사이에 빈 공간을 넣음
-
-                        CalendarArrowButton( // 눌렀을 때 동작하는 버튼을 만듦
-                            text = "›", // 화면에 보여줄 글자를 정함
-                            onClick = onNextMonth // onClick 값을 이 함수로 넘김
+                            .clickable { onCalendarClick() }, // 눌렀을 때 반응하도록 만듦
+                        contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
+                    ) { // 이 블록 안의 내용이 시작됨
+                        Icon( // 아이콘을 화면에 보여줌
+                            imageVector = Icons.Filled.CalendarMonth, // 어떤 아이콘을 쓸지 정함
+                            contentDescription = "calendar", // 접근성용 설명 글을 넣음
+                            tint = SpentopiaMutedPurple, // tint 값을 이 함수로 넘김
+                            modifier = Modifier.size(18.dp) // 가로세로 크기를 한 번에 정함
                         )
                     } // 블록 끝
 
-                    Spacer(modifier = Modifier.height(6.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+                    Spacer(modifier = Modifier.width(10.dp)) // 컴포넌트 사이에 빈 공간을 넣음
 
+                    CalendarArrowButton( // 눌렀을 때 동작하는 버튼을 만듦
+                        text = "›", // 화면에 보여줄 글자를 정함
+                        onClick = onNextMonth // onClick 값을 이 함수로 넘김
+                    )
                 } // 블록 끝
 
-                Column(horizontalAlignment = Alignment.End) { // 이 블록의 내용이 여기서 시작됨
+                Spacer(modifier = Modifier.height(14.dp)) // 컴포넌트 사이에 빈 공간을 넣음
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "이번 달 소비",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = changeRateText,
+                            fontSize = 12.sp,
+                            color = getChangeRateColor(changeRateText),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
                     FinancialAmountText( // 금액 글자를 한 줄로 보여줌
                         text = "${formatAmount(currentMonthTotalExpense)}원", // 화면에 보여줄 글자를 정함
+                        modifier = Modifier.weight(1f),
                         color = MaterialTheme.colorScheme.onSurface, // 색상을 정함
                         maxFontSize = 28.sp, // 가장 큰 글자 크기를 정함
-                        minFontSize = 20.sp, // 가장 작은 글자 크기를 정함
+                        minFontSize = 18.sp, // 가장 작은 글자 크기를 정함
                         lineHeight = 32.sp // 줄 높이를 정함
                     )
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = changeRateText, // 화면에 보여줄 글자를 정함
-                        fontSize = 13.sp, // 글자 크기를 정함
-                        color = getChangeRateColor(changeRateText) // 색상을 정함
-                    )
-                } // 블록 끝
+                }
             } // 블록 끝
 
             Spacer(modifier = Modifier.height(20.dp)) // 컴포넌트 사이에 빈 공간을 넣음
@@ -2768,33 +2865,6 @@ private fun RewardGuideCard() { // RewardGuideCard 함수 시작
                 } // 블록 끝
             } // 블록 끝
 
-            Box( // 겹치기나 감싸기에 쓰는 박스 영역을 시작함
-                modifier = Modifier // 이 UI의 크기·여백·배경 설정을 시작함
-                    .align(Alignment.BottomEnd) // 부모 안에서 위치를 맞춤
-                    .padding(end = 10.dp, bottom = 10.dp) // 안쪽이나 바깥 여백을 줌
-                    .size(52.dp) // 가로세로 크기를 한 번에 정함
-                    .background( // 배경색이나 그라데이션을 넣음
-                        color = MaterialTheme.colorScheme.primary, // 색상을 정함
-                        shape = CircleShape // 모서리 모양을 정함
-                    ),
-                contentAlignment = Alignment.Center // 안쪽 내용을 어디에 둘지 정함
-            ) { // 이 블록 안의 내용이 시작됨
-                Column( // 세로로 배치하는 영역을 시작함
-                    horizontalAlignment = Alignment.CenterHorizontally // contentAlignment 값을 이 함수로 넘김
-                ) { // 이 블록 안의 내용이 시작됨
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = "Q", // 화면에 보여줄 글자를 정함
-                        fontSize = 13.sp, // 글자 크기를 정함
-                        fontWeight = FontWeight.Bold, // 글자 두께를 정함
-                        color = Color.White // 색상을 정함
-                    )
-                    Text( // 글자를 화면에 보여주기 시작함
-                        text = "소비백과", // 화면에 보여줄 글자를 정함
-                        fontSize = 8.sp, // 글자 크기를 정함
-                        color = Color.White // 색상을 정함
-                    )
-                } // 블록 끝
-            } // 블록 끝
         } // 블록 끝
     } // 블록 끝
 } // 블록 끝
@@ -3099,15 +3169,15 @@ private fun formatDate(year: Int, month: Int, day: Int): String { // formatDate 
 private fun createChangeRateText(currentAmount: Int, previousAmount: Int): String { // createChangeRateText 함수 시작
     return if (previousAmount == 0) { // 이 블록의 내용이 여기서 시작됨
         when { // 바로 앞 설정을 이어서 적음
-            currentAmount == 0 -> "지난달과 동일 0%" // 이 조건이면 오른쪽 값을 선택함
-            else -> "↗ 지난달 대비 신규 소비" // 이 조건이면 오른쪽 값을 선택함
+            currentAmount == 0 -> "지난달과 동일" // 이 조건이면 오른쪽 값을 선택함
+            else -> "지난달 대비 신규 소비" // 이 조건이면 오른쪽 값을 선택함
         } // 블록 끝
     } else { // 조건이 거짓일 때 실행할 부분으로 넘어감
         val rate = (((currentAmount - previousAmount).toFloat() / previousAmount.toFloat()) * 100).toInt() // rate 숫자 값으로 계산함
         when { // 바로 앞 설정을 이어서 적음
-            rate > 0 -> "↗ 지난달 대비 +${rate}%" // 이 조건이면 오른쪽 값을 선택함
-            rate < 0 -> "↘ 지난달 대비 -${abs(rate)}%" // 음수를 양수로 바꿔 절댓값으로 만듦
-            else -> "→ 지난달 대비 0%" // 이 조건이면 오른쪽 값을 선택함
+            rate > 0 -> "지난달 대비 +${rate}%" // 이 조건이면 오른쪽 값을 선택함
+            rate < 0 -> "지난달 대비 -${abs(rate)}%" // 음수를 양수로 바꿔 절댓값으로 만듦
+            else -> "지난달과 동일" // 이 조건이면 오른쪽 값을 선택함
         } // 블록 끝
     } // 블록 끝
 } // 블록 끝
@@ -3115,8 +3185,8 @@ private fun createChangeRateText(currentAmount: Int, previousAmount: Int): Strin
 @Composable
 private fun getChangeRateColor(changeRateText: String): Color { // getChangeRateColor 함수 시작
     return when { // 계산한 결과를 바깥으로 돌려줌
-        changeRateText.contains("↗") -> Color(0xFFE53935) // 그 값이 들어있는지 확인함
-        changeRateText.contains("↘") -> Color(0xFF16A34A) // 그 값이 들어있는지 확인함
+        changeRateText.contains("+") || changeRateText.contains("신규") -> Color(0xFFE53935) // 그 값이 들어있는지 확인함
+        changeRateText.contains("-") -> Color(0xFF16A34A) // 그 값이 들어있는지 확인함
         else -> MaterialTheme.colorScheme.onSurfaceVariant // currentAmount 값을 이 함수로 넘김
     } // 블록 끝
 } // 블록 끝

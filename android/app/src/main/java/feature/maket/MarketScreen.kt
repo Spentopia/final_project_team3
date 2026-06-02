@@ -129,12 +129,7 @@ fun MarketScreen( // MarketScreen 함수를 선언함
     }
 
     BackHandler { // 이 블록 안의 내용이 시작됨
-        val currentWebView = webView // currentWebView 값을 저장함
-        if (currentWebView?.canGoBack() == true) { // 조건이 맞는지 확인함
-            currentWebView.goBack()
-        } else { // 이 블록 안의 내용이 시작됨
-            onNavigateBack() // 화면 이동 관련 함수를 실행함
-        }
+        onNavigateBack() // 폰 백버튼은 WebView 내부 페이지가 아니라 앱의 이전 화면으로 이동함
     }
 
     DisposableEffect(Unit) { // 이 블록 안의 내용이 시작됨

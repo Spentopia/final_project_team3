@@ -4,6 +4,7 @@ package com.ict.spentopia.feature.chatbot // 이 파일이 속한 패키지 위�
 // 질문/답변 주고받는 대화형 UI
 
 import androidx.compose.foundation.background // background 기능을 가져옴
+import androidx.compose.foundation.BorderStroke // BorderStroke 기능을 가져옴
 import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
 import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이아웃을 가져옴
 import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
@@ -25,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape // RoundedCornerShap
 import androidx.compose.material.icons.Icons // Icons 기능을 가져옴
 import androidx.compose.material.icons.filled.ArrowBack // ArrowBack 기능을 가져옴
 import androidx.compose.material.icons.filled.Send // Send 기능을 가져옴
+import androidx.compose.material.icons.filled.SupportAgent // SupportAgent 기능을 가져옴
 import androidx.compose.material3.Button // 버튼 컴포넌트를 가져옴
 import androidx.compose.material3.ButtonDefaults // ButtonDefaults 기능을 가져옴
 import androidx.compose.material3.CircularProgressIndicator // CircularProgressIndicator 기능을 가져옴
@@ -45,12 +47,15 @@ import androidx.compose.runtime.rememberCoroutineScope // rememberCoroutineScope
 import androidx.compose.runtime.setValue // by로 상태를 바꾸게 해줌
 import androidx.compose.ui.Alignment // Alignment 기능을 가져옴
 import androidx.compose.ui.Modifier // UI 크기랑 여백 설정 도구를 가져옴
+import androidx.compose.ui.draw.shadow // shadow 기능을 가져옴
+import androidx.compose.ui.graphics.Brush // Brush 기능을 가져옴
 import androidx.compose.ui.graphics.Color // 색상 타입을 가져옴
 import androidx.compose.ui.text.font.FontWeight // FontWeight 기능을 가져옴
 import androidx.compose.ui.unit.dp // 화면 크기 단위를 가져옴
 import androidx.compose.ui.unit.sp // 글자 크기 단위를 가져옴
 import com.ict.spentopia.data.remote.ChatRequest // ChatRequest 기능을 가져옴
 import com.ict.spentopia.data.remote.RetrofitClient // RetrofitClient 기능을 가져옴
+import com.ict.spentopia.ui.theme.SpentopiaDarkBackground // SpentopiaDarkBackground 기능을 가져옴
 import com.ict.spentopia.ui.theme.SpentopiaMutedPurple // SpentopiaMutedPurple 기능을 가져옴
 import kotlinx.coroutines.launch // 코루틴 실행 도구를 가져옴
 import retrofit2.HttpException // 서버 오류 타입을 가져옴
@@ -70,6 +75,8 @@ private enum class ChatRole { // ChatRole에서 고를 수 있는 값들을 묶�
 fun ChatbotScreen( // ChatbotScreen 함수를 선언함
     onBackClick: () -> Unit = {} // onBackClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isChatbotDarkTheme()
+    val screenBackground = if (isDark) Color(0xFF14141C) else Color(0xFFF7F7FF)
     val scope = rememberCoroutineScope() // 화면이 다시 그려져도 코루틴 실행 범위을 기억함
     val listState = rememberLazyListState() // 화면이 다시 그려져도 listState 값을 기억함
     var input by remember { mutableStateOf("") } // 화면에서 바뀔 input 값을 저장함
@@ -147,7 +154,7 @@ fun ChatbotScreen( // ChatbotScreen 함수를 선언함
     Column( // 안쪽 UI를 세로로 배치함
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(screenBackground)
             .imePadding()
     ) { // 이 블록 안의 내용이 시작됨
         ChatbotHeader(onBackClick = onBackClick) // 채팅 관련 값을 정해줌
@@ -195,15 +202,30 @@ fun ChatbotScreen( // ChatbotScreen 함수를 선언함
     }
 }
 
+@Composable
+private fun isChatbotDarkTheme(): Boolean {
+    return MaterialTheme.colorScheme.background == SpentopiaDarkBackground
+}
+
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun ChatbotHeader( // ChatbotHeader 함수를 선언함
     onBackClick: () -> Unit // onBackClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isChatbotDarkTheme()
+    val headerBrush = Brush.linearGradient(
+        colors = if (isDark) {
+            listOf(Color(0xFF222341), Color(0xFF37306A), Color(0xFF171827))
+        } else {
+            listOf(Color(0xFFECE7FF), Color(0xFFD9D0FF), Color(0xFFF8F7FF))
+        }
+    )
+    val titleColor = if (isDark) Color.White else Color(0xFF201B45)
+    val subtitleColor = if (isDark) Color(0xFFD8D1FF) else Color(0xFF5A4C83)
     Row( // 안쪽 UI를 가로로 배치함
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.surface // color 값을 정해줌
+                brush = headerBrush // color 값을 정해줌
             )
             .padding(horizontal = 12.dp, vertical = 14.dp), // .padding(horizontal 값을 정해줌
         verticalAlignment = Alignment.CenterVertically // verticalAlignment 값을 정해줌
@@ -212,37 +234,59 @@ private fun ChatbotHeader( // ChatbotHeader 함수를 선언함
             Icon( // 화면에 아이콘을 보여줌
                 imageVector = Icons.Default.ArrowBack, // imageVector 값을 정해줌
                 contentDescription = "뒤로가기", // contentDescription 값을 정해줌
-                tint = MaterialTheme.colorScheme.onSurface // tint 값을 정해줌
+                tint = titleColor // tint 값을 정해줌
             )
         }
 
-        Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
-            modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-                .size(42.dp)
-                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-            contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
-        ) { // 이 블록 안의 내용이 시작됨
-            Text( // 화면에 글자를 보여줌
-                text = "AI", // text 값을 정해줌
-                color = MaterialTheme.colorScheme.onPrimaryContainer, // color 값을 정해줌
-                fontWeight = FontWeight.Bold // fontWeight 값을 정해줌
-            )
-        }
+        ChatbotAvatar()
 
         Spacer(modifier = Modifier.width(12.dp)) // UI 크기나 여백 같은 모양을 정함
 
         Column { // 안쪽 UI를 세로로 배치함
             Text( // 화면에 글자를 보여줌
                 text = "AI 챗바타 상담", // text 값을 정해줌
-                color = MaterialTheme.colorScheme.onSurface, // color 값을 정해줌
+                color = titleColor, // color 값을 정해줌
                 fontSize = 18.sp, // fontSize 값을 정해줌
                 fontWeight = FontWeight.Bold // fontWeight 값을 정해줌
             )
             Spacer(modifier = Modifier.height(2.dp)) // UI 크기나 여백 같은 모양을 정함
             Text( // 화면에 글자를 보여줌
                 text = "소비 고민을 짧게 남기면 바로 답변해드려요.", // text 값을 정해줌
-                color = MaterialTheme.colorScheme.onSurfaceVariant, // color 값을 정해줌
+                color = subtitleColor, // color 값을 정해줌
                 fontSize = 12.sp // fontSize 값을 정해줌
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChatbotAvatar() {
+    val isDark = isChatbotDarkTheme()
+    val circleBrush = Brush.radialGradient(
+        colors = if (isDark) {
+            listOf(Color(0xFF343467), Color(0xFF20223E), Color(0xFF12131F))
+        } else {
+            listOf(Color(0xFFF4EEFF), Color(0xFFD9CCFF), Color(0xFF8B79D9))
+        }
+    )
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .shadow(10.dp, CircleShape)
+            .background(circleBrush, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .background(if (isDark) Color(0xFFD8D0FF) else Color(0xFFF5F1FF), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.SupportAgent,
+                contentDescription = "AI 챗바타",
+                tint = Color(0xFF3A2A78),
+                modifier = Modifier.size(23.dp)
             )
         }
     }
@@ -253,27 +297,39 @@ private fun ChatMessageBubble( // ChatMessageBubble 함수를 선언함
     message: ChatUiMessage // 메시지를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isUser = message.role == ChatRole.User // 사용자가 보낸 메시지인지 저장함
+    val isDark = isChatbotDarkTheme()
+    val assistantContainer = if (isDark) Color(0xFF222238) else Color.White
+    val assistantBorder = if (isDark) Color(0xFF6F61B8) else Color(0xFFD7CFFF)
+    val userContainer = if (isDark) Color(0xFF6B5DD8) else Color(0xFF5B46C8)
 
     Row( // 안쪽 UI를 가로로 배치함
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start // horizontalArrangement 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Surface( // Surface 함수를 실행함
-            modifier = Modifier.fillMaxWidth(0.82f), // UI 크기나 여백 같은 모양을 정함
+            modifier = Modifier
+                .fillMaxWidth(0.82f)
+                .shadow(if (isUser) 3.dp else 7.dp, RoundedCornerShape( // UI 크기나 여백 같은 모양을 정함
+                    topStart = 16.dp,
+                    topEnd = 16.dp,
+                    bottomStart = if (isUser) 16.dp else 4.dp,
+                    bottomEnd = if (isUser) 4.dp else 16.dp
+                )),
             shape = RoundedCornerShape( // shape 값을 정해줌
                 topStart = 16.dp, // topStart 값을 정해줌
                 topEnd = 16.dp, // topEnd 값을 정해줌
                 bottomStart = if (isUser) 16.dp else 4.dp, // bottomStart 값을 정해줌
                 bottomEnd = if (isUser) 4.dp else 16.dp // bottomEnd 값을 정해줌
             ),
-            color = if (isUser) SpentopiaMutedPurple else MaterialTheme.colorScheme.surface, // color 값을 정해줌
+            color = if (isUser) userContainer else assistantContainer, // color 값을 정해줌
+            border = if (isUser) null else BorderStroke(1.dp, assistantBorder),
             tonalElevation = 1.dp, // tonalElevation 값을 정해줌
             shadowElevation = 0.dp // shadowElevation 값을 정해줌
         ) { // 이 블록 안의 내용이 시작됨
             Text( // 화면에 글자를 보여줌
                 text = message.content, // text 값을 정해줌
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp), // UI 크기나 여백 같은 모양을 정함
-                color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurface, // color 값을 정해줌
+                color = if (isUser) Color.White else if (isDark) Color(0xFFF2F0FF) else Color(0xFF241E40), // color 값을 정해줌
                 fontSize = 14.sp, // fontSize 값을 정해줌
                 lineHeight = 20.sp // lineHeight 값을 정해줌
             )
@@ -288,10 +344,13 @@ private fun ChatInputBar( // ChatInputBar 함수를 선언함
     onInputChange: (String) -> Unit, // onInputChange 때 실행할 함수를 받음
     onSendClick: () -> Unit // onSendClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
+    val isDark = isChatbotDarkTheme()
+    val barColor = if (isDark) Color(0xFF181824) else Color.White
+    val inputColor = if (isDark) Color(0xFF222238) else Color(0xFFF8F7FF)
     Row( // 안쪽 UI를 가로로 배치함
         modifier = Modifier // UI 크기나 여백 같은 모양을 정함
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(barColor)
             .padding(12.dp),
         verticalAlignment = Alignment.Bottom // verticalAlignment 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
@@ -309,10 +368,10 @@ private fun ChatInputBar( // ChatInputBar 함수를 선언함
             maxLines = 4, // maxLines 값을 정해줌
             shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
             colors = OutlinedTextFieldDefaults.colors( // 사용자가 입력할 칸을 만듦
-                focusedContainerColor = MaterialTheme.colorScheme.background, // focusedContainerColor 값을 정해줌
-                unfocusedContainerColor = MaterialTheme.colorScheme.background, // unfocusedContainerColor 값을 정해줌
-                focusedBorderColor = SpentopiaMutedPurple.copy(alpha = 0.5f), // focusedBorderColor 값을 정해줌
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant, // unfocusedBorderColor 값을 정해줌
+                focusedContainerColor = inputColor, // focusedContainerColor 값을 정해줌
+                unfocusedContainerColor = inputColor, // unfocusedContainerColor 값을 정해줌
+                focusedBorderColor = Color(0xFF9B8AFB), // focusedBorderColor 값을 정해줌
+                unfocusedBorderColor = if (isDark) Color(0xFF3D3A5E) else Color(0xFFDCD5FF), // unfocusedBorderColor 값을 정해줌
                 focusedTextColor = MaterialTheme.colorScheme.onBackground, // focusedTextColor 값을 정해줌
                 unfocusedTextColor = MaterialTheme.colorScheme.onBackground, // unfocusedTextColor 값을 정해줌
                 cursorColor = SpentopiaMutedPurple // SpentopiaMutedPurple 값을 cursorColor 값에 넣음
@@ -327,7 +386,7 @@ private fun ChatInputBar( // ChatInputBar 함수를 선언함
             modifier = Modifier.size(54.dp), // UI 크기나 여백 같은 모양을 정함
             shape = RoundedCornerShape(14.dp), // shape 값을 정해줌
             colors = ButtonDefaults.buttonColors( // colors 값을 정해줌
-                containerColor = SpentopiaMutedPurple, // SpentopiaMutedPurple 값을 containerColor 값에 넣음
+                containerColor = if (isDark) Color(0xFF8B7CFF) else Color(0xFF5B46C8), // SpentopiaMutedPurple 값을 containerColor 값에 넣음
                 contentColor = Color.White, // contentColor 값을 정해줌
                 disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant, // disabledContainerColor 값을 정해줌
                 disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant // disabledContentColor 값을 정해줌

@@ -4,6 +4,7 @@ import android.content.Context // 현재 화면 정보 타입을 가져옴
 import android.net.Uri // 이미지 주소 타입을 가져옴
 import android.util.Log // 로그 찍는 기능을 가져옴
 import androidx.compose.foundation.background // background 기능을 가져옴
+import androidx.compose.foundation.BorderStroke // BorderStroke 기능을 가져옴
 import androidx.compose.foundation.rememberScrollState // rememberScrollState 기능을 가져옴
 import androidx.compose.foundation.verticalScroll // verticalScroll 기능을 가져옴
 import androidx.compose.foundation.layout.Arrangement // Arrangement 기능을 가져옴
@@ -11,16 +12,24 @@ import androidx.compose.foundation.layout.Box // 겹쳐서 배치하는 레이�
 import androidx.compose.foundation.layout.Column // 세로 배치 레이아웃을 가져옴
 import androidx.compose.foundation.layout.fillMaxSize // fillMaxSize 기능을 가져옴
 import androidx.compose.foundation.layout.fillMaxWidth // fillMaxWidth 기능을 가져옴
+import androidx.compose.foundation.layout.heightIn // heightIn 기능을 가져옴
 import androidx.compose.foundation.layout.navigationBarsPadding // navigationBarsPadding 기능을 가져옴
 import androidx.compose.foundation.layout.padding // padding 기능을 가져옴
 import androidx.compose.foundation.layout.Row // 가로 배치 레이아웃을 가져옴
 import androidx.compose.foundation.layout.size // size 기능을 가져옴
+import androidx.compose.foundation.layout.offset // offset 기능을 가져옴
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush // Brush 기능을 가져옴
+import androidx.compose.foundation.shape.RoundedCornerShape // RoundedCornerShape 기능을 가져옴
+import androidx.compose.foundation.shape.CircleShape // CircleShape 기능을 가져옴
 import androidx.compose.material.icons.Icons // Icons 기능을 가져옴
 import androidx.compose.material.icons.filled.Menu // Menu 기능을 가져옴
 import androidx.compose.material.icons.filled.NotificationsNone // NotificationsNone 기능을 가져옴
 import androidx.compose.material.icons.filled.Settings // Settings 기능을 가져옴
+import androidx.compose.material.icons.filled.SupportAgent // SupportAgent 기능을 가져옴
 import androidx.compose.material3.AlertDialog // AlertDialog 기능을 가져옴
+import androidx.compose.material3.Card // Card 기능을 가져옴
+import androidx.compose.material3.CardDefaults // CardDefaults 기능을 가져옴
 import androidx.compose.material3.CenterAlignedTopAppBar // CenterAlignedTopAppBar 기능을 가져옴
 import androidx.compose.material3.DrawerValue // DrawerValue 기능을 가져옴
 import androidx.compose.material3.ExperimentalMaterial3Api // ExperimentalMaterial3Api 기능을 가져옴
@@ -28,7 +37,6 @@ import androidx.compose.material3.FloatingActionButton // FloatingActionButton �
 import androidx.compose.material3.Icon // 아이콘 표시 컴포넌트를 가져옴
 import androidx.compose.material3.IconButton // 아이콘 버튼 컴포넌트를 가져옴
 import androidx.compose.material3.CircularProgressIndicator // 로딩 표시 컴포넌트를 가져옴
-import androidx.compose.material3.HorizontalDivider // 구분선을 가져옴
 import androidx.compose.material3.ModalDrawerSheet // ModalDrawerSheet 기능을 가져옴
 import androidx.compose.material3.ModalNavigationDrawer // ModalNavigationDrawer 기능을 가져옴
 import androidx.compose.material3.Scaffold // Scaffold 기능을 가져옴
@@ -246,6 +254,7 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
 
     val navBackStackEntry by navController.currentBackStackEntryAsState() // navBackStackEntry 값을 저장함
     val currentRoute = navBackStackEntry?.destination?.route // currentRoute 값을 저장함
+    val unreadNotificationCount = notifications.count { !it.is_read } // 읽지 않은 알림 개수를 저장함
 
     LaunchedEffect(walletCallbackUri, currentRoute) { // 지갑 앱에서 돌아온 딥링크를 현재 화면 종류에 맞춰 처리함
         val uri = walletCallbackUri ?: return@LaunchedEffect // 전달된 지갑 콜백 주소가 없으면 처리하지 않음
@@ -283,6 +292,12 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
     )
 
     val shouldShowDrawer = currentRoute in showDrawerScreens // shouldShowDrawer 값을 저장함
+
+    LaunchedEffect(currentRoute, shouldShowDrawer) {
+        if (shouldShowDrawer && !notificationsLoading) {
+            loadNotifications()
+        }
+    }
 
     // 로그인 이후 화면에서만 오른쪽 하단 챗봇 버튼을 보여줍니다.
     // splash/login/find 화면과 챗봇 화면 자체에서는 숨깁니다.
@@ -755,11 +770,31 @@ fun AppNavGraph( // AppNavGraph 함수를 선언함
                                 loadNotificationSetting() // 팝업을 열 때 알림 수신 설정을 불러옴
                                 loadNotifications() // 팝업을 열 때 최신 알림을 다시 불러옴
                             }) {
-                                Icon( // 화면에 아이콘을 보여줌
-                                    Icons.Default.NotificationsNone,
-                                    contentDescription = "알림", // contentDescription 값을 정해줌
-                                    tint = MaterialTheme.colorScheme.onSurface // tint 값을 정해줌
-                                )
+                                Box(contentAlignment = Alignment.TopEnd) {
+                                    Icon( // 화면에 아이콘을 보여줌
+                                        Icons.Default.NotificationsNone,
+                                        contentDescription = "알림", // contentDescription 값을 정해줌
+                                        tint = MaterialTheme.colorScheme.onSurface // tint 값을 정해줌
+                                    )
+                                    if (unreadNotificationCount > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .offset(x = 5.dp, y = (-5).dp)
+                                                .size(if (unreadNotificationCount > 9) 18.dp else 14.dp)
+                                                .background(Color(0xFFE53935), RoundedCornerShape(999.dp)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (unreadNotificationCount > 9) {
+                                                Text(
+                                                    text = "9+",
+                                                    color = Color.White,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors( // colors 값을 정해줌
@@ -1094,37 +1129,48 @@ private fun NotificationDialogContent(
     onReadClick: (String) -> Unit, // 알림 읽음 버튼을 눌렀을 때 실행할 함수
     onRetryClick: () -> Unit // 다시 불러오기 버튼을 눌렀을 때 실행할 함수
 ) {
+    val isDark = MaterialTheme.colorScheme.background == SpentopiaDarkBackground
+    val panelColor = if (isDark) Color(0xFF111827) else Color(0xFFF8FAFC)
+    val panelBorderColor = if (isDark) Color(0xFF3B2F62) else Color(0xFFD7E3F8)
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(), // 스위치 영역을 가로로 채움
-            horizontalArrangement = Arrangement.SpaceBetween, // 문구와 스위치를 양끝에 배치함
-            verticalAlignment = Alignment.CenterVertically
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = panelColor),
+            border = BorderStroke(1.dp, panelBorderColor)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "알림 받기",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = if (notificationEnabled) "앱 알림을 받고 있어요." else "앱 알림을 받지 않아요.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp), // 스위치 영역을 가로로 채움
+                horizontalArrangement = Arrangement.SpaceBetween, // 문구와 스위치를 양끝에 배치함
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "앱 알림",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (notificationEnabled) "새 알림을 받을 수 있습니다." else "앱 알림을 받지 않아요.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = notificationEnabled,
+                    onCheckedChange = onNotificationEnabledChange,
+                    enabled = !notificationSettingLoading,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                    )
                 )
             }
-            Switch(
-                checked = notificationEnabled,
-                onCheckedChange = onNotificationEnabledChange,
-                enabled = !notificationSettingLoading,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = MaterialTheme.colorScheme.primary,
-                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            )
         }
-
-        HorizontalDivider()
 
         when {
             loading -> {
@@ -1148,24 +1194,33 @@ private fun NotificationDialogContent(
             }
 
             notifications.isEmpty() -> {
-                Text("아직 도착한 알림이 없습니다.") // 알림이 없을 때 보여줄 빈 상태 문구
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = panelColor),
+                    border = BorderStroke(1.dp, panelBorderColor)
+                ) {
+                    Text(
+                        text = "아직 도착한 알림이 없습니다.",
+                        modifier = Modifier.padding(18.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    ) // 알림이 없을 때 보여줄 빈 상태 문구
+                }
             }
 
             else -> {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(max = 420.dp)
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    notifications.forEachIndexed { index, notification ->
+                    notifications.forEach { notification ->
                         NotificationDialogItem(
                             notification = notification, // 알림 1개 데이터를 넘김
                             onReadClick = { onReadClick(notification.id) } // 해당 알림 아이디로 읽음 처리함
                         )
-                        if (index < notifications.lastIndex) {
-                            HorizontalDivider()
-                        }
                     }
                 }
             }
@@ -1178,39 +1233,88 @@ private fun NotificationDialogItem(
     notification: NotificationResponse, // 알림 1개 데이터
     onReadClick: () -> Unit // 읽음 버튼을 눌렀을 때 실행할 함수
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { // 알림 종류, 내용, 시간을 세로로 배치함
+    val isDark = MaterialTheme.colorScheme.background == SpentopiaDarkBackground
+    val unreadContainer = if (isDark) Color(0xFF1A1630) else Color(0xFFFFFFFF)
+    val readContainer = if (isDark) Color(0xFF111827) else Color(0xFFF1F5F9)
+    val borderColor = if (!notification.is_read) {
+        if (isDark) Color(0xFF8B5CF6) else Color(0xFF60A5FA)
+    } else {
+        if (isDark) Color(0xFF2F3547) else Color(0xFFE2E8F0)
+    }
+    val iconContainer = if (!notification.is_read) {
+        if (isDark) Color(0xFF312E81) else Color(0xFFDBEAFE)
+    } else {
+        if (isDark) Color(0xFF1F2937) else Color(0xFFE2E8F0)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (notification.is_read) readContainer else unreadContainer
+        ),
+        border = BorderStroke(1.dp, borderColor)
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.Top
         ) {
-            Text(
-                text = notification.notification_type.toNotificationTypeLabel(), // 서버 알림 타입을 사용자용 문구로 바꿈
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
-            )
-            if (!notification.is_read) {
-                TextButton(onClick = onReadClick) {
-                    Text("읽음") // 읽지 않은 알림만 읽음 버튼을 보여줌
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .background(iconContainer, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.NotificationsNone,
+                    contentDescription = "알림",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(21.dp)
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) { // 알림 종류, 내용, 시간을 세로로 배치함
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = notification.notification_type.toNotificationTypeLabel(), // 서버 알림 타입을 사용자용 문구로 바꿈
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (!notification.is_read) {
+                        TextButton(onClick = onReadClick) {
+                            Text("읽음") // 읽지 않은 알림만 읽음 버튼을 보여줌
+                        }
+                    }
                 }
+                Text(
+                    text = notification.message, // 서버에서 받은 알림 메시지를 보여줌
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (notification.is_read) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    fontWeight = if (notification.is_read) FontWeight.Normal else FontWeight.SemiBold
+                )
+                Text(
+                    text = notification.created_at.toNotificationTimeText(), // 서버 시간을 간단한 표시 형식으로 바꿈
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
-        Text(
-            text = notification.message, // 서버에서 받은 알림 메시지를 보여줌
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (notification.is_read) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-            fontWeight = if (notification.is_read) FontWeight.Normal else FontWeight.SemiBold
-        )
-        Text(
-            text = notification.created_at.toNotificationTimeText(), // 서버 시간을 간단한 표시 형식으로 바꿈
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
@@ -1243,6 +1347,16 @@ private fun FloatingChatbotButton( // FloatingChatbotButton 함수를 선언함
 ) { // 이 블록 안의 내용이 시작됨
     val interactionSource = remember { MutableInteractionSource() } // 화면이 다시 그려져도 interactionSource 값을 기억함
     val pressed by interactionSource.collectIsPressedAsState() // pressed 값을 저장함
+    val isDark = MaterialTheme.colorScheme.background == SpentopiaDarkBackground
+    val outerBrush = Brush.radialGradient(
+        colors = if (isDark) {
+            listOf(Color(0xFF343467), Color(0xFF232544), Color(0xFF141520))
+        } else {
+            listOf(Color(0xFFF4EEFF), Color(0xFFD9CCFF), Color(0xFF8B79D9))
+        }
+    )
+    val innerColor = if (isDark) Color(0xFFD8D0FF) else Color(0xFFF5F1FF)
+    val iconColor = Color(0xFF3A2A78)
 
     FloatingActionButton( // 누를 수 있는 버튼을 만듦
         onClick = onClick, // 눌렀을 때 실행할 함수를 눌렀을 때 실행할 함수에 넣음
@@ -1259,22 +1373,31 @@ private fun FloatingChatbotButton( // FloatingChatbotButton 함수를 선언함
                 scaleY = if (pressed) 0.965f else 1f // scaleY 값을 정해줌
             }
             .size(62.dp),
-        containerColor = MaterialTheme.colorScheme.primaryContainer, // containerColor 값을 정해줌
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer // contentColor 값을 정해줌
+        containerColor = Color.Transparent, // containerColor 값을 정해줌
+        contentColor = iconColor // contentColor 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxSize()
                 .background(
-                    color = MaterialTheme.colorScheme.primaryContainer, // color 값을 정해줌
-                    shape = MaterialTheme.shapes.extraLarge // shape 값을 정해줌
+                    brush = outerBrush, // color 값을 정해줌
+                    shape = CircleShape // shape 값을 정해줌
                 ),
             contentAlignment = Alignment.Center // contentAlignment 값을 정해줌
         ) { // 이 블록 안의 내용이 시작됨
-            Text( // 화면에 글자를 보여줌
-                text = "🤖", // text 값을 정해줌
-                color = MaterialTheme.colorScheme.onPrimaryContainer // color 값을 정해줌
-            )
+            Box(
+                modifier = Modifier
+                    .size(43.dp)
+                    .background(innerColor, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon( // 화면에 아이콘을 보여줌
+                    imageVector = Icons.Default.SupportAgent,
+                    contentDescription = "AI 챗봇",
+                    tint = iconColor,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
         }
     }
 }
