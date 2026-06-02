@@ -502,6 +502,7 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
             if (showAiPlansDialog && aiPlanList.isNotEmpty()) {
                 AiPlansDialog(
                     plans = aiPlanList,
+                    selectedPlanId = selectedPlanId,
                     canEditBudget = canEditBudget,
                     onDismiss = { showAiPlansDialog = false },
                     onApplyClick = { plan ->
@@ -883,6 +884,7 @@ private fun BudgetApplyPlanDialog( // BudgetApplyPlanDialog 함수를 선언함
 @Composable
 private fun AiPlansDialog(
     plans: List<BudgetPlanUiData>,
+    selectedPlanId: String?,
     canEditBudget: Boolean,
     onDismiss: () -> Unit,
     onApplyClick: (BudgetPlanUiData) -> Unit
@@ -927,6 +929,7 @@ private fun AiPlansDialog(
                     items(plans.size) { index ->
                         BudgetPlanCard(
                             plan = plans[index],
+                            isApplied = selectedPlanId == plans[index].title,
                             enabled = canEditBudget,
                             onApplyClick = { onApplyClick(plans[index]) }
                         )
@@ -1070,6 +1073,7 @@ private fun AiPlanStatusCard( // AiPlanStatusCard 함수를 선언함
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun BudgetPlanCard( // BudgetPlanCard 함수를 선언함
     plan: BudgetPlanUiData, // 추천 플랜을 받음
+    isApplied: Boolean = false,
     enabled: Boolean = true, // 적용 버튼 활성화 여부를 받음
     onApplyClick: () -> Unit // onApplyClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
@@ -1085,14 +1089,30 @@ private fun BudgetPlanCard( // BudgetPlanCard 함수를 선언함
         colors = CardDefaults.cardColors( // colors 값을 정해줌
             containerColor = cardColor // containerColor 값을 정해줌
         ),
-        border = BorderStroke(1.dp, cardBorderColor), // AI 추천 카드 테두리색을 맞춤
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp) // elevation 값을 정해줌
+        border = BorderStroke(if (isApplied) 2.dp else 1.dp, if (isApplied) MaterialTheme.colorScheme.primary else cardBorderColor), // AI 추천 카드 테두리색을 맞춤
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isApplied) 6.dp else 1.dp) // elevation 값을 정해줌
     ) { // 이 블록 안의 내용이 시작됨
         Column( // 안쪽 UI를 세로로 배치함
             modifier = Modifier // UI 크기나 여백 같은 모양을 정함
                 .fillMaxWidth()
                 .padding(16.dp)
         ) { // 이 블록 안의 내용이 시작됨
+            if (isApplied) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primary)
+                        .padding(vertical = 7.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "현재 적용된 플랜",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
             Text( // 화면에 글자를 보여줌
                 text = plan.title, // text 값을 정해줌
                 style = MaterialTheme.typography.titleLarge, // style 값을 정해줌
@@ -1151,7 +1171,7 @@ private fun BudgetPlanCard( // BudgetPlanCard 함수를 선언함
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp) // elevation 값을 정해줌
             ) { // 이 블록 안의 내용이 시작됨
                 Text( // 화면에 글자를 보여줌
-                    text = "이 플랜 적용하기", // text 값을 정해줌
+                    text = if (isApplied) "현재 적용된 플랜 ✓" else "이 플랜 적용하기", // text 값을 정해줌
                     style = MaterialTheme.typography.bodyLarge, // style 값을 정해줌
                     fontWeight = FontWeight.Medium // fontWeight 값을 정해줌
                 )
@@ -1241,7 +1261,7 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
     onSaveClick: () -> Unit // onSaveClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isBudgetDarkTheme() // 다크모드인지 저장함
-    val monthlySliderMax = dynamicBudgetMax(5000000L, monthlyIncome) // monthlySliderMax 값을 저장함
+    var inputText by remember(monthlyIncome) { mutableStateOf(if (monthlyIncome <= 0L) "" else formatWonWithoutSuffix(monthlyIncome)) }
 
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
@@ -1256,18 +1276,90 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
                 .fillMaxWidth()
                 .padding(horizontal = 18.dp, vertical = 20.dp) // .padding(horizontal 값을 정해줌
         ) { // 이 블록 안의 내용이 시작됨
-            BudgetSliderItem( // Budget Slider Item 함수를 실행함
-                title = "월 예산", // 제목을 정해줌
-                value = monthlyIncome, // 월 수입을 입력값에 넣음
-                minValue = 0L, // minValue 값을 정해줌
-                maxValue = monthlySliderMax, // monthlySliderMax 값을 maxValue 값에 넣음
-                steps = 0, // steps 값을 정해줌
-                icon = null, // null 값을 icon 값에 넣음
-                valueColor = MaterialTheme.colorScheme.onSurface, // valueColor 값을 정해줌
-                onValueChange = onMonthlyIncomeChange // onMonthlyIncomeChange 때 실행할 함수를 onValueChange 때 실행할 함수에 넣음
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = if (isDark) Color(0xFF211B35) else Color(0xFFEFF6FF),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = budgetSoftCardBorderColor(),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "저장한 월 예산을 기준으로 AI 플랜을 추천받고, 선택한 플랜을 적용하면 이번 달 예산이 확정됩니다.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isDark) Color(0xFFE5E7EB) else Color(0xFF334155),
+                    lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+                )
+            }
 
-            Spacer(modifier = Modifier.height(26.dp)) // UI 크기나 여백 같은 모양을 정함
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = budgetSoftInnerCardColor()),
+                border = BorderStroke(1.dp, budgetSoftCardBorderColor())
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp)
+                ) {
+                    Text(
+                        text = "월 전체 예산",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = inputText,
+                        onValueChange = { changedText ->
+                            val onlyDigits = changedText.filter { it.isDigit() }.trimStart('0').take(15)
+                            val changedValue = onlyDigits.toLongOrNull()?.coerceAtMost(MAX_BUDGET_AMOUNT) ?: 0L
+                            inputText = if (changedText.isBlank() || onlyDigits.isBlank()) "" else formatWonWithoutSuffix(changedValue)
+                            onMonthlyIncomeChange(changedValue)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(82.dp),
+                        singleLine = true,
+                        suffix = {
+                            Text(
+                                text = "원",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        textStyle = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 34.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        placeholder = {
+                            Text(
+                                text = "0",
+                                style = MaterialTheme.typography.headlineLarge.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 34.sp
+                                )
+                            )
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp)) // UI 크기나 여백 같은 모양을 정함
 
             // 설정 저장 버튼
             Button( // 누를 수 있는 버튼을 만듦
@@ -1281,10 +1373,10 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant, // disabledContainerColor 값을 정해줌
                     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant // disabledContentColor 값을 정해줌
                 ),
-                contentPadding = PaddingValues(vertical = 12.dp) // contentPadding 값을 정해줌
+                contentPadding = PaddingValues(vertical = 14.dp) // contentPadding 값을 정해줌
             ) { // 이 블록 안의 내용이 시작됨
                 Text( // 화면에 글자를 보여줌
-                    text = "임시 저장", // text 값을 정해줌
+                    text = "맞춤 예산 임시 저장", // text 값을 정해줌
                     style = MaterialTheme.typography.titleMedium, // style 값을 정해줌
                     fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
                     color = if (isSaveEnabled) budgetPrimaryButtonContentColor() else MaterialTheme.colorScheme.onSurfaceVariant

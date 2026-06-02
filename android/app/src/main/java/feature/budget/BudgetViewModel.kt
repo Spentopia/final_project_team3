@@ -122,10 +122,10 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
             try { // 오류가 날 수 있는 코드를 먼저 시도함
-                upsertBackendBudget(nextSettings, lockBudget = true, selectedPlanId = plan.id) // 서버 예산도 같은 값으로 맞춘 뒤 확정함
+                upsertBackendBudget(nextSettings, lockBudget = true, selectedPlanId = plan.title) // 서버 예산도 같은 값으로 맞춘 뒤 확정함
                 val lockedSettings = nextSettings.copy(lockedMonthKey = currentMonthKey())
                 _budgetState.value = lockedSettings
-                _selectedPlanId.value = plan.id
+                _selectedPlanId.value = plan.title
                 budgetDataStore.saveBudgetSettings(lockedSettings) // 서버 확정 성공 후에만 로컬도 잠급니다.
                 _saveError.value = "" // 오류 내용을 정해줌
                 _saveSuccess.value = true // saveSuccess.value 값을 정해줌
@@ -440,7 +440,6 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         return mapIndexed { index, plan ->
             val label = labels.getOrNull(index) ?: plan.name
             BudgetPlanUiData(
-                id = label,
                 title = label,
                 description = plan.description,
                 monthlyBudget = plan.budget,
