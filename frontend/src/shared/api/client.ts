@@ -78,6 +78,32 @@
     failedQueue = [];
   };
 
+  export async function refreshAccessTokenOnce(): Promise<string> {
+    if (isRefreshing) {
+      return new Promise<string>((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      });
+    }
+
+    isRefreshing = true;
+
+    try {
+      const refreshResponse = await apiClient.post("/auth/refresh", {});
+      const newAccessToken = refreshResponse.data.access_token as string;
+
+      authStorage.setToken(newAccessToken);
+      processQueue(null, newAccessToken);
+
+      return newAccessToken;
+    } catch (refreshError) {
+      processQueue(refreshError, null);
+      authStorage.clear();
+      throw refreshError;
+    } finally {
+      isRefreshing = false;
+    }
+  }
+
   function resolveBackendUrl() {
     const configuredUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:1113";
 
@@ -167,36 +193,16 @@
           });
       }
 
-      // ── 최초 refresh 시작 ────────────────────────────────────
-      //
-      // isRefreshing = true로 설정해서
-      // 이후 401들은 위 큐 대기 경로로 진입하게 함
-      isRefreshing = true;
-
       try {
-        // 웹은 refresh token이 쿠키에 있으므로 body 없이 호출 가능
-        const refreshResponse = await apiClient.post("/auth/refresh", {});
-        const newAccessToken = refreshResponse.data.access_token as string;
-
-        // 새 access token 메모리에 저장
-        authStorage.setToken(newAccessToken);
+        const newAccessToken = await refreshAccessTokenOnce();
 
         // 원래 요청 헤더 갱신 후 재시도
         originalRequest.headers = originalRequest.headers ?? {};
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
-        // 큐에 대기 중이던 요청들에게도 새 토큰 전달
-        processQueue(null, newAccessToken);
-
         return apiClient(originalRequest);
       } catch (refreshError) {
-        // refresh 실패 → 큐 전체 실패 처리 후 로그아웃
-        processQueue(refreshError, null);
-        authStorage.clear();
         return Promise.reject(refreshError);
-      } finally {
-        // 성공/실패 상관없이 refresh 완료 후 플래그 초기화
-        isRefreshing = false;
       }
     }
   );
