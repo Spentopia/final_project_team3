@@ -321,19 +321,6 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
     val currentMonthKey = "%04d-%02d".format(currentYear, currentMonth) // 현재 월 키를 저장함
     val canEditBudget = selectedMonthKey == currentMonthKey && budgetState.lockedMonthKey != currentMonthKey // 이번 달 1회만 수정 가능함
 
-    // 총 지출 예정 금액 계산
-    // 식비 + 교통비 + 생활비 + 취미를 다 합쳐서
-    // 이번 달 카테고리 예산이 얼마나 되는지 먼저 봅니다.
-    val totalExpense = budgetState.foodBudget + // 소비 내역 값을 저장함
-            budgetState.transportBudget +
-            budgetState.livingBudget +
-            budgetState.hobbyBudget
-
-    // 남는 금액 계산
-    // 월 수입에서 카테고리 예산과 저축 목표를 빼서
-    // 실제로 자유롭게 쓸 수 있는 돈이 얼마인지 구합니다.
-    val remainingAmount = budgetState.monthlyIncome - totalExpense - budgetState.savingGoal // remainingAmount 값을 저장함
-
     // 저장 결과는 등록/저장 성공용 체크 토스트와 오류 토스트로 표시합니다.
     LaunchedEffect(saveSuccess) { // 화면이 열리거나 값이 바뀔 때 실행함
         if (saveSuccess) { // 조건이 맞는지 확인함
@@ -450,17 +437,7 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
                 // 직접 슬라이더로 예산 조절하는 카드
                 CustomBudgetSettingCard( // 내용을 카드 모양으로 묶어서 보여줌
                     monthlyIncome = budgetState.monthlyIncome, // 월 수입을 정해줌
-                    savingGoal = budgetState.savingGoal, // 저축 목표를 정해줌
-                    foodBudget = budgetState.foodBudget, // 식비 예산을 정해줌
-                    transportBudget = budgetState.transportBudget, // 교통비 예산을 정해줌
-                    livingBudget = budgetState.livingBudget, // 생활비 예산을 정해줌
-                    hobbyBudget = budgetState.hobbyBudget, // 취미 예산을 정해줌
                     onMonthlyIncomeChange = viewModel::updateMonthlyIncome, // onMonthlyIncomeChange 때 실행할 함수를 정해줌
-                    onSavingGoalChange = viewModel::updateSavingGoal, // onSavingGoalChange 때 실행할 함수를 정해줌
-                    onFoodBudgetChange = viewModel::updateFoodBudget, // 예산 관련 값을 정해줌
-                    onTransportBudgetChange = viewModel::updateTransportBudget, // 예산 관련 값을 정해줌
-                    onLivingBudgetChange = viewModel::updateLivingBudget, // 예산 관련 값을 정해줌
-                    onHobbyBudgetChange = viewModel::updateHobbyBudget, // 예산 관련 값을 정해줌
                     isSaveEnabled = canEditBudget, // 저장 가능 여부를 넣음
                     onSaveClick = { // onSaveClick 때 실행할 함수를 정해줌
                         // 저장 버튼 클릭 시 실행
@@ -481,18 +458,14 @@ fun BudgetScreen( // BudgetScreen 함수를 선언함
                 // 예산 요약 카드
                 BudgetSummaryCard( // 내용을 카드 모양으로 묶어서 보여줌
                     monthlyIncome = budgetState.monthlyIncome, // 월 수입을 정해줌
-                    totalExpense = totalExpense, // 소비 내역 값을 소비 내역 값에 넣음
-                    savingGoal = budgetState.savingGoal, // 저축 목표를 정해줌
-                    remainingAmount = remainingAmount // remainingAmount 값을 remainingAmount 값에 넣음
+                    isLocked = !canEditBudget
                 )
 
                 Spacer(modifier = Modifier.height(18.dp)) // UI 크기나 여백 같은 모양을 정함
 
                 BudgetCommentCard( // 내용을 카드 모양으로 묶어서 보여줌
                     monthlyIncome = budgetState.monthlyIncome, // 월 수입을 정해줌
-                    totalExpense = totalExpense, // 소비 내역 값을 소비 내역 값에 넣음
-                    savingGoal = budgetState.savingGoal, // 저축 목표를 정해줌
-                    remainingAmount = remainingAmount // remainingAmount 값을 remainingAmount 값에 넣음
+                    isLocked = !canEditBudget
                 )
 
                 Spacer(modifier = Modifier.height(24.dp)) // UI 크기나 여백 같은 모양을 정함
@@ -1261,31 +1234,12 @@ private fun BudgetLineItem( // BudgetLineItem 함수를 선언함
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언함
     monthlyIncome: Long, // 월 수입을 받음
-    savingGoal: Long, // 저축 목표를 받음
-    foodBudget: Long, // 식비 예산을 받음
-    transportBudget: Long, // 교통비 예산을 받음
-    livingBudget: Long, // 생활비 예산을 받음
-    hobbyBudget: Long, // 취미 예산을 받음
     onMonthlyIncomeChange: (Long) -> Unit, // onMonthlyIncomeChange 때 실행할 함수를 받음
-    onSavingGoalChange: (Long) -> Unit, // onSavingGoalChange 때 실행할 함수를 받음
-    onFoodBudgetChange: (Long) -> Unit, // 예산 관련 값을 받음
-    onTransportBudgetChange: (Long) -> Unit, // 예산 관련 값을 받음
-    onLivingBudgetChange: (Long) -> Unit, // 예산 관련 값을 받음
-    onHobbyBudgetChange: (Long) -> Unit, // 예산 관련 값을 받음
     isSaveEnabled: Boolean = true, // 저장 버튼 활성화 여부를 받음
     onSaveClick: () -> Unit // onSaveClick 때 실행할 함수를 받음
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isBudgetDarkTheme() // 다크모드인지 저장함
     val monthlySliderMax = dynamicBudgetMax(5000000L, monthlyIncome) // monthlySliderMax 값을 저장함
-    val savingSliderMax = dynamicBudgetMax(500000L, monthlyIncome, savingGoal) // savingSliderMax 값을 저장함
-    val categorySliderMax = dynamicBudgetMax( // categorySliderMax 값을 저장함
-        10000000L,
-        monthlyIncome,
-        foodBudget,
-        transportBudget,
-        livingBudget,
-        hobbyBudget
-    )
 
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
@@ -1300,7 +1254,6 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
                 .fillMaxWidth()
                 .padding(horizontal = 18.dp, vertical = 20.dp) // .padding(horizontal 값을 정해줌
         ) { // 이 블록 안의 내용이 시작됨
-            // 월 예산 슬라이더
             BudgetSliderItem( // Budget Slider Item 함수를 실행함
                 title = "월 예산", // 제목을 정해줌
                 value = monthlyIncome, // 월 수입을 입력값에 넣음
@@ -1310,81 +1263,6 @@ private fun CustomBudgetSettingCard( // CustomBudgetSettingCard 함수를 선언
                 icon = null, // null 값을 icon 값에 넣음
                 valueColor = MaterialTheme.colorScheme.onSurface, // valueColor 값을 정해줌
                 onValueChange = onMonthlyIncomeChange // onMonthlyIncomeChange 때 실행할 함수를 onValueChange 때 실행할 함수에 넣음
-            )
-
-            Spacer(modifier = Modifier.height(20.dp)) // UI 크기나 여백 같은 모양을 정함
-
-            // 저축 목표 슬라이더
-            BudgetSliderItem( // Budget Slider Item 함수를 실행함
-                title = "저축 목표", // 제목을 정해줌
-                value = savingGoal, // 저축 목표를 입력값에 넣음
-                minValue = 0L, // minValue 값을 정해줌
-                maxValue = savingSliderMax, // savingSliderMax 값을 maxValue 값에 넣음
-                steps = 0, // steps 값을 정해줌
-                icon = null, // null 값을 icon 값에 넣음
-                valueColor = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF16A34A), // valueColor 값을 정해줌
-                onValueChange = onSavingGoalChange // onSavingGoalChange 때 실행할 함수를 onValueChange 때 실행할 함수에 넣음
-            )
-
-            Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
-
-            // 상단 공통 항목과 카테고리 항목을 시각적으로 분리
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) // HorizontalDivider(color 값을 정해줌
-
-            Spacer(modifier = Modifier.height(18.dp)) // UI 크기나 여백 같은 모양을 정함
-
-            // 식비 슬라이더
-            BudgetSliderItem( // Budget Slider Item 함수를 실행함
-                title = "식비", // 제목을 정해줌
-                value = foodBudget, // 식비 예산을 입력값에 넣음
-                minValue = 0L, // minValue 값을 정해줌
-                maxValue = categorySliderMax, // categorySliderMax 값을 maxValue 값에 넣음
-                steps = 0, // steps 값을 정해줌
-                icon = Icons.Default.Restaurant, // icon 값을 정해줌
-                valueColor = MaterialTheme.colorScheme.onSurface, // valueColor 값을 정해줌
-                onValueChange = onFoodBudgetChange // 예산 관련 값을 onValueChange 때 실행할 함수에 넣음
-            )
-
-            Spacer(modifier = Modifier.height(20.dp)) // UI 크기나 여백 같은 모양을 정함
-
-            // 교통비 슬라이더
-            BudgetSliderItem( // Budget Slider Item 함수를 실행함
-                title = "교통비", // 제목을 정해줌
-                value = transportBudget, // 교통비 예산을 입력값에 넣음
-                minValue = 0L, // minValue 값을 정해줌
-                maxValue = categorySliderMax, // categorySliderMax 값을 maxValue 값에 넣음
-                steps = 0, // steps 값을 정해줌
-                icon = Icons.Default.Subway, // icon 값을 정해줌
-                valueColor = MaterialTheme.colorScheme.onSurface, // valueColor 값을 정해줌
-                onValueChange = onTransportBudgetChange // 예산 관련 값을 onValueChange 때 실행할 함수에 넣음
-            )
-
-            Spacer(modifier = Modifier.height(20.dp)) // UI 크기나 여백 같은 모양을 정함
-
-            // 생활비 슬라이더
-            BudgetSliderItem( // Budget Slider Item 함수를 실행함
-                title = "생활비", // 제목을 정해줌
-                value = livingBudget, // 생활비 예산을 입력값에 넣음
-                minValue = 0L, // minValue 값을 정해줌
-                maxValue = categorySliderMax, // categorySliderMax 값을 maxValue 값에 넣음
-                steps = 0, // steps 값을 정해줌
-                icon = Icons.Default.Home, // icon 값을 정해줌
-                valueColor = MaterialTheme.colorScheme.onSurface, // valueColor 값을 정해줌
-                onValueChange = onLivingBudgetChange // 예산 관련 값을 onValueChange 때 실행할 함수에 넣음
-            )
-
-            Spacer(modifier = Modifier.height(20.dp)) // UI 크기나 여백 같은 모양을 정함
-
-            // 여가/취미 슬라이더
-            BudgetSliderItem( // Budget Slider Item 함수를 실행함
-                title = "여가/취미", // 제목을 정해줌
-                value = hobbyBudget, // 취미 예산을 입력값에 넣음
-                minValue = 0L, // minValue 값을 정해줌
-                maxValue = categorySliderMax, // categorySliderMax 값을 maxValue 값에 넣음
-                steps = 0, // steps 값을 정해줌
-                icon = Icons.Default.FavoriteBorder, // icon 값을 정해줌
-                valueColor = MaterialTheme.colorScheme.onSurface, // valueColor 값을 정해줌
-                onValueChange = onHobbyBudgetChange // 예산 관련 값을 onValueChange 때 실행할 함수에 넣음
             )
 
             Spacer(modifier = Modifier.height(26.dp)) // UI 크기나 여백 같은 모양을 정함
@@ -1571,76 +1449,22 @@ private fun BudgetSliderItem( // BudgetSliderItem 함수를 선언함
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun BudgetSummaryCard( // BudgetSummaryCard 함수를 선언함
     monthlyIncome: Long, // 월 수입을 받음
-    totalExpense: Long, // 소비 내역 값을 받음
-    savingGoal: Long, // 저축 목표를 받음
-    remainingAmount: Long // remainingAmount 값을 받음
+    isLocked: Boolean
 ) { // 이 블록 안의 내용이 시작됨
-    val categoryRatio = if (monthlyIncome <= 0) { // categoryRatio 값을 저장함
-        0f
-    } else { // 이 블록 안의 내용이 시작됨
-        (totalExpense.toDouble() / monthlyIncome.toDouble()).toFloat().coerceIn(0f, 1f)
-    }
-    // 월 수입 대비 카테고리 합계가 몇 퍼센트인지 계산합니다.
-    val categoryPercent = if (monthlyIncome <= 0) 0L else (totalExpense * 100.0 / monthlyIncome).toLong() // categoryPercent 값을 저장함
     val isDark = isBudgetDarkTheme() // 다크모드인지 저장함
-    val waveShift by rememberInfiniteTransition().animateFloat( // 예산 게이지 안쪽 빛이 흐르도록 저장함
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-    val progressBrush = Brush.linearGradient( // 이번주 성실도 바와 맞춘 게임 느낌의 진행 색상임
-        colors = if (categoryPercent <= 100) {
-            if (isDark) {
-                listOf(
-                    SpentopiaGlowPurple,
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
-                    MaterialTheme.colorScheme.primaryContainer,
-                    SpentopiaGlowPurple
-                )
-            } else {
-                listOf(
-                    Color(0xFF93C5FD),
-                    MaterialTheme.colorScheme.primary,
-                    Color(0xFF38BDF8),
-                    MaterialTheme.colorScheme.primary
-                )
-            }
-        } else {
-            listOf(
-                MaterialTheme.colorScheme.error.copy(alpha = 0.72f),
-                MaterialTheme.colorScheme.error,
-                Color(0xFFF97316),
-                MaterialTheme.colorScheme.error
-            )
-        },
-        start = Offset(-220f + waveShift * 260f, 0f),
-        end = Offset(260f + waveShift * 260f, 0f)
-    )
-    val statusIcon = if (remainingAmount >= 0) { // statusIcon 값을 저장함
-        Icons.Default.SentimentSatisfied
-    } else { // 이 블록 안의 내용이 시작됨
-        Icons.Default.Warning
-    }
-    val statusIconTint = if (remainingAmount >= 0) { // statusIconTint 값을 저장함
-        MaterialTheme.colorScheme.primary
-    } else { // 이 블록 안의 내용이 시작됨
-        MaterialTheme.colorScheme.error
-    }
+    val statusText = if (isLocked) "확정됨" else "임시 저장 가능"
+    val statusIcon = if (isLocked) Icons.Default.Warning else Icons.Default.SentimentSatisfied
+    val statusIconTint = if (isLocked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     val summaryTitleColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
     val summaryLabelColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569)
     val summaryValueColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
-    val summaryPercentColor = if (isDark) Color(0xFFBAE6FD) else Color(0xFF0369A1)
     val summaryMessageBackground = if (isDark) Color(0xFF211B35) else Color(0xFFE0F2FE)
     val summaryMessageColor = if (isDark) Color(0xFFE5E7EB) else Color(0xFF334155)
 
-    // 남는 금액이 0 이상이면 긍정 메시지, 아니면 초과 메시지 출력
-    val message = if (remainingAmount >= 0) { // 메시지를 저장함
-        "균형잡힌 예산이에요! 남은 금액: ${formatWon(remainingAmount)}"
-    } else { // 이 블록 안의 내용이 시작됨
-        "현재 예산이 ${formatWon(-remainingAmount)} 초과 상태예요"
+    val message = if (isLocked) {
+        "이번 달 예산은 확정되어 더 이상 수정할 수 없습니다."
+    } else {
+        "월 예산을 임시 저장한 뒤 AI 추천 플랜을 선택하면 예산이 확정됩니다."
     }
 
     Card( // 내용을 카드 모양으로 묶어서 보여줌
@@ -1678,8 +1502,7 @@ private fun BudgetSummaryCard( // BudgetSummaryCard 함수를 선언함
                 Spacer(modifier = Modifier.height(18.dp)) // UI 크기나 여백 같은 모양을 정함
 
                 SummaryRow("저장된 월 예산", formatWon(monthlyIncome), summaryLabelColor, summaryValueColor) // 안쪽 UI를 가로로 배치함
-                SummaryRow("카테고리 합계", formatWon(totalExpense), summaryLabelColor, summaryValueColor) // 안쪽 UI를 가로로 배치함
-                SummaryRow("목표 저축액 포함", formatWon(totalExpense + savingGoal), summaryLabelColor, summaryValueColor) // 안쪽 UI를 가로로 배치함
+                SummaryRow("설정 상태", statusText, summaryLabelColor, summaryValueColor) // 안쪽 UI를 가로로 배치함
 
                 Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
 
@@ -1713,40 +1536,6 @@ private fun BudgetSummaryCard( // BudgetSummaryCard 함수를 선언함
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp)) // UI 크기나 여백 같은 모양을 정함
-
-                Text( // 화면에 글자를 보여줌
-                    text = "${categoryPercent}%", // text 값을 정해줌
-                    style = MaterialTheme.typography.bodyMedium, // style 값을 정해줌
-                    fontWeight = FontWeight.ExtraBold, // fontWeight 값을 정해줌
-                    color = summaryPercentColor // color 값을 정해줌
-                )
-
-                Spacer(modifier = Modifier.height(8.dp)) // UI 크기나 여백 같은 모양을 정함
-
-                Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
-                    modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-                        .fillMaxWidth()
-                        .height(10.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(if (isDark) MaterialTheme.colorScheme.surface.copy(alpha = 0.62f) else Color(0xFFDFF1FF)) // .background(MaterialTheme.colorScheme.surface.copy(alpha 값을 정해줌
-                ) { // 이 블록 안의 내용이 시작됨
-                    Box( // 안쪽 UI를 한 영역에 겹쳐 배치함
-                        modifier = Modifier // UI 크기나 여백 같은 모양을 정함
-                            .fillMaxWidth(categoryRatio)
-                            .height(10.dp)
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(progressBrush)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp)) // UI 크기나 여백 같은 모양을 정함
-
-                Text( // 화면에 글자를 보여줌
-                    text = "카테고리 예산은 월 전체 예산 안에서만 배분되며, 목표 저축액은 별도로 관리됩니다.", // text 값을 정해줌
-                    style = MaterialTheme.typography.bodySmall, // style 값을 정해줌
-                    color = summaryLabelColor // color 값을 정해줌
-                )
             }
         }
     }
@@ -1835,26 +1624,13 @@ private fun CurrentMonthlyBudgetCard( // CurrentMonthlyBudgetCard 함수를 선�
 @Composable // 이 함수가 화면 UI를 그린다는 표시
 private fun BudgetCommentCard( // BudgetCommentCard 함수를 선언함
     monthlyIncome: Long, // 월 수입을 받음
-    totalExpense: Long, // 소비 내역 값을 받음
-    savingGoal: Long, // 저축 목표를 받음
-    remainingAmount: Long // remainingAmount 값을 받음
+    isLocked: Boolean
 ) { // 이 블록 안의 내용이 시작됨
     val isDark = isBudgetDarkTheme() // 다크모드인지 저장함
-    val plannedAmount = totalExpense + savingGoal // plannedAmount 값을 저장함
-    // 실제로 월 예산에서 얼마나 써버렸는지 보는 지표입니다.
-    val usedPercent = if (monthlyIncome <= 0) { // usedPercent 값을 저장함
-        0L
-    } else { // 이 블록 안의 내용이 시작됨
-        (plannedAmount * 100.0 / monthlyIncome).toLong().coerceAtLeast(0L)
-    }
     val comment = when { // comment 값을 저장함
-        monthlyIncome <= 0 -> "월 예산을 입력하면 카테고리별 계획을 더 정확하게 맞출 수 있어요." // < 값을 정해줌
-        totalExpense == 0L -> "카테고리 예산을 입력하면 이번 달 소비 계획을 한눈에 볼 수 있어요." // 소비 내역 값을 정해줌
-        remainingAmount < 0 -> "월 예산보다 ${formatWon(-remainingAmount)} 초과됐어요. 카테고리 예산이나 저축 목표를 조금 낮추면 균형이 맞아요."
-        savingGoal <= 0 -> "소비 계획은 예산 안에 있어요. 남은 ${formatWon(remainingAmount)} 중 일부를 저축 목표로 잡아두면 더 안정적이에요." // < 값을 정해줌
-        usedPercent >= 95 -> "예산 안에 들어오긴 했지만 남은 금액이 ${formatWon(remainingAmount)}라 여유가 적어요. 변동 지출을 조금만 줄여보세요." // > 값을 정해줌
-        usedPercent >= 80 -> "현재 계획은 월 예산의 ${usedPercent}%를 사용해요. 남은 ${formatWon(remainingAmount)}로 비상 지출까지 관리할 수 있어요." // > 값을 정해줌
-        else -> "현재 계획은 여유 있게 예산 안에 있어요. 남은 ${formatWon(remainingAmount)}는 추가 저축이나 다음 달 준비금으로 돌려도 좋아요." // 위 조건이 아니면 이쪽을 실행함
+        isLocked -> "이번 달 예산은 ${formatWon(monthlyIncome)}으로 확정되었습니다."
+        monthlyIncome <= 0 -> "월 예산을 입력하고 임시 저장하면 AI 추천 플랜을 받을 수 있어요."
+        else -> "월 예산 ${formatWon(monthlyIncome)}을 임시 저장한 뒤 AI 플랜을 추천받으세요. 플랜을 적용하면 이번 달 예산이 확정됩니다."
     }
     val titleColor = if (isDark) Color(0xFFC4B5FD) else Color(0xFF2563EB)
     val commentColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569)
