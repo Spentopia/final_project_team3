@@ -716,9 +716,10 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
                     }
 
                 // 카테고리별로 소비를 묶습니다.
+                // 웹에서 동기화된 데이터가 영어 카테고리일 수 있어서 한국어로 정규화합니다.
                 val categoryAmountMap = expenseOnlyList // categoryAmountMap 값을 저장함
                     .groupBy { expense ->
-                        expense.category
+                        normalizeCategory(expense.category)
                     }
                     .mapValues { entry ->
                         entry.value.sumOf { expense ->
@@ -810,12 +811,15 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
     // 카테고리가 "수입"인지 판별하는 함수입니다.
     // 이 목록에 들어있는 카테고리는 소비 분석 계산에서 제외합니다.
     private fun isIncomeCategory(category: String): Boolean { // isIncomeCategory 함수를 선언함
-        return category in listOf( // 이 값을 함수 결과로 돌려줌
+        val normalized = normalizeCategory(category)
+        return normalized in listOf( // 이 값을 함수 결과로 돌려줌
             "월급",
             "용돈",
             "부수입",
             "환급",
-            "기타수입"
+            "기타수입",
+            "보너스",
+            "투자"
         )
     }
 
@@ -937,15 +941,38 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
         ).joinToString("\n\n")
     }
 
+    // 영어 카테고리를 한국어로 정규화합니다. (웹 동기화 데이터 대응)
+    private fun normalizeCategory(category: String): String = when (category) {
+        "food" -> "식비"
+        "transport" -> "교통"
+        "shopping" -> "쇼핑"
+        "cafe" -> "카페"
+        "entertainment", "leisure", "hobby" -> "여가"
+        "health", "medical" -> "의료"
+        "education" -> "교육"
+        "utility", "bill" -> "공과금"
+        "salary" -> "월급"
+        "allowance" -> "용돈"
+        "bonus" -> "보너스"
+        "side_job" -> "부수입"
+        "investment" -> "투자"
+        "income_other" -> "기타수입"
+        "other" -> "기타"
+        else -> category
+    }
+
     // 카테고리별 색상 반환 함수입니다.
     private fun getCategoryColor(category: String): Color { // 데이터를 불러오는 함수 시작
-        return when (category) { // 이 값을 함수 결과로 돌려줌
+        return when (normalizeCategory(category)) { // 영어/한국어 모두 처리
             "식비" -> Color(0xFFF97316)
             "교통" -> Color(0xFF2563EB)
             "쇼핑" -> Color(0xFFEC4899)
             "카페" -> Color(0xFF0EA5E9)
             "여가" -> Color(0xFF8B5CF6)
             "생활비" -> Color(0xFF14B8A6)
+            "의료" -> Color(0xFFEF4444)
+            "교육" -> Color(0xFF10B981)
+            "공과금" -> Color(0xFFF59E0B)
             else -> Color(0xFF64748B) // 위 조건이 아니면 이쪽을 실행함
         }
     }
