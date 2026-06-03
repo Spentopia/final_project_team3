@@ -59,10 +59,11 @@ class ExpenseRepository( // ExpenseRepository 기능을 묶어둔 클래스 시�
         val newEntities = remoteItems
             .filter { it.id !in existingIds }
             .map { remote ->
+                val koreanCategory = toKoreanCategory(remote.category)
                 ExpenseEntity(
                     date = remote.date,
-                    title = remote.memo?.takeIf { it.isNotBlank() } ?: remote.category,
-                    category = remote.category,
+                    title = remote.memo?.takeIf { it.isNotBlank() } ?: koreanCategory,
+                    category = koreanCategory,
                     amount = remote.amount,
                     memo = remote.memo ?: "",
                     diary = remote.diary ?: "",
@@ -75,4 +76,24 @@ class ExpenseRepository( // ExpenseRepository 기능을 묶어둔 클래스 시�
             expenseDao.insertExpenses(newEntities)
         }
     }
+}
+
+// 웹에서 사용하는 영어 카테고리를 앱 한국어 카테고리로 변환합니다.
+private fun toKoreanCategory(category: String): String = when (category) {
+    "food" -> "식비"
+    "transport" -> "교통"
+    "shopping" -> "쇼핑"
+    "cafe" -> "카페"
+    "entertainment", "leisure", "hobby" -> "여가"
+    "health", "medical" -> "의료"
+    "education" -> "교육"
+    "utility", "bill" -> "공과금"
+    "salary" -> "월급"
+    "allowance" -> "용돈"
+    "bonus" -> "보너스"
+    "side_job" -> "부수입"
+    "investment" -> "투자"
+    "income_other" -> "기타수입"
+    "other" -> "기타"
+    else -> category
 }
