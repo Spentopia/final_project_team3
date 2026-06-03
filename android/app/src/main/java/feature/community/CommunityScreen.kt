@@ -552,11 +552,16 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
     val buttonContentColor = spentopiaAppButtonContentColor(isDark)
     val cardColor = communitySoftCardColor()
     val cardBorderColor = communitySoftCardBorderColor()
-    val statusText = "진행중" // statusText 값을 저장함
-    val title = "5월 아바타 콘테스트" // 제목을 저장함
-    val period = "2026.05.09 ~ 2026.05.31" // period 값을 저장함
-    val reward = "1등 기분좋음" // reward 값을 저장함
-    val description = "아바타 콘테스트를 개최합니다 ~! 많관부" // description 값을 저장함
+    val statusText = when (contest?.status) {
+        "active" -> "진행중"
+        "upcoming" -> "예정"
+        "ended" -> "종료"
+        else -> "진행중"
+    }
+    val title = contest?.title ?: "아바타 콘테스트"
+    val period = if (contest != null) "${contest.startDate} ~ ${contest.endDate}" else ""
+    val reward = contest?.rewardDescription ?: ""
+    val description = contest?.description ?: ""
 
     Card( // 내용을 카드 모양으로 묶어서 보여줌
         modifier = Modifier.fillMaxWidth(), // UI 크기나 여백 같은 모양을 정함
@@ -618,23 +623,27 @@ private fun CommunityContestBannerCard( // CommunityContestBannerCard 함수를 
 
             Spacer(modifier = Modifier.height(4.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            Text( // 화면에 글자를 보여줌
-                text = "보상: $reward", // text 값을 정해줌
-                fontSize = 13.sp, // fontSize 값을 정해줌
-                fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
-                color = MaterialTheme.colorScheme.primary // color 값을 정해줌
-            )
+            if (reward.isNotBlank()) {
+                Text( // 화면에 글자를 보여줌
+                    text = "보상: $reward", // text 값을 정해줌
+                    fontSize = 13.sp, // fontSize 값을 정해줌
+                    fontWeight = FontWeight.Bold, // fontWeight 값을 정해줌
+                    color = MaterialTheme.colorScheme.primary // color 값을 정해줌
+                )
+            }
 
             Spacer(modifier = Modifier.height(10.dp)) // UI 크기나 여백 같은 모양을 정함
 
-            Text( // 화면에 글자를 보여줌
-                text = description, // description 값을 text 값에 넣음
-                fontSize = 13.sp, // fontSize 값을 정해줌
-                color = MaterialTheme.colorScheme.onSurfaceVariant, // color 값을 정해줌
-                lineHeight = 19.sp, // lineHeight 값을 정해줌
-                maxLines = 2, // maxLines 값을 정해줌
-                overflow = TextOverflow.Ellipsis // overflow 값을 정해줌
-            )
+            if (description.isNotBlank()) {
+                Text( // 화면에 글자를 보여줌
+                    text = description, // description 값을 text 값에 넣음
+                    fontSize = 13.sp, // fontSize 값을 정해줌
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, // color 값을 정해줌
+                    lineHeight = 19.sp, // lineHeight 값을 정해줌
+                    maxLines = 2, // maxLines 값을 정해줌
+                    overflow = TextOverflow.Ellipsis // overflow 값을 정해줌
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp)) // UI 크기나 여백 같은 모양을 정함
 
