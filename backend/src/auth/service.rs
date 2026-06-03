@@ -567,14 +567,81 @@ pub async fn rotate_refresh_token(
     // 8) 기존 refresh session revoke.
     //
     // rotation이므로 replaced_by_session_id에 새 세션 ID 기록.
-    if let Err(e) = revoke_refresh_session_for_rotation(state, session.id, new_session_id).await {
-        // 같은 refresh token으로 동시에 들어온 요청 중 늦게 온 쪽이면
-        // 여기서 실패할 수 있다.
-        //
-        // 이미 만든 새 세션은 클라이언트에 반환하지 않으므로
-        // best-effort로 폐기해 DB에 살아있는 고아 세션을 남기지 않는다.
+    if let Err(revoke_err) = revoke_refresh_session_for_rotation(state, session.id, new_session_id).await {
+        // 고아 세션 정리: 클라이언트에 반환하지 않을 세션이므로 폐기한다.
         let _ = revoke_refresh_session(state, new_session_id, None).await;
-        return Err(e);
+
+        // ─────────────────────────────────────────────────────────
+        // 동시 rotation 경합(race) 복구
+        //
+        // 새로고침 연타 시 두 요청이 거의 동시에 verify_refresh_session을
+        // 통과한 뒤 각자 rotation을 시도할 수 있다.
+        //
+        // 먼저 revoke에 성공한 요청(요청1)이 A→B로 교체하면,
+        // 뒤늦게 revoke를 시도한 요청(요청2)은 "이미 사용된 refresh token"으로 실패한다.
+        //
+        // 기존 grace window는 verify_refresh_session 실패 시에만 동작하므로
+        // 이 경로(revoke 실패)는 커버하지 못한다.
+        //
+        // 해결: revoke 실패가 "이미 사용된" 에러면 grace window를 여기서도 적용.
+        //   A가 5초 이내에 rotation으로 폐기됐다면 대체 세션(B)을 찾아서
+        //   B → 새 세션으로 rotation을 완료한다.
+        // ─────────────────────────────────────────────────────────
+        if revoke_err.to_string().contains("이미 사용된") {
+            let grace_result = verify_refresh_session_with_rotation_grace(
+                state,
+                session.id,
+                refresh_token,
+                REFRESH_ROTATION_GRACE_SECONDS,
+            )
+            .await;
+
+            if let Ok(replacement) = grace_result {
+                if replacement.client_type == client_type && replacement.user_id == user_id {
+                    let recovery_session_id = Uuid::new_v4();
+                    let recovery_pair = generate_token_pair(
+                        &state.config.app_jwt_secret,
+                        &user_id,
+                        &recovery_session_id,
+                    )?;
+
+                    create_refresh_session(
+                        state,
+                        recovery_session_id,
+                        user_id,
+                        client_type,
+                        &recovery_pair.refresh_token,
+                    )
+                    .await?;
+
+                    if let Err(e) = revoke_refresh_session_for_rotation(
+                        state,
+                        replacement.id,
+                        recovery_session_id,
+                    )
+                    .await
+                    {
+                        let _ = revoke_refresh_session(state, recovery_session_id, None).await;
+                        return Err(e);
+                    }
+
+                    tracing::warn!(
+                        original_session_id = %session.id,
+                        replacement_session_id = %replacement.id,
+                        recovery_session_id = %recovery_session_id,
+                        user_id = %user_id,
+                        "동시 rotation 경합 복구 성공"
+                    );
+
+                    return Ok(RefreshIssueResult {
+                        access_token: recovery_pair.access_token,
+                        refresh_token: recovery_pair.refresh_token,
+                    });
+                }
+            }
+        }
+
+        return Err(revoke_err);
     }
 
     Ok(RefreshIssueResult {
