@@ -2,6 +2,7 @@ package com.ict.spentopia.data.repository // 이 파일이 속한 패키지 위�
 
 import com.ict.spentopia.data.local.ExpenseDao // ExpenseDao 기능을 가져옴
 import com.ict.spentopia.data.local.ExpenseEntity // ExpenseEntity 기능을 가져옴
+import com.ict.spentopia.data.remote.RetrofitClient // RetrofitClient 기능을 가져옴
 import kotlinx.coroutines.flow.Flow // Flow 기능을 가져옴
 
 // 소비 기록 DB 접근 Repository임
@@ -45,5 +46,33 @@ class ExpenseRepository( // ExpenseRepository 기능을 묶어둔 클래스 시�
     // id로 단일 소비 조회
     suspend fun getExpenseById(id: Long): ExpenseEntity? { // 데이터를 불러오는 함수 시작
         return expenseDao.getExpenseById(id) // 이 값을 함수 결과로 돌려줌
+    }
+
+    // 서버에서 소비 목록을 받아와 로컬 DB에 없는 항목만 저장합니다.
+    // 웹에서 입력한 가계부가 앱 분석 화면에 반영되도록 하기 위한 동기화 함수입니다.
+    suspend fun syncFromServer() {
+        val remoteItems = RetrofitClient.expenseApi.listExpenses().items
+        if (remoteItems.isEmpty()) return
+
+        val existingIds = expenseDao.getAllServerExpenseIds().toHashSet()
+
+        val newEntities = remoteItems
+            .filter { it.id !in existingIds }
+            .map { remote ->
+                ExpenseEntity(
+                    date = remote.date,
+                    title = remote.memo?.takeIf { it.isNotBlank() } ?: remote.category,
+                    category = remote.category,
+                    amount = remote.amount,
+                    memo = remote.memo ?: "",
+                    diary = remote.diary ?: "",
+                    serverExpenseId = remote.id,
+                    receiptVerified = remote.receiptVerified ?: false
+                )
+            }
+
+        if (newEntities.isNotEmpty()) {
+            expenseDao.insertExpenses(newEntities)
+        }
     }
 }

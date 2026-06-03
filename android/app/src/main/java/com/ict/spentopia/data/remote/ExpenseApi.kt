@@ -1,6 +1,7 @@
 package com.ict.spentopia.data.remote // 이 파일이 속한 패키지 위치를 적음
 
 import retrofit2.http.Body // 서버로 보낼 값을 표시하는 도구를 가져옴
+import retrofit2.http.GET // GET API 표시를 가져옴
 import retrofit2.http.POST // POST API 표시를 가져옴
 
 // Android에서 백엔드 DB에 소비/수입 기록을 저장할 때 보내는 요청입니다.
@@ -27,7 +28,14 @@ data class ExpenseRemoteResponse( // ExpenseRemoteResponse 데이터를 묶어�
     val diary: String? // diary 값을 저장함
 )
 
+data class ExpenseListRemoteResponse( // 서버에서 받아오는 지출 목록 응답
+    val items: List<ExpenseRemoteResponse>
+)
+
 interface ExpenseApi { // ExpenseApi에서 꼭 만들어야 할 함수 규칙을 정함
+    @GET("/api/expenses") // 서버에서 소비 목록을 가져오는 API
+    suspend fun listExpenses(): ExpenseListRemoteResponse
+
     @POST("/api/expenses") // 서버에 데이터를 보내는 API 주소를 적음
     suspend fun createExpense( // 데이터를 저장하는 함수 시작
         @Body request: CreateExpenseRequest // 이 값을 서버 요청 본문에 넣는다는 표시

@@ -673,6 +673,9 @@ class AnalysisViewModel( // AnalysisViewModel 기능을 묶어둔 클래스 시�
     // 분석 화면 상태를 업데이트하는 함수입니다.
     private fun observeAnalysisData() { // observeAnalysisData 함수를 선언함
         viewModelScope.launch { // 화면이 멈추지 않게 코루틴으로 실행함
+            // 웹에서 입력한 가계부도 분석에 반영되도록 서버에서 동기화합니다.
+            try { repository.syncFromServer() } catch (_: Exception) {}
+
             combine( // combine 함수를 실행함
                 repository.getExpensesByMonth(getCurrentYearMonth()),
                 budgetDataStore.budgetSettingsFlow
